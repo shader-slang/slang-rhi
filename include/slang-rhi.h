@@ -838,10 +838,7 @@ struct TextureViewDesc
     const char* label = nullptr;
 };
 
-class ITextureView : public IResource
-{
-    SLANG_COM_INTERFACE(0xe6078d78, 0x3bd3, 0x40e8, {0x90, 0x42, 0x3b, 0x5e, 0x0c, 0x45, 0xde, 0x1f});
-};
+class ITextureView;
 
 class ITexture : public IResource
 {
@@ -870,6 +867,15 @@ public:
     {
         return getSubresourceLayout(mipLevel, kDefaultAlignment, outLayout);
     }
+};
+
+class ITextureView : public IResource
+{
+    SLANG_COM_INTERFACE(0xe6078d78, 0x3bd3, 0x40e8, {0x90, 0x42, 0x3b, 0x5e, 0x0c, 0x45, 0xde, 0x1f});
+
+public:
+    virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() = 0;
 };
 
 enum class ComparisonFunc : uint8_t

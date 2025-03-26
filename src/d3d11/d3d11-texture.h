@@ -79,6 +79,10 @@ public:
         return m_uav;
     }
 
+    // ITextureView implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
+
 public:
     RefPtr<TextureImpl> m_texture;
 

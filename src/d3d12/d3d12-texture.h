@@ -86,7 +86,9 @@ public:
 
     RefPtr<TextureImpl> m_texture;
 
+    // ITextureView implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
 
     D3D12_CPU_DESCRIPTOR_HANDLE getSRV();
     D3D12_CPU_DESCRIPTOR_HANDLE getUAV();
