@@ -571,8 +571,7 @@ Result Device::readTexture(
     uint32_t layer,
     uint32_t mipLevel,
     ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
+    SubresourceLayout* outLayout
 )
 {
     ComPtr<ICommandQueue> queue;
@@ -611,14 +610,8 @@ Result Device::readTexture(
 
     m_readbackHeap.free(stagingAllocation);
 
-    if (outRowPitch)
-        *outRowPitch = layout.strideY;
-
-    if (outPixelSize)
-    {
-        const FormatInfo& formatInfo = getFormatInfo(texture->getDesc().format);
-        *outPixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    }
+    if (outLayout)
+        *outLayout = layout;
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

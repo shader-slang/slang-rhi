@@ -517,8 +517,7 @@ Result DebugDevice::readTexture(
     uint32_t layer,
     uint32_t mipLevel,
     ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
+    SubresourceLayout* outLayout
 )
 {
     const TextureDesc& desc = texture->getDesc();
@@ -544,7 +543,7 @@ Result DebugDevice::readTexture(
         break;
     }
 
-    return baseObject->readTexture(texture, layer, mipLevel, outBlob, outRowPitch, outPixelSize);
+    return baseObject->readTexture(texture, layer, mipLevel, outBlob, outLayout);
 }
 
 Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)

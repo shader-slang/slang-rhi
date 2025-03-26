@@ -348,8 +348,7 @@ Result DeviceImpl::readTexture(
     uint32_t layer,
     uint32_t mipLevel,
     ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
+    SubresourceLayout* outLayout
 )
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
@@ -367,12 +366,6 @@ Result DeviceImpl::readTexture(
     // This pointer exists at root scope to ensure that if a temp texture
     // needs to be made, it is kept alive for the duration of the function.
     ComPtr<ITexture> tempTexture;
-
-    // Output pixel size
-    const FormatInfo& formatInfo = getFormatInfo(textureImpl->m_desc.format);
-    size_t bytesPerPixel = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    if (outPixelSize)
-        *outPixelSize = bytesPerPixel;
 
     // Calculate layout info.
     SubresourceLayout layout;
@@ -406,8 +399,8 @@ Result DeviceImpl::readTexture(
 
         // Ensure width/height of subresource are large enough to hold a block
         // for compressed textures.
-        copyDesc.size.width = math::calcAligned2(copyDesc.size.width, formatInfo.blockWidth);
-        copyDesc.size.height = math::calcAligned2(copyDesc.size.height, formatInfo.blockHeight);
+        copyDesc.size.width = math::calcAligned2(copyDesc.size.width, layout.blockWidth);
+        copyDesc.size.height = math::calcAligned2(copyDesc.size.height, layout.blockHeight);
 
         // Change type
         switch (copyDesc.type)
@@ -448,9 +441,9 @@ Result DeviceImpl::readTexture(
         subResourceIdx = 0;
     }
 
-    // Output row size
-    if (outRowPitch)
-        *outRowPitch = layout.strideY;
+    // Output layout
+    if (outLayout)
+        *outLayout = layout;
 
     // Now just read back texels from the staging textures
     {
