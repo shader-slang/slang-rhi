@@ -118,8 +118,7 @@ public:
         uint32_t layer,
         uint32_t mipLevel,
         ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize
+        SubresourceLayout* outLayout
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

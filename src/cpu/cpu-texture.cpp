@@ -404,8 +404,7 @@ Result DeviceImpl::readTexture(
     uint32_t layer,
     uint32_t mipLevel,
     ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
+    SubresourceLayout* outLayout
 )
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
@@ -450,10 +449,8 @@ Result DeviceImpl::readTexture(
 
     // Return data.
     returnComPtr(outBlob, blob);
-    if (outRowPitch)
-        *outRowPitch = layout.strideY;
-    if (outPixelSize)
-        *outPixelSize = layout.sizeInBytes / layout.size.width;
+    if (outLayout)
+        *outLayout = layout;
     return SLANG_OK;
 }
 

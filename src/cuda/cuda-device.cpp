@@ -554,20 +554,16 @@ Result DeviceImpl::readTexture(
     uint32_t layer,
     uint32_t mipLevel,
     ISlangBlob** outBlob,
-    Size* outRowPitch,
-    Size* outPixelSize
+    SubresourceLayout* outLayout
 )
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 
-    const TextureDesc& desc = textureImpl->m_desc;
-    Extents mipSize = calcMipSize(desc.size, mipLevel);
-    const FormatInfo& formatInfo = getFormatInfo(desc.format);
-    size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
-    size_t rowPitch = mipSize.width * pixelSize;
-    size_t size = mipSize.depth * mipSize.height * rowPitch;
+    // Calculate layout info.
+    SubresourceLayout layout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
 
-    auto blob = OwnedBlob::create(size);
+    auto blob = OwnedBlob::create(layout.sizeInBytes);
 
     CUarray srcArray = textureImpl->m_cudaArray;
     if (textureImpl->m_cudaMipMappedArray)
@@ -578,19 +574,17 @@ Result DeviceImpl::readTexture(
     CUDA_MEMCPY3D copyParam = {};
     copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
     copyParam.dstHost = (void*)blob->getBufferPointer();
-    copyParam.dstPitch = rowPitch;
+    copyParam.dstPitch = layout.strideY;
     copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
     copyParam.srcArray = srcArray;
     copyParam.srcZ = layer;
-    copyParam.WidthInBytes = rowPitch;
-    copyParam.Height = mipSize.height;
-    copyParam.Depth = mipSize.depth;
+    copyParam.WidthInBytes = layout.strideY;
+    copyParam.Height = layout.size.height;
+    copyParam.Depth = layout.size.depth;
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
 
-    if (outRowPitch)
-        *outRowPitch = rowPitch;
-    if (outPixelSize)
-        *outPixelSize = pixelSize;
+    if (outLayout)
+        *outLayout = layout;
 
     returnComPtr(outBlob, blob);
     return SLANG_OK;

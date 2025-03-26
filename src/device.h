@@ -130,6 +130,8 @@ public:
 class Device : public IDevice, public ComObject
 {
 public:
+    using IDevice::readTexture;
+
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE
 
@@ -211,8 +213,7 @@ public:
         uint32_t layer,
         uint32_t mipLevel,
         ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize = nullptr
+        SubresourceLayout* outLayout
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
