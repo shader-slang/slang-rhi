@@ -438,6 +438,7 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
 {
     TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    const FormatInfo& formatInfo = getFormatInfo(texture->m_desc.format);
 
     requireTextureState(texture, cmd.subresourceRange, ResourceState::CopyDestination);
     commitBarriers();
@@ -454,9 +455,9 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
     vkClearValue.stencil = cmd.stencilValue;
 
     subresourceRange.aspectMask = 0;
-    if (cmd.clearDepth)
+    if (formatInfo.hasDepth && cmd.clearDepth)
         subresourceRange.aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
-    if (cmd.clearStencil)
+    if (formatInfo.hasStencil && cmd.clearStencil)
         subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
     m_api.vkCmdClearDepthStencilImage(
