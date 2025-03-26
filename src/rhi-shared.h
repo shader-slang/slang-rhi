@@ -175,6 +175,7 @@ public:
 
     // ITextureView interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() override { return m_desc; }
 
 public:
     TextureViewDesc m_desc;
