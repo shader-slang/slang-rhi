@@ -323,7 +323,7 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         // Bind constant buffers, shader resource views, and samplers.
         m_immediateContext->VSSetConstantBuffers1(
             0,
-            m_bindingData->uavCount,
+            m_bindingData->cbvCount,
             m_bindingData->cbvsBuffer,
             m_bindingData->cbvsFirst,
             m_bindingData->cbvsCount
