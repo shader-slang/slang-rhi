@@ -70,7 +70,7 @@ Result ConstantBufferPool::createPage(size_t size, Page& outPage)
     outPage.size = size;
     outPage.buffer = checked_cast<BufferImpl*>(buffer.get());
     // The buffer is owned by the pool.
-    outPage.buffer->comFree();
+    outPage.buffer->breakStrongReferenceToDevice();
     return SLANG_OK;
 }
 

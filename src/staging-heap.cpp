@@ -215,7 +215,7 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
     m_totalCapacity += size;
 
     // Break references to device as buffer is owned by heap, which is owned by device.
-    page->getBuffer()->comFree();
+    page->getBuffer()->breakStrongReferenceToDevice();
 
     // If always mapped, map page now
     if (m_keepPagesMapped)
