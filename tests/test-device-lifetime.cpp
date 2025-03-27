@@ -41,18 +41,23 @@ GPU_TEST_CASE("device-lifetime", ALL)
 
     // Create acceleration structure
     ComPtr<IAccelerationStructure> accelerationStructure;
-    AccelerationStructureDesc accelerationStructureDesc = {};
-    accelerationStructureDesc.size = 1024;
     if (testDevice->hasFeature("acceleration-structure"))
     {
-        REQUIRE_CALL(testDevice->createAccelerationStructure(accelerationStructureDesc, accelerationStructure.writeRef()));
+        AccelerationStructureDesc accelerationStructureDesc = {};
+        accelerationStructureDesc.size = 1024;
+        REQUIRE_CALL(
+            testDevice->createAccelerationStructure(accelerationStructureDesc, accelerationStructure.writeRef())
+        );
     }
     uint64_t deviceRefCountAccelerationStructure = devicePtr->debugGetReferenceCount();
 
     // Create fence
     ComPtr<IFence> fence;
-    FenceDesc fenceDesc = {};
-    REQUIRE_CALL(testDevice->createFence(fenceDesc, fence.writeRef()));
+    if (testDevice->getDeviceType() != DeviceType::D3D11)
+    {
+        FenceDesc fenceDesc = {};
+        REQUIRE_CALL(testDevice->createFence(fenceDesc, fence.writeRef()));
+    }
     uint64_t deviceRefCountFence = devicePtr->debugGetReferenceCount();
 
     testDevice.setNull();
