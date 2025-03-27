@@ -19,8 +19,7 @@ public:
         return static_cast<T*>(m_device.get());
     }
 
-    // TODO we should rename this
-    virtual void comFree() override { m_device.breakStrongReference(); }
+    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
 
 protected:
     BreakableReference<Device> m_device;
