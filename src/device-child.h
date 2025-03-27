@@ -21,6 +21,8 @@ public:
 
     void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
 
+    void establishStrongReferenceToDevice() { m_device.establishStrongReference(); }
+
 protected:
     BreakableReference<Device> m_device;
 };
