@@ -16,7 +16,7 @@
 template<typename T, bool Layered>
 __device__ void clearTexture1D(cudaSurfaceObject_t surface, uint4 sizeAndLayer, uint4 value)
 {
-    uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (x < sizeAndLayer.x)
     {
@@ -31,8 +31,8 @@ __device__ void clearTexture1D(cudaSurfaceObject_t surface, uint4 sizeAndLayer, 
 template<typename T, bool Layered>
 __device__ void clearTexture2D(cudaSurfaceObject_t surface, uint4 sizeAndLayer, uint4 value)
 {
-    uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint32_t y = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (x < sizeAndLayer.x && y < sizeAndLayer.y)
     {
@@ -47,9 +47,9 @@ __device__ void clearTexture2D(cudaSurfaceObject_t surface, uint4 sizeAndLayer, 
 template<typename T, bool Layered>
 __device__ void clearTexture3D(cudaSurfaceObject_t surface, uint4 sizeAndLayer, uint4 value)
 {
-    uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint32_t y = blockIdx.y * blockDim.y + threadIdx.y;
-    uint32_t z = blockIdx.z * blockDim.z + threadIdx.z;
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int z = blockIdx.z * blockDim.z + threadIdx.z;
 
     if (x < sizeAndLayer.x && y < sizeAndLayer.y && z < sizeAndLayer.z)
     {
@@ -61,8 +61,8 @@ __device__ void clearTexture3D(cudaSurfaceObject_t surface, uint4 sizeAndLayer, 
 template<typename T, bool Layered>
 __device__ void clearTextureCube(cudaSurfaceObject_t surface, uint4 sizeAndLayer, uint4 value)
 {
-    uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
-    uint32_t y = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (x < sizeAndLayer.x && y < sizeAndLayer.y)
     {

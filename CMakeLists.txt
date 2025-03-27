@@ -375,7 +375,7 @@ endif()
 cmrc_add_resource_library(
     slang-rhi-resources
     NAMESPACE resources
-    src/cuda/kernels/clear-texture.ptx
+    src/cuda/kernels/clear-texture.cu
     src/metal/shaders/clear-texture.metal
 )
 target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
@@ -610,6 +610,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-device.cpp
         src/cuda/cuda-fence.cpp
         src/cuda/cuda-helper-functions.cpp
+        src/cuda/cuda-nvrtc.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
         src/cuda/cuda-shader-object-layout.cpp
@@ -704,6 +705,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-native-handle.cpp
         tests/test-nested-parameter-block.cpp
         tests/test-null-views.cpp
+        tests/test-nvrtc.cpp
         tests/test-offset-allocator.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
@@ -733,6 +735,7 @@ if(SLANG_RHI_BUILD_TESTS)
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+        SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
         SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
         SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
@@ -741,6 +744,9 @@ if(SLANG_RHI_BUILD_TESTS)
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi glfw)
+    if(SLANG_RHI_ENABLE_OPTIX)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
+    endif()
 
     add_test(NAME slang-rhi-tests COMMAND slang-rhi-tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
 endif()
