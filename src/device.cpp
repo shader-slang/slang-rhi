@@ -235,7 +235,7 @@ Result Device::getConcretePipeline(
         }
         m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
         // Pipeline is owned by the cache.
-        concretePipeline->comFree();
+        concretePipeline->breakStrongReferenceToDevice();
     }
 
     outPipeline = concretePipeline;
