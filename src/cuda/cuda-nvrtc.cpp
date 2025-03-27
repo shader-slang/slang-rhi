@@ -79,7 +79,7 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
         {
             if (entry.is_directory() && entry.path().filename().string().substr(0, 4) == "cuda")
             {
-                version.push_back(entry.path());
+                versions.push_back(entry.path());
             }
         }
 
