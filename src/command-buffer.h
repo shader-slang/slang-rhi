@@ -332,6 +332,8 @@ public:
     }
     virtual ~CommandBuffer() = default;
 
+    virtual void comFree() override { breakStrongReferenceToDevice(); }
+
     virtual Result reset()
     {
         m_commandList.reset();
