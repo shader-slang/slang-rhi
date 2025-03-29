@@ -2,7 +2,10 @@
 [numthreads(16, 16, 1)]
 void computeMain(
     uint3 tid: SV_DispatchThreadID,
-    [format("rgba8")] RWTexture2D<float4> texture,
+#if defined(__CUDA__)
+    [format("rgba8")]
+#endif
+    RWTexture2D<float4> texture,
     uniform uint2 dim
 )
 {

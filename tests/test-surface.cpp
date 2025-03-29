@@ -216,7 +216,10 @@ struct ComputeSurfaceTest : SurfaceTest
     ComPtr<ITexture> renderTexture;
     ComPtr<IComputePipeline> pipeline;
 
-    Format getSurfaceFormat() override { return Format::RGBA8Unorm; }
+    Format getSurfaceFormat() override
+    {
+        return device->getDeviceType() == DeviceType::CUDA ? Format::RGBA8Unorm : surface->getInfo().preferredFormat;
+    }
 
     void initResources() override
     {
