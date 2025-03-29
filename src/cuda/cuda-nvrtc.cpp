@@ -39,7 +39,12 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
     {
         std::filesystem::path defaultPath{"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA"};
         std::vector<std::filesystem::path> versions;
-        auto it = std::filesystem::directory_iterator(defaultPath);
+        std::error_code ec;
+        std::filesystem::directory_iterator it(defaultPath, ec);
+        if (ec)
+        {
+            return;
+        }
         for (const auto& entry : it)
         {
             if (entry.is_directory())
@@ -74,7 +79,12 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
     {
         std::filesystem::path defaultPath{"/usr/local"};
         std::vector<std::filesystem::path> versions;
-        auto it = std::filesystem::directory_iterator(defaultPath);
+        std::error_code ec;
+        std::filesystem::directory_iterator it(defaultPath, ec);
+        if (ec)
+        {
+            return;
+        }
         for (const auto& entry : it)
         {
             if (entry.is_directory() && entry.path().filename().string().substr(0, 4) == "cuda")
@@ -107,11 +117,12 @@ inline bool findNVRTCLibrary(
     std::filesystem::path& outPath
 )
 {
-    if (!std::filesystem::exists(basePath))
+    std::error_code ec;
+    std::filesystem::directory_iterator it(basePath, ec);
+    if (ec)
     {
         return false;
     }
-    std::filesystem::directory_iterator it(basePath);
     for (const auto& entry : it)
     {
         if (entry.is_regular_file())
