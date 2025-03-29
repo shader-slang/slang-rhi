@@ -1481,7 +1481,10 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     {
         uint32_t vkPropertyCount = 0;
         m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(m_api.m_physicalDevice, &vkPropertyCount, nullptr);
-        std::vector<VkCooperativeVectorPropertiesNV> vkProperties(vkPropertyCount);
+        std::vector<VkCooperativeVectorPropertiesNV> vkProperties(
+            vkPropertyCount,
+            {VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV}
+        );
         SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
             m_api.m_physicalDevice,
             &vkPropertyCount,
