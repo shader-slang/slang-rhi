@@ -1888,7 +1888,7 @@ union DeviceOrHostAddress
 union DeviceOrHostAddressConst
 {
     DeviceAddress deviceAddress;
-    void* hostAddress;
+    const void* hostAddress;
 };
 
 enum class CooperativeVectorComponentType
