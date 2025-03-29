@@ -43,6 +43,7 @@ struct SurfaceTest
     GLFWwindow* window;
     ComPtr<ISurface> surface;
 
+    virtual Format getSurfaceFormat() { return surface->getInfo().preferredFormat; }
     virtual void initResources() = 0;
     virtual void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) = 0;
 
@@ -74,6 +75,7 @@ struct SurfaceTest
 
         SurfaceConfig config = {};
         config.format = surface->getInfo().preferredFormat;
+        config.format = getSurfaceFormat();
         config.usage = surface->getInfo().supportedUsage;
         config.width = width;
         config.height = height;
@@ -162,7 +164,7 @@ struct RenderSurfaceTest : SurfaceTest
         ));
 
         ColorTargetDesc colorTarget = {};
-        colorTarget.format = surface->getInfo().preferredFormat;
+        colorTarget.format = getSurfaceFormat();
 
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -214,6 +216,8 @@ struct ComputeSurfaceTest : SurfaceTest
     ComPtr<ITexture> renderTexture;
     ComPtr<IComputePipeline> pipeline;
 
+    Format getSurfaceFormat() override { return Format::RGBA8Unorm; }
+
     void initResources() override
     {
         ComPtr<IShaderProgram> shaderProgram;
@@ -235,7 +239,7 @@ struct ComputeSurfaceTest : SurfaceTest
             TextureDesc textureDesc = {};
             textureDesc.size.width = width;
             textureDesc.size.height = height;
-            textureDesc.format = surface->getConfig().format;
+            textureDesc.format = getSurfaceFormat();
             textureDesc.mipLevelCount = 1;
             textureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
             renderTexture = device->createTexture(textureDesc);
