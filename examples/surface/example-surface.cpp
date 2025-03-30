@@ -1,4 +1,4 @@
-#include <slang-rhi/slang-include.h>
+#include <slang.h>
 
 #if SLANG_WINDOWS_FAMILY
 #define GLFW_EXPOSE_NATIVE_WIN32

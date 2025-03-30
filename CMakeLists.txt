@@ -83,7 +83,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_N
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.6.1" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.6.3" CACHE STRING "Slang version to fetch")
 
 # Fetch dxc options
 option(SLANG_RHI_FETCH_DXC "Fetch dxc (DirectX Shader Compiler)" ON)
@@ -648,6 +648,8 @@ target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
 # target_link_libraries(slang-rhi PRIVATE nanothread)
 target_compile_definitions(slang-rhi
+    PUBLIC
+    SLANG_USER_CONFIG="slang-user-config.h"
     PRIVATE
     SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
     SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
