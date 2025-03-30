@@ -648,6 +648,8 @@ target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
 # target_link_libraries(slang-rhi PRIVATE nanothread)
 target_compile_definitions(slang-rhi
+    PUBLIC
+    SLANG_USER_CONFIG="slang-user-config.h"
     PRIVATE
     SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
     SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
