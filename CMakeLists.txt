@@ -66,6 +66,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(SLANG_RHI_HAS_WGPU ON)
 endif()
 
+set(SLANG_RHI_HAS_AGILITY_SDK OFF)
+if(SLANG_RHI_HAS_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+    set(SLANG_RHI_HAS_AGILITY_SDK ON)
+endif()
+
 set(SLANG_RHI_HAS_NVAPI OFF)
 if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64") AND WIN32)
     set(SLANG_RHI_HAS_NVAPI ON)
@@ -79,6 +84,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
+cmake_dependent_option(SLANG_RHI_ENABLE_AGILITY_SDK "Enable Agility SDK" ON "SLANG_RHI_HAS_AGILITY_SDK" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_NVAPI" OFF)
 
 # Fetch slang options
@@ -232,7 +238,7 @@ if(SLANG_RHI_FETCH_DXC AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUA
 endif()
 
 # Fetch Agility SDK
-if(SLANG_RHI_FETCH_AGILITY_SDK AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+if(SLANG_RHI_FETCH_AGILITY_SDK AND SLANG_RHI_ENABLE_AGILITY_SDK)
     set(AGILITY_SDK_VERSION ${SLANG_RHI_FETCH_AGILITY_SDK_VERSION})
     message(STATUS "Fetching Agility SDK ${AGILITY_SDK_VERSION} ...")
     FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
@@ -242,7 +248,7 @@ endif()
 # Setup Agility SDK
 set(SLANG_RHI_AGILITY_SDK_DIR ${SLANG_RHI_AGILITY_SDK_DIR} CACHE STRING "Agility SDK directory")
 unset(SLANG_RHI_AGILITY_SDK_DIR)
-if (EXISTS "${SLANG_RHI_AGILITY_SDK_DIR}")
+if (EXISTS "${SLANG_RHI_AGILITY_SDK_DIR}" AND SLANG_RHI_ENABLE_AGILITY_SDK)
     if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
         copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/x64/D3D12Core.dll D3D12)
         copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/x64/d3d12SDKLayers.dll D3D12)
@@ -253,9 +259,8 @@ if (EXISTS "${SLANG_RHI_AGILITY_SDK_DIR}")
     add_library(slang-rhi-agility-sdk INTERFACE)
     target_include_directories(slang-rhi-agility-sdk INTERFACE ${SLANG_RHI_AGILITY_SDK_DIR}/build/native/include)
     target_link_libraries(slang-rhi PUBLIC slang-rhi-agility-sdk)
-    set(SLANG_RHI_ENABLE_AGILITY_SDK ON)
-else()
-    set(SLANG_RHI_ENABLE_AGILITY_SDK OFF)
+elseif(SLANG_RHI_ENABLE_AGILITY_SDK)
+    message(FATAL_ERROR "Agility SDK not found! Either enable SLANG_RHI_FETCH_AGILITY_SDK or set SLANG_RHI_AGILITY_SDK_DIR to the Agility SDK directory.")
 endif()
 
 # Fetch NVAPI
