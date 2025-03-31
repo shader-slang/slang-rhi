@@ -198,6 +198,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         viewDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
         viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         break;
+#if SLANG_RHI_ENABLE_AGILITY_SDK
     case TextureType::Texture2DMS:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DMS;
         break;
@@ -206,7 +207,12 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         viewDesc.Texture2DMSArray.FirstArraySlice = range.baseArrayLayer;
         viewDesc.Texture2DMSArray.ArraySize = range.layerCount;
         break;
-    case TextureType::Texture3D:
+#else // SLANG_RHI_ENABLE_AGILITY_SDK
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        break;
+#endif // SLANG_RHI_ENABLE_AGILITY_SDK
+        case TextureType::Texture3D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
         viewDesc.Texture3D.MipSlice = range.mipLevel;
         viewDesc.Texture3D.FirstWSlice = range.baseArrayLayer;
