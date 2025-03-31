@@ -6,7 +6,7 @@
 // D3D12 Agility SDK
 // -------------------------------------------------------------------------------------------------
 
-#if SLANG_WINDOWS_FAMILY
+#if SLANG_RHI_ENABLE_AGILITY_SDK
 
 #include <d3d12.h>
 
@@ -24,6 +24,8 @@
         __declspec(dllexport) extern const char* D3D12SDKPath = SLANG_RHI_AGILITY_SDK_PATH;                            \
     }
 
-#else
+#else // SLANG_RHI_ENABLE_AGILITY_SDK
+
 #define SLANG_RHI_EXPORT_AGILITY_SDK
-#endif
+
+#endif // SLANG_RHI_ENABLE_AGILITY_SDK

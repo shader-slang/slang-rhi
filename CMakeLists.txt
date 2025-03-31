@@ -385,6 +385,13 @@ cmrc_add_resource_library(
 )
 target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
 
+# Generate config header
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/slang-rhi-config.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/include/slang-rhi-config.h
+)
+target_include_directories(slang-rhi PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
+
 if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
@@ -657,16 +664,6 @@ target_compile_definitions(slang-rhi
     SLANG_USER_CONFIG="slang-user-config.h"
     PRIVATE
     SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
-    SLANG_RHI_ENABLE_CPU=$<BOOL:${SLANG_RHI_ENABLE_CPU}>
-    SLANG_RHI_ENABLE_D3D11=$<BOOL:${SLANG_RHI_ENABLE_D3D11}>
-    SLANG_RHI_ENABLE_D3D12=$<BOOL:${SLANG_RHI_ENABLE_D3D12}>
-    SLANG_RHI_ENABLE_VULKAN=$<BOOL:${SLANG_RHI_ENABLE_VULKAN}>
-    SLANG_RHI_ENABLE_METAL=$<BOOL:${SLANG_RHI_ENABLE_METAL}>
-    SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
-    SLANG_RHI_ENABLE_WGPU=$<BOOL:${SLANG_RHI_ENABLE_WGPU}>
-    SLANG_RHI_ENABLE_AGILITY_SDK=$<BOOL:${SLANG_RHI_ENABLE_AGILITY_SDK}>
-    SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
-    SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
@@ -740,10 +737,7 @@ if(SLANG_RHI_BUILD_TESTS)
         PRIVATE
         SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
-        SLANG_RHI_ENABLE_NVAPI=$<BOOL:${SLANG_RHI_ENABLE_NVAPI}>
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
-        SLANG_RHI_ENABLE_CUDA=$<BOOL:${SLANG_RHI_ENABLE_CUDA}>
-        SLANG_RHI_ENABLE_OPTIX=$<BOOL:${SLANG_RHI_ENABLE_OPTIX}>
         SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode

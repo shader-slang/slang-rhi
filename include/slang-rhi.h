@@ -1,5 +1,7 @@
 #pragma once
 
+#include <slang-rhi-config.h>
+
 #include <slang-com-ptr.h>
 #include <slang.h>
 
