@@ -347,6 +347,7 @@ struct FormatInfo
 {
     Format format;
     const char* name;
+    const char* slangName;
     /// The kind of format.
     FormatKind kind;
     /// The amount of channels in the format. Only set if the channelType is set.
