@@ -383,6 +383,7 @@ cmrc_add_resource_library(
     src/cuda/kernels/clear-texture.cu
     src/metal/shaders/clear-texture.metal
 )
+set_target_properties(slang-rhi-resources PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
 
 # Generate config header
