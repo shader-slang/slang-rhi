@@ -867,7 +867,7 @@ void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
     m_lastFinishedID = 1;
     m_trackingEvent = NS::TransferPtr(getDevice<DeviceImpl>()->m_device->newSharedEvent());
     m_trackingEvent->setSignaledValue(m_lastSubmittedID);
-    m_eventListener = NS::TransferPtr(MTL::SharedEventListener::alloc()->init());
+    m_trackingEventListener = NS::TransferPtr(MTL::SharedEventListener::alloc()->init());
 }
 
 void CommandQueueImpl::retireCommandBuffers()
@@ -905,12 +905,10 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 
 Result CommandQueueImpl::waitOnHost()
 {
-    // Early out if the fence is already signaled, ensuring any command buffers are retired.
-    if(updateLastFinishedID() == m_lastSubmittedID)
-    {
-        retireCommandBuffers();
-        return SLANG_OK;
-    }
+    AUTORELEASEPOOL
+
+    // Increment submission ID.
+    m_lastSubmittedID++;
 
     // Create a semaphore to synchronize the notification
     dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
@@ -921,7 +919,12 @@ Result CommandQueueImpl::waitOnHost()
     };
 
     // Set up notification handler
-    m_trackingEvent->notifyListener(m_eventListener.get(), m_lastSubmittedID, block);
+    m_trackingEvent->notifyListener(m_trackingEventListener.get(), m_lastSubmittedID, block);
+
+    // Create command buffer and signal the event.
+    MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+    commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
+    commandBuffer->commit();
 
     // Wait for the device.
     dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);

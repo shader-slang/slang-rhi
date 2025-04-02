@@ -10,7 +10,7 @@ class CommandQueueImpl : public CommandQueue
 public:
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
     NS::SharedPtr<MTL::SharedEvent> m_trackingEvent;
-    NS::SharedPtr<MTL::SharedEventListener> m_eventListener;
+    NS::SharedPtr<MTL::SharedEventListener> m_trackingEventListener;
     uint64_t m_lastSubmittedID;
     uint64_t m_lastFinishedID;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
