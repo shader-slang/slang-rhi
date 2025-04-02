@@ -14,7 +14,7 @@ ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::Variab
 ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
     : BindingOffset(typeLayout)
 {
-    if (auto pendingLayout = typeLayout->getPendingDataTypeLayout())
+    if (typeLayout->getPendingDataTypeLayout())
     {
         pendingOrdinaryData = (uint32_t)typeLayout->getStride();
     }
