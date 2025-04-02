@@ -161,6 +161,62 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | Metal | CUDA | W
     );
 }
 
+GPU_TEST_CASE("cmd-upload-texture-multisubmit", D3D12 | Vulkan | Metal | CUDA | WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(TTShape::All, TTArray::On, TTMip::On, TextureInitMode::Random, TTFmtDepth::Off);
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            // Get / re-init cpu side data with random data.
+            const TextureData& currentData = c->getTextureData();
+
+            TextureData newData;
+            newData.init(currentData.device, currentData.desc, TextureInitMode::Random, 1000);
+
+            // Create command encoder
+            auto device = c->getDevice();
+
+            uint32_t mipLevelCount = currentData.desc.mipLevelCount;
+
+            auto queue = device->getQueue(QueueType::Graphics);
+ 
+            // Replace mipLevels one at a time
+            for (uint32_t layerIdx = 0; layerIdx < currentData.desc.getLayerCount(); layerIdx++)
+            {
+                for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
+                {
+                    // Copy the subresource data from inverted layer index to this layer
+                    auto commandEncoder = queue->createCommandEncoder();
+                    auto srdata = newData.getLayerFirstSubresourceData(layerIdx) + mipLevel;
+                    commandEncoder->uploadTextureData(
+                        c->getTexture(),
+                        {mipLevel, 1, layerIdx, 1},
+                        {0, 0, 0},
+                        Extents::kWholeTexture,
+                        srdata,
+                        1
+                    );
+                    queue->submit(commandEncoder->finish());
+                }
+            }
+
+            queue->waitOnHost();
+
+            // Verify everything now matches
+            for (uint32_t layerIdx = 0; layerIdx < currentData.desc.getLayerCount(); layerIdx++)
+            {
+                for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
+                {
+                    newData.checkMipLevelsEqual(c->getTexture(), layerIdx, mipLevel);
+                }
+            }
+        }
+    );
+}
+
 GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     TextureTestOptions options(device);
