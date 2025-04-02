@@ -863,6 +863,36 @@ CommandQueueImpl::~CommandQueueImpl() {}
 void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
 {
     m_commandQueue = commandQueue;
+    m_lastSubmittedID = 1;
+    m_lastFinishedID = 1;
+    m_trackingEvent = NS::TransferPtr(getDevice<DeviceImpl>()->m_device->newSharedEvent());
+    m_trackingEvent->setSignaledValue(m_lastSubmittedID);
+    m_eventListener = NS::TransferPtr(MTL::SharedEventListener::alloc()->init());
+}
+
+void CommandQueueImpl::retireCommandBuffers()
+{
+    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
+    m_commandBuffersInFlight.clear();
+
+    uint64_t lastFinishedID = updateLastFinishedID();
+    for (const auto& commandBuffer : commandBuffers)
+    {
+        if (commandBuffer->m_submissionID <= lastFinishedID)
+        {
+            commandBuffer->reset();
+        }
+        else
+        {
+            m_commandBuffersInFlight.push_back(commandBuffer);
+        }
+    }
+}
+
+uint64_t CommandQueueImpl::updateLastFinishedID()
+{
+    m_lastFinishedID = m_trackingEvent->signaledValue();
+    return m_lastFinishedID;
 }
 
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
@@ -875,7 +905,35 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 
 Result CommandQueueImpl::waitOnHost()
 {
-    // TODO implement
+    // Early out if the fence is already signaled, ensuring any command buffers are retired.
+    if(updateLastFinishedID() == m_lastSubmittedID)
+    {
+        retireCommandBuffers();
+        return SLANG_OK;
+    }
+
+    // Create a semaphore to synchronize the notification
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+
+    // Create and store the notification block
+    MTL::SharedEventNotificationBlock block = ^(MTL::SharedEvent* event, uint64_t eventValue) {
+      dispatch_semaphore_signal(semaphore);
+    };
+
+    // Set up notification handler
+    m_trackingEvent->notifyListener(m_eventListener.get(), m_lastSubmittedID, block);
+
+    // Wait for the device.
+    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+    dispatch_release(semaphore);
+
+    // Retire command buffers (internally updates last finished id).
+    retireCommandBuffers();
+
+    // Should now have no command buffers in flight and have finished submitting
+    SLANG_RHI_ASSERT(m_lastFinishedID == m_lastSubmittedID);
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.size() == 0);
+
     return SLANG_OK;
 }
 
@@ -903,20 +961,31 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         commandBuffer->commit();
     }
 
+    // Increment submission id
+    m_lastSubmittedID++;
+
     // Commit the command buffers.
     for (uint32_t i = 0; i < desc.commandBufferCount; ++i)
     {
+        // Get command buffer, assign updated submission id and store in the in-flight list.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
+        commandBuffer->m_submissionID = m_lastSubmittedID;
+        m_commandBuffersInFlight.push_back(commandBuffer);
+
         // Signal fences if this is the last command buffer.
-        if (desc.signalFenceCount > 0 && i == desc.commandBufferCount - 1)
+        if (i == desc.commandBufferCount - 1)
         {
             for (uint32_t j = 0; j < desc.signalFenceCount; ++j)
             {
                 FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[j]);
                 commandBuffer->m_commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[j]);
             }
+            
+            // Signal the submission event for tracking finished command buffers.
+            commandBuffer->m_commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
         }
-        commandBuffer->m_commandBuffer->commit();
+
+        commandBuffer->m_commandBuffer->commit();        
     }
 
     // If there are no command buffers to submit, but fences to signal, encode them to a new command buffer.
@@ -930,6 +999,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         }
         commandBuffer->commit();
     }
+
+    // Retire command buffers that are finished
+    retireCommandBuffers();
 
     return SLANG_OK;
 }
