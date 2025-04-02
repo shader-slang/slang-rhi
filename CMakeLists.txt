@@ -41,6 +41,15 @@ endif()
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
+option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
+
+# Configure coverage flags
+if(SLANG_RHI_ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+        add_link_options(-fprofile-instr-generate)
+    endif()
+endif()
 
 # Determine available backends
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -755,3 +764,44 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 endif()
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
+
+# Add coverage target if coverage is enabled
+if(SLANG_RHI_ENABLE_COVERAGE)
+    # Find required tools without failing if not found
+    if(APPLE)
+        # On macOS, we need to use xcrun to access LLVM tools
+        execute_process(
+            COMMAND xcrun -f llvm-profdata
+            OUTPUT_VARIABLE LLVM_PROFDATA
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        execute_process(
+            COMMAND xcrun -f llvm-cov
+            OUTPUT_VARIABLE LLVM_COV
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    else()
+        find_program(LLVM_PROFDATA llvm-profdata QUIET)
+        find_program(LLVM_COV llvm-cov QUIET)
+    endif()
+
+    # Only create coverage target if all required tools are found
+    if(LLVM_PROFDATA AND LLVM_COV)
+        message(STATUS "Found coverage tools: llvm-profdata, llvm-cov")
+        
+        # Create coverage target
+        add_custom_target(coverage
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
+            COMMAND LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/coverage/coverage.profraw ctest -C $<CONFIG> --output-on-failure
+            COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/coverage/coverage.profraw -o ${CMAKE_BINARY_DIR}/coverage/coverage.profdata
+            COMMAND ${LLVM_COV} show ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=${CMAKE_BINARY_DIR}/coverage/coverage.profdata > ${CMAKE_BINARY_DIR}/coverage/coverage.txt
+            COMMAND ${LLVM_COV} export ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=${CMAKE_BINARY_DIR}/coverage/coverage.profdata > ${CMAKE_BINARY_DIR}/coverage/coverage.json
+            COMMAND ${LLVM_COV} report ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=${CMAKE_BINARY_DIR}/coverage/coverage.profdata
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Generating coverage report..."
+        )
+    else()
+        message(STATUS "Coverage tools not found. Coverage target will not be available.")
+        message(STATUS "Required tools: llvm-profdata, llvm-cov")
+    endif()
+endif()
