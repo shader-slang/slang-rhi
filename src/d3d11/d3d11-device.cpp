@@ -459,7 +459,7 @@ Result DeviceImpl::readTexture(
 
         // Data should be the same, but alignment may not be, so the row copy
         // needs to be the minimum of the two row sizes.
-        uint32_t copyPitch = min(layout.strideY, (size_t)mappedResource.RowPitch);
+        uint32_t copyPitch = min(layout.rowPitch, (size_t)mappedResource.RowPitch);
 
         // Copy a row at a time.
         for (int z = 0; z < layout.size.depth; z++)
@@ -470,10 +470,10 @@ Result DeviceImpl::readTexture(
             {
                 std::memcpy(dstRow, srcRow, copyPitch);
                 srcRow += mappedResource.RowPitch;
-                dstRow += layout.strideY;
+                dstRow += layout.rowPitch;
             }
             srcBuffer += mappedResource.DepthPitch;
-            dstBuffer += layout.strideZ;
+            dstBuffer += layout.slicePitch;
         }
 
         // Make sure to unmap

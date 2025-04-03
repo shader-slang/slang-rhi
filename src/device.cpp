@@ -595,7 +595,7 @@ Result Device::readTexture(
         stagingAllocation.getBuffer(),
         stagingAllocation.getOffset(),
         layout.sizeInBytes,
-        layout.strideY,
+        layout.rowPitch,
         texture,
         layer,
         mipLevel,

@@ -704,7 +704,7 @@ struct SubresourceData
     /// Devices may not support all possible values for `strideY`.
     /// In particular, they may only support strictly positive strides.
     ///
-    Size strideY;
+    Size rowPitch;
 
     /// Stride in bytes between layers of the subresource tensor.
     ///
@@ -714,7 +714,7 @@ struct SubresourceData
     /// Devices may not support all possible values for `strideZ`.
     /// In particular, they may only support strictly positive strides.
     ///
-    Size strideZ;
+    Size slicePitch;
 };
 
 static const int32_t kRemainingTextureSize = 0xffffffff;
@@ -763,13 +763,13 @@ struct SubresourceLayout
     Extents size;
 
     /// Stride in bytes between columns (i.e. blocks of pixels) of the subresource tensor.
-    Size strideX;
+    Size colPitch;
 
     /// Stride in bytes between rows of the subresource tensor.
-    Size strideY;
+    Size rowPitch;
 
     /// Stride in bytes between layers of the subresource tensor.
-    Size strideZ;
+    Size slicePitch;
 
     /// Overall size required to fit the subresource data (typically size.z*strideZ).
     Size sizeInBytes;
@@ -2036,12 +2036,12 @@ public:
         Extents extent
     ) = 0;
 
-    /// Copies texture to a buffer. Each row is aligned to dstRowStride.
+    /// Copies texture to a buffer. Each row is aligned to dstRowPitch.
     virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
         IBuffer* dst,
         Offset dstOffset,
         Size dstSize,
-        Size dstRowStride,
+        Size dstRowPitch,
         ITexture* src,
         uint32_t layerIndex,
         uint32_t mipLevel,
@@ -2059,7 +2059,7 @@ public:
         IBuffer* src,
         Offset srcOffset,
         Size srcSize,
-        Size srcRowStride,
+        Size srcRowPitch,
         Extents extent
     ) = 0;
 
@@ -2747,9 +2747,9 @@ public:
         SubresourceLayout layout;
         SLANG_RETURN_ON_FAIL(readTexture(texture, layer, mipLevel, outBlob, &layout));
         if (outRowPitch)
-            *outRowPitch = layout.strideY;
+            *outRowPitch = layout.rowPitch;
         if (outPixelSize)
-            *outPixelSize = layout.strideX;
+            *outPixelSize = layout.colPitch;
         return SLANG_OK;
     };
 

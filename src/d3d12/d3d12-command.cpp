@@ -328,7 +328,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     const uint64_t dstOffset = cmd.dstOffset;
-    const Size dstRowStride = cmd.dstRowStride;
+    const Size dstRowPitch = cmd.dstRowPitch;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
     uint32_t layerIndex = cmd.layerIndex;
@@ -385,8 +385,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     footprint.Footprint.Depth = adjustedExtent.depth;
 
     // Align row pitch to 256 bytes
-    SLANG_RHI_ASSERT(dstRowStride % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
-    footprint.Footprint.RowPitch = (UINT)dstRowStride;
+    SLANG_RHI_ASSERT(dstRowPitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
+    footprint.Footprint.RowPitch = (UINT)dstRowPitch;
 
     if (srcOffset.isZero() && adjustedExtent == srcMipSize)
     {
@@ -569,7 +569,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             footprint.Footprint.Width = srLayout->size.width;
             footprint.Footprint.Height = srLayout->size.height;
             footprint.Footprint.Depth = srLayout->size.depth;
-            footprint.Footprint.RowPitch = srLayout->strideY;
+            footprint.Footprint.RowPitch = srLayout->rowPitch;
 
             m_cmdList->CopyTextureRegion(&dstRegion, cmd.offset.x, cmd.offset.y, cmd.offset.z, &srcRegion, nullptr);
 

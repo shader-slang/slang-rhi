@@ -111,9 +111,9 @@ Result calcSubresourceRegionLayout(
     size_t layerPitch = rowPitch * rowCount;
 
     outLayout->size = extents;
-    outLayout->strideX = formatInfo.blockSizeInBytes;
-    outLayout->strideY = rowPitch;
-    outLayout->strideZ = layerPitch;
+    outLayout->colPitch = formatInfo.blockSizeInBytes;
+    outLayout->rowPitch = rowPitch;
+    outLayout->slicePitch = layerPitch;
     outLayout->sizeInBytes = layerPitch * extents.depth;
     outLayout->rowCount = rowCount;
     outLayout->blockWidth = formatInfo.blockWidth;

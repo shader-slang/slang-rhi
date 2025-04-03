@@ -165,7 +165,7 @@ struct ValidationTextureData : RefObject
 {
     const void* textureData;
     Extents extents;
-    Strides strides;
+    Strides pitches;
 
     void* getBlockAt(uint32_t x, uint32_t y, uint32_t z)
     {
@@ -173,9 +173,9 @@ struct ValidationTextureData : RefObject
         SLANG_RHI_ASSERT(y < extents.height);
         SLANG_RHI_ASSERT(z < extents.depth);
 
-        char* layerData = (char*)textureData + z * strides.z;
-        char* rowData = layerData + y * strides.y;
-        return rowData + x * strides.x;
+        char* layerData = (char*)textureData + z * pitches.z;
+        char* rowData = layerData + y * pitches.y;
+        return rowData + x * pitches.x;
     }
 };
 

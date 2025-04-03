@@ -481,7 +481,7 @@ void CommandEncoder::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
-    Size dstRowStride,
+    Size dstRowPitch,
     ITexture* src,
     uint32_t layerIndex,
     uint32_t mipLevel,
@@ -493,7 +493,7 @@ void CommandEncoder::copyTextureToBuffer(
     cmd.dst = dst;
     cmd.dstOffset = dstOffset;
     cmd.dstSize = dstSize;
-    cmd.dstRowStride = dstRowStride;
+    cmd.dstRowPitch = dstRowPitch;
     cmd.src = src;
     cmd.layerIndex = layerIndex;
     cmd.mipLevel = mipLevel;
@@ -510,7 +510,7 @@ void CommandEncoder::copyBufferToTexture(
     IBuffer* src,
     Offset srcOffset,
     Size srcSize,
-    Size srcRowStride,
+    Size srcRowPitch,
     Extents extent
 )
 {
@@ -521,10 +521,10 @@ void CommandEncoder::copyBufferToTexture(
     textureImpl->getSubresourceRegionLayout(mipLevel, dstOffset, extent, kDefaultAlignment, layout);
 
     // The layout that actually matters is the layout of the buffer, defined
-    // by the row stride, so recalculate it given srcRowStride.
-    layout->strideY = srcRowStride;
-    layout->strideZ = layout->rowCount * layout->strideY;
-    layout->sizeInBytes = layout->strideZ * layout->size.depth;
+    // by the row stride, so recalculate it given srcRowPitch.
+    layout->rowPitch = srcRowPitch;
+    layout->slicePitch = layout->rowCount * layout->rowPitch;
+    layout->sizeInBytes = layout->slicePitch * layout->size.depth;
     SLANG_RHI_ASSERT(srcSize >= layout->sizeInBytes)
 
     // Add texture upload command for just this layer/mip
@@ -594,7 +594,7 @@ Result CommandEncoder::uploadTextureData(
                 // Source and dest rows may have different alignments, so its valid for strides to be
                 // different (even if data itself isn't). We copy the minimum of the two to avoid
                 // reading/writing out of bounds.
-                Size rowCopyStride = min(srSrcData->strideY, srLayout->strideY);
+                Size rowCopyPitch = min(srSrcData->rowPitch, srLayout->rowPitch);
 
                 // Iterate over slices and rows, copying a row at a time
                 uint8_t* sliceSrcData = (uint8_t*)srSrcData->data;
@@ -606,16 +606,16 @@ Result CommandEncoder::uploadTextureData(
                     for (uint32_t row = 0; row < srLayout->rowCount; row++)
                     {
                         // Copy the row.
-                        memcpy(rowDestData, rowSrcData, rowCopyStride);
+                        memcpy(rowDestData, rowSrcData, rowCopyPitch);
 
                         // Increment src/dest position within this slice.
-                        rowSrcData += srSrcData->strideY;
-                        rowDestData += srLayout->strideY;
+                        rowSrcData += srSrcData->rowPitch;
+                        rowDestData += srLayout->rowPitch;
                     }
 
                     // Increment src/dest position of current slice.
-                    sliceSrcData += srSrcData->strideZ;
-                    sliceDestData += srLayout->strideZ;
+                    sliceSrcData += srSrcData->slicePitch;
+                    sliceDestData += srLayout->slicePitch;
                 }
 
                 // Move to next subresource.

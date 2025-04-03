@@ -99,7 +99,7 @@ GPU_TEST_CASE("cmd-copy-buffer-to-texture-full", D3D12 | Vulkan | WGPU | CUDA)
                         buffer,
                         bufferOffset,
                         subresource.layout.sizeInBytes,
-                        subresource.layout.strideY,
+                        subresource.layout.rowPitch,
                         subresource.layout.size
                     );
 

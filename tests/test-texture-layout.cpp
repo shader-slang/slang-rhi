@@ -26,9 +26,9 @@ void testTextureLayout(
     CHECK_EQ(layout.size.height, expectedLayout.size.height);
     CHECK_EQ(layout.size.depth, expectedLayout.size.depth);
     CHECK_EQ(layout.sizeInBytes, expectedLayout.sizeInBytes);
-    CHECK_EQ(layout.strideX, expectedLayout.strideX);
-    CHECK_EQ(layout.strideY, expectedLayout.strideY);
-    CHECK_EQ(layout.strideZ, expectedLayout.strideZ);
+    CHECK_EQ(layout.colPitch, expectedLayout.colPitch);
+    CHECK_EQ(layout.rowPitch, expectedLayout.rowPitch);
+    CHECK_EQ(layout.slicePitch, expectedLayout.slicePitch);
 }
 
 void testTextureLayout2(
@@ -50,8 +50,8 @@ void testTextureLayout2(
     CHECK_EQ(layout.size.height, expectedLayout.size.height);
     CHECK_EQ(layout.size.depth, expectedLayout.size.depth);
     CHECK_EQ(layout.sizeInBytes, expectedLayout.sizeInBytes);
-    CHECK_EQ(layout.strideY, expectedLayout.strideY);
-    CHECK_EQ(layout.strideZ, expectedLayout.strideZ);
+    CHECK_EQ(layout.rowPitch, expectedLayout.rowPitch);
+    CHECK_EQ(layout.slicePitch, expectedLayout.slicePitch);
 }
 
 int ALL_TEX = TestFlags::ALL & ~TestFlags::CPU;

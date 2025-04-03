@@ -298,8 +298,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                     auto& srcData = initData[subresourceIndex];
 
                     data.pSysMem = srcData.data;
-                    data.SysMemPitch = UINT(srcData.strideY);
-                    data.SysMemSlicePitch = UINT(srcData.strideZ);
+                    data.SysMemPitch = UINT(srcData.rowPitch);
+                    data.SysMemSlicePitch = UINT(srcData.slicePitch);
 
                     subresourceIndex++;
                 }

@@ -121,7 +121,7 @@ public:
     struct MipLevel
     {
         int32_t extents[kMaxRank];
-        int64_t strides[kMaxRank + 1];
+        int64_t pitches[kMaxRank + 1];
         int64_t offset;
     };
     std::vector<MipLevel> m_mipLevels;

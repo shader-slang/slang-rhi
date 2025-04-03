@@ -159,8 +159,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                     level,
                     slice,
                     subresourceData.data,
-                    subresourceData.strideY,
-                    subresourceData.strideZ
+                    subresourceData.rowPitch,
+                    subresourceData.slicePitch
                 );
                 encoder->synchronizeTexture(stagingTexture.get(), slice, level);
                 region.size.width = region.size.width > 0 ? max(1ul, region.size.width >> 1) : 0;

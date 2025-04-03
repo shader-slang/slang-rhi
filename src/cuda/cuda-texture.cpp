@@ -411,7 +411,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 copyParam.dstZ = layer;
                 copyParam.srcMemoryType = CU_MEMORYTYPE_HOST;
                 copyParam.srcHost = subresourceData.data;
-                copyParam.srcPitch = subresourceData.strideY;
+                copyParam.srcPitch = subresourceData.rowPitch;
                 copyParam.WidthInBytes = mipSize.width * elementSize;
                 copyParam.Height = mipSize.height;
                 copyParam.Depth = mipSize.depth;

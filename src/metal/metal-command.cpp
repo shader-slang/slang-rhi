@@ -201,8 +201,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
         MTL::Size(extent.width, extent.height, extent.depth),
         dst->m_buffer.get(),
         cmd.dstOffset,
-        cmd.dstRowStride,
-        cmd.dstRowStride * extent.height // TODO(row-stride): Should this take into account block?
+        cmd.dstRowPitch,
+        cmd.dstRowPitch * extent.height // TODO(row-stride): Should this take into account block?
     );
 }
 
@@ -255,8 +255,8 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             encoder->copyFromBuffer(
                 buffer->m_buffer.get(),
                 bufferOffset,
-                srLayout->strideY,
-                srLayout->strideZ,
+                srLayout->rowPitch,
+                srLayout->slicePitch,
                 MTL::Size(srLayout->size.width, srLayout->size.height, srLayout->size.depth),
                 dst->m_texture.get(),
                 layerIndex,
@@ -983,12 +983,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
                 FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[j]);
                 commandBuffer->m_commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[j]);
             }
-            
+
             // Signal the submission event for tracking finished command buffers.
             commandBuffer->m_commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
         }
 
-        commandBuffer->m_commandBuffer->commit();        
+        commandBuffer->m_commandBuffer->commit();
     }
 
     // If there are no command buffers to submit, but fences to signal, encode them to a new command buffer.

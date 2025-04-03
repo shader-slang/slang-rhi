@@ -15,7 +15,7 @@ struct TextureTest
 {
     IDevice* device;
 
-    size_t alignedRowStride;
+    size_t alignedRowPitch;
 
     RefPtr<TextureInfo> textureInfo;
     RefPtr<ValidationTextureFormatBase> validationFormat;
@@ -97,7 +97,7 @@ struct TextureAccessTest : TextureTest
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
-        alignedRowStride = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
+        alignedRowPitch = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
         BufferDesc bufferDesc = {};
         // All of the values read back from the shader will be uint32_t
         bufferDesc.size =
@@ -183,16 +183,16 @@ struct TextureAccessTest : TextureTest
             ValidationTextureData textureResults;
             textureResults.extents = textureInfo->extents;
             textureResults.textureData = textureValues;
-            textureResults.strides.x = (uint32_t)pixelSize;
-            textureResults.strides.y = (uint32_t)rowPitch;
-            textureResults.strides.z = textureResults.extents.height * textureResults.strides.y;
+            textureResults.pitches.x = (uint32_t)pixelSize;
+            textureResults.pitches.y = (uint32_t)rowPitch;
+            textureResults.pitches.z = textureResults.extents.height * textureResults.pitches.y;
 
             ValidationTextureData originalData;
             originalData.extents = textureInfo->extents;
             originalData.textureData = textureInfo->subresourceDatas.data();
-            originalData.strides.x = (uint32_t)pixelSize;
-            originalData.strides.y = textureInfo->extents.width * originalData.strides.x;
-            originalData.strides.z = textureInfo->extents.height * originalData.strides.y;
+            originalData.pitches.x = (uint32_t)pixelSize;
+            originalData.pitches.y = textureInfo->extents.width * originalData.pitches.x;
+            originalData.pitches.z = textureInfo->extents.height * originalData.pitches.y;
 
             validateTextureValues(textureResults, originalData);
         }
@@ -358,7 +358,7 @@ struct RenderTargetTests : TextureTest
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
-        alignedRowStride = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
+        alignedRowPitch = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
     }
 
     void submitShaderWork()
@@ -445,9 +445,9 @@ struct RenderTargetTests : TextureTest
         ValidationTextureData textureResults;
         textureResults.extents = textureInfo->extents;
         textureResults.textureData = textureValues;
-        textureResults.strides.x = (uint32_t)pixelSize;
-        textureResults.strides.y = (uint32_t)rowPitch;
-        textureResults.strides.z = textureResults.extents.height * textureResults.strides.y;
+        textureResults.pitches.x = (uint32_t)pixelSize;
+        textureResults.pitches.y = (uint32_t)rowPitch;
+        textureResults.pitches.z = textureResults.extents.height * textureResults.pitches.y;
 
         validateTextureValues(textureResults);
     }

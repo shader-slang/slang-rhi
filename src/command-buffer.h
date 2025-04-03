@@ -217,7 +217,7 @@ public:
         IBuffer* dst,
         Offset dstOffset,
         Size dstSize,
-        Size dstRowStride,
+        Size dstRowPitch,
         ITexture* src,
         uint32_t layerIndex,
         uint32_t mipLevel,
@@ -233,7 +233,7 @@ public:
         IBuffer* src,
         Offset srcOffset,
         Size srcSize,
-        Size srcRowStride,
+        Size srcRowPitch,
         Extents extent
     ) override;
 

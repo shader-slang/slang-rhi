@@ -588,7 +588,7 @@ void DebugCommandEncoder::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
-    Size dstRowStride,
+    Size dstRowPitch,
     ITexture* src,
     uint32_t layerIndex,
     uint32_t mipLevel,
@@ -613,8 +613,7 @@ void DebugCommandEncoder::copyTextureToBuffer(
         return;
     }
 
-    baseObject
-        ->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowStride, src, layerIndex, mipLevel, srcOffset, extent);
+    baseObject->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, layerIndex, mipLevel, srcOffset, extent);
 }
 
 void DebugCommandEncoder::copyBufferToTexture(
@@ -625,7 +624,7 @@ void DebugCommandEncoder::copyBufferToTexture(
     IBuffer* src,
     Offset srcOffset,
     Size srcSize,
-    Size srcRowStride,
+    Size srcRowPitch,
     Extents extent
 )
 {
@@ -646,8 +645,7 @@ void DebugCommandEncoder::copyBufferToTexture(
         return;
     }
 
-    baseObject
-        ->copyBufferToTexture(dst, layerIndex, mipLevel, dstOffset, src, srcOffset, srcSize, srcRowStride, extent);
+    baseObject->copyBufferToTexture(dst, layerIndex, mipLevel, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
 }
 
 void DebugCommandEncoder::buildAccelerationStructure(
