@@ -291,6 +291,11 @@ Result Device::getEntryPointCodeFromShaderCache(
             program->getEntryPointCode(entryPointIndex, targetIndex, codeBlob.writeRef(), outDiagnostics)
         );
         m_persistentShaderCache->writeCache(hashBlob, codeBlob);
+        m_shaderCacheMisses++;
+    }
+    else
+    {
+        m_shaderCacheHits++;
     }
 
     *outCode = codeBlob.detach();
@@ -665,6 +670,18 @@ Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatr
     SLANG_UNUSED(descs);
     SLANG_UNUSED(descCount);
     return SLANG_E_NOT_AVAILABLE;
+}
+
+
+Result Device::getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize)
+{
+    if (outCacheHitCount)
+        *outCacheHitCount = m_shaderCacheHits;
+    if (outCacheMissCount)
+        *outCacheMissCount = m_shaderCacheMisses;
+    if (outCacheSize)
+        *outCacheSize = m_shaderCache.getSize();
+    return SLANG_OK;
 }
 
 Result Device::getShaderObjectLayout(
