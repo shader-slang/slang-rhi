@@ -183,16 +183,16 @@ struct TextureAccessTest : TextureTest
             ValidationTextureData textureResults;
             textureResults.extents = textureInfo->extents;
             textureResults.textureData = textureValues;
-            textureResults.strides.x = (uint32_t)pixelSize;
-            textureResults.strides.y = (uint32_t)rowPitch;
-            textureResults.strides.z = textureResults.extents.height * textureResults.strides.y;
+            textureResults.pitches.x = (uint32_t)pixelSize;
+            textureResults.pitches.y = (uint32_t)rowPitch;
+            textureResults.pitches.z = textureResults.extents.height * textureResults.pitches.y;
 
             ValidationTextureData originalData;
             originalData.extents = textureInfo->extents;
             originalData.textureData = textureInfo->subresourceDatas.data();
-            originalData.strides.x = (uint32_t)pixelSize;
-            originalData.strides.y = textureInfo->extents.width * originalData.strides.x;
-            originalData.strides.z = textureInfo->extents.height * originalData.strides.y;
+            originalData.pitches.x = (uint32_t)pixelSize;
+            originalData.pitches.y = textureInfo->extents.width * originalData.pitches.x;
+            originalData.pitches.z = textureInfo->extents.height * originalData.pitches.y;
 
             validateTextureValues(textureResults, originalData);
         }
@@ -445,9 +445,9 @@ struct RenderTargetTests : TextureTest
         ValidationTextureData textureResults;
         textureResults.extents = textureInfo->extents;
         textureResults.textureData = textureValues;
-        textureResults.strides.x = (uint32_t)pixelSize;
-        textureResults.strides.y = (uint32_t)rowPitch;
-        textureResults.strides.z = textureResults.extents.height * textureResults.strides.y;
+        textureResults.pitches.x = (uint32_t)pixelSize;
+        textureResults.pitches.y = (uint32_t)rowPitch;
+        textureResults.pitches.z = textureResults.extents.height * textureResults.pitches.y;
 
         validateTextureValues(textureResults);
     }

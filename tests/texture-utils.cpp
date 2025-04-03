@@ -212,9 +212,9 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
             subresource->extents.width = mipWidth;
             subresource->extents.height = mipHeight;
             subresource->extents.depth = mipDepth;
-            subresource->strides.x = texelSize;
-            subresource->strides.y = mipWidth * texelSize;
-            subresource->strides.z = mipHeight * subresource->strides.y;
+            subresource->pitches.x = texelSize;
+            subresource->pitches.y = mipWidth * texelSize;
+            subresource->pitches.z = mipHeight * subresource->pitches.y;
             texture->subresourceObjects.push_back(subresource);
 
             for (int z = 0; z < mipDepth; ++z)
@@ -231,8 +231,8 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
 
             SubresourceData subData = {};
             subData.data = subresource->textureData;
-            subData.rowPitch = subresource->strides.y;
-            subData.slicePitch = subresource->strides.z;
+            subData.rowPitch = subresource->pitches.y;
+            subData.slicePitch = subresource->pitches.z;
             texture->subresourceDatas.push_back(subData);
         }
     }

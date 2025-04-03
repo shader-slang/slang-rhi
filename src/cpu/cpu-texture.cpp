@@ -150,10 +150,10 @@ Result TextureImpl::init(const SubresourceData* initData)
             level.extents[axis] = extent;
         }
 
-        level.strides[0] = texelSize;
+        level.pitches[0] = texelSize;
         for (int32_t axis = 1; axis < kMaxRank + 1; ++axis)
         {
-            level.strides[axis] = level.strides[axis - 1] * level.extents[axis - 1];
+            level.pitches[axis] = level.pitches[axis - 1] * level.extents[axis - 1];
         }
 
         int64_t levelDataSize = texelSize;
@@ -177,9 +177,9 @@ Result TextureImpl::init(const SubresourceData* initData)
             {
                 int32_t subresourceIndex = subresourceCounter++;
 
-                auto dstRowPitch = m_mipLevels[mipLevel].strides[1];
-                auto dstLayerPitch = m_mipLevels[mipLevel].strides[2];
-                auto dstArrayPitch = m_mipLevels[mipLevel].strides[3];
+                auto dstRowPitch = m_mipLevels[mipLevel].pitches[1];
+                auto dstLayerPitch = m_mipLevels[mipLevel].pitches[2];
+                auto dstArrayPitch = m_mipLevels[mipLevel].pitches[3];
 
                 auto textureRowSize = m_mipLevels[mipLevel].extents[0] * texelSize;
 
@@ -300,7 +300,7 @@ void TextureViewImpl::SampleLevel(
     // Note: for now we are just going to do nearest-neighbor sampling
     //
     int64_t texelOffset = mipLevelInfo.offset;
-    texelOffset += elementIndex * mipLevelInfo.strides[3];
+    texelOffset += elementIndex * mipLevelInfo.pitches[3];
     for (int32_t axis = 0; axis < rank; ++axis)
     {
         int32_t extent = mipLevelInfo.extents[axis];
@@ -316,7 +316,7 @@ void TextureViewImpl::SampleLevel(
         if (integerCoord < 0)
             integerCoord = 0;
 
-        texelOffset += integerCoord * mipLevelInfo.strides[axis];
+        texelOffset += integerCoord * mipLevelInfo.pitches[axis];
     }
 
     auto texelPtr = (const char*)texture->m_data + texelOffset;
@@ -364,7 +364,7 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
     auto& mipLevelInfo = texture->m_mipLevels[mipLevel];
 
     int64_t texelOffset = mipLevelInfo.offset;
-    texelOffset += elementIndex * mipLevelInfo.strides[3];
+    texelOffset += elementIndex * mipLevelInfo.pitches[3];
     for (int32_t axis = 0; axis < rank; ++axis)
     {
         int32_t coord = texelCoords[axis];
@@ -373,7 +373,7 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
         if (coord < 0)
             coord = 0;
 
-        texelOffset += texelCoords[axis] * mipLevelInfo.strides[axis];
+        texelOffset += texelCoords[axis] * mipLevelInfo.pitches[axis];
     }
 
     return (uint8_t*)texture->m_data + texelOffset;
@@ -426,8 +426,8 @@ Result DeviceImpl::readTexture(
     SLANG_RHI_ASSERT(mipLevelInfo.extents[0] == layout.size.width);
     SLANG_RHI_ASSERT(mipLevelInfo.extents[1] == layout.size.height);
     SLANG_RHI_ASSERT(mipLevelInfo.extents[2] == layout.size.depth);
-    SLANG_RHI_ASSERT(mipLevelInfo.strides[1] == layout.rowPitch);
-    SLANG_RHI_ASSERT(mipLevelInfo.strides[2] == layout.slicePitch);
+    SLANG_RHI_ASSERT(mipLevelInfo.pitches[1] == layout.rowPitch);
+    SLANG_RHI_ASSERT(mipLevelInfo.pitches[2] == layout.slicePitch);
 
     // Step forward to the mip data in the texture.
     srcBuffer += mipLevelInfo.offset;

@@ -123,7 +123,7 @@ void TextureData::init(
     const TextureDesc& desc_,
     TextureInitMode initMode_,
     int initSeed_,
-    int initStride
+    int initRowAlignment
 )
 {
     device = device_;
@@ -150,10 +150,10 @@ void TextureData::init(
         initMode_ = TextureInitMode::None;
 
     // Initialize subresources
-    initData(initMode_, initSeed_, initStride);
+    initData(initMode_, initSeed_, initRowAlignment);
 }
 
-void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initStride)
+void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initRowAlignment)
 {
     initMode = initMode_;
     initSeed = initSeed_;
@@ -166,7 +166,7 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initStr
         for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
         {
             SubresourceLayout layout;
-            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extents::kWholeTexture, initStride, &layout);
+            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extents::kWholeTexture, initRowAlignment, &layout);
 
             Subresource sr;
             sr.layer = layer;
