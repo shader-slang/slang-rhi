@@ -574,11 +574,11 @@ Result DeviceImpl::readTexture(
     CUDA_MEMCPY3D copyParam = {};
     copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
     copyParam.dstHost = (void*)blob->getBufferPointer();
-    copyParam.dstPitch = layout.strideY;
+    copyParam.dstPitch = layout.rowPitch;
     copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
     copyParam.srcArray = srcArray;
     copyParam.srcZ = layer;
-    copyParam.WidthInBytes = layout.strideY;
+    copyParam.WidthInBytes = layout.rowPitch;
     copyParam.Height = layout.size.height;
     copyParam.Depth = layout.size.depth;
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));

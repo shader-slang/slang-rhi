@@ -175,8 +175,8 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initStr
             sr.data = std::unique_ptr<uint8_t[]>(new uint8_t[sr.layout.sizeInBytes]);
 
             sr.subresourceData.data = sr.data.get();
-            sr.subresourceData.strideY = sr.layout.strideY;
-            sr.subresourceData.strideZ = sr.layout.strideZ;
+            sr.subresourceData.rowPitch = sr.layout.rowPitch;
+            sr.subresourceData.slicePitch = sr.layout.slicePitch;
 
             switch (initMode)
             {
@@ -289,7 +289,7 @@ void checkRegionsEqual(
     // Can't compare regions with different block sizes.
     CHECK_EQ(layoutA.blockWidth, layoutB.blockWidth);
     CHECK_EQ(layoutA.blockHeight, layoutB.blockHeight);
-    CHECK_EQ(layoutA.strideX, layoutB.strideX);
+    CHECK_EQ(layoutA.colPitch, layoutB.colPitch);
 
     // Check region is valid for A
     CHECK_GE(layoutA.size.width, offsetA.x + extents.width);
@@ -315,21 +315,21 @@ void checkRegionsEqual(
     // Iterate over whole texture, checking each block.
     for (uint32_t slice = 0; slice < sliceCount; slice++)
     {
-        const uint8_t* sliceA = dataA + (slice + sliceOffsetA) * layoutA.strideZ;
-        const uint8_t* sliceB = dataB + (slice + sliceOffsetB) * layoutB.strideZ;
+        const uint8_t* sliceA = dataA + (slice + sliceOffsetA) * layoutA.slicePitch;
+        const uint8_t* sliceB = dataB + (slice + sliceOffsetB) * layoutB.slicePitch;
 
         // Iterate rows
         for (uint32_t row = 0; row < rowCount; row++)
         {
-            const uint8_t* rowA = sliceA + (row + rowOffsetA) * layoutA.strideY;
-            const uint8_t* rowB = sliceB + (row + rowOffsetB) * layoutB.strideY;
+            const uint8_t* rowA = sliceA + (row + rowOffsetA) * layoutA.rowPitch;
+            const uint8_t* rowB = sliceB + (row + rowOffsetB) * layoutB.rowPitch;
 
             // Iterate columns.
             for (uint32_t col = 0; col < colCount; col++)
             {
-                const uint8_t* blockA = rowA + (col + colOffsetA) * layoutA.strideX;
-                const uint8_t* blockB = rowB + (col + colOffsetB) * layoutB.strideX;
-                for (uint32_t i = 0; i < layoutA.strideX; i++)
+                const uint8_t* blockA = rowA + (col + colOffsetA) * layoutA.colPitch;
+                const uint8_t* blockB = rowB + (col + colOffsetB) * layoutB.colPitch;
+                for (uint32_t i = 0; i < layoutA.colPitch; i++)
                 {
                     CHECK_EQ(blockA[i], blockB[i]);
                     if (blockA[i] != blockB[i])
@@ -365,13 +365,13 @@ void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA
     for (uint32_t textureSlice = 0; textureSlice < textureSliceCount; textureSlice++)
     {
         bool insideSlice = textureSlice >= sliceBegin && textureSlice < sliceEnd;
-        const uint8_t* sliceA = dataA + textureSlice * layoutA.strideZ;
+        const uint8_t* sliceA = dataA + textureSlice * layoutA.slicePitch;
 
         // Iterate rows
         for (uint32_t textureRow = 0; textureRow < textureRowCount; textureRow++)
         {
             bool insideRow = textureRow >= rowBegin && textureRow < rowEnd;
-            const uint8_t* rowA = sliceA + textureRow * layoutA.strideY;
+            const uint8_t* rowA = sliceA + textureRow * layoutA.rowPitch;
 
             // Iterate columns.
             for (uint32_t textureCol = 0; textureCol < textureColCount; textureCol++)
@@ -380,8 +380,8 @@ void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA
                 if (insideSlice && insideRow && insideCol)
                     continue;
 
-                const uint8_t* blockA = rowA + textureCol * layoutA.strideX;
-                for (uint32_t i = 0; i < layoutA.strideX; i++)
+                const uint8_t* blockA = rowA + textureCol * layoutA.colPitch;
+                for (uint32_t i = 0; i < layoutA.colPitch; i++)
                 {
                     CHECK_EQ(blockA[i], 0);
                     if (blockA[i] != 0)
@@ -559,11 +559,11 @@ void TextureData::checkSliceEqual(
         for (uint32_t col = 0; col < colCount; col++)
         {
             // Get pointer to block within the whole cpu data.
-            uint8_t* thisBlock = thisData + thisSlice * thisLayout.strideZ + row * thisLayout.strideY +
+            uint8_t* thisBlock = thisData + thisSlice * thisLayout.slicePitch + row * thisLayout.rowPitch +
                                  col * formatInfo.blockSizeInBytes;
 
             // Get pointer to block within the region of the texture we're scanning
-            uint8_t* textureBlock = textureData + row * textureLayout.strideY + col * formatInfo.blockSizeInBytes;
+            uint8_t* textureBlock = textureData + row * textureLayout.rowPitch + col * formatInfo.blockSizeInBytes;
 
             // Compare the block of texels that make up this row/column
             bool blocks_equal = memcmp(thisBlock, textureBlock, formatInfo.blockSizeInBytes) == 0;
@@ -635,11 +635,11 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
 
                     CHECK(isEqual);
 
-                    expectedRow += sr.layout.strideY;
+                    expectedRow += sr.layout.rowPitch;
                     actualRow += rowPitch;
                 }
 
-                expectedSlice += sr.layout.strideZ;
+                expectedSlice += sr.layout.slicePitch;
                 actualSlice += rowPitch * sr.layout.rowCount;
             }
         }
@@ -670,7 +670,7 @@ void TextureData::clearFloat(uint32_t layer, uint32_t mipLevel, const float clea
         for (uint32_t row = 0; row < subresource.layout.rowCount; row++)
         {
             uint8_t* rowStart =
-                subresource.data.get() + depth * subresource.layout.strideZ + row * subresource.layout.strideY;
+                subresource.data.get() + depth * subresource.layout.slicePitch + row * subresource.layout.rowPitch;
             for (uint32_t x = 0; x < subresource.layout.size.width; x++)
             {
                 ::memcpy(rowStart + x * pixelSize, pixelData, pixelSize);
@@ -703,7 +703,7 @@ void TextureData::clearUint(uint32_t layer, uint32_t mipLevel, const uint32_t cl
         for (uint32_t row = 0; row < subresource.layout.rowCount; row++)
         {
             uint8_t* rowStart =
-                subresource.data.get() + depth * subresource.layout.strideZ + row * subresource.layout.strideY;
+                subresource.data.get() + depth * subresource.layout.slicePitch + row * subresource.layout.rowPitch;
             for (uint32_t x = 0; x < subresource.layout.size.width; x++)
             {
                 ::memcpy(rowStart + x * pixelSize, pixelData, pixelSize);

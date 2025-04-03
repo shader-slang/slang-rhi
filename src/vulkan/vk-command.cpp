@@ -497,7 +497,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             // considered to be tightly packed according to the imageExtent.
 
             // Calculate the row length (in texels) from the supplied pitch (in bytes)
-            uint32_t rowLengthInBlocks = srLayout->strideY / srLayout->strideX;
+            uint32_t rowLengthInBlocks = srLayout->rowPitch / srLayout->colPitch;
             uint32_t rowLengthInTexels = rowLengthInBlocks * srLayout->blockWidth;
 
             VkBufferImageCopy region = {};

@@ -373,7 +373,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
 
             WGPUImageCopyBuffer srcRegion;
             srcRegion.buffer = buffer->m_buffer;
-            srcRegion.layout.bytesPerRow = srLayout->strideY;
+            srcRegion.layout.bytesPerRow = srLayout->rowPitch;
             srcRegion.layout.rowsPerImage = srLayout->rowCount;
 
             srcRegion.layout.offset = bufferOffset;

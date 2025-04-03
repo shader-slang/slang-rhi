@@ -70,7 +70,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU | CUDA)
                         buffer,
                         bufferOffset,
                         textureLayout.sizeInBytes,
-                        textureLayout.strideY,
+                        textureLayout.rowPitch,
                         c->getTexture(),
                         layer,
                         mip,
@@ -150,9 +150,9 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | WGPU |
                 SubresourceLayout textureLayout;
                 REQUIRE_CALL(c->getTexture()->getSubresourceLayout(subresource.mipLevel, &textureLayout));
 
-                textureLayout.strideY = math::calcAligned2(textureLayout.strideY, customAlignment);
-                textureLayout.strideZ = textureLayout.strideY * textureLayout.rowCount;
-                textureLayout.sizeInBytes = textureLayout.strideZ * textureLayout.size.depth;
+                textureLayout.rowPitch = math::calcAligned2(textureLayout.rowPitch, customAlignment);
+                textureLayout.slicePitch = textureLayout.rowPitch * textureLayout.rowCount;
+                textureLayout.sizeInBytes = textureLayout.slicePitch * textureLayout.size.depth;
 
                 totalSize += textureLayout.sizeInBytes;
             }
@@ -178,15 +178,15 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | WGPU |
                     SubresourceLayout textureLayout;
                     REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
 
-                    textureLayout.strideY = math::calcAligned2(textureLayout.strideY, customAlignment);
-                    textureLayout.strideZ = textureLayout.strideY * textureLayout.rowCount;
-                    textureLayout.sizeInBytes = textureLayout.strideZ * textureLayout.size.depth;
+                    textureLayout.rowPitch = math::calcAligned2(textureLayout.rowPitch, customAlignment);
+                    textureLayout.slicePitch = textureLayout.rowPitch * textureLayout.rowCount;
+                    textureLayout.sizeInBytes = textureLayout.slicePitch * textureLayout.size.depth;
 
                     commandEncoder->copyTextureToBuffer(
                         buffer,
                         bufferOffset,
                         textureLayout.sizeInBytes,
-                        textureLayout.strideY,
+                        textureLayout.rowPitch,
                         c->getTexture(),
                         layer,
                         mip,
@@ -213,9 +213,9 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | WGPU |
                     SubresourceLayout textureLayout;
                     REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
 
-                    textureLayout.strideY = math::calcAligned2(textureLayout.strideY, customAlignment);
-                    textureLayout.strideZ = textureLayout.strideY * textureLayout.rowCount;
-                    textureLayout.sizeInBytes = textureLayout.strideZ * textureLayout.size.depth;
+                    textureLayout.rowPitch = math::calcAligned2(textureLayout.rowPitch, customAlignment);
+                    textureLayout.slicePitch = textureLayout.rowPitch * textureLayout.rowCount;
+                    textureLayout.sizeInBytes = textureLayout.slicePitch * textureLayout.size.depth;
 
                     const TextureData::Subresource& subresource = data.getSubresource(layer, mip);
 
@@ -294,7 +294,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | WGPU | CUDA)
                     buffer,
                     bufferOffset,
                     textureLayout.sizeInBytes,
-                    textureLayout.strideY,
+                    textureLayout.rowPitch,
                     c->getTexture(),
                     layer,
                     0,
@@ -323,7 +323,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | WGPU | CUDA)
                 const TextureData::Subresource& subresource = data.getSubresource(layer, 0);
 
                 // Adjust stride between layers to account for smaller region in 3d texture.
-                textureLayout.strideZ = textureLayout.strideY * checkExtents.height / data.formatInfo.blockHeight;
+                textureLayout.slicePitch = textureLayout.rowPitch * checkExtents.height / data.formatInfo.blockHeight;
 
                 checkRegionsEqual(
                     bufferData,
@@ -403,7 +403,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | WGPU | C
                     buffer,
                     bufferOffset,
                     textureLayout.sizeInBytes,
-                    textureLayout.strideY,
+                    textureLayout.rowPitch,
                     c->getTexture(),
                     layer,
                     0,
@@ -430,7 +430,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | WGPU | C
                 const TextureData::Subresource& subresource = data.getSubresource(layer, 0);
 
                 // Adjust stride between layers to account for smaller region in 3d texture.
-                textureLayout.strideZ = textureLayout.strideY * copySize.height / data.formatInfo.blockHeight;
+                textureLayout.slicePitch = textureLayout.rowPitch * copySize.height / data.formatInfo.blockHeight;
 
                 checkRegionsEqual(
                     bufferData,
@@ -507,7 +507,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | WGPU | 
                     buffer,
                     bufferOffset,
                     textureLayout.sizeInBytes,
-                    textureLayout.strideY,
+                    textureLayout.rowPitch,
                     c->getTexture(),
                     layer,
                     1,
@@ -536,7 +536,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | WGPU | 
                 const TextureData::Subresource& subresource = data.getSubresource(layer, 1);
 
                 // Adjust stride between layers to account for smaller region in 3d texture.
-                textureLayout.strideZ = textureLayout.strideY * checkExtents.height / data.formatInfo.blockHeight;
+                textureLayout.slicePitch = textureLayout.rowPitch * checkExtents.height / data.formatInfo.blockHeight;
 
                 checkRegionsEqual(
                     bufferData,
@@ -617,7 +617,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset-mip1", D3D12 | Vulkan | WGP
                     buffer,
                     bufferOffset,
                     textureLayout.sizeInBytes,
-                    textureLayout.strideY,
+                    textureLayout.rowPitch,
                     c->getTexture(),
                     layer,
                     1,
@@ -644,7 +644,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset-mip1", D3D12 | Vulkan | WGP
                 const TextureData::Subresource& subresource = data.getSubresource(layer, 1);
 
                 // Adjust stride between layers to account for smaller region in 3d texture.
-                textureLayout.strideZ = textureLayout.strideY * copySize.height / data.formatInfo.blockHeight;
+                textureLayout.slicePitch = textureLayout.rowPitch * copySize.height / data.formatInfo.blockHeight;
 
                 checkRegionsEqual(
                     bufferData,

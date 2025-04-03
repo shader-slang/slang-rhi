@@ -569,7 +569,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             footprint.Footprint.Width = srLayout->size.width;
             footprint.Footprint.Height = srLayout->size.height;
             footprint.Footprint.Depth = srLayout->size.depth;
-            footprint.Footprint.RowPitch = srLayout->strideY;
+            footprint.Footprint.RowPitch = srLayout->rowPitch;
 
             m_cmdList->CopyTextureRegion(&dstRegion, cmd.offset.x, cmd.offset.y, cmd.offset.z, &srcRegion, nullptr);
 

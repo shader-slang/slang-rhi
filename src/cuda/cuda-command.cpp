@@ -344,7 +344,7 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
             copyParam.dstZ = cmd.offset.z + layer;
             copyParam.srcMemoryType = CU_MEMORYTYPE_DEVICE;
             copyParam.srcDevice = (CUdeviceptr)((uint8_t*)buffer->m_cudaMemory + bufferOffset);
-            copyParam.srcPitch = srLayout->strideY;
+            copyParam.srcPitch = srLayout->rowPitch;
             copyParam.WidthInBytes = srLayout->size.width * formatInfo.blockSizeInBytes;
             copyParam.Height = srLayout->size.height;
             copyParam.Depth = srLayout->size.depth;

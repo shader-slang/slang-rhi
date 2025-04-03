@@ -187,8 +187,8 @@ Result TextureImpl::init(const SubresourceData* initData)
                 auto depthLayerCount = m_mipLevels[mipLevel].extents[2];
 
                 auto& srcImage = initData[subresourceIndex];
-                ptrdiff_t srcRowStride = ptrdiff_t(srcImage.strideY);
-                ptrdiff_t srcLayerStride = ptrdiff_t(srcImage.strideZ);
+                ptrdiff_t srcRowStride = ptrdiff_t(srcImage.rowPitch);
+                ptrdiff_t srcLayerStride = ptrdiff_t(srcImage.slicePitch);
 
                 char* dstLevel = (char*)textureData + m_mipLevels[mipLevel].offset;
                 char* dstImage = dstLevel + dstArrayStride * arrayElementIndex;
@@ -426,8 +426,8 @@ Result DeviceImpl::readTexture(
     SLANG_RHI_ASSERT(mipLevelInfo.extents[0] == layout.size.width);
     SLANG_RHI_ASSERT(mipLevelInfo.extents[1] == layout.size.height);
     SLANG_RHI_ASSERT(mipLevelInfo.extents[2] == layout.size.depth);
-    SLANG_RHI_ASSERT(mipLevelInfo.strides[1] == layout.strideY);
-    SLANG_RHI_ASSERT(mipLevelInfo.strides[2] == layout.strideZ);
+    SLANG_RHI_ASSERT(mipLevelInfo.strides[1] == layout.rowPitch);
+    SLANG_RHI_ASSERT(mipLevelInfo.strides[2] == layout.slicePitch);
 
     // Step forward to the mip data in the texture.
     srcBuffer += mipLevelInfo.offset;
@@ -439,12 +439,12 @@ Result DeviceImpl::readTexture(
         uint8_t* dstRow = dstBuffer;
         for (int y = 0; y < layout.rowCount; y++)
         {
-            std::memcpy(dstRow, srcRow, layout.strideY);
-            srcRow += layout.strideY;
-            dstRow += layout.strideY;
+            std::memcpy(dstRow, srcRow, layout.rowPitch);
+            srcRow += layout.rowPitch;
+            dstRow += layout.rowPitch;
         }
-        srcBuffer += layout.strideZ;
-        dstBuffer += layout.strideZ;
+        srcBuffer += layout.slicePitch;
+        dstBuffer += layout.slicePitch;
     }
 
     // Return data.

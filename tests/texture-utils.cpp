@@ -231,8 +231,8 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
 
             SubresourceData subData = {};
             subData.data = subresource->textureData;
-            subData.strideY = subresource->strides.y;
-            subData.strideZ = subresource->strides.z;
+            subData.rowPitch = subresource->strides.y;
+            subData.slicePitch = subresource->strides.z;
             texture->subresourceDatas.push_back(subData);
         }
     }

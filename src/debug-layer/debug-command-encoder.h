@@ -141,7 +141,7 @@ public:
         IBuffer* src,
         Offset srcOffset,
         Size srcSize,
-        Size srcRowStride,
+        Size srcRowPitch,
         Extents extent
     ) override;
 

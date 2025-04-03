@@ -625,7 +625,7 @@ void DebugCommandEncoder::copyBufferToTexture(
     IBuffer* src,
     Offset srcOffset,
     Size srcSize,
-    Size srcRowStride,
+    Size srcRowPitch,
     Extents extent
 )
 {
@@ -646,8 +646,7 @@ void DebugCommandEncoder::copyBufferToTexture(
         return;
     }
 
-    baseObject
-        ->copyBufferToTexture(dst, layerIndex, mipLevel, dstOffset, src, srcOffset, srcSize, srcRowStride, extent);
+    baseObject->copyBufferToTexture(dst, layerIndex, mipLevel, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
 }
 
 void DebugCommandEncoder::buildAccelerationStructure(
