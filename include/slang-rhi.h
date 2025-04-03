@@ -2817,6 +2817,9 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize) = 0;
 };
 
 class ITaskScheduler : public ISlangUnknown
