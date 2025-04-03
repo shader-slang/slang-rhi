@@ -177,9 +177,9 @@ Result TextureImpl::init(const SubresourceData* initData)
             {
                 int32_t subresourceIndex = subresourceCounter++;
 
-                auto dstRowStride = m_mipLevels[mipLevel].strides[1];
-                auto dstLayerStride = m_mipLevels[mipLevel].strides[2];
-                auto dstArrayStride = m_mipLevels[mipLevel].strides[3];
+                auto dstRowPitch = m_mipLevels[mipLevel].strides[1];
+                auto dstLayerPitch = m_mipLevels[mipLevel].strides[2];
+                auto dstArrayPitch = m_mipLevels[mipLevel].strides[3];
 
                 auto textureRowSize = m_mipLevels[mipLevel].extents[0] * texelSize;
 
@@ -187,11 +187,11 @@ Result TextureImpl::init(const SubresourceData* initData)
                 auto depthLayerCount = m_mipLevels[mipLevel].extents[2];
 
                 auto& srcImage = initData[subresourceIndex];
-                ptrdiff_t srcRowStride = ptrdiff_t(srcImage.rowPitch);
-                ptrdiff_t srcLayerStride = ptrdiff_t(srcImage.slicePitch);
+                ptrdiff_t srcRowPitch = ptrdiff_t(srcImage.rowPitch);
+                ptrdiff_t srcLayerPitch = ptrdiff_t(srcImage.slicePitch);
 
                 char* dstLevel = (char*)textureData + m_mipLevels[mipLevel].offset;
-                char* dstImage = dstLevel + dstArrayStride * arrayElementIndex;
+                char* dstImage = dstLevel + dstArrayPitch * arrayElementIndex;
 
                 const char* srcLayer = (const char*)srcImage.data;
                 char* dstLayer = dstImage;
@@ -205,12 +205,12 @@ Result TextureImpl::init(const SubresourceData* initData)
                     {
                         memcpy(dstRow, srcRow, textureRowSize);
 
-                        srcRow += srcRowStride;
-                        dstRow += dstRowStride;
+                        srcRow += srcRowPitch;
+                        dstRow += dstRowPitch;
                     }
 
-                    srcLayer += srcLayerStride;
-                    dstLayer += dstLayerStride;
+                    srcLayer += srcLayerPitch;
+                    dstLayer += dstLayerPitch;
                 }
             }
         }

@@ -276,7 +276,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     const uint64_t dstOffset = cmd.dstOffset;
-    const Size dstRowStride = cmd.dstRowPitch;
+    const Size dstRowPitch = cmd.dstRowPitch;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
     uint32_t layerIndex = cmd.layerIndex;
@@ -320,7 +320,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     WGPUImageCopyBuffer destination = {};
     destination.buffer = dst->m_buffer;
     destination.layout.offset = dstOffset;
-    destination.layout.bytesPerRow = dstRowStride;
+    destination.layout.bytesPerRow = dstRowPitch;
 
     // This is the DESTINATION rows per image, so is calculated
     // based on the extent being copied, not the the height of the image.

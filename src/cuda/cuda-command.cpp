@@ -227,7 +227,7 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     const uint64_t dstOffset = cmd.dstOffset;
-    const Size dstRowStride = cmd.dstRowPitch;
+    const Size dstRowPitch = cmd.dstRowPitch;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
     uint32_t layerIndex = cmd.layerIndex;
@@ -279,7 +279,7 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
     copyParam.dstMemoryType = CU_MEMORYTYPE_DEVICE;
     copyParam.dstDevice = (CUdeviceptr)((uint8_t*)dst->m_cudaMemory + dstOffset);
-    copyParam.dstPitch = dstRowStride;
+    copyParam.dstPitch = dstRowPitch;
 
     copyParam.WidthInBytes = adjustedExtent.width * formatInfo.blockSizeInBytes;
     copyParam.Height = adjustedExtent.height;

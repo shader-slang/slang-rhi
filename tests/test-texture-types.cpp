@@ -15,7 +15,7 @@ struct TextureTest
 {
     IDevice* device;
 
-    size_t alignedRowStride;
+    size_t alignedRowPitch;
 
     RefPtr<TextureInfo> textureInfo;
     RefPtr<ValidationTextureFormatBase> validationFormat;
@@ -97,7 +97,7 @@ struct TextureAccessTest : TextureTest
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
-        alignedRowStride = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
+        alignedRowPitch = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
         BufferDesc bufferDesc = {};
         // All of the values read back from the shader will be uint32_t
         bufferDesc.size =
@@ -358,7 +358,7 @@ struct RenderTargetTests : TextureTest
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
-        alignedRowStride = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
+        alignedRowPitch = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
     }
 
     void submitShaderWork()
