@@ -93,7 +93,7 @@ struct CopyTextureToBuffer
     IBuffer* dst;
     uint64_t dstOffset;
     Size dstSize;
-    Size dstRowStride;
+    Size dstRowPitch;
     ITexture* src;
     uint32_t layerIndex;
     uint32_t mipLevel;

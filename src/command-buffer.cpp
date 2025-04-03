@@ -481,7 +481,7 @@ void CommandEncoder::copyTextureToBuffer(
     IBuffer* dst,
     Offset dstOffset,
     Size dstSize,
-    Size dstRowStride,
+    Size dstRowPitch,
     ITexture* src,
     uint32_t layerIndex,
     uint32_t mipLevel,
@@ -493,7 +493,7 @@ void CommandEncoder::copyTextureToBuffer(
     cmd.dst = dst;
     cmd.dstOffset = dstOffset;
     cmd.dstSize = dstSize;
-    cmd.dstRowStride = dstRowStride;
+    cmd.dstRowPitch = dstRowPitch;
     cmd.src = src;
     cmd.layerIndex = layerIndex;
     cmd.mipLevel = mipLevel;

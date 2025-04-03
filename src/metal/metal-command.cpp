@@ -201,8 +201,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
         MTL::Size(extent.width, extent.height, extent.depth),
         dst->m_buffer.get(),
         cmd.dstOffset,
-        cmd.dstRowStride,
-        cmd.dstRowStride * extent.height // TODO(row-stride): Should this take into account block?
+        cmd.dstRowPitch,
+        cmd.dstRowPitch * extent.height // TODO(row-stride): Should this take into account block?
     );
 }
 

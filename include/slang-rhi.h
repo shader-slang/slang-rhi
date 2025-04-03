@@ -2036,12 +2036,12 @@ public:
         Extents extent
     ) = 0;
 
-    /// Copies texture to a buffer. Each row is aligned to dstRowStride.
+    /// Copies texture to a buffer. Each row is aligned to dstRowPitch.
     virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
         IBuffer* dst,
         Offset dstOffset,
         Size dstSize,
-        Size dstRowStride,
+        Size dstRowPitch,
         ITexture* src,
         uint32_t layerIndex,
         uint32_t mipLevel,

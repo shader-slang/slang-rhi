@@ -328,7 +328,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     const uint64_t dstOffset = cmd.dstOffset;
-    const Size dstRowStride = cmd.dstRowStride;
+    const Size dstRowStride = cmd.dstRowPitch;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
     uint32_t layerIndex = cmd.layerIndex;
