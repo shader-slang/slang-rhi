@@ -61,7 +61,7 @@ struct CPUDescriptorAllocation
 
     /// Returns true if the allocation is valid.
     bool isValid() const { return cpuHandle.ptr != 0; }
-    operator bool() const { return isValid(); }
+    explicit operator bool() const { return isValid(); }
 
 private:
     uint32_t heapIndex;
@@ -90,7 +90,7 @@ struct CPUDescriptorRangeAllocation
 
     /// Returns true if the allocation is valid.
     bool isValid() const { return firstCpuHandle.ptr != 0; }
-    operator bool() const { return isValid(); }
+    explicit operator bool() const { return isValid(); }
 
 private:
     uint16_t descriptorSize;
@@ -189,7 +189,7 @@ struct GPUDescriptorRange
 
     /// Returns true if the range is valid.
     bool isValid() const { return firstGpuHandle.ptr != 0; }
-    operator bool() const { return isValid(); }
+    explicit operator bool() const { return isValid(); }
 };
 
 /// Represents a range of allocated GPU descriptors.
