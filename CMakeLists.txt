@@ -801,8 +801,7 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         # Create coverage target
         add_custom_target(coverage
             COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
-            COMMAND ${LLVM_COV} show ${LLVM_COV_ARGS} > coverage.txt
-            COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} > coverage.json
+            COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} -format lcov > coverage.lcov
             COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             COMMENT "Generating coverage report..."
