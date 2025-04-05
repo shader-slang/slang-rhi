@@ -748,6 +748,11 @@ if(SLANG_RHI_BUILD_TESTS)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
     endif()
+    if(SLANG_RHI_ENABLE_COVERAGE)
+        set_target_properties(slang-rhi-tests PROPERTIES
+            ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/default.profraw"
+        )
+    endif()
 
     add_test(NAME slang-rhi-tests COMMAND slang-rhi-tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
 endif()
