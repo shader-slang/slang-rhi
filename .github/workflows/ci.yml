@@ -60,7 +60,7 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Configure
-        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE' }}  -S . -B build
+        run: cmake --preset ${{matrix.preset}} -S . -B build ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' }}
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
