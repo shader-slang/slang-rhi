@@ -424,7 +424,8 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-sign-compare
     >
     $<$<CXX_COMPILER_ID:Clang>:
-        -Wall -Wextra -Wpedantic -Werror
+        -Wall -Wextra -Wpedantic
+        # -Werror
         -Wshadow
         -Wno-unused-parameter
         -Wno-missing-field-initializers
