@@ -28,12 +28,14 @@ jobs:
         include:
           # Builds running on self-hosted runners (build + tests)
           - { os: windows, platform: "x86_64", compiler: msvc, preset: default, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
-          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           # Builds running on GitHub hosted runners (build + tests)
-          - { os: macos, platform: "aarch64", compiler: clang, preset: default, flags: "unit-test", runs-on: macos-latest }
+          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", runs-on: macos-latest }
+          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", runs-on: macos-latest }
           # Builds running on GitHub hosted runners (build only)
           - { os: windows, platform: "x86_64", compiler: clang, preset: clang, runs-on: windows-latest }
-          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, runs-on: ubuntu-latest }
+          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
           - { os: windows, platform: "aarch64", compiler: msvc, preset: default, runs-on: windows-latest }
           - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
           - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
@@ -58,7 +60,7 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Configure
-        run: cmake --preset ${{matrix.preset}} -S . -B build
+        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE' }}  -S . -B build
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
@@ -66,3 +68,28 @@ jobs:
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
         run: ctest --test-dir build --build-config ${{matrix.config}} --verbose
+
+      - name: Coverage Report
+        if: contains(matrix.flags, 'coverage')
+        run: cmake --build build --config ${{matrix.config}} --target coverage
+
+      - name: Upload Coveralls
+        if: contains(matrix.flags, 'coverage')
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ${{ github.workspace }}/build/coverage.json
+          flag-name: ${{ matrix.os }}-${{ matrix.platform }}
+          parallel: true
+
+  finish:
+    needs: build
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Finish Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
+        carryforward: "linux-x86_64,macos-aarch64"
