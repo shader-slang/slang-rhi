@@ -215,8 +215,11 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
     case TextureType::Texture3D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
         viewDesc.Texture3D.MipSlice = range.mipLevel;
-        viewDesc.Texture3D.FirstWSlice = range.baseArrayLayer;
-        viewDesc.Texture3D.WSize = max(m_desc.size.depth >> range.mipLevel, 1);
+        // Set these to 0 and -1 for now to select all depth
+        // slices by default, as selecting a subset of depth slices
+        // is a concept currently only supported by d3d12.
+        viewDesc.Texture3D.FirstWSlice = 0;
+        viewDesc.Texture3D.WSize = -1;
         break;
     }
 
@@ -279,8 +282,11 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
     case TextureType::Texture3D:
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
         viewDesc.Texture3D.MipSlice = range.mipLevel;
-        viewDesc.Texture3D.FirstWSlice = range.baseArrayLayer;
-        viewDesc.Texture3D.WSize = max(m_desc.size.depth >> range.mipLevel, 1);
+        // Set these to 0 and -1 for now to select all depth
+        // slices by default, as selecting a subset of depth slices
+        // is a concept currently only supported by d3d12.
+        viewDesc.Texture3D.FirstWSlice = 0;
+        viewDesc.Texture3D.WSize = -1;
         break;
     }
 
