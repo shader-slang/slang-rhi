@@ -748,13 +748,9 @@ if(SLANG_RHI_BUILD_TESTS)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
     endif()
-    if(SLANG_RHI_ENABLE_COVERAGE)
-        set_target_properties(slang-rhi-tests PROPERTIES
-            ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/default.profraw"
-        )
-    endif()
 
     add_test(NAME slang-rhi-tests COMMAND slang-rhi-tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
+    set_property(TEST slang-rhi-tests PROPERTY ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw")
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
@@ -794,12 +790,20 @@ if(SLANG_RHI_ENABLE_COVERAGE)
     if(LLVM_PROFDATA AND LLVM_COV)
         message(STATUS "Found coverage tools: llvm-profdata, llvm-cov")
 
+        set(LLVM_COV_ARGS
+            ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests
+            -instr-profile=coverage.profdata
+            -ignore-filename-regex=".*build.*"
+            -ignore-filename-regex=".*external.*"
+            -ignore-filename-regex=".*tests.*"
+        )
+
         # Create coverage target
         add_custom_target(coverage
             COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
-            COMMAND ${LLVM_COV} show ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=coverage.profdata > coverage.txt
-            COMMAND ${LLVM_COV} export ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=coverage.profdata > coverage.json
-            COMMAND ${LLVM_COV} report ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=coverage.profdata
+            COMMAND ${LLVM_COV} show ${LLVM_COV_ARGS} > coverage.txt
+            COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} > coverage.json
+            COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             COMMENT "Generating coverage report..."
         )
