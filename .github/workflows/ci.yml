@@ -78,7 +78,7 @@ jobs:
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ${{ github.workspace }}/build/coverage.json
+          path-to-lcov: ${{ github.workspace }}/build/coverage.lcov
           flag-name: ${{ matrix.os }}-${{ matrix.platform }}
           parallel: true
 
