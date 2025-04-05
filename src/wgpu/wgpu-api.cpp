@@ -1,5 +1,7 @@
 #include "wgpu-api.h"
 
+#include <filesystem>
+
 namespace rhi::wgpu {
 
 API::~API()
@@ -22,9 +24,18 @@ Result API::init()
     const char* libraryNames[] = {};
 #endif
 
+    // We expect dawn to be in the same directory as the slang-rhi library (or the executable/library linking to it).
+    const char* rhiPathStr = findSharedLibraryPath((void*)&getRHI);
+    if (!rhiPathStr)
+    {
+        return SLANG_FAIL;
+    }
+    std::filesystem::path rhiPath = std::filesystem::path(rhiPathStr).parent_path();
+
     for (const char* name : libraryNames)
     {
-        if (loadSharedLibrary(name, m_module) == SLANG_OK)
+        std::filesystem::path path = rhiPath / name;
+        if (loadSharedLibrary(path.string().c_str(), m_module) == SLANG_OK)
             break;
     }
     if (!m_module)

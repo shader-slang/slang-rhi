@@ -340,25 +340,15 @@ if(EXISTS "${SLANG_RHI_DAWN_DIR}" AND SLANG_RHI_ENABLE_WGPU)
     unset(SLANG_RHI_DAWN_LIB_DIR)
     unset(SLANG_RHI_DAWN_BIN_DIR)
 
-    add_library(slang-rhi-dawn SHARED IMPORTED GLOBAL)
+    add_library(slang-rhi-dawn INTERFACE)
+    target_include_directories(slang-rhi-dawn INTERFACE ${SLANG_RHI_DAWN_INCLUDE_DIR})
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        set_target_properties(slang-rhi-dawn PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
-            IMPORTED_IMPLIB ${SLANG_RHI_DAWN_LIB_DIR}/dawn.lib
-            IMPORTED_LOCATION ${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll
-        )
         copy_file(${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll .)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        set_target_properties(slang-rhi-dawn PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
-            IMPORTED_LOCATION ${SLANG_RHI_DAWN_LIB_DIR}64/libdawn.so
-        )
+        copy_file(${SLANG_RHI_DAWN_LIB_DIR}64/libdawn.so .)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        set_target_properties(slang-rhi-dawn PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_DAWN_INCLUDE_DIR}
-            IMPORTED_LOCATION ${SLANG_RHI_DAWN_LIB_DIR}/libdawn.dylib
-        )
+        copy_file(${SLANG_RHI_DAWN_LIB_DIR}/libdawn.dylib .)
     endif()
 
     target_link_libraries(slang-rhi PRIVATE slang-rhi-dawn)
