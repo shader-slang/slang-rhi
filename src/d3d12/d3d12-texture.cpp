@@ -62,7 +62,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists for this resource.
-    if (m_sharedHandle != 0)
+    if (m_sharedHandle)
     {
         *outHandle = m_sharedHandle;
         return SLANG_OK;

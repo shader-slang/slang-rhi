@@ -33,7 +33,7 @@ struct ResourceSlot
     {
         BufferRange bufferRange = kEntireBuffer;
     };
-    operator bool() const { return type != BindingType::Undefined && resource; }
+    explicit operator bool() const { return type != BindingType::Undefined && resource; }
 };
 
 const ShaderComponentID kInvalidComponentID = 0xFFFFFFFF;

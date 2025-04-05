@@ -12,7 +12,7 @@ struct NVAPIShaderExtension
 {
     uint32_t uavSlot = uint32_t(-1);
     uint32_t registerSpace = 0;
-    operator bool() const { return uavSlot != uint32_t(-1); }
+    explicit operator bool() const { return uavSlot != uint32_t(-1); }
 };
 
 struct NVAPIUtil

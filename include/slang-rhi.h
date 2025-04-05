@@ -442,7 +442,7 @@ struct NativeHandle
     NativeHandleType type = NativeHandleType::Undefined;
     uint64_t value = 0;
 
-    operator bool() const { return type != NativeHandleType::Undefined; }
+    explicit operator bool() const { return type != NativeHandleType::Undefined; }
 };
 
 struct InputElementDesc
@@ -963,7 +963,9 @@ struct BufferOffsetPair
     {
     }
 
-    operator bool() const { return buffer != nullptr; }
+    explicit operator bool() const { return buffer != nullptr; }
+    bool operator==(const BufferOffsetPair& rhs) const { return buffer == rhs.buffer && offset == rhs.offset; }
+    bool operator!=(const BufferOffsetPair& rhs) const { return !(*this == rhs); }
 
     DeviceAddress getDeviceAddress() const { return buffer->getDeviceAddress() + offset; }
 };

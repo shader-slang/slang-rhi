@@ -34,7 +34,7 @@ public:
         NodeIndex metadata = NO_SPACE; // internal: node index
 
         bool isValid() const { return offset != NO_SPACE; }
-        operator bool() const { return isValid(); }
+        explicit operator bool() const { return isValid(); }
     };
 
     struct StorageReport
