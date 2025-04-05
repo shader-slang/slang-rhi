@@ -431,6 +431,7 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-sign-compare
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
+        -Wno-c++20-extensions
         # Windows specific warnings
         -Wno-microsoft-exception-spec
         -Wno-microsoft-enum-value
