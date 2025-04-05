@@ -788,15 +788,13 @@ if(SLANG_RHI_ENABLE_COVERAGE)
     # Only create coverage target if all required tools are found
     if(LLVM_PROFDATA AND LLVM_COV)
         message(STATUS "Found coverage tools: llvm-profdata, llvm-cov")
-        
+
         # Create coverage target
         add_custom_target(coverage
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/coverage
-            COMMAND LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/coverage/coverage.profraw ctest -C $<CONFIG> --output-on-failure
-            COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/coverage/coverage.profraw -o ${CMAKE_BINARY_DIR}/coverage/coverage.profdata
-            COMMAND ${LLVM_COV} show ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=${CMAKE_BINARY_DIR}/coverage/coverage.profdata > ${CMAKE_BINARY_DIR}/coverage/coverage.txt
-            COMMAND ${LLVM_COV} export ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=${CMAKE_BINARY_DIR}/coverage/coverage.profdata > ${CMAKE_BINARY_DIR}/coverage/coverage.json
-            COMMAND ${LLVM_COV} report ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=${CMAKE_BINARY_DIR}/coverage/coverage.profdata
+            COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
+            COMMAND ${LLVM_COV} show ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=coverage.profdata > coverage.txt
+            COMMAND ${LLVM_COV} export ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=coverage.profdata > coverage.json
+            COMMAND ${LLVM_COV} report ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests -instr-profile=coverage.profdata
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             COMMENT "Generating coverage report..."
         )
