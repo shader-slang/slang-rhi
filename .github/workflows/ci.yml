@@ -28,7 +28,7 @@ jobs:
         include:
           # Builds running on self-hosted runners (build + tests)
           - { os: windows, platform: "x86_64", compiler: msvc, preset: default, flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
-          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           # Builds running on GitHub hosted runners (build + tests)
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", runs-on: macos-latest }
@@ -92,4 +92,5 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         parallel-finished: true
-        carryforward: "linux-x86_64,macos-aarch64"
+        carryforward: "macos-aarch64"
+        # carryforward: "linux-x86_64,macos-aarch64"
