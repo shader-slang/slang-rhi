@@ -964,7 +964,7 @@ struct BufferOffsetPair
     }
 
     explicit operator bool() const { return buffer != nullptr; }
-    bool operator==(const BufferOffsetPair& rhs) const { return buffer == rhs.buffer && offset != rhs.offset; }
+    bool operator==(const BufferOffsetPair& rhs) const { return buffer == rhs.buffer && offset == rhs.offset; }
     bool operator!=(const BufferOffsetPair& rhs) const { return !(*this == rhs); }
 
     DeviceAddress getDeviceAddress() const { return buffer->getDeviceAddress() + offset; }
