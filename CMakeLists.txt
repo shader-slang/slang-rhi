@@ -424,14 +424,15 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-sign-compare
     >
     $<$<CXX_COMPILER_ID:Clang>:
-        -Wall -Wextra -Wpedantic
-        # -Werror
+        -Wall -Wextra -Wpedantic -Werror
         -Wshadow
+        -Wno-unknown-warning-option
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
+        -Wno-cast-function-type-mismatch
         -Wno-c++20-extensions
         # Windows specific warnings
         -Wno-microsoft-exception-spec
@@ -443,6 +444,7 @@ target_compile_options(slang-rhi PRIVATE
     $<$<CXX_COMPILER_ID:AppleClang>:
         -Wall -Wextra -Wpedantic -Werror
         -Wshadow
+        -Wno-unknown-warning-option
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare

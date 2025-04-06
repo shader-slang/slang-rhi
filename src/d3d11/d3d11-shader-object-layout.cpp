@@ -16,7 +16,7 @@ ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLa
 {
     if (auto pendingLayout = typeLayout->getPendingDataTypeLayout())
     {
-        pendingOrdinaryData = (uint32_t)typeLayout->getStride();
+        pendingOrdinaryData = (uint32_t)pendingLayout->getSize(SLANG_PARAMETER_CATEGORY_UNIFORM);
     }
 }
 
