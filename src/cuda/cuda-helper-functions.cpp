@@ -45,6 +45,10 @@ AdapterLUID getAdapterLUID(int deviceIndex)
 
 Result SLANG_MCALL getAdapters(std::vector<AdapterInfo>& outAdapters)
 {
+    if (!rhiCudaDriverApiInit())
+    {
+        return SLANG_FAIL;
+    }
     int deviceCount;
     SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
     for (int deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++)
