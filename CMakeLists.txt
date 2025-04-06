@@ -793,7 +793,7 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         message(STATUS "Found coverage tools: llvm-profdata, llvm-cov")
 
         set(LLVM_COV_ARGS
-            ${CMAKE_BINARY_DIR}/$<CONFIG>/slang-rhi-tests
+            $<TARGET_FILE:slang-rhi-tests>
             -instr-profile=coverage.profdata
             -ignore-filename-regex=".*build.*"
             -ignore-filename-regex=".*external.*"
