@@ -22,6 +22,8 @@ struct Context
 class DeviceImpl : public Device
 {
 public:
+    using Device::readBuffer;
+
     DeviceDesc m_desc;
     DeviceInfo m_info;
     std::string m_adapterName;
@@ -84,7 +86,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;

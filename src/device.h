@@ -133,6 +133,7 @@ class Device : public IDevice, public ComObject
 {
 public:
     using IDevice::readTexture;
+    using IDevice::readBuffer;
 
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE
@@ -217,6 +218,9 @@ public:
         ISlangBlob** outBlob,
         SubresourceLayout* outLayout
     ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL

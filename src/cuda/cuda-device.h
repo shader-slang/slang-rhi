@@ -34,6 +34,8 @@ public:
     ClearEngine m_clearEngine;
 
 public:
+    using Device::readBuffer;
+
     DeviceImpl();
     ~DeviceImpl();
 
@@ -122,7 +124,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, size_t offset, size_t size, void* outData) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,

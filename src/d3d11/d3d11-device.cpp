@@ -484,8 +484,14 @@ Result DeviceImpl::readTexture(
     }
 }
 
-Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
+    auto bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (offset + size > bufferImpl->m_desc.size)
+    {
+        return SLANG_FAIL;
+    }
+
     // Create staging buffer.
     ComPtr<ID3D11Buffer> stagingBuffer;
     D3D11_BUFFER_DESC stagingBufferDesc = {};
@@ -499,17 +505,14 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
     srcBox.left = (UINT)offset;
     srcBox.right = (UINT)(offset + size);
     srcBox.bottom = srcBox.back = 1;
-    m_immediateContext
-        ->CopySubresourceRegion(stagingBuffer, 0, 0, 0, 0, checked_cast<BufferImpl*>(buffer)->m_buffer, 0, &srcBox);
+    m_immediateContext->CopySubresourceRegion(stagingBuffer, 0, 0, 0, 0, bufferImpl->m_buffer, 0, &srcBox);
 
-    // Map the staging buffer and copy to blob.
-    auto blob = OwnedBlob::create(size);
+    // Map the staging buffer and copy data.
     D3D11_MAPPED_SUBRESOURCE mappedResource;
     SLANG_RETURN_ON_FAIL(m_immediateContext->Map(stagingBuffer, 0, D3D11_MAP_READ, 0, &mappedResource));
-    std::memcpy((void*)blob->getBufferPointer(), mappedResource.pData, size);
+    std::memcpy(outData, mappedResource.pData, size);
     m_immediateContext->Unmap(stagingBuffer, 0);
 
-    returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
 

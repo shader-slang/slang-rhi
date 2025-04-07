@@ -51,16 +51,14 @@ Result DeviceImpl::unmapBuffer(IBuffer* buffer)
     return SLANG_OK;
 }
 
-Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    auto blob = OwnedBlob::create(size);
     if (offset + size > bufferImpl->m_desc.size)
     {
         return SLANG_FAIL;
     }
-    std::memcpy((void*)blob->getBufferPointer(), bufferImpl->m_data + offset, size);
-    returnComPtr(outBlob, blob);
+    std::memcpy(outData, bufferImpl->m_data + offset, size);
     return SLANG_OK;
 }
 

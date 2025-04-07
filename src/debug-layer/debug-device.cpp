@@ -546,6 +546,12 @@ Result DebugDevice::readTexture(
     return baseObject->readTexture(texture, layer, mipLevel, outBlob, outLayout);
 }
 
+Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->readBuffer(buffer, offset, size, outData);
+}
+
 Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     SLANG_RHI_API_FUNC;

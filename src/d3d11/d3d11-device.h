@@ -7,6 +7,8 @@ namespace rhi::d3d11 {
 class DeviceImpl : public Device
 {
 public:
+    using Device::readBuffer;
+
     DeviceImpl();
     ~DeviceImpl();
 
@@ -63,7 +65,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
 
     virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override { return m_info; }
 

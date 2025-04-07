@@ -229,9 +229,13 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (offset + size > bufferImpl->m_desc.size)
+    {
+        return SLANG_FAIL;
+    }
 
     WGPUBufferDescriptor stagingBufferDesc = {};
     stagingBufferDesc.size = size;
@@ -307,10 +311,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
         return SLANG_FAIL;
     }
 
-    auto blob = OwnedBlob::create(size);
-    ::memcpy((void*)blob->getBufferPointer(), data, size);
+    std::memcpy(outData, data, size);
 
-    returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
 

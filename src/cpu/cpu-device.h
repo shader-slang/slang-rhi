@@ -10,6 +10,8 @@ namespace rhi::cpu {
 class DeviceImpl : public Device
 {
 public:
+    using Device::readBuffer;
+
     ~DeviceImpl();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
@@ -69,7 +71,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
 

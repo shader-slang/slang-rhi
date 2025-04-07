@@ -135,9 +135,15 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
-Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
     AUTORELEASEPOOL
+
+    auto bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (offset + size > bufferImpl->m_desc.size)
+    {
+        return SLANG_FAIL;
+    }
 
     // create staging buffer
     NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(m_device->newBuffer(size, MTL::StorageModeShared));
@@ -148,16 +154,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangB
 
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
-    blitEncoder
-        ->copyFromBuffer(checked_cast<BufferImpl*>(buffer)->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
+    blitEncoder->copyFromBuffer(bufferImpl->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
 
-    auto blob = OwnedBlob::create(size);
-    ::memcpy((void*)blob->getBufferPointer(), stagingBuffer->contents(), size);
+    std::memcpy(outData, stagingBuffer->contents(), size);
 
-    returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
 

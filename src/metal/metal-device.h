@@ -10,6 +10,8 @@ namespace rhi::metal {
 class DeviceImpl : public Device
 {
 public:
+    using Device::readBuffer;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
@@ -72,7 +74,7 @@ public:
 #endif
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
+    readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,

@@ -1185,9 +1185,13 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
     return SLANG_OK;
 }
 
-Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
-    BufferImpl* buffer = checked_cast<BufferImpl*>(inBuffer);
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (offset + size > bufferImpl->m_desc.size)
+    {
+        return SLANG_FAIL;
+    }
 
     // create staging buffer
     VKBufferHandleRAII staging;
@@ -1204,13 +1208,13 @@ Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlan
 
     VkBufferMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    barrier.srcAccessMask = calcAccessFlags(buffer->m_desc.defaultState);
+    barrier.srcAccessMask = calcAccessFlags(bufferImpl->m_desc.defaultState);
     barrier.dstAccessMask = calcAccessFlags(ResourceState::CopyDestination);
-    barrier.buffer = buffer->m_buffer.m_buffer;
+    barrier.buffer = bufferImpl->m_buffer.m_buffer;
     barrier.offset = 0;
-    barrier.size = buffer->m_desc.size;
+    barrier.size = bufferImpl->m_desc.size;
 
-    VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(buffer->m_desc.defaultState, true);
+    VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(bufferImpl->m_desc.defaultState, true);
     VkPipelineStageFlags dstStageFlags = calcPipelineStageFlags(ResourceState::CopySource, false);
 
     m_api.vkCmdPipelineBarrier(
@@ -1229,7 +1233,7 @@ Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlan
     VkBufferCopy copyInfo = {};
     copyInfo.size = size;
     copyInfo.srcOffset = offset;
-    m_api.vkCmdCopyBuffer(commandBuffer, buffer->m_buffer.m_buffer, staging.m_buffer, 1, &copyInfo);
+    m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer.m_buffer, staging.m_buffer, 1, &copyInfo);
 
     std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
     std::swap(srcStageFlags, dstStageFlags);
@@ -1249,16 +1253,13 @@ Result DeviceImpl::readBuffer(IBuffer* inBuffer, Offset offset, Size size, ISlan
 
     m_deviceQueue.flushAndWait();
 
-    auto blob = OwnedBlob::create(size);
-
     // Write out the data from the buffer
     void* mappedData = nullptr;
     SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
 
-    ::memcpy((void*)blob->getBufferPointer(), mappedData, size);
+    std::memcpy(outData, mappedData, size);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
 
-    returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
 

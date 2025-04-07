@@ -2769,6 +2769,7 @@ public:
         return readTexture(texture, 0, 0, outBlob, outRowPitch, outPixelSize);
     };
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;
