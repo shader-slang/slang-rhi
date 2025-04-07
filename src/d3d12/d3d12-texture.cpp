@@ -207,12 +207,12 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         viewDesc.Texture2DMSArray.FirstArraySlice = range.baseArrayLayer;
         viewDesc.Texture2DMSArray.ArraySize = range.layerCount;
         break;
-#else // SLANG_RHI_ENABLE_AGILITY_SDK
+#else  // SLANG_RHI_ENABLE_AGILITY_SDK
     case TextureType::Texture2DMS:
     case TextureType::Texture2DMSArray:
         break;
 #endif // SLANG_RHI_ENABLE_AGILITY_SDK
-        case TextureType::Texture3D:
+    case TextureType::Texture3D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
         viewDesc.Texture3D.MipSlice = range.mipLevel;
         viewDesc.Texture3D.FirstWSlice = range.baseArrayLayer;
