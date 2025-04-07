@@ -2045,8 +2045,8 @@ public:
         Size dstSize,
         Size dstRowPitch,
         ITexture* src,
-        uint32_t layerIndex,
-        uint32_t mipLevel,
+        uint32_t srcLayer,
+        uint32_t srcMipLevel,
         Offset3D srcOffset,
         Extents extent
     ) = 0;
@@ -2055,8 +2055,8 @@ public:
     /// Copies buffer to a texture.
     virtual SLANG_NO_THROW void SLANG_MCALL copyBufferToTexture(
         ITexture* dst,
-        uint32_t layerIndex,
-        uint32_t mipLevel,
+        uint32_t dstLayer,
+        uint32_t dstMipLevel,
         Offset3D dstOffset,
         IBuffer* src,
         Offset srcOffset,

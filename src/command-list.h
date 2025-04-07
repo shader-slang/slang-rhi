@@ -95,8 +95,8 @@ struct CopyTextureToBuffer
     Size dstSize;
     Size dstRowPitch;
     ITexture* src;
-    uint32_t layerIndex;
-    uint32_t mipLevel;
+    uint32_t srcLayer;
+    uint32_t srcMipLevel;
     Offset3D srcOffset;
     Extents extent;
 };
