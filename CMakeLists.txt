@@ -41,6 +41,15 @@ endif()
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
+option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
+
+# Configure coverage flags
+if(SLANG_RHI_ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+        add_link_options(-fprofile-instr-generate)
+    endif()
+endif()
 
 # Determine available backends
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -417,11 +426,14 @@ target_compile_options(slang-rhi PRIVATE
     $<$<CXX_COMPILER_ID:Clang>:
         -Wall -Wextra -Wpedantic -Werror
         -Wshadow
+        -Wno-unknown-warning-option
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
+        -Wno-cast-function-type-mismatch
+        -Wno-c++20-extensions
         # Windows specific warnings
         -Wno-microsoft-exception-spec
         -Wno-microsoft-enum-value
@@ -432,6 +444,7 @@ target_compile_options(slang-rhi PRIVATE
     $<$<CXX_COMPILER_ID:AppleClang>:
         -Wall -Wextra -Wpedantic -Werror
         -Wshadow
+        -Wno-unknown-warning-option
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
@@ -741,6 +754,7 @@ if(SLANG_RHI_BUILD_TESTS)
     endif()
 
     add_test(NAME slang-rhi-tests COMMAND slang-rhi-tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
+    set_property(TEST slang-rhi-tests PROPERTY ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw")
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
@@ -755,3 +769,49 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 endif()
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
+
+# Add coverage target if coverage is enabled
+if(SLANG_RHI_ENABLE_COVERAGE)
+    # Find required tools without failing if not found
+    if(APPLE)
+        # On macOS, we need to use xcrun to access LLVM tools
+        execute_process(
+            COMMAND xcrun -f llvm-profdata
+            OUTPUT_VARIABLE LLVM_PROFDATA
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        execute_process(
+            COMMAND xcrun -f llvm-cov
+            OUTPUT_VARIABLE LLVM_COV
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    else()
+        find_program(LLVM_PROFDATA llvm-profdata QUIET)
+        find_program(LLVM_COV llvm-cov QUIET)
+    endif()
+
+    # Only create coverage target if all required tools are found
+    if(LLVM_PROFDATA AND LLVM_COV)
+        message(STATUS "Found coverage tools: llvm-profdata, llvm-cov")
+
+        set(LLVM_COV_ARGS
+            $<TARGET_FILE:slang-rhi-tests>
+            -instr-profile=coverage.profdata
+            -ignore-filename-regex=".*build.*"
+            -ignore-filename-regex=".*external.*"
+            -ignore-filename-regex=".*tests.*"
+        )
+
+        # Create coverage target
+        add_custom_target(coverage
+            COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
+            COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} -format lcov > coverage.lcov
+            COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Generating coverage report..."
+        )
+    else()
+        message(STATUS "Coverage tools not found. Coverage target will not be available.")
+        message(STATUS "Required tools: llvm-profdata, llvm-cov")
+    endif()
+endif()
