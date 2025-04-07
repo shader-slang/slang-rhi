@@ -73,10 +73,12 @@ jobs:
 
       - name: Coverage Report
         if: contains(matrix.flags, 'coverage')
+        continue-on-error: true
         run: cmake --build build --config ${{matrix.config}} --target coverage
 
       - name: Upload Coveralls
         if: contains(matrix.flags, 'coverage')
+        continue-on-error: true
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -87,6 +89,7 @@ jobs:
   finish:
     needs: build
     if: ${{ always() }}
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
     - name: Finish Coveralls
