@@ -528,15 +528,16 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
 {
+    auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
     auto dst = checked_cast<TextureImpl*>(cmd.dst);
     SubresourceRange subresourceRange = cmd.subresourceRange;
 
+    requireBufferState(buffer, ResourceState::CopySource);
     requireTextureState(dst, subresourceRange, ResourceState::CopyDestination);
     commitBarriers();
 
     SubresourceLayout* srLayout = cmd.layouts;
     Offset bufferOffset = cmd.srcOffset;
-    auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
 
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
