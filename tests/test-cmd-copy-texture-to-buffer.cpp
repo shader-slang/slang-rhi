@@ -29,7 +29,7 @@ Result getSizeAndMakeBuffer(TextureTestContext* c, uint64_t* outSize, IBuffer** 
     return c->getDevice()->createBuffer(bufferDesc, nullptr, outBuffer);
 }
 
-GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU | CUDA)
+GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | Metal | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(
