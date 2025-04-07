@@ -14,8 +14,8 @@ using namespace rhi::testing;
 void testTextureLayout(
     IDevice* device,
     ComPtr<ITexture> texture,
-    size_t layerIndex,
-    size_t mipLevel,
+    uint32_t layer,
+    uint32_t mipLevel,
     SubresourceLayout expectedLayout
 )
 {
@@ -34,8 +34,8 @@ void testTextureLayout(
 void testTextureLayout2(
     IDevice* device,
     ComPtr<ITexture> texture,
-    size_t layerIndex,
-    size_t mipLevel,
+    uint32_t layer,
+    uint32_t mipLevel,
     Offset3D offset,
     Extents extents,
     SubresourceLayout expectedLayout

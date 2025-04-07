@@ -590,8 +590,8 @@ void DebugCommandEncoder::copyTextureToBuffer(
     Size dstSize,
     Size dstRowPitch,
     ITexture* src,
-    uint32_t layerIndex,
-    uint32_t mipLevel,
+    uint32_t srcLayer,
+    uint32_t srcMipLevel,
     Offset3D srcOffset,
     Extents extent
 )
@@ -602,24 +602,25 @@ void DebugCommandEncoder::copyTextureToBuffer(
 
     const TextureDesc& desc = src->getDesc();
 
-    if (layerIndex >= desc.getLayerCount())
+    if (srcLayer >= desc.getLayerCount())
     {
         RHI_VALIDATION_ERROR("The base array layer is out of bounds.");
         return;
     }
-    if (mipLevel >= desc.mipLevelCount)
+    if (srcMipLevel >= desc.mipLevelCount)
     {
         RHI_VALIDATION_ERROR("Mip level is out of bounds.");
         return;
     }
 
-    baseObject->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, layerIndex, mipLevel, srcOffset, extent);
+    baseObject
+        ->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, srcLayer, srcMipLevel, srcOffset, extent);
 }
 
 void DebugCommandEncoder::copyBufferToTexture(
     ITexture* dst,
-    uint32_t layerIndex,
-    uint32_t mipLevel,
+    uint32_t dstLayer,
+    uint32_t dstMipLevel,
     Offset3D dstOffset,
     IBuffer* src,
     Offset srcOffset,
@@ -634,18 +635,19 @@ void DebugCommandEncoder::copyBufferToTexture(
 
     const TextureDesc& desc = dst->getDesc();
 
-    if (layerIndex >= desc.getLayerCount())
+    if (dstLayer >= desc.getLayerCount())
     {
         RHI_VALIDATION_ERROR("The base array layer is out of bounds.");
         return;
     }
-    if (mipLevel >= desc.mipLevelCount)
+    if (dstMipLevel >= desc.mipLevelCount)
     {
         RHI_VALIDATION_ERROR("Mip level is out of bounds.");
         return;
     }
 
-    baseObject->copyBufferToTexture(dst, layerIndex, mipLevel, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
+    baseObject
+        ->copyBufferToTexture(dst, dstLayer, dstMipLevel, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
 }
 
 void DebugCommandEncoder::buildAccelerationStructure(

@@ -296,20 +296,20 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
     const uint64_t dstOffset = cmd.dstOffset;
     const Size dstRowPitch = cmd.dstRowPitch;
+    uint32_t srcLayer = cmd.srcLayer;
+    uint32_t srcMipLevel = cmd.srcMipLevel;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
-    uint32_t layerIndex = cmd.layerIndex;
-    uint32_t mipLevel = cmd.mipLevel;
 
     // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
-    requireTextureState(src, {mipLevel, 1, layerIndex, 1}, ResourceState::CopySource);
+    requireTextureState(src, {srcMipLevel, 1, srcLayer, 1}, ResourceState::CopySource);
     commitBarriers();
 
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extents srcMipSize = calcMipSize(textureSize, mipLevel);
+    Extents srcMipSize = calcMipSize(textureSize, srcMipLevel);
     Extents adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
@@ -342,8 +342,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     region.bufferRowLength = rowLengthInTexels;
     region.bufferImageHeight = 0;
     region.imageSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
-    region.imageSubresource.mipLevel = mipLevel;
-    region.imageSubresource.baseArrayLayer = layerIndex;
+    region.imageSubresource.mipLevel = srcMipLevel;
+    region.imageSubresource.baseArrayLayer = srcLayer;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
     region.imageExtent =

@@ -195,8 +195,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     auto encoder = getBlitCommandEncoder();
     encoder->copyFromTexture(
         src->m_texture.get(),
-        cmd.layerIndex,
-        cmd.mipLevel,
+        cmd.srcLayer,
+        cmd.srcMipLevel,
         MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
         MTL::Size(extent.width, extent.height, extent.depth),
         dst->m_buffer.get(),
