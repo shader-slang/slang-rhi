@@ -77,7 +77,7 @@ static const FormatConversionFuncs sFuncs[] = {
     {Format::R11G11B10Float, nullptr, nullptr, nullptr, nullptr},
 
     {Format::D32Float, packInt32<1>, unpackInt32<1>, packFloat32<1>, unpackFloat32<1>},
-    {Format::D16Unorm, nullptr, nullptr, nullptr, nullptr},
+    {Format::D16Unorm, packInt16<1>, unpackInt16<1>, packUnorm16<1>, unpackUnorm16<1>},
     {Format::D32FloatS8Uint, nullptr, nullptr, nullptr, nullptr},
 };
 
