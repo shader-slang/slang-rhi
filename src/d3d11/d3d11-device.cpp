@@ -261,7 +261,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 sizeof(doublePrecisionFeature))) &&
             doublePrecisionFeature.DoublePrecisionFloatShaderOps)
         {
-            m_features.add("double");
+            m_features.push_back("double");
         }
     }
 
