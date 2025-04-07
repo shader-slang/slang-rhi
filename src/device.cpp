@@ -622,6 +622,14 @@ Result Device::readTexture(
     return SLANG_OK;
 }
 
+Result Device::readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob)
+{
+    auto blob = OwnedBlob::create(size);
+    SLANG_RETURN_ON_FAIL(readBuffer(buffer, offset, size, (void*)blob->getBufferPointer()));
+    returnComPtr(outBlob, blob);
+    return SLANG_OK;
+}
+
 Result Device::getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment)
 {
     SLANG_UNUSED(desc);

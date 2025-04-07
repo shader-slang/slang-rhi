@@ -1289,16 +1289,19 @@ const DeviceInfo& DeviceImpl::getDeviceInfo() const
     return m_info;
 }
 
-Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
-
-    BufferImpl* buffer = checked_cast<BufferImpl*>(bufferIn);
+    auto bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (offset + size > bufferImpl->m_desc.size)
+    {
+        return SLANG_FAIL;
+    }
 
     // This will be slow!!! - it blocks CPU on GPU completion
-    D3D12Resource& resource = buffer->m_resource;
+    D3D12Resource& resource = bufferImpl->m_resource;
 
     D3D12Resource stageBuf;
-    if (buffer->m_desc.memoryType != MemoryType::ReadBack)
+    if (bufferImpl->m_desc.memoryType != MemoryType::ReadBack)
     {
         ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
@@ -1330,10 +1333,9 @@ Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlan
         endImmediateCommandList();
     }
 
-    D3D12Resource& stageBufRef = buffer->m_desc.memoryType != MemoryType::ReadBack ? stageBuf : resource;
+    D3D12Resource& stageBufRef = bufferImpl->m_desc.memoryType != MemoryType::ReadBack ? stageBuf : resource;
 
     // Map and copy
-    auto blob = OwnedBlob::create(size);
     {
         UINT8* data;
         D3D12_RANGE readRange = {0, size};
@@ -1341,11 +1343,11 @@ Result DeviceImpl::readBuffer(IBuffer* bufferIn, Offset offset, Size size, ISlan
         SLANG_RETURN_ON_FAIL(stageBufRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&data)));
 
         // Copy to memory buffer
-        ::memcpy((void*)blob->getBufferPointer(), data, size);
+        std::memcpy(outData, data, size);
 
         stageBufRef.getResource()->Unmap(0, nullptr);
     }
-    returnComPtr(outBlob, blob);
+
     return SLANG_OK;
 }
 

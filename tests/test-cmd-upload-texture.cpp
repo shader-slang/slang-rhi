@@ -182,7 +182,7 @@ GPU_TEST_CASE("cmd-upload-texture-multisubmit", D3D12 | Vulkan | Metal | CUDA | 
             uint32_t mipLevelCount = currentData.desc.mipLevelCount;
 
             auto queue = device->getQueue(QueueType::Graphics);
- 
+
             // Replace mipLevels one at a time
             for (uint32_t layerIdx = 0; layerIdx < currentData.desc.getLayerCount(); layerIdx++)
             {

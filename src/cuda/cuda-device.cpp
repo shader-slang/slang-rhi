@@ -590,18 +590,16 @@ Result DeviceImpl::readTexture(
     return SLANG_OK;
 }
 
-Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
+Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, void* outData)
 {
     auto bufferImpl = checked_cast<BufferImpl*>(buffer);
-
-    auto blob = OwnedBlob::create(size);
-    SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy(
-        (CUdeviceptr)blob->getBufferPointer(),
-        (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset),
-        size
-    ));
-
-    returnComPtr(outBlob, blob);
+    if (offset + size > bufferImpl->m_desc.size)
+    {
+        return SLANG_FAIL;
+    }
+    SLANG_CUDA_RETURN_ON_FAIL(
+        cuMemcpy((CUdeviceptr)outData, (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size)
+    );
     return SLANG_OK;
 }
 
