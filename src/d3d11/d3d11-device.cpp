@@ -257,7 +257,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         D3D11_FEATURE_DATA_DOUBLES doublePrecisionFeature = {};
         if (SUCCEEDED(m_device->CheckFeatureSupport(
                 D3D11_FEATURE_DOUBLES,
-                &doublePrecisionFeature, 
+                &doublePrecisionFeature,
                 sizeof(doublePrecisionFeature))) &&
             doublePrecisionFeature.DoublePrecisionFloatShaderOps)
         {
