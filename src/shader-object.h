@@ -162,6 +162,7 @@ public:
                 return typeLayout;
             case slang::TypeReflection::Kind::ConstantBuffer:
             case slang::TypeReflection::Kind::ParameterBlock:
+                outContainerType = ShaderObjectContainerType::ParameterBlock;
                 typeLayout = typeLayout->getElementTypeLayout();
                 continue;
             default:
@@ -195,6 +196,7 @@ public:
         return dummy;
     }
     virtual ShaderObjectLayout* getEntryPointLayout(uint32_t index) const { return nullptr; }
+    virtual slang::TypeLayoutReflection* getParameterBlockTypeLayout() { return m_elementTypeLayout; }
 
     void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
 };

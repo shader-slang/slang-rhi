@@ -1310,7 +1310,8 @@ enum class ShaderObjectContainerType
 {
     None,
     Array,
-    StructuredBuffer
+    StructuredBuffer,
+    ParameterBlock
 };
 
 enum class BindingType

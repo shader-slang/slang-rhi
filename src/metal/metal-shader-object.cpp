@@ -399,9 +399,6 @@ Result BindingDataBuilder::writeArgumentBuffer(
 )
 {
     auto argumentBufferTypeLayout = specializedLayout->getParameterBlockTypeLayout();
-    // TODO(shaderobject) for some reason, using the specialized layout here always returns zero uniform data size
-    // auto elementTypeLayout = specializedLayout->getElementTypeLayout();
-    auto elementTypeLayout = shaderObject->getElementTypeLayout();
 
     ComPtr<IBuffer> argumentBuffer;
     BufferDesc argumentBufferDesc = {};
@@ -411,6 +408,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
     argumentBufferDesc.memoryType = MemoryType::Upload;
     SLANG_RETURN_ON_FAIL(m_device->createBuffer(argumentBufferDesc, nullptr, argumentBuffer.writeRef()));
     auto argumentBufferImpl = checked_cast<BufferImpl*>(argumentBuffer.get());
+
+    memcpy(argumentBufferImpl->m_buffer->contents(), shaderObject->m_data.data(), shaderObject->m_data.size());
 
     // Once the buffer is allocated, we can fill it in with the uniform data
     // and resource bindings we have tracked, using `argumentBufferTypeLayout` to obtain
@@ -425,8 +424,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
         uint32_t slotIndex = bindingRangeInfo.slotIndex;
         uint32_t count = bindingRangeInfo.count;
 
-        SlangInt setIndex = elementTypeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
-        SlangInt rangeIndex = elementTypeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
+        SlangInt setIndex = argumentBufferTypeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
+        SlangInt rangeIndex = argumentBufferTypeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
         SlangInt argumentOffset =
             argumentBufferTypeLayout->getDescriptorSetDescriptorRangeIndexOffset(setIndex, rangeIndex);
         uint8_t* argumentPtr = argumentData + argumentOffset;
@@ -444,15 +443,18 @@ Result BindingDataBuilder::writeArgumentBuffer(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                auto resourceId = textureView->m_textureView->gpuResourceID();
-                memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
-                if (bindingRangeInfo.bindingType == slang::BindingType::MutableTexture)
+                if (textureView)
                 {
-                    SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, textureView->m_textureView.get()));
-                }
-                else
-                {
-                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, textureView->m_textureView.get()));
+                    auto resourceId = textureView->m_textureView->gpuResourceID();
+                    memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                    if (bindingRangeInfo.bindingType == slang::BindingType::MutableTexture)
+                    {
+                        SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, textureView->m_textureView.get()));
+                    }
+                    else
+                    {
+                        SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, textureView->m_textureView.get()));
+                    }
                 }
             }
             break;
@@ -461,8 +463,11 @@ Result BindingDataBuilder::writeArgumentBuffer(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource.get());
-                auto resourceId = sampler->m_samplerState->gpuResourceID();
-                memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                if (sampler)
+                {
+                    auto resourceId = sampler->m_samplerState->gpuResourceID();
+                    memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                }
             }
             break;
         case slang::BindingType::RawBuffer:
@@ -474,16 +479,19 @@ Result BindingDataBuilder::writeArgumentBuffer(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                DeviceAddress bufferPtr = buffer->getDeviceAddress() + slot.bufferRange.offset;
-                memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
-                if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer ||
-                    bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer)
+                if (buffer)
                 {
-                    SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
-                }
-                else
-                {
-                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, buffer->m_buffer.get()));
+                    DeviceAddress bufferPtr = buffer->getDeviceAddress() + slot.bufferRange.offset;
+                    memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
+                    if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer ||
+                        bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer)
+                    {
+                        SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
+                    }
+                    else
+                    {
+                        SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, buffer->m_buffer.get()));
+                    }
                 }
             }
         }
@@ -535,52 +543,12 @@ Result BindingDataBuilder::writeArgumentBuffer(
         }
     }
 
-    SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
-        argumentBufferTypeLayout,
-        elementTypeLayout,
-        (uint8_t*)argumentData,
-        (uint8_t*)shaderObject->m_data.data()
-    ));
-
     argumentBufferImpl->m_buffer->didModifyRange(NS::Range(0, argumentBufferImpl->m_desc.size));
 
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(argumentBufferImpl);
 
     outArgumentBuffer = argumentBufferImpl;
-    return SLANG_OK;
-}
-
-Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
-    slang::TypeLayoutReflection* argumentBufferTypeLayout,
-    slang::TypeLayoutReflection* defaultTypeLayout,
-    uint8_t* argumentBuffer,
-    uint8_t* srcData
-)
-{
-    // If we are pure data, just copy it over from srcData.
-    if (defaultTypeLayout->getCategoryCount() == 1)
-    {
-        if (defaultTypeLayout->getCategoryByIndex(0) == slang::ParameterCategory::Uniform)
-        {
-            // Just write the uniform data.
-            memcpy(argumentBuffer, srcData, defaultTypeLayout->getSize());
-        }
-        return SLANG_OK;
-    }
-
-    for (unsigned int i = 0; i < argumentBufferTypeLayout->getFieldCount(); i++)
-    {
-        auto argumentBufferField = argumentBufferTypeLayout->getFieldByIndex(i);
-        auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
-        // If the field is mixed type, recurse.
-        SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
-            argumentBufferField->getTypeLayout(),
-            defaultLayoutField->getTypeLayout(),
-            argumentBuffer + argumentBufferField->getOffset(),
-            srcData + defaultLayoutField->getOffset()
-        ));
-    }
     return SLANG_OK;
 }
 
