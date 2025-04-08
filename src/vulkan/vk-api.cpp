@@ -4,8 +4,6 @@
 
 #include <vector>
 
-#include <cassert>
-
 namespace rhi::vk {
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VulkanApi !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
