@@ -85,21 +85,21 @@ Result calcSubresourceRegionLayout(
 
     if (extents.width == kRemainingTextureSize)
     {
-        extents.width = max(1, (textureSize.width >> mipLevel));
+        extents.width = max(1u, (textureSize.width >> mipLevel));
         if (offset.x >= extents.width)
             return SLANG_E_INVALID_ARG;
         extents.width -= offset.x;
     }
     if (extents.height == kRemainingTextureSize)
     {
-        extents.height = max(1, (textureSize.height >> mipLevel));
+        extents.height = max(1u, (textureSize.height >> mipLevel));
         if (offset.y >= extents.height)
             return SLANG_E_INVALID_ARG;
         extents.height -= offset.y;
     }
     if (extents.depth == kRemainingTextureSize)
     {
-        extents.depth = max(1, (textureSize.depth >> mipLevel));
+        extents.depth = max(1u, (textureSize.depth >> mipLevel));
         if (offset.z >= extents.depth)
             return SLANG_E_INVALID_ARG;
         extents.depth -= offset.z;

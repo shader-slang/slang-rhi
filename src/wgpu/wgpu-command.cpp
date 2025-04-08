@@ -252,8 +252,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             destination.mipLevel = dstMipLevel;
             destination.aspect = WGPUTextureAspect_All;
 
-            WGPUExtent3D copySize =
-                {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+            WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
             // Align copy sizes to format block dimensions
             copySize.width = math::calcAligned2(copySize.width, srcFormatInfo.blockWidth);
@@ -327,8 +326,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     destination.layout.rowsPerImage = math::divideRoundedUp(adjustedExtent.height, formatInfo.blockHeight);
 
     // Store copy size.
-    WGPUExtent3D copySize =
-        {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+    WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
     m_ctx.api.wgpuCommandEncoderCopyTextureToBuffer(m_commandEncoder, &source, &destination, &copySize);
 }

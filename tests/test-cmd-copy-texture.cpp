@@ -522,7 +522,7 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU | CUDA)
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
 
-            Extents extents = {max(size.width / 4, 1), max(size.height / 4, 1), max(size.depth / 4, 1)};
+            Extents extents = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
             extents.width = math::calcAligned2(extents.width, data.formatInfo.blockWidth);
             extents.height = math::calcAligned2(extents.height, data.formatInfo.blockHeight);
 

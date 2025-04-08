@@ -216,9 +216,9 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
         rowSize = alignTo(rowSize, alignment);
         Size sliceSize = rowSize * alignTo(extents.height, formatInfo.blockHeight);
         size += sliceSize * extents.depth;
-        extents.width = max(1, extents.width >> 1);
-        extents.height = max(1, extents.height >> 1);
-        extents.depth = max(1, extents.depth >> 1);
+        extents.width = max(1u, extents.width >> 1);
+        extents.height = max(1u, extents.height >> 1);
+        extents.depth = max(1u, extents.depth >> 1);
     }
     size *= desc.getLayerCount();
 

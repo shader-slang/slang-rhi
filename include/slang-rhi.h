@@ -715,14 +715,14 @@ struct SubresourceData
     Size slicePitch;
 };
 
-static const int32_t kRemainingTextureSize = 0xffffffff;
+static const uint32_t kRemainingTextureSize = 0xffffffff;
 struct Offset3D
 {
-    int32_t x = 0;
-    int32_t y = 0;
-    int32_t z = 0;
+    uint32_t x = 0;
+    uint32_t y = 0;
+    uint32_t z = 0;
     Offset3D() = default;
-    Offset3D(int32_t _x, int32_t _y, int32_t _z)
+    Offset3D(uint32_t _x, uint32_t _y, uint32_t _z)
         : x(_x)
         , y(_y)
         , z(_z)
@@ -738,11 +738,11 @@ struct Offset3D
 struct Extents
 {
     /// Width in pixels.
-    int32_t width = 0;
+    uint32_t width = 0;
     /// Height in pixels (if 2d or 3d).
-    int32_t height = 0;
+    uint32_t height = 0;
     /// Depth (if 3d).
-    int32_t depth = 0;
+    uint32_t depth = 0;
 
     static Extents kWholeTexture;
 

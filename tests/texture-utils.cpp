@@ -202,9 +202,9 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
         {
             RefPtr<ValidationTextureData> subresource = new ValidationTextureData();
 
-            auto mipWidth = std::max(extents.width >> mip, 1);
-            auto mipHeight = std::max(extents.height >> mip, 1);
-            auto mipDepth = std::max(extents.depth >> mip, 1);
+            auto mipWidth = std::max(extents.width >> mip, 1u);
+            auto mipHeight = std::max(extents.height >> mip, 1u);
+            auto mipDepth = std::max(extents.depth >> mip, 1u);
             auto mipSize = mipWidth * mipHeight * mipDepth * texelSize;
             subresource->textureData = ::malloc(mipSize);
             REQUIRE(subresource->textureData != nullptr);

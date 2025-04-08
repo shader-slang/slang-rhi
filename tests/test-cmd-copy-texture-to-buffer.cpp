@@ -388,7 +388,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | Metal | 
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
 
-            Extents copySize = {max(size.width / 2, 1), max(size.height / 2, 1), max(size.depth / 2, 1)};
+            Extents copySize = {max(size.width / 2, 1u), max(size.height / 2, 1u), max(size.depth / 2, 1u)};
             copySize.width = math::calcAligned2(copySize.width, data.formatInfo.blockWidth);
             copySize.height = math::calcAligned2(copySize.height, data.formatInfo.blockHeight);
 
@@ -602,7 +602,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset-mip1", D3D12 | Vulkan | Met
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
 
-            Extents copySize = {max(size.width / 2, 1), max(size.height / 2, 1), max(size.depth / 2, 1)};
+            Extents copySize = {max(size.width / 2, 1u), max(size.height / 2, 1u), max(size.depth / 2, 1u)};
             copySize.width = math::calcAligned2(copySize.width, data.formatInfo.blockWidth);
             copySize.height = math::calcAligned2(copySize.height, data.formatInfo.blockHeight);
 

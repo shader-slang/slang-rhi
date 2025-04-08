@@ -277,8 +277,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             region.dstSubresource.mipLevel = dstMipLevel;
             region.dstSubresource.layerCount = 1;
             region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
-            region.extent =
-                {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+            region.extent = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
             m_api.vkCmdCopyImage(m_cmdBuffer, src->m_image, srcImageLayout, dst->m_image, dstImageLayout, 1, &region);
         }
@@ -346,8 +345,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     region.imageSubresource.baseArrayLayer = srcLayer;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
-    region.imageExtent =
-        {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+    region.imageExtent = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
     m_api.vkCmdCopyImageToBuffer(
         m_cmdBuffer,
@@ -511,9 +509,8 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             region.imageSubresource.mipLevel = mipLevel;
             region.imageSubresource.baseArrayLayer = layerIndex;
             region.imageSubresource.layerCount = 1;
-            region.imageOffset = {cmd.offset.x, cmd.offset.y, cmd.offset.z};
-            region.imageExtent =
-                {uint32_t(srLayout->size.width), uint32_t(srLayout->size.height), uint32_t(srLayout->size.depth)};
+            region.imageOffset = {int32_t(cmd.offset.x), int32_t(cmd.offset.y), int32_t(cmd.offset.z)};
+            region.imageExtent = {srLayout->size.width, srLayout->size.height, srLayout->size.depth};
 
             m_api.vkCmdCopyBufferToImage(
                 m_cmdBuffer,
