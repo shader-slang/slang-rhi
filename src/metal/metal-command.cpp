@@ -112,6 +112,14 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 {
     m_commandBuffer = commandBuffer->m_commandBuffer;
 
+    // Synchronize constant and argument buffers.
+    // TODO(shader-object): This only needs to be done once after writing,
+    // once we cache/reuse binding data this shold be revisited.
+    for (const auto& buffer : commandBuffer->m_bindingCache.buffers)
+    {
+        getBlitCommandEncoder()->synchronizeResource(buffer->m_buffer.get());
+    }
+
     CommandList& commandList = commandBuffer->m_commandList;
     auto command = commandList.getCommands();
     while (command)
@@ -444,6 +452,12 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         encoder->setFragmentTextures(m_bindingData->textures, NS::Range(0, m_bindingData->textureCount));
         encoder->setVertexSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
         encoder->setFragmentSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
+        encoder->useResources(m_bindingData->usedResources, m_bindingData->usedResourceCount, MTL::ResourceUsageRead);
+        encoder->useResources(
+            m_bindingData->usedRWResources,
+            m_bindingData->usedRWResourceCount,
+            MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+        );
     }
 
     if (updateVertexBuffers)
@@ -618,6 +632,12 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         );
         encoder->setTextures(m_bindingData->textures, NS::Range(0, m_bindingData->textureCount));
         encoder->setSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
+        encoder->useResources(m_bindingData->usedResources, m_bindingData->usedResourceCount, MTL::ResourceUsageRead);
+        encoder->useResources(
+            m_bindingData->usedRWResources,
+            m_bindingData->usedRWResourceCount,
+            MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+        );
     }
 
     m_computeStateValid = true;
