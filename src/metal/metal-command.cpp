@@ -895,10 +895,10 @@ void CommandQueueImpl::retireCommandBuffers()
     std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
-    uint64_t lastFinishedID = updateLastFinishedID();
     for (const auto& commandBuffer : commandBuffers)
     {
-        if (commandBuffer->m_submissionID <= lastFinishedID)
+        auto status = commandBuffer->m_commandBuffer->status();
+        if (status == MTL::CommandBufferStatusCompleted || status == MTL::CommandBufferStatusError)
         {
             commandBuffer->reset();
         }
@@ -927,30 +927,31 @@ Result CommandQueueImpl::waitOnHost()
 {
     AUTORELEASEPOOL
 
-    // Increment submission ID.
-    m_lastSubmittedID++;
+    if (updateLastFinishedID() < m_lastSubmittedID)
+    {
+        // Create a semaphore to synchronize the notification
+        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
 
-    // Create a semaphore to synchronize the notification
-    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+        // Create and store the notification block
+        MTL::SharedEventNotificationBlock block = ^(MTL::SharedEvent* event, uint64_t eventValue) {
+          dispatch_semaphore_signal(semaphore);
+        };
 
-    // Create and store the notification block
-    MTL::SharedEventNotificationBlock block = ^(MTL::SharedEvent* event, uint64_t eventValue) {
-      dispatch_semaphore_signal(semaphore);
-    };
+        // Set up notification handler before creating command buffer
+        m_trackingEvent->notifyListener(m_trackingEventListener.get(), m_lastSubmittedID, block);
 
-    // Set up notification handler
-    m_trackingEvent->notifyListener(m_trackingEventListener.get(), m_lastSubmittedID, block);
+        // Wait for the device with timeout
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        dispatch_release(semaphore);
 
-    // Create command buffer and signal the event.
-    MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-    commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
-    commandBuffer->commit();
+        updateLastFinishedID();
+    }
 
-    // Wait for the device.
-    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-    dispatch_release(semaphore);
+    for (const auto& commandBuffer : m_commandBuffersInFlight)
+    {
+        commandBuffer->m_commandBuffer->waitUntilCompleted();
+    }
 
-    // Retire command buffers (internally updates last finished id).
     retireCommandBuffers();
 
     // Should now have no command buffers in flight and have finished submitting
@@ -976,6 +977,10 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     if (desc.waitFenceCount > 0)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        if (!commandBuffer)
+        {
+            return SLANG_FAIL;
+        }
         for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
         {
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
@@ -1011,15 +1016,20 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         commandBuffer->m_commandBuffer->commit();
     }
 
-    // If there are no command buffers to submit, but fences to signal, encode them to a new command buffer.
-    if (desc.signalFenceCount > 0 && desc.commandBufferCount == 0)
+    // If no command buffers are passed, we still submit a command buffer to signal the fences and tracking event.
+    if (desc.commandBufferCount == 0)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        if (!commandBuffer)
+        {
+            return SLANG_FAIL;
+        }
         for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
         {
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
             commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
         }
+        commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
         commandBuffer->commit();
     }
 
