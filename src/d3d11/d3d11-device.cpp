@@ -252,6 +252,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
+    // Check double precision support
+    {
+        D3D11_FEATURE_DATA_DOUBLES doublePrecisionFeature = {};
+        if (SUCCEEDED(m_device->CheckFeatureSupport(
+                D3D11_FEATURE_DOUBLES,
+                &doublePrecisionFeature,
+                sizeof(doublePrecisionFeature))) &&
+            doublePrecisionFeature.DoublePrecisionFloatShaderOps)
+        {
+            m_features.push_back("double");
+        }
+    }
+
     {
         // Create a TIMESTAMP_DISJOINT query object to query/update frequency info.
         D3D11_QUERY_DESC disjointQueryDesc = {};
