@@ -200,17 +200,38 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
 
+    // Calculate adjusted extents. Note it is required and enforced
+    // by debug layer that if 'remaining texture' is used, src and
+    // dst offsets are the same.
+    Extents srcMipSize = calcMipSize(src->m_desc.size, cmd.srcMipLevel);
+    Extents adjustedExtent = extent;
+    if (adjustedExtent.width == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
+        adjustedExtent.width = srcMipSize.width - srcOffset.x;
+    }
+    if (adjustedExtent.height == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.height >= srcOffset.y);
+        adjustedExtent.height = srcMipSize.height - srcOffset.y;
+    }
+    if (adjustedExtent.depth == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.depth >= srcOffset.z);
+        adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+    }
+
     auto encoder = getBlitCommandEncoder();
     encoder->copyFromTexture(
         src->m_texture.get(),
         cmd.srcLayer,
         cmd.srcMipLevel,
         MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
-        MTL::Size(extent.width, extent.height, extent.depth),
+        MTL::Size(adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth),
         dst->m_buffer.get(),
         cmd.dstOffset,
         cmd.dstRowPitch,
-        cmd.dstRowPitch * extent.height // TODO(row-stride): Should this take into account block?
+        cmd.dstRowPitch * adjustedExtent.height // TODO(row-stride): Should this take into account block?
     );
 }
 
