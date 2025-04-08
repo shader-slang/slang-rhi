@@ -97,7 +97,8 @@ void ClearEngine::clearTextureUint(
     const uint32_t clearValue[4]
 )
 {
-    clearTexture(encoder, texture, subresourceRange, Type::Uint, clearValue, sizeof(uint32_t[4]));
+    Type type = getFormatInfo(texture->m_desc.format).isSigned ? Type::Int : Type::Uint;
+    clearTexture(encoder, texture, subresourceRange, type, clearValue, sizeof(uint32_t[4]));
 }
 
 void ClearEngine::clearTextureFloat(
