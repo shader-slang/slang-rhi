@@ -59,9 +59,13 @@ struct BindingDataBuilder
         ShaderObjectLayoutImpl* specializedLayout
     );
 
-    BufferImpl* writeArgumentBuffer(ShaderObject* shaderObject, ShaderObjectLayoutImpl* specializedLayout);
+    Result writeArgumentBuffer(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        BufferImpl*& outArgumentBuffer
+    );
 
-    void writeOrdinaryDataIntoArgumentBuffer(
+    Result writeOrdinaryDataIntoArgumentBuffer(
         slang::TypeLayoutReflection* argumentBufferTypeLayout,
         slang::TypeLayoutReflection* defaultTypeLayout,
         uint8_t* argumentBuffer,
@@ -74,10 +78,21 @@ struct BindingDataImpl : BindingData
     MTL::Buffer** buffers;
     NS::UInteger* bufferOffsets;
     uint32_t bufferCount;
+    uint32_t bufferCapacity;
+
     MTL::Texture** textures;
     uint32_t textureCount;
+    uint32_t textureCapacity;
+
     MTL::SamplerState** samplers;
     uint32_t samplerCount;
+
+    MTL::Resource** usedResources;
+    uint32_t usedResourceCount;
+    uint32_t usedResourceCapacity;
+    MTL::Resource** usedRWResources;
+    uint32_t usedRWResourceCount;
+    uint32_t usedRWResourceCapacity;
 };
 
 struct BindingCache

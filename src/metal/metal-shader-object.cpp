@@ -6,6 +6,49 @@
 
 namespace rhi::metal {
 
+inline Result setBuffer(BindingDataImpl* bindingData, uint32_t index, MTL::Buffer* buffer, NS::UInteger offset = 0)
+{
+    if (index >= bindingData->bufferCapacity)
+    {
+        return SLANG_FAIL;
+    }
+    bindingData->bufferCount = max(bindingData->bufferCount, index + 1);
+    bindingData->buffers[index] = buffer;
+    bindingData->bufferOffsets[index] = offset;
+    return SLANG_OK;
+}
+
+inline Result setTexture(BindingDataImpl* bindingData, uint32_t index, MTL::Texture* texture)
+{
+    if (index >= bindingData->textureCapacity)
+    {
+        return SLANG_FAIL;
+    }
+    bindingData->textureCount = max(bindingData->textureCount, index + 1);
+    bindingData->textures[index] = texture;
+    return SLANG_OK;
+}
+
+inline Result addUsedResource(BindingDataImpl* bindingData, MTL::Resource* resource)
+{
+    if (bindingData->usedResourceCount >= bindingData->usedResourceCapacity)
+    {
+        return SLANG_FAIL;
+    }
+    bindingData->usedResources[bindingData->usedResourceCount++] = resource;
+    return SLANG_OK;
+}
+
+inline Result addUsedRWResource(BindingDataImpl* bindingData, MTL::Resource* resource)
+{
+    if (bindingData->usedRWResourceCount >= bindingData->usedRWResourceCapacity)
+    {
+        return SLANG_FAIL;
+    }
+    bindingData->usedRWResources[bindingData->usedRWResourceCount++] = resource;
+    return SLANG_OK;
+}
+
 Result BindingDataBuilder::bindAsRoot(
     RootShaderObject* shaderObject,
     RootShaderObjectLayoutImpl* specializedLayout,
@@ -19,20 +62,31 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData = bindingData;
 
     // TODO(shaderobject): we should count number of buffers/textures in the layout and allocate appropriately
-    uint32_t bufferCount = 100;
-    uint32_t textureCount = 100;
+    // then we could switch to asserts instead of error checks when writing binding data
+    m_bindingData->bufferCapacity = 256;
+    m_bindingData->textureCapacity = 256;
+    m_bindingData->usedResourceCapacity = 256;
+    m_bindingData->usedRWResourceCapacity = 256;
+
     m_bindingData->bufferCount = 0;
-    m_bindingData->buffers = m_allocator->allocate<MTL::Buffer*>(bufferCount);
-    ::memset(m_bindingData->buffers, 0, sizeof(MTL::Buffer*) * bufferCount);
-    m_bindingData->bufferOffsets = m_allocator->allocate<NS::UInteger>(bufferCount);
-    ::memset(m_bindingData->bufferOffsets, 0, sizeof(NS::UInteger) * bufferCount);
+    m_bindingData->buffers = m_allocator->allocate<MTL::Buffer*>(m_bindingData->bufferCapacity);
+    ::memset(m_bindingData->buffers, 0, sizeof(MTL::Buffer*) * m_bindingData->bufferCapacity);
+    m_bindingData->bufferOffsets = m_allocator->allocate<NS::UInteger>(m_bindingData->bufferCapacity);
+    ::memset(m_bindingData->bufferOffsets, 0, sizeof(NS::UInteger) * m_bindingData->bufferCapacity);
+
     m_bindingData->textureCount = 0;
-    m_bindingData->textures = m_allocator->allocate<MTL::Texture*>(textureCount);
-    ::memset(m_bindingData->textures, 0, sizeof(MTL::Texture*) * textureCount);
+    m_bindingData->textures = m_allocator->allocate<MTL::Texture*>(m_bindingData->textureCapacity);
+    ::memset(m_bindingData->textures, 0, sizeof(MTL::Texture*) * m_bindingData->textureCapacity);
+
     uint32_t samplerCount = specializedLayout->getTotalSamplerCount();
     m_bindingData->samplerCount = samplerCount;
     m_bindingData->samplers = m_allocator->allocate<MTL::SamplerState*>(samplerCount);
     ::memset(m_bindingData->samplers, 0, sizeof(MTL::SamplerState*) * samplerCount);
+
+    m_bindingData->usedResourceCount = 0;
+    m_bindingData->usedResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedResourceCapacity);
+    m_bindingData->usedRWResourceCount = 0;
+    m_bindingData->usedRWResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedRWResourceCapacity);
 
     // When binding an entire root shader object, we need to deal with
     // the way that specialization might have allocated space for "pending"
@@ -133,9 +187,9 @@ Result BindingDataBuilder::bindAsParameterBlock(
     if (!m_device->m_hasArgumentBufferTier2)
         return SLANG_FAIL;
 
-    auto argumentBuffer = writeArgumentBuffer(shaderObject, specializedLayout);
-    m_bindingData->bufferCount = max(m_bindingData->bufferCount, inOffset.buffer + 1);
-    m_bindingData->buffers[inOffset.buffer] = argumentBuffer->m_buffer.get();
+    BufferImpl* argumentBuffer = nullptr;
+    SLANG_RETURN_ON_FAIL(writeArgumentBuffer(shaderObject, specializedLayout, argumentBuffer));
+    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, inOffset.buffer, argumentBuffer->m_buffer.get()));
 
     return SLANG_OK;
 }
@@ -168,8 +222,9 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.texture + i;
-                m_bindingData->textureCount = max(m_bindingData->textureCount, registerIndex + 1);
-                m_bindingData->textures[registerIndex] = textureView ? textureView->m_textureView.get() : nullptr;
+                SLANG_RETURN_ON_FAIL(
+                    setTexture(m_bindingData, registerIndex, textureView ? textureView->m_textureView.get() : nullptr)
+                );
             }
             break;
         case slang::BindingType::Sampler:
@@ -191,8 +246,12 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
                 uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.buffer + i;
-                m_bindingData->bufferCount = max(m_bindingData->bufferCount, registerIndex + 1);
-                m_bindingData->buffers[registerIndex] = buffer ? buffer->m_buffer.get() : nullptr;
+                SLANG_RETURN_ON_FAIL(setBuffer(
+                    m_bindingData,
+                    registerIndex,
+                    buffer ? buffer->m_buffer.get() : nullptr,
+                    slot.bufferRange.offset
+                ));
             }
             break;
         case slang::BindingType::VaryingInput:
@@ -322,9 +381,10 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // If we did indeed need/create a buffer, then we must bind it
     // into root binding state.
     //
-    m_bindingData->bufferCount = max(m_bindingData->bufferCount, ioOffset.buffer + 1);
-    m_bindingData->buffers[ioOffset.buffer] = bufferImpl->m_buffer.get();
+    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer, bufferImpl->m_buffer.get()));
     ioOffset.buffer++;
+
+    bufferImpl->m_buffer->didModifyRange(NS::Range(0, bufferImpl->m_desc.size));
 
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(bufferImpl);
@@ -332,9 +392,10 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     return SLANG_OK;
 }
 
-BufferImpl* BindingDataBuilder::writeArgumentBuffer(
+Result BindingDataBuilder::writeArgumentBuffer(
     ShaderObject* shaderObject,
-    ShaderObjectLayoutImpl* specializedLayout
+    ShaderObjectLayoutImpl* specializedLayout,
+    BufferImpl*& outArgumentBuffer
 )
 {
     auto argumentBufferTypeLayout = specializedLayout->getParameterBlockTypeLayout();
@@ -348,7 +409,7 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
     argumentBufferDesc.usage = BufferUsage::ConstantBuffer | BufferUsage::CopyDestination;
     argumentBufferDesc.defaultState = ResourceState::ConstantBuffer;
     argumentBufferDesc.memoryType = MemoryType::Upload;
-    SLANG_RETURN_NULL_ON_FAIL(m_device->createBuffer(argumentBufferDesc, nullptr, argumentBuffer.writeRef()));
+    SLANG_RETURN_ON_FAIL(m_device->createBuffer(argumentBufferDesc, nullptr, argumentBuffer.writeRef()));
     auto argumentBufferImpl = checked_cast<BufferImpl*>(argumentBuffer.get());
 
     // Once the buffer is allocated, we can fill it in with the uniform data
@@ -385,6 +446,14 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
                 auto resourceId = textureView->m_textureView->gpuResourceID();
                 memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                if (bindingRangeInfo.bindingType == slang::BindingType::MutableTexture)
+                {
+                    SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, textureView->m_textureView.get()));
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, textureView->m_textureView.get()));
+                }
             }
             break;
         case slang::BindingType::Sampler:
@@ -407,6 +476,15 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
                 DeviceAddress bufferPtr = buffer->getDeviceAddress() + slot.bufferRange.offset;
                 memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
+                if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer ||
+                    bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer)
+                {
+                    SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
+                }
+                else
+                {
+                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, buffer->m_buffer.get()));
+                }
             }
         }
         break;
@@ -416,7 +494,7 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
 
         default:
             SLANG_RHI_ASSERT_FAILURE("Unsupported binding type");
-            return nullptr;
+            return SLANG_FAIL;
             break;
         }
     }
@@ -444,9 +522,11 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
             for (uint32_t i = 0; i < count; ++i)
             {
                 auto subObject = shaderObject->m_objects[subObjectIndex + i];
-                auto subArgumentBuffer = writeArgumentBuffer(subObject, subObjectLayout);
+                BufferImpl* subArgumentBuffer = nullptr;
+                SLANG_RETURN_ON_FAIL(writeArgumentBuffer(subObject, subObjectLayout, subArgumentBuffer));
                 DeviceAddress bufferPtr = subArgumentBuffer->m_buffer->gpuAddress();
                 memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
+                SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, subArgumentBuffer->m_buffer.get()));
             }
             break;
         }
@@ -455,20 +535,23 @@ BufferImpl* BindingDataBuilder::writeArgumentBuffer(
         }
     }
 
-    writeOrdinaryDataIntoArgumentBuffer(
+    SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
         argumentBufferTypeLayout,
         elementTypeLayout,
         (uint8_t*)argumentData,
         (uint8_t*)shaderObject->m_data.data()
-    );
+    ));
+
+    argumentBufferImpl->m_buffer->didModifyRange(NS::Range(0, argumentBufferImpl->m_desc.size));
 
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(argumentBufferImpl);
 
-    return argumentBufferImpl;
+    outArgumentBuffer = argumentBufferImpl;
+    return SLANG_OK;
 }
 
-void BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
+Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
     slang::TypeLayoutReflection* argumentBufferTypeLayout,
     slang::TypeLayoutReflection* defaultTypeLayout,
     uint8_t* argumentBuffer,
@@ -483,7 +566,7 @@ void BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
             // Just write the uniform data.
             memcpy(argumentBuffer, srcData, defaultTypeLayout->getSize());
         }
-        return;
+        return SLANG_OK;
     }
 
     for (unsigned int i = 0; i < argumentBufferTypeLayout->getFieldCount(); i++)
@@ -491,13 +574,14 @@ void BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
         auto argumentBufferField = argumentBufferTypeLayout->getFieldByIndex(i);
         auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
         // If the field is mixed type, recurse.
-        writeOrdinaryDataIntoArgumentBuffer(
+        SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
             argumentBufferField->getTypeLayout(),
             defaultLayoutField->getTypeLayout(),
             argumentBuffer + argumentBufferField->getOffset(),
             srcData + defaultLayoutField->getOffset()
-        );
+        ));
     }
+    return SLANG_OK;
 }
 
 } // namespace rhi::metal
