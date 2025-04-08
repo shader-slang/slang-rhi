@@ -195,8 +195,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0 && srcSubresource.layerCount == 0 &&
         srcSubresource.mipLevelCount == 0 && srcOffset.isZero() && dstOffset.isZero() && extent.isWholeTexture())
     {
-        requireTextureState(dst, kEntireTexture, ResourceState::CopyDestination);
-        requireTextureState(src, kEntireTexture, ResourceState::CopySource);
+        requireTextureState(dst, kAllSubresources, ResourceState::CopyDestination);
+        requireTextureState(src, kAllSubresources, ResourceState::CopySource);
         commitBarriers();
         m_cmdList->CopyResource(dst->m_resource.getResource(), src->m_resource.getResource());
         return;

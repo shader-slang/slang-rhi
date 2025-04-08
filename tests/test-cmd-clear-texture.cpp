@@ -120,7 +120,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | C
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
                 float clearValue[4] = {0.f, 0.f, 0.f, 0.f};
-                encoder->clearTextureFloat(texture, kEntireTexture, clearValue);
+                encoder->clearTextureFloat(texture, kAllSubresources, clearValue);
                 queue->submit(encoder->finish());
                 c->getTextureData().clearFloat(clearValue);
                 c->getTextureData().checkEqualFloat(texture);
@@ -149,7 +149,7 @@ GPU_TEST_CASE("cmd-clear-texture-float-pattern", D3D11 | D3D12 | Vulkan | Metal 
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
                 float clearValue[4] = {0.25f, 0.5f, 0.75f, 1.f};
-                encoder->clearTextureFloat(texture, kEntireTexture, clearValue);
+                encoder->clearTextureFloat(texture, kAllSubresources, clearValue);
                 queue->submit(encoder->finish());
                 c->getTextureData().clearFloat(clearValue);
                 c->getTextureData().checkEqualFloat(texture, getFormatFloatEpsilon(c->getTextureData().desc.format));
@@ -178,7 +178,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
                 uint32_t clearValue[4] = {0, 0, 0, 0};
-                encoder->clearTextureUint(texture, kEntireTexture, clearValue);
+                encoder->clearTextureUint(texture, kAllSubresources, clearValue);
                 queue->submit(encoder->finish());
                 c->getTextureData().clearUint(clearValue);
                 c->getTextureData().checkEqual(texture);
@@ -207,7 +207,7 @@ GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal |
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
                 uint32_t clearValue[4] = {10, 100, 1000, 10000};
-                encoder->clearTextureUint(texture, kEntireTexture, clearValue);
+                encoder->clearTextureUint(texture, kAllSubresources, clearValue);
                 queue->submit(encoder->finish());
                 c->getTextureData().clearUint(clearValue);
                 c->getTextureData().checkEqual(texture);
@@ -236,7 +236,7 @@ GPU_TEST_CASE("cmd-clear-texture-sint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
                 int32_t clearValue[4] = {0, 0, 0, 0};
-                encoder->clearTextureSint(texture, kEntireTexture, clearValue);
+                encoder->clearTextureSint(texture, kAllSubresources, clearValue);
                 queue->submit(encoder->finish());
                 c->getTextureData().clearSint(clearValue);
                 c->getTextureData().checkEqual(texture);
@@ -265,7 +265,7 @@ GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal |
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
                 int32_t clearValue[4] = {-100, -10, 10, 100};
-                encoder->clearTextureSint(texture, kEntireTexture, clearValue);
+                encoder->clearTextureSint(texture, kAllSubresources, clearValue);
                 queue->submit(encoder->finish());
                 c->getTextureData().clearSint(clearValue);
                 c->getTextureData().checkEqual(texture);

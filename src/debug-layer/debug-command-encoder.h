@@ -216,11 +216,6 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
 
-    inline void setTextureState(ITexture* texture, ResourceState state)
-    {
-        setTextureState(texture, kEntireTexture, state);
-    }
-
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;

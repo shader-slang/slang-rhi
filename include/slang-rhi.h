@@ -668,8 +668,6 @@ struct SubresourceRange
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }
 };
 
-static const SubresourceRange kEntireTexture = SubresourceRange{0, 0xffffffff, 0, 0xffffffff};
-
 static const size_t kDefaultAlignment = 0xffffffff;
 
 /// Data for a single subresource of a texture.
@@ -837,7 +835,7 @@ struct TextureViewDesc
 
     Format format = Format::Undefined;
     TextureAspect aspect = TextureAspect::All;
-    SubresourceRange subresourceRange = kEntireTexture;
+    SubresourceRange subresourceRange = kAllSubresources;
     const char* label = nullptr;
 };
 
@@ -2139,7 +2137,7 @@ public:
 
     inline void setTextureState(ITexture* texture, ResourceState state)
     {
-        setTextureState(texture, kEntireTexture, state);
+        setTextureState(texture, kAllSubresources, state);
     }
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) = 0;

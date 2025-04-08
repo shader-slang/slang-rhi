@@ -139,7 +139,7 @@ public:
         {
             if (textureState.second.state != textureState.first->m_desc.defaultState)
             {
-                setTextureState(textureState.first, kEntireTexture, textureState.first->m_desc.defaultState);
+                setTextureState(textureState.first, kAllSubresources, textureState.first->m_desc.defaultState);
             }
         }
     }
