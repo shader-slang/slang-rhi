@@ -112,6 +112,14 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 {
     m_commandBuffer = commandBuffer->m_commandBuffer;
 
+    // Synchronize constant and argument buffers.
+    // TODO(shader-object): This only needs to be done once after writing,
+    // once we cache/reuse binding data this shold be revisited.
+    for (const auto& buffer : commandBuffer->m_bindingCache.buffers)
+    {
+        getBlitCommandEncoder()->synchronizeResource(buffer->m_buffer.get());
+    }
+
     CommandList& commandList = commandBuffer->m_commandList;
     auto command = commandList.getCommands();
     while (command)
@@ -192,17 +200,38 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extents& extent = cmd.extent;
 
+    // Calculate adjusted extents. Note it is required and enforced
+    // by debug layer that if 'remaining texture' is used, src and
+    // dst offsets are the same.
+    Extents srcMipSize = calcMipSize(src->m_desc.size, cmd.srcMipLevel);
+    Extents adjustedExtent = extent;
+    if (adjustedExtent.width == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
+        adjustedExtent.width = srcMipSize.width - srcOffset.x;
+    }
+    if (adjustedExtent.height == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.height >= srcOffset.y);
+        adjustedExtent.height = srcMipSize.height - srcOffset.y;
+    }
+    if (adjustedExtent.depth == kRemainingTextureSize)
+    {
+        SLANG_RHI_ASSERT(srcMipSize.depth >= srcOffset.z);
+        adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+    }
+
     auto encoder = getBlitCommandEncoder();
     encoder->copyFromTexture(
         src->m_texture.get(),
         cmd.srcLayer,
         cmd.srcMipLevel,
         MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
-        MTL::Size(extent.width, extent.height, extent.depth),
+        MTL::Size(adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth),
         dst->m_buffer.get(),
         cmd.dstOffset,
         cmd.dstRowPitch,
-        cmd.dstRowPitch * extent.height // TODO(row-stride): Should this take into account block?
+        cmd.dstRowPitch * adjustedExtent.height // TODO(row-stride): Should this take into account block?
     );
 }
 
@@ -444,6 +473,12 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         encoder->setFragmentTextures(m_bindingData->textures, NS::Range(0, m_bindingData->textureCount));
         encoder->setVertexSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
         encoder->setFragmentSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
+        encoder->useResources(m_bindingData->usedResources, m_bindingData->usedResourceCount, MTL::ResourceUsageRead);
+        encoder->useResources(
+            m_bindingData->usedRWResources,
+            m_bindingData->usedRWResourceCount,
+            MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+        );
     }
 
     if (updateVertexBuffers)
@@ -618,6 +653,12 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         );
         encoder->setTextures(m_bindingData->textures, NS::Range(0, m_bindingData->textureCount));
         encoder->setSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
+        encoder->useResources(m_bindingData->usedResources, m_bindingData->usedResourceCount, MTL::ResourceUsageRead);
+        encoder->useResources(
+            m_bindingData->usedRWResources,
+            m_bindingData->usedRWResourceCount,
+            MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+        );
     }
 
     m_computeStateValid = true;
@@ -875,10 +916,10 @@ void CommandQueueImpl::retireCommandBuffers()
     std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
     m_commandBuffersInFlight.clear();
 
-    uint64_t lastFinishedID = updateLastFinishedID();
     for (const auto& commandBuffer : commandBuffers)
     {
-        if (commandBuffer->m_submissionID <= lastFinishedID)
+        auto status = commandBuffer->m_commandBuffer->status();
+        if (status == MTL::CommandBufferStatusCompleted || status == MTL::CommandBufferStatusError)
         {
             commandBuffer->reset();
         }
@@ -907,30 +948,31 @@ Result CommandQueueImpl::waitOnHost()
 {
     AUTORELEASEPOOL
 
-    // Increment submission ID.
-    m_lastSubmittedID++;
+    if (updateLastFinishedID() < m_lastSubmittedID)
+    {
+        // Create a semaphore to synchronize the notification
+        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
 
-    // Create a semaphore to synchronize the notification
-    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+        // Create and store the notification block
+        MTL::SharedEventNotificationBlock block = ^(MTL::SharedEvent* event, uint64_t eventValue) {
+          dispatch_semaphore_signal(semaphore);
+        };
 
-    // Create and store the notification block
-    MTL::SharedEventNotificationBlock block = ^(MTL::SharedEvent* event, uint64_t eventValue) {
-      dispatch_semaphore_signal(semaphore);
-    };
+        // Set up notification handler before creating command buffer
+        m_trackingEvent->notifyListener(m_trackingEventListener.get(), m_lastSubmittedID, block);
 
-    // Set up notification handler
-    m_trackingEvent->notifyListener(m_trackingEventListener.get(), m_lastSubmittedID, block);
+        // Wait for the device with timeout
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        dispatch_release(semaphore);
 
-    // Create command buffer and signal the event.
-    MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-    commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
-    commandBuffer->commit();
+        updateLastFinishedID();
+    }
 
-    // Wait for the device.
-    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-    dispatch_release(semaphore);
+    for (const auto& commandBuffer : m_commandBuffersInFlight)
+    {
+        commandBuffer->m_commandBuffer->waitUntilCompleted();
+    }
 
-    // Retire command buffers (internally updates last finished id).
     retireCommandBuffers();
 
     // Should now have no command buffers in flight and have finished submitting
@@ -956,6 +998,10 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     if (desc.waitFenceCount > 0)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        if (!commandBuffer)
+        {
+            return SLANG_FAIL;
+        }
         for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
         {
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
@@ -991,15 +1037,20 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         commandBuffer->m_commandBuffer->commit();
     }
 
-    // If there are no command buffers to submit, but fences to signal, encode them to a new command buffer.
-    if (desc.signalFenceCount > 0 && desc.commandBufferCount == 0)
+    // If no command buffers are passed, we still submit a command buffer to signal the fences and tracking event.
+    if (desc.commandBufferCount == 0)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        if (!commandBuffer)
+        {
+            return SLANG_FAIL;
+        }
         for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
         {
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
             commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
         }
+        commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
         commandBuffer->commit();
     }
 

@@ -146,7 +146,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     }
 
     // create staging buffer
-    NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(m_device->newBuffer(size, MTL::StorageModeShared));
+    NS::SharedPtr<MTL::Buffer> stagingBuffer =
+        NS::TransferPtr(m_device->newBuffer(size, MTL::ResourceStorageModeManaged));
     if (!stagingBuffer)
     {
         return SLANG_FAIL;
@@ -155,6 +156,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
     blitEncoder->copyFromBuffer(bufferImpl->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
+    blitEncoder->synchronizeResource(stagingBuffer.get());
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();

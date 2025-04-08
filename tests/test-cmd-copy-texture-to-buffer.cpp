@@ -29,7 +29,7 @@ Result getSizeAndMakeBuffer(TextureTestContext* c, uint64_t* outSize, IBuffer** 
     return c->getDevice()->createBuffer(bufferDesc, nullptr, outBuffer);
 }
 
-GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU | CUDA)
+GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | Metal | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(
@@ -119,7 +119,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | WGPU | CUDA)
 }
 
 // Tests copying data at a different alignment to that returned by getSubresourceLayout
-GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | WGPU | CUDA)
+GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(
@@ -238,7 +238,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | WGPU |
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | WGPU | CUDA)
+GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | Metal | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(
@@ -343,7 +343,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | WGPU | CUDA)
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | WGPU | CUDA)
+GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | Metal | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(
@@ -450,7 +450,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | WGPU | C
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
+GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | Metal | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(
@@ -556,7 +556,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | WGPU | 
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset-mip1", D3D12 | Vulkan | WGPU | CUDA)
+GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset-mip1", D3D12 | Vulkan | Metal | WGPU | CUDA)
 {
     TextureTestOptions options(device);
     options.addVariants(
