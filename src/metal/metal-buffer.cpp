@@ -44,10 +44,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         resourceOptions = MTL::ResourceStorageModePrivate;
         break;
     case MemoryType::Upload:
-        resourceOptions = MTL::ResourceStorageModeShared | MTL::CPUCacheModeWriteCombined;
-        break;
     case MemoryType::ReadBack:
-        resourceOptions = MTL::ResourceStorageModeShared;
+        resourceOptions = MTL::ResourceStorageModeManaged;
         break;
     }
 
@@ -63,9 +61,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     if (initData)
     {
-        NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(
-            m_device->newBuffer(initData, bufferSize, MTL::ResourceStorageModeShared | MTL::CPUCacheModeWriteCombined)
-        );
+        NS::SharedPtr<MTL::Buffer> stagingBuffer =
+            NS::TransferPtr(m_device->newBuffer(initData, bufferSize, MTL::ResourceStorageModeManaged));
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
         MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
         if (!stagingBuffer || !commandBuffer || !encoder)
