@@ -221,10 +221,11 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.texture + i;
-                SLANG_RETURN_ON_FAIL(
-                    setTexture(m_bindingData, registerIndex, textureView ? textureView->m_textureView.get() : nullptr)
-                );
+                if (textureView)
+                {
+                    uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.texture + i;
+                    SLANG_RETURN_ON_FAIL(setTexture(m_bindingData, registerIndex, textureView->m_textureView.get()));
+                }
             }
             break;
         case slang::BindingType::Sampler:
@@ -232,9 +233,12 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.sampler + i;
-                SLANG_RHI_ASSERT(registerIndex < m_bindingData->samplerCount);
-                m_bindingData->samplers[registerIndex] = sampler ? sampler->m_samplerState.get() : nullptr;
+                if (sampler)
+                {
+                    uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.sampler + i;
+                    SLANG_RHI_ASSERT(registerIndex < m_bindingData->samplerCount);
+                    m_bindingData->samplers[registerIndex] = sampler->m_samplerState.get();
+                }
             }
             break;
         case slang::BindingType::RawBuffer:
@@ -245,13 +249,13 @@ Result BindingDataBuilder::bindAsValue(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.buffer + i;
-                SLANG_RETURN_ON_FAIL(setBuffer(
-                    m_bindingData,
-                    registerIndex,
-                    buffer ? buffer->m_buffer.get() : nullptr,
-                    slot.bufferRange.offset
-                ));
+                if (buffer)
+                {
+                    uint32_t registerIndex = bindingRangeInfo.registerOffset + offset.buffer + i;
+                    SLANG_RETURN_ON_FAIL(
+                        setBuffer(m_bindingData, registerIndex, buffer->m_buffer.get(), slot.bufferRange.offset)
+                    );
+                }
             }
             break;
         case slang::BindingType::VaryingInput:
@@ -444,15 +448,18 @@ Result BindingDataBuilder::writeArgumentBuffer(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-                auto resourceId = textureView->m_textureView->gpuResourceID();
-                memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
-                if (bindingRangeInfo.bindingType == slang::BindingType::MutableTexture)
+                if (textureView)
                 {
-                    SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, textureView->m_textureView.get()));
-                }
-                else
-                {
-                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, textureView->m_textureView.get()));
+                    auto resourceId = textureView->m_textureView->gpuResourceID();
+                    memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                    if (bindingRangeInfo.bindingType == slang::BindingType::MutableTexture)
+                    {
+                        SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, textureView->m_textureView.get()));
+                    }
+                    else
+                    {
+                        SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, textureView->m_textureView.get()));
+                    }
                 }
             }
             break;
@@ -461,8 +468,11 @@ Result BindingDataBuilder::writeArgumentBuffer(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource.get());
-                auto resourceId = sampler->m_samplerState->gpuResourceID();
-                memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                if (sampler)
+                {
+                    auto resourceId = sampler->m_samplerState->gpuResourceID();
+                    memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                }
             }
             break;
         case slang::BindingType::RawBuffer:
@@ -474,16 +484,19 @@ Result BindingDataBuilder::writeArgumentBuffer(
             {
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-                DeviceAddress bufferPtr = buffer->getDeviceAddress() + slot.bufferRange.offset;
-                memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
-                if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer ||
-                    bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer)
+                if (buffer)
                 {
-                    SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
-                }
-                else
-                {
-                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, buffer->m_buffer.get()));
+                    DeviceAddress bufferPtr = buffer->getDeviceAddress() + slot.bufferRange.offset;
+                    memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
+                    if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer ||
+                        bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer)
+                    {
+                        SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
+                    }
+                    else
+                    {
+                        SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, buffer->m_buffer.get()));
+                    }
                 }
             }
         }
