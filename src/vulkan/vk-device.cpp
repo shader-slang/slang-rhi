@@ -85,7 +85,8 @@ VkBool32 DeviceImpl::handleDebugMessage(
     // This happens because Slang does emit OpTypeImage with a format derived from the TextureXD<T> T type:
     // uint -> R32_UINT, uint2 -> R32G32_UINT, uint4 -> R32G32B32A32_UINT etc.
     // which might not be the actual type of the format of the image view.
-    // Slang should be emitting unknown format, unless the format is explicitly set using the [[format("xxx")]] attribute.
+    // Slang should be emitting unknown format, unless the format is explicitly set using the [[format("xxx")]]
+    // attribute.
     if (pCallbackData->messageIdNumber == 20145586)
     {
         return VK_FALSE;

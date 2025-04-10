@@ -461,11 +461,12 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     // The argument data for the entry-point parameters are already
     // stored in host memory, as expected by cuLaunchKernel.
     //
+    SLANG_RHI_ASSERT(entryPointData.size >= computePipeline->m_paramBufferSize);
     void* extraOptions[] = {
         CU_LAUNCH_PARAM_BUFFER_POINTER,
         (void*)entryPointData.data,
         CU_LAUNCH_PARAM_BUFFER_SIZE,
-        (void*)&entryPointData.size,
+        (void*)&computePipeline->m_paramBufferSize,
         CU_LAUNCH_PARAM_END,
     };
 

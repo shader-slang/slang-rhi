@@ -43,6 +43,23 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipeline->m_kernelIndex = kernelIndex;
     pipeline->m_rootObjectLayout->getKernelThreadGroupSize(kernelIndex, pipeline->m_threadGroupSize);
 
+    // Compute the size of the parameter buffer.
+    // Slang's layout computation for the CUDA parameter will align the size
+    // Of the buffer to the largest parameter size.
+    // cuLaunchKernel expects the parameter buffer size to be unpadded.
+    size_t paramBufferSize = 0;
+    for (size_t paramIndex = 0;; ++paramIndex)
+    {
+        size_t paramSize = 0;
+        size_t paramOffset = 0;
+        if (cuFuncGetParamInfo(pipeline->m_function, paramIndex, &paramOffset, &paramSize) != CUDA_SUCCESS)
+        {
+            break;
+        }
+        paramBufferSize = max(paramBufferSize, paramOffset + paramSize);
+    }
+    pipeline->m_paramBufferSize = paramBufferSize;
+
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
