@@ -1,6 +1,6 @@
-#if SLANG_RHI_ENABLE_VULKAN
-
 #include "cuda-surface.h"
+
+#if SLANG_RHI_ENABLE_VULKAN
 #include "cuda-device.h"
 #include "cuda-texture.h"
 #include "cuda-command.h"
