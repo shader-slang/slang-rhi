@@ -544,6 +544,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.rayTracingLinearSweptSpheresFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.rayTracingLinearSweptSpheresFeatures;
 
+        extendedFeatures.cooperativeMatrix1Features.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.cooperativeMatrix1Features;
+
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
             extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
@@ -820,6 +823,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             cooperativeVector,
             VK_NV_COOPERATIVE_VECTOR_EXTENSION_NAME,
             "cooperative-vector"
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix1Features,
+            cooperativeMatrix,
+            VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME,
+            "cooperative-matrix-1"
         );
 
 #undef SIMPLE_EXTENSION_FEATURE

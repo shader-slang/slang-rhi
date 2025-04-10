@@ -368,6 +368,11 @@ struct VulkanExtendedFeatureProperties
     VkPhysicalDeviceRayTracingLinearSweptSpheresFeaturesNV rayTracingLinearSweptSpheresFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_LINEAR_SWEPT_SPHERES_FEATURES_NV
     };
+
+    // Cooperative matrix 1 features.
+    VkPhysicalDeviceCooperativeMatrixFeaturesKHR cooperativeMatrix1Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR
+    };
 };
 
 struct VulkanApi
