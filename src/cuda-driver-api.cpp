@@ -184,6 +184,8 @@ extern "C" void rhiCudaDriverApiShutdown()
     UNLOAD(cuDevicePrimaryCtxRetain);
     UNLOAD(cuDevicePrimaryCtxRelease);
     UNLOAD(cuDevicePrimaryCtxReset);
+    UNLOAD(cuCtxCreate);
+    UNLOAD(cuCtxDestroy);
     UNLOAD(cuCtxPushCurrent);
     UNLOAD(cuCtxPopCurrent);
     UNLOAD(cuCtxSetCurrent);
@@ -195,6 +197,7 @@ extern "C" void rhiCudaDriverApiShutdown()
     UNLOAD(cuMemFree);
     UNLOAD(cuMemAllocHost);
     UNLOAD(cuMemFreeHost);
+    UNLOAD(cuMemAllocManaged);
     UNLOAD(cuMemcpy);
     UNLOAD(cuMemcpyHtoD);
     UNLOAD(cuMemcpyDtoH);
@@ -240,6 +243,25 @@ extern "C" void rhiCudaDriverApiShutdown()
     UNLOAD(cuSignalExternalSemaphoresAsync);
     UNLOAD(cuWaitExternalSemaphoresAsync);
     UNLOAD(cuDestroyExternalSemaphore);
+    UNLOAD(cuModuleGetFunction);
+    UNLOAD(cuModuleGetGlobal);
+    UNLOAD(cuModuleGetTexRef);
+    UNLOAD(cuModuleLoad);
+    UNLOAD(cuModuleLoadData);
+    UNLOAD(cuModuleUnload);
+    UNLOAD(cuFuncGetParamInfo);
+    UNLOAD(cuLaunchKernel);
+    UNLOAD(cuMipmappedArrayGetLevel);
+    UNLOAD(cuArrayCreate);
+    UNLOAD(cuArrayDestroy);
+    UNLOAD(cuArrayGetDescriptor);
+    UNLOAD(cuMipmappedArrayCreate);
+    UNLOAD(cuMipmappedArrayDestroy);
+    UNLOAD(cuArray3DCreate);
+    UNLOAD(cuSurfObjectCreate);
+    UNLOAD(cuSurfObjectDestroy);
+    UNLOAD(cuTexObjectCreate);
+    UNLOAD(cuTexObjectDestroy);
 #undef UNLOAD
 
     rhi::unloadSharedLibrary(sCudaModule);
