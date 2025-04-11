@@ -1566,7 +1566,7 @@ struct RenderPipelineDesc
     IShaderProgram* program = nullptr;
     IInputLayout* inputLayout = nullptr;
     PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
-    ColorTargetDesc* targets = nullptr;
+    const ColorTargetDesc* targets = nullptr;
     uint32_t targetCount = 0;
     DepthStencilDesc depthStencil;
     RasterizerDesc rasterizer;
@@ -1605,7 +1605,7 @@ struct RayTracingPipelineDesc
 
     IShaderProgram* program = nullptr;
     uint32_t hitGroupCount = 0;
-    HitGroupDesc* hitGroups = nullptr;
+    const HitGroupDesc* hitGroups = nullptr;
     uint32_t maxRecursion = 0;
     uint32_t maxRayPayloadSize = 0;
     uint32_t maxAttributeSizeInBytes = 8;
@@ -2107,7 +2107,7 @@ public:
         IAccelerationStructure* src,
         BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
-        AccelerationStructureQueryDesc* queryDescs
+        const AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
@@ -2120,7 +2120,7 @@ public:
         uint32_t accelerationStructureCount,
         IAccelerationStructure** accelerationStructures,
         uint32_t queryCount,
-        AccelerationStructureQueryDesc* queryDescs
+        const AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL

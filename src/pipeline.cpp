@@ -87,10 +87,11 @@ VirtualRayTracingPipeline::VirtualRayTracingPipeline(Device* device, const RayTr
     m_descHolder.holdList(m_desc.hitGroups, m_desc.hitGroupCount);
     for (uint32_t i = 0; i < m_desc.hitGroupCount; i++)
     {
-        m_descHolder.holdString(m_desc.hitGroups[i].hitGroupName);
-        m_descHolder.holdString(m_desc.hitGroups[i].closestHitEntryPoint);
-        m_descHolder.holdString(m_desc.hitGroups[i].anyHitEntryPoint);
-        m_descHolder.holdString(m_desc.hitGroups[i].intersectionEntryPoint);
+        HitGroupDesc& hitGroup = const_cast<HitGroupDesc&>(m_desc.hitGroups[i]);
+        m_descHolder.holdString(hitGroup.hitGroupName);
+        m_descHolder.holdString(hitGroup.closestHitEntryPoint);
+        m_descHolder.holdString(hitGroup.anyHitEntryPoint);
+        m_descHolder.holdString(hitGroup.intersectionEntryPoint);
     }
     m_program = checked_cast<ShaderProgram*>(desc.program);
 }

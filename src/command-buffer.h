@@ -279,7 +279,7 @@ public:
         IAccelerationStructure* src,
         BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
-        AccelerationStructureQueryDesc* queryDescs
+        const AccelerationStructureQueryDesc* queryDescs
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
@@ -292,7 +292,7 @@ public:
         uint32_t accelerationStructureCount,
         IAccelerationStructure** accelerationStructures,
         uint32_t queryCount,
-        AccelerationStructureQueryDesc* queryDescs
+        const AccelerationStructureQueryDesc* queryDescs
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL

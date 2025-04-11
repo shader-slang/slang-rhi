@@ -121,7 +121,7 @@ public:
         uint32_t accelerationStructureCount,
         IAccelerationStructure* const* accelerationStructures,
         uint32_t queryCount,
-        AccelerationStructureQueryDesc* queryDescs
+        const AccelerationStructureQueryDesc* queryDescs
     );
 
     void accelerationStructureBarrier(
@@ -1456,7 +1456,7 @@ void CommandRecorder::queryAccelerationStructureProperties(
     uint32_t accelerationStructureCount,
     IAccelerationStructure* const* accelerationStructures,
     uint32_t queryCount,
-    AccelerationStructureQueryDesc* queryDescs
+    const AccelerationStructureQueryDesc* queryDescs
 )
 {
     short_vector<VkAccelerationStructureKHR> vkHandles;
