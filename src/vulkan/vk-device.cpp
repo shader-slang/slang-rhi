@@ -1030,6 +1030,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     m_features.push_back("surface");
     // Supports rasterization
     m_features.push_back("rasterization");
+    // Supports timestamp queries
+    m_features.push_back("timestamp-query");
 
     if (m_api.m_module->isSoftware())
     {

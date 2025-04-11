@@ -21,6 +21,10 @@ static MTL::CounterSet* findCounterSet(MTL::Device* device, QueryType queryType)
     for (int i = 0; i < device->counterSets()->count(); ++i)
     {
         MTL::CounterSet* counterSet = static_cast<MTL::CounterSet*>(device->counterSets()->object(i));
+        if (!counterSet->name()->isEqualToString(MTL::CommonCounterSetTimestamp))
+        {
+            continue;
+        }
         for (int j = 0; j < counterSet->counters()->count(); ++j)
         {
             MTL::Counter* counter = static_cast<MTL::Counter*>(counterSet->counters()->object(j));
@@ -53,8 +57,6 @@ Result QueryPoolImpl::init()
         counterSampleBufferDesc->setLabel(MetalUtil::createString(m_desc.label).get());
     }
 
-    device->m_device->counterSets();
-
     NS::Error* error;
     m_counterSampleBuffer =
         NS::TransferPtr(device->m_device->newCounterSampleBuffer(counterSampleBufferDesc.get(), &error));
@@ -64,7 +66,16 @@ Result QueryPoolImpl::init()
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
+    NS::Data* rawData = m_counterSampleBuffer->resolveCounterRange(NS::Range(queryIndex, count));
+    static_assert(sizeof(MTL::CounterResultTimestamp) == sizeof(uint64_t));
+    std::memcpy(data, rawData, count * sizeof(uint64_t));
+
+    return SLANG_OK;
 }
 
 } // namespace rhi::metal

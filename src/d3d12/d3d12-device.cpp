@@ -526,6 +526,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_features.push_back("rasterization");
     // Supports custom border color
     m_features.push_back("custom-border-color");
+    // Supports timestamp queries
+    m_features.push_back("timestamp-query");
 
     if (m_deviceInfo.m_isSoftware)
     {
