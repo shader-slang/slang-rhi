@@ -14,6 +14,7 @@ public:
     uint32_t m_kernelIndex = 0;
     uint32_t m_threadGroupSize[3] = {1, 1, 1};
     size_t m_paramBufferSize = 0;
+    size_t m_sharedMemorySize = 0;
 
     ComputePipelineImpl(Device* device);
     ~ComputePipelineImpl();

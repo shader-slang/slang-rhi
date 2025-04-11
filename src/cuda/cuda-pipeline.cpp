@@ -62,6 +62,13 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     }
     pipeline->m_paramBufferSize = paramBufferSize;
 
+    // Query the shared memory size.
+    int sharedSizeBytes = 0;
+    SLANG_CUDA_RETURN_ON_FAIL(
+        cuFuncGetAttribute(&sharedSizeBytes, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, pipeline->m_function)
+    );
+    pipeline->m_sharedMemorySize = sharedSizeBytes;
+
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }

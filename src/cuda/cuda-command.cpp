@@ -481,7 +481,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         computePipeline->m_threadGroupSize[0],
         computePipeline->m_threadGroupSize[1],
         computePipeline->m_threadGroupSize[2],
-        0,
+        computePipeline->m_sharedMemorySize,
         m_stream,
         nullptr,
         extraOptions
