@@ -52,14 +52,6 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    if (!m_pool)
-    {
-        // Vulkan does not support CurrentSize query, return 0 here.
-        for (SlangInt i = 0; i < count; i++)
-            data[i] = 0;
-        return SLANG_OK;
-    }
-
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetQueryPoolResults(
         device->m_api.m_device,
         m_pool,

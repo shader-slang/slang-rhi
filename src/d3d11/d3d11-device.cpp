@@ -221,6 +221,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_features.push_back("rasterization");
     // Supports custom border color
     m_features.push_back("custom-border-color");
+    // Supports timestamp queries
+    m_features.push_back("timestamp-query");
 
     // NVAPI
 #if SLANG_RHI_ENABLE_NVAPI

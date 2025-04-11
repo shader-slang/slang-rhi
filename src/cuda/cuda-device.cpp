@@ -201,6 +201,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Supports surface/swapchain (implemented in Vulkan).
     m_features.push_back("surface");
 #endif
+    // Supports timestamp queries
+    m_features.push_back("timestamp-query");
     // Not clear how to detect half support on CUDA. For now we'll assume we have it
     m_features.push_back("half");
     // CUDA has support for realtime clock

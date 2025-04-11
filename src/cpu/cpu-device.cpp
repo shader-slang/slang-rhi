@@ -32,6 +32,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Supports ParameterBlock
     m_features.push_back("parameter-block");
+    // Supports timestamp queries
+    m_features.push_back("timestamp-query");
     // Supports pointers (or something akin to that)
     m_features.push_back("has-ptr");
 
