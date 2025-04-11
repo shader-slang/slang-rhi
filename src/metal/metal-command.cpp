@@ -807,12 +807,13 @@ void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
-    auto encoder = getBlitCommandEncoder();
-    encoder->sampleCountersInBuffer(
-        checked_cast<QueryPoolImpl*>(cmd.queryPool)->m_counterSampleBuffer.get(),
-        cmd.queryIndex,
-        true
-    );
+    SLANG_UNUSED(cmd);
+    // auto encoder = getBlitCommandEncoder();
+    // encoder->sampleCountersInBuffer(
+    //     checked_cast<QueryPoolImpl*>(cmd.queryPool)->m_counterSampleBuffer.get(),
+    //     cmd.queryIndex,
+    //     true
+    // );
 }
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
