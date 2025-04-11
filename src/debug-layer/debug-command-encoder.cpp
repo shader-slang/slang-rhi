@@ -656,7 +656,7 @@ void DebugCommandEncoder::buildAccelerationStructure(
     IAccelerationStructure* src,
     BufferOffsetPair scratchBuffer,
     uint32_t propertyQueryCount,
-    AccelerationStructureQueryDesc* queryDescs
+    const AccelerationStructureQueryDesc* queryDescs
 )
 {
     SLANG_RHI_API_FUNC;
@@ -691,7 +691,7 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
     uint32_t accelerationStructureCount,
     IAccelerationStructure** accelerationStructures,
     uint32_t queryCount,
-    AccelerationStructureQueryDesc* queryDescs
+    const AccelerationStructureQueryDesc* queryDescs
 )
 {
     SLANG_RHI_API_FUNC;

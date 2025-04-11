@@ -255,7 +255,7 @@ struct BuildAccelerationStructure
     IAccelerationStructure* src;
     BufferOffsetPair scratchBuffer;
     uint32_t propertyQueryCount;
-    AccelerationStructureQueryDesc* queryDescs;
+    const AccelerationStructureQueryDesc* queryDescs;
 };
 
 struct CopyAccelerationStructure
@@ -270,7 +270,7 @@ struct QueryAccelerationStructureProperties
     uint32_t accelerationStructureCount;
     IAccelerationStructure** accelerationStructures;
     uint32_t queryCount;
-    AccelerationStructureQueryDesc* queryDescs;
+    const AccelerationStructureQueryDesc* queryDescs;
 };
 
 struct SerializeAccelerationStructure

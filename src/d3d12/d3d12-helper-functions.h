@@ -41,7 +41,7 @@ Result createNullDescriptor(
 
 void translatePostBuildInfoDescs(
     uint32_t propertyQueryCount,
-    AccelerationStructureQueryDesc* queryDescs,
+    const AccelerationStructureQueryDesc* queryDescs,
     std::vector<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC>& postBuildInfoDescs
 );
 
