@@ -9,6 +9,7 @@ macro(FetchPackage name)
     FetchContent_Declare(
         ${name}
         URL ${FETCH_URL}
+        HTTP_HEADER "Authorization: token ${SLANG_GITHUB_TOKEN}"
     )
     FetchContent_GetProperties(${name})
     if(NOT ${name}_POPULATED)

@@ -656,7 +656,7 @@ struct SubresourceRange
 
     // TODO: Check this comment - many areas explicitly specify a 3D offset / extents,
     // and this is expected to be 0 for 3D texture.
-    uint32_t baseArrayLayer; // For Texture3D, this is WSlice.
+    uint32_t baseArrayLayer;
 
     uint32_t layerCount; // For cube maps, this is a multiple of 6.
 
@@ -686,7 +686,7 @@ static const size_t kDefaultAlignment = 0xffffffff;
 /// "layers" of texels.
 ///
 /// For a texture with multiple mip levels or array elements,
-/// each mip level and array element is stores as a distinct
+/// each mip level and array element is stored as a distinct
 /// subresource. When indexing into an array of subresources,
 /// the index of a subresoruce for mip level `m` and array
 /// index `a` is `m + a*mipLevelCount`.
