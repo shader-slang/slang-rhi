@@ -27,15 +27,18 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
     setConfig(config);
 
-    if (config.width == 0 || config.height == 0)
+    if (m_config.width == 0 || m_config.height == 0)
     {
         return SLANG_FAIL;
     }
+    if (m_config.format == Format::Undefined)
+    {
+        m_config.format = m_info.preferredFormat;
+    }
 
-    Format format = config.format == Format::Undefined ? m_info.preferredFormat : config.format;
-    m_metalLayer->setPixelFormat(MetalUtil::translatePixelFormat(format));
-    m_metalLayer->setDrawableSize(CGSize{(float)config.width, (float)config.height});
-    m_metalLayer->setFramebufferOnly(config.usage == TextureUsage::RenderTarget);
+    m_metalLayer->setPixelFormat(MetalUtil::translatePixelFormat(m_config.format));
+    m_metalLayer->setDrawableSize(CGSize{(float)m_config.width, (float)m_config.height});
+    m_metalLayer->setFramebufferOnly(m_config.usage == TextureUsage::RenderTarget);
     // m_metalLayer->setDisplaySyncEnabled(config.vsync);
 
     return SLANG_OK;

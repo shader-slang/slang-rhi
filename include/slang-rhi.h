@@ -1764,7 +1764,7 @@ struct RenderPassColorAttachment
 {
     ITextureView* view = nullptr;
     ITextureView* resolveTarget = nullptr;
-    LoadOp loadOp = LoadOp::DontCare;
+    LoadOp loadOp = LoadOp::Clear;
     StoreOp storeOp = StoreOp::Store;
     float clearValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 };
@@ -1772,12 +1772,12 @@ struct RenderPassColorAttachment
 struct RenderPassDepthStencilAttachment
 {
     ITextureView* view = nullptr;
-    LoadOp depthLoadOp = LoadOp::DontCare;
+    LoadOp depthLoadOp = LoadOp::Clear;
     StoreOp depthStoreOp = StoreOp::Store;
     float depthClearValue = 1.f;
     bool depthReadOnly = false;
-    LoadOp stencilLoadOp = LoadOp::DontCare;
-    StoreOp stencilStoreOp = StoreOp::DontCare;
+    LoadOp stencilLoadOp = LoadOp::Clear;
+    StoreOp stencilStoreOp = StoreOp::Store;
     uint8_t stencilClearValue = 0;
     bool stencilReadOnly = false;
 };
