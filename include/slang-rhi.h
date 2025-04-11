@@ -1784,9 +1784,9 @@ struct RenderPassDepthStencilAttachment
 
 struct RenderPassDesc
 {
-    RenderPassColorAttachment* colorAttachments = nullptr;
+    const RenderPassColorAttachment* colorAttachments = nullptr;
     uint32_t colorAttachmentCount = 0;
-    RenderPassDepthStencilAttachment* depthStencilAttachment = nullptr;
+    const RenderPassDepthStencilAttachment* depthStencilAttachment = nullptr;
 };
 
 enum class QueryType
