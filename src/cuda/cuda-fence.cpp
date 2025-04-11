@@ -39,6 +39,8 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     RefPtr<FenceImpl> fence = new FenceImpl(this, desc);
     fence->m_currentValue = desc.initialValue;
     returnComPtr(outFence, fence);

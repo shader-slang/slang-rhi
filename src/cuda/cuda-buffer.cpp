@@ -38,6 +38,8 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     auto desc = fixupBufferDesc(desc_);
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     if (desc.memoryType == MemoryType::DeviceLocal)
@@ -60,6 +62,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
 Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     if (!handle)
     {
         *outBuffer = nullptr;

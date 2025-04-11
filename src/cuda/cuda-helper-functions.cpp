@@ -3,6 +3,37 @@
 
 namespace rhi::cuda {
 
+#if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
+static thread_local CUcontext g_currentContext = nullptr;
+static thread_local std::atomic<uint32_t> g_contextStackDepth = 0;
+#endif
+
+ContextScope::ContextScope(const DeviceImpl* device)
+{
+    SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPushCurrent(device->m_ctx.context));
+#if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
+    g_currentContext = device->m_ctx.context;
+    g_contextStackDepth++;
+#endif
+}
+
+ContextScope::~ContextScope()
+{
+    CUcontext ctx;
+    SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPopCurrent(&ctx));
+#if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
+    g_currentContext = ctx;
+    g_contextStackDepth--;
+#endif
+}
+
+#if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
+CUcontext getCurrentContext()
+{
+    return g_contextStackDepth.load() > 0 ? g_currentContext : nullptr;
+}
+#endif
+
 Result CUDAErrorInfo::handle() const
 {
     fprintf(stderr, "%s(%d): CUDA: %s (%s)\n", m_filePath, m_lineNo, m_errorString, m_errorName);

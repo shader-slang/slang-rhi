@@ -2,7 +2,25 @@
 
 #include "cuda-base.h"
 
+/// Enable CUDA context check.
+/// This is useful for debugging to ensure that the CUDA context is set correctly when calling CUDA APIs.
+#define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 0
+
 namespace rhi::cuda {
+
+/// Helper class to push/pop CUDA context on the stack.
+class ContextScope
+{
+public:
+    explicit ContextScope(const DeviceImpl* device);
+    ~ContextScope();
+};
+
+#define SLANG_CUDA_CTX_SCOPE(device) rhi::cuda::ContextScope _context_scope(device)
+
+#if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
+CUcontext getCurrentContext();
+#endif
 
 inline bool _isError(CUresult result)
 {
@@ -39,8 +57,25 @@ Result _handleCUDAError(CUresult cuResult, const char* file, int line);
 
 #define SLANG_CUDA_HANDLE_ERROR(x) _handleCUDAError(x, __FILE__, __LINE__)
 
+#if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
+inline void SLANG_RHI_CHECK_CUDA_CTX()
+{
+    CUcontext currentContext = nullptr;
+    cuCtxGetCurrent(&currentContext);
+    CUcontext expectedContext = getCurrentContext();
+    if (expectedContext && expectedContext != currentContext)
+    {
+        __debugbreak();
+    }
+}
+#else
+#define SLANG_RHI_CHECK_CUDA_CTX()
+#endif
+
+
 #define SLANG_CUDA_RETURN_ON_FAIL(x)                                                                                   \
     {                                                                                                                  \
+        SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
         auto _res = x;                                                                                                 \
         if (_isError(_res))                                                                                            \
             return SLANG_CUDA_HANDLE_ERROR(_res);                                                                      \
@@ -48,6 +83,7 @@ Result _handleCUDAError(CUresult cuResult, const char* file, int line);
 
 #define SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(x, r)                                                                    \
     {                                                                                                                  \
+        SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
         auto _res = x;                                                                                                 \
         if (_isError(_res))                                                                                            \
         {                                                                                                              \
@@ -57,6 +93,7 @@ Result _handleCUDAError(CUresult cuResult, const char* file, int line);
 
 #define SLANG_CUDA_ASSERT_ON_FAIL(x)                                                                                   \
     {                                                                                                                  \
+        SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
         auto _res = x;                                                                                                 \
         if (_isError(_res))                                                                                            \
         {                                                                                                              \

@@ -734,6 +734,8 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
@@ -761,11 +763,16 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
     SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
 
+    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
+        checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->reset();
+
     return SLANG_OK;
 }
 
 Result CommandQueueImpl::waitOnHost()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_CUDA_RETURN_ON_FAIL(cuStreamSynchronize(m_stream));
     SLANG_CUDA_RETURN_ON_FAIL(cuCtxSynchronize());
     return SLANG_OK;
@@ -811,6 +818,8 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
@@ -829,6 +838,7 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 CommandBufferImpl::CommandBufferImpl(Device* device)
     : CommandBuffer(device)
 {
+    m_constantBufferPool.init(checked_cast<DeviceImpl*>(device));
 }
 
 Result CommandBufferImpl::reset()
