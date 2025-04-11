@@ -25,6 +25,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
     const auto& module = program->m_modules[0];
@@ -60,6 +62,13 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     }
     pipeline->m_paramBufferSize = paramBufferSize;
 
+    // Query the shared memory size.
+    int sharedSizeBytes = 0;
+    SLANG_CUDA_RETURN_ON_FAIL(
+        cuFuncGetAttribute(&sharedSizeBytes, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, pipeline->m_function)
+    );
+    pipeline->m_sharedMemorySize = sharedSizeBytes;
+
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
@@ -90,6 +99,8 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;

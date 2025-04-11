@@ -223,6 +223,8 @@ CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     TextureDesc desc = fixupTextureDesc(desc_);
 
     RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
@@ -495,6 +497,8 @@ TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Undefined)

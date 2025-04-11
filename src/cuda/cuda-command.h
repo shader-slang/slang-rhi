@@ -44,6 +44,7 @@ public:
     ConstantBufferPool m_constantBufferPool;
 
     CommandBufferImpl(Device* device);
+    virtual ~CommandBufferImpl() = default;
 
     virtual Result reset() override;
 

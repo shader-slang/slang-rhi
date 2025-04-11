@@ -127,19 +127,23 @@ DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
 {
-    m_shaderCache.free();
-    m_uploadHeap.release();
-    m_readbackHeap.release();
-    m_clearEngine.release();
+    {
+        SLANG_CUDA_CTX_SCOPE(this);
 
-    m_queue.setNull();
+        m_shaderCache.free();
+        m_uploadHeap.release();
+        m_readbackHeap.release();
+        m_clearEngine.release();
+
+        m_queue.setNull();
 
 #if SLANG_RHI_ENABLE_OPTIX
-    if (m_ctx.optixContext)
-    {
-        optixDeviceContextDestroy(m_ctx.optixContext);
-    }
+        if (m_ctx.optixContext)
+        {
+            optixDeviceContextDestroy(m_ctx.optixContext);
+        }
 #endif
+    }
 
     if (m_ctx.context)
     {
@@ -194,6 +198,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&m_ctx.device, selectedDeviceIndex));
 
     SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), kReportType);
+
+    SLANG_CUDA_CTX_SCOPE(this);
 
     // Supports ParameterBlock
     m_features.push_back("parameter-block");
@@ -440,6 +446,8 @@ Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSuppo
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     switch (desc.type)
     {
     case QueryType::Timestamp:
@@ -468,6 +476,8 @@ Result DeviceImpl::createShaderObjectLayout(
     ShaderObjectLayout** outLayout
 )
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     RefPtr<ShaderObjectLayoutImpl> cudaLayout;
     cudaLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
     returnRefPtrMove(outLayout, cudaLayout);
@@ -485,6 +495,8 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
 #if SLANG_RHI_ENABLE_OPTIX
     if (!m_ctx.optixContext)
     {
@@ -506,6 +518,8 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
     shaderProgram->init(desc);
     shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
@@ -559,6 +573,8 @@ Result DeviceImpl::readTexture(
     SubresourceLayout* outLayout
 )
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 
     // Calculate layout info.
@@ -594,6 +610,8 @@ Result DeviceImpl::readTexture(
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, void* outData)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     auto bufferImpl = checked_cast<BufferImpl*>(buffer);
     if (offset + size > bufferImpl->m_desc.size)
     {
@@ -610,6 +628,8 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AccelerationStructureSizes* outSizes
 )
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
 #if SLANG_RHI_ENABLE_OPTIX
     if (!m_ctx.optixContext)
     {
@@ -640,6 +660,8 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
 #if SLANG_RHI_ENABLE_OPTIX
     if (!m_ctx.optixContext)
     {

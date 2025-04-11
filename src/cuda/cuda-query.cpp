@@ -1,4 +1,5 @@
 #include "cuda-query.h"
+#include "cuda-device.h"
 #include "cuda-helper-functions.h"
 
 namespace rhi::cuda {
@@ -67,6 +68,8 @@ Result PlainBufferProxyQueryPoolImpl::reset()
 
 Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_CUDA_RETURN_ON_FAIL(cuCtxSynchronize());
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpyDtoH(data, m_buffer + queryIndex * sizeof(uint64_t), count * sizeof(uint64_t)));
     return SLANG_OK;
