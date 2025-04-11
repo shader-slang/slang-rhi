@@ -257,6 +257,27 @@ enum CUdevice_attribute
     CU_DEVICE_ATTRIBUTE_MAX,
 };
 
+enum CUfunction_attribute
+{
+    CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK = 0,
+    CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES = 1,
+    CU_FUNC_ATTRIBUTE_CONST_SIZE_BYTES = 2,
+    CU_FUNC_ATTRIBUTE_LOCAL_SIZE_BYTES = 3,
+    CU_FUNC_ATTRIBUTE_NUM_REGS = 4,
+    CU_FUNC_ATTRIBUTE_PTX_VERSION = 5,
+    CU_FUNC_ATTRIBUTE_BINARY_VERSION = 6,
+    CU_FUNC_ATTRIBUTE_CACHE_MODE_CA = 7,
+    CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES = 8,
+    CU_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT = 9,
+    CU_FUNC_ATTRIBUTE_CLUSTER_SIZE_MUST_BE_SET = 10,
+    CU_FUNC_ATTRIBUTE_REQUIRED_CLUSTER_WIDTH = 11,
+    CU_FUNC_ATTRIBUTE_REQUIRED_CLUSTER_HEIGHT = 12,
+    CU_FUNC_ATTRIBUTE_REQUIRED_CLUSTER_DEPTH = 13,
+    CU_FUNC_ATTRIBUTE_NON_PORTABLE_CLUSTER_SIZE_ALLOWED = 14,
+    CU_FUNC_ATTRIBUTE_CLUSTER_SCHEDULING_POLICY_PREFERENCE = 15,
+    CU_FUNC_ATTRIBUTE_MAX,
+};
+
 enum CUmemorytype
 {
     CU_MEMORYTYPE_HOST = 0x01,
@@ -816,6 +837,7 @@ CUDA_SYM(CUresult (*cuModuleGetTexRef)(CUtexref*, CUmodule, const char*));
 CUDA_SYM(CUresult (*cuModuleLoad)(CUmodule*, const char*));
 CUDA_SYM(CUresult (*cuModuleLoadData)(CUmodule*, const void*));
 CUDA_SYM(CUresult (*cuModuleUnload)(CUmodule));
+CUDA_SYM(CUresult (*cuFuncGetAttribute)(int*, CUfunction_attribute, CUfunction));
 CUDA_SYM(CUresult (*cuFuncGetParamInfo)(CUfunction, size_t, size_t*, size_t*));
 CUDA_SYM(CUresult (*cuLaunchKernel)(CUfunction, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, CUstream, void **, void **));
 CUDA_SYM(CUresult (*cuMipmappedArrayGetLevel)(CUarray*, CUmipmappedArray, unsigned int));
