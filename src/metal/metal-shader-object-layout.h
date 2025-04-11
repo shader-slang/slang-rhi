@@ -144,7 +144,7 @@ public:
 
     uint32_t getTotalOrdinaryDataSize() const { return m_totalOrdinaryDataSize; }
 
-    slang::TypeLayoutReflection* getParameterBlockTypeLayout();
+    virtual slang::TypeLayoutReflection* getParameterBlockTypeLayout() override;
 
     // ShaderObjectLayout interface
     virtual uint32_t getSlotCount() const override { return m_slotCount; }
