@@ -2804,7 +2804,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL waitForFences(
         uint32_t fenceCount,
         IFence** fences,
-        const uint64_t* fanceValues,
+        const uint64_t* fenceValues,
         bool waitForAll,
         uint64_t timeout
     ) = 0;
