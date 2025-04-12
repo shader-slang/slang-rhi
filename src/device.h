@@ -207,7 +207,7 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFences(uint32_t fenceCount, IFence** fences, uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
+    waitForFences(uint32_t fenceCount, IFence** fences, const uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
         override;
 
     // Default implementation uses encoder.copyTextureToBuffer to copy to the read-back heap

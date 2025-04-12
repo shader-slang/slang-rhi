@@ -641,7 +641,7 @@ Result CommandEncoder::uploadTextureData(
     return SLANG_OK;
 }
 
-Result CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
+Result CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data)
 {
     RefPtr<StagingHeap::Handle> handle;
     SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.stageHandle(data, size, {}, handle.writeRef()));

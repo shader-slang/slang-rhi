@@ -558,7 +558,7 @@ Result Device::createFence(const FenceDesc& desc, IFence** outFence)
 Result Device::waitForFences(
     uint32_t fenceCount,
     IFence** fences,
-    uint64_t* fenceValues,
+    const uint64_t* fenceValues,
     bool waitForAll,
     uint64_t timeout
 )

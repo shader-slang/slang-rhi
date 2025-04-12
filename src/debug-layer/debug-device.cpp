@@ -586,7 +586,7 @@ Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 Result DebugDevice::waitForFences(
     uint32_t fenceCount,
     IFence** fences,
-    uint64_t* values,
+    const uint64_t* fenceValues,
     bool waitForAll,
     uint64_t timeout
 )
@@ -597,7 +597,7 @@ Result DebugDevice::waitForFences(
     {
         innerFences.push_back(getInnerObj(fences[i]));
     }
-    return baseObject->waitForFences(fenceCount, innerFences.data(), values, waitForAll, timeout);
+    return baseObject->waitForFences(fenceCount, innerFences.data(), fenceValues, waitForAll, timeout);
 }
 
 Result DebugDevice::getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment)
