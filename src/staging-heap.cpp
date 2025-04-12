@@ -115,7 +115,7 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
     return SLANG_OK;
 }
 
-Result StagingHeap::stageHandle(void* data, size_t size, MetaData metadata, Handle** outHandle)
+Result StagingHeap::stageHandle(const void* data, size_t size, MetaData metadata, Handle** outHandle)
 {
     // Perform thread safe allocation.
     {
@@ -131,7 +131,7 @@ Result StagingHeap::stageHandle(void* data, size_t size, MetaData metadata, Hand
     return SLANG_OK;
 }
 
-Result StagingHeap::stage(void* data, size_t size, MetaData metadata, Allocation* outAllocation)
+Result StagingHeap::stage(const void* data, size_t size, MetaData metadata, Allocation* outAllocation)
 {
     // Perform thread safe allocation.
     {

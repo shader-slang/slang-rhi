@@ -248,7 +248,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) override;
+    uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range) override;
 

@@ -143,10 +143,10 @@ public:
 
     // Allocate/store a block of data in the heap and wrap in a ref counted
     // handle that automatically frees the allocation when handle is freed.
-    Result stageHandle(void* data, size_t size, MetaData metadata, Handle** outHandle);
+    Result stageHandle(const void* data, size_t size, MetaData metadata, Handle** outHandle);
 
     // Allocate/store a block of data in the heap.
-    Result stage(void* data, size_t size, MetaData metadata, Allocation* outAllocation);
+    Result stage(const void* data, size_t size, MetaData metadata, Allocation* outAllocation);
 
     // Free existing allocation.
     void free(Allocation allocation);

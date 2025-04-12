@@ -122,7 +122,7 @@ enum class LinkingStyle
 struct ShaderProgramDesc
 {
     StructType type = StructType::ShaderProgramDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     // TODO: Tess doesn't like this but doesn't know what to do about it
     // The linking style of this program.
@@ -473,7 +473,7 @@ struct VertexStreamDesc
 struct InputLayoutDesc
 {
     StructType structType = StructType::InputLayoutDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     const InputElementDesc* inputElements = nullptr;
     uint32_t inputElementCount = 0;
@@ -535,7 +535,7 @@ SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
 struct BufferDesc
 {
     StructType structType = StructType::BufferDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     /// Total size in bytes.
     uint64_t size = 0;
@@ -792,7 +792,7 @@ static const SubresourceRange kAllSubresources = {0, kAllMipLevels, 0, kAllLayer
 struct TextureDesc
 {
     StructType structType = StructType::TextureDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     TextureType type = TextureType::Texture2D;
 
@@ -817,7 +817,7 @@ struct TextureDesc
     TextureUsage usage = TextureUsage::None;
     ResourceState defaultState = ResourceState::Undefined;
 
-    ClearValue* optimalClearValue = nullptr;
+    const ClearValue* optimalClearValue = nullptr;
 
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;
@@ -833,7 +833,7 @@ struct TextureDesc
 struct TextureViewDesc
 {
     StructType structType = StructType::TextureViewDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     Format format = Format::Undefined;
     TextureAspect aspect = TextureAspect::All;
@@ -919,7 +919,7 @@ enum class TextureReductionOp
 struct SamplerDesc
 {
     StructType structType = StructType::SamplerDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     TextureFilteringMode minFilter = TextureFilteringMode::Linear;
     TextureFilteringMode magFilter = TextureFilteringMode::Linear;
@@ -1217,7 +1217,7 @@ SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureBuildFlags);
 struct AccelerationStructureBuildDesc
 {
     /// List of build inputs. All inputs must be of the same type.
-    AccelerationStructureBuildInput* inputs = nullptr;
+    const AccelerationStructureBuildInput* inputs = nullptr;
     uint32_t inputCount = 0;
 
     AccelerationStructureBuildInputMotionOptions motionOptions;
@@ -1236,7 +1236,7 @@ struct AccelerationStructureSizes
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     uint64_t size;
 
@@ -1255,7 +1255,7 @@ public:
 struct FenceDesc
 {
     StructType structType = StructType::FenceDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     uint64_t initialValue = 0;
     bool isShared = false;
@@ -1561,7 +1561,7 @@ struct MultisampleDesc
 struct RenderPipelineDesc
 {
     StructType structType = StructType::RenderPipelineDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
     IInputLayout* inputLayout = nullptr;
@@ -1576,7 +1576,7 @@ struct RenderPipelineDesc
 struct ComputePipelineDesc
 {
     StructType structType = StructType::ComputePipelineDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
@@ -1601,7 +1601,7 @@ struct HitGroupDesc
 struct RayTracingPipelineDesc
 {
     StructType structType = StructType::RayTracingPipelineDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
     uint32_t hitGroupCount = 0;
@@ -1626,7 +1626,7 @@ struct ShaderRecordOverwrite
 struct ShaderTableDesc
 {
     StructType structType = StructType::ShaderTableDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     uint32_t rayGenShaderCount = 0;
     const char** rayGenShaderEntryPointNames = nullptr;
@@ -1800,7 +1800,7 @@ enum class QueryType
 struct QueryPoolDesc
 {
     StructType structType = StructType::QueryPoolDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     QueryType type = QueryType::Timestamp;
     uint32_t count = 0;
@@ -2074,7 +2074,8 @@ public:
         uint32_t subresourceDataCount
     ) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range = kEntireBuffer) = 0;
 
@@ -2181,10 +2182,10 @@ struct SubmitDesc
     ICommandBuffer** commandBuffers;
     uint32_t commandBufferCount;
     IFence** waitFences;
-    uint64_t* waitFenceValues;
+    const uint64_t* waitFenceValues;
     uint32_t waitFenceCount;
     IFence** signalFences;
-    uint64_t* signalFenceValues;
+    const uint64_t* signalFenceValues;
     uint32_t signalFenceCount;
 };
 
@@ -2404,7 +2405,7 @@ struct SlangDesc
     const slang::PreprocessorMacroDesc* preprocessorMacros = nullptr;
     uint32_t preprocessorMacroCount = 0;
 
-    slang::CompilerOptionEntry* compilerOptionEntries = nullptr;
+    const slang::CompilerOptionEntry* compilerOptionEntries = nullptr;
     uint32_t compilerOptionEntryCount = 0;
 
     /// (optional) Target shader profile. If null this will be set to platform dependent default.
@@ -2424,7 +2425,7 @@ struct DeviceNativeHandles
 struct DeviceDesc
 {
     StructType structType = StructType::DeviceDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     // The underlying API/Platform of the device.
     DeviceType deviceType = DeviceType::Default;
@@ -2800,8 +2801,13 @@ public:
 
     /// Wait on the host for the fences to signals.
     /// `timeout` is in nanoseconds, can be set to `kTimeoutInfinite`.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFences(uint32_t fenceCount, IFence** fences, uint64_t* values, bool waitForAll, uint64_t timeout) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForFences(
+        uint32_t fenceCount,
+        IFence** fences,
+        const uint64_t* fenceValues,
+        bool waitForAll,
+        uint64_t timeout
+    ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) = 0;
@@ -2949,18 +2955,18 @@ inline const FormatInfo& getFormatInfo(Format format)
 struct D3D12ExperimentalFeaturesDesc
 {
     StructType structType = StructType::D3D12ExperimentalFeaturesDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     uint32_t featureCount = 0;
     const void* featureIIDs = nullptr;
-    void* configurationStructs = nullptr;
-    uint32_t* configurationStructSizes = nullptr;
+    const void* configurationStructs = nullptr;
+    const uint32_t* configurationStructSizes = nullptr;
 };
 
 struct D3D12DeviceExtendedDesc
 {
     StructType structType = StructType::D3D12DeviceExtendedDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     const char* rootParameterShaderAttributeName = nullptr;
     bool debugBreakOnD3D12Error = false;
@@ -2970,7 +2976,7 @@ struct D3D12DeviceExtendedDesc
 struct VulkanDeviceExtendedDesc
 {
     StructType structType = StructType::VulkanDeviceExtendedDesc;
-    void* next = nullptr;
+    const void* next = nullptr;
 
     bool enableDebugPrintf = false;
 };

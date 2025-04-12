@@ -362,7 +362,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Process chained descs
-    for (DescStructHeader* header = static_cast<DescStructHeader*>(desc.next); header; header = header->next)
+    for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
+         header = header->next)
     {
         switch (header->type)
         {
@@ -1499,7 +1500,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullSamplerDescriptor()
     return m_nullSamplerDescriptor.cpuHandle;
 }
 
-void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* inDesc)
+void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* inDesc)
 {
     typedef HRESULT(WINAPI * PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)(
         UINT NumFeatures,
@@ -1523,10 +1524,10 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         return;
     }
     if (!SLANG_SUCCEEDED(enableExperimentalFeaturesFunc(
-            desc.featureCount,
-            (IID*)desc.featureIIDs,
-            desc.configurationStructs,
-            desc.configurationStructSizes
+            (UINT)desc.featureCount,
+            (const IID*)desc.featureIIDs,
+            (void*)desc.configurationStructs,
+            (UINT*)desc.configurationStructSizes
         )))
     {
         handleMessage(
@@ -1576,7 +1577,7 @@ Result DeviceImpl::createFence(const FenceDesc& desc, IFence** outFence)
 Result DeviceImpl::waitForFences(
     uint32_t fenceCount,
     IFence** fences,
-    uint64_t* fenceValues,
+    const uint64_t* fenceValues,
     bool waitForAll,
     uint64_t timeout
 )

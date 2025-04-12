@@ -316,7 +316,7 @@ void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* sr
     baseObject->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
-Result DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, void* data)
+Result DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
