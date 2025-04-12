@@ -267,10 +267,17 @@ Result SurfaceImpl::createVulkanDevice()
     physicalDevices.resize(physicalDeviceCount);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, physicalDevices.data()));
 
-    // Get CUDA device LUID.
+    // On Windows we match device by LUID. On Linux with UUID.
+#if SLANG_WINDOWS_FAMILY
     char cudaLUID[8] = {};
     unsigned int deviceNodeMask;
     SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetLuid(cudaLUID, &deviceNodeMask, m_deviceImpl->m_ctx.device));
+#elif SLANG_LINUX_FAMILY
+    CUuuid cudaUUID = {};
+    SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetUuid(&cudaUUID, m_deviceImpl->m_ctx.device));
+#else
+#error "Unsupported platform"
+#endif
 
     if (!m_api.vkGetPhysicalDeviceFeatures2)
     {
@@ -285,11 +292,18 @@ Result SurfaceImpl::createVulkanDevice()
         props.pNext = &idProps;
         m_api.vkGetPhysicalDeviceProperties2(physicalDevices[i], &props);
 
-        // Check if the device LUID matches the CUDA device.
+        // Check if the device LUID/UUID matches the CUDA device.
+#if SLANG_WINDOWS_FAMILY
         if (!idProps.deviceLUIDValid || ::memcmp(cudaLUID, idProps.deviceLUID, 8) != 0)
         {
             continue;
         }
+#elif SLANG_LINUX_FAMILY
+        if (::memcmp(&cudaUUID, idProps.deviceUUID, 16) != 0)
+        {
+            continue;
+        }
+#endif
 
         uint32_t queueFamilyCount = 0;
         m_api.vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[i], &queueFamilyCount, NULL);
@@ -455,7 +469,10 @@ Result SurfaceImpl::createSwapchain()
 
 void SurfaceImpl::destroySwapchain()
 {
-    m_api.vkQueueWaitIdle(m_queue);
+    if (m_queue != VK_NULL_HANDLE)
+    {
+        m_api.vkQueueWaitIdle(m_queue);
+    }
 
     for (auto& frameData : m_frameData)
     {

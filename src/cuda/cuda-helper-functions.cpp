@@ -69,8 +69,14 @@ AdapterLUID getAdapterLUID(int deviceIndex)
     CUdevice device;
     SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGet(&device, deviceIndex));
     AdapterLUID luid = {};
+#if SLANG_WINDOWS_FAMILY
     unsigned int deviceNodeMask;
     SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetLuid((char*)&luid, &deviceNodeMask, device));
+#elif SLANG_LINUX_FAMILY
+    SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetUuid((CUuuid*)&luid, device));
+#else
+#error "Unsupported platform"
+#endif
     return luid;
 }
 
@@ -80,6 +86,7 @@ Result SLANG_MCALL getAdapters(std::vector<AdapterInfo>& outAdapters)
     {
         return SLANG_FAIL;
     }
+    SLANG_CUDA_RETURN_ON_FAIL(cuInit(0));
     int deviceCount;
     SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
     for (int deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++)

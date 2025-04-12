@@ -139,6 +139,32 @@ inline bool findNVRTCLibrary(
     return false;
 }
 
+inline bool findNVRTCLibrary(
+    const std::filesystem::path& basePath,
+    std::string_view name,
+    std::filesystem::path& outPath
+)
+{
+    std::error_code ec;
+    std::filesystem::directory_iterator it(basePath, ec);
+    if (ec)
+    {
+        return false;
+    }
+    for (const auto& entry : it)
+    {
+        if (entry.is_regular_file())
+        {
+            if (entry.path().filename().string() == name)
+            {
+                outPath = basePath / entry.path();
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 NVRTC::NVRTC()
 {
     m_impl = new Impl();
@@ -166,7 +192,7 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
 #if SLANG_WINDOWS_FAMILY
             if (findNVRTCLibrary(path, "nvrtc64_", ".dll", nvrtcPath))
 #elif SLANG_LINUX_FAMILY
-            if (findNVRTCLibrary(path, "libnvrtc", ".so", nvrtcPath))
+            if (findNVRTCLibrary(path, "libnvrtc.so", nvrtcPath))
 #else
 #error "Unsupported platform"
 #endif
