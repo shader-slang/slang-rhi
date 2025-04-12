@@ -1500,7 +1500,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullSamplerDescriptor()
     return m_nullSamplerDescriptor.cpuHandle;
 }
 
-void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* inDesc)
+void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* inDesc)
 {
     typedef HRESULT(WINAPI * PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)(
         UINT NumFeatures,

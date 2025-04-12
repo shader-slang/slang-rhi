@@ -228,7 +228,7 @@ public:
     D3D12_CPU_DESCRIPTOR_HANDLE getNullSamplerDescriptor();
 
 private:
-    void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, void* desc);
+    void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* desc);
 };
 
 } // namespace rhi::d3d12
