@@ -543,7 +543,7 @@ void CommandEncoder::copyBufferToTexture(
     // Add texture upload command for just this layer/mip
     commands::UploadTextureData cmd;
     cmd.dst = dst;
-    cmd.subresourceRange = {dstMipLevel, 1, dstLayer, 1};
+    cmd.subresourceRange = {dstLayer, 1, dstMipLevel, 1};
     cmd.offset = dstOffset;
     cmd.extent = extent;
     cmd.layouts = layout;

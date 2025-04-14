@@ -651,19 +651,18 @@ enum class TextureAspect : uint32_t
 
 struct SubresourceRange
 {
-    uint32_t mipLevel;
-    uint32_t mipLevelCount;
-
     // TODO: Check this comment - many areas explicitly specify a 3D offset / extents,
     // and this is expected to be 0 for 3D texture.
     uint32_t baseArrayLayer;
-
     uint32_t layerCount; // For cube maps, this is a multiple of 6.
+
+    uint32_t mipLevel;
+    uint32_t mipLevelCount;
 
     bool operator==(const SubresourceRange& other) const
     {
-        return mipLevel == other.mipLevel && mipLevelCount == other.mipLevelCount &&
-               baseArrayLayer == other.baseArrayLayer && layerCount == other.layerCount;
+        return baseArrayLayer == other.baseArrayLayer && layerCount == other.layerCount && mipLevel == other.mipLevel &&
+               mipLevelCount == other.mipLevelCount;
     }
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }
 };
@@ -787,7 +786,7 @@ struct SubresourceLayout
 
 static const uint32_t kAllLayers = 0xffffffff;
 static const uint32_t kAllMipLevels = 0xffffffff;
-static const SubresourceRange kAllSubresources = {0, kAllMipLevels, 0, kAllLayers};
+static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMipLevels};
 
 struct TextureDesc
 {

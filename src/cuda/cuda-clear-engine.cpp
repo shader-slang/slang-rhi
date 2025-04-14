@@ -184,7 +184,7 @@ void ClearEngine::clearTexture(
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; ++layerOffset)
         {
             uint32_t layer = subresourceRange.baseArrayLayer + layerOffset;
-            SubresourceRange sr = {mipLevel, 1, layer, 1};
+            SubresourceRange sr = {layer, 1, mipLevel, 1};
             CUsurfObject surface = texture->getSurfObject(sr);
             uint32_t sizeAndLayer[4] = {mipSize.width, mipSize.height, mipSize.depth, layer};
             launch(stream, function, blockDim, surface, sizeAndLayer, reinterpret_cast<const uint32_t*>(clearValue));

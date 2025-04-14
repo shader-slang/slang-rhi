@@ -1053,10 +1053,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
         SubresourceRange range;
-        range.mipLevel = 0;
-        range.mipLevelCount = desc.mipLevelCount;
         range.baseArrayLayer = 0;
         range.layerCount = desc.getLayerCount();
+        range.mipLevel = 0;
+        range.mipLevelCount = desc.mipLevelCount;
 
         commandEncoder->uploadTextureData(
             texture,

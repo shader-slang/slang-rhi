@@ -238,16 +238,16 @@ struct ResolveResourceSimple : BaseResolveResourceTest
         createRequiredResources(msaaTextureInfo, dstTextureInfo, kFormat);
 
         SubresourceRange msaaSubresource = {};
-        msaaSubresource.mipLevel = 0;
-        msaaSubresource.mipLevelCount = 1;
         msaaSubresource.baseArrayLayer = 0;
         msaaSubresource.layerCount = 1;
+        msaaSubresource.mipLevel = 0;
+        msaaSubresource.mipLevelCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.mipLevel = 0;
-        dstSubresource.mipLevelCount = 1;
         dstSubresource.baseArrayLayer = 0;
         dstSubresource.layerCount = 1;
+        dstSubresource.mipLevel = 0;
+        dstSubresource.mipLevelCount = 1;
 
         submitGPUWork(msaaSubresource, dstSubresource, extent);
 

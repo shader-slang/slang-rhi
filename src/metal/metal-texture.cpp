@@ -193,8 +193,8 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     const TextureDesc& textureDesc = textureImpl->m_desc;
     uint32_t layerCount = textureDesc.arrayLength * (textureDesc.type == TextureType::TextureCube ? 6 : 1);
     SubresourceRange sr = viewImpl->m_desc.subresourceRange;
-    if (sr.mipLevel == 0 && sr.mipLevelCount == textureDesc.mipLevelCount && sr.baseArrayLayer == 0 &&
-        sr.layerCount == layerCount)
+    if (sr.baseArrayLayer == 0 && sr.layerCount == layerCount && sr.mipLevel == 0 &&
+        sr.mipLevelCount == textureDesc.mipLevelCount)
     {
         viewImpl->m_textureView = textureImpl->m_texture;
         returnComPtr(outView, viewImpl);
@@ -203,8 +203,8 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 
     MTL::PixelFormat pixelFormat =
         desc.format == Format::Undefined ? textureImpl->m_pixelFormat : MetalUtil::translatePixelFormat(desc.format);
-    NS::Range levelRange(sr.mipLevel, sr.mipLevelCount);
     NS::Range sliceRange(sr.baseArrayLayer, sr.layerCount);
+    NS::Range levelRange(sr.mipLevel, sr.mipLevelCount);
 
     viewImpl->m_textureView = NS::TransferPtr(
         textureImpl->m_texture->newTextureView(pixelFormat, textureImpl->m_textureType, levelRange, sliceRange)

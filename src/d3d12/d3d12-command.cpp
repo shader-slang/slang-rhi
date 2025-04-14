@@ -203,24 +203,24 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     }
 
     // If we couldn't use the fast CopyResource path, need to ensure that the subresource ranges are valid.
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
 
     // Validate subresource ranges
-    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
-    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
     SLANG_RHI_ASSERT(srcSubresource.baseArrayLayer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
     SLANG_RHI_ASSERT(dstSubresource.baseArrayLayer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
+    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
 
     // Validate matching dimensions between source and destination
-    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
     SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
+    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
 
     requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
@@ -333,7 +333,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
     // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
-    requireTextureState(src, {srcMipLevel, 1, srcLayer, 1}, ResourceState::CopySource);
+    requireTextureState(src, {srcLayer, 1, srcMipLevel, 1}, ResourceState::CopySource);
     commitBarriers();
 
     // Calculate adjusted extents. Note it is required and enforced

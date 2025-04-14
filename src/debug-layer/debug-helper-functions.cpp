@@ -36,11 +36,11 @@ std::string _rhiGetFuncName(const char* input)
 std::string subresourceRangeToString(const SubresourceRange& range)
 {
     return string::format(
-        "(mipLevel=%u, mipLevelCount=%u, baseArrayLayer=%u, layerCount=%u)",
-        range.mipLevel,
-        range.mipLevelCount,
+        "(baseArrayLayer=%u, layerCount=%u, mipLevel=%u, mipLevelCount=%u)",
         range.baseArrayLayer,
-        range.layerCount
+        range.layerCount,
+        range.mipLevel,
+        range.mipLevelCount
     );
 }
 

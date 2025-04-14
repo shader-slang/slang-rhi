@@ -137,20 +137,20 @@ IResource* Texture::getInterface(const Guid& guid)
 SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
 {
     SubresourceRange resolved = range;
-    resolved.mipLevel = min(resolved.mipLevel, m_desc.mipLevelCount);
-    resolved.mipLevelCount = min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
     resolved.baseArrayLayer = min(resolved.baseArrayLayer, (m_desc.getLayerCount() - 1));
     resolved.layerCount = min(resolved.layerCount, m_desc.getLayerCount() - resolved.baseArrayLayer);
+    resolved.mipLevel = min(resolved.mipLevel, m_desc.mipLevelCount - 1);
+    resolved.mipLevelCount = min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
     return resolved;
 }
 
 bool Texture::isEntireTexture(const SubresourceRange& range)
 {
-    if (range.mipLevel > 0 || range.mipLevelCount < m_desc.mipLevelCount)
+    if (range.baseArrayLayer > 0 || range.layerCount < m_desc.getLayerCount())
     {
         return false;
     }
-    if (range.baseArrayLayer > 0 || range.layerCount < m_desc.getLayerCount())
+    if (range.mipLevel > 0 || range.mipLevelCount < m_desc.mipLevelCount)
     {
         return false;
     }

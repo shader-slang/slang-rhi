@@ -138,14 +138,14 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Extent3D& extent = cmd.extent;
 
     // Fix up sub resource ranges if they are 0 (meaning use entire range)
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
 
     const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
     Extent3D srcTextureSize = src->m_desc.size;

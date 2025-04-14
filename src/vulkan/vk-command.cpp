@@ -218,14 +218,14 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     Extent3D extent = cmd.extent;
 
     // Fix up sub resource ranges.
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
 
     requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
@@ -302,7 +302,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
     // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
-    requireTextureState(src, {srcMipLevel, 1, srcLayer, 1}, ResourceState::CopySource);
+    requireTextureState(src, {srcLayer, 1, srcMipLevel, 1}, ResourceState::CopySource);
     commitBarriers();
 
     // Calculate adjusted extents. Note it is required and enforced

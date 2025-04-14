@@ -175,24 +175,24 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Extent3D& extent = cmd.extent;
 
     // Fix up sub resource ranges.
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
 
     // Validate subresource ranges
-    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
-    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
     SLANG_RHI_ASSERT(srcSubresource.baseArrayLayer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
     SLANG_RHI_ASSERT(dstSubresource.baseArrayLayer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
+    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
 
     // Validate matching dimensions between source and destination
-    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
     SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
+    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
 
     Extent3D srcTextureSize = src->m_desc.size;
     const FormatInfo& srcFormatInfo = getFormatInfo(src->m_desc.format);
@@ -353,7 +353,6 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
 {
     auto dst = checked_cast<TextureImpl*>(cmd.dst);
     SubresourceRange subresourceRange = cmd.subresourceRange;
-
 
     SubresourceLayout* srLayout = cmd.layouts;
     Offset bufferOffset = cmd.srcOffset;
