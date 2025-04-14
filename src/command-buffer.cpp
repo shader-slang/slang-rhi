@@ -26,9 +26,13 @@ void RenderPassEncoder::writeRenderState()
     commands::SetRenderState cmd;
     cmd.state = m_renderState;
     cmd.pipeline = m_pipeline;
-    // TODO(shaderobject) handle errors
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData);
+    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    {
+        m_commandEncoder->getDevice()
+            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+        return;
+    }
     m_commandList->write(std::move(cmd));
 }
 
@@ -198,9 +202,13 @@ void ComputePassEncoder::writeComputeState()
 {
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
-    // TODO(shaderobject) handle errors
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData);
+    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    {
+        m_commandEncoder->getDevice()
+            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+        return;
+    }
     m_commandList->write(std::move(cmd));
 }
 
@@ -316,9 +324,14 @@ void RayTracingPassEncoder::writeRayTracingState()
     commands::SetRayTracingState cmd;
     cmd.pipeline = m_pipeline;
     cmd.shaderTable = m_shaderTable;
-    // TODO handle errors
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData);
+    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    {
+        m_commandEncoder->getDevice()
+            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+        return;
+    }
+
     m_commandList->write(std::move(cmd));
 }
 
