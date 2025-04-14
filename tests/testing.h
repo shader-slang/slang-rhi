@@ -104,7 +104,7 @@ void compareResult(const T* result, const T* expectedResult)
     }
 }
 
-inline void compareResultFuzzy(const float* result, float* expectedResult, size_t count)
+inline void compareResultFuzzy(const float* result, const float* expectedResult, size_t count)
 {
     for (size_t i = 0; i < count; ++i)
     {

@@ -730,6 +730,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-shared.cpp
+        tests/test-texture-view.cpp
         tests/test-texture-types.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
