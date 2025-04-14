@@ -153,8 +153,8 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
     // Copy each layer and mip level
     for (uint32_t layerOffset = 0; layerOffset < srcSubresource.layerCount; layerOffset++)
     {
-        uint32_t srcLayer = srcSubresource.baseArrayLayer + layerOffset;
-        uint32_t dstLayer = dstSubresource.baseArrayLayer + layerOffset;
+        uint32_t srcLayer = srcSubresource.layer + layerOffset;
+        uint32_t dstLayer = dstSubresource.layer + layerOffset;
 
         for (uint32_t mipOffset = 0; mipOffset < srcSubresource.mipLevelCount; mipOffset++)
         {
@@ -325,7 +325,7 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
 
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
-        uint32_t layer = subresourceRange.baseArrayLayer + layerOffset;
+        uint32_t layer = subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;

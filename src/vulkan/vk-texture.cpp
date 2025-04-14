@@ -147,7 +147,7 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
 
     createInfo.subresourceRange.aspectMask = getAspectMaskFromFormat(m_vkformat, aspect);
 
-    createInfo.subresourceRange.baseArrayLayer = range.baseArrayLayer;
+    createInfo.subresourceRange.baseArrayLayer = range.layer;
     createInfo.subresourceRange.baseMipLevel = range.mipLevel;
     createInfo.subresourceRange.layerCount = range.layerCount;
     createInfo.subresourceRange.levelCount = range.mipLevelCount;
@@ -308,7 +308,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
         SubresourceRange range;
-        range.baseArrayLayer = 0;
+        range.layer = 0;
         range.layerCount = layerCount;
         range.mipLevel = 0;
         range.mipLevelCount = desc.mipLevelCount;

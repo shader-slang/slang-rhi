@@ -40,7 +40,7 @@ public:
             hash_combine(hash, key.format);
             hash_combine(hash, key.type);
             hash_combine(hash, key.aspect);
-            hash_combine(hash, key.range.baseArrayLayer);
+            hash_combine(hash, key.range.layer);
             hash_combine(hash, key.range.layerCount);
             hash_combine(hash, key.range.mipLevel);
             hash_combine(hash, key.range.mipLevelCount);

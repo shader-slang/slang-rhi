@@ -33,7 +33,7 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
     case TextureType::Texture1DArray:
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1DARRAY;
         rtvDesc.Texture1DArray.MipSlice = range.mipLevel;
-        rtvDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        rtvDesc.Texture1DArray.FirstArraySlice = range.layer;
         rtvDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
@@ -43,7 +43,7 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
     case TextureType::Texture2DArray:
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
         rtvDesc.Texture2DArray.MipSlice = range.mipLevel;
-        rtvDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
+        rtvDesc.Texture2DArray.FirstArraySlice = range.layer;
         rtvDesc.Texture2DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2DMS:
@@ -51,7 +51,7 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
         break;
     case TextureType::Texture2DMSArray:
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
-        rtvDesc.Texture2DMSArray.FirstArraySlice = range.baseArrayLayer;
+        rtvDesc.Texture2DMSArray.FirstArraySlice = range.layer;
         rtvDesc.Texture2DMSArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture3D:
@@ -94,7 +94,7 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
     case TextureType::Texture1DArray:
         dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE1DARRAY;
         dsvDesc.Texture1DArray.MipSlice = range.mipLevel;
-        dsvDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        dsvDesc.Texture1DArray.FirstArraySlice = range.layer;
         dsvDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
@@ -104,7 +104,7 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
     case TextureType::Texture2DArray:
         dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
         dsvDesc.Texture2DArray.MipSlice = range.mipLevel;
-        dsvDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
+        dsvDesc.Texture2DArray.FirstArraySlice = range.layer;
         dsvDesc.Texture2DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2DMS:
@@ -112,7 +112,7 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
         break;
     case TextureType::Texture2DMSArray:
         dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMSARRAY;
-        dsvDesc.Texture2DMSArray.FirstArraySlice = range.baseArrayLayer;
+        dsvDesc.Texture2DMSArray.FirstArraySlice = range.layer;
         dsvDesc.Texture2DMSArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture3D:
@@ -152,7 +152,7 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
         srvDesc.Texture1DArray.MostDetailedMip = range.mipLevel;
         srvDesc.Texture1DArray.MipLevels = range.mipLevelCount;
-        srvDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        srvDesc.Texture1DArray.FirstArraySlice = range.layer;
         srvDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
@@ -164,7 +164,7 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
         srvDesc.Texture2DArray.MostDetailedMip = range.mipLevel;
         srvDesc.Texture2DArray.MipLevels = range.mipLevelCount;
-        srvDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
+        srvDesc.Texture2DArray.FirstArraySlice = range.layer;
         srvDesc.Texture2DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2DMS:
@@ -172,7 +172,7 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
         break;
     case TextureType::Texture2DMSArray:
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
-        srvDesc.Texture2DMSArray.FirstArraySlice = range.baseArrayLayer;
+        srvDesc.Texture2DMSArray.FirstArraySlice = range.layer;
         srvDesc.Texture2DMSArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture3D:
@@ -189,7 +189,7 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
         srvDesc.TextureCubeArray.MostDetailedMip = range.mipLevel;
         srvDesc.TextureCubeArray.MipLevels = range.mipLevelCount;
-        srvDesc.TextureCubeArray.First2DArrayFace = range.baseArrayLayer;
+        srvDesc.TextureCubeArray.First2DArrayFace = range.layer;
         srvDesc.TextureCubeArray.NumCubes = range.layerCount / 6;
         break;
     }
@@ -223,7 +223,7 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
     case TextureType::Texture1DArray:
         uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1DARRAY;
         uavDesc.Texture1DArray.MipSlice = range.mipLevel;
-        uavDesc.Texture1DArray.FirstArraySlice = range.baseArrayLayer;
+        uavDesc.Texture1DArray.FirstArraySlice = range.layer;
         uavDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
@@ -233,7 +233,7 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
     case TextureType::Texture2DArray:
         uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
         uavDesc.Texture2DArray.MipSlice = range.mipLevel;
-        uavDesc.Texture2DArray.FirstArraySlice = range.baseArrayLayer;
+        uavDesc.Texture2DArray.FirstArraySlice = range.layer;
         uavDesc.Texture2DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2DMS:

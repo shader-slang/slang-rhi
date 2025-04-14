@@ -339,9 +339,9 @@ void DebugCommandEncoder::copyTexture(
     requireNoPass();
 
     const TextureDesc& srcDesc = src->getDesc();
-    if (srcSubresource.baseArrayLayer > srcDesc.getLayerCount())
+    if (srcSubresource.layer > srcDesc.getLayerCount())
     {
-        RHI_VALIDATION_ERROR("Src base array layer is out of bounds.");
+        RHI_VALIDATION_ERROR("Src layer is out of bounds.");
         return;
     }
     if (srcSubresource.mipLevel > srcDesc.mipLevelCount)
@@ -351,9 +351,9 @@ void DebugCommandEncoder::copyTexture(
     }
 
     const TextureDesc& dstDesc = dst->getDesc();
-    if (dstSubresource.baseArrayLayer > dstDesc.getLayerCount())
+    if (dstSubresource.layer > dstDesc.getLayerCount())
     {
-        RHI_VALIDATION_ERROR("Dest base array layer is out of bounds.");
+        RHI_VALIDATION_ERROR("Dest layer is out of bounds.");
         return;
     }
     if (dstSubresource.mipLevel > dstDesc.mipLevelCount)

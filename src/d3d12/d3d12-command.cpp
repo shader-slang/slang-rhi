@@ -213,8 +213,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
         srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
 
     // Validate subresource ranges
-    SLANG_RHI_ASSERT(srcSubresource.baseArrayLayer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
-    SLANG_RHI_ASSERT(dstSubresource.baseArrayLayer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
+    SLANG_RHI_ASSERT(srcSubresource.layer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
+    SLANG_RHI_ASSERT(dstSubresource.layer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
     SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
     SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
 
@@ -274,7 +274,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 dstRegion.pResource = dst->m_resource.getResource();
                 dstRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
                     dstMipLevel,
-                    dstSubresource.baseArrayLayer + layer,
+                    dstSubresource.layer + layer,
                     planeIndex,
                     dst->m_desc.mipLevelCount,
                     dst->m_desc.getLayerCount()
@@ -285,7 +285,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 srcRegion.pResource = src->m_resource.getResource();
                 srcRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
                     srcMipLevel,
-                    srcSubresource.baseArrayLayer + layer,
+                    srcSubresource.layer + layer,
                     planeIndex,
                     src->m_desc.mipLevelCount,
                     src->m_desc.getLayerCount()
@@ -538,7 +538,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
 
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
-        uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+        uint32_t layer = subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
@@ -549,13 +549,8 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
             dstRegion.pResource = dst->m_resource.getResource();
 
-            dstRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
-                mipLevel,
-                layerIndex,
-                0,
-                dst->m_desc.mipLevelCount,
-                dst->m_desc.arrayLength
-            );
+            dstRegion.SubresourceIndex =
+                D3DUtil::getSubresourceIndex(mipLevel, layer, 0, dst->m_desc.mipLevelCount, dst->m_desc.arrayLength);
 
             D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
             srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;

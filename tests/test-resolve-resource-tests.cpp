@@ -238,13 +238,13 @@ struct ResolveResourceSimple : BaseResolveResourceTest
         createRequiredResources(msaaTextureInfo, dstTextureInfo, kFormat);
 
         SubresourceRange msaaSubresource = {};
-        msaaSubresource.baseArrayLayer = 0;
+        msaaSubresource.layer = 0;
         msaaSubresource.layerCount = 1;
         msaaSubresource.mipLevel = 0;
         msaaSubresource.mipLevelCount = 1;
 
         SubresourceRange dstSubresource = {};
-        dstSubresource.baseArrayLayer = 0;
+        dstSubresource.layer = 0;
         dstSubresource.layerCount = 1;
         dstSubresource.mipLevel = 0;
         dstSubresource.mipLevelCount = 1;

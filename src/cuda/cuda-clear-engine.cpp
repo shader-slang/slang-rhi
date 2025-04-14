@@ -183,7 +183,7 @@ void ClearEngine::clearTexture(
         Extent3D mipSize = calcMipSize(texture->m_desc.size, mipLevel);
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; ++layerOffset)
         {
-            uint32_t layer = subresourceRange.baseArrayLayer + layerOffset;
+            uint32_t layer = subresourceRange.layer + layerOffset;
             SubresourceRange sr = {layer, 1, mipLevel, 1};
             CUsurfObject surface = texture->getSurfObject(sr);
             uint32_t sizeAndLayer[4] = {mipSize.width, mipSize.height, mipSize.depth, layer};

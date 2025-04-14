@@ -214,7 +214,7 @@ inline TextureType toArrayType(TextureType type)
 }
 
 Size getTexelSize(Format format);
-uint32_t getSubresourceIndex(uint32_t mipLevel, uint32_t mipLevelCount, uint32_t baseArrayLayer);
+uint32_t getSubresourceIndex(uint32_t mipLevel, uint32_t mipLevelCount, uint32_t layer);
 RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format);
 void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat);
 

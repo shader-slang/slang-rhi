@@ -190,8 +190,8 @@ CUtexObject TextureImpl::getTexObject(Format format, const SubresourceRange& ran
     viewDesc.depth = m_desc.size.depth;
     viewDesc.firstMipmapLevel = range.mipLevel;
     viewDesc.lastMipmapLevel = range.mipLevel + range.mipLevelCount - 1;
-    viewDesc.firstLayer = range.baseArrayLayer;
-    viewDesc.lastLayer = range.baseArrayLayer + range.layerCount - 1;
+    viewDesc.firstLayer = range.layer;
+    viewDesc.lastLayer = range.layer + range.layerCount - 1;
 
     SLANG_CUDA_ASSERT_ON_FAIL(
         cuTexObjectCreate(&texObject, &resDesc, &texDesc, isEntireTexture(range) ? nullptr : &viewDesc)

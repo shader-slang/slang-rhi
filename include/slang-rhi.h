@@ -653,7 +653,7 @@ struct SubresourceRange
 {
     // TODO: Check this comment - many areas explicitly specify a 3D offset / extents,
     // and this is expected to be 0 for 3D texture.
-    uint32_t baseArrayLayer;
+    uint32_t layer;
     uint32_t layerCount; // For cube maps, this is a multiple of 6.
 
     uint32_t mipLevel;
@@ -661,7 +661,7 @@ struct SubresourceRange
 
     bool operator==(const SubresourceRange& other) const
     {
-        return baseArrayLayer == other.baseArrayLayer && layerCount == other.layerCount && mipLevel == other.mipLevel &&
+        return layer == other.layer && layerCount == other.layerCount && mipLevel == other.mipLevel &&
                mipLevelCount == other.mipLevelCount;
     }
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }

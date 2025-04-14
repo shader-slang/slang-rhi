@@ -109,7 +109,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
         SubresourceRange range;
-        range.baseArrayLayer = 0;
+        range.layer = 0;
         range.layerCount = desc.getLayerCount();
         range.mipLevel = 0;
         range.mipLevelCount = desc.mipLevelCount;
@@ -164,7 +164,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     viewDesc.dimension = translateTextureViewDimension(textureImpl->m_desc.type, textureImpl->m_desc.arrayLength > 1);
     viewDesc.baseMipLevel = view->m_desc.subresourceRange.mipLevel;
     viewDesc.mipLevelCount = view->m_desc.subresourceRange.mipLevelCount;
-    viewDesc.baseArrayLayer = view->m_desc.subresourceRange.baseArrayLayer;
+    viewDesc.baseArrayLayer = view->m_desc.subresourceRange.layer;
     viewDesc.arrayLayerCount = view->m_desc.subresourceRange.layerCount;
     viewDesc.aspect = translateTextureAspect(desc.aspect);
     viewDesc.label = desc.label;
