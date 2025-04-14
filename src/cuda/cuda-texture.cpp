@@ -229,41 +229,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
 
-    // The size of the element/texel in bytes
-    size_t elementSize = 0;
-    CUarray_format format = CU_AD_FORMAT_FLOAT;
-    int numChannels = 0;
-
-    SLANG_RETURN_ON_FAIL(getCUDAFormat(desc.format, &format));
     const FormatInfo& info = getFormatInfo(desc.format);
-    numChannels = info.channelCount;
-
-    switch (format)
-    {
-    case CU_AD_FORMAT_UNSIGNED_INT8:
-    case CU_AD_FORMAT_SIGNED_INT8:
-        elementSize = 1 * numChannels;
-        break;
-    case CU_AD_FORMAT_UNSIGNED_INT16:
-    case CU_AD_FORMAT_SIGNED_INT16:
-        elementSize = 2 * numChannels;
-        break;
-    case CU_AD_FORMAT_UNSIGNED_INT32:
-    case CU_AD_FORMAT_SIGNED_INT32:
-        elementSize = 4 * numChannels;
-        break;
-    case CU_AD_FORMAT_HALF:
-        elementSize = 2 * numChannels;
-        break;
-    case CU_AD_FORMAT_FLOAT:
-        elementSize = 4 * numChannels;
-        break;
-    default:
-    {
-        SLANG_RHI_ASSERT_FAILURE("Unsupported format");
-        return SLANG_FAIL;
-    }
-    }
+    const FormatMapping& mapping = getFormatMapping(desc.format);
+    CUarray_format format = mapping.arrayFormat;
+    uint32_t numChannels = mapping.channelCount;
+    size_t elementSize = info.blockSizeInBytes;
 
     switch (desc.type)
     {
@@ -466,17 +436,16 @@ Result DeviceImpl::createTextureFromSharedHandle(
     SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc));
     texture->m_cudaExternalMemory = externalMemory;
 
-    const FormatInfo formatInfo = getFormatInfo(desc.format);
-    CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
-    arrayDesc.Depth = desc.size.depth;
-    arrayDesc.Height = desc.size.height;
+    const FormatMapping& mapping = getFormatMapping(desc.format);
+    CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
     arrayDesc.Width = desc.size.width;
-    arrayDesc.NumChannels = formatInfo.channelCount;
-    getCUDAFormat(desc.format, &arrayDesc.Format);
+    arrayDesc.Height = desc.size.height;
+    arrayDesc.Depth = desc.size.depth;
+    arrayDesc.Format = mapping.arrayFormat;
+    arrayDesc.NumChannels = mapping.channelCount;
     arrayDesc.Flags = 0; // TODO: Flags? CUDA_ARRAY_LAYERED/SURFACE_LDST/CUBEMAP/TEXTURE_GATHER
 
-    CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC externalMemoryMipDesc;
-    memset(&externalMemoryMipDesc, 0, sizeof(externalMemoryMipDesc));
+    CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC externalMemoryMipDesc = {};
     externalMemoryMipDesc.offset = 0;
     externalMemoryMipDesc.arrayDesc = arrayDesc;
     externalMemoryMipDesc.numLevels = desc.mipLevelCount;
