@@ -113,8 +113,8 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     m_commandBuffer = commandBuffer->m_commandBuffer;
 
     // Synchronize constant and argument buffers.
-    // TODO(shader-object): This only needs to be done once after writing,
-    // once we cache/reuse binding data this shold be revisited.
+    // TODO(shaderobject): This only needs to be done once after writing,
+    // once we cache/reuse binding data this should be revisited.
     for (const auto& buffer : commandBuffer->m_bindingCache.buffers)
     {
         getBlitCommandEncoder()->synchronizeResource(buffer->m_buffer.get());
