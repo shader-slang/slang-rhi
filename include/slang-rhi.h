@@ -654,12 +654,14 @@ struct SubresourceRange
     /// First layer to use.
     /// For cube textures this should be a multiple of 6.
     uint32_t layer;
-    /// Number of layers to use. Use kAllMipLevels to use all remaining layers.
+    /// Number of layers to use.
     /// For cube textures this should be a multiple of 6.
+    /// Use kAllMipLevels to use all remaining layers.
     uint32_t layerCount;
     /// First mip level to use.
     uint32_t mipLevel;
-    /// Number of mip levels to use. Use kAllMipLevels to use all remaining mip levels.
+    /// Number of mip levels to use
+    /// Use kAllMipLevels to use all remaining mip levels.
     uint32_t mipLevelCount;
 
     bool operator==(const SubresourceRange& other) const
