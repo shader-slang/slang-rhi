@@ -95,10 +95,10 @@ GPU_TEST_CASE("cmd-copy-texture-arrayrange", D3D12 | Vulkan | WGPU | CUDA)
             // Copy the 1st half of the layers to the 2nd half
             commandEncoder->copyTexture(
                 newTexture,
-                {0, 0, 0, halfLayerCount},
+                {0, halfLayerCount, 0, 0},
                 {0, 0, 0},
                 c->getTexture(),
-                {0, 0, halfLayerCount, halfLayerCount},
+                {halfLayerCount, halfLayerCount, 0, 0},
                 {0, 0, 0},
                 Extent3D::kWholeTexture
             );
@@ -147,10 +147,10 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU | CUDA)
             // Copy the 1st half of the mips for all layers
             commandEncoder->copyTexture(
                 newTexture,
-                {0, halfMipCount, 0, 0},
+                {0, 0, 0, halfMipCount},
                 {0, 0, 0},
                 c->getTexture(),
-                {0, halfMipCount, 0, 0},
+                {0, 0, 0, halfMipCount},
                 {0, 0, 0},
                 Extent3D::kWholeTexture
             );
@@ -206,10 +206,10 @@ GPU_TEST_CASE("cmd-copy-texture-fromarray", D3D12 | Vulkan | WGPU | CUDA)
             // Copy from layer 2 into layer 0
             commandEncoder->copyTexture(
                 newTexture,
-                {0, 0, 0, 1},
+                {0, 1, 0, 0},
                 {0, 0, 0},
                 c->getTexture(),
-                {0, 0, 2, 1},
+                {2, 1, 0, 0},
                 {0, 0, 0},
                 Extent3D::kWholeTexture
             );
@@ -257,10 +257,10 @@ GPU_TEST_CASE("cmd-copy-texture-toarray", D3D12 | Vulkan | WGPU | CUDA)
             // of the one allocated by the testing system.
             commandEncoder->copyTexture(
                 c->getTexture(),
-                {0, 0, 2, 1},
+                {2, 1, 0, 0},
                 {0, 0, 0},
                 newTexture,
-                {0, 0, 0, 1},
+                {0, 1, 0, 0},
                 {0, 0, 0},
                 Extent3D::kWholeTexture
             );
@@ -362,7 +362,7 @@ GPU_TEST_CASE("cmd-copy-texture-arrayfromslice", D3D12 | Vulkan | WGPU | CUDA)
             // Copy 1 slice with a depth offset
             commandEncoder->copyTexture(
                 newTexture,
-                {0, 1, 2, 1},
+                {2, 1, 0, 1},
                 {0, 0, 0},
                 c->getTexture(),
                 {0, 1, 0, 1},
@@ -479,10 +479,10 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU | CUDA)
             // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
             commandEncoder->copyTexture(
                 newTexture,
-                {0, 1, 0, 0},
+                {0, 0, 0, 1},
                 offset,
                 c->getTexture(),
-                {0, 1, 0, 0},
+                {0, 0, 0, 1},
                 offset,
                 Extent3D::kWholeTexture
             );
@@ -534,7 +534,7 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU | CUDA)
 
             // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
             commandEncoder
-                ->copyTexture(newTexture, {0, 1, 0, 0}, offset, c->getTexture(), {0, 1, 0, 0}, offset, extent);
+                ->copyTexture(newTexture, {0, 0, 0, 1}, offset, c->getTexture(), {0, 0, 0, 1}, offset, extent);
 
             queue->submit(commandEncoder->finish());
 
@@ -583,7 +583,7 @@ GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU | CUDA)
 
             // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
             commandEncoder
-                ->copyTexture(largerTexture, {0, 1, 0, 0}, offset, smallerTexture, {0, 1, 0, 0}, offset, extent);
+                ->copyTexture(largerTexture, {0, 0, 0, 1}, offset, smallerTexture, {0, 0, 0, 1}, offset, extent);
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly
@@ -638,7 +638,7 @@ GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU | CUDA)
 
             // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
             commandEncoder
-                ->copyTexture(smallerTexture, {0, 1, 0, 0}, {0, 0, 0}, largerTexture, {0, 1, 0, 0}, offset, extent);
+                ->copyTexture(smallerTexture, {0, 0, 0, 1}, {0, 0, 0}, largerTexture, {0, 0, 0, 1}, offset, extent);
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly
@@ -686,7 +686,7 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU | CUDA)
 
             // Copy from mip 1 to mip 0
             commandEncoder
-                ->copyTexture(dstTexture, {0, 1, 0, 0}, {0, 0, 0}, srcTexture, {1, 1, 0, 0}, {0, 0, 0}, extent);
+                ->copyTexture(dstTexture, {0, 0, 0, 1}, {0, 0, 0}, srcTexture, {0, 0, 1, 1}, {0, 0, 0}, extent);
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly
@@ -738,10 +738,10 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
             // Copy at the offset in mip level 1, using kWholeTexture to express 'the rest of the texture'
             commandEncoder->copyTexture(
                 newTexture,
-                {1, 1, 0, 0}, // Target mip level 1
+                {0, 0, 1, 1}, // Target mip level 1
                 offset,
                 c->getTexture(),
-                {1, 1, 0, 0}, // Source from mip level 1
+                {0, 0, 1, 1}, // Source from mip level 1
                 offset,
                 Extent3D::kWholeTexture
             );
@@ -797,10 +797,10 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
             // Copy at the offset in mip level 1, using kWholeTexture to express 'the rest of the texture'
             commandEncoder->copyTexture(
                 newTexture,
-                {1, 1, 0, 0}, // Target mip level 1
+                {0, 0, 1, 1}, // Target mip level 1
                 offset,
                 c->getTexture(),
-                {1, 1, 0, 0}, // Source from mip level 1
+                {0, 0, 1, 1}, // Source from mip level 1
                 offset,
                 Extent3D::kWholeTexture
             );

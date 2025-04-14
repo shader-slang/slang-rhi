@@ -138,14 +138,14 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Extent3D& extent = cmd.extent;
 
     // Fix up sub resource ranges if they are 0 (meaning use entire range)
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
 
     const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
     Extent3D srcTextureSize = src->m_desc.size;
@@ -153,8 +153,8 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
     // Copy each layer and mip level
     for (uint32_t layerOffset = 0; layerOffset < srcSubresource.layerCount; layerOffset++)
     {
-        uint32_t srcLayer = srcSubresource.baseArrayLayer + layerOffset;
-        uint32_t dstLayer = dstSubresource.baseArrayLayer + layerOffset;
+        uint32_t srcLayer = srcSubresource.layer + layerOffset;
+        uint32_t dstLayer = dstSubresource.layer + layerOffset;
 
         for (uint32_t mipOffset = 0; mipOffset < srcSubresource.mipLevelCount; mipOffset++)
         {
@@ -325,7 +325,7 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
 
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
-        uint32_t layer = subresourceRange.baseArrayLayer + layerOffset;
+        uint32_t layer = subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;

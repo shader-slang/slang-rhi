@@ -31,11 +31,6 @@ Size getTexelSize(Format format)
     return info.blockSizeInBytes / info.pixelsPerBlock;
 }
 
-uint32_t getSubresourceIndex(uint32_t mipLevel, uint32_t mipLevelCount, uint32_t baseArrayLayer)
-{
-    return baseArrayLayer * mipLevelCount + mipLevel;
-}
-
 RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format)
 {
     switch (format)

@@ -175,24 +175,24 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Extent3D& extent = cmd.extent;
 
     // Fix up sub resource ranges.
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (dstSubresource.mipLevelCount == 0)
+        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
+    if (srcSubresource.mipLevelCount == 0)
+        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
 
     // Validate subresource ranges
+    SLANG_RHI_ASSERT(srcSubresource.layer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
+    SLANG_RHI_ASSERT(dstSubresource.layer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
     SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
     SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
-    SLANG_RHI_ASSERT(srcSubresource.baseArrayLayer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
-    SLANG_RHI_ASSERT(dstSubresource.baseArrayLayer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
 
     // Validate matching dimensions between source and destination
-    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
     SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
+    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
 
     Extent3D srcTextureSize = src->m_desc.size;
     const FormatInfo& srcFormatInfo = getFormatInfo(src->m_desc.format);
@@ -232,10 +232,10 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);
 
             // z is either base array layer or z offset depending on whether this is 3D or array texture
-            SLANG_RHI_ASSERT(cmd.srcSubresource.baseArrayLayer == 0 || cmd.srcOffset.z == 0);
-            SLANG_RHI_ASSERT(cmd.dstSubresource.baseArrayLayer == 0 || cmd.dstOffset.z == 0);
-            uint32_t srcZ = cmd.srcOffset.z + cmd.srcSubresource.baseArrayLayer + layer;
-            uint32_t dstZ = cmd.dstOffset.z + cmd.dstSubresource.baseArrayLayer + layer;
+            SLANG_RHI_ASSERT(cmd.srcSubresource.layer == 0 || cmd.srcOffset.z == 0);
+            SLANG_RHI_ASSERT(cmd.dstSubresource.layer == 0 || cmd.dstOffset.z == 0);
+            uint32_t srcZ = cmd.srcOffset.z + cmd.srcSubresource.layer + layer;
+            uint32_t dstZ = cmd.dstOffset.z + cmd.dstSubresource.layer + layer;
 
             WGPUImageCopyTexture source = {};
             source.texture = src->m_texture;
@@ -354,14 +354,13 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     auto dst = checked_cast<TextureImpl*>(cmd.dst);
     SubresourceRange subresourceRange = cmd.subresourceRange;
 
-
     SubresourceLayout* srLayout = cmd.layouts;
     Offset bufferOffset = cmd.srcOffset;
     auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
 
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
-        uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+        uint32_t layer = subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
@@ -374,8 +373,8 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             srcRegion.layout.offset = bufferOffset;
 
             // Can't be copying multiple layers from a volume texture
-            SLANG_RHI_ASSERT(layerIndex == 0 || cmd.offset.z == 0);
-            uint32_t z = cmd.offset.z + layerIndex;
+            SLANG_RHI_ASSERT(layer == 0 || cmd.offset.z == 0);
+            uint32_t z = cmd.offset.z + layer;
 
             WGPUImageCopyTexture dstRegion;
             dstRegion.aspect = WGPUTextureAspect_All;

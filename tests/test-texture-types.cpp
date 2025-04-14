@@ -225,7 +225,7 @@ struct TextureAccessTest : TextureTest
 
         // We need to save the pointer to the original texture data for results checking because the texture will be
         // overwritten during testing (if the texture can be written to).
-        expectedTextureData = textureInfo->subresourceDatas[getSubresourceIndex(0, 1, 0)].data;
+        expectedTextureData = textureInfo->subresourceDatas[0].data;
 
         createRequiredResources();
         auto entryPointName = getShaderEntryPoint();
@@ -467,7 +467,7 @@ struct RenderTargetTests : TextureTest
 
         // We need to save the pointer to the original texture data for results checking because the texture will be
         // overwritten during testing (if the texture can be written to).
-        expectedTextureData = textureInfo->subresourceDatas[getSubresourceIndex(0, 1, 0)].data;
+        expectedTextureData = textureInfo->subresourceDatas[0].data;
 
         createRequiredResources();
         submitShaderWork();

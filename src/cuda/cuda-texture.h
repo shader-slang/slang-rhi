@@ -32,7 +32,7 @@ public:
         {
             size_t hash = 0;
             hash_combine(hash, key.format);
-            hash_combine(hash, key.range.baseArrayLayer);
+            hash_combine(hash, key.range.layer);
             hash_combine(hash, key.range.layerCount);
             hash_combine(hash, key.range.mipLevel);
             hash_combine(hash, key.range.mipLevelCount);
@@ -45,7 +45,7 @@ public:
         size_t operator()(const SubresourceRange& key) const
         {
             size_t hash = 0;
-            hash_combine(hash, key.baseArrayLayer);
+            hash_combine(hash, key.layer);
             hash_combine(hash, key.layerCount);
             hash_combine(hash, key.mipLevel);
             hash_combine(hash, key.mipLevelCount);

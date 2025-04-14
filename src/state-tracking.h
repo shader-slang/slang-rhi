@@ -84,7 +84,7 @@ public:
                 textureState->state = ResourceState::Undefined;
             }
             uint32_t layerCount = texture->m_desc.getLayerCount();
-            for (uint32_t layer = subresourceRange.baseArrayLayer; layer < layerCount; layer++)
+            for (uint32_t layer = subresourceRange.layer; layer < layerCount; layer++)
             {
                 for (uint32_t mipLevel = subresourceRange.mipLevel;
                      mipLevel < subresourceRange.mipLevel + subresourceRange.mipLevelCount;

@@ -179,12 +179,12 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
         {
             encoder->copyFromTexture(
                 src->m_texture.get(),
-                srcSubresource.baseArrayLayer + layer,
+                srcSubresource.layer + layer,
                 srcSubresource.mipLevel,
                 MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
                 MTL::Size(extent.width, extent.height, extent.depth),
                 dst->m_texture.get(),
-                dstSubresource.baseArrayLayer + layer,
+                dstSubresource.layer + layer,
                 dstSubresource.mipLevel,
                 MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
             );
@@ -276,7 +276,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     auto encoder = getBlitCommandEncoder();
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
-        uint32_t layerIndex = subresourceRange.baseArrayLayer + layerOffset;
+        uint32_t layer = subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
@@ -288,7 +288,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
                 srLayout->slicePitch,
                 MTL::Size(srLayout->size.width, srLayout->size.height, srLayout->size.depth),
                 dst->m_texture.get(),
-                layerIndex,
+                layer,
                 mipLevel,
                 MTL::Origin(cmd.offset.x, cmd.offset.y, cmd.offset.z)
             );
@@ -362,7 +362,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
                                      : nullptr
         );
         colorAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
-        colorAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
+        colorAttachment->setSlice(view->m_desc.subresourceRange.layer);
     }
 
     // Setup depth stencil attachment.
@@ -386,7 +386,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             }
             depthAttachment->setTexture(view->m_textureView.get());
             depthAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
-            depthAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
+            depthAttachment->setSlice(view->m_desc.subresourceRange.layer);
         }
         if (MetalUtil::isStencilFormat(pixelFormat))
         {
@@ -399,7 +399,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             }
             stencilAttachment->setTexture(view->m_textureView.get());
             stencilAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
-            stencilAttachment->setSlice(view->m_desc.subresourceRange.baseArrayLayer);
+            stencilAttachment->setSlice(view->m_desc.subresourceRange.layer);
         }
     }
 

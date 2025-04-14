@@ -31,7 +31,7 @@ GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | Metal | CUDA | WGPU)
             // Upload new texture data + wait
             commandEncoder->uploadTextureData(
                 c->getTexture(),
-                {0, data.desc.mipLevelCount, 0, data.desc.getLayerCount()},
+                {0, data.desc.getLayerCount(), 0, data.desc.mipLevelCount},
                 {0, 0, 0},
                 Extent3D::kWholeTexture,
                 data.subresourceData.data(),
@@ -76,7 +76,7 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | Metal | CUDA |
                     auto srdata = newData.getLayerFirstSubresourceData(layer);
                     commandEncoder->uploadTextureData(
                         c->getTexture(),
-                        {0, newData.desc.mipLevelCount, layer, 1},
+                        {layer, 1, 0, newData.desc.mipLevelCount},
                         {0, 0, 0},
                         Extent3D::kWholeTexture,
                         srdata,
@@ -133,7 +133,7 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | Metal | CUDA | W
                         auto srdata = newData.getLayerFirstSubresourceData(layerIdx) + mipLevel;
                         commandEncoder->uploadTextureData(
                             c->getTexture(),
-                            {mipLevel, 1, layerIdx, 1},
+                            {layerIdx, 1, mipLevel, 1},
                             {0, 0, 0},
                             Extent3D::kWholeTexture,
                             srdata,
@@ -193,7 +193,7 @@ GPU_TEST_CASE("cmd-upload-texture-multisubmit", D3D12 | Vulkan | Metal | CUDA | 
                     auto srdata = newData.getLayerFirstSubresourceData(layerIdx) + mipLevel;
                     commandEncoder->uploadTextureData(
                         c->getTexture(),
-                        {mipLevel, 1, layerIdx, 1},
+                        {layerIdx, 1, mipLevel, 1},
                         {0, 0, 0},
                         Extent3D::kWholeTexture,
                         srdata,
@@ -253,7 +253,7 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
             {
                 commandEncoder->uploadTextureData(
                     c->getTexture(),
-                    {0, 1, layer, 1},
+                    {layer, 1, 0, 1},
                     offset,
                     Extent3D::kWholeTexture,
                     newData.getLayerFirstSubresourceData(layer),
@@ -311,7 +311,7 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | Metal | CUDA | W
             {
                 commandEncoder->uploadTextureData(
                     c->getTexture(),
-                    {0, 1, layer, 1},
+                    {layer, 1, 0, 1},
                     offset,
                     extent,
                     newData.getLayerFirstSubresourceData(layer),
@@ -376,7 +376,7 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | Metal | CUDA 
             // Write an offset, still allowing remainder of texture to be written
             commandEncoder->uploadTextureData(
                 c->getTexture(),
-                {1, 1, 0, 1},
+                {0, 1, 1, 1},
                 offset,
                 extent,
                 newData.getLayerFirstSubresourceData(0),
