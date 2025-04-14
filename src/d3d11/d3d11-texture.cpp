@@ -58,7 +58,7 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
         rtvDesc.Texture3D.MipSlice = range.mipLevel;
         rtvDesc.Texture3D.FirstWSlice = 0;
-        rtvDesc.Texture3D.WSize = max(m_desc.size.depth >> range.mipLevel, 1);
+        rtvDesc.Texture3D.WSize = -1;
         break;
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
@@ -243,7 +243,7 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
         uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
         uavDesc.Texture3D.MipSlice = range.mipLevel;
         uavDesc.Texture3D.FirstWSlice = 0;
-        uavDesc.Texture3D.WSize = max(m_desc.size.depth >> range.mipLevel, 1);
+        uavDesc.Texture3D.WSize = -1;
         break;
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:

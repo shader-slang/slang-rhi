@@ -15,10 +15,10 @@
 namespace rhi {
 
 // ----------------------------------------------------------------------------
-// Extents
+// Extent3D
 // ----------------------------------------------------------------------------
 
-Extents Extents::kWholeTexture = {kRemainingTextureSize, kRemainingTextureSize, kRemainingTextureSize};
+Extent3D Extent3D::kWholeTexture = {kRemainingTextureSize, kRemainingTextureSize, kRemainingTextureSize};
 
 // ----------------------------------------------------------------------------
 // Fence
@@ -75,46 +75,46 @@ Result calcSubresourceRegionLayout(
     const TextureDesc& desc,
     uint32_t mipLevel,
     Offset3D offset,
-    Extents extents,
+    Extent3D extent,
     Size rowAlignment,
     SubresourceLayout* outLayout
 )
 {
-    Extents textureSize = desc.size;
+    Extent3D textureSize = desc.size;
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
 
-    if (extents.width == kRemainingTextureSize)
+    if (extent.width == kRemainingTextureSize)
     {
-        extents.width = max(1, (textureSize.width >> mipLevel));
-        if (offset.x >= extents.width)
+        extent.width = max(1u, (textureSize.width >> mipLevel));
+        if (offset.x >= extent.width)
             return SLANG_E_INVALID_ARG;
-        extents.width -= offset.x;
+        extent.width -= offset.x;
     }
-    if (extents.height == kRemainingTextureSize)
+    if (extent.height == kRemainingTextureSize)
     {
-        extents.height = max(1, (textureSize.height >> mipLevel));
-        if (offset.y >= extents.height)
+        extent.height = max(1u, (textureSize.height >> mipLevel));
+        if (offset.y >= extent.height)
             return SLANG_E_INVALID_ARG;
-        extents.height -= offset.y;
+        extent.height -= offset.y;
     }
-    if (extents.depth == kRemainingTextureSize)
+    if (extent.depth == kRemainingTextureSize)
     {
-        extents.depth = max(1, (textureSize.depth >> mipLevel));
-        if (offset.z >= extents.depth)
+        extent.depth = max(1u, (textureSize.depth >> mipLevel));
+        if (offset.z >= extent.depth)
             return SLANG_E_INVALID_ARG;
-        extents.depth -= offset.z;
+        extent.depth -= offset.z;
     }
 
-    size_t rowSize = math::divideRoundedUp(extents.width, formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
-    size_t rowCount = math::divideRoundedUp(extents.height, formatInfo.blockHeight);
+    size_t rowSize = math::divideRoundedUp(extent.width, formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
+    size_t rowCount = math::divideRoundedUp(extent.height, formatInfo.blockHeight);
     size_t rowPitch = math::calcAligned2(rowSize, rowAlignment);
     size_t layerPitch = rowPitch * rowCount;
 
-    outLayout->size = extents;
+    outLayout->size = extent;
     outLayout->colPitch = formatInfo.blockSizeInBytes;
     outLayout->rowPitch = rowPitch;
     outLayout->slicePitch = layerPitch;
-    outLayout->sizeInBytes = layerPitch * extents.depth;
+    outLayout->sizeInBytes = layerPitch * extent.depth;
     outLayout->rowCount = rowCount;
     outLayout->blockWidth = formatInfo.blockWidth;
     outLayout->blockHeight = formatInfo.blockHeight;
@@ -177,7 +177,7 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
 Result Texture::getSubresourceRegionLayout(
     uint32_t mipLevel,
     Offset3D offset,
-    Extents extents,
+    Extent3D extent,
     size_t rowAlignment,
     SubresourceLayout* outLayout
 )
@@ -186,7 +186,7 @@ Result Texture::getSubresourceRegionLayout(
     {
         SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(m_desc.format, &rowAlignment));
     }
-    return calcSubresourceRegionLayout(m_desc, mipLevel, offset, extents, rowAlignment, outLayout);
+    return calcSubresourceRegionLayout(m_desc, mipLevel, offset, extent, rowAlignment, outLayout);
 }
 
 Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextureView)

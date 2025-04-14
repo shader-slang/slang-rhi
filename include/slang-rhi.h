@@ -717,14 +717,14 @@ struct SubresourceData
     Size slicePitch;
 };
 
-static const int32_t kRemainingTextureSize = 0xffffffff;
+static const uint32_t kRemainingTextureSize = 0xffffffff;
 struct Offset3D
 {
-    int32_t x = 0;
-    int32_t y = 0;
-    int32_t z = 0;
+    uint32_t x = 0;
+    uint32_t y = 0;
+    uint32_t z = 0;
     Offset3D() = default;
-    Offset3D(int32_t _x, int32_t _y, int32_t _z)
+    Offset3D(uint32_t _x, uint32_t _y, uint32_t _z)
         : x(_x)
         , y(_y)
         , z(_z)
@@ -737,18 +737,18 @@ struct Offset3D
     bool isZero() const { return x == 0 && y == 0 && z == 0; }
 };
 
-struct Extents
+struct Extent3D
 {
     /// Width in pixels.
-    int32_t width = 0;
+    uint32_t width = 0;
     /// Height in pixels (if 2d or 3d).
-    int32_t height = 0;
+    uint32_t height = 0;
     /// Depth (if 3d).
-    int32_t depth = 0;
+    uint32_t depth = 0;
 
-    static Extents kWholeTexture;
+    static Extent3D kWholeTexture;
 
-    inline bool operator==(const Extents& other) const
+    inline bool operator==(const Extent3D& other) const
     {
         return width == other.width && height == other.height && depth == other.depth;
     }
@@ -760,7 +760,7 @@ struct Extents
 struct SubresourceLayout
 {
     /// Dimensions of the subresource (in texels).
-    Extents size;
+    Extent3D size;
 
     /// Stride in bytes between columns (i.e. blocks of pixels) of the subresource tensor.
     Size colPitch;
@@ -797,7 +797,7 @@ struct TextureDesc
     TextureType type = TextureType::Texture2D;
 
     /// Size of the texture.
-    Extents size = {1, 1, 1};
+    Extent3D size = {1, 1, 1};
     /// Array length.
     uint32_t arrayLength = 1;
     /// Number of mip levels.
@@ -1678,12 +1678,12 @@ class IRayTracingPipeline : public IPipeline
 
 struct ScissorRect
 {
-    int32_t minX = 0;
-    int32_t minY = 0;
-    int32_t maxX = 0;
-    int32_t maxY = 0;
+    uint32_t minX = 0;
+    uint32_t minY = 0;
+    uint32_t maxX = 0;
+    uint32_t maxY = 0;
 
-    static ScissorRect fromSize(int32_t width, int32_t height)
+    static ScissorRect fromSize(uint32_t width, uint32_t height)
     {
         ScissorRect scissorRect;
         scissorRect.maxX = width;
@@ -2035,7 +2035,7 @@ public:
         ITexture* src,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
-        Extents extent
+        Extent3D extent
     ) = 0;
 
     /// Copies texture to a buffer. Each row is aligned to dstRowPitch.
@@ -2048,7 +2048,7 @@ public:
         uint32_t srcLayer,
         uint32_t srcMipLevel,
         Offset3D srcOffset,
-        Extents extent
+        Extent3D extent
     ) = 0;
 
 
@@ -2062,14 +2062,14 @@ public:
         Offset srcOffset,
         Size srcSize,
         Size srcRowPitch,
-        Extents extent
+        Extent3D extent
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subresourceRange,
         Offset3D offset,
-        Extents extent,
+        Extent3D extent,
         const SubresourceData* subresourceData,
         uint32_t subresourceDataCount
     ) = 0;

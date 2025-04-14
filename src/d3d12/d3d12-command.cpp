@@ -189,7 +189,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Offset3D& dstOffset = cmd.dstOffset;
     SubresourceRange srcSubresource = cmd.srcSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     // Fast path for copying whole resource.
     if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0 && srcSubresource.layerCount == 0 &&
@@ -226,7 +226,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
     commitBarriers();
 
-    Extents srcTextureSize = src->m_desc.size;
+    Extent3D srcTextureSize = src->m_desc.size;
 
     uint32_t planeCount = D3DUtil::getPlaneSliceCount(dst->m_format);
     SLANG_RHI_ASSERT(planeCount == D3DUtil::getPlaneSliceCount(src->m_format));
@@ -244,8 +244,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 // Calculate adjusted extents. Note it is required and enforced
                 // by debug layer that if 'remaining texture' is used, src and
                 // dst offsets are the same.
-                Extents srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
-                Extents adjustedExtent = extent;
+                Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
+                Extent3D adjustedExtent = extent;
                 if (adjustedExtent.width == kRemainingTextureSize)
                 {
                     SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
@@ -263,9 +263,6 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 }
 
                 // Validate source and destination parameters
-                SLANG_RHI_ASSERT(srcOffset.x >= 0 && srcOffset.y >= 0 && srcOffset.z >= 0);
-                SLANG_RHI_ASSERT(dstOffset.x >= 0 && dstOffset.y >= 0 && dstOffset.z >= 0);
-                SLANG_RHI_ASSERT(adjustedExtent.width > 0 && adjustedExtent.height > 0 && adjustedExtent.depth > 0);
                 SLANG_RHI_ASSERT(srcOffset.x + adjustedExtent.width <= srcMipSize.width);
                 SLANG_RHI_ASSERT(srcOffset.y + adjustedExtent.height <= srcMipSize.height);
                 SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);
@@ -324,7 +321,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
     const TextureDesc& srcDesc = src->getDesc();
-    Extents textureSize = srcDesc.size;
+    Extent3D textureSize = srcDesc.size;
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     const uint64_t dstOffset = cmd.dstOffset;
@@ -332,7 +329,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     uint32_t srcLayer = cmd.srcLayer;
     uint32_t srcMipLevel = cmd.srcMipLevel;
     const Offset3D& srcOffset = cmd.srcOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
@@ -342,8 +339,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extents srcMipSize = calcMipSize(textureSize, srcMipLevel);
-    Extents adjustedExtent = extent;
+    Extent3D srcMipSize = calcMipSize(textureSize, srcMipLevel);
+    Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
         SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
@@ -893,10 +890,10 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         {
             const ScissorRect& src = state.scissorRects[i];
             D3D12_RECT& dst = scissorRects[i];
-            dst.left = LONG(src.minX);
-            dst.top = LONG(src.minY);
-            dst.right = LONG(src.maxX);
-            dst.bottom = LONG(src.maxY);
+            dst.left = src.minX;
+            dst.top = src.minY;
+            dst.right = src.maxX;
+            dst.bottom = src.maxY;
         }
         m_cmdList->RSSetScissorRects(state.scissorRectCount, scissorRects);
     }

@@ -164,7 +164,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const SubresourceRange& dstSubresource = cmd.dstSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Offset3D& dstOffset = cmd.dstOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     auto encoder = getBlitCommandEncoder();
 
@@ -198,13 +198,13 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
 
     const Offset3D& srcOffset = cmd.srcOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extents srcMipSize = calcMipSize(src->m_desc.size, cmd.srcMipLevel);
-    Extents adjustedExtent = extent;
+    Extent3D srcMipSize = calcMipSize(src->m_desc.size, cmd.srcMipLevel);
+    Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
         SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);

@@ -87,7 +87,7 @@ struct TextureAccessTest : TextureTest
         textureDesc.type = textureInfo->textureType;
         textureDesc.mipLevelCount = textureInfo->mipLevelCount;
         textureDesc.arrayLength = textureInfo->arrayLength;
-        textureDesc.size = textureInfo->extents;
+        textureDesc.size = textureInfo->extent;
         textureDesc.usage = (readWrite ? TextureUsage::UnorderedAccess : TextureUsage::ShaderResource) |
                             TextureUsage::CopySource | TextureUsage::CopyDestination;
         textureDesc.defaultState = readWrite ? ResourceState::UnorderedAccess : ResourceState::ShaderResource;
@@ -97,7 +97,7 @@ struct TextureAccessTest : TextureTest
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
-        alignedRowPitch = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
+        alignedRowPitch = (textureInfo->extent.width * texelSize + alignment - 1) & ~(alignment - 1);
         BufferDesc bufferDesc = {};
         // All of the values read back from the shader will be uint32_t
         bufferDesc.size =
@@ -131,9 +131,9 @@ struct TextureAccessTest : TextureTest
             auto passEncoder = commandEncoder->beginComputePass();
             auto rootObject = passEncoder->bindPipeline(pipeline);
             ShaderCursor entryPointCursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
-            auto width = textureInfo->extents.width;
-            auto height = textureInfo->extents.height;
-            auto depth = textureInfo->extents.depth;
+            auto width = textureInfo->extent.width;
+            auto height = textureInfo->extent.height;
+            auto depth = textureInfo->extent.depth;
             entryPointCursor["width"].setData(width);
             entryPointCursor["height"].setData(height);
             entryPointCursor["depth"].setData(depth);
@@ -153,11 +153,11 @@ struct TextureAccessTest : TextureTest
     void validateTextureValues(ValidationTextureData actual, ValidationTextureData original)
     {
         // TODO: needs to be extended to cover mip levels and array layers
-        for (uint32_t x = 0; x < actual.extents.width; ++x)
+        for (uint32_t x = 0; x < actual.extent.width; ++x)
         {
-            for (uint32_t y = 0; y < actual.extents.height; ++y)
+            for (uint32_t y = 0; y < actual.extent.height; ++y)
             {
-                for (uint32_t z = 0; z < actual.extents.depth; ++z)
+                for (uint32_t z = 0; z < actual.extent.depth; ++z)
                 {
                     auto actualBlock = (uint8_t*)actual.getBlockAt(x, y, z);
                     for (uint32_t i = 0; i < 4; ++i)
@@ -181,18 +181,18 @@ struct TextureAccessTest : TextureTest
             auto textureValues = (uint8_t*)textureBlob->getBufferPointer();
 
             ValidationTextureData textureResults;
-            textureResults.extents = textureInfo->extents;
+            textureResults.extent = textureInfo->extent;
             textureResults.textureData = textureValues;
             textureResults.pitches.x = (uint32_t)pixelSize;
             textureResults.pitches.y = (uint32_t)rowPitch;
-            textureResults.pitches.z = textureResults.extents.height * textureResults.pitches.y;
+            textureResults.pitches.z = textureResults.extent.height * textureResults.pitches.y;
 
             ValidationTextureData originalData;
-            originalData.extents = textureInfo->extents;
+            originalData.extent = textureInfo->extent;
             originalData.textureData = textureInfo->subresourceDatas.data();
             originalData.pitches.x = (uint32_t)pixelSize;
-            originalData.pitches.y = textureInfo->extents.width * originalData.pitches.x;
-            originalData.pitches.z = textureInfo->extents.height * originalData.pitches.y;
+            originalData.pitches.y = textureInfo->extent.width * originalData.pitches.x;
+            originalData.pitches.z = textureInfo->extent.height * originalData.pitches.y;
 
             validateTextureValues(textureResults, originalData);
         }
@@ -201,7 +201,7 @@ struct TextureAccessTest : TextureTest
         REQUIRE_CALL(device->readBuffer(resultsBuffer, 0, resultsBuffer->getDesc().size, bufferBlob.writeRef()));
         auto results = (uint32_t*)bufferBlob->getBufferPointer();
 
-        auto elementCount = textureInfo->extents.width * textureInfo->extents.height * textureInfo->extents.depth * 4;
+        auto elementCount = textureInfo->extent.width * textureInfo->extent.height * textureInfo->extent.depth * 4;
         auto castedTextureData = (uint8_t*)expectedTextureData;
         for (uint32_t i = 0; i < elementCount; ++i)
         {
@@ -216,9 +216,9 @@ struct TextureAccessTest : TextureTest
         //             sampler = device->createSampler(samplerDesc);
 
         // TODO: Should test multiple mip levels and array layers
-        textureInfo->extents.width = 4;
-        textureInfo->extents.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
-        textureInfo->extents.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
+        textureInfo->extent.width = 4;
+        textureInfo->extent.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
+        textureInfo->extent.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
         textureInfo->mipLevelCount = 1;
         textureInfo->arrayLength = 1;
         generateTextureData(textureInfo, validationFormat);
@@ -299,7 +299,7 @@ struct RenderTargetTests : TextureTest
         renderTextureDesc.type = textureInfo->textureType;
         renderTextureDesc.mipLevelCount = textureInfo->mipLevelCount;
         renderTextureDesc.arrayLength = textureInfo->arrayLength;
-        renderTextureDesc.size = textureInfo->extents;
+        renderTextureDesc.size = textureInfo->extent;
         renderTextureDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource | TextureUsage::CopySource;
         renderTextureDesc.defaultState = ResourceState::RenderTarget;
         renderTextureDesc.format = textureInfo->format;
@@ -315,7 +315,7 @@ struct RenderTargetTests : TextureTest
         textureDesc.type = textureInfo->textureType;
         textureDesc.mipLevelCount = textureInfo->mipLevelCount;
         textureDesc.arrayLength = textureInfo->arrayLength;
-        textureDesc.size = textureInfo->extents;
+        textureDesc.size = textureInfo->extent;
         textureDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
         textureDesc.defaultState = ResourceState::ResolveDestination;
         textureDesc.format = textureInfo->format;
@@ -358,7 +358,7 @@ struct RenderTargetTests : TextureTest
         auto texelSize = getTexelSize(textureInfo->format);
         size_t alignment;
         device->getTextureRowAlignment(&alignment);
-        alignedRowPitch = (textureInfo->extents.width * texelSize + alignment - 1) & ~(alignment - 1);
+        alignedRowPitch = (textureInfo->extent.width * texelSize + alignment - 1) & ~(alignment - 1);
     }
 
     void submitShaderWork()
@@ -382,9 +382,9 @@ struct RenderTargetTests : TextureTest
         passEncoder->bindPipeline(pipeline);
 
         RenderState state;
-        state.viewports[0] = Viewport::fromSize(textureInfo->extents.width, textureInfo->extents.height);
+        state.viewports[0] = Viewport::fromSize(textureInfo->extent.width, textureInfo->extent.height);
         state.viewportCount = 1;
-        state.scissorRects[0] = ScissorRect::fromSize(textureInfo->extents.width, textureInfo->extents.height);
+        state.scissorRects[0] = ScissorRect::fromSize(textureInfo->extent.width, textureInfo->extent.height);
         state.scissorRectCount = 1;
         state.vertexBuffers[0] = vertexBuffer;
         state.vertexBufferCount = 1;
@@ -403,11 +403,11 @@ struct RenderTargetTests : TextureTest
     // TODO: Needs to handle either the correct slice or array layer (will not always check z)
     void validateTextureValues(ValidationTextureData actual)
     {
-        for (uint32_t x = 0; x < actual.extents.width; ++x)
+        for (uint32_t x = 0; x < actual.extent.width; ++x)
         {
-            for (uint32_t y = 0; y < actual.extents.height; ++y)
+            for (uint32_t y = 0; y < actual.extent.height; ++y)
             {
-                for (uint32_t z = 0; z < actual.extents.depth; ++z)
+                for (uint32_t z = 0; z < actual.extent.depth; ++z)
                 {
                     auto actualBlock = (float*)actual.getBlockAt(x, y, z);
                     for (uint32_t i = 0; i < 4; ++i)
@@ -443,11 +443,11 @@ struct RenderTargetTests : TextureTest
         auto textureValues = (float*)textureBlob->getBufferPointer();
 
         ValidationTextureData textureResults;
-        textureResults.extents = textureInfo->extents;
+        textureResults.extent = textureInfo->extent;
         textureResults.textureData = textureValues;
         textureResults.pitches.x = (uint32_t)pixelSize;
         textureResults.pitches.y = (uint32_t)rowPitch;
-        textureResults.pitches.z = textureResults.extents.height * textureResults.pitches.y;
+        textureResults.pitches.z = textureResults.extent.height * textureResults.pitches.y;
 
         validateTextureValues(textureResults);
     }
@@ -458,9 +458,9 @@ struct RenderTargetTests : TextureTest
         //             SamplerDesc samplerDesc;
         //             sampler = device->createSampler(samplerDesc);
 
-        textureInfo->extents.width = 4;
-        textureInfo->extents.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
-        textureInfo->extents.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
+        textureInfo->extent.width = 4;
+        textureInfo->extent.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
+        textureInfo->extent.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
         textureInfo->mipLevelCount = 1;
         textureInfo->arrayLength = 1;
         generateTextureData(textureInfo, validationFormat);

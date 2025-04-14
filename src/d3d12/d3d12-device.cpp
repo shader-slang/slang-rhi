@@ -1062,7 +1062,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             texture,
             range,
             {0, 0, 0},
-            Extents::kWholeTexture,
+            Extent3D::kWholeTexture,
             initData,
             range.layerCount * desc.mipLevelCount
         );

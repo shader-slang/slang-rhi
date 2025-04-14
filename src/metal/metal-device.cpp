@@ -207,18 +207,18 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;
-    Extents extents = desc.size;
+    Extent3D extent = desc.size;
 
     for (uint32_t i = 0; i < desc.mipLevelCount; ++i)
     {
         Size rowSize =
-            ((extents.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
+            ((extent.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
         rowSize = alignTo(rowSize, alignment);
-        Size sliceSize = rowSize * alignTo(extents.height, formatInfo.blockHeight);
-        size += sliceSize * extents.depth;
-        extents.width = max(1, extents.width >> 1);
-        extents.height = max(1, extents.height >> 1);
-        extents.depth = max(1, extents.depth >> 1);
+        Size sliceSize = rowSize * alignTo(extent.height, formatInfo.blockHeight);
+        size += sliceSize * extent.depth;
+        extent.width = max(1u, extent.width >> 1);
+        extent.height = max(1u, extent.height >> 1);
+        extent.depth = max(1u, extent.depth >> 1);
     }
     size *= desc.getLayerCount();
 

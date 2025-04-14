@@ -399,7 +399,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             {
                 const SubresourceData& subresourceData = initData[subresourceIndex++];
 
-                Extents mipSize = calcMipSize(desc.size, mipLevel);
+                Extent3D mipSize = calcMipSize(desc.size, mipLevel);
 
                 CUarray dstArray = tex->m_cudaArray;
                 if (tex->m_cudaMipMappedArray)

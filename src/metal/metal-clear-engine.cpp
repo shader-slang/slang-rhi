@@ -134,7 +134,7 @@ void ClearEngine::clearTexture(
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
             uint32_t layer = subresourceRange.baseArrayLayer + layerOffset;
-            Extents mipSize = calcMipSize(texture->m_desc.size, mipLevel);
+            Extent3D mipSize = calcMipSize(texture->m_desc.size, mipLevel);
             Params params = {};
             params.width = mipSize.width;
             params.height = mipSize.height;

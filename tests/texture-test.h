@@ -71,7 +71,7 @@ struct TextureData
         Offset3D thisOffset,
         ITexture* texture,
         Offset3D textureOffset = {0, 0, 0},
-        Extents textureExtents = Extents::kWholeTexture,
+        Extent3D textureExtent = Extent3D::kWholeTexture,
         bool compareOutsideRegion = false
     ) const;
 
@@ -79,9 +79,9 @@ struct TextureData
     inline void checkEqual(ITexture* texture) const { checkEqual({0, 0, 0}, texture); }
 
     /// Helper for checkEqual that tests the same offsets/extents
-    inline void checkEqual(ITexture* texture, Offset3D offset, Extents extents, bool compareOutsideRegion = false) const
+    inline void checkEqual(ITexture* texture, Offset3D offset, Extent3D extent, bool compareOutsideRegion = false) const
     {
-        checkEqual(offset, texture, offset, extents, compareOutsideRegion);
+        checkEqual(offset, texture, offset, extent, compareOutsideRegion);
     }
 
     /// Compare cpu data for a layer in this TextureData against a layer
@@ -92,14 +92,14 @@ struct TextureData
         ITexture* texture,
         int textureLayer,
         Offset3D textureOffset,
-        Extents textureExtents,
+        Extent3D textureExtent,
         bool compareOutsideRegion = false
     ) const;
 
     /// Helper for checkLayersEqual that requires no offsets/extents
     inline void checkLayersEqual(int thisLayer, ITexture* texture, int textureLayer) const
     {
-        checkLayersEqual(thisLayer, {0, 0, 0}, texture, textureLayer, {0, 0, 0}, Extents::kWholeTexture);
+        checkLayersEqual(thisLayer, {0, 0, 0}, texture, textureLayer, {0, 0, 0}, Extent3D::kWholeTexture);
     }
 
     /// Helper for checkLayersEqual that tests the same layers, offsets and extents in each texture
@@ -107,17 +107,17 @@ struct TextureData
         ITexture* texture,
         int layer,
         Offset3D offset,
-        Extents extents,
+        Extent3D extent,
         bool compareOutsideRegion = false
     ) const
     {
-        checkLayersEqual(layer, offset, texture, layer, offset, extents, compareOutsideRegion);
+        checkLayersEqual(layer, offset, texture, layer, offset, extent, compareOutsideRegion);
     }
 
     /// Helper for checkLayersEqual that tests the same layers of the whole of each texture
     inline void checkLayersEqual(ITexture* texture, int layer) const
     {
-        checkLayersEqual(layer, {0, 0, 0}, texture, layer, {0, 0, 0}, Extents::kWholeTexture);
+        checkLayersEqual(layer, {0, 0, 0}, texture, layer, {0, 0, 0}, Extent3D::kWholeTexture);
     }
 
     /// Compare mip levels for a layer in this TextureData against a layer
@@ -130,7 +130,7 @@ struct TextureData
         int textureLayer,
         int textureMipLevel,
         Offset3D textureOffset,
-        Extents textureExtents,
+        Extent3D textureExtent,
         bool compareOutsideRegion = false
     ) const;
 
@@ -151,7 +151,7 @@ struct TextureData
             textureLayer,
             textureMipLevel,
             {0, 0, 0},
-            Extents::kWholeTexture
+            Extent3D::kWholeTexture
         );
     }
 
@@ -161,17 +161,17 @@ struct TextureData
         int layer,
         int mipLevel,
         Offset3D offset,
-        Extents extents,
+        Extent3D extent,
         bool compareOutsideRegion = false
     ) const
     {
-        checkMipLevelsEqual(layer, mipLevel, offset, texture, layer, mipLevel, offset, extents, compareOutsideRegion);
+        checkMipLevelsEqual(layer, mipLevel, offset, texture, layer, mipLevel, offset, extent, compareOutsideRegion);
     }
 
     /// Helper for checkMipLevelsEqual that tests the same layers and mip levels of the whole of each texture
     inline void checkMipLevelsEqual(ITexture* texture, int layer, int mipLevel) const
     {
-        checkMipLevelsEqual(layer, mipLevel, {0, 0, 0}, texture, layer, mipLevel, {0, 0, 0}, Extents::kWholeTexture);
+        checkMipLevelsEqual(layer, mipLevel, {0, 0, 0}, texture, layer, mipLevel, {0, 0, 0}, Extent3D::kWholeTexture);
     }
 
     /// Compare a slice of this TextureData (must be 3D) against a 2D
@@ -214,10 +214,10 @@ void checkRegionsEqual(
     const void* dataB_,
     const SubresourceLayout& layoutB,
     Offset3D offsetB,
-    Extents extents
+    Extent3D extent
 );
 
-void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA, Offset3D offsetA, Extents extents);
+void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA, Offset3D offsetA, Extent3D extent);
 
 /// Description of a given texture in a variant (texture descriptor + how to init)
 struct TestTextureDesc

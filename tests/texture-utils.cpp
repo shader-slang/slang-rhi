@@ -189,12 +189,12 @@ RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format)
 
 void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat)
 {
-    auto extents = texture->extents;
-    auto arrayLayers = texture->arrayLength;
+    Extent3D extent = texture->extent;
+    uint32_t arrayLayers = texture->arrayLength;
     if (texture->textureType == TextureType::TextureCube)
         arrayLayers *= 6;
-    auto mipLevels = texture->mipLevelCount;
-    auto texelSize = getTexelSize(texture->format);
+    uint32_t mipLevels = texture->mipLevelCount;
+    Size texelSize = getTexelSize(texture->format);
 
     for (uint32_t layer = 0; layer < arrayLayers; ++layer)
     {
@@ -202,16 +202,16 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
         {
             RefPtr<ValidationTextureData> subresource = new ValidationTextureData();
 
-            auto mipWidth = std::max(extents.width >> mip, 1);
-            auto mipHeight = std::max(extents.height >> mip, 1);
-            auto mipDepth = std::max(extents.depth >> mip, 1);
-            auto mipSize = mipWidth * mipHeight * mipDepth * texelSize;
+            uint32_t mipWidth = std::max(extent.width >> mip, 1u);
+            uint32_t mipHeight = std::max(extent.height >> mip, 1u);
+            uint32_t mipDepth = std::max(extent.depth >> mip, 1u);
+            uint32_t mipSize = mipWidth * mipHeight * mipDepth * texelSize;
             subresource->textureData = ::malloc(mipSize);
             REQUIRE(subresource->textureData != nullptr);
 
-            subresource->extents.width = mipWidth;
-            subresource->extents.height = mipHeight;
-            subresource->extents.depth = mipDepth;
+            subresource->extent.width = mipWidth;
+            subresource->extent.height = mipHeight;
+            subresource->extent.depth = mipDepth;
             subresource->pitches.x = texelSize;
             subresource->pitches.y = mipWidth * texelSize;
             subresource->pitches.z = mipHeight * subresource->pitches.y;

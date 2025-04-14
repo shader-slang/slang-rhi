@@ -172,7 +172,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Offset3D& dstOffset = cmd.dstOffset;
     SubresourceRange srcSubresource = cmd.srcSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     // Fix up sub resource ranges.
     if (dstSubresource.mipLevelCount == 0)
@@ -194,7 +194,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
     SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
 
-    Extents srcTextureSize = src->m_desc.size;
+    Extent3D srcTextureSize = src->m_desc.size;
     const FormatInfo& srcFormatInfo = getFormatInfo(src->m_desc.format);
     const FormatInfo& dstFormatInfo = getFormatInfo(dst->m_desc.format);
 
@@ -208,8 +208,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             // Calculate adjusted extents. Note it is required and enforced
             // by debug layer that if 'remaining texture' is used, src and
             // dst offsets are the same.
-            Extents srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
-            Extents adjustedExtent = extent;
+            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
+            Extent3D adjustedExtent = extent;
             if (adjustedExtent.width == kRemainingTextureSize)
             {
                 SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
@@ -227,9 +227,6 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             }
 
             // Validate source and destination parameters
-            SLANG_RHI_ASSERT(srcOffset.x >= 0 && srcOffset.y >= 0 && srcOffset.z >= 0);
-            SLANG_RHI_ASSERT(dstOffset.x >= 0 && dstOffset.y >= 0 && dstOffset.z >= 0);
-            SLANG_RHI_ASSERT(adjustedExtent.width > 0 && adjustedExtent.height > 0 && adjustedExtent.depth > 0);
             SLANG_RHI_ASSERT(srcOffset.x + adjustedExtent.width <= srcMipSize.width);
             SLANG_RHI_ASSERT(srcOffset.y + adjustedExtent.height <= srcMipSize.height);
             SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);
@@ -242,18 +239,17 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
             WGPUImageCopyTexture source = {};
             source.texture = src->m_texture;
-            source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, srcZ};
+            source.origin = {cmd.srcOffset.x, cmd.srcOffset.y, srcZ};
             source.mipLevel = srcMipLevel;
             source.aspect = WGPUTextureAspect_All;
 
             WGPUImageCopyTexture destination = {};
             destination.texture = dst->m_texture;
-            destination.origin = {(uint32_t)cmd.dstOffset.x, (uint32_t)cmd.dstOffset.y, dstZ};
+            destination.origin = {cmd.dstOffset.x, cmd.dstOffset.y, dstZ};
             destination.mipLevel = dstMipLevel;
             destination.aspect = WGPUTextureAspect_All;
 
-            WGPUExtent3D copySize =
-                {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+            WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
             // Align copy sizes to format block dimensions
             copySize.width = math::calcAligned2(copySize.width, srcFormatInfo.blockWidth);
@@ -272,7 +268,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
     const TextureDesc& srcDesc = src->getDesc();
-    Extents textureSize = srcDesc.size;
+    Extent3D textureSize = srcDesc.size;
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     const uint64_t dstOffset = cmd.dstOffset;
@@ -280,13 +276,13 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     uint32_t srcLayer = cmd.srcLayer;
     uint32_t srcMipLevel = cmd.srcMipLevel;
     const Offset3D& srcOffset = cmd.srcOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extents srcMipSize = calcMipSize(textureSize, srcMipLevel);
-    Extents adjustedExtent = extent;
+    Extent3D srcMipSize = calcMipSize(textureSize, srcMipLevel);
+    Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
         SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
@@ -313,7 +309,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
     WGPUImageCopyTexture source = {};
     source.texture = src->m_texture;
-    source.origin = {(uint32_t)srcOffset.x, (uint32_t)srcOffset.y, z};
+    source.origin = {srcOffset.x, srcOffset.y, z};
     source.mipLevel = srcMipLevel;
     source.aspect = WGPUTextureAspect_All;
 
@@ -327,8 +323,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     destination.layout.rowsPerImage = math::divideRoundedUp(adjustedExtent.height, formatInfo.blockHeight);
 
     // Store copy size.
-    WGPUExtent3D copySize =
-        {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+    WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
     m_ctx.api.wgpuCommandEncoderCopyTextureToBuffer(m_commandEncoder, &source, &destination, &copySize);
 }

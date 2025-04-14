@@ -48,7 +48,7 @@ GPU_TEST_CASE("cmd-copy-texture-full", D3D12 | Vulkan | WGPU | CUDA)
                 c->getTexture(),
                 {0, 0, 0, 0},
                 {0, 0, 0},
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
             queue->submit(commandEncoder->finish());
 
@@ -100,7 +100,7 @@ GPU_TEST_CASE("cmd-copy-texture-arrayrange", D3D12 | Vulkan | WGPU | CUDA)
                 c->getTexture(),
                 {0, 0, halfLayerCount, halfLayerCount},
                 {0, 0, 0},
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
             queue->submit(commandEncoder->finish());
 
@@ -152,7 +152,7 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU | CUDA)
                 c->getTexture(),
                 {0, halfMipCount, 0, 0},
                 {0, 0, 0},
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
             queue->submit(commandEncoder->finish());
 
@@ -211,7 +211,7 @@ GPU_TEST_CASE("cmd-copy-texture-fromarray", D3D12 | Vulkan | WGPU | CUDA)
                 c->getTexture(),
                 {0, 0, 2, 1},
                 {0, 0, 0},
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
             queue->submit(commandEncoder->finish());
 
@@ -262,7 +262,7 @@ GPU_TEST_CASE("cmd-copy-texture-toarray", D3D12 | Vulkan | WGPU | CUDA)
                 newTexture,
                 {0, 0, 0, 1},
                 {0, 0, 0},
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
             queue->submit(commandEncoder->finish());
 
@@ -467,7 +467,7 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU | CUDA)
             ComPtr<ITexture> newTexture;
             REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
 
-            Extents size = data.desc.size;
+            Extent3D size = data.desc.size;
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
@@ -484,15 +484,15 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D12 | Vulkan | WGPU | CUDA)
                 c->getTexture(),
                 {0, 1, 0, 0},
                 offset,
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly
             // The original texture data should have stomped over the new texture data
             // at offset.
-            data.checkEqual(newTexture, offset, Extents::kWholeTexture, false);
-            newData.checkEqual(newTexture, offset, Extents::kWholeTexture, true);
+            data.checkEqual(newTexture, offset, Extent3D::kWholeTexture, false);
+            newData.checkEqual(newTexture, offset, Extent3D::kWholeTexture, true);
         }
     );
 }
@@ -517,14 +517,14 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU | CUDA)
             ComPtr<ITexture> newTexture;
             REQUIRE_CALL(newData.createTexture(newTexture.writeRef()));
 
-            Extents size = data.desc.size;
+            Extent3D size = data.desc.size;
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
 
-            Extents extents = {max(size.width / 4, 1), max(size.height / 4, 1), max(size.depth / 4, 1)};
-            extents.width = math::calcAligned2(extents.width, data.formatInfo.blockWidth);
-            extents.height = math::calcAligned2(extents.height, data.formatInfo.blockHeight);
+            Extent3D extent = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
+            extent.width = math::calcAligned2(extent.width, data.formatInfo.blockWidth);
+            extent.height = math::calcAligned2(extent.height, data.formatInfo.blockHeight);
 
             // fprintf(stderr, "Copy:\n  %s\n  %s\n", newTexture->getDesc().label, c->getTexture()->getDesc().label);
 
@@ -534,15 +534,15 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D12 | Vulkan | WGPU | CUDA)
 
             // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
             commandEncoder
-                ->copyTexture(newTexture, {0, 1, 0, 0}, offset, c->getTexture(), {0, 1, 0, 0}, offset, extents);
+                ->copyTexture(newTexture, {0, 1, 0, 0}, offset, c->getTexture(), {0, 1, 0, 0}, offset, extent);
 
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly
             // The original texture data should have stomped over the new texture data
-            // at offset with given extents.
-            data.checkEqual(newTexture, offset, extents, false);
-            newData.checkEqual(newTexture, offset, extents, true);
+            // at offset with given extent.
+            data.checkEqual(newTexture, offset, extent, false);
+            newData.checkEqual(newTexture, offset, extent, true);
         }
     );
 }
@@ -574,7 +574,7 @@ GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU | CUDA)
             ComPtr<ITexture> largerTexture;
             REQUIRE_CALL(largerData.createTexture(largerTexture.writeRef()));
 
-            Extents extents = smallerData.desc.size;
+            Extent3D extent = smallerData.desc.size;
             Offset3D offset = {0, 0, 0};
 
             // Create command encoder
@@ -583,14 +583,14 @@ GPU_TEST_CASE("cmd-copy-texture-smalltolarge", D3D12 | Vulkan | WGPU | CUDA)
 
             // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
             commandEncoder
-                ->copyTexture(largerTexture, {0, 1, 0, 0}, offset, smallerTexture, {0, 1, 0, 0}, offset, extents);
+                ->copyTexture(largerTexture, {0, 1, 0, 0}, offset, smallerTexture, {0, 1, 0, 0}, offset, extent);
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly
             // The smaller texture should have overwritten the corner of
             // the larger texture.
-            smallerData.checkEqual({0, 0, 0}, largerTexture, offset, extents, false);
-            largerData.checkEqual(largerTexture, offset, extents, true);
+            smallerData.checkEqual({0, 0, 0}, largerTexture, offset, extent, false);
+            largerData.checkEqual(largerTexture, offset, extent, true);
         }
     );
 }
@@ -624,7 +624,7 @@ GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU | CUDA)
 
             // Going to copy an extent that is the size of the smaller texture,
             // with an offset based on its size (accounting for 1D/2D/3D dimensions)
-            Extents extents = smallerData.desc.size;
+            Extent3D extent = smallerData.desc.size;
             Offset3D offset;
             offset.x = smallerData.desc.size.width;
             if (smallerData.desc.size.height != 1)
@@ -638,12 +638,12 @@ GPU_TEST_CASE("cmd-copy-texture-largetosmall", D3D12 | Vulkan | WGPU | CUDA)
 
             // Copy at the offset, using kWholeTexture to express 'the rest of the texture'
             commandEncoder
-                ->copyTexture(smallerTexture, {0, 1, 0, 0}, {0, 0, 0}, largerTexture, {0, 1, 0, 0}, offset, extents);
+                ->copyTexture(smallerTexture, {0, 1, 0, 0}, {0, 0, 0}, largerTexture, {0, 1, 0, 0}, offset, extent);
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly
             // The chunk of the larger texture we copied from should have overwritten the smaller texture
-            largerData.checkEqual(offset, smallerTexture, {0, 0, 0}, extents, false);
+            largerData.checkEqual(offset, smallerTexture, {0, 0, 0}, extent, false);
         }
     );
 }
@@ -678,7 +678,7 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU | CUDA)
             // Going to copy an extent that is the size of mip1 from mip0
             SubresourceLayout srcMip1Layout;
             srcTexture->getSubresourceLayout(1, &srcMip1Layout);
-            Extents extents = srcMip1Layout.size;
+            Extent3D extent = srcMip1Layout.size;
 
             // Create command encoder
             auto queue = device->getQueue(QueueType::Graphics);
@@ -686,13 +686,13 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D12 | Vulkan | WGPU | CUDA)
 
             // Copy from mip 1 to mip 0
             commandEncoder
-                ->copyTexture(dstTexture, {0, 1, 0, 0}, {0, 0, 0}, srcTexture, {1, 1, 0, 0}, {0, 0, 0}, extents);
+                ->copyTexture(dstTexture, {0, 1, 0, 0}, {0, 0, 0}, srcTexture, {1, 1, 0, 0}, {0, 0, 0}, extent);
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly
             // The corner of mip 0 of the dst texture should have been overwritten by mip 1 of the src texture
-            srcData.checkMipLevelsEqual(0, 1, {0, 0, 0}, dstTexture, 0, 0, {0, 0, 0}, extents, false);
-            dstData.checkMipLevelsEqual(dstTexture, 0, 0, {0, 0, 0}, extents, true);
+            srcData.checkMipLevelsEqual(0, 1, {0, 0, 0}, dstTexture, 0, 0, {0, 0, 0}, extent, false);
+            dstData.checkMipLevelsEqual(dstTexture, 0, 0, {0, 0, 0}, extent, true);
         }
     );
 }
@@ -724,7 +724,7 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
             // Get the size of mip level 1
             SubresourceLayout mip1Layout;
             c->getTexture()->getSubresourceLayout(1, &mip1Layout);
-            Extents mip1Size = mip1Layout.size;
+            Extent3D mip1Size = mip1Layout.size;
 
             // Calculate offset for mip level 1 (quarter of mip1 size)
             Offset3D offset = {mip1Size.width / 4, mip1Size.height / 4, mip1Size.depth / 4};
@@ -743,15 +743,15 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
                 c->getTexture(),
                 {1, 1, 0, 0}, // Source from mip level 1
                 offset,
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly at mip level 1
             // The original texture data should have stomped over the new texture data
             // at offset in mip level 1.
-            data.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, false);
-            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, true);
+            data.checkMipLevelsEqual(newTexture, 0, 1, offset, Extent3D::kWholeTexture, false);
+            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, Extent3D::kWholeTexture, true);
         }
     );
 }
@@ -783,7 +783,7 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
             // Get the size of mip level 1
             SubresourceLayout mip1Layout;
             c->getTexture()->getSubresourceLayout(1, &mip1Layout);
-            Extents mip1Size = mip1Layout.size;
+            Extent3D mip1Size = mip1Layout.size;
 
             // Calculate offset for mip level 1 (quarter of mip1 size)
             Offset3D offset = {mip1Size.width / 4, mip1Size.height / 4, mip1Size.depth / 4};
@@ -802,15 +802,15 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D12 | Vulkan | WGPU | CUDA)
                 c->getTexture(),
                 {1, 1, 0, 0}, // Source from mip level 1
                 offset,
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
             queue->submit(commandEncoder->finish());
 
             // Verify it uploaded correctly at mip level 1
             // The original texture data should have stomped over the new texture data
             // at offset in mip level 1.
-            data.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, false);
-            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, Extents::kWholeTexture, true);
+            data.checkMipLevelsEqual(newTexture, 0, 1, offset, Extent3D::kWholeTexture, false);
+            newData.checkMipLevelsEqual(newTexture, 0, 1, offset, Extent3D::kWholeTexture, true);
         }
     );
 }

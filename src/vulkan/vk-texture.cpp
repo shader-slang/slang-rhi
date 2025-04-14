@@ -189,7 +189,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     case TextureType::Texture1DArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_1D;
-        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), 1, 1};
+        imageInfo.extent = VkExtent3D{desc.size.width, 1, 1};
         break;
     }
     case TextureType::Texture2D:
@@ -198,20 +198,20 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     case TextureType::Texture2DMSArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), 1};
+        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, 1};
         break;
     }
     case TextureType::Texture3D:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
-        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), uint32_t(desc.size.depth)};
+        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, desc.size.depth};
         break;
     }
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
     {
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{uint32_t(desc.size.width), uint32_t(desc.size.height), 1};
+        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, 1};
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         break;
     }
@@ -317,7 +317,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             texture,
             range,
             {0, 0, 0},
-            Extents::kWholeTexture,
+            Extent3D::kWholeTexture,
             initData,
             layerCount * desc.mipLevelCount
         );

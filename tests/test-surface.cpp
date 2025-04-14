@@ -268,7 +268,7 @@ struct ComputeSurfaceTest : SurfaceTest
                 renderTexture,
                 {0, 0, 0, 0},
                 offset,
-                Extents::kWholeTexture
+                Extent3D::kWholeTexture
             );
         }
         queue->submit(commandEncoder->finish());

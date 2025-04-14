@@ -96,7 +96,7 @@ public:
 
 struct SubResourceLayout
 {
-    Extents size;
+    Extent3D size;
     Size strideY;
     Size strideZ;
 };
@@ -107,7 +107,7 @@ Result calcSubresourceRegionLayout(
     const TextureDesc& desc,
     uint32_t mipLevel,
     Offset3D offset,
-    Extents extents,
+    Extent3D extent,
     Size rowAlignment,
     SubresourceLayout* outLayout
 );
@@ -130,12 +130,12 @@ public:
     bool isEntireTexture(const SubresourceRange& range);
 
     // Get layout the target requires for a given region within a given sub resource
-    // of this texture. Supply offset==0 and extents==kRemainingTextureSize to indicate whole sub resource.
+    // of this texture. Supply offset==0 and extent==kRemainingTextureSize to indicate whole sub resource.
     // If rowAlignment is kDefaultAlignment, implementation uses Device::getTextureRowAlignment for alignment.
     virtual Result getSubresourceRegionLayout(
         uint32_t mipLevel,
         Offset3D offset,
-        Extents extents,
+        Extent3D extent,
         size_t rowAlignment,
         SubresourceLayout* outLayout
     );
@@ -150,7 +150,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getSubresourceLayout(uint32_t mipLevel, size_t rowAlignment, SubresourceLayout* outLayout) override
     {
-        return getSubresourceRegionLayout(mipLevel, Offset3D(), Extents::kWholeTexture, rowAlignment, outLayout);
+        return getSubresourceRegionLayout(mipLevel, {0, 0, 0}, Extent3D::kWholeTexture, rowAlignment, outLayout);
     }
 
 public:

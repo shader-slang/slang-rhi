@@ -44,7 +44,7 @@ struct TestFormats
         return true;
     }
 
-    ComPtr<ITextureView> createTextureView(Format format, Extents size, SubresourceData* data, int mips = 1)
+    ComPtr<ITextureView> createTextureView(Format format, Extent3D size, SubresourceData* data, int mips = 1)
     {
         TextureDesc texDesc = {};
         texDesc.type = TextureType::Texture2D;
@@ -109,7 +109,7 @@ struct TestFormats
     template<typename T, size_t Count>
     void testFormat(
         Format format,
-        Extents textureSize,
+        Extent3D textureSize,
         SubresourceData* textureData,
         const std::array<T, Count>& expected
     )
@@ -147,12 +147,12 @@ struct TestFormats
 
     void run()
     {
-        Extents size = {};
+        Extent3D size = {};
         size.width = 2;
         size.height = 2;
         size.depth = 1;
 
-        Extents bcSize = {};
+        Extent3D bcSize = {};
         bcSize.width = 4;
         bcSize.height = 4;
         bcSize.depth = 1;

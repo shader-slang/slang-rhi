@@ -215,7 +215,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     Offset3D dstOffset = cmd.dstOffset;
     SubresourceRange srcSubresource = cmd.srcSubresource;
     Offset3D srcOffset = cmd.srcOffset;
-    Extents extent = cmd.extent;
+    Extent3D extent = cmd.extent;
 
     // Fix up sub resource ranges.
     if (dstSubresource.mipLevelCount == 0)
@@ -234,7 +234,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     // TODO: Could probably optimize this to do:
     //  - A single copy of the extents are fixed
     //  - Batching copies at the same mip level if extents aren't fixed.
-    Extents srcTextureSize = src->m_desc.size;
+    Extent3D srcTextureSize = src->m_desc.size;
     for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
     {
         for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipLevelCount; mipOffset++)
@@ -245,8 +245,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             // Calculate adjusted extents. Note it is required and enforced
             // by debug layer that if 'remaining texture' is used, src and
             // dst offsets are the same.
-            Extents srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
-            Extents adjustedExtent = extent;
+            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
+            Extent3D adjustedExtent = extent;
             if (adjustedExtent.width == kRemainingTextureSize)
             {
                 SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
@@ -277,8 +277,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             region.dstSubresource.mipLevel = dstMipLevel;
             region.dstSubresource.layerCount = 1;
             region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
-            region.extent =
-                {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+            region.extent = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
             m_api.vkCmdCopyImage(m_cmdBuffer, src->m_image, srcImageLayout, dst->m_image, dstImageLayout, 1, &region);
         }
@@ -291,7 +290,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
     const TextureDesc& srcDesc = src->getDesc();
-    Extents textureSize = srcDesc.size;
+    Extent3D textureSize = srcDesc.size;
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     const uint64_t dstOffset = cmd.dstOffset;
@@ -299,7 +298,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     uint32_t srcLayer = cmd.srcLayer;
     uint32_t srcMipLevel = cmd.srcMipLevel;
     const Offset3D& srcOffset = cmd.srcOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
@@ -309,8 +308,8 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extents srcMipSize = calcMipSize(textureSize, srcMipLevel);
-    Extents adjustedExtent = extent;
+    Extent3D srcMipSize = calcMipSize(textureSize, srcMipLevel);
+    Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
         SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);
@@ -346,8 +345,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     region.imageSubresource.baseArrayLayer = srcLayer;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
-    region.imageExtent =
-        {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+    region.imageExtent = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
     m_api.vkCmdCopyImageToBuffer(
         m_cmdBuffer,
@@ -511,9 +509,8 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             region.imageSubresource.mipLevel = mipLevel;
             region.imageSubresource.baseArrayLayer = layerIndex;
             region.imageSubresource.layerCount = 1;
-            region.imageOffset = {cmd.offset.x, cmd.offset.y, cmd.offset.z};
-            region.imageExtent =
-                {uint32_t(srLayout->size.width), uint32_t(srLayout->size.height), uint32_t(srLayout->size.depth)};
+            region.imageOffset = {int32_t(cmd.offset.x), int32_t(cmd.offset.y), int32_t(cmd.offset.z)};
+            region.imageExtent = {srLayout->size.width, srLayout->size.height, srLayout->size.depth};
 
             m_api.vkCmdCopyBufferToImage(
                 m_cmdBuffer,
@@ -844,8 +841,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             VkRect2D& dst = scissorRects[i];
             dst.offset.x = src.minX;
             dst.offset.y = src.minY;
-            dst.extent.width = uint32_t(src.maxX - src.minX);
-            dst.extent.height = uint32_t(src.maxY - src.minY);
+            dst.extent.width = src.maxX - src.minX;
+            dst.extent.height = src.maxY - src.minY;
         }
         api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
     }

@@ -331,7 +331,7 @@ void DebugCommandEncoder::copyTexture(
     ITexture* src,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
-    Extents extent
+    Extent3D extent
 )
 {
     SLANG_RHI_API_FUNC;
@@ -396,7 +396,7 @@ void DebugCommandEncoder::copyTexture(
 
         if (!extent.isWholeTexture())
         {
-            RHI_VALIDATION_ERROR("Copying multiple mip levels at once requires extent to be Extents::WholeTexture");
+            RHI_VALIDATION_ERROR("Copying multiple mip levels at once requires extent to be Extent3D::kWholeTexture");
             return;
         }
     }
@@ -445,7 +445,7 @@ Result DebugCommandEncoder::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
-    Extents extent,
+    Extent3D extent,
     const SubresourceData* subresourceData,
     uint32_t subresourceDataCount
 )
@@ -465,7 +465,7 @@ Result DebugCommandEncoder::uploadTextureData(
         if (extent.width != kRemainingTextureSize || extent.height != kRemainingTextureSize ||
             extent.depth != kRemainingTextureSize)
         {
-            RHI_VALIDATION_ERROR("Uploading multiple mip levels at once requires extent to be Extents::WholeTexture");
+            RHI_VALIDATION_ERROR("Uploading multiple mip levels at once requires extent to be Extent3D::kWholeTexture");
             return SLANG_E_INVALID_ARG;
         }
     }
@@ -593,7 +593,7 @@ void DebugCommandEncoder::copyTextureToBuffer(
     uint32_t srcLayer,
     uint32_t srcMipLevel,
     Offset3D srcOffset,
-    Extents extent
+    Extent3D extent
 )
 {
     SLANG_RHI_API_FUNC;
@@ -626,7 +626,7 @@ void DebugCommandEncoder::copyBufferToTexture(
     Offset srcOffset,
     Size srcSize,
     Size srcRowPitch,
-    Extents extent
+    Extent3D extent
 )
 {
     SLANG_RHI_API_FUNC;
