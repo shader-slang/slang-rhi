@@ -117,6 +117,12 @@ GPU_TEST_CASE("nested-parameter-block", ALL)
     compareComputeResult(device, resultBuffer, makeArray<uint32_t>(1123u, 1123u, 1123u, 1123u));
 }
 
+// In this test, we change the method of feeding data to a parameter block.
+// We first create the root shader object, and feed data directly to the ParameterBlock instead of
+// using `setObject`, because we want to cover more cases on Metal.
+// On Metal, ParameterBlock variable will have the different type layout because we will map that
+// object to ArgumentBuffer, so RHI has to explicity change the layout by applying Argument Buffer Tier2
+// rule, otherwise the size of such variable will always be 0, and all the `setData` call could fail.
 GPU_TEST_CASE("nested-parameter-block-2", ALL)
 {
     if (!device->hasFeature("parameter-block"))
