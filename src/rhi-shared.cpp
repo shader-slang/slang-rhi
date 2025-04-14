@@ -139,7 +139,7 @@ SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
     SubresourceRange resolved = range;
     resolved.mipLevel = min(resolved.mipLevel, m_desc.mipLevelCount);
     resolved.mipLevelCount = min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
-    resolved.baseArrayLayer = min(resolved.baseArrayLayer, (m_desc.getLayerCount()-1));
+    resolved.baseArrayLayer = min(resolved.baseArrayLayer, (m_desc.getLayerCount() - 1));
     resolved.layerCount = min(resolved.layerCount, m_desc.getLayerCount() - resolved.baseArrayLayer);
     return resolved;
 }

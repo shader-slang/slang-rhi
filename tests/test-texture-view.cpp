@@ -25,10 +25,7 @@ struct TestTextureViews
     ComPtr<IDevice> device;
     std::map<std::string, ComPtr<IComputePipeline>> cachedPipelines;
 
-    void init(IDevice* device)
-    {
-        this->device = device;
-    }
+    void init(IDevice* device) { this->device = device; }
 
     ComPtr<IBuffer> createResultBuffer(int size)
     {
@@ -43,15 +40,24 @@ struct TestTextureViews
         return resultBuffer;
     }
 
-    ComPtr<ITextureView> createTextureAndTextureView(TextureType textureType, TextureUsage usage, uint32_t mipLevelCount, Extents textureSize, SubresourceRange textureViewRange, SubresourceData* data)
+    ComPtr<ITextureView> createTextureAndTextureView(
+        TextureType textureType,
+        TextureUsage usage,
+        uint32_t mipLevelCount,
+        Extents textureSize,
+        SubresourceRange textureViewRange,
+        SubresourceData* data
+    )
     {
         TextureDesc texDesc = {};
         texDesc.type = textureType;
         texDesc.mipLevelCount = mipLevelCount;
         texDesc.size = textureSize;
         texDesc.usage = usage;
-        texDesc.defaultState = usage == TextureUsage::UnorderedAccess ? ResourceState::UnorderedAccess : ResourceState::RenderTarget;
-        texDesc.format = Format::R32Float; // Assuming Format::R32Float until there are test that require something different
+        texDesc.defaultState =
+            usage == TextureUsage::UnorderedAccess ? ResourceState::UnorderedAccess : ResourceState::RenderTarget;
+        texDesc.format = Format::R32Float; // Assuming Format::R32Float until there are test that require something
+                                           // different
 
         ComPtr<ITexture> texture;
         REQUIRE_CALL(device->createTexture(texDesc, data, texture.writeRef()));
@@ -72,16 +78,25 @@ struct TestTextureViews
         SubresourceData* textureData
     )
     {
-        ComPtr<ITextureView> textureView = createTextureAndTextureView(textureType, TextureUsage::UnorderedAccess, mipLevelCount, textureSize, textureViewRange, textureData);
+        ComPtr<ITextureView> textureView = createTextureAndTextureView(
+            textureType,
+            TextureUsage::UnorderedAccess,
+            mipLevelCount,
+            textureSize,
+            textureViewRange,
+            textureData
+        );
 
         // Create result buffer
         Extents textureViewSize = {
-                                    std::max(textureSize.width >> textureViewRange.mipLevel, 1),
-                                    std::max(textureSize.height >> textureViewRange.mipLevel, 1),
-                                    std::max(textureSize.depth >> textureViewRange.mipLevel, 1)
-                                  };
+            std::max(textureSize.width >> textureViewRange.mipLevel, 1),
+            std::max(textureSize.height >> textureViewRange.mipLevel, 1),
+            std::max(textureSize.depth >> textureViewRange.mipLevel, 1)
+        };
         // In bytes
-        int dataLength = textureViewSize.width * textureViewSize.height * textureViewSize.depth * sizeof(float); // Assuming Format::R32Float
+        int dataLength =
+            textureViewSize.width * textureViewSize.height * textureViewSize.depth * sizeof(float); // Assuming
+                                                                                                    // Format::R32Float
         ComPtr<IBuffer> resultBuffer = createResultBuffer(dataLength);
 
         // Do setup work ...
@@ -94,7 +109,9 @@ struct TestTextureViews
         {
             ComPtr<IShaderProgram> shaderProgram;
             slang::ProgramLayout* slangReflection;
-            REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-texture-view", entryPointName.c_str(), slangReflection));
+            REQUIRE_CALL(
+                loadComputeProgram(device, shaderProgram, "test-texture-view", entryPointName.c_str(), slangReflection)
+            );
 
             ComputePipelineDesc pipelineDesc = {};
             pipelineDesc.program = shaderProgram.get();
@@ -136,7 +153,7 @@ struct TestTextureViews
 
         // We need to divide data length by sizeof(float) as the compare function
         // does not compare on bytes.
-        compareResultFuzzy(result, expectedResult, dataLength/sizeof(float));
+        compareResultFuzzy(result, expectedResult, dataLength / sizeof(float));
     }
 
     void run()
@@ -152,7 +169,7 @@ struct TestTextureViews
             // That will let us verify correct sampling of sub regions.
             for (int i = 0; i < 4681; i++)
             {
-                texData[i] = (float) i;
+                texData[i] = (float)i;
             }
 
             // Our SubresourceData array needs enough elements for each mip level
@@ -160,19 +177,19 @@ struct TestTextureViews
             SubresourceData subData[5];
             // SubresourceData expects strides to be in bytes, x4 since we are using Format::R32Float here
             // Should probably use sizeof
-            subData[0] = {(void*)texData, 16*4, 16*16*4};
-            subData[1] = {(void*)&texData[4096], 8*4, 8*8*4};
-            subData[2] = {(void*)&texData[4608], 4*4, 4*4*4};
-            subData[3] = {(void*)&texData[4672], 2*4, 2*2*4};
-            subData[4] = {(void*)&texData[4680], 1*4, 1*1*4};
+            subData[0] = {(void*)texData, 16 * 4, 16 * 16 * 4};
+            subData[1] = {(void*)&texData[4096], 8 * 4, 8 * 8 * 4};
+            subData[2] = {(void*)&texData[4608], 4 * 4, 4 * 4 * 4};
+            subData[3] = {(void*)&texData[4672], 2 * 4, 2 * 2 * 4};
+            subData[4] = {(void*)&texData[4680], 1 * 4, 1 * 1 * 4};
 
             TextureType type = TextureType::Texture3D;
             // Texture size
-            Extents size = {16 /*width*/, 16/*height*/, 16 /*depth*/};
+            Extents size = {16 /*width*/, 16 /*height*/, 16 /*depth*/};
             // This subrange/textureView will give a 8x8x8 texture and verifies a fix for issue #220
             // We use 3 for baseArrayLayer as this was previously used for FirstWSlice and we want
             // to verify that selecting a subset of depth slices is not currently supported.
-            SubresourceRange range = { 1 /*mipLevel*/, 4 /*mipLevelCount*/, 3 /*baseArrayLayer*/, 1 /*layerCount*/};
+            SubresourceRange range = {1 /*mipLevel*/, 4 /*mipLevelCount*/, 3 /*baseArrayLayer*/, 1 /*layerCount*/};
             testTextureViewUnorderedAccess(type, 5 /*mipLevelCount*/, size, range, subData);
         }
     }
