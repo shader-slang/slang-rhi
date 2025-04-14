@@ -278,7 +278,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | Metal | WGPU
             commandEncoder->copyBuffer(buffer, 0, zeroBuffer, 0, totalSize);
 
             // Pick offset for the extra copy.
-            Extents size = data.desc.size;
+            Extent3D size = data.desc.size;
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
@@ -299,7 +299,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | Metal | WGPU
                     layer,
                     0,
                     offset,
-                    Extents::kWholeTexture
+                    Extent3D::kWholeTexture
                 );
 
                 bufferOffset += textureLayout.sizeInBytes;
@@ -313,7 +313,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | Metal | WGPU
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
 
-            Extents checkExtents = {size.width - offset.x, size.height - offset.y, size.depth - offset.z};
+            Extent3D checkExtents = {size.width - offset.x, size.height - offset.y, size.depth - offset.z};
 
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
@@ -383,12 +383,12 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | Metal | 
             commandEncoder->copyBuffer(buffer, 0, zeroBuffer, 0, totalSize);
 
             // Pick offset for the extra copy.
-            Extents size = data.desc.size;
+            Extent3D size = data.desc.size;
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
 
-            Extents copySize = {max(size.width / 2, 1u), max(size.height / 2, 1u), max(size.depth / 2, 1u)};
+            Extent3D copySize = {max(size.width / 2, 1u), max(size.height / 2, 1u), max(size.depth / 2, 1u)};
             copySize.width = math::calcAligned2(copySize.width, data.formatInfo.blockWidth);
             copySize.height = math::calcAligned2(copySize.height, data.formatInfo.blockHeight);
 
@@ -491,7 +491,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | Metal |
             commandEncoder->copyBuffer(buffer, 0, zeroBuffer, 0, totalSize);
 
             // Pick offset for the extra copy.
-            Extents size = calcMipSize(data.desc.size, 1);
+            Extent3D size = calcMipSize(data.desc.size, 1);
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
@@ -512,7 +512,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | Metal |
                     layer,
                     1,
                     offset,
-                    Extents::kWholeTexture
+                    Extent3D::kWholeTexture
                 );
 
                 bufferOffset += textureLayout.sizeInBytes;
@@ -526,7 +526,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | Metal |
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
 
-            Extents checkExtents = {size.width - offset.x, size.height - offset.y, size.depth - offset.z};
+            Extent3D checkExtents = {size.width - offset.x, size.height - offset.y, size.depth - offset.z};
 
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
@@ -597,12 +597,12 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset-mip1", D3D12 | Vulkan | Met
             commandEncoder->copyBuffer(buffer, 0, zeroBuffer, 0, totalSize);
 
             // Pick offset for the extra copy.
-            Extents size = calcMipSize(data.desc.size, 1);
+            Extent3D size = calcMipSize(data.desc.size, 1);
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
             offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
 
-            Extents copySize = {max(size.width / 2, 1u), max(size.height / 2, 1u), max(size.depth / 2, 1u)};
+            Extent3D copySize = {max(size.width / 2, 1u), max(size.height / 2, 1u), max(size.depth / 2, 1u)};
             copySize.width = math::calcAligned2(copySize.width, data.formatInfo.blockWidth);
             copySize.height = math::calcAligned2(copySize.height, data.formatInfo.blockHeight);
 

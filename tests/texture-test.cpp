@@ -166,7 +166,7 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initRow
         for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
         {
             SubresourceLayout layout;
-            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extents::kWholeTexture, initRowAlignment, &layout);
+            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extent3D::kWholeTexture, initRowAlignment, &layout);
 
             Subresource sr;
             sr.layer = layer;
@@ -214,7 +214,7 @@ void TextureData::checkEqual(
     Offset3D thisOffset,
     ITexture* texture,
     Offset3D textureOffset,
-    Extents textureExtents,
+    Extent3D textureExtent,
     bool compareOutsideRegion
 ) const
 {
@@ -224,7 +224,7 @@ void TextureData::checkEqual(
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        checkLayersEqual(layer, thisOffset, texture, layer, textureOffset, textureExtents, compareOutsideRegion);
+        checkLayersEqual(layer, thisOffset, texture, layer, textureOffset, textureExtent, compareOutsideRegion);
     }
 }
 
@@ -234,7 +234,7 @@ void TextureData::checkLayersEqual(
     ITexture* texture,
     int textureLayer,
     Offset3D textureOffset,
-    Extents textureExtents,
+    Extent3D textureExtent,
     bool compareOutsideRegion
 ) const
 {
@@ -251,7 +251,7 @@ void TextureData::checkLayersEqual(
             textureLayer,
             mipLevel,
             textureOffset,
-            textureExtents,
+            textureExtent,
             compareOutsideRegion
         );
     }
@@ -264,7 +264,7 @@ void checkRegionsEqual(
     const void* dataB_,
     const SubresourceLayout& layoutB,
     Offset3D offsetB,
-    Extents extents
+    Extent3D extent
 )
 {
     /*
@@ -277,9 +277,9 @@ void checkRegionsEqual(
         offsetB.x,
         offsetB.y,
         offsetB.z,
-        extents.width,
-        extents.height,
-        extents.depth
+        extent.width,
+        extent.height,
+        extent.depth
     );
     */
 
@@ -292,14 +292,14 @@ void checkRegionsEqual(
     CHECK_EQ(layoutA.colPitch, layoutB.colPitch);
 
     // Check region is valid for A
-    CHECK_GE(layoutA.size.width, offsetA.x + extents.width);
-    CHECK_GE(layoutA.size.height, offsetA.y + extents.height);
-    CHECK_GE(layoutA.size.depth, offsetA.z + extents.depth);
+    CHECK_GE(layoutA.size.width, offsetA.x + extent.width);
+    CHECK_GE(layoutA.size.height, offsetA.y + extent.height);
+    CHECK_GE(layoutA.size.depth, offsetA.z + extent.depth);
 
     // Check region is valid for B
-    CHECK_GE(layoutB.size.width, offsetB.x + extents.width);
-    CHECK_GE(layoutB.size.height, offsetB.y + extents.height);
-    CHECK_GE(layoutB.size.depth, offsetB.z + extents.depth);
+    CHECK_GE(layoutB.size.width, offsetB.x + extent.width);
+    CHECK_GE(layoutB.size.height, offsetB.y + extent.height);
+    CHECK_GE(layoutB.size.depth, offsetB.z + extent.depth);
 
     // Calculate overall dimensions in blocks rather than pixels to handle compressed textures.
     uint32_t sliceOffsetA = offsetA.z;
@@ -308,9 +308,9 @@ void checkRegionsEqual(
     uint32_t sliceOffsetB = offsetB.z;
     uint32_t rowOffsetB = math::divideRoundedUp(offsetB.y, layoutB.blockHeight);
     uint32_t colOffsetB = math::divideRoundedUp(offsetB.x, layoutB.blockWidth);
-    uint32_t sliceCount = extents.depth;
-    uint32_t rowCount = math::divideRoundedUp(extents.height, layoutA.blockHeight);
-    uint32_t colCount = math::divideRoundedUp(extents.width, layoutA.blockWidth);
+    uint32_t sliceCount = extent.depth;
+    uint32_t rowCount = math::divideRoundedUp(extent.height, layoutA.blockHeight);
+    uint32_t colCount = math::divideRoundedUp(extent.width, layoutA.blockWidth);
 
     // Iterate over whole texture, checking each block.
     for (uint32_t slice = 0; slice < sliceCount; slice++)
@@ -340,14 +340,14 @@ void checkRegionsEqual(
     }
 }
 
-void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA, Offset3D offsetA, Extents extents)
+void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA, Offset3D offsetA, Extent3D extent)
 {
     const uint8_t* dataA = (const uint8_t*)dataA_;
 
     // Check region is valid for A
-    CHECK_GE(layoutA.size.width, offsetA.x + extents.width);
-    CHECK_GE(layoutA.size.height, offsetA.y + extents.height);
-    CHECK_GE(layoutA.size.depth, offsetA.z + extents.depth);
+    CHECK_GE(layoutA.size.width, offsetA.x + extent.width);
+    CHECK_GE(layoutA.size.height, offsetA.y + extent.height);
+    CHECK_GE(layoutA.size.depth, offsetA.z + extent.depth);
 
     uint32_t textureSliceCount = layoutA.size.depth;
     uint32_t textureRowCount = math::divideRoundedUp(layoutA.size.height, layoutA.blockHeight);
@@ -357,9 +357,9 @@ void checkInverseRegionZero(const void* dataA_, const SubresourceLayout& layoutA
     uint32_t sliceBegin = offsetA.z;
     uint32_t rowBegin = math::divideRoundedUp(offsetA.y, layoutA.blockHeight);
     uint32_t colBegin = math::divideRoundedUp(offsetA.x, layoutA.blockWidth);
-    uint32_t sliceEnd = sliceBegin + extents.depth;
-    uint32_t rowEnd = rowBegin + math::divideRoundedUp(extents.height, layoutA.blockHeight);
-    uint32_t colEnd = colBegin + math::divideRoundedUp(extents.width, layoutA.blockWidth);
+    uint32_t sliceEnd = sliceBegin + extent.depth;
+    uint32_t rowEnd = rowBegin + math::divideRoundedUp(extent.height, layoutA.blockHeight);
+    uint32_t colEnd = colBegin + math::divideRoundedUp(extent.width, layoutA.blockWidth);
 
     // Iterate over whole texture, checking each block.
     for (uint32_t textureSlice = 0; textureSlice < textureSliceCount; textureSlice++)
@@ -400,7 +400,7 @@ void TextureData::checkMipLevelsEqual(
     int textureLayer,
     int textureMipLevel,
     Offset3D textureOffset,
-    Extents textureExtents,
+    Extent3D textureExtent,
     bool compareOutsideRegion
 ) const
 {
@@ -426,23 +426,23 @@ void TextureData::checkMipLevelsEqual(
     if (formatInfo.blockWidth > 1)
     {
         CHECK_EQ(textureOffset.x % formatInfo.blockWidth, 0);
-        if (textureExtents.width != Extents::kWholeTexture.width)
-            CHECK_EQ(textureExtents.width % formatInfo.blockWidth, 0);
+        if (textureExtent.width != Extent3D::kWholeTexture.width)
+            CHECK_EQ(textureExtent.width % formatInfo.blockWidth, 0);
     }
     if (formatInfo.blockHeight > 1)
     {
         CHECK_EQ(textureOffset.y % formatInfo.blockHeight, 0);
-        if (textureExtents.height != Extents::kWholeTexture.height)
-            CHECK_EQ(textureExtents.height % formatInfo.blockHeight, 0);
+        if (textureExtent.height != Extent3D::kWholeTexture.height)
+            CHECK_EQ(textureExtent.height % formatInfo.blockHeight, 0);
     }
 
     // Adjust extents if 'whole texture' specified.
-    if (textureExtents.width == Extents::kWholeTexture.width)
-        textureExtents.width = max(textureLayout.size.width - textureOffset.x, 1u);
-    if (textureExtents.height == Extents::kWholeTexture.height)
-        textureExtents.height = max(textureLayout.size.height - textureOffset.y, 1u);
-    if (textureExtents.depth == Extents::kWholeTexture.depth)
-        textureExtents.depth = max(textureLayout.size.depth - textureOffset.z, 1u);
+    if (textureExtent.width == Extent3D::kWholeTexture.width)
+        textureExtent.width = max(textureLayout.size.width - textureOffset.x, 1u);
+    if (textureExtent.height == Extent3D::kWholeTexture.height)
+        textureExtent.height = max(textureLayout.size.height - textureOffset.y, 1u);
+    if (textureExtent.depth == Extent3D::kWholeTexture.depth)
+        textureExtent.depth = max(textureLayout.size.depth - textureOffset.z, 1u);
 
     if (!compareOutsideRegion)
     {
@@ -456,7 +456,7 @@ void TextureData::checkMipLevelsEqual(
             blob->getBufferPointer(),
             textureLayout,
             textureOffset,
-            textureExtents
+            textureExtent
         );
     }
     else
@@ -472,14 +472,11 @@ void TextureData::checkMipLevelsEqual(
         // regions, with the central region being the region to exclude.
         // The surrounding regions are then compared.
         uint32_t zSizes[] =
-            {textureOffset.z, textureExtents.depth, textureLayout.size.depth - textureExtents.depth - textureOffset.z};
-        uint32_t ySizes[] = {
-            textureOffset.y,
-            textureExtents.height,
-            textureLayout.size.height - textureExtents.height - textureOffset.y
-        };
+            {textureOffset.z, textureExtent.depth, textureLayout.size.depth - textureExtent.depth - textureOffset.z};
+        uint32_t ySizes[] =
+            {textureOffset.y, textureExtent.height, textureLayout.size.height - textureExtent.height - textureOffset.y};
         uint32_t xSizes[] =
-            {textureOffset.x, textureExtents.width, textureLayout.size.width - textureExtents.width - textureOffset.x};
+            {textureOffset.x, textureExtent.width, textureLayout.size.width - textureExtent.width - textureOffset.x};
 
         uint32_t offsetZ = 0;
         for (uint32_t regionZ = 0; regionZ < 3; regionZ++)

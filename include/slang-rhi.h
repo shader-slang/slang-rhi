@@ -737,7 +737,7 @@ struct Offset3D
     bool isZero() const { return x == 0 && y == 0 && z == 0; }
 };
 
-struct Extents
+struct Extent3D
 {
     /// Width in pixels.
     uint32_t width = 0;
@@ -746,9 +746,9 @@ struct Extents
     /// Depth (if 3d).
     uint32_t depth = 0;
 
-    static Extents kWholeTexture;
+    static Extent3D kWholeTexture;
 
-    inline bool operator==(const Extents& other) const
+    inline bool operator==(const Extent3D& other) const
     {
         return width == other.width && height == other.height && depth == other.depth;
     }
@@ -760,7 +760,7 @@ struct Extents
 struct SubresourceLayout
 {
     /// Dimensions of the subresource (in texels).
-    Extents size;
+    Extent3D size;
 
     /// Stride in bytes between columns (i.e. blocks of pixels) of the subresource tensor.
     Size colPitch;
@@ -797,7 +797,7 @@ struct TextureDesc
     TextureType type = TextureType::Texture2D;
 
     /// Size of the texture.
-    Extents size = {1, 1, 1};
+    Extent3D size = {1, 1, 1};
     /// Array length.
     uint32_t arrayLength = 1;
     /// Number of mip levels.
@@ -2035,7 +2035,7 @@ public:
         ITexture* src,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
-        Extents extent
+        Extent3D extent
     ) = 0;
 
     /// Copies texture to a buffer. Each row is aligned to dstRowPitch.
@@ -2048,7 +2048,7 @@ public:
         uint32_t srcLayer,
         uint32_t srcMipLevel,
         Offset3D srcOffset,
-        Extents extent
+        Extent3D extent
     ) = 0;
 
 
@@ -2062,14 +2062,14 @@ public:
         Offset srcOffset,
         Size srcSize,
         Size srcRowPitch,
-        Extents extent
+        Extent3D extent
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL uploadTextureData(
         ITexture* dst,
         SubresourceRange subresourceRange,
         Offset3D offset,
-        Extents extent,
+        Extent3D extent,
         const SubresourceData* subresourceData,
         uint32_t subresourceDataCount
     ) = 0;

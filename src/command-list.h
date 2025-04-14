@@ -85,7 +85,7 @@ struct CopyTexture
     ITexture* src;
     SubresourceRange srcSubresource;
     Offset3D srcOffset;
-    Extents extent;
+    Extent3D extent;
 };
 
 struct CopyTextureToBuffer
@@ -98,7 +98,7 @@ struct CopyTextureToBuffer
     uint32_t srcLayer;
     uint32_t srcMipLevel;
     Offset3D srcOffset;
-    Extents extent;
+    Extent3D extent;
 };
 
 struct ClearBuffer
@@ -136,7 +136,7 @@ struct UploadTextureData
     ITexture* dst;
     SubresourceRange subresourceRange;
     Offset3D offset;
-    Extents extent;
+    Extent3D extent;
 
     // Inside uploadTextureData, layouts for each subresource are stored.
     // src and offset are the location of the staged data in the staging heap.

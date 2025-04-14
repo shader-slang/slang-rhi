@@ -45,12 +45,12 @@ static void setUpAndRunShader(
     }
 }
 
-static ComPtr<ITexture> createTexture(IDevice* device, Extents extents, Format format, SubresourceData* initialData)
+static ComPtr<ITexture> createTexture(IDevice* device, Extent3D extent, Format format, SubresourceData* initialData)
 {
     TextureDesc texDesc = {};
     texDesc.type = TextureType::Texture2D;
     texDesc.mipLevelCount = 1;
-    texDesc.size = extents;
+    texDesc.size = extent;
     texDesc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::CopyDestination |
                     TextureUsage::CopySource | TextureUsage::Shared;
     texDesc.defaultState = ResourceState::UnorderedAccess;
@@ -96,12 +96,12 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     int32_t initIntData[16] = {0};
     auto intResults = createBuffer<uint32_t>(dstDevice, 16, initIntData);
 
-    Extents size = {};
+    Extent3D size = {};
     size.width = 2;
     size.height = 2;
     size.depth = 1;
 
-    Extents bcSize = {};
+    Extent3D bcSize = {};
     bcSize.width = 4;
     bcSize.height = 4;
     bcSize.depth = 1;

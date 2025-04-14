@@ -476,7 +476,7 @@ void CommandEncoder::copyTexture(
     ITexture* src,
     SubresourceRange srcSubresource,
     Offset3D srcOffset,
-    Extents extent
+    Extent3D extent
 )
 {
     commands::CopyTexture cmd;
@@ -499,7 +499,7 @@ void CommandEncoder::copyTextureToBuffer(
     uint32_t srcLayer,
     uint32_t srcMipLevel,
     Offset3D srcOffset,
-    Extents extent
+    Extent3D extent
 )
 {
     commands::CopyTextureToBuffer cmd;
@@ -524,7 +524,7 @@ void CommandEncoder::copyBufferToTexture(
     Offset srcOffset,
     Size srcSize,
     Size srcRowPitch,
-    Extents extent
+    Extent3D extent
 )
 {
     SubresourceLayout* layout = static_cast<SubresourceLayout*>(m_commandList->allocData(sizeof(SubresourceLayout)));
@@ -556,7 +556,7 @@ Result CommandEncoder::uploadTextureData(
     ITexture* dst,
     SubresourceRange subresourceRange,
     Offset3D offset,
-    Extents extent,
+    Extent3D extent,
     const SubresourceData* subresourceData,
     uint32_t subresourceDataCount
 )

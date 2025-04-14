@@ -210,7 +210,7 @@ public:
         ITexture* src,
         SubresourceRange srcSubresource,
         Offset3D srcOffset,
-        Extents extent
+        Extent3D extent
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyTextureToBuffer(
@@ -222,7 +222,7 @@ public:
         uint32_t srcLayer,
         uint32_t srcMipLevel,
         Offset3D srcOffset,
-        Extents extent
+        Extent3D extent
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyBufferToTexture(
@@ -234,7 +234,7 @@ public:
         Offset srcOffset,
         Size srcSize,
         Size srcRowPitch,
-        Extents extent
+        Extent3D extent
     ) override;
 
 
@@ -242,7 +242,7 @@ public:
         ITexture* dst,
         SubresourceRange subresourceRange,
         Offset3D offset,
-        Extents extent,
+        Extent3D extent,
         const SubresourceData* subresourceData,
         uint32_t subresourceDataCount
     ) override;

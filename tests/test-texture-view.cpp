@@ -44,7 +44,7 @@ struct TestTextureViews
         TextureType textureType,
         TextureUsage usage,
         uint32_t mipLevelCount,
-        Extents textureSize,
+        Extent3D textureSize,
         SubresourceRange textureViewRange,
         SubresourceData* data
     )
@@ -73,7 +73,7 @@ struct TestTextureViews
     void testTextureViewUnorderedAccess(
         TextureType textureType,
         uint32_t mipLevelCount,
-        Extents textureSize,
+        Extent3D textureSize,
         SubresourceRange textureViewRange,
         SubresourceData* textureData
     )
@@ -88,7 +88,7 @@ struct TestTextureViews
         );
 
         // Create result buffer
-        Extents textureViewSize = {
+        Extent3D textureViewSize = {
             std::max(textureSize.width >> textureViewRange.mipLevel, 1u),
             std::max(textureSize.height >> textureViewRange.mipLevel, 1u),
             std::max(textureSize.depth >> textureViewRange.mipLevel, 1u)
@@ -185,7 +185,7 @@ struct TestTextureViews
 
             TextureType type = TextureType::Texture3D;
             // Texture size
-            Extents size = {16 /*width*/, 16 /*height*/, 16 /*depth*/};
+            Extent3D size = {16 /*width*/, 16 /*height*/, 16 /*depth*/};
             // This subrange/textureView will give a 8x8x8 texture and verifies a fix for issue #220
             // We use 3 for baseArrayLayer as this was previously used for FirstWSlice and we want
             // to verify that selecting a subset of depth slices is not currently supported.

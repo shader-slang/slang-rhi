@@ -66,7 +66,7 @@ struct BaseResolveResourceTest
 
     struct TextureInfo
     {
-        Extents extent;
+        Extent3D extent;
         int mipLevelCount;
         int arrayLength;
         const SubresourceData* initData;
@@ -149,7 +149,7 @@ struct BaseResolveResourceTest
         REQUIRE_CALL(device->createTextureView(dstTexture, textureViewDesc, dstTextureView.writeRef()));
     }
 
-    void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extents extent)
+    void submitGPUWork(SubresourceRange msaaSubresource, SubresourceRange dstSubresource, Extent3D extent)
     {
         auto queue = device->getQueue(QueueType::Graphics);
         auto commandEncoder = queue->createCommandEncoder();
@@ -227,7 +227,7 @@ struct ResolveResourceSimple : BaseResolveResourceTest
 {
     void run()
     {
-        Extents extent = {};
+        Extent3D extent = {};
         extent.width = kWidth;
         extent.height = kHeight;
         extent.depth = 1;

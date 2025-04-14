@@ -12,9 +12,9 @@ inline uint32_t calcMipSize(uint32_t size, uint32_t level)
     return size > 0 ? size : 1;
 }
 
-inline Extents calcMipSize(Extents size, uint32_t mipLevel)
+inline Extent3D calcMipSize(Extent3D size, uint32_t mipLevel)
 {
-    Extents rs;
+    Extent3D rs;
     rs.width = calcMipSize(size.width, mipLevel);
     rs.height = calcMipSize(size.height, mipLevel);
     rs.depth = calcMipSize(size.depth, mipLevel);
@@ -22,7 +22,7 @@ inline Extents calcMipSize(Extents size, uint32_t mipLevel)
 }
 
 /// Given the type works out the maximum dimension size
-inline uint32_t calcMaxDimension(Extents size, TextureType type)
+inline uint32_t calcMaxDimension(Extent3D size, TextureType type)
 {
     switch (type)
     {
@@ -44,7 +44,7 @@ inline uint32_t calcMaxDimension(Extents size, TextureType type)
 }
 
 /// Given the type, calculates the number of mip maps. 0 on error
-inline uint32_t calcMipLevelCount(TextureType type, Extents size)
+inline uint32_t calcMipLevelCount(TextureType type, Extent3D size)
 {
     uint32_t maxDimensionSize = calcMaxDimension(size, type);
     return (maxDimensionSize > 0) ? (math::log2Floor(maxDimensionSize) + 1) : 0;

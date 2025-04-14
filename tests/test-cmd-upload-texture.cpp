@@ -33,7 +33,7 @@ GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | Metal | CUDA | WGPU)
                 c->getTexture(),
                 {0, data.desc.mipLevelCount, 0, data.desc.getLayerCount()},
                 {0, 0, 0},
-                Extents::kWholeTexture,
+                Extent3D::kWholeTexture,
                 data.subresourceData.data(),
                 data.subresourceData.size()
             );
@@ -78,7 +78,7 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | Metal | CUDA |
                         c->getTexture(),
                         {0, newData.desc.mipLevelCount, layer, 1},
                         {0, 0, 0},
-                        Extents::kWholeTexture,
+                        Extent3D::kWholeTexture,
                         srdata,
                         currentData.desc.mipLevelCount
                     );
@@ -135,7 +135,7 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | Metal | CUDA | W
                             c->getTexture(),
                             {mipLevel, 1, layerIdx, 1},
                             {0, 0, 0},
-                            Extents::kWholeTexture,
+                            Extent3D::kWholeTexture,
                             srdata,
                             1
                         );
@@ -195,7 +195,7 @@ GPU_TEST_CASE("cmd-upload-texture-multisubmit", D3D12 | Vulkan | Metal | CUDA | 
                         c->getTexture(),
                         {mipLevel, 1, layerIdx, 1},
                         {0, 0, 0},
-                        Extents::kWholeTexture,
+                        Extent3D::kWholeTexture,
                         srdata,
                         1
                     );
@@ -228,7 +228,7 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
         {
             // Get / re-init cpu side data with random data.
             const TextureData& currentData = c->getTextureData();
-            Extents size = currentData.desc.size;
+            Extent3D size = currentData.desc.size;
 
             Offset3D offset = {size.width / 2, size.height / 2, size.depth / 2};
             offset.x = math::calcAligned2(offset.x, currentData.formatInfo.blockWidth);
@@ -255,7 +255,7 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
                     c->getTexture(),
                     {0, 1, layer, 1},
                     offset,
-                    Extents::kWholeTexture,
+                    Extent3D::kWholeTexture,
                     newData.getLayerFirstSubresourceData(layer),
                     1
                 );
@@ -266,8 +266,8 @@ GPU_TEST_CASE("cmd-upload-texture-offset", D3D12 | Vulkan | Metal | CUDA | WGPU)
 
             // Verify region. The inverse region should be the same as the original data,
             // and the interior of the region should match the new data.
-            currentData.checkEqual(c->getTexture(), offset, Extents::kWholeTexture, true);
-            newData.checkEqual({0, 0, 0}, c->getTexture(), offset, Extents::kWholeTexture, false);
+            currentData.checkEqual(c->getTexture(), offset, Extent3D::kWholeTexture, true);
+            newData.checkEqual({0, 0, 0}, c->getTexture(), offset, Extent3D::kWholeTexture, false);
         }
     );
 }
@@ -283,20 +283,20 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | Metal | CUDA | W
         {
             // Get / re-init cpu side data with random data.
             const TextureData& currentData = c->getTextureData();
-            Extents size = currentData.desc.size;
+            Extent3D size = currentData.desc.size;
 
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
             offset.x = math::calcAligned2(offset.x, currentData.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, currentData.formatInfo.blockHeight);
 
-            Extents extents = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
-            extents.width = math::calcAligned2(extents.width, currentData.formatInfo.blockWidth);
-            extents.height = math::calcAligned2(extents.height, currentData.formatInfo.blockHeight);
+            Extent3D extent = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
+            extent.width = math::calcAligned2(extent.width, currentData.formatInfo.blockWidth);
+            extent.height = math::calcAligned2(extent.height, currentData.formatInfo.blockHeight);
 
             TextureDesc newDesc = currentData.desc;
-            newDesc.size.width = extents.width;
-            newDesc.size.height = extents.height;
-            newDesc.size.depth = extents.depth;
+            newDesc.size.width = extent.width;
+            newDesc.size.height = extent.height;
+            newDesc.size.depth = extent.depth;
 
             TextureData newData;
             newData.init(currentData.device, newDesc, TextureInitMode::Random, 1000);
@@ -313,7 +313,7 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | Metal | CUDA | W
                     c->getTexture(),
                     {0, 1, layer, 1},
                     offset,
-                    extents,
+                    extent,
                     newData.getLayerFirstSubresourceData(layer),
                     1
                 );
@@ -324,8 +324,8 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | Metal | CUDA | W
 
             // Verify region. The inverse region should be the same as the original data,
             // and the interior of the region should match the new data.
-            currentData.checkEqual(c->getTexture(), offset, extents, true);
-            newData.checkEqual({0, 0, 0}, c->getTexture(), offset, extents, false);
+            currentData.checkEqual(c->getTexture(), offset, extent, true);
+            newData.checkEqual({0, 0, 0}, c->getTexture(), offset, extent, false);
         }
     );
 }
@@ -348,22 +348,22 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | Metal | CUDA 
         {
             // Get / re-init cpu side data with random data.
             const TextureData& currentData = c->getTextureData();
-            Extents size = currentData.desc.size;
+            Extent3D size = currentData.desc.size;
 
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
-            Extents extents = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
+            Extent3D extent = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
 
             offset.x >>= 1;
             offset.y >>= 1;
             offset.z >>= 1;
-            extents.width = max(extents.width >> 1, 1u);
-            extents.height = max(extents.height >> 1, 1u);
-            extents.depth = max(extents.depth >> 1, 1u);
+            extent.width = max(extent.width >> 1, 1u);
+            extent.height = max(extent.height >> 1, 1u);
+            extent.depth = max(extent.depth >> 1, 1u);
 
             TextureDesc newDesc = currentData.desc;
-            newDesc.size.width = extents.width;
-            newDesc.size.height = extents.height;
-            newDesc.size.depth = extents.depth;
+            newDesc.size.width = extent.width;
+            newDesc.size.height = extent.height;
+            newDesc.size.depth = extent.depth;
 
             TextureData newData;
             newData.init(currentData.device, newDesc, TextureInitMode::Random, 1000);
@@ -378,7 +378,7 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | Metal | CUDA 
                 c->getTexture(),
                 {1, 1, 0, 1},
                 offset,
-                extents,
+                extent,
                 newData.getLayerFirstSubresourceData(0),
                 1
             );
@@ -391,7 +391,7 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | Metal | CUDA 
 
             // Verify region. Mip 0 should be untouched and the chunk of mip 1 should match the new data
             currentData.checkMipLevelsEqual(c->getTexture(), 0, 0);
-            newData.checkMipLevelsEqual(0, 0, {0, 0, 0}, c->getTexture(), 0, 1, offset, extents, false);
+            newData.checkMipLevelsEqual(0, 0, {0, 0, 0}, c->getTexture(), 0, 1, offset, extent, false);
         }
     );
 }

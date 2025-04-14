@@ -164,14 +164,14 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
 struct ValidationTextureData : RefObject
 {
     const void* textureData;
-    Extents extents;
+    Extent3D extent;
     Strides pitches;
 
     void* getBlockAt(uint32_t x, uint32_t y, uint32_t z)
     {
-        SLANG_RHI_ASSERT(x < extents.width);
-        SLANG_RHI_ASSERT(y < extents.height);
-        SLANG_RHI_ASSERT(z < extents.depth);
+        SLANG_RHI_ASSERT(x < extent.width);
+        SLANG_RHI_ASSERT(y < extent.height);
+        SLANG_RHI_ASSERT(z < extent.depth);
 
         char* layerData = (char*)textureData + z * pitches.z;
         char* rowData = layerData + y * pitches.y;
@@ -186,7 +186,7 @@ struct TextureInfo : RefObject
     Format format;
     TextureType textureType;
 
-    Extents extents;
+    Extent3D extent;
     uint32_t mipLevelCount;
     uint32_t arrayLength;
 

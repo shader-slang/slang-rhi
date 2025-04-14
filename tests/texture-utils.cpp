@@ -189,7 +189,7 @@ RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format)
 
 void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat)
 {
-    Extents extents = texture->extents;
+    Extent3D extent = texture->extent;
     uint32_t arrayLayers = texture->arrayLength;
     if (texture->textureType == TextureType::TextureCube)
         arrayLayers *= 6;
@@ -202,16 +202,16 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
         {
             RefPtr<ValidationTextureData> subresource = new ValidationTextureData();
 
-            uint32_t mipWidth = std::max(extents.width >> mip, 1u);
-            uint32_t mipHeight = std::max(extents.height >> mip, 1u);
-            uint32_t mipDepth = std::max(extents.depth >> mip, 1u);
+            uint32_t mipWidth = std::max(extent.width >> mip, 1u);
+            uint32_t mipHeight = std::max(extent.height >> mip, 1u);
+            uint32_t mipDepth = std::max(extent.depth >> mip, 1u);
             uint32_t mipSize = mipWidth * mipHeight * mipDepth * texelSize;
             subresource->textureData = ::malloc(mipSize);
             REQUIRE(subresource->textureData != nullptr);
 
-            subresource->extents.width = mipWidth;
-            subresource->extents.height = mipHeight;
-            subresource->extents.depth = mipDepth;
+            subresource->extent.width = mipWidth;
+            subresource->extent.height = mipHeight;
+            subresource->extent.depth = mipDepth;
             subresource->pitches.x = texelSize;
             subresource->pitches.y = mipWidth * texelSize;
             subresource->pitches.z = mipHeight * subresource->pitches.y;

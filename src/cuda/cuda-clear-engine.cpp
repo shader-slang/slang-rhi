@@ -180,7 +180,7 @@ void ClearEngine::clearTexture(
     for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; ++mipOffset)
     {
         uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
-        Extents mipSize = calcMipSize(texture->m_desc.size, mipLevel);
+        Extent3D mipSize = calcMipSize(texture->m_desc.size, mipLevel);
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; ++layerOffset)
         {
             uint32_t layer = subresourceRange.baseArrayLayer + layerOffset;

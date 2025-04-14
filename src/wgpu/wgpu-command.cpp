@@ -172,7 +172,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Offset3D& dstOffset = cmd.dstOffset;
     SubresourceRange srcSubresource = cmd.srcSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     // Fix up sub resource ranges.
     if (dstSubresource.mipLevelCount == 0)
@@ -194,7 +194,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
     SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
 
-    Extents srcTextureSize = src->m_desc.size;
+    Extent3D srcTextureSize = src->m_desc.size;
     const FormatInfo& srcFormatInfo = getFormatInfo(src->m_desc.format);
     const FormatInfo& dstFormatInfo = getFormatInfo(dst->m_desc.format);
 
@@ -208,8 +208,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             // Calculate adjusted extents. Note it is required and enforced
             // by debug layer that if 'remaining texture' is used, src and
             // dst offsets are the same.
-            Extents srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
-            Extents adjustedExtent = extent;
+            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
+            Extent3D adjustedExtent = extent;
             if (adjustedExtent.width == kRemainingTextureSize)
             {
                 SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
@@ -268,7 +268,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
 
     const TextureDesc& srcDesc = src->getDesc();
-    Extents textureSize = srcDesc.size;
+    Extent3D textureSize = srcDesc.size;
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
 
     const uint64_t dstOffset = cmd.dstOffset;
@@ -276,13 +276,13 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     uint32_t srcLayer = cmd.srcLayer;
     uint32_t srcMipLevel = cmd.srcMipLevel;
     const Offset3D& srcOffset = cmd.srcOffset;
-    const Extents& extent = cmd.extent;
+    const Extent3D& extent = cmd.extent;
 
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extents srcMipSize = calcMipSize(textureSize, srcMipLevel);
-    Extents adjustedExtent = extent;
+    Extent3D srcMipSize = calcMipSize(textureSize, srcMipLevel);
+    Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
         SLANG_RHI_ASSERT(srcMipSize.width >= srcOffset.x);

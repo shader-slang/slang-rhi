@@ -37,13 +37,13 @@ void testTextureLayout2(
     uint32_t layer,
     uint32_t mipLevel,
     Offset3D offset,
-    Extents extents,
+    Extent3D extent,
     SubresourceLayout expectedLayout
 )
 {
     SubresourceLayout layout;
     REQUIRE_CALL(
-        ((Texture*)texture.get())->getSubresourceRegionLayout(mipLevel, offset, extents, kDefaultAlignment, &layout)
+        ((Texture*)texture.get())->getSubresourceRegionLayout(mipLevel, offset, extent, kDefaultAlignment, &layout)
     );
 
     CHECK_EQ(layout.size.width, expectedLayout.size.width);
