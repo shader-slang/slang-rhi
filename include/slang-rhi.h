@@ -656,7 +656,7 @@ struct SubresourceRange
     uint32_t layer;
     /// Number of layers to use.
     /// For cube textures this should be a multiple of 6.
-    /// Use kAllMipLevels to use all remaining layers.
+    /// Use kAllLayers to use all remaining layers.
     uint32_t layerCount;
     /// First mip level to use.
     uint32_t mipLevel;
