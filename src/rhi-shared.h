@@ -150,7 +150,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getSubresourceLayout(uint32_t mipLevel, size_t rowAlignment, SubresourceLayout* outLayout) override
     {
-        return getSubresourceRegionLayout(mipLevel, Offset3D(), Extents::kWholeTexture, rowAlignment, outLayout);
+        return getSubresourceRegionLayout(mipLevel, {0, 0, 0}, Extents::kWholeTexture, rowAlignment, outLayout);
     }
 
 public:

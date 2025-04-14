@@ -89,9 +89,9 @@ struct TestTextureViews
 
         // Create result buffer
         Extents textureViewSize = {
-            std::max(textureSize.width >> textureViewRange.mipLevel, 1),
-            std::max(textureSize.height >> textureViewRange.mipLevel, 1),
-            std::max(textureSize.depth >> textureViewRange.mipLevel, 1)
+            std::max(textureSize.width >> textureViewRange.mipLevel, 1u),
+            std::max(textureSize.height >> textureViewRange.mipLevel, 1u),
+            std::max(textureSize.depth >> textureViewRange.mipLevel, 1u)
         };
         // In bytes
         int dataLength =

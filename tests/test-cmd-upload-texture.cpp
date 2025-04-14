@@ -289,7 +289,7 @@ GPU_TEST_CASE("cmd-upload-texture-sizeoffset", D3D12 | Vulkan | Metal | CUDA | W
             offset.x = math::calcAligned2(offset.x, currentData.formatInfo.blockWidth);
             offset.y = math::calcAligned2(offset.y, currentData.formatInfo.blockHeight);
 
-            Extents extents = {max(size.width / 4, 1), max(size.height / 4, 1), max(size.depth / 4, 1)};
+            Extents extents = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
             extents.width = math::calcAligned2(extents.width, currentData.formatInfo.blockWidth);
             extents.height = math::calcAligned2(extents.height, currentData.formatInfo.blockHeight);
 
@@ -351,14 +351,14 @@ GPU_TEST_CASE("cmd-upload-texture-mipsizeoffset", D3D12 | Vulkan | Metal | CUDA 
             Extents size = currentData.desc.size;
 
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
-            Extents extents = {max(size.width / 4, 1), max(size.height / 4, 1), max(size.depth / 4, 1)};
+            Extents extents = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
 
             offset.x >>= 1;
             offset.y >>= 1;
             offset.z >>= 1;
-            extents.width = max(extents.width >> 1, 1);
-            extents.height = max(extents.height >> 1, 1);
-            extents.depth = max(extents.depth >> 1, 1);
+            extents.width = max(extents.width >> 1, 1u);
+            extents.height = max(extents.height >> 1, 1u);
+            extents.depth = max(extents.depth >> 1, 1u);
 
             TextureDesc newDesc = currentData.desc;
             newDesc.size.width = extents.width;

@@ -270,7 +270,7 @@ void checkRegionsEqual(
     /*
     fprintf(
         stderr,
-        "    Oa: [%d,%d,%d], Ob: [%d,%d,%d], Ex: [%d,%d,%d]\n",
+        "    Oa: [%u,%u,%u], Ob: [%u,%u,%u], Ex: [%u,%u,%u]\n",
         offsetA.x,
         offsetA.y,
         offsetA.z,
@@ -438,11 +438,11 @@ void TextureData::checkMipLevelsEqual(
 
     // Adjust extents if 'whole texture' specified.
     if (textureExtents.width == Extents::kWholeTexture.width)
-        textureExtents.width = max(textureLayout.size.width - textureOffset.x, 1);
+        textureExtents.width = max(textureLayout.size.width - textureOffset.x, 1u);
     if (textureExtents.height == Extents::kWholeTexture.height)
-        textureExtents.height = max(textureLayout.size.height - textureOffset.y, 1);
+        textureExtents.height = max(textureLayout.size.height - textureOffset.y, 1u);
     if (textureExtents.depth == Extents::kWholeTexture.depth)
-        textureExtents.depth = max(textureLayout.size.depth - textureOffset.z, 1);
+        textureExtents.depth = max(textureLayout.size.depth - textureOffset.z, 1u);
 
     if (!compareOutsideRegion)
     {
@@ -471,28 +471,28 @@ void TextureData::checkMipLevelsEqual(
         // For simplicity, the (potentially 3D) texture is divided into 3x3x3
         // regions, with the central region being the region to exclude.
         // The surrounding regions are then compared.
-        int zSizes[] =
+        uint32_t zSizes[] =
             {textureOffset.z, textureExtents.depth, textureLayout.size.depth - textureExtents.depth - textureOffset.z};
-        int ySizes[] = {
+        uint32_t ySizes[] = {
             textureOffset.y,
             textureExtents.height,
             textureLayout.size.height - textureExtents.height - textureOffset.y
         };
-        int xSizes[] =
+        uint32_t xSizes[] =
             {textureOffset.x, textureExtents.width, textureLayout.size.width - textureExtents.width - textureOffset.x};
 
-        int offsetZ = 0;
+        uint32_t offsetZ = 0;
         for (uint32_t regionZ = 0; regionZ < 3; regionZ++)
         {
-            int sizeZ = zSizes[regionZ];
-            int offsetY = 0;
+            uint32_t sizeZ = zSizes[regionZ];
+            uint32_t offsetY = 0;
             for (uint32_t regionY = 0; regionY < 3; regionY++)
             {
-                int sizeY = ySizes[regionY];
-                int offsetX = 0;
+                uint32_t sizeY = ySizes[regionY];
+                uint32_t offsetX = 0;
                 for (uint32_t regionX = 0; regionX < 3; regionX++)
                 {
-                    int sizeX = xSizes[regionX];
+                    uint32_t sizeX = xSizes[regionX];
                     if (regionX != 1 || regionY != 1 || regionZ != 1)
                     {
                         checkRegionsEqual(

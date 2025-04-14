@@ -263,9 +263,6 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 }
 
                 // Validate source and destination parameters
-                SLANG_RHI_ASSERT(srcOffset.x >= 0 && srcOffset.y >= 0 && srcOffset.z >= 0);
-                SLANG_RHI_ASSERT(dstOffset.x >= 0 && dstOffset.y >= 0 && dstOffset.z >= 0);
-                SLANG_RHI_ASSERT(adjustedExtent.width > 0 && adjustedExtent.height > 0 && adjustedExtent.depth > 0);
                 SLANG_RHI_ASSERT(srcOffset.x + adjustedExtent.width <= srcMipSize.width);
                 SLANG_RHI_ASSERT(srcOffset.y + adjustedExtent.height <= srcMipSize.height);
                 SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);

@@ -227,9 +227,6 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             }
 
             // Validate source and destination parameters
-            SLANG_RHI_ASSERT(srcOffset.x >= 0 && srcOffset.y >= 0 && srcOffset.z >= 0);
-            SLANG_RHI_ASSERT(dstOffset.x >= 0 && dstOffset.y >= 0 && dstOffset.z >= 0);
-            SLANG_RHI_ASSERT(adjustedExtent.width > 0 && adjustedExtent.height > 0 && adjustedExtent.depth > 0);
             SLANG_RHI_ASSERT(srcOffset.x + adjustedExtent.width <= srcMipSize.width);
             SLANG_RHI_ASSERT(srcOffset.y + adjustedExtent.height <= srcMipSize.height);
             SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);
@@ -242,18 +239,17 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
             WGPUImageCopyTexture source = {};
             source.texture = src->m_texture;
-            source.origin = {(uint32_t)cmd.srcOffset.x, (uint32_t)cmd.srcOffset.y, srcZ};
+            source.origin = {cmd.srcOffset.x, cmd.srcOffset.y, srcZ};
             source.mipLevel = srcMipLevel;
             source.aspect = WGPUTextureAspect_All;
 
             WGPUImageCopyTexture destination = {};
             destination.texture = dst->m_texture;
-            destination.origin = {(uint32_t)cmd.dstOffset.x, (uint32_t)cmd.dstOffset.y, dstZ};
+            destination.origin = {cmd.dstOffset.x, cmd.dstOffset.y, dstZ};
             destination.mipLevel = dstMipLevel;
             destination.aspect = WGPUTextureAspect_All;
 
-            WGPUExtent3D copySize =
-                {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+            WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
             // Align copy sizes to format block dimensions
             copySize.width = math::calcAligned2(copySize.width, srcFormatInfo.blockWidth);
@@ -313,7 +309,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 
     WGPUImageCopyTexture source = {};
     source.texture = src->m_texture;
-    source.origin = {(uint32_t)srcOffset.x, (uint32_t)srcOffset.y, z};
+    source.origin = {srcOffset.x, srcOffset.y, z};
     source.mipLevel = srcMipLevel;
     source.aspect = WGPUTextureAspect_All;
 
@@ -327,8 +323,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     destination.layout.rowsPerImage = math::divideRoundedUp(adjustedExtent.height, formatInfo.blockHeight);
 
     // Store copy size.
-    WGPUExtent3D copySize =
-        {(uint32_t)adjustedExtent.width, (uint32_t)adjustedExtent.height, (uint32_t)adjustedExtent.depth};
+    WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
     m_ctx.api.wgpuCommandEncoderCopyTextureToBuffer(m_commandEncoder, &source, &destination, &copySize);
 }
