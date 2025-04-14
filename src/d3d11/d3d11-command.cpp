@@ -505,10 +505,10 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         {
             const ScissorRect& src = state.scissorRects[i];
             D3D11_RECT& dst = scissorRects[i];
-            dst.left = LONG(src.minX);
-            dst.top = LONG(src.minY);
-            dst.right = LONG(src.maxX);
-            dst.bottom = LONG(src.maxY);
+            dst.left = src.minX;
+            dst.top = src.minY;
+            dst.right = src.maxX;
+            dst.bottom = src.maxY;
         }
         m_immediateContext->RSSetScissorRects(state.scissorRectCount, scissorRects);
     }

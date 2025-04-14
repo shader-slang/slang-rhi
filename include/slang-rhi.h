@@ -1678,12 +1678,12 @@ class IRayTracingPipeline : public IPipeline
 
 struct ScissorRect
 {
-    int32_t minX = 0;
-    int32_t minY = 0;
-    int32_t maxX = 0;
-    int32_t maxY = 0;
+    uint32_t minX = 0;
+    uint32_t minY = 0;
+    uint32_t maxX = 0;
+    uint32_t maxY = 0;
 
-    static ScissorRect fromSize(int32_t width, int32_t height)
+    static ScissorRect fromSize(uint32_t width, uint32_t height)
     {
         ScissorRect scissorRect;
         scissorRect.maxX = width;

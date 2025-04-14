@@ -841,8 +841,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             VkRect2D& dst = scissorRects[i];
             dst.offset.x = src.minX;
             dst.offset.y = src.minY;
-            dst.extent.width = uint32_t(src.maxX - src.minX);
-            dst.extent.height = uint32_t(src.maxY - src.minY);
+            dst.extent.width = src.maxX - src.minX;
+            dst.extent.height = src.maxY - src.minY;
         }
         api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
     }
