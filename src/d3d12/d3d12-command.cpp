@@ -1620,6 +1620,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(fence->m_fence.get(), desc.signalFenceValues[i]));
     }
 
+    m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID);
+
     retireCommandBuffers();
 
     return SLANG_OK;
