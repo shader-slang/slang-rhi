@@ -87,7 +87,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureDesc->setSampleCount(desc.sampleCount);
 
     MTL::TextureUsage textureUsage = MTL::TextureUsageUnknown;
-    if (is_set(desc.usage, TextureUsage::RenderTarget))
+    if (is_set(desc.usage, TextureUsage::RenderTarget) || is_set(desc.usage, TextureUsage::DepthStencil))
     {
         textureUsage |= MTL::TextureUsageRenderTarget;
     }

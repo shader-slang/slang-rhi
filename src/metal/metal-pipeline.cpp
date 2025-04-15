@@ -131,12 +131,6 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     const auto& depthStencil = desc.depthStencil;
     NS::SharedPtr<MTL::DepthStencilDescriptor> depthStencilDesc =
         NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
-    NS::SharedPtr<MTL::DepthStencilState> depthStencilState =
-        NS::TransferPtr(m_device->newDepthStencilState(depthStencilDesc.get()));
-    if (!depthStencilState)
-    {
-        return SLANG_FAIL;
-    }
     if (depthStencil.depthTestEnable)
     {
         depthStencilDesc->setDepthCompareFunction(MetalUtil::translateCompareFunction(depthStencil.depthFunc));
@@ -150,6 +144,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         depthStencilDesc->setBackFaceStencil(
             createStencilDesc(depthStencil.backFace, depthStencil.stencilReadMask, depthStencil.stencilWriteMask).get()
         );
+    }
+    NS::SharedPtr<MTL::DepthStencilState> depthStencilState =
+        NS::TransferPtr(m_device->newDepthStencilState(depthStencilDesc.get()));
+    if (!depthStencilState)
+    {
+        return SLANG_FAIL;
     }
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);

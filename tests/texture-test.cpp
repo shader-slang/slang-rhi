@@ -1224,7 +1224,7 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
 
         const FormatInfo& info = getFormatInfo(format);
 
-        // WebGPU doesn't support writing into depth textures.
+        // Metal doesn't support writing into depth textures.
         if (m_device->getDeviceType() == DeviceType::Metal && (info.hasDepth || info.hasStencil))
             return;
 
