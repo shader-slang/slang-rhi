@@ -261,7 +261,63 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 
 void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureDepthStencil);
+    TextureImpl* texture = checked_cast<TextureImpl*>(cmd.texture);
+    const TextureDesc& desc = texture->m_desc;
+    if (!is_set(desc.usage, TextureUsage::DepthStencil))
+        return;
+
+    // Create a dummy render pass descriptor
+    NS::SharedPtr<MTL::RenderPassDescriptor> renderPassDesc =
+        NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
+
+    // Setup depth stencil attachment
+    if (MetalUtil::isDepthFormat(texture->m_pixelFormat) && cmd.clearDepth)
+    {
+        MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = renderPassDesc->depthAttachment();
+        depthAttachment->setLoadAction(MTL::LoadActionClear);
+        depthAttachment->setStoreAction(MTL::StoreActionStore);
+        depthAttachment->setClearDepth(cmd.depthValue);
+        depthAttachment->setTexture(texture->m_texture.get());
+    }
+    if (MetalUtil::isStencilFormat(texture->m_pixelFormat) && cmd.clearStencil)
+    {
+        MTL::RenderPassStencilAttachmentDescriptor* stencilAttachment = renderPassDesc->stencilAttachment();
+        stencilAttachment->setLoadAction(MTL::LoadActionClear);
+        stencilAttachment->setStoreAction(MTL::StoreActionStore);
+        stencilAttachment->setClearStencil(cmd.stencilValue);
+        stencilAttachment->setTexture(texture->m_texture.get());
+    }
+
+    // Loop through all requested mip levels and array layers
+    for (uint32_t layerOffset = 0; layerOffset < cmd.subresourceRange.layerCount; layerOffset++)
+    {
+        uint32_t layerIndex = cmd.subresourceRange.layer + layerOffset;
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; mipOffset++)
+        {
+            uint32_t mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+
+            // Set the level and slice for this iteration
+            if (MetalUtil::isDepthFormat(texture->m_pixelFormat) && cmd.clearDepth)
+            {
+                renderPassDesc->depthAttachment()->setLevel(mipLevel);
+                renderPassDesc->depthAttachment()->setSlice(layerIndex);
+            }
+            if (MetalUtil::isStencilFormat(texture->m_pixelFormat) && cmd.clearStencil)
+            {
+                renderPassDesc->stencilAttachment()->setLevel(mipLevel);
+                renderPassDesc->stencilAttachment()->setSlice(layerIndex);
+            }
+
+            // Set render target size for this mip level
+            Extent3D mipSize = calcMipSize(desc.size, mipLevel);
+            renderPassDesc->setRenderTargetWidth(mipSize.width);
+            renderPassDesc->setRenderTargetHeight(mipSize.height);
+
+            // Create and execute the render pass for this subresource
+            getRenderCommandEncoder(renderPassDesc.get());
+            endCommandEncoder();
+        }
+    }
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
