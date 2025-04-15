@@ -100,6 +100,12 @@ static const std::vector<Format> kSintFormats = {
     // Format::R64Sint, // TODO not supported yet
 };
 
+static const std::vector<Format> kDepthStencilFormats = {
+    Format::D16Unorm,
+    Format::D32Float,
+    Format::D32FloatS8Uint,
+};
+
 GPU_TEST_CASE("cmd-clear-texture-float-zero", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
     TextureTestOptions options(device, 1);
@@ -274,4 +280,47 @@ GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal |
     );
 }
 
-GPU_TEST_CASE("cmd-clear-texture-depth-stencil", D3D11 | D3D12 | Vulkan | Metal) {}
+GPU_TEST_CASE("cmd-clear-texture-depth-stencil", D3D11 | D3D12 | Vulkan | Metal)
+{
+#if 0
+    TextureTestOptions options(device, 1);
+    options.addVariants(
+        TTShape::D2,
+        TTArray::Both,
+        TTMip::Both,
+        TTMS::Off,
+        kDepthStencilFormats,
+        TextureUsage::DepthStencil
+    );
+
+    runTextureTest(
+        options,
+        [device](TextureTestContext* c)
+        {
+            printf("cmd-clear-texture-depth-stencil\n");
+            ComPtr<ITexture> texture = c->getTexture();
+            ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+            {
+                ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+
+                // Clear depth to 0.5 and stencil to 42
+                float depthValue = 0.5f;
+                uint8_t stencilValue = 42;
+
+                // Create a subresource range that covers all mips and array layers
+                SubresourceRange range = kEntireTexture;
+
+                // Clear both depth and stencil
+                encoder->clearTextureDepthStencil(texture, range, true, depthValue, true, stencilValue);
+                queue->submit(encoder->finish());
+
+                // Verify the clear values
+                // For depth formats, we use clearFloat with the depth value
+                float clearValues[4] = {depthValue, 0.0f, 0.0f, 0.0f};
+                c->getTextureData().clearFloat(clearValues);
+                c->getTextureData().checkEqual(texture);
+            }
+        }
+    );
+#endif
+}
