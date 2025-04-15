@@ -24,6 +24,12 @@ DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
 {
+    if (captureEnabled())
+    {
+        MTL::CaptureManager* captureManager = MTL::CaptureManager::sharedCaptureManager();
+        captureManager->stopCapture();
+    }
+
     m_queue.setNull();
     m_clearEngine.release();
 }
@@ -82,6 +88,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             .initialize(desc.slang, SLANG_METAL_LIB, "", std::array{slang::PreprocessorMacroDesc{"__METAL__", "1"}})
     );
 
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_device.get()));
+
     // TODO: expose via some other means
     if (captureEnabled())
     {
@@ -109,8 +117,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             exit(1);
         }
     }
-
-    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_device.get()));
 
     return SLANG_OK;
 }

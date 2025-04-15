@@ -108,7 +108,7 @@ public:
     DeviceInfo m_info;
     std::string m_adapterName;
 
-    bool captureEnabled() const { return std::getenv("MTL_CAPTURE") != nullptr; }
+    bool captureEnabled() const { return std::getenv("MTL_CAPTURE_ENABLED") != nullptr; }
 
     DeviceDesc m_desc;
     NS::SharedPtr<MTL::Device> m_device;
