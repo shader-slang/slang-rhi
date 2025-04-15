@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
+if(POLICY CMP0177)
+cmake_policy(SET CMP0177 NEW)
+endif()
 
 project(slang-rhi)
 
@@ -14,6 +17,7 @@ include(CTest)
 include(CMakeDependentOption)
 include(FetchPackage)
 include(DetermineTargetArchitecture)
+include(GNUInstallDirs)
 include(CMakeRC)
 
 # Determine the target architecture we build for.
@@ -42,6 +46,7 @@ option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
+option(SLANG_RHI_INSTALL "Install library" ON)
 
 # Configure coverage flags
 if(SLANG_RHI_ENABLE_COVERAGE)
@@ -154,6 +159,10 @@ macro(copy_file IN_FILE OUT_DIR)
                 COMMENT "Copying ${FILENAME}"
             )
             list(APPEND SLANG_RHI_COPY_FILES ${OUT_FILE_1})
+        endif()
+
+        if(SLANG_RHI_INSTALL)
+            install(FILES ${IN_FILE} DESTINATION ${CMAKE_INSTALL_BINDIR}/${OUT_DIR})
         endif()
     endif()
 endmacro()
@@ -372,6 +381,7 @@ if(SLANG_RHI_BUILD_TESTS OR SLANG_RHI_BUILD_EXAMPLES)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
+    set(GLFW_INSTALL OFF)
     FetchContent_MakeAvailable(glfw)
 endif()
 
@@ -815,4 +825,22 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         message(STATUS "Coverage tools not found. Coverage target will not be available.")
         message(STATUS "Required tools: llvm-profdata, llvm-cov")
     endif()
+endif()
+
+# Install
+if(SLANG_RHI_INSTALL)
+    install(
+        TARGETS slang-rhi
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+    install(
+        DIRECTORY include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(
+        FILES ${CMAKE_CURRENT_BINARY_DIR}/include/slang-rhi-config.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
 endif()
