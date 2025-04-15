@@ -44,6 +44,7 @@ option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
+option(SLANG_RHI_INSTALL "Install library" ON)
 
 # Configure coverage flags
 if(SLANG_RHI_ENABLE_COVERAGE)
@@ -158,10 +159,9 @@ macro(copy_file IN_FILE OUT_DIR)
             list(APPEND SLANG_RHI_COPY_FILES ${OUT_FILE_1})
         endif()
 
-        install(
-            FILES ${IN_FILE}
-            DESTINATION ${CMAKE_INSTALL_BINDIR}/${OUT_DIR}
-        )
+        if(SLANG_RHI_INSTALL)
+            install(FILES ${IN_FILE} DESTINATION ${CMAKE_INSTALL_BINDIR}/${OUT_DIR})
+        endif()
     endif()
 endmacro()
 
@@ -826,21 +826,19 @@ if(SLANG_RHI_ENABLE_COVERAGE)
 endif()
 
 # Install
-
-# Install binaries.
-install(
-    TARGETS slang-rhi
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-# Install header files.
-install(
-    DIRECTORY include/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING PATTERN "*.h"
-)
-install(
-    FILES ${CMAKE_CURRENT_BINARY_DIR}/include/slang-rhi-config.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+if(SLANG_RHI_INSTALL)
+    install(
+        TARGETS slang-rhi
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+    install(
+        DIRECTORY include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(
+        FILES ${CMAKE_CURRENT_BINARY_DIR}/include/slang-rhi-config.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+endif()
