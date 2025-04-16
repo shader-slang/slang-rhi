@@ -118,7 +118,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
         uint32_t layer,
-        uint32_t mipLevel,
+        uint32_t mip,
         ISlangBlob** outBlob,
         SubresourceLayout* outLayout
     ) override;

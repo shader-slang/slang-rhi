@@ -163,14 +163,14 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initRow
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
+        for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
         {
             SubresourceLayout layout;
-            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extent3D::kWholeTexture, initRowAlignment, &layout);
+            calcSubresourceRegionLayout(desc, mip, {0, 0, 0}, Extent3D::kWholeTexture, initRowAlignment, &layout);
 
             Subresource sr;
             sr.layer = layer;
-            sr.mipLevel = mipLevel;
+            sr.mip = mip;
             sr.layout = layout;
             sr.data = std::unique_ptr<uint8_t[]>(new uint8_t[sr.layout.sizeInBytes]);
 
@@ -189,10 +189,10 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initRow
                 memset(sr.data.get(), 0xcd, sr.layout.sizeInBytes);
                 break;
             case rhi::testing::TextureInitMode::MipLevel:
-                memset(sr.data.get(), mipLevel, sr.layout.sizeInBytes);
+                memset(sr.data.get(), mip, sr.layout.sizeInBytes);
                 break;
             case rhi::testing::TextureInitMode::Random:
-                std::mt19937 rng(initSeed + layer * desc.mipCount + mipLevel);
+                std::mt19937 rng(initSeed + layer * desc.mipCount + mip);
                 std::uniform_int_distribution<int> dist(0, 255);
                 for (size_t i = 0; i < sr.layout.sizeInBytes; ++i)
                     sr.data[i] = (uint8_t)dist(rng);
@@ -241,15 +241,15 @@ void TextureData::checkLayersEqual(
     const TextureDesc& otherDesc = texture->getDesc();
     CHECK_EQ(otherDesc.mipCount, desc.mipCount);
 
-    for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
+    for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
     {
         checkMipLevelsEqual(
             thisLayer,
-            mipLevel,
+            mip,
             thisOffset,
             texture,
             textureLayer,
-            mipLevel,
+            mip,
             textureOffset,
             textureExtent,
             compareOutsideRegion
@@ -593,13 +593,13 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
+        for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
         {
-            const Subresource& sr = getSubresource(layer, mipLevel);
+            const Subresource& sr = getSubresource(layer, mip);
 
             ComPtr<ISlangBlob> blob;
             Size rowPitch;
-            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
+            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mip, blob.writeRef(), &rowPitch)
             );
 
             const uint8_t* expectedSlice = sr.data.get();
@@ -647,16 +647,16 @@ void TextureData::clearFloat(const float clearValue[4]) const
 {
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
+        for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
         {
-            clearFloat(layer, mipLevel, clearValue);
+            clearFloat(layer, mip, clearValue);
         }
     }
 }
 
-void TextureData::clearFloat(uint32_t layer, uint32_t mipLevel, const float clearValue[4]) const
+void TextureData::clearFloat(uint32_t layer, uint32_t mip, const float clearValue[4]) const
 {
-    const Subresource& subresource = getSubresource(layer, mipLevel);
+    const Subresource& subresource = getSubresource(layer, mip);
     FormatConversionFuncs funcs = getFormatConversionFuncs(desc.format);
     SLANG_RHI_ASSERT(funcs.packFloatFunc);
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
@@ -680,16 +680,16 @@ void TextureData::clearUint(const uint32_t clearValue[4]) const
 {
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
+        for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
         {
-            clearUint(layer, mipLevel, clearValue);
+            clearUint(layer, mip, clearValue);
         }
     }
 }
 
-void TextureData::clearUint(uint32_t layer, uint32_t mipLevel, const uint32_t clearValue[4]) const
+void TextureData::clearUint(uint32_t layer, uint32_t mip, const uint32_t clearValue[4]) const
 {
-    const Subresource& subresource = getSubresource(layer, mipLevel);
+    const Subresource& subresource = getSubresource(layer, mip);
     FormatConversionFuncs funcs = getFormatConversionFuncs(desc.format);
     SLANG_RHI_ASSERT(funcs.packIntFunc);
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
@@ -716,11 +716,11 @@ void TextureData::clearSint(const int32_t clearValue[4]) const
     clearUint(clearValueUint);
 }
 
-void TextureData::clearSint(uint32_t layer, uint32_t mipLevel, const int32_t clearValue[4]) const
+void TextureData::clearSint(uint32_t layer, uint32_t mip, const int32_t clearValue[4]) const
 {
     uint32_t clearValueUint[4];
     truncateBySintFormat(desc.format, reinterpret_cast<const uint32_t*>(clearValue), clearValueUint);
-    clearUint(layer, mipLevel, clearValueUint);
+    clearUint(layer, mip, clearValueUint);
 }
 
 
@@ -909,7 +909,7 @@ void TextureTestOptions::processVariantArg(TTMip mip)
             if (is_set(mip, TTMip::On))
             {
                 for (auto& testTexture : variant.descriptors)
-                    testTexture.desc.mipCount = kAllMipLevels;
+                    testTexture.desc.mipCount = kAllMips;
                 next(state, variant);
             }
         }

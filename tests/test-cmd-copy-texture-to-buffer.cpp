@@ -16,7 +16,7 @@ Result getSizeAndMakeBuffer(TextureTestContext* c, uint64_t* outSize, IBuffer** 
     for (auto& subresource : c->getTextureData().subresources)
     {
         SubresourceLayout textureLayout;
-        SLANG_RETURN_ON_FAIL(c->getTexture()->getSubresourceLayout(subresource.mipLevel, &textureLayout));
+        SLANG_RETURN_ON_FAIL(c->getTexture()->getSubresourceLayout(subresource.mip, &textureLayout));
         totalSize += textureLayout.sizeInBytes;
     }
     *outSize = totalSize;
@@ -148,7 +148,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal 
             for (auto& subresource : data.subresources)
             {
                 SubresourceLayout textureLayout;
-                REQUIRE_CALL(c->getTexture()->getSubresourceLayout(subresource.mipLevel, &textureLayout));
+                REQUIRE_CALL(c->getTexture()->getSubresourceLayout(subresource.mip, &textureLayout));
 
                 textureLayout.rowPitch = math::calcAligned2(textureLayout.rowPitch, customAlignment);
                 textureLayout.slicePitch = textureLayout.rowPitch * textureLayout.rowCount;

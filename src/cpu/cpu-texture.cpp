@@ -173,24 +173,24 @@ Result TextureImpl::init(const SubresourceData* initData)
         int32_t subresourceCounter = 0;
         for (int32_t arrayElementIndex = 0; arrayElementIndex < effectiveArrayElementCount; ++arrayElementIndex)
         {
-            for (int32_t mipLevel = 0; mipLevel < m_desc.mipCount; ++mipLevel)
+            for (int32_t mip = 0; mip < m_desc.mipCount; ++mip)
             {
                 int32_t subresourceIndex = subresourceCounter++;
 
-                auto dstRowPitch = m_mipLevels[mipLevel].pitches[1];
-                auto dstLayerPitch = m_mipLevels[mipLevel].pitches[2];
-                auto dstArrayPitch = m_mipLevels[mipLevel].pitches[3];
+                auto dstRowPitch = m_mipLevels[mip].pitches[1];
+                auto dstLayerPitch = m_mipLevels[mip].pitches[2];
+                auto dstArrayPitch = m_mipLevels[mip].pitches[3];
 
-                auto textureRowSize = m_mipLevels[mipLevel].extents[0] * texelSize;
+                auto textureRowSize = m_mipLevels[mip].extents[0] * texelSize;
 
-                auto rowCount = m_mipLevels[mipLevel].extents[1];
-                auto depthLayerCount = m_mipLevels[mipLevel].extents[2];
+                auto rowCount = m_mipLevels[mip].extents[1];
+                auto depthLayerCount = m_mipLevels[mip].extents[2];
 
                 auto& srcImage = initData[subresourceIndex];
                 ptrdiff_t srcRowPitch = ptrdiff_t(srcImage.rowPitch);
                 ptrdiff_t srcLayerPitch = ptrdiff_t(srcImage.slicePitch);
 
-                char* dstLevel = (char*)textureData + m_mipLevels[mipLevel].offset;
+                char* dstLevel = (char*)textureData + m_mipLevels[mip].offset;
                 char* dstImage = dstLevel + dstArrayPitch * arrayElementIndex;
 
                 const char* srcLayer = (const char*)srcImage.data;
@@ -224,7 +224,7 @@ TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
 {
 }
 
-slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mipLevel)
+slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mip)
 {
     slang_prelude::TextureDimensions dimensions = {};
 
@@ -353,15 +353,15 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
     if (elementIndex < 0)
         elementIndex = 0;
 
-    int32_t mipLevel = 0;
+    int32_t mip = 0;
     if (!hasMipLevels)
-        mipLevel = texelCoords[coordIndex++];
-    if (mipLevel >= desc.mipCount)
-        mipLevel = desc.mipCount - 1;
-    if (mipLevel < 0)
-        mipLevel = 0;
+        mip = texelCoords[coordIndex++];
+    if (mip >= desc.mipCount)
+        mip = desc.mipCount - 1;
+    if (mip < 0)
+        mip = 0;
 
-    auto& mipLevelInfo = texture->m_mipLevels[mipLevel];
+    auto& mipLevelInfo = texture->m_mipLevels[mip];
 
     int64_t texelOffset = mipLevelInfo.offset;
     texelOffset += elementIndex * mipLevelInfo.pitches[3];
@@ -402,7 +402,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
 Result DeviceImpl::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     ISlangBlob** outBlob,
     SubresourceLayout* outLayout
 )
@@ -411,7 +411,7 @@ Result DeviceImpl::readTexture(
 
     // Calculate layout info.
     SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
 
     // Create blob for result.
     auto blob = OwnedBlob::create(layout.sizeInBytes);
@@ -422,7 +422,7 @@ Result DeviceImpl::readTexture(
 
     // Should be able to make assumption that subresource layout info
     // matches those stored in the mip. If they don't match, this is a bug.
-    TextureImpl::MipLevel mipLevelInfo = textureImpl->m_mipLevels[mipLevel];
+    TextureImpl::MipLevel mipLevelInfo = textureImpl->m_mipLevels[mip];
     SLANG_RHI_ASSERT(mipLevelInfo.extents[0] == layout.size.width);
     SLANG_RHI_ASSERT(mipLevelInfo.extents[1] == layout.size.height);
     SLANG_RHI_ASSERT(mipLevelInfo.extents[2] == layout.size.depth);

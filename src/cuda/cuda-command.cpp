@@ -158,13 +158,13 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
 
         for (uint32_t mipOffset = 0; mipOffset < srcSubresource.mipCount; mipOffset++)
         {
-            uint32_t srcMipLevel = srcSubresource.mipLevel + mipOffset;
-            uint32_t dstMipLevel = dstSubresource.mipLevel + mipOffset;
+            uint32_t srcMip = srcSubresource.mip + mipOffset;
+            uint32_t dstMip = dstSubresource.mip + mipOffset;
 
             // Calculate adjusted extents. Note it is required and enforced
             // by debug layer that if 'remaining texture' is used, src and
             // dst offsets are the same.
-            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
+            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMip);
             Extent3D adjustedExtent = extent;
             if (adjustedExtent.width == kRemainingTextureSize)
             {
@@ -188,11 +188,11 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
             // Get the appropriate mip level if using mipmapped arrays
             if (src->m_cudaMipMappedArray)
             {
-                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMipLevel));
+                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMip));
             }
             if (dst->m_cudaMipMappedArray)
             {
-                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, dstMipLevel));
+                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, dstMip));
             }
 
             CUDA_MEMCPY3D copyParam = {};
@@ -229,14 +229,14 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const uint64_t dstOffset = cmd.dstOffset;
     const Size dstRowPitch = cmd.dstRowPitch;
     uint32_t srcLayer = cmd.srcLayer;
-    uint32_t srcMipLevel = cmd.srcMipLevel;
+    uint32_t srcMip = cmd.srcMip;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extent3D& extent = cmd.extent;
 
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extent3D srcMipSize = calcMipSize(textureSize, srcMipLevel);
+    Extent3D srcMipSize = calcMipSize(textureSize, srcMip);
     Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
@@ -267,7 +267,7 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     // Get the appropriate mip level if using mipmapped arrays
     if (src->m_cudaMipMappedArray)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMipLevel));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, src->m_cudaMipMappedArray, srcMip));
     }
 
     CUDA_MEMCPY3D copyParam = {};
@@ -328,12 +328,12 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
         uint32_t layer = subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
-            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+            uint32_t mip = subresourceRange.mip + mipOffset;
 
             CUarray dstArray = dst->m_cudaArray;
             if (dst->m_cudaMipMappedArray)
             {
-                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, mipLevel));
+                SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, dst->m_cudaMipMappedArray, mip));
             }
 
             CUDA_MEMCPY3D copyParam = {};

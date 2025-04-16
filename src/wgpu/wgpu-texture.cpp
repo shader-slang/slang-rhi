@@ -111,7 +111,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SubresourceRange range;
         range.layer = 0;
         range.layerCount = desc.getLayerCount();
-        range.mipLevel = 0;
+        range.mip = 0;
         range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(
@@ -162,7 +162,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     viewDesc.format =
         translateTextureFormat(desc.format == Format::Undefined ? textureImpl->m_desc.format : desc.format);
     viewDesc.dimension = translateTextureViewDimension(textureImpl->m_desc.type, textureImpl->m_desc.arrayLength > 1);
-    viewDesc.baseMipLevel = view->m_desc.subresourceRange.mipLevel;
+    viewDesc.baseMipLevel = view->m_desc.subresourceRange.mip;
     viewDesc.mipLevelCount = view->m_desc.subresourceRange.mipCount;
     viewDesc.baseArrayLayer = view->m_desc.subresourceRange.layer;
     viewDesc.arrayLayerCount = view->m_desc.subresourceRange.layerCount;

@@ -188,8 +188,8 @@ CUtexObject TextureImpl::getTexObject(Format format, const SubresourceRange& ran
     viewDesc.width = m_desc.size.width;
     viewDesc.height = m_desc.size.height;
     viewDesc.depth = m_desc.size.depth;
-    viewDesc.firstMipmapLevel = range.mipLevel;
-    viewDesc.lastMipmapLevel = range.mipLevel + range.mipCount - 1;
+    viewDesc.firstMipmapLevel = range.mip;
+    viewDesc.lastMipmapLevel = range.mip + range.mipCount - 1;
     viewDesc.firstLayer = range.layer;
     viewDesc.lastLayer = range.layer + range.layerCount - 1;
 
@@ -210,7 +210,7 @@ CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
     CUarray array = m_cudaArray;
     if (!array)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&array, m_cudaMipMappedArray, range.mipLevel));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&array, m_cudaMipMappedArray, range.mip));
     }
 
     CUDA_RESOURCE_DESC resDesc = {};
@@ -395,16 +395,16 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
         for (uint32_t layer = 0; layer < layerCount; ++layer)
         {
-            for (uint32_t mipLevel = 0; mipLevel < mipCount; ++mipLevel)
+            for (uint32_t mip = 0; mip < mipCount; ++mip)
             {
                 const SubresourceData& subresourceData = initData[subresourceIndex++];
 
-                Extent3D mipSize = calcMipSize(desc.size, mipLevel);
+                Extent3D mipSize = calcMipSize(desc.size, mip);
 
                 CUarray dstArray = tex->m_cudaArray;
                 if (tex->m_cudaMipMappedArray)
                 {
-                    SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, tex->m_cudaMipMappedArray, mipLevel));
+                    SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, tex->m_cudaMipMappedArray, mip));
                 }
 
                 CUDA_MEMCPY3D copyParam = {};

@@ -659,14 +659,14 @@ struct SubresourceRange
     /// Use kAllLayers to use all remaining layers.
     uint32_t layerCount;
     /// First mip level to use.
-    uint32_t mipLevel;
+    uint32_t mip;
     /// Number of mip levels to use
-    /// Use kAllMipLevels to use all remaining mip levels.
+    /// Use kAllMips to use all remaining mip levels.
     uint32_t mipCount;
 
     bool operator==(const SubresourceRange& other) const
     {
-        return layer == other.layer && layerCount == other.layerCount && mipLevel == other.mipLevel &&
+        return layer == other.layer && layerCount == other.layerCount && mip == other.mip &&
                mipCount == other.mipCount;
     }
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }
@@ -790,8 +790,8 @@ struct SubresourceLayout
 };
 
 static const uint32_t kAllLayers = 0xffffffff;
-static const uint32_t kAllMipLevels = 0xffffffff;
-static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMipLevels};
+static const uint32_t kAllMips = 0xffffffff;
+static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
 
 struct TextureDesc
 {
@@ -805,7 +805,7 @@ struct TextureDesc
     /// Array length.
     uint32_t arrayLength = 1;
     /// Number of mip levels.
-    /// Set to kAllMipLevels to create all mip levels.
+    /// Set to kAllMips to create all mip levels.
     uint32_t mipCount = 1;
 
     /// The resources format.
@@ -867,12 +867,12 @@ public:
     /// Get layout of a subresource with given packing. If rowAlignment is kDefaultAlignment, uses the platform's
     /// minimal texture row alignment for buffer upload/download.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mipLevel, size_t rowAlignment, SubresourceLayout* outLayout) = 0;
+    getSubresourceLayout(uint32_t mip, size_t rowAlignment, SubresourceLayout* outLayout) = 0;
 
     /// Helper to get layout of a subresource with platform's minimal texture row alignment.
-    inline Result getSubresourceLayout(uint32_t mipLevel, SubresourceLayout* outLayout)
+    inline Result getSubresourceLayout(uint32_t mip, SubresourceLayout* outLayout)
     {
-        return getSubresourceLayout(mipLevel, kDefaultAlignment, outLayout);
+        return getSubresourceLayout(mip, kDefaultAlignment, outLayout);
     }
 };
 
@@ -2050,7 +2050,7 @@ public:
         Size dstRowPitch,
         ITexture* src,
         uint32_t srcLayer,
-        uint32_t srcMipLevel,
+        uint32_t srcMip,
         Offset3D srcOffset,
         Extent3D extent
     ) = 0;
@@ -2060,7 +2060,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL copyBufferToTexture(
         ITexture* dst,
         uint32_t dstLayer,
-        uint32_t dstMipLevel,
+        uint32_t dstMip,
         Offset3D dstOffset,
         IBuffer* src,
         Offset srcOffset,
@@ -2734,7 +2734,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
         uint32_t layer,
-        uint32_t mipLevel,
+        uint32_t mip,
         ISlangBlob** outBlob,
         SubresourceLayout* outLayout
     ) = 0;
@@ -2745,14 +2745,14 @@ public:
     inline SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
         uint32_t layer,
-        uint32_t mipLevel,
+        uint32_t mip,
         ISlangBlob** outBlob,
         Size* outRowPitch,
         Size* outPixelSize = nullptr
     )
     {
         SubresourceLayout layout;
-        SLANG_RETURN_ON_FAIL(readTexture(texture, layer, mipLevel, outBlob, &layout));
+        SLANG_RETURN_ON_FAIL(readTexture(texture, layer, mip, outBlob, &layout));
         if (outRowPitch)
             *outRowPitch = layout.rowPitch;
         if (outPixelSize)

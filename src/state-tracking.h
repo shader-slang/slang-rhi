@@ -29,7 +29,7 @@ struct TextureBarrier
 {
     Texture* texture;
     bool entireTexture;
-    uint32_t mipLevel;
+    uint32_t mip;
     uint32_t arrayLayer;
     ResourceState stateBefore;
     ResourceState stateAfter;
@@ -86,18 +86,18 @@ public:
             uint32_t layerCount = texture->m_desc.getLayerCount();
             for (uint32_t layer = subresourceRange.layer; layer < layerCount; layer++)
             {
-                for (uint32_t mipLevel = subresourceRange.mipLevel;
-                     mipLevel < subresourceRange.mipLevel + subresourceRange.mipCount;
-                     mipLevel++)
+                for (uint32_t mip = subresourceRange.mip;
+                     mip < subresourceRange.mip + subresourceRange.mipCount;
+                     mip++)
                 {
-                    uint32_t subresourceIndex = layer * texture->m_desc.mipCount + mipLevel;
+                    uint32_t subresourceIndex = layer * texture->m_desc.mipCount + mip;
                     if (state != textureState->subresourceStates[subresourceIndex] ||
                         state == ResourceState::UnorderedAccess)
                     {
                         m_textureBarriers.push_back({
                             texture,
                             false,
-                            mipLevel,
+                            mip,
                             layer,
                             textureState->subresourceStates[subresourceIndex],
                             state,

@@ -105,7 +105,7 @@ struct SubResourceLayout
 // a texture description given a minimum row alignment.
 Result calcSubresourceRegionLayout(
     const TextureDesc& desc,
-    uint32_t mipLevel,
+    uint32_t mip,
     Offset3D offset,
     Extent3D extent,
     Size rowAlignment,
@@ -133,7 +133,7 @@ public:
     // of this texture. Supply offset==0 and extent==kRemainingTextureSize to indicate whole sub resource.
     // If rowAlignment is kDefaultAlignment, implementation uses Device::getTextureRowAlignment for alignment.
     virtual Result getSubresourceRegionLayout(
-        uint32_t mipLevel,
+        uint32_t mip,
         Offset3D offset,
         Extent3D extent,
         size_t rowAlignment,
@@ -148,9 +148,9 @@ public:
     createView(const TextureViewDesc& desc, ITextureView** outTextureView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mipLevel, size_t rowAlignment, SubresourceLayout* outLayout) override
+    getSubresourceLayout(uint32_t mip, size_t rowAlignment, SubresourceLayout* outLayout) override
     {
-        return getSubresourceRegionLayout(mipLevel, {0, 0, 0}, Extent3D::kWholeTexture, rowAlignment, outLayout);
+        return getSubresourceRegionLayout(mip, {0, 0, 0}, Extent3D::kWholeTexture, rowAlignment, outLayout);
     }
 
 public:

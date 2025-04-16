@@ -132,15 +132,15 @@ void ClearEngine::clearTexture(
     {
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; ++layerOffset)
         {
-            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+            uint32_t mip = subresourceRange.mip + mipOffset;
             uint32_t layer = subresourceRange.layer + layerOffset;
-            Extent3D mipSize = calcMipSize(texture->m_desc.size, mipLevel);
+            Extent3D mipSize = calcMipSize(texture->m_desc.size, mip);
             Params params = {};
             params.width = mipSize.width;
             params.height = mipSize.height;
             params.depth = mipSize.depth;
             params.layer = layer;
-            params.mipLevel = mipLevel;
+            params.mip = mip;
             encoder->setBytes(&params, sizeof(params), 0);
 
             MTL::Size threadGroups = MTL::Size{

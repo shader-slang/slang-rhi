@@ -15,12 +15,12 @@ void testTextureLayout(
     IDevice* device,
     ComPtr<ITexture> texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     SubresourceLayout expectedLayout
 )
 {
     SubresourceLayout layout;
-    REQUIRE_CALL(texture->getSubresourceLayout(mipLevel, &layout));
+    REQUIRE_CALL(texture->getSubresourceLayout(mip, &layout));
 
     CHECK_EQ(layout.size.width, expectedLayout.size.width);
     CHECK_EQ(layout.size.height, expectedLayout.size.height);
@@ -35,7 +35,7 @@ void testTextureLayout2(
     IDevice* device,
     ComPtr<ITexture> texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     Offset3D offset,
     Extent3D extent,
     SubresourceLayout expectedLayout
@@ -43,7 +43,7 @@ void testTextureLayout2(
 {
     SubresourceLayout layout;
     REQUIRE_CALL(
-        ((Texture*)texture.get())->getSubresourceRegionLayout(mipLevel, offset, extent, kDefaultAlignment, &layout)
+        ((Texture*)texture.get())->getSubresourceRegionLayout(mip, offset, extent, kDefaultAlignment, &layout)
     );
 
     CHECK_EQ(layout.size.width, expectedLayout.size.width);
@@ -99,7 +99,7 @@ GPU_TEST_CASE("texture-layout-1d-mips", ALL_TEX & ~WGPU & ~Metal)
     desc.type = TextureType::Texture1D;
     desc.size = {256, 1, 1};
     desc.format = Format::RGBA8Uint;
-    desc.mipCount = kAllMipLevels;
+    desc.mipCount = kAllMips;
     desc.arrayLength = 1;
     desc.usage = TextureUsage::ShaderResource;
 
@@ -179,7 +179,7 @@ GPU_TEST_CASE("texture-layout-1darray-mips", ALL_TEX & ~CUDA & ~WGPU & ~Metal)
     desc.type = TextureType::Texture1DArray;
     desc.size = {256, 1, 1};
     desc.format = Format::RGBA8Uint;
-    desc.mipCount = kAllMipLevels;
+    desc.mipCount = kAllMips;
     desc.arrayLength = 4;
     desc.usage = TextureUsage::ShaderResource;
 
@@ -233,7 +233,7 @@ GPU_TEST_CASE("texture-layout-2d-mip", ALL_TEX)
     desc.type = TextureType::Texture2D;
     desc.size = {256, 32, 1};
     desc.format = Format::RGBA8Uint;
-    desc.mipCount = kAllMipLevels;
+    desc.mipCount = kAllMips;
     desc.arrayLength = 1;
     desc.usage = TextureUsage::ShaderResource;
 
@@ -269,7 +269,7 @@ GPU_TEST_CASE("texture-layout-2d-array-mips", ALL_TEX & ~CUDA)
     desc.type = TextureType::Texture2DArray;
     desc.size = {256, 32, 1};
     desc.format = Format::RGBA8Uint;
-    desc.mipCount = kAllMipLevels;
+    desc.mipCount = kAllMips;
     desc.arrayLength = 4;
     desc.usage = TextureUsage::ShaderResource;
 
@@ -324,7 +324,7 @@ GPU_TEST_CASE("texture-layout-3d-mip", ALL_TEX)
     desc.type = TextureType::Texture3D;
     desc.size = {256, 32, 16};
     desc.format = Format::RGBA8Uint;
-    desc.mipCount = kAllMipLevels;
+    desc.mipCount = kAllMips;
     desc.arrayLength = 1;
     desc.usage = TextureUsage::ShaderResource;
 
@@ -359,7 +359,7 @@ GPU_TEST_CASE("texture-layout-cube-mip", ALL_TEX)
     desc.type = TextureType::TextureCube;
     desc.size = {256, 256, 1};
     desc.format = Format::RGBA8Uint;
-    desc.mipCount = kAllMipLevels;
+    desc.mipCount = kAllMips;
     desc.arrayLength = 1;
     desc.usage = TextureUsage::ShaderResource;
 
@@ -395,7 +395,7 @@ GPU_TEST_CASE("texture-layout-cube-array-mips", ALL_TEX & ~CUDA)
     desc.type = TextureType::TextureCubeArray;
     desc.size = {256, 256, 1};
     desc.format = Format::RGBA8Uint;
-    desc.mipCount = kAllMipLevels;
+    desc.mipCount = kAllMips;
     desc.arrayLength = 4;
     desc.usage = TextureUsage::ShaderResource;
 

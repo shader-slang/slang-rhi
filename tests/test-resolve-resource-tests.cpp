@@ -240,13 +240,13 @@ struct ResolveResourceSimple : BaseResolveResourceTest
         SubresourceRange msaaSubresource = {};
         msaaSubresource.layer = 0;
         msaaSubresource.layerCount = 1;
-        msaaSubresource.mipLevel = 0;
+        msaaSubresource.mip = 0;
         msaaSubresource.mipCount = 1;
 
         SubresourceRange dstSubresource = {};
         dstSubresource.layer = 0;
         dstSubresource.layerCount = 1;
-        dstSubresource.mipLevel = 0;
+        dstSubresource.mip = 0;
         dstSubresource.mipCount = 1;
 
         submitGPUWork(msaaSubresource, dstSubresource, extent);

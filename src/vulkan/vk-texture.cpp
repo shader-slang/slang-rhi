@@ -148,7 +148,7 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     createInfo.subresourceRange.aspectMask = getAspectMaskFromFormat(m_vkformat, aspect);
 
     createInfo.subresourceRange.baseArrayLayer = range.layer;
-    createInfo.subresourceRange.baseMipLevel = range.mipLevel;
+    createInfo.subresourceRange.baseMipLevel = range.mip;
     createInfo.subresourceRange.layerCount = range.layerCount;
     createInfo.subresourceRange.levelCount = range.mipCount;
 
@@ -310,7 +310,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SubresourceRange range;
         range.layer = 0;
         range.layerCount = layerCount;
-        range.mipLevel = 0;
+        range.mip = 0;
         range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(

@@ -21,7 +21,7 @@ struct ValidationTextureFormatBase : RefObject
         uint32_t x,
         uint32_t y,
         uint32_t z,
-        uint32_t mipLevel,
+        uint32_t mip,
         uint32_t arrayLayer
     ) = 0;
 };
@@ -50,7 +50,7 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
         uint32_t x,
         uint32_t y,
         uint32_t z,
-        uint32_t mipLevel,
+        uint32_t mip,
         uint32_t arrayLayer
     ) override
     {
@@ -59,14 +59,14 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
         switch (componentCount)
         {
         case 1:
-            temp[0] = T(x + y + z + mipLevel + arrayLayer);
+            temp[0] = T(x + y + z + mip + arrayLayer);
             break;
         case 2:
             temp[0] = T(x + z + arrayLayer);
-            temp[1] = T(y + mipLevel);
+            temp[1] = T(y + mip);
             break;
         case 3:
-            temp[0] = T(x + mipLevel);
+            temp[0] = T(x + mip);
             temp[1] = T(y + arrayLayer);
             temp[2] = T(z);
             break;
@@ -74,7 +74,7 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
             temp[0] = T(x + arrayLayer);
             temp[1] = (T)y;
             temp[2] = (T)z;
-            temp[3] = (T)mipLevel;
+            temp[3] = (T)mip;
             break;
         default:
             MESSAGE("component count should be no greater than 4");
@@ -115,7 +115,7 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
         uint32_t x,
         uint32_t y,
         uint32_t z,
-        uint32_t mipLevel,
+        uint32_t mip,
         uint32_t arrayLayer
     ) override
     {
@@ -128,11 +128,11 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
             temp <<= gBits;
             temp |= (y + arrayLayer);
             temp <<= rBits;
-            temp |= (x + mipLevel);
+            temp |= (x + mip);
         }
         else
         {
-            temp |= mipLevel;
+            temp |= mip;
             temp <<= bBits;
             temp |= z;
             temp <<= gBits;

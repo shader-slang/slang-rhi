@@ -9,7 +9,7 @@ struct Params
     uint height;
     uint depth;
     uint layer;
-    uint mipLevel;
+    uint mip;
 };
 
 #define DEFINE_CLEAR_TEXTURE1D(T)                                                                                      \
@@ -22,7 +22,7 @@ struct Params
     {                                                                                                                  \
         if (gid < params.width)                                                                                        \
         {                                                                                                              \
-            texture.write(value, gid /*, params.mipLevel*/);                                                           \
+            texture.write(value, gid /*, params.mip*/);                                                           \
         }                                                                                                              \
     }
 
@@ -36,7 +36,7 @@ struct Params
     {                                                                                                                  \
         if (gid < params.width)                                                                                        \
         {                                                                                                              \
-            texture.write(value, gid, params.layer /*, params.mipLevel*/);                                             \
+            texture.write(value, gid, params.layer /*, params.mip*/);                                             \
         }                                                                                                              \
     }
 
@@ -50,7 +50,7 @@ struct Params
     {                                                                                                                  \
         if (gid.x < params.width && gid.y < params.height)                                                             \
         {                                                                                                              \
-            texture.write(value, gid, params.mipLevel);                                                                \
+            texture.write(value, gid, params.mip);                                                                \
         }                                                                                                              \
     }
 
@@ -64,7 +64,7 @@ struct Params
     {                                                                                                                  \
         if (gid.x < params.width && gid.y < params.height)                                                             \
         {                                                                                                              \
-            texture.write(value, gid, params.layer, params.mipLevel);                                                  \
+            texture.write(value, gid, params.layer, params.mip);                                                  \
         }                                                                                                              \
     }
 
@@ -78,7 +78,7 @@ struct Params
     {                                                                                                                  \
         if (gid.x < params.width && gid.y < params.height && gid.z < params.depth)                                     \
         {                                                                                                              \
-            texture.write(value, gid, params.mipLevel);                                                                \
+            texture.write(value, gid, params.mip);                                                                \
         }                                                                                                              \
     }
 
@@ -92,7 +92,7 @@ struct Params
     {                                                                                                                  \
         if (gid.x < params.width && gid.y < params.height)                                                             \
         {                                                                                                              \
-            texture.write(value, gid, params.layer, params.mipLevel);                                                  \
+            texture.write(value, gid, params.layer, params.mip);                                                  \
         }                                                                                                              \
     }
 
@@ -106,7 +106,7 @@ struct Params
     {                                                                                                                  \
         if (gid.x < params.width && gid.y < params.height)                                                             \
         {                                                                                                              \
-            texture.write(value, gid, params.layer % 6, params.layer / 6, params.mipLevel);                            \
+            texture.write(value, gid, params.layer % 6, params.layer / 6, params.mip);                            \
         }                                                                                                              \
     }
 

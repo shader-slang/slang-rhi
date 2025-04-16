@@ -28,7 +28,7 @@ VkAttachmentLoadOp translateLoadOp(LoadOp loadOp);
 VkAttachmentStoreOp translateStoreOp(StoreOp storeOp);
 VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags flags);
 
-uint32_t getMipLevelSize(uint32_t mipLevel, uint32_t size);
+uint32_t getMipLevelSize(uint32_t mip, uint32_t size);
 VkImageLayout translateImageLayout(ResourceState state);
 
 VkAccessFlagBits calcAccessFlags(ResourceState state);

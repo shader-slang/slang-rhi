@@ -179,12 +179,12 @@ void ClearEngine::clearTexture(
 
     for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; ++mipOffset)
     {
-        uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
-        Extent3D mipSize = calcMipSize(texture->m_desc.size, mipLevel);
+        uint32_t mip = subresourceRange.mip + mipOffset;
+        Extent3D mipSize = calcMipSize(texture->m_desc.size, mip);
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; ++layerOffset)
         {
             uint32_t layer = subresourceRange.layer + layerOffset;
-            SubresourceRange sr = {layer, 1, mipLevel, 1};
+            SubresourceRange sr = {layer, 1, mip, 1};
             CUsurfObject surface = texture->getSurfObject(sr);
             uint32_t sizeAndLayer[4] = {mipSize.width, mipSize.height, mipSize.depth, layer};
             launch(stream, function, blockDim, surface, sizeAndLayer, reinterpret_cast<const uint32_t*>(clearValue));

@@ -1055,7 +1055,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SubresourceRange range;
         range.layer = 0;
         range.layerCount = desc.getLayerCount();
-        range.mipLevel = 0;
+        range.mip = 0;
         range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(

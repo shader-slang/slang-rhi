@@ -12,12 +12,12 @@ inline uint32_t calcMipSize(uint32_t size, uint32_t level)
     return size > 0 ? size : 1;
 }
 
-inline Extent3D calcMipSize(Extent3D size, uint32_t mipLevel)
+inline Extent3D calcMipSize(Extent3D size, uint32_t mip)
 {
     Extent3D rs;
-    rs.width = calcMipSize(size.width, mipLevel);
-    rs.height = calcMipSize(size.height, mipLevel);
-    rs.depth = calcMipSize(size.depth, mipLevel);
+    rs.width = calcMipSize(size.width, mip);
+    rs.height = calcMipSize(size.height, mip);
+    rs.depth = calcMipSize(size.depth, mip);
     return rs;
 }
 

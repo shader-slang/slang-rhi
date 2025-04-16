@@ -46,7 +46,7 @@ private:
         uint32_t height;
         uint32_t depth;
         uint32_t layer;
-        uint32_t mipLevel;
+        uint32_t mip;
     };
 
     static constexpr size_t kTextureTypeCount = size_t(TextureType::TextureCubeArray) + 1;

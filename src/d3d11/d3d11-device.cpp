@@ -362,7 +362,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 Result DeviceImpl::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     ISlangBlob** outBlob,
     SubresourceLayout* outLayout
 )
@@ -385,10 +385,10 @@ Result DeviceImpl::readTexture(
 
     // Calculate layout info.
     SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
 
     TextureImpl* stagingTextureImpl = nullptr;
-    uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipCount);
+    uint32_t subResourceIdx = D3D11CalcSubresource(mip, layer, desc.mipCount);
     if (desc.memoryType == MemoryType::ReadBack)
     {
         // The texture is already a staging texture, so we can just use it directly.

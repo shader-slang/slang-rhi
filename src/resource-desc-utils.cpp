@@ -69,7 +69,7 @@ TextureDesc fixupTextureDesc(const TextureDesc& desc)
 {
     TextureDesc result = desc;
 
-    if (desc.mipCount == kAllMipLevels)
+    if (desc.mipCount == kAllMips)
         result.mipCount = calcMipLevelCount(desc.type, desc.size);
     if (desc.defaultState == ResourceState::Undefined)
         result.defaultState = determineDefaultResourceState(desc.usage);

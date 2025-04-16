@@ -140,7 +140,7 @@ public:
     // ITexture interface
     //
 
-    slang_prelude::TextureDimensions GetDimensions(int mipLevel = -1) override;
+    slang_prelude::TextureDimensions GetDimensions(int mip = -1) override;
 
     void Load(const int32_t* texelCoords, void* outData, size_t dataSize) override;
 

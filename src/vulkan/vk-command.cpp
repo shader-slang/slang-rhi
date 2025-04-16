@@ -239,13 +239,13 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     {
         for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipCount; mipOffset++)
         {
-            uint32_t srcMipLevel = srcSubresource.mipLevel + mipOffset;
-            uint32_t dstMipLevel = dstSubresource.mipLevel + mipOffset;
+            uint32_t srcMip = srcSubresource.mip + mipOffset;
+            uint32_t dstMip = dstSubresource.mip + mipOffset;
 
             // Calculate adjusted extents. Note it is required and enforced
             // by debug layer that if 'remaining texture' is used, src and
             // dst offsets are the same.
-            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
+            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMip);
             Extent3D adjustedExtent = extent;
             if (adjustedExtent.width == kRemainingTextureSize)
             {
@@ -269,12 +269,12 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             VkImageCopy region = {};
             region.srcSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
             region.srcSubresource.baseArrayLayer = srcSubresource.layer + layer;
-            region.srcSubresource.mipLevel = srcMipLevel;
+            region.srcSubresource.mipLevel = srcMip;
             region.srcSubresource.layerCount = 1;
             region.srcOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
             region.dstSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, dst->m_vkformat);
             region.dstSubresource.baseArrayLayer = dstSubresource.layer + layer;
-            region.dstSubresource.mipLevel = dstMipLevel;
+            region.dstSubresource.mipLevel = dstMip;
             region.dstSubresource.layerCount = 1;
             region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
             region.extent = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
@@ -296,19 +296,19 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const uint64_t dstOffset = cmd.dstOffset;
     const Size dstRowPitch = cmd.dstRowPitch;
     uint32_t srcLayer = cmd.srcLayer;
-    uint32_t srcMipLevel = cmd.srcMipLevel;
+    uint32_t srcMip = cmd.srcMip;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extent3D& extent = cmd.extent;
 
     // Switch texture to copy src and buffer to copy dest.
     requireBufferState(dst, ResourceState::CopyDestination);
-    requireTextureState(src, {srcLayer, 1, srcMipLevel, 1}, ResourceState::CopySource);
+    requireTextureState(src, {srcLayer, 1, srcMip, 1}, ResourceState::CopySource);
     commitBarriers();
 
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extent3D srcMipSize = calcMipSize(textureSize, srcMipLevel);
+    Extent3D srcMipSize = calcMipSize(textureSize, srcMip);
     Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
@@ -341,7 +341,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     region.bufferRowLength = rowLengthInTexels;
     region.bufferImageHeight = 0;
     region.imageSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
-    region.imageSubresource.mipLevel = srcMipLevel;
+    region.imageSubresource.mipLevel = srcMip;
     region.imageSubresource.baseArrayLayer = srcLayer;
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
@@ -388,7 +388,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
 
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
+    subresourceRange.baseMipLevel = cmd.subresourceRange.mip;
     subresourceRange.levelCount = cmd.subresourceRange.mipCount;
     subresourceRange.baseArrayLayer = cmd.subresourceRange.layer;
     subresourceRange.layerCount = cmd.subresourceRange.layerCount;
@@ -415,7 +415,7 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
+    subresourceRange.baseMipLevel = cmd.subresourceRange.mip;
     subresourceRange.levelCount = cmd.subresourceRange.mipCount;
     subresourceRange.baseArrayLayer = cmd.subresourceRange.layer;
     subresourceRange.layerCount = cmd.subresourceRange.layerCount;
@@ -443,7 +443,7 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
 
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = 0;
-    subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
+    subresourceRange.baseMipLevel = cmd.subresourceRange.mip;
     subresourceRange.levelCount = cmd.subresourceRange.mipCount;
     subresourceRange.baseArrayLayer = cmd.subresourceRange.layer;
     subresourceRange.layerCount = cmd.subresourceRange.layerCount;
@@ -486,7 +486,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
         uint32_t layer = subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
-            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+            uint32_t mip = subresourceRange.mip + mipOffset;
 
             // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkBufferImageCopy.html
             // bufferRowLength and bufferImageHeight specify the data in buffer
@@ -506,7 +506,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             region.bufferImageHeight = 0;
 
             region.imageSubresource.aspectMask = getAspectMaskFromFormat(dst->m_vkformat);
-            region.imageSubresource.mipLevel = mipLevel;
+            region.imageSubresource.mipLevel = mip;
             region.imageSubresource.baseArrayLayer = layer;
             region.imageSubresource.layerCount = 1;
             region.imageOffset = {int32_t(cmd.offset.x), int32_t(cmd.offset.y), int32_t(cmd.offset.z)};
@@ -587,8 +587,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         // Determine render area
         const TextureViewDesc& viewDesc = view->m_desc;
         const TextureDesc& textureDesc = view->m_texture->m_desc;
-        uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.width);
-        uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.height);
+        uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mip, textureDesc.size.width);
+        uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mip, textureDesc.size.height);
         renderArea.extent.width = min(renderArea.extent.width, width);
         renderArea.extent.height = min(renderArea.extent.height, height);
         uint32_t attachmentLayerCount = (textureDesc.type == TextureType::Texture3D)
@@ -633,8 +633,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         // Determine render area
         const TextureViewDesc& viewDesc = view->m_desc;
         const TextureDesc& textureDesc = view->m_texture->m_desc;
-        uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.width);
-        uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mipLevel, textureDesc.size.height);
+        uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mip, textureDesc.size.width);
+        uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mip, textureDesc.size.height);
         renderArea.extent.width = min(renderArea.extent.width, width);
         renderArea.extent.height = min(renderArea.extent.height, height);
 
@@ -1434,7 +1434,7 @@ void CommandRecorder::commitBarriers()
         barrier.newLayout = translateImageLayout(textureBarrier.stateAfter);
         barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(texture->m_desc.format));
         barrier.subresourceRange.baseArrayLayer = textureBarrier.entireTexture ? 0 : textureBarrier.arrayLayer;
-        barrier.subresourceRange.baseMipLevel = textureBarrier.entireTexture ? 0 : textureBarrier.mipLevel;
+        barrier.subresourceRange.baseMipLevel = textureBarrier.entireTexture ? 0 : textureBarrier.mip;
         barrier.subresourceRange.layerCount = textureBarrier.entireTexture ? VK_REMAINING_ARRAY_LAYERS : 1;
         barrier.subresourceRange.levelCount = textureBarrier.entireTexture ? VK_REMAINING_MIP_LEVELS : 1;
         barrier.srcAccessMask = calcAccessFlags(textureBarrier.stateBefore);

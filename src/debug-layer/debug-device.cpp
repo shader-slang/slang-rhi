@@ -515,7 +515,7 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
 Result DebugDevice::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     ISlangBlob** outBlob,
     SubresourceLayout* outLayout
 )
@@ -527,7 +527,7 @@ Result DebugDevice::readTexture(
         RHI_VALIDATION_ERROR("Layer index out of bounds");
         return SLANG_E_INVALID_ARG;
     }
-    if (mipLevel > desc.mipCount)
+    if (mip > desc.mipCount)
     {
         RHI_VALIDATION_ERROR("Mip level out of bounds");
         return SLANG_E_INVALID_ARG;
@@ -543,7 +543,7 @@ Result DebugDevice::readTexture(
         break;
     }
 
-    return baseObject->readTexture(texture, layer, mipLevel, outBlob, outLayout);
+    return baseObject->readTexture(texture, layer, mip, outBlob, outLayout);
 }
 
 Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)

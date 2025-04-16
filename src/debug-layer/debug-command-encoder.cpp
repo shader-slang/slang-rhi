@@ -344,7 +344,7 @@ void DebugCommandEncoder::copyTexture(
         RHI_VALIDATION_ERROR("Src layer is out of bounds.");
         return;
     }
-    if (srcSubresource.mipLevel > srcDesc.mipCount)
+    if (srcSubresource.mip > srcDesc.mipCount)
     {
         RHI_VALIDATION_ERROR("Src mip level is out of bounds.");
         return;
@@ -356,7 +356,7 @@ void DebugCommandEncoder::copyTexture(
         RHI_VALIDATION_ERROR("Dest layer is out of bounds.");
         return;
     }
-    if (dstSubresource.mipLevel > dstDesc.mipCount)
+    if (dstSubresource.mip > dstDesc.mipCount)
     {
         RHI_VALIDATION_ERROR("Dest mip level is out of bounds.");
         return;
@@ -592,7 +592,7 @@ void DebugCommandEncoder::copyTextureToBuffer(
     Size dstRowPitch,
     ITexture* src,
     uint32_t srcLayer,
-    uint32_t srcMipLevel,
+    uint32_t srcMip,
     Offset3D srcOffset,
     Extent3D extent
 )
@@ -608,20 +608,20 @@ void DebugCommandEncoder::copyTextureToBuffer(
         RHI_VALIDATION_ERROR("The base array layer is out of bounds.");
         return;
     }
-    if (srcMipLevel >= desc.mipCount)
+    if (srcMip >= desc.mipCount)
     {
         RHI_VALIDATION_ERROR("Mip level is out of bounds.");
         return;
     }
 
     baseObject
-        ->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, srcLayer, srcMipLevel, srcOffset, extent);
+        ->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, srcLayer, srcMip, srcOffset, extent);
 }
 
 void DebugCommandEncoder::copyBufferToTexture(
     ITexture* dst,
     uint32_t dstLayer,
-    uint32_t dstMipLevel,
+    uint32_t dstMip,
     Offset3D dstOffset,
     IBuffer* src,
     Offset srcOffset,
@@ -641,14 +641,14 @@ void DebugCommandEncoder::copyBufferToTexture(
         RHI_VALIDATION_ERROR("The base array layer is out of bounds.");
         return;
     }
-    if (dstMipLevel >= desc.mipCount)
+    if (dstMip >= desc.mipCount)
     {
         RHI_VALIDATION_ERROR("Mip level is out of bounds.");
         return;
     }
 
     baseObject
-        ->copyBufferToTexture(dst, dstLayer, dstMipLevel, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
+        ->copyBufferToTexture(dst, dstLayer, dstMip, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
 }
 
 void DebugCommandEncoder::buildAccelerationStructure(

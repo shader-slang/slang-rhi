@@ -180,12 +180,12 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             encoder->copyFromTexture(
                 src->m_texture.get(),
                 srcSubresource.layer + layer,
-                srcSubresource.mipLevel,
+                srcSubresource.mip,
                 MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
                 MTL::Size(extent.width, extent.height, extent.depth),
                 dst->m_texture.get(),
                 dstSubresource.layer + layer,
-                dstSubresource.mipLevel,
+                dstSubresource.mip,
                 MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
             );
         }
@@ -203,7 +203,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extent3D srcMipSize = calcMipSize(src->m_desc.size, cmd.srcMipLevel);
+    Extent3D srcMipSize = calcMipSize(src->m_desc.size, cmd.srcMip);
     Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
@@ -225,7 +225,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     encoder->copyFromTexture(
         src->m_texture.get(),
         cmd.srcLayer,
-        cmd.srcMipLevel,
+        cmd.srcMip,
         MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
         MTL::Size(adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth),
         dst->m_buffer.get(),
@@ -294,22 +294,22 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
         uint32_t layerIndex = cmd.subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; mipOffset++)
         {
-            uint32_t mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
+            uint32_t mip = cmd.subresourceRange.mip + mipOffset;
 
             // Set the level and slice for this iteration
             if (MetalUtil::isDepthFormat(texture->m_pixelFormat) && cmd.clearDepth)
             {
-                renderPassDesc->depthAttachment()->setLevel(mipLevel);
+                renderPassDesc->depthAttachment()->setLevel(mip);
                 renderPassDesc->depthAttachment()->setSlice(layerIndex);
             }
             if (MetalUtil::isStencilFormat(texture->m_pixelFormat) && cmd.clearStencil)
             {
-                renderPassDesc->stencilAttachment()->setLevel(mipLevel);
+                renderPassDesc->stencilAttachment()->setLevel(mip);
                 renderPassDesc->stencilAttachment()->setSlice(layerIndex);
             }
 
             // Set render target size for this mip level
-            Extent3D mipSize = calcMipSize(desc.size, mipLevel);
+            Extent3D mipSize = calcMipSize(desc.size, mip);
             renderPassDesc->setRenderTargetWidth(mipSize.width);
             renderPassDesc->setRenderTargetHeight(mipSize.height);
 
@@ -335,7 +335,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
         uint32_t layer = subresourceRange.layer + layerOffset;
         for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
-            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+            uint32_t mip = subresourceRange.mip + mipOffset;
 
             encoder->copyFromBuffer(
                 buffer->m_buffer.get(),
@@ -345,7 +345,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
                 MTL::Size(srLayout->size.width, srLayout->size.height, srLayout->size.depth),
                 dst->m_texture.get(),
                 layer,
-                mipLevel,
+                mip,
                 MTL::Origin(cmd.offset.x, cmd.offset.y, cmd.offset.z)
             );
 
@@ -380,8 +380,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     {
         const TextureDesc& textureDesc = view->m_texture->m_desc;
         const TextureViewDesc& viewDesc = view->m_desc;
-        width = max(1u, uint32_t(textureDesc.size.width >> viewDesc.subresourceRange.mipLevel));
-        height = max(1u, uint32_t(textureDesc.size.height >> viewDesc.subresourceRange.mipLevel));
+        width = max(1u, uint32_t(textureDesc.size.width >> viewDesc.subresourceRange.mip));
+        height = max(1u, uint32_t(textureDesc.size.height >> viewDesc.subresourceRange.mip));
     };
 
     // Initialize render pass descriptor.
@@ -417,7 +417,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             attachment.resolveTarget ? checked_cast<TextureViewImpl*>(attachment.resolveTarget)->m_textureView.get()
                                      : nullptr
         );
-        colorAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+        colorAttachment->setLevel(view->m_desc.subresourceRange.mip);
         colorAttachment->setSlice(view->m_desc.subresourceRange.layer);
     }
 
@@ -441,7 +441,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
                 depthAttachment->setClearDepth(attachment.depthClearValue);
             }
             depthAttachment->setTexture(view->m_textureView.get());
-            depthAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+            depthAttachment->setLevel(view->m_desc.subresourceRange.mip);
             depthAttachment->setSlice(view->m_desc.subresourceRange.layer);
         }
         if (MetalUtil::isStencilFormat(pixelFormat))
@@ -454,7 +454,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
                 stencilAttachment->setClearStencil(attachment.stencilClearValue);
             }
             stencilAttachment->setTexture(view->m_textureView.get());
-            stencilAttachment->setLevel(view->m_desc.subresourceRange.mipLevel);
+            stencilAttachment->setLevel(view->m_desc.subresourceRange.mip);
             stencilAttachment->setSlice(view->m_desc.subresourceRange.layer);
         }
     }

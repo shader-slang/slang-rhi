@@ -568,7 +568,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 Result DeviceImpl::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     ISlangBlob** outBlob,
     SubresourceLayout* outLayout
 )
@@ -579,14 +579,14 @@ Result DeviceImpl::readTexture(
 
     // Calculate layout info.
     SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
 
     auto blob = OwnedBlob::create(layout.sizeInBytes);
 
     CUarray srcArray = textureImpl->m_cudaArray;
     if (textureImpl->m_cudaMipMappedArray)
     {
-        SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, textureImpl->m_cudaMipMappedArray, mipLevel));
+        SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, textureImpl->m_cudaMipMappedArray, mip));
     }
 
     CUDA_MEMCPY3D copyParam = {};
