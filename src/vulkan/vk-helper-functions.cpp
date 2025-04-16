@@ -53,7 +53,7 @@ VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags f
     return vkFlags;
 }
 
-uint32_t getMipLevelSize(uint32_t mip, uint32_t size)
+uint32_t calcMipSize(uint32_t mip, uint32_t size)
 {
     return max(1u, (size >> mip));
 }

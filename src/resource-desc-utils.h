@@ -44,15 +44,15 @@ inline uint32_t calcMaxDimension(Extent3D size, TextureType type)
 }
 
 /// Given the type, calculates the number of mip maps. 0 on error
-inline uint32_t calcMipLevelCount(TextureType type, Extent3D size)
+inline uint32_t calcMipCount(TextureType type, Extent3D size)
 {
     uint32_t maxDimensionSize = calcMaxDimension(size, type);
     return (maxDimensionSize > 0) ? (math::log2Floor(maxDimensionSize) + 1) : 0;
 }
 
-inline uint32_t calcMipLevelCount(const TextureDesc& desc)
+inline uint32_t calcMipCount(const TextureDesc& desc)
 {
-    return calcMipLevelCount(desc.type, desc.size);
+    return calcMipCount(desc.type, desc.size);
 }
 
 BufferDesc fixupBufferDesc(const BufferDesc& desc);

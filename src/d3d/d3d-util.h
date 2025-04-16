@@ -112,7 +112,7 @@ public:
         uint32_t layoutCount
     );
 
-    static uint32_t getSubresourceMipLevel(uint32_t subresourceIndex, uint32_t mipCount);
+    static uint32_t getSubresourceMip(uint32_t subresourceIndex, uint32_t mipCount);
 
     static D3D12_RESOURCE_STATES getResourceState(ResourceState state);
 

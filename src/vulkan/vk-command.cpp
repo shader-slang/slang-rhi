@@ -587,8 +587,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         // Determine render area
         const TextureViewDesc& viewDesc = view->m_desc;
         const TextureDesc& textureDesc = view->m_texture->m_desc;
-        uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mip, textureDesc.size.width);
-        uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mip, textureDesc.size.height);
+        uint32_t width = calcMipSize(viewDesc.subresourceRange.mip, textureDesc.size.width);
+        uint32_t height = calcMipSize(viewDesc.subresourceRange.mip, textureDesc.size.height);
         renderArea.extent.width = min(renderArea.extent.width, width);
         renderArea.extent.height = min(renderArea.extent.height, height);
         uint32_t attachmentLayerCount = (textureDesc.type == TextureType::Texture3D)
@@ -633,8 +633,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         // Determine render area
         const TextureViewDesc& viewDesc = view->m_desc;
         const TextureDesc& textureDesc = view->m_texture->m_desc;
-        uint32_t width = getMipLevelSize(viewDesc.subresourceRange.mip, textureDesc.size.width);
-        uint32_t height = getMipLevelSize(viewDesc.subresourceRange.mip, textureDesc.size.height);
+        uint32_t width = calcMipSize(viewDesc.subresourceRange.mip, textureDesc.size.width);
+        uint32_t height = calcMipSize(viewDesc.subresourceRange.mip, textureDesc.size.height);
         renderArea.extent.width = min(renderArea.extent.width, width);
         renderArea.extent.height = min(renderArea.extent.height, height);
 

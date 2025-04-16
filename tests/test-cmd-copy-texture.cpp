@@ -142,7 +142,7 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU | CUDA)
             auto queue = device->getQueue(QueueType::Graphics);
             auto commandEncoder = queue->createCommandEncoder();
 
-            uint32_t halfMipCount = calcMipLevelCount(data.desc) / 2;
+            uint32_t halfMipCount = calcMipCount(data.desc) / 2;
 
             // Copy the 1st half of the mips for all layers
             commandEncoder->copyTexture(
