@@ -99,7 +99,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
     }
     if (desc.mipCount < 1)
     {
-        RHI_VALIDATION_ERROR("Texture mip level count must be at least 1");
+        RHI_VALIDATION_ERROR("Texture mip count must be at least 1");
         return SLANG_E_INVALID_ARG;
     }
     if (desc.format == Format::Undefined)
@@ -524,12 +524,12 @@ Result DebugDevice::readTexture(
 
     if (layer > desc.getLayerCount())
     {
-        RHI_VALIDATION_ERROR("Layer index out of bounds");
+        RHI_VALIDATION_ERROR("Layer out of bounds");
         return SLANG_E_INVALID_ARG;
     }
     if (mip > desc.mipCount)
     {
-        RHI_VALIDATION_ERROR("Mip level out of bounds");
+        RHI_VALIDATION_ERROR("Mip out of bounds");
         return SLANG_E_INVALID_ARG;
     }
 

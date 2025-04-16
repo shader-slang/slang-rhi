@@ -346,7 +346,7 @@ void DebugCommandEncoder::copyTexture(
     }
     if (srcSubresource.mip > srcDesc.mipCount)
     {
-        RHI_VALIDATION_ERROR("Src mip level is out of bounds.");
+        RHI_VALIDATION_ERROR("Src mip is out of bounds.");
         return;
     }
 
@@ -358,7 +358,7 @@ void DebugCommandEncoder::copyTexture(
     }
     if (dstSubresource.mip > dstDesc.mipCount)
     {
-        RHI_VALIDATION_ERROR("Dest mip level is out of bounds.");
+        RHI_VALIDATION_ERROR("Dest mip is out of bounds.");
         return;
     }
 
@@ -370,7 +370,7 @@ void DebugCommandEncoder::copyTexture(
 
     if (srcSubresource.mipCount != dstSubresource.mipCount)
     {
-        RHI_VALIDATION_ERROR("Src and dest mip level count must match.");
+        RHI_VALIDATION_ERROR("Src and dest mip count must match.");
         return;
     }
 
@@ -382,7 +382,7 @@ void DebugCommandEncoder::copyTexture(
 
     if (srcSubresource.mipCount == 0 && srcDesc.mipCount != dstDesc.mipCount)
     {
-        RHI_VALIDATION_ERROR("Copy mip level count is 0, so src and dest texture mip level count must match.");
+        RHI_VALIDATION_ERROR("Copy mip count is 0, so src and dest texture mip count must match.");
         return;
     }
 
@@ -605,12 +605,12 @@ void DebugCommandEncoder::copyTextureToBuffer(
 
     if (srcLayer >= desc.getLayerCount())
     {
-        RHI_VALIDATION_ERROR("The base array layer is out of bounds.");
+        RHI_VALIDATION_ERROR("Src layer is out of bounds.");
         return;
     }
     if (srcMip >= desc.mipCount)
     {
-        RHI_VALIDATION_ERROR("Mip level is out of bounds.");
+        RHI_VALIDATION_ERROR("Src mip is out of bounds.");
         return;
     }
 
