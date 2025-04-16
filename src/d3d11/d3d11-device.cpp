@@ -388,7 +388,7 @@ Result DeviceImpl::readTexture(
     SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
 
     TextureImpl* stagingTextureImpl = nullptr;
-    uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipLevelCount);
+    uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipCount);
     if (desc.memoryType == MemoryType::ReadBack)
     {
         // The texture is already a staging texture, so we can just use it directly.
@@ -409,7 +409,7 @@ Result DeviceImpl::readTexture(
         // - Cube maps turn into 2D textures (as we only want 1 face)
 
         // Adjust mips, size and array
-        copyDesc.mipLevelCount = 1;
+        copyDesc.mipCount = 1;
         copyDesc.size = layout.size;
         copyDesc.arrayLength = 1;
 
@@ -439,7 +439,7 @@ Result DeviceImpl::readTexture(
         // Create texture + do a few checks to make sure logic is correct
         SLANG_RETURN_ON_FAIL(createTexture(copyDesc, nullptr, tempTexture.writeRef()));
         stagingTextureImpl = checked_cast<TextureImpl*>(tempTexture.get());
-        SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().mipLevelCount == 1);
+        SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().mipCount == 1);
         SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().getLayerCount() == 1);
 
         // Copy the source subresource to subresource 0 of the staging texture, then switch

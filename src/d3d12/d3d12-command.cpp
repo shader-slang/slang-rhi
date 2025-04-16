@@ -192,8 +192,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     const Extent3D& extent = cmd.extent;
 
     // Fast path for copying whole resource.
-    if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0 && srcSubresource.layerCount == 0 &&
-        srcSubresource.mipLevelCount == 0 && srcOffset.isZero() && dstOffset.isZero() && extent.isWholeTexture())
+    if (dstSubresource.layerCount == 0 && dstSubresource.mipCount == 0 && srcSubresource.layerCount == 0 &&
+        srcSubresource.mipCount == 0 && srcOffset.isZero() && dstOffset.isZero() && extent.isWholeTexture())
     {
         requireTextureState(dst, kEntireTexture, ResourceState::CopyDestination);
         requireTextureState(src, kEntireTexture, ResourceState::CopySource);
@@ -205,22 +205,22 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     // If we couldn't use the fast CopyResource path, need to ensure that the subresource ranges are valid.
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.mipCount == 0)
+        dstSubresource.mipCount = dst->m_desc.mipCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.mipCount == 0)
+        srcSubresource.mipCount = src->m_desc.mipCount;
 
     // Validate subresource ranges
     SLANG_RHI_ASSERT(srcSubresource.layer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
     SLANG_RHI_ASSERT(dstSubresource.layer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
-    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
-    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipCount <= src->m_desc.mipCount);
+    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipCount <= dst->m_desc.mipCount);
 
     // Validate matching dimensions between source and destination
     SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
-    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.mipCount == dstSubresource.mipCount);
 
     requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
@@ -236,7 +236,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     {
         for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
         {
-            for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipLevelCount; mipOffset++)
+            for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipCount; mipOffset++)
             {
                 uint32_t srcMipLevel = srcSubresource.mipLevel + mipOffset;
                 uint32_t dstMipLevel = dstSubresource.mipLevel + mipOffset;
@@ -266,7 +266,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 SLANG_RHI_ASSERT(srcOffset.x + adjustedExtent.width <= srcMipSize.width);
                 SLANG_RHI_ASSERT(srcOffset.y + adjustedExtent.height <= srcMipSize.height);
                 SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);
-                SLANG_RHI_ASSERT(srcMipLevel < src->m_desc.mipLevelCount);
+                SLANG_RHI_ASSERT(srcMipLevel < src->m_desc.mipCount);
 
                 D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
 
@@ -276,7 +276,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                     dstMipLevel,
                     dstSubresource.layer + layer,
                     planeIndex,
-                    dst->m_desc.mipLevelCount,
+                    dst->m_desc.mipCount,
                     dst->m_desc.getLayerCount()
                 );
 
@@ -287,7 +287,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                     srcMipLevel,
                     srcSubresource.layer + layer,
                     planeIndex,
-                    src->m_desc.mipLevelCount,
+                    src->m_desc.mipCount,
                     src->m_desc.getLayerCount()
                 );
 
@@ -365,7 +365,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
     srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
     srcRegion.SubresourceIndex =
-        D3DUtil::getSubresourceIndex(srcMipLevel, srcLayer, 0, src->m_desc.mipLevelCount, src->m_desc.arrayLength);
+        D3DUtil::getSubresourceIndex(srcMipLevel, srcLayer, 0, src->m_desc.mipCount, src->m_desc.arrayLength);
     srcRegion.pResource = src->m_resource.getResource();
 
     // Setup the destination resource.
@@ -434,11 +434,11 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     {
         requireTextureState(texture, cmd.subresourceRange, ResourceState::RenderTarget);
         commitBarriers();
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
             sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
-            sr.mipLevelCount = 1;
+            sr.mipCount = 1;
             D3D12_CPU_DESCRIPTOR_HANDLE rtv = texture->getRTV(desc.format, desc.type, TextureAspect::All, sr);
             m_cmdList->ClearRenderTargetView(rtv, cmd.clearValue, 0, nullptr);
         }
@@ -447,11 +447,11 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     {
         requireTextureState(texture, cmd.subresourceRange, ResourceState::UnorderedAccess);
         commitBarriers();
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
             sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
-            sr.mipLevelCount = 1;
+            sr.mipCount = 1;
             D3D12_CPU_DESCRIPTOR_HANDLE uav = texture->getUAV(desc.format, desc.type, TextureAspect::All, sr);
             GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
             m_device->m_device
@@ -476,11 +476,11 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
     {
         requireTextureState(texture, cmd.subresourceRange, ResourceState::UnorderedAccess);
         commitBarriers();
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
             sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
-            sr.mipLevelCount = 1;
+            sr.mipCount = 1;
             D3D12_CPU_DESCRIPTOR_HANDLE uav = texture->getUAV(desc.format, desc.type, TextureAspect::All, sr);
             GPUDescriptorRange descriptor = m_cbvSrvUavArena->allocate(1);
             m_device->m_device
@@ -512,11 +512,11 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
             clearFlags |= D3D12_CLEAR_FLAG_DEPTH;
         if (cmd.clearStencil)
             clearFlags |= D3D12_CLEAR_FLAG_STENCIL;
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
             sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
-            sr.mipLevelCount = 1;
+            sr.mipCount = 1;
             D3D12_CPU_DESCRIPTOR_HANDLE dsv = texture->getDSV(desc.format, desc.type, TextureAspect::All, sr);
             m_cmdList->ClearDepthStencilView(dsv, clearFlags, cmd.depthValue, cmd.stencilValue, 0, nullptr);
         }
@@ -539,7 +539,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
         uint32_t layer = subresourceRange.layer + layerOffset;
-        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 
@@ -550,7 +550,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             dstRegion.pResource = dst->m_resource.getResource();
 
             dstRegion.SubresourceIndex =
-                D3DUtil::getSubresourceIndex(mipLevel, layer, 0, dst->m_desc.mipLevelCount, dst->m_desc.arrayLength);
+                D3DUtil::getSubresourceIndex(mipLevel, layer, 0, dst->m_desc.mipCount, dst->m_desc.arrayLength);
 
             D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
             srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -1448,7 +1448,7 @@ void CommandRecorder::commitBarriers()
         }
         else
         {
-            uint32_t mipLevelCount = texture->m_desc.mipLevelCount;
+            uint32_t mipCount = texture->m_desc.mipCount;
             uint32_t layerCount = texture->m_desc.getLayerCount();
             DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(texture->m_desc.format);
             uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
@@ -1466,7 +1466,7 @@ void CommandRecorder::commitBarriers()
                     textureBarrier.mipLevel,
                     textureBarrier.arrayLayer,
                     planeIndex,
-                    mipLevelCount,
+                    mipCount,
                     layerCount
                 );
                 barriers.push_back(barrier);

@@ -716,7 +716,7 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     textureDesc.size.height = m_config.height;
     textureDesc.size.depth = 0;
     textureDesc.arrayLength = 1;
-    textureDesc.mipLevelCount = 1;
+    textureDesc.mipCount = 1;
     textureDesc.format = m_config.format;
     SLANG_RETURN_ON_FAIL(m_deviceImpl->createTextureFromSharedHandle(
         sharedTexture.sharedHandle,

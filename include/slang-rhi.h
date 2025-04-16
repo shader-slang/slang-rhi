@@ -662,12 +662,12 @@ struct SubresourceRange
     uint32_t mipLevel;
     /// Number of mip levels to use
     /// Use kAllMipLevels to use all remaining mip levels.
-    uint32_t mipLevelCount;
+    uint32_t mipCount;
 
     bool operator==(const SubresourceRange& other) const
     {
         return layer == other.layer && layerCount == other.layerCount && mipLevel == other.mipLevel &&
-               mipLevelCount == other.mipLevelCount;
+               mipCount == other.mipCount;
     }
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }
 };
@@ -693,7 +693,7 @@ static const size_t kDefaultAlignment = 0xffffffff;
 /// each mip level and array element is stored as a distinct
 /// subresource. When indexing into an array of subresources,
 /// the index of a subresoruce for mip level `m` and array
-/// index `a` is `m + a*mipLevelCount`.
+/// index `a` is `m + a*mipCount`.
 ///
 struct SubresourceData
 {
@@ -806,7 +806,7 @@ struct TextureDesc
     uint32_t arrayLength = 1;
     /// Number of mip levels.
     /// Set to kAllMipLevels to create all mip levels.
-    uint32_t mipLevelCount = 1;
+    uint32_t mipCount = 1;
 
     /// The resources format.
     Format format = Format::Undefined;
@@ -831,7 +831,7 @@ struct TextureDesc
         return (type == TextureType::TextureCube || type == TextureType::TextureCubeArray) ? arrayLength * 6
                                                                                            : arrayLength;
     }
-    uint32_t getSubresourceCount() const { return mipLevelCount * getLayerCount(); }
+    uint32_t getSubresourceCount() const { return mipCount * getLayerCount(); }
 };
 
 struct TextureViewDesc
@@ -2029,7 +2029,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) = 0;
 
-    /// Copies texture from src to dst. If dstSubresource and srcSubresource has mipLevelCount = 0
+    /// Copies texture from src to dst. If dstSubresource and srcSubresource has mipCount = 0
     /// and layerCount = 0, the entire resource is being copied and dstOffset, srcOffset and extent
     /// arguments are ignored.
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
@@ -2500,7 +2500,7 @@ public:
     ///
     /// The number of subresources in a texture is:
     ///
-    ///     effectiveElementCount * mipLevelCount
+    ///     effectiveElementCount * mipCount
     ///
     /// where the effective element count is computed as:
     ///

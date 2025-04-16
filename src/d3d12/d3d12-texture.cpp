@@ -100,25 +100,25 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
     case TextureType::Texture1D:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
         viewDesc.Texture1D.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture1D.MipLevels = range.mipLevelCount;
+        viewDesc.Texture1D.MipLevels = range.mipCount;
         break;
     case TextureType::Texture1DArray:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
         viewDesc.Texture1DArray.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture1DArray.MipLevels = range.mipLevelCount;
+        viewDesc.Texture1DArray.MipLevels = range.mipCount;
         viewDesc.Texture1DArray.FirstArraySlice = range.layer;
         viewDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         viewDesc.Texture2D.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture2D.MipLevels = range.mipLevelCount;
+        viewDesc.Texture2D.MipLevels = range.mipCount;
         viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DArray:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
         viewDesc.Texture2DArray.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture2DArray.MipLevels = range.mipLevelCount;
+        viewDesc.Texture2DArray.MipLevels = range.mipCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
@@ -134,17 +134,17 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
     case TextureType::Texture3D:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
         viewDesc.Texture3D.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture3D.MipLevels = range.mipLevelCount;
+        viewDesc.Texture3D.MipLevels = range.mipCount;
         break;
     case TextureType::TextureCube:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
         viewDesc.TextureCube.MostDetailedMip = range.mipLevel;
-        viewDesc.TextureCube.MipLevels = range.mipLevelCount;
+        viewDesc.TextureCube.MipLevels = range.mipCount;
         break;
     case TextureType::TextureCubeArray:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
         viewDesc.TextureCubeArray.MostDetailedMip = range.mipLevel;
-        viewDesc.TextureCubeArray.MipLevels = range.mipLevelCount;
+        viewDesc.TextureCubeArray.MipLevels = range.mipCount;
         viewDesc.TextureCubeArray.First2DArrayFace = range.layer;
         viewDesc.TextureCubeArray.NumCubes = range.layerCount / 6;
         break;

@@ -168,8 +168,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
     auto encoder = getBlitCommandEncoder();
 
-    if (dstSubresource.layerCount == 0 && dstSubresource.mipLevelCount == 0 && srcSubresource.layerCount == 0 &&
-        srcSubresource.mipLevelCount == 0)
+    if (dstSubresource.layerCount == 0 && dstSubresource.mipCount == 0 && srcSubresource.layerCount == 0 &&
+        srcSubresource.mipCount == 0)
     {
         encoder->copyFromTexture(src->m_texture.get(), dst->m_texture.get());
     }
@@ -292,7 +292,7 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
     for (uint32_t layerOffset = 0; layerOffset < cmd.subresourceRange.layerCount; layerOffset++)
     {
         uint32_t layerIndex = cmd.subresourceRange.layer + layerOffset;
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; mipOffset++)
         {
             uint32_t mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
 
@@ -333,7 +333,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
         uint32_t layer = subresourceRange.layer + layerOffset;
-        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 

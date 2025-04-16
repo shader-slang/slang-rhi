@@ -87,10 +87,10 @@ public:
             for (uint32_t layer = subresourceRange.layer; layer < layerCount; layer++)
             {
                 for (uint32_t mipLevel = subresourceRange.mipLevel;
-                     mipLevel < subresourceRange.mipLevel + subresourceRange.mipLevelCount;
+                     mipLevel < subresourceRange.mipLevel + subresourceRange.mipCount;
                      mipLevel++)
                 {
-                    uint32_t subresourceIndex = layer * texture->m_desc.mipLevelCount + mipLevel;
+                    uint32_t subresourceIndex = layer * texture->m_desc.mipCount + mipLevel;
                     if (state != textureState->subresourceStates[subresourceIndex] ||
                         state == ResourceState::UnorderedAccess)
                     {

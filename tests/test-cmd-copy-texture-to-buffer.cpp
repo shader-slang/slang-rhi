@@ -61,7 +61,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | Metal | WGPU |
             uint64_t bufferOffset = 0;
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mip = 0; mip < data.desc.mipLevelCount; mip++)
+                for (uint32_t mip = 0; mip < data.desc.mipCount; mip++)
                 {
                     SubresourceLayout textureLayout;
                     REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
@@ -92,7 +92,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | Metal | WGPU |
 
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mip = 0; mip < data.desc.mipLevelCount; mip++)
+                for (uint32_t mip = 0; mip < data.desc.mipCount; mip++)
                 {
                     SubresourceLayout textureLayout;
                     REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
@@ -173,7 +173,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal 
             uint64_t bufferOffset = 0;
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mip = 0; mip < data.desc.mipLevelCount; mip++)
+                for (uint32_t mip = 0; mip < data.desc.mipCount; mip++)
                 {
                     SubresourceLayout textureLayout;
                     REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));
@@ -208,7 +208,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal 
 
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mip = 0; mip < data.desc.mipLevelCount; mip++)
+                for (uint32_t mip = 0; mip < data.desc.mipCount; mip++)
                 {
                     SubresourceLayout textureLayout;
                     REQUIRE_CALL(c->getTexture()->getSubresourceLayout(mip, &textureLayout));

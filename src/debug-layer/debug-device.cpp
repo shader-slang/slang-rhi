@@ -97,7 +97,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         RHI_VALIDATION_ERROR("Texture array length must be at least 1");
         return SLANG_E_INVALID_ARG;
     }
-    if (desc.mipLevelCount < 1)
+    if (desc.mipCount < 1)
     {
         RHI_VALIDATION_ERROR("Texture mip level count must be at least 1");
         return SLANG_E_INVALID_ARG;
@@ -131,7 +131,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have initial data");
             return SLANG_E_INVALID_ARG;
         }
-        if (desc.mipLevelCount != 1)
+        if (desc.mipCount != 1)
         {
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have mip levels");
             return SLANG_E_INVALID_ARG;
@@ -527,7 +527,7 @@ Result DebugDevice::readTexture(
         RHI_VALIDATION_ERROR("Layer index out of bounds");
         return SLANG_E_INVALID_ARG;
     }
-    if (mipLevel > desc.mipLevelCount)
+    if (mipLevel > desc.mipCount)
     {
         RHI_VALIDATION_ERROR("Mip level out of bounds");
         return SLANG_E_INVALID_ARG;

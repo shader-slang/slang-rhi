@@ -139,8 +139,8 @@ SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
     SubresourceRange resolved = range;
     resolved.layer = min(resolved.layer, (m_desc.getLayerCount() - 1));
     resolved.layerCount = min(resolved.layerCount, m_desc.getLayerCount() - resolved.layer);
-    resolved.mipLevel = min(resolved.mipLevel, m_desc.mipLevelCount - 1);
-    resolved.mipLevelCount = min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
+    resolved.mipLevel = min(resolved.mipLevel, m_desc.mipCount - 1);
+    resolved.mipCount = min(resolved.mipCount, m_desc.mipCount - resolved.mipLevel);
     return resolved;
 }
 
@@ -150,7 +150,7 @@ bool Texture::isEntireTexture(const SubresourceRange& range)
     {
         return false;
     }
-    if (range.mipLevel > 0 || range.mipLevelCount < m_desc.mipLevelCount)
+    if (range.mipLevel > 0 || range.mipCount < m_desc.mipCount)
     {
         return false;
     }

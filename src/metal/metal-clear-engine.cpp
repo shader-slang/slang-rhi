@@ -128,7 +128,7 @@ void ClearEngine::clearTexture(
 
     MTL::Size threadGroupSize = m_threadGroupSizes[size_t(textureType)];
 
-    for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; ++mipOffset)
+    for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; ++mipOffset)
     {
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; ++layerOffset)
         {

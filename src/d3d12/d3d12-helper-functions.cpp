@@ -197,7 +197,7 @@ Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& tex
     resourceDesc.Height = textureDesc.size.height;
     resourceDesc.DepthOrArraySize =
         textureDesc.type == TextureType::Texture3D ? textureDesc.size.depth : textureDesc.getLayerCount();
-    resourceDesc.MipLevels = textureDesc.mipLevelCount;
+    resourceDesc.MipLevels = textureDesc.mipCount;
     resourceDesc.SampleDesc.Count = textureDesc.sampleCount;
     resourceDesc.SampleDesc.Quality = textureDesc.sampleQuality;
 

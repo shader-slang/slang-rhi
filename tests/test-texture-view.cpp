@@ -43,7 +43,7 @@ struct TestTextureViews
     ComPtr<ITextureView> createTextureAndTextureView(
         TextureType textureType,
         TextureUsage usage,
-        uint32_t mipLevelCount,
+        uint32_t mipCount,
         Extent3D textureSize,
         SubresourceRange textureViewRange,
         SubresourceData* data
@@ -51,7 +51,7 @@ struct TestTextureViews
     {
         TextureDesc texDesc = {};
         texDesc.type = textureType;
-        texDesc.mipLevelCount = mipLevelCount;
+        texDesc.mipCount = mipCount;
         texDesc.size = textureSize;
         texDesc.usage = usage;
         texDesc.defaultState =
@@ -72,7 +72,7 @@ struct TestTextureViews
 
     void testTextureViewUnorderedAccess(
         TextureType textureType,
-        uint32_t mipLevelCount,
+        uint32_t mipCount,
         Extent3D textureSize,
         SubresourceRange textureViewRange,
         SubresourceData* textureData
@@ -81,7 +81,7 @@ struct TestTextureViews
         ComPtr<ITextureView> textureView = createTextureAndTextureView(
             textureType,
             TextureUsage::UnorderedAccess,
-            mipLevelCount,
+            mipCount,
             textureSize,
             textureViewRange,
             textureData
@@ -189,8 +189,8 @@ struct TestTextureViews
             // This subrange/textureView will give a 8x8x8 texture and verifies a fix for issue #220
             // We use 3 for layer as this was previously used for FirstWSlice and we want
             // to verify that selecting a subset of depth slices is not currently supported.
-            SubresourceRange range = {3 /*layer*/, 1 /*layerCount*/, 1 /*mipLevel*/, 4 /*mipLevelCount*/};
-            testTextureViewUnorderedAccess(type, 5 /*mipLevelCount*/, size, range, subData);
+            SubresourceRange range = {3 /*layer*/, 1 /*layerCount*/, 1 /*mipLevel*/, 4 /*mipCount*/};
+            testTextureViewUnorderedAccess(type, 5 /*mipCount*/, size, range, subData);
         }
     }
 };

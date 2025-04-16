@@ -190,11 +190,11 @@ struct TextureData
 
     const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
     {
-        return subresources[layer * desc.mipLevelCount + mipLevel];
+        return subresources[layer * desc.mipCount + mipLevel];
     }
     const SubresourceData* getLayerFirstSubresourceData(uint32_t layer) const
     {
-        return subresourceData.data() + layer * desc.mipLevelCount;
+        return subresourceData.data() + layer * desc.mipCount;
     }
 
     void clearFloat(const float clearValue[4]) const;
@@ -534,7 +534,7 @@ inline void runTextureTest(TextureTestOptions& options, Func&& func, Args&&... a
             CAPTURE(td.size.width);
             CAPTURE(td.size.height);
             CAPTURE(td.size.depth);
-            CAPTURE(td.mipLevelCount);
+            CAPTURE(td.mipCount);
             CAPTURE(td.arrayLength);
             CAPTURE(td.format);
 

@@ -133,7 +133,7 @@ Result TextureImpl::init(const SubresourceData* initData)
     for (int32_t axis = rank; axis < kMaxRank; ++axis)
         extents[axis] = 1;
 
-    int32_t levelCount = desc.mipLevelCount;
+    int32_t levelCount = desc.mipCount;
 
     m_mipLevels.resize(levelCount);
 
@@ -173,7 +173,7 @@ Result TextureImpl::init(const SubresourceData* initData)
         int32_t subresourceCounter = 0;
         for (int32_t arrayElementIndex = 0; arrayElementIndex < effectiveArrayElementCount; ++arrayElementIndex)
         {
-            for (int32_t mipLevel = 0; mipLevel < m_desc.mipLevelCount; ++mipLevel)
+            for (int32_t mipLevel = 0; mipLevel < m_desc.mipCount; ++mipLevel)
             {
                 int32_t subresourceIndex = subresourceCounter++;
 
@@ -233,7 +233,7 @@ slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mipLevel)
     auto baseShape = texture->m_baseShape;
 
     dimensions.arrayElementCount = desc.arrayLength;
-    dimensions.numberOfLevels = desc.mipLevelCount;
+    dimensions.numberOfLevels = desc.mipCount;
     dimensions.shape = baseShape->rank;
     dimensions.width = desc.size.width;
     dimensions.height = desc.size.height;
@@ -279,8 +279,8 @@ void TextureViewImpl::SampleLevel(
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
     int32_t integerMipLevel = int32_t(level + 0.5f);
-    if (integerMipLevel >= desc.mipLevelCount)
-        integerMipLevel = desc.mipLevelCount - 1;
+    if (integerMipLevel >= desc.mipCount)
+        integerMipLevel = desc.mipCount - 1;
     if (integerMipLevel < 0)
         integerMipLevel = 0;
 
@@ -356,8 +356,8 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
     int32_t mipLevel = 0;
     if (!hasMipLevels)
         mipLevel = texelCoords[coordIndex++];
-    if (mipLevel >= desc.mipLevelCount)
-        mipLevel = desc.mipLevelCount - 1;
+    if (mipLevel >= desc.mipCount)
+        mipLevel = desc.mipCount - 1;
     if (mipLevel < 0)
         mipLevel = 0;
 

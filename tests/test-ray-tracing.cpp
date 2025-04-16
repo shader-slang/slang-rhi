@@ -111,7 +111,7 @@ struct BaseRayTracingTest
     {
         TextureDesc resultTextureDesc = {};
         resultTextureDesc.type = TextureType::Texture2D;
-        resultTextureDesc.mipLevelCount = 1;
+        resultTextureDesc.mipCount = 1;
         resultTextureDesc.size.width = width;
         resultTextureDesc.size.height = height;
         resultTextureDesc.size.depth = 1;

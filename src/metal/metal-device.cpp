@@ -215,7 +215,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     Size size = 0;
     Extent3D extent = desc.size;
 
-    for (uint32_t i = 0; i < desc.mipLevelCount; ++i)
+    for (uint32_t i = 0; i < desc.mipCount; ++i)
     {
         Size rowSize =
             ((extent.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockSizeInBytes;

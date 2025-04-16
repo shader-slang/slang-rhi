@@ -1056,7 +1056,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         range.layer = 0;
         range.layerCount = desc.getLayerCount();
         range.mipLevel = 0;
-        range.mipLevelCount = desc.mipLevelCount;
+        range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(
             texture,
@@ -1064,7 +1064,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             {0, 0, 0},
             Extent3D::kWholeTexture,
             initData,
-            range.layerCount * desc.mipLevelCount
+            range.layerCount * desc.mipCount
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));

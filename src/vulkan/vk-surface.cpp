@@ -203,7 +203,7 @@ Result SurfaceImpl::createSwapchain()
         textureDesc.size.width = m_config.width;
         textureDesc.size.height = m_config.height;
         textureDesc.size.depth = 1;
-        textureDesc.mipLevelCount = 1;
+        textureDesc.mipCount = 1;
         textureDesc.defaultState = ResourceState::Present;
         RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
         texture->m_image = swapchainImages[i];

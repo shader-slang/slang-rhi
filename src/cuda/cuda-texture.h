@@ -35,7 +35,7 @@ public:
             hash_combine(hash, key.range.layer);
             hash_combine(hash, key.range.layerCount);
             hash_combine(hash, key.range.mipLevel);
-            hash_combine(hash, key.range.mipLevelCount);
+            hash_combine(hash, key.range.mipCount);
             return hash;
         }
     };
@@ -48,7 +48,7 @@ public:
             hash_combine(hash, key.layer);
             hash_combine(hash, key.layerCount);
             hash_combine(hash, key.mipLevel);
-            hash_combine(hash, key.mipLevelCount);
+            hash_combine(hash, key.mipCount);
             return hash;
         }
     };

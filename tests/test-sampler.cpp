@@ -11,7 +11,7 @@ static Result createTestTexture(IDevice* device, ITexture** outTexture)
     desc.type = TextureType::Texture2D;
     desc.format = Format::RGBA32Float;
     desc.size = {2, 2, 1};
-    desc.mipLevelCount = 2;
+    desc.mipCount = 2;
     desc.memoryType = MemoryType::DeviceLocal;
     desc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination | TextureUsage::CopySource;
 

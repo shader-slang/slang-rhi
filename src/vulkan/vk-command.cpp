@@ -220,12 +220,12 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     // Fix up sub resource ranges.
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.mipCount == 0)
+        dstSubresource.mipCount = dst->m_desc.mipCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.mipCount == 0)
+        srcSubresource.mipCount = src->m_desc.mipCount;
 
     requireTextureState(dst, dstSubresource, ResourceState::CopyDestination);
     requireTextureState(src, srcSubresource, ResourceState::CopySource);
@@ -237,7 +237,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     Extent3D srcTextureSize = src->m_desc.size;
     for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
     {
-        for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipCount; mipOffset++)
         {
             uint32_t srcMipLevel = srcSubresource.mipLevel + mipOffset;
             uint32_t dstMipLevel = dstSubresource.mipLevel + mipOffset;
@@ -389,7 +389,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
-    subresourceRange.levelCount = cmd.subresourceRange.mipLevelCount;
+    subresourceRange.levelCount = cmd.subresourceRange.mipCount;
     subresourceRange.baseArrayLayer = cmd.subresourceRange.layer;
     subresourceRange.layerCount = cmd.subresourceRange.layerCount;
 
@@ -416,7 +416,7 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
-    subresourceRange.levelCount = cmd.subresourceRange.mipLevelCount;
+    subresourceRange.levelCount = cmd.subresourceRange.mipCount;
     subresourceRange.baseArrayLayer = cmd.subresourceRange.layer;
     subresourceRange.layerCount = cmd.subresourceRange.layerCount;
 
@@ -444,7 +444,7 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = 0;
     subresourceRange.baseMipLevel = cmd.subresourceRange.mipLevel;
-    subresourceRange.levelCount = cmd.subresourceRange.mipLevelCount;
+    subresourceRange.levelCount = cmd.subresourceRange.mipCount;
     subresourceRange.baseArrayLayer = cmd.subresourceRange.layer;
     subresourceRange.layerCount = cmd.subresourceRange.layerCount;
 
@@ -484,7 +484,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
         uint32_t layer = subresourceRange.layer + layerOffset;
-        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 

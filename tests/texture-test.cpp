@@ -23,14 +23,14 @@ namespace rhi::testing {
 bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
 {
     // WGPU does not support mip levels for 1D textures.
-    if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1D && desc.mipLevelCount != 1)
+    if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1D && desc.mipCount != 1)
         return false;
     // WGPU does not support 1D texture arrays.
     if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1DArray)
         return false;
     // Metal does not support mip levels for 1D textures (and 1d texture arrays).
     if (device->getDeviceType() == DeviceType::Metal &&
-        (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipLevelCount != 1)
+        (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipCount != 1)
         return false;
     // Metal does not support multisampled textures with 1 sample
     if (device->getDeviceType() == DeviceType::Metal && isMultisamplingType(desc.type) && desc.sampleCount == 1)
@@ -39,7 +39,7 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     if (device->getDeviceType() == DeviceType::CUDA && isMultisamplingType(desc.type))
         return false;
     // Mip mapped multisampled textures not supported
-    if (isMultisamplingType(desc.type) && desc.mipLevelCount > 1)
+    if (isMultisamplingType(desc.type) && desc.mipCount > 1)
         return false;
     // Array multisampled textures not supported on WebGPU
     if (device->getDeviceType() == DeviceType::WGPU && isMultisamplingType(desc.type) && desc.getLayerCount() > 1)
@@ -163,7 +163,7 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initRow
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
         {
             SubresourceLayout layout;
             calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extent3D::kWholeTexture, initRowAlignment, &layout);
@@ -192,7 +192,7 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initRow
                 memset(sr.data.get(), mipLevel, sr.layout.sizeInBytes);
                 break;
             case rhi::testing::TextureInitMode::Random:
-                std::mt19937 rng(initSeed + layer * desc.mipLevelCount + mipLevel);
+                std::mt19937 rng(initSeed + layer * desc.mipCount + mipLevel);
                 std::uniform_int_distribution<int> dist(0, 255);
                 for (size_t i = 0; i < sr.layout.sizeInBytes; ++i)
                     sr.data[i] = (uint8_t)dist(rng);
@@ -239,9 +239,9 @@ void TextureData::checkLayersEqual(
 ) const
 {
     const TextureDesc& otherDesc = texture->getDesc();
-    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
+    CHECK_EQ(otherDesc.mipCount, desc.mipCount);
 
-    for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+    for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
     {
         checkMipLevelsEqual(
             thisLayer,
@@ -585,7 +585,7 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
     CHECK_EQ(otherDesc.size.height, desc.size.height);
     CHECK_EQ(otherDesc.size.depth, desc.size.depth);
     CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
-    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
+    CHECK_EQ(otherDesc.mipCount, desc.mipCount);
 
     UnpackFloatFunc unpackFloatFunc = getFormatConversionFuncs(desc.format).unpackFloatFunc;
     SLANG_RHI_ASSERT(unpackFloatFunc);
@@ -593,7 +593,7 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
         {
             const Subresource& sr = getSubresource(layer, mipLevel);
 
@@ -647,7 +647,7 @@ void TextureData::clearFloat(const float clearValue[4]) const
 {
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
         {
             clearFloat(layer, mipLevel, clearValue);
         }
@@ -680,7 +680,7 @@ void TextureData::clearUint(const uint32_t clearValue[4]) const
 {
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        for (uint32_t mipLevel = 0; mipLevel < desc.mipCount; ++mipLevel)
         {
             clearUint(layer, mipLevel, clearValue);
         }
@@ -753,7 +753,7 @@ void TextureTestOptions::executeGeneratorList(int listIdx)
         desc.desc.type = (TextureType)-1;
         desc.desc.arrayLength = 0;
         desc.desc.sampleCount = 0;
-        desc.desc.mipLevelCount = 0;
+        desc.desc.mipCount = 0;
         desc.initMode = TextureInitMode::Random;
     }
 
@@ -903,13 +903,13 @@ void TextureTestOptions::processVariantArg(TTMip mip)
             if (is_set(mip, TTMip::Off))
             {
                 for (auto& testTexture : variant.descriptors)
-                    testTexture.desc.mipLevelCount = 1;
+                    testTexture.desc.mipCount = 1;
                 next(state, variant);
             }
             if (is_set(mip, TTMip::On))
             {
                 for (auto& testTexture : variant.descriptors)
-                    testTexture.desc.mipLevelCount = kAllMipLevels;
+                    testTexture.desc.mipCount = kAllMipLevels;
                 next(state, variant);
             }
         }
@@ -1101,8 +1101,8 @@ void TextureTestOptions::postProcessVariant(int state, TextureTestVariant varian
         TextureDesc& desc = testTexture.desc;
         if (desc.arrayLength == 0)
             desc.arrayLength = 1;
-        if (desc.mipLevelCount == 0)
-            desc.mipLevelCount = 1;
+        if (desc.mipCount == 0)
+            desc.mipCount = 1;
         if (desc.sampleCount == 0)
             desc.sampleCount = 1;
 

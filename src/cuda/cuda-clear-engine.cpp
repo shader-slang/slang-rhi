@@ -177,7 +177,7 @@ void ClearEngine::clearTexture(
 
     CUfunction function = m_clearFunction[size_t(dim)][size_t(size)][size_t(layered)];
 
-    for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; ++mipOffset)
+    for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; ++mipOffset)
     {
         uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
         Extent3D mipSize = calcMipSize(texture->m_desc.size, mipLevel);

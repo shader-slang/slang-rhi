@@ -177,22 +177,22 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     // Fix up sub resource ranges.
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.mipCount == 0)
+        dstSubresource.mipCount = dst->m_desc.mipCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.mipCount == 0)
+        srcSubresource.mipCount = src->m_desc.mipCount;
 
     // Validate subresource ranges
     SLANG_RHI_ASSERT(srcSubresource.layer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
     SLANG_RHI_ASSERT(dstSubresource.layer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
-    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
-    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipCount <= src->m_desc.mipCount);
+    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipCount <= dst->m_desc.mipCount);
 
     // Validate matching dimensions between source and destination
     SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
-    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.mipCount == dstSubresource.mipCount);
 
     Extent3D srcTextureSize = src->m_desc.size;
     const FormatInfo& srcFormatInfo = getFormatInfo(src->m_desc.format);
@@ -200,7 +200,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
     for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
     {
-        for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
+        for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipCount; mipLevel++)
         {
             uint32_t srcMipLevel = srcSubresource.mipLevel + mipLevel;
             uint32_t dstMipLevel = dstSubresource.mipLevel + mipLevel;
@@ -361,7 +361,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
         uint32_t layer = subresourceRange.layer + layerOffset;
-        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 

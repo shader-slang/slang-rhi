@@ -140,12 +140,12 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
     // Fix up sub resource ranges if they are 0 (meaning use entire range)
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.mipCount == 0)
+        dstSubresource.mipCount = dst->m_desc.mipCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.mipCount == 0)
+        srcSubresource.mipCount = src->m_desc.mipCount;
 
     const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
     Extent3D srcTextureSize = src->m_desc.size;
@@ -156,7 +156,7 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
         uint32_t srcLayer = srcSubresource.layer + layerOffset;
         uint32_t dstLayer = dstSubresource.layer + layerOffset;
 
-        for (uint32_t mipOffset = 0; mipOffset < srcSubresource.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < srcSubresource.mipCount; mipOffset++)
         {
             uint32_t srcMipLevel = srcSubresource.mipLevel + mipOffset;
             uint32_t dstMipLevel = dstSubresource.mipLevel + mipOffset;
@@ -326,7 +326,7 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
         uint32_t layer = subresourceRange.layer + layerOffset;
-        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
             uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
 

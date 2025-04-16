@@ -187,7 +187,7 @@ struct TextureInfo : RefObject
     TextureType textureType;
 
     Extent3D extent;
-    uint32_t mipLevelCount;
+    uint32_t mipCount;
     uint32_t arrayLength;
 
     std::vector<RefPtr<ValidationTextureData>> subresourceObjects;

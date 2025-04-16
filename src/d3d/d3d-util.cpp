@@ -609,16 +609,16 @@ uint32_t D3DUtil::getSubresourceIndex(
     uint32_t mipIndex,
     uint32_t arrayIndex,
     uint32_t planeIndex,
-    uint32_t mipLevelCount,
+    uint32_t mipCount,
     uint32_t layerCount
 )
 {
-    return mipIndex + arrayIndex * mipLevelCount + planeIndex * mipLevelCount * layerCount;
+    return mipIndex + arrayIndex * mipCount + planeIndex * mipCount * layerCount;
 }
 
-uint32_t D3DUtil::getSubresourceMipLevel(uint32_t subresourceIndex, uint32_t mipLevelCount)
+uint32_t D3DUtil::getSubresourceMipLevel(uint32_t subresourceIndex, uint32_t mipCount)
 {
-    return subresourceIndex % mipLevelCount;
+    return subresourceIndex % mipCount;
 }
 
 D3D12_RESOURCE_STATES D3DUtil::getResourceState(ResourceState state)

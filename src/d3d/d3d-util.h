@@ -108,11 +108,11 @@ public:
         uint32_t mipIndex,
         uint32_t arrayIndex,
         uint32_t planeIndex,
-        uint32_t mipLevelCount,
+        uint32_t mipCount,
         uint32_t layoutCount
     );
 
-    static uint32_t getSubresourceMipLevel(uint32_t subresourceIndex, uint32_t mipLevelCount);
+    static uint32_t getSubresourceMipLevel(uint32_t subresourceIndex, uint32_t mipCount);
 
     static D3D12_RESOURCE_STATES getResourceState(ResourceState state);
 

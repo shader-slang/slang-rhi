@@ -48,7 +48,7 @@ GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
         textureDesc.size.width = 2;
         textureDesc.size.height = 2;
         textureDesc.size.depth = 1;
-        textureDesc.mipLevelCount = 2;
+        textureDesc.mipCount = 2;
         textureDesc.memoryType = MemoryType::DeviceLocal;
         textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination;
         textureDesc.defaultState = ResourceState::ShaderResource;

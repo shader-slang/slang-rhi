@@ -150,7 +150,7 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     createInfo.subresourceRange.baseArrayLayer = range.layer;
     createInfo.subresourceRange.baseMipLevel = range.mipLevel;
     createInfo.subresourceRange.layerCount = range.layerCount;
-    createInfo.subresourceRange.levelCount = range.mipLevelCount;
+    createInfo.subresourceRange.levelCount = range.mipCount;
 
     VkResult result = device->m_api.vkCreateImageView(device->m_api.m_device, &createInfo, nullptr, &view.imageView);
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
@@ -224,7 +224,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     uint32_t layerCount = desc.getLayerCount();
 
-    imageInfo.mipLevels = desc.mipLevelCount;
+    imageInfo.mipLevels = desc.mipCount;
     imageInfo.arrayLayers = layerCount;
 
     imageInfo.format = format;
@@ -311,7 +311,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         range.layer = 0;
         range.layerCount = layerCount;
         range.mipLevel = 0;
-        range.mipLevelCount = desc.mipLevelCount;
+        range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(
             texture,
@@ -319,7 +319,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             {0, 0, 0},
             Extent3D::kWholeTexture,
             initData,
-            layerCount * desc.mipLevelCount
+            layerCount * desc.mipCount
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));

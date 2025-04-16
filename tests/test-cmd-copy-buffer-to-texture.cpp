@@ -70,7 +70,7 @@ GPU_TEST_CASE("cmd-copy-buffer-to-texture-full", D3D12 | Vulkan | Metal | WGPU |
             uint8_t* bufferData = (uint8_t*)bufferData_;
             for (uint32_t layer = 0; layer < textureData.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mip = 0; mip < textureData.desc.mipLevelCount; mip++)
+                for (uint32_t mip = 0; mip < textureData.desc.mipCount; mip++)
                 {
                     const TextureData::Subresource& subresource = textureData.getSubresource(layer, mip);
                     memcpy(bufferData, subresource.data.get(), subresource.layout.sizeInBytes);
@@ -87,7 +87,7 @@ GPU_TEST_CASE("cmd-copy-buffer-to-texture-full", D3D12 | Vulkan | Metal | WGPU |
             uint64_t bufferOffset = 0;
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mip = 0; mip < data.desc.mipLevelCount; mip++)
+                for (uint32_t mip = 0; mip < data.desc.mipCount; mip++)
                 {
                     const TextureData::Subresource& subresource = textureData.getSubresource(layer, mip);
 

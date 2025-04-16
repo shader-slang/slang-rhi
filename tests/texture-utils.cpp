@@ -188,7 +188,7 @@ void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBas
     uint32_t arrayLayers = texture->arrayLength;
     if (texture->textureType == TextureType::TextureCube)
         arrayLayers *= 6;
-    uint32_t mipLevels = texture->mipLevelCount;
+    uint32_t mipLevels = texture->mipCount;
     Size texelSize = getTexelSize(texture->format);
 
     for (uint32_t layer = 0; layer < arrayLayers; ++layer)
