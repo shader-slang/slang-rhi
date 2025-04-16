@@ -30,13 +30,9 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mip,
-        ISlangBlob** outBlob,
-        SubresourceLayout* outLayout
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, ISlangBlob** outBlob, SubresourceLayout* outLayout)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* inTexture, const TextureViewDesc& desc, ITextureView** outView) override;

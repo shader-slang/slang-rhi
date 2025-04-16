@@ -115,13 +115,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mip,
-        ISlangBlob** outBlob,
-        SubresourceLayout* outLayout
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, ISlangBlob** outBlob, SubresourceLayout* outLayout)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, size_t offset, size_t size, void* outData) override;

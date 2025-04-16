@@ -614,8 +614,7 @@ void DebugCommandEncoder::copyTextureToBuffer(
         return;
     }
 
-    baseObject
-        ->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, srcLayer, srcMip, srcOffset, extent);
+    baseObject->copyTextureToBuffer(dst, dstOffset, dstSize, dstRowPitch, src, srcLayer, srcMip, srcOffset, extent);
 }
 
 void DebugCommandEncoder::copyBufferToTexture(
@@ -647,8 +646,7 @@ void DebugCommandEncoder::copyBufferToTexture(
         return;
     }
 
-    baseObject
-        ->copyBufferToTexture(dst, dstLayer, dstMip, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
+    baseObject->copyBufferToTexture(dst, dstLayer, dstMip, dstOffset, src, srcOffset, srcSize, srcRowPitch, extent);
 }
 
 void DebugCommandEncoder::buildAccelerationStructure(

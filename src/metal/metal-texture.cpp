@@ -193,8 +193,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     const TextureDesc& textureDesc = textureImpl->m_desc;
     uint32_t layerCount = textureDesc.arrayLength * (textureDesc.type == TextureType::TextureCube ? 6 : 1);
     SubresourceRange sr = viewImpl->m_desc.subresourceRange;
-    if (sr.layer == 0 && sr.layerCount == layerCount && sr.mip == 0 &&
-        sr.mipCount == textureDesc.mipCount)
+    if (sr.layer == 0 && sr.layerCount == layerCount && sr.mip == 0 && sr.mipCount == textureDesc.mipCount)
     {
         viewImpl->m_textureView = textureImpl->m_texture;
         returnComPtr(outView, viewImpl);

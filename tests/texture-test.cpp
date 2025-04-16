@@ -599,8 +599,7 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
 
             ComPtr<ISlangBlob> blob;
             Size rowPitch;
-            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mip, blob.writeRef(), &rowPitch)
-            );
+            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mip, blob.writeRef(), &rowPitch));
 
             const uint8_t* expectedSlice = sr.data.get();
             const uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();

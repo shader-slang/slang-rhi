@@ -45,14 +45,8 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
         }
     }
 
-    virtual void initializeTexel(
-        void* texel,
-        uint32_t x,
-        uint32_t y,
-        uint32_t z,
-        uint32_t mip,
-        uint32_t arrayLayer
-    ) override
+    virtual void initializeTexel(void* texel, uint32_t x, uint32_t y, uint32_t z, uint32_t mip, uint32_t arrayLayer)
+        override
     {
         auto temp = (T*)texel;
 
@@ -110,14 +104,8 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
         }
     }
 
-    virtual void initializeTexel(
-        void* texel,
-        uint32_t x,
-        uint32_t y,
-        uint32_t z,
-        uint32_t mip,
-        uint32_t arrayLayer
-    ) override
+    virtual void initializeTexel(void* texel, uint32_t x, uint32_t y, uint32_t z, uint32_t mip, uint32_t arrayLayer)
+        override
     {
         T temp = 0;
 

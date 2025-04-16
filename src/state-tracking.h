@@ -86,9 +86,7 @@ public:
             uint32_t layerCount = texture->m_desc.getLayerCount();
             for (uint32_t layer = subresourceRange.layer; layer < layerCount; layer++)
             {
-                for (uint32_t mip = subresourceRange.mip;
-                     mip < subresourceRange.mip + subresourceRange.mipCount;
-                     mip++)
+                for (uint32_t mip = subresourceRange.mip; mip < subresourceRange.mip + subresourceRange.mipCount; mip++)
                 {
                     uint32_t subresourceIndex = layer * texture->m_desc.mipCount + mip;
                     if (state != textureState->subresourceStates[subresourceIndex] ||

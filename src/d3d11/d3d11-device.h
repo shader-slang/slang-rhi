@@ -56,13 +56,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mip,
-        ISlangBlob** outBlob,
-        SubresourceLayout* outLayout
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, ISlangBlob** outBlob, SubresourceLayout* outLayout)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;

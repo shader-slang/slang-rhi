@@ -666,8 +666,7 @@ struct SubresourceRange
 
     bool operator==(const SubresourceRange& other) const
     {
-        return layer == other.layer && layerCount == other.layerCount && mip == other.mip &&
-               mipCount == other.mipCount;
+        return layer == other.layer && layerCount == other.layerCount && mip == other.mip && mipCount == other.mipCount;
     }
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }
 };
