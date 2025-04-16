@@ -921,11 +921,11 @@ Result SurfaceImpl::present()
     {
         VkImageCopy imageCopy = {};
         imageCopy.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageCopy.srcSubresource.mip = 0;
+        imageCopy.srcSubresource.mipLevel = 0;
         imageCopy.srcSubresource.baseArrayLayer = 0;
         imageCopy.srcSubresource.layerCount = 1;
         imageCopy.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageCopy.dstSubresource.mip = 0;
+        imageCopy.dstSubresource.mipLevel = 0;
         imageCopy.dstSubresource.baseArrayLayer = 0;
         imageCopy.dstSubresource.layerCount = 1;
         imageCopy.extent = {m_config.width, m_config.height, 1};
