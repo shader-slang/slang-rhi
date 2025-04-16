@@ -2327,7 +2327,7 @@ struct DeviceLimits
     /// Maximum dimensions for cube textures.
     uint32_t maxTextureDimensionCube;
     /// Maximum number of texture layers.
-    uint32_t maxTextureArrayLayers;
+    uint32_t maxTextureLayers;
 
     /// Maximum number of vertex input elements in a graphics pipeline.
     uint32_t maxVertexInputElements;

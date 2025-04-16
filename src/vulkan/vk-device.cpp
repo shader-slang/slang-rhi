@@ -409,7 +409,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         limits.maxTextureDimension2D = basicProps.limits.maxImageDimension2D;
         limits.maxTextureDimension3D = basicProps.limits.maxImageDimension3D;
         limits.maxTextureDimensionCube = basicProps.limits.maxImageDimensionCube;
-        limits.maxTextureArrayLayers = basicProps.limits.maxImageArrayLayers;
+        limits.maxTextureLayers = basicProps.limits.maxImageArrayLayers;
 
         limits.maxVertexInputElements = basicProps.limits.maxVertexInputAttributes;
         limits.maxVertexInputElementOffset = basicProps.limits.maxVertexInputAttributeOffset;

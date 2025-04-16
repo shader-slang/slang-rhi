@@ -327,7 +327,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         limits.maxTextureDimension2D = maxTextureDimensionUV;
         limits.maxTextureDimension3D = maxTextureDimensionW;
         limits.maxTextureDimensionCube = maxTextureDimensionCube;
-        limits.maxTextureArrayLayers = maxTextureDimensionCube;
+        limits.maxTextureLayers = maxTextureDimensionCube;
 
         limits.maxVertexInputElements = maxInputElements;
         limits.maxVertexInputElementOffset = 256; // TODO
