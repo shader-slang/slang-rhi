@@ -30,7 +30,7 @@ struct TextureBarrier
     Texture* texture;
     bool entireTexture;
     uint32_t mip;
-    uint32_t arrayLayer;
+    uint32_t layer;
     ResourceState stateBefore;
     ResourceState stateAfter;
 };

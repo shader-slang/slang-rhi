@@ -1464,7 +1464,7 @@ void CommandRecorder::commitBarriers()
             {
                 barrier.Transition.Subresource = D3DUtil::getSubresourceIndex(
                     textureBarrier.mip,
-                    textureBarrier.arrayLayer,
+                    textureBarrier.layer,
                     planeIndex,
                     mipCount,
                     layerCount

@@ -185,13 +185,13 @@ RefPtr<ValidationTextureFormatBase> getValidationTextureFormat(Format format)
 void generateTextureData(RefPtr<TextureInfo> texture, ValidationTextureFormatBase* validationFormat)
 {
     Extent3D extent = texture->extent;
-    uint32_t arrayLayers = texture->arrayLength;
+    uint32_t layerCount = texture->arrayLength;
     if (texture->textureType == TextureType::TextureCube)
-        arrayLayers *= 6;
+        layerCount *= 6;
     uint32_t mipLevels = texture->mipCount;
     Size texelSize = getTexelSize(texture->format);
 
-    for (uint32_t layer = 0; layer < arrayLayers; ++layer)
+    for (uint32_t layer = 0; layer < layerCount; ++layer)
     {
         for (uint32_t mip = 0; mip < mipLevels; ++mip)
         {
