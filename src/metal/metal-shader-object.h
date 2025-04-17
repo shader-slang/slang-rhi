@@ -64,13 +64,6 @@ struct BindingDataBuilder
         ShaderObjectLayoutImpl* specializedLayout,
         BufferImpl*& outArgumentBuffer
     );
-
-    Result writeOrdinaryDataIntoArgumentBuffer(
-        slang::TypeLayoutReflection* argumentBufferTypeLayout,
-        slang::TypeLayoutReflection* defaultTypeLayout,
-        uint8_t* argumentBuffer,
-        uint8_t* srcData
-    );
 };
 
 struct BindingDataImpl : BindingData
