@@ -382,9 +382,9 @@ bool Device::hasFeature(Feature feature)
     return size_t(feature) < size_t(Feature::_Count) ? m_featureSet[size_t(feature)] : false;
 }
 
-bool Device::hasFeature(const char* featureName)
+bool Device::hasFeature(const char* feature)
 {
-    auto it = kFeatureNameMap.find(featureName);
+    auto it = kFeatureNameMap.find(feature);
     if (it != kFeatureNameMap.end())
     {
         return hasFeature(it->second);
