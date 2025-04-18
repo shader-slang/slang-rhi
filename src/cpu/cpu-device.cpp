@@ -30,12 +30,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.timestampFrequency = 1000000000;
     }
 
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
-    // Supports timestamp queries
-    m_features.push_back("timestamp-query");
-    // Supports pointers (or something akin to that)
-    m_features.push_back("has-ptr");
+    // Initialize features
+    addFeature(Feature::SoftwareDevice);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::TimestampQuery);
+    addFeature(Feature::Pointer);
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
 

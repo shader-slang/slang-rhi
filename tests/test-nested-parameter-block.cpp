@@ -28,7 +28,7 @@ struct uint4
 
 GPU_TEST_CASE("nested-parameter-block", ALL)
 {
-    if (!device->hasFeature("parameter-block"))
+    if (!device->hasFeature(Feature::ParameterBlock))
         SKIP("no support for parameter blocks");
 
     ComPtr<IShaderProgram> shaderProgram;

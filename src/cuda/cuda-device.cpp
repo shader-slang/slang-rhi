@@ -202,20 +202,17 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_CUDA_CTX_SCOPE(this);
 
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
+    addFeature(Feature::HardwareDevice);
+    addFeature(Feature::ParameterBlock);
 #if SLANG_RHI_ENABLE_VULKAN
     // Supports surface/swapchain (implemented in Vulkan).
-    m_features.push_back("surface");
+    addFeature(Feature::Surface);
 #endif
-    // Supports timestamp queries
-    m_features.push_back("timestamp-query");
+    addFeature(Feature::TimestampQuery);
+    addFeature(Feature::RealtimeClock);
     // Not clear how to detect half support on CUDA. For now we'll assume we have it
-    m_features.push_back("half");
-    // CUDA has support for realtime clock
-    m_features.push_back("realtime-clock");
-    // Allows use of a ptr like type
-    m_features.push_back("has-ptr");
+    addFeature(Feature::Half);
+    addFeature(Feature::Pointer);
 
 #if SLANG_RHI_ENABLE_OPTIX
     {
@@ -263,9 +260,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
             SLANG_OPTIX_RETURN_ON_FAIL(optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext));
 
-            m_features.push_back("acceleration-structure");
-            m_features.push_back("acceleration-structure-spheres");
-            m_features.push_back("ray-tracing");
+            addFeature(Feature::AccelerationStructure);
+            addFeature(Feature::AccelerationStructureSpheres);
+            addFeature(Feature::RayTracing);
         }
         else
         {

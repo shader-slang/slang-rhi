@@ -264,7 +264,7 @@ GPU_TEST_CASE("sampler-border-white-opaque", D3D11 | D3D12 | Vulkan | Metal)
 
 GPU_TEST_CASE("sampler-border-custom-color", D3D11 | D3D12 | Vulkan | Metal)
 {
-    if (!device->hasFeature("custom-border-color"))
+    if (!device->hasFeature(Feature::CustomBorderColor))
         return;
 
     SamplerDesc desc = {};

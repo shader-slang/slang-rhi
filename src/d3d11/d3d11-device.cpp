@@ -213,16 +213,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
-    // Supports surface/swapchain
-    m_features.push_back("surface");
-    // Supports rasterization
-    m_features.push_back("rasterization");
-    // Supports custom border color
-    m_features.push_back("custom-border-color");
-    // Supports timestamp queries
-    m_features.push_back("timestamp-query");
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Surface);
+    addFeature(Feature::Rasterization);
+    addFeature(Feature::CustomBorderColor);
+    addFeature(Feature::TimestampQuery);
 
     // NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
@@ -234,19 +229,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
                 {
-                    m_features.push_back("atomic-int64");
+                    addFeature(Feature::AtomicInt64);
                 }
                 if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
                 {
-                    m_features.push_back("atomic-half");
+                    addFeature(Feature::AtomicHalf);
                 }
                 if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
                 {
-                    m_features.push_back("atomic-float");
+                    addFeature(Feature::AtomicFloat);
                 }
                 if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
                 {
-                    m_features.push_back("realtime-clock");
+                    addFeature(Feature::RealtimeClock);
                 }
             }
         }
@@ -263,7 +258,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             )) &&
             doublePrecisionFeature.DoublePrecisionFloatShaderOps)
         {
-            m_features.push_back("double");
+            addFeature(Feature::Double);
         }
     }
 

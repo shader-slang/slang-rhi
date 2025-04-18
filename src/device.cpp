@@ -78,6 +78,16 @@ void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> speci
 // Device
 // ----------------------------------------------------------------------------
 
+// Feature lookup
+
+#define SLANG_RHI_FEATURE_X(id, name) name,
+static const std::array<const char*, size_t(Feature::_Count)> kFeatureNames = {SLANG_RHI_FEATURES(SLANG_RHI_FEATURE_X)};
+#undef SLANG_RHI_FEATURE_X
+
+#define SLANG_RHI_FEATURE_X(id, name) {name, Feature::id},
+static const std::unordered_map<std::string_view, Feature> kFeatureNameMap = {SLANG_RHI_FEATURES(SLANG_RHI_FEATURE_X)};
+#undef SLANG_RHI_FEATURE_X
+
 Result Device::createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject)
 {
     return ShaderObject::create(this, layout, outObject);
@@ -334,6 +344,11 @@ Result Device::initialize(const DeviceDesc& desc)
     return SLANG_OK;
 }
 
+void Device::addFeature(Feature feature)
+{
+    m_featureSet[size_t(feature)] = true;
+}
+
 Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return SLANG_OK;
@@ -341,25 +356,40 @@ Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 
 Result Device::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
 {
-    if (bufferSize >= m_features.size())
+    if (!outFeatures)
     {
-        for (size_t i = 0; i < m_features.size(); i++)
+        return SLANG_E_INVALID_ARG;
+    }
+
+    size_t j = 0;
+    for (size_t i = 0; i < m_featureSet.size(); i++)
+    {
+        if (m_featureSet[i] && j < bufferSize)
         {
-            outFeatures[i] = m_features[i].data();
+            outFeatures[j] = kFeatureNames[i];
+            j++;
         }
     }
     if (outFeatureCount)
-        *outFeatureCount = (uint32_t)m_features.size();
+    {
+        *outFeatureCount = uint32_t(j);
+    }
     return SLANG_OK;
+}
+
+bool Device::hasFeature(Feature feature)
+{
+    return size_t(feature) < size_t(Feature::_Count) ? m_featureSet[size_t(feature)] : false;
 }
 
 bool Device::hasFeature(const char* featureName)
 {
-    return std::any_of(
-        m_features.begin(),
-        m_features.end(),
-        [&](const std::string& feature) { return feature == featureName; }
-    );
+    auto it = kFeatureNameMap.find(featureName);
+    if (it != kFeatureNameMap.end())
+    {
+        return hasFeature(it->second);
+    }
+    return false;
 }
 
 Result Device::getFormatSupport(Format format, FormatSupport* outFormatSupport)

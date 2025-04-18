@@ -164,8 +164,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     bool enableRayTracingValidation
 )
 {
-    m_features.clear();
-
     VkInstance instance = VK_NULL_HANDLE;
     if (!handles[0])
     {
@@ -575,25 +573,24 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         if (deviceFeatures2.features.shaderResourceMinLod)
         {
-            m_features.push_back("shader-resource-min-lod");
+            // m_features.push_back("shader-resource-min-lod");
         }
         if (deviceFeatures2.features.shaderFloat64)
         {
-            m_features.push_back("double");
+            addFeature(Feature::Double);
         }
         if (deviceFeatures2.features.shaderInt64)
         {
-            m_features.push_back("int64");
+            addFeature(Feature::Int64);
         }
         if (deviceFeatures2.features.shaderInt16)
         {
-            m_features.push_back("int16");
+            addFeature(Feature::Int16);
         }
         // If we have float16 features then enable
         if (extendedFeatures.vulkan12Features.shaderFloat16)
         {
-            // We have half support
-            m_features.push_back("half");
+            addFeature(Feature::Half);
         }
 
         const auto addFeatureExtension = [&](const bool feature, auto& featureStruct, const char* extension = nullptr)
@@ -617,77 +614,75 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         // they are both present then the extensions are added, the struct
         // linked into the deviceCreateInfo chain and the features added to the
         // supported features list.
-#define SIMPLE_EXTENSION_FEATURE(s, m, e, ...)                                                                         \
-    do                                                                                                                 \
+#define SIMPLE_EXTENSION_FEATURE(s, m, e, code)                                                                        \
     {                                                                                                                  \
-        const static auto fs = {__VA_ARGS__};                                                                          \
         if (addFeatureExtension(s.m, s, e))                                                                            \
-            for (const auto& p : fs)                                                                                   \
-                m_features.push_back(p);                                                                               \
-    }                                                                                                                  \
-    while (0)
+        {                                                                                                              \
+            code                                                                                                       \
+        }                                                                                                              \
+    }
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.dynamicRenderingFeatures,
             dynamicRendering,
             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
-            "dynamic-rendering"
+            {/* "dynamic-rendering" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.dynamicRenderingLocalReadFeatures,
             dynamicRenderingLocalRead,
             VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME,
-            "dynamic-rendering"
+            {/* "dynamic-rendering" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.formats4444Features,
             formatA4R4G4B4,
             VK_EXT_4444_FORMATS_EXTENSION_NAME,
-            "b4g4r4a4-format"
+            {/* "b4g4r4a4-format" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.storage16BitFeatures,
             storageBuffer16BitAccess,
             VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
-            "16-bit-storage"
+            {/* "16-bit-storage" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.atomicFloatFeatures,
             shaderBufferFloat32Atomics,
             VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
-            "atomic-float"
+            { addFeature(Feature::AtomicFloat); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.atomicFloat2Features,
             shaderBufferFloat16Atomics,
             VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME,
-            "atomic-float-2"
+            { addFeature(Feature::AtomicFloat); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.imageInt64AtomicFeatures,
             shaderImageInt64Atomics,
             VK_EXT_SHADER_IMAGE_ATOMIC_INT64_EXTENSION_NAME,
-            "image-atomic-int64"
+            {/* "image-atomic-int64" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.extendedDynamicStateFeatures,
             extendedDynamicState,
             VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
-            "extended-dynamic-states"
+            {/* "extended-dynamic-states" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.customBorderColorFeatures,
             customBorderColors,
             VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
-            "custom-border-color"
+            { addFeature(Feature::CustomBorderColor); }
         );
 
         if (extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
@@ -698,24 +693,20 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             deviceCreateInfo.pNext = &extendedFeatures.accelerationStructureFeatures;
             deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
             deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
-            m_features.push_back("acceleration-structure");
+            addFeature(Feature::AccelerationStructure);
 
             // These both depend on VK_KHR_acceleration_structure
-
-            SIMPLE_EXTENSION_FEATURE(
-                extendedFeatures.rayQueryFeatures,
-                rayQuery,
-                VK_KHR_RAY_QUERY_EXTENSION_NAME,
-                "ray-query",
-                "ray-tracing"
-            );
 
             SIMPLE_EXTENSION_FEATURE(
                 extendedFeatures.rayTracingPipelineFeatures,
                 rayTracingPipeline,
                 VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-                "ray-tracing-pipeline"
+                { addFeature(Feature::RayTracing); }
             );
+
+            SIMPLE_EXTENSION_FEATURE(extendedFeatures.rayQueryFeatures, rayQuery, VK_KHR_RAY_QUERY_EXTENSION_NAME, {
+                addFeature(Feature::RayQuery);
+            });
 
             if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
                 extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
@@ -726,11 +717,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 }
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres)
                 {
-                    m_features.push_back("acceleration-structure-spheres");
+                    addFeature(Feature::AccelerationStructureSpheres);
                 }
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
                 {
-                    m_features.push_back("acceleration-structure-linear-swept-spheres");
+                    addFeature(Feature::AccelerationStructureLinearSweptSpheres);
                 }
             }
         }
@@ -739,63 +730,57 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.inlineUniformBlockFeatures,
             inlineUniformBlock,
             VK_EXT_INLINE_UNIFORM_BLOCK_EXTENSION_NAME,
-            "inline-uniform-block",
+            {/* "inline-uniform-block" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.robustness2Features,
             nullDescriptor,
             VK_EXT_ROBUSTNESS_2_EXTENSION_NAME,
-            "robustness2",
+            {/* "robustness2" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.clockFeatures,
             shaderDeviceClock,
             VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
-            "realtime-clock"
+            { addFeature(Feature::RealtimeClock); }
         );
 
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.meshShaderFeatures,
-            meshShader,
-            VK_EXT_MESH_SHADER_EXTENSION_NAME,
-            "mesh-shader"
-        );
+        SIMPLE_EXTENSION_FEATURE(extendedFeatures.meshShaderFeatures, meshShader, VK_EXT_MESH_SHADER_EXTENSION_NAME, {
+            addFeature(Feature::MeshShader);
+        });
 
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.multiviewFeatures,
-            multiview,
-            VK_KHR_MULTIVIEW_EXTENSION_NAME,
-            "multiview"
-        );
+        SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {
+            addFeature(Feature::MultiView);
+        });
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.fragmentShadingRateFeatures,
             primitiveFragmentShadingRate,
             VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME,
-            "fragment-shading-rate"
+            { addFeature(Feature::FragmentShadingRate); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.rayTracingInvocationReorderFeatures,
             rayTracingInvocationReorder,
             VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME,
-            "shader-execution-reorder"
+            { addFeature(Feature::ShaderExecutionReordering); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.variablePointersFeatures,
             variablePointers,
             VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
-            "variable-pointer"
+            {/* "variable-pointer" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.computeShaderDerivativeFeatures,
             computeDerivativeGroupLinear,
             VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME,
-            "computeDerivativeGroupLinear"
+            {/* "computeDerivativeGroupLinear" */}
         );
 
         // Only enable raytracing validation if both requested and supported
@@ -805,7 +790,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 extendedFeatures.rayTracingValidationFeatures,
                 rayTracingValidation,
                 VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
-                "ray-tracing-validation"
+                { addFeature(Feature::RayTracingValidation); }
             );
         }
 
@@ -813,50 +798,41 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.shaderMaximalReconvergenceFeatures,
             shaderMaximalReconvergence,
             VK_KHR_SHADER_MAXIMAL_RECONVERGENCE_EXTENSION_NAME,
-            "shader-maximal-reconvergence"
+            {/* "shader-maximal-reconvergence" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderQuadControlFeatures,
             shaderQuadControl,
             VK_KHR_SHADER_QUAD_CONTROL_EXTENSION_NAME,
-            "shader-quad-control"
+            {/* "shader-quad-control" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderIntegerDotProductFeatures,
             shaderIntegerDotProduct,
             VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME,
-            "integer-dot-product"
+            {/* "integer-dot-product" */}
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.cooperativeVectorFeatures,
             cooperativeVector,
             VK_NV_COOPERATIVE_VECTOR_EXTENSION_NAME,
-            "cooperative-vector"
+            { addFeature(Feature::CooperativeVector); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.cooperativeMatrix1Features,
             cooperativeMatrix,
             VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME,
-            "cooperative-matrix-1"
+            { addFeature(Feature::CooperativeMatrix); }
         );
 
 #undef SIMPLE_EXTENSION_FEATURE
 
         if (extendedFeatures.vulkan12Features.shaderBufferInt64Atomics)
-            m_features.push_back("atomic-int64");
-
-        if (extendedFeatures.vulkan12Features.timelineSemaphore)
-            m_features.push_back("timeline-semaphore");
-
-        if (extendedFeatures.vulkan12Features.shaderSubgroupExtendedTypes)
-            m_features.push_back("shader-subgroup-extended-types");
-
-        if (extendedFeatures.vulkan12Features.bufferDeviceAddress)
-            m_features.push_back("buffer-device-address");
+            addFeature(Feature::AtomicInt64);
 
         if (_hasAnySetBits(
                 extendedFeatures.vulkan12Features,
@@ -888,7 +864,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
              VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT | VK_SUBGROUP_FEATURE_CLUSTERED_BIT |
              VK_SUBGROUP_FEATURE_QUAD_BIT | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV))
         {
-            m_features.push_back("wave-ops");
+            addFeature(Feature::WaveOps);
         }
 
         if (extensionNames.count("VK_KHR_external_memory"))
@@ -905,7 +881,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
             }
 #endif
-            m_features.push_back("external-memory");
         }
         if (extensionNames.count(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME))
         {
@@ -921,14 +896,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
             }
 #endif
-            m_features.push_back("external-semaphore");
         }
         if (extensionNames.count(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
-            m_features.push_back("conservative-rasterization-3");
-            m_features.push_back("conservative-rasterization-2");
-            m_features.push_back("conservative-rasterization-1");
+            addFeature(Feature::ConservativeRasterization);
         }
         if (extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
         {
@@ -937,110 +909,74 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         if (extensionNames.count(VK_NVX_BINARY_IMPORT_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
-            m_features.push_back("nvx-binary-import");
         }
         if (extensionNames.count(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
-            m_features.push_back("nvx-image-view-handle");
         }
         if (extensionNames.count(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
-            m_features.push_back("push-descriptor");
         }
         if (extensionNames.count(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-            m_features.push_back("barycentrics");
+            addFeature(Feature::Barycentrics);
         }
         if (extensionNames.count(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
-            m_features.push_back("shader-subgroup-partitioned");
         }
 
         // Derive approximate DX12 shader model.
-        const char* featureTable[] = {
-            "sm_6_0",
-            "wave-ops",
-            "atomic-int64",
-            nullptr,
-            "sm_6_1",
-            "barycentrics",
-            "multiview",
-            nullptr,
-            "sm_6_2",
-            "half",
-            nullptr,
-            "sm_6_3",
-            "ray-tracing-pipeline",
-            nullptr,
-            "sm_6_4",
-            "fragment-shading-rate",
-            nullptr,
-            "sm_6_5",
-            "ray-query",
-            "mesh-shader",
-            nullptr,
-            "sm_6_6",
-            "wave-ops",
-            "atomic-float",
-            "atomic-int64",
-            nullptr,
-            nullptr,
+        Feature featureTable[] = {
+            // SM 6.6
+            Feature::SM_6_6,
+            Feature::AtomicFloat,
+            Feature::AtomicInt64,
+            // SM 6.5
+            Feature::SM_6_5,
+            Feature::RayQuery,
+            Feature::MeshShader,
+            // SM 6.4
+            Feature::SM_6_4,
+            Feature::FragmentShadingRate,
+            Feature::SamplerFeedback,
+            // SM 6.3
+            Feature::SM_6_3,
+            Feature::RayTracing,
+            // SM 6.2
+            Feature::SM_6_2,
+            Feature::Half,
+            // SM 6.1
+            Feature::SM_6_1,
+            Feature::Barycentrics,
+            Feature::MultiView,
+            // SM 6.0
+            Feature::SM_6_0,
+            Feature::Int64,
+            Feature::WaveOps,
         };
 
-        int i = 0;
-        while (i < SLANG_COUNT_OF(featureTable))
+        for (int i = SLANG_COUNT_OF(featureTable) - 1; i >= 0; --i)
         {
-            const char* sm = featureTable[i++];
-            if (sm == nullptr)
+            Feature feature = featureTable[i];
+            if (i >= int(Feature::SM_6_0) && i <= int(Feature::SM_6_7))
             {
-                break;
+                addFeature(feature);
             }
-            bool hasAll = true;
-            while (i < SLANG_COUNT_OF(featureTable))
-            {
-                const char* feature = featureTable[i++];
-                if (feature == nullptr)
-                {
-                    break;
-                }
-                hasAll &= std::any_of(
-                    m_features.begin(),
-                    m_features.end(),
-                    [&](const std::string& f) { return f == feature; }
-                );
-            }
-            if (hasAll)
-            {
-                m_features.push_back(sm);
-            }
-            else
+            else if (!hasFeature(feature))
             {
                 break;
             }
         }
     }
 
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
-    // Supports surface/swapchain
-    m_features.push_back("surface");
-    // Supports rasterization
-    m_features.push_back("rasterization");
-    // Supports timestamp queries
-    m_features.push_back("timestamp-query");
-
-    if (m_api.m_module->isSoftware())
-    {
-        m_features.push_back("software-device");
-    }
-    else
-    {
-        m_features.push_back("hardware-device");
-    }
+    addFeature(m_api.m_module->isSoftware() ? Feature::SoftwareDevice : Feature::HardwareDevice);
+    addFeature(Feature::Surface);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Rasterization);
+    addFeature(Feature::TimestampQuery);
 
     int queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
     SLANG_RHI_ASSERT(queueFamilyIndex >= 0);
