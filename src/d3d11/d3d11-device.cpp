@@ -227,28 +227,27 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
     {
-        if (SLANG_FAILED(NVAPIUtil::initialize()))
+        if (SLANG_SUCCEEDED(NVAPIUtil::initialize()))
         {
-            return SLANG_E_NOT_AVAILABLE;
-        }
-        m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
-        if (m_nvapiShaderExtension)
-        {
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+            m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
+            if (m_nvapiShaderExtension)
             {
-                m_features.push_back("atomic-int64");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
-            {
-                m_features.push_back("atomic-half");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
-            {
-                m_features.push_back("atomic-float");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
-            {
-                m_features.push_back("realtime-clock");
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+                {
+                    m_features.push_back("atomic-int64");
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
+                {
+                    m_features.push_back("atomic-half");
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
+                {
+                    m_features.push_back("atomic-float");
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
+                {
+                    m_features.push_back("realtime-clock");
+                }
             }
         }
     }

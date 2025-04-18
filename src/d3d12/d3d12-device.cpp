@@ -542,73 +542,72 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Initialize NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
     {
-        if (SLANG_FAILED(NVAPIUtil::initialize()))
+        if (SLANG_SUCCEEDED(NVAPIUtil::initialize()))
         {
-            return SLANG_E_NOT_AVAILABLE;
-        }
-        m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
-        if (m_nvapiShaderExtension)
-        {
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+            m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
+            if (m_nvapiShaderExtension)
             {
-                m_features.push_back("atomic-int64");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
-            {
-                m_features.push_back("atomic-half");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
-            {
-                m_features.push_back("atomic-float");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
-            {
-                m_features.push_back("realtime-clock");
-            }
-            NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
-            if (NvAPI_D3D12_GetRaytracingCaps(
-                    m_device,
-                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_SPHERES,
-                    &spheresCaps,
-                    sizeof(spheresCaps)
-                ) == NVAPI_OK &&
-                spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
-            {
-                m_features.push_back("acceleration-structure-spheres");
-            }
-            NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
-            if (NvAPI_D3D12_GetRaytracingCaps(
-                    m_device,
-                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_LINEAR_SWEPT_SPHERES,
-                    &lssCaps,
-                    sizeof(lssCaps)
-                ) == NVAPI_OK &&
-                lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
-            {
-                m_features.push_back("acceleration-structure-linear-swept-spheres");
-            }
-            NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
-            if (NvAPI_D3D12_GetRaytracingCaps(
-                    m_device,
-                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_THREAD_REORDERING,
-                    &reorderingCaps,
-                    sizeof(reorderingCaps)
-                ) == NVAPI_OK &&
-                reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
-            {
-                m_features.push_back("ray-tracing-reordering");
-            }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+                {
+                    m_features.push_back("atomic-int64");
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
+                {
+                    m_features.push_back("atomic-half");
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
+                {
+                    m_features.push_back("atomic-float");
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
+                {
+                    m_features.push_back("realtime-clock");
+                }
+                NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
+                if (NvAPI_D3D12_GetRaytracingCaps(
+                        m_device,
+                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_SPHERES,
+                        &spheresCaps,
+                        sizeof(spheresCaps)
+                    ) == NVAPI_OK &&
+                    spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
+                {
+                    m_features.push_back("acceleration-structure-spheres");
+                }
+                NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
+                if (NvAPI_D3D12_GetRaytracingCaps(
+                        m_device,
+                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_LINEAR_SWEPT_SPHERES,
+                        &lssCaps,
+                        sizeof(lssCaps)
+                    ) == NVAPI_OK &&
+                    lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
+                {
+                    m_features.push_back("acceleration-structure-linear-swept-spheres");
+                }
+                NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
+                if (NvAPI_D3D12_GetRaytracingCaps(
+                        m_device,
+                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_THREAD_REORDERING,
+                        &reorderingCaps,
+                        sizeof(reorderingCaps)
+                    ) == NVAPI_OK &&
+                    reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
+                {
+                    m_features.push_back("ray-tracing-reordering");
+                }
 
-            // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
-            // so we query the number of cooperative vector properties to determine if it is supported.
-            NvU32 propertyCount = 0;
-            if (NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr) ==
-                    NVAPI_OK &&
-                propertyCount > 0)
-            {
-                // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
-                // hardware/driver support.
-                // m_features.push_back("cooperative-vector");
+                // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
+                // so we query the number of cooperative vector properties to determine if it is supported.
+                NvU32 propertyCount = 0;
+                if (NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr) ==
+                        NVAPI_OK &&
+                    propertyCount > 0)
+                {
+                    // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
+                    // hardware/driver support.
+                    // m_features.push_back("cooperative-vector");
+                }
             }
         }
 
@@ -1611,7 +1610,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (!NVAPIUtil::isAvailable())
+    if (NVAPIUtil::isAvailable())
     {
 
         AccelerationStructureBuildDescConverterNVAPI converter;
