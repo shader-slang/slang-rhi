@@ -188,8 +188,8 @@ CUtexObject TextureImpl::getTexObject(Format format, const SubresourceRange& ran
     viewDesc.width = m_desc.size.width;
     viewDesc.height = m_desc.size.height;
     viewDesc.depth = m_desc.size.depth;
-    viewDesc.firstMipmapLevel = range.mipLevel;
-    viewDesc.lastMipmapLevel = range.mipLevel + range.mipLevelCount - 1;
+    viewDesc.firstMipmapLevel = range.mip;
+    viewDesc.lastMipmapLevel = range.mip + range.mipCount - 1;
     viewDesc.firstLayer = range.layer;
     viewDesc.lastLayer = range.layer + range.layerCount - 1;
 
@@ -210,7 +210,7 @@ CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
     CUarray array = m_cudaArray;
     if (!array)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&array, m_cudaMipMappedArray, range.mipLevel));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayGetLevel(&array, m_cudaMipMappedArray, range.mip));
     }
 
     CUDA_RESOURCE_DESC resDesc = {};
@@ -268,7 +268,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     switch (desc.type)
     {
     case TextureType::Texture1D:
-        if (desc.mipLevelCount == 1)
+        if (desc.mipCount == 1)
         {
             CUDA_ARRAY_DESCRIPTOR arrayDesc = {};
             arrayDesc.Width = desc.size.width;
@@ -282,8 +282,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             arrayDesc.Width = desc.size.width;
             arrayDesc.Format = format;
             arrayDesc.NumChannels = numChannels;
-            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
-            );
+            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipCount));
         }
         break;
     case TextureType::Texture1DArray:
@@ -295,14 +294,14 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         arrayDesc.NumChannels = numChannels;
         arrayDesc.Flags = CUDA_ARRAY3D_LAYERED;
         SLANG_CUDA_RETURN_ON_FAIL(
-            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
-                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+            desc.mipCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                               : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipCount)
         );
         break;
     }
     case TextureType::Texture2D:
     {
-        if (desc.mipLevelCount == 1)
+        if (desc.mipCount == 1)
         {
             CUDA_ARRAY_DESCRIPTOR arrayDesc = {};
             arrayDesc.Width = desc.size.width;
@@ -318,8 +317,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             arrayDesc.Height = desc.size.height;
             arrayDesc.Format = format;
             arrayDesc.NumChannels = numChannels;
-            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
-            );
+            SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipCount));
         }
         break;
     }
@@ -333,8 +331,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         arrayDesc.NumChannels = numChannels;
         arrayDesc.Flags = CUDA_ARRAY3D_LAYERED;
         SLANG_CUDA_RETURN_ON_FAIL(
-            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
-                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+            desc.mipCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                               : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipCount)
         );
         break;
     }
@@ -350,8 +348,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         arrayDesc.Format = format;
         arrayDesc.NumChannels = numChannels;
         SLANG_CUDA_RETURN_ON_FAIL(
-            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
-                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+            desc.mipCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                               : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipCount)
         );
         break;
     }
@@ -365,8 +363,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         arrayDesc.NumChannels = numChannels;
         arrayDesc.Flags = CUDA_ARRAY3D_CUBEMAP;
         SLANG_CUDA_RETURN_ON_FAIL(
-            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
-                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+            desc.mipCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                               : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipCount)
         );
         break;
     }
@@ -380,8 +378,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         arrayDesc.NumChannels = numChannels;
         arrayDesc.Flags = CUDA_ARRAY3D_CUBEMAP | CUDA_ARRAY3D_LAYERED;
         SLANG_CUDA_RETURN_ON_FAIL(
-            desc.mipLevelCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
-                                    : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipLevelCount)
+            desc.mipCount == 1 ? cuArray3DCreate(&tex->m_cudaArray, &arrayDesc)
+                               : cuMipmappedArrayCreate(&tex->m_cudaMipMappedArray, &arrayDesc, desc.mipCount)
         );
         break;
     }
@@ -389,22 +387,22 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
-        uint32_t mipLevelCount = desc.mipLevelCount;
+        uint32_t mipCount = desc.mipCount;
         uint32_t layerCount = desc.getLayerCount();
         uint32_t subresourceIndex = 0;
 
         for (uint32_t layer = 0; layer < layerCount; ++layer)
         {
-            for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; ++mipLevel)
+            for (uint32_t mip = 0; mip < mipCount; ++mip)
             {
                 const SubresourceData& subresourceData = initData[subresourceIndex++];
 
-                Extent3D mipSize = calcMipSize(desc.size, mipLevel);
+                Extent3D mipSize = calcMipSize(desc.size, mip);
 
                 CUarray dstArray = tex->m_cudaArray;
                 if (tex->m_cudaMipMappedArray)
                 {
-                    SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, tex->m_cudaMipMappedArray, mipLevel));
+                    SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&dstArray, tex->m_cudaMipMappedArray, mip));
                 }
 
                 CUDA_MEMCPY3D copyParam = {};
@@ -479,7 +477,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
     memset(&externalMemoryMipDesc, 0, sizeof(externalMemoryMipDesc));
     externalMemoryMipDesc.offset = 0;
     externalMemoryMipDesc.arrayDesc = arrayDesc;
-    externalMemoryMipDesc.numLevels = desc.mipLevelCount;
+    externalMemoryMipDesc.numLevels = desc.mipCount;
 
     CUmipmappedArray mipArray;
     SLANG_CUDA_RETURN_ON_FAIL(cuExternalMemoryGetMappedMipmappedArray(&mipArray, externalMemory, &externalMemoryMipDesc)

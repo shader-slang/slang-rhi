@@ -16,14 +16,7 @@ struct ValidationTextureFormatBase : RefObject
 {
     virtual void validateBlocksEqual(const void* actual, const void* expected) = 0;
 
-    virtual void initializeTexel(
-        void* texel,
-        uint32_t x,
-        uint32_t y,
-        uint32_t z,
-        uint32_t mipLevel,
-        uint32_t arrayLayer
-    ) = 0;
+    virtual void initializeTexel(void* texel, uint32_t x, uint32_t y, uint32_t z, uint32_t mip, uint32_t layer) = 0;
 };
 
 template<typename T>
@@ -45,36 +38,29 @@ struct ValidationTextureFormat : ValidationTextureFormatBase
         }
     }
 
-    virtual void initializeTexel(
-        void* texel,
-        uint32_t x,
-        uint32_t y,
-        uint32_t z,
-        uint32_t mipLevel,
-        uint32_t arrayLayer
-    ) override
+    virtual void initializeTexel(void* texel, uint32_t x, uint32_t y, uint32_t z, uint32_t mip, uint32_t layer) override
     {
         auto temp = (T*)texel;
 
         switch (componentCount)
         {
         case 1:
-            temp[0] = T(x + y + z + mipLevel + arrayLayer);
+            temp[0] = T(x + y + z + mip + layer);
             break;
         case 2:
-            temp[0] = T(x + z + arrayLayer);
-            temp[1] = T(y + mipLevel);
+            temp[0] = T(x + z + layer);
+            temp[1] = T(y + mip);
             break;
         case 3:
-            temp[0] = T(x + mipLevel);
-            temp[1] = T(y + arrayLayer);
+            temp[0] = T(x + mip);
+            temp[1] = T(y + layer);
             temp[2] = T(z);
             break;
         case 4:
-            temp[0] = T(x + arrayLayer);
+            temp[0] = T(x + layer);
             temp[1] = (T)y;
             temp[2] = (T)z;
-            temp[3] = (T)mipLevel;
+            temp[3] = (T)mip;
             break;
         default:
             MESSAGE("component count should be no greater than 4");
@@ -110,14 +96,7 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
         }
     }
 
-    virtual void initializeTexel(
-        void* texel,
-        uint32_t x,
-        uint32_t y,
-        uint32_t z,
-        uint32_t mipLevel,
-        uint32_t arrayLayer
-    ) override
+    virtual void initializeTexel(void* texel, uint32_t x, uint32_t y, uint32_t z, uint32_t mip, uint32_t layer) override
     {
         T temp = 0;
 
@@ -126,19 +105,19 @@ struct PackedValidationTextureFormat : ValidationTextureFormatBase
         {
             temp |= z;
             temp <<= gBits;
-            temp |= (y + arrayLayer);
+            temp |= (y + layer);
             temp <<= rBits;
-            temp |= (x + mipLevel);
+            temp |= (x + mip);
         }
         else
         {
-            temp |= mipLevel;
+            temp |= mip;
             temp <<= bBits;
             temp |= z;
             temp <<= gBits;
             temp |= y;
             temp <<= rBits;
-            temp |= (x + arrayLayer);
+            temp |= (x + layer);
         }
 
         *(T*)texel = temp;
@@ -187,7 +166,7 @@ struct TextureInfo : RefObject
     TextureType textureType;
 
     Extent3D extent;
-    uint32_t mipLevelCount;
+    uint32_t mipCount;
     uint32_t arrayLength;
 
     std::vector<RefPtr<ValidationTextureData>> subresourceObjects;

@@ -165,22 +165,22 @@ void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     const TextureDesc& desc = texture->m_desc;
     if (is_set(desc.usage, TextureUsage::RenderTarget))
     {
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
-            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
-            sr.mipLevelCount = 1;
+            sr.mip = cmd.subresourceRange.mip + mipOffset;
+            sr.mipCount = 1;
             ID3D11RenderTargetView* rtv = texture->getRTV(desc.format, sr);
             m_immediateContext->ClearRenderTargetView(rtv, cmd.clearValue);
         }
     }
     else if (is_set(desc.usage, TextureUsage::UnorderedAccess))
     {
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
-            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
-            sr.mipLevelCount = 1;
+            sr.mip = cmd.subresourceRange.mip + mipOffset;
+            sr.mipCount = 1;
             ID3D11UnorderedAccessView* uav = texture->getUAV(desc.format, sr);
             m_immediateContext->ClearUnorderedAccessViewFloat(uav, cmd.clearValue);
         }
@@ -193,11 +193,11 @@ void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
     const TextureDesc& desc = texture->m_desc;
     if (is_set(desc.usage, TextureUsage::UnorderedAccess))
     {
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
-            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
-            sr.mipLevelCount = 1;
+            sr.mip = cmd.subresourceRange.mip + mipOffset;
+            sr.mipCount = 1;
             ID3D11UnorderedAccessView* uav = texture->getUAV(desc.format, sr);
             uint32_t clearValue[4];
             truncateBySintFormat(desc.format, cmd.clearValue, clearValue);
@@ -217,11 +217,11 @@ void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDe
             clearFlags |= D3D11_CLEAR_DEPTH;
         if (cmd.clearStencil)
             clearFlags |= D3D11_CLEAR_STENCIL;
-        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipLevelCount; ++mipOffset)
+        for (uint32_t mipOffset = 0; mipOffset < cmd.subresourceRange.mipCount; ++mipOffset)
         {
             SubresourceRange sr = cmd.subresourceRange;
-            sr.mipLevel = cmd.subresourceRange.mipLevel + mipOffset;
-            sr.mipLevelCount = 1;
+            sr.mip = cmd.subresourceRange.mip + mipOffset;
+            sr.mipCount = 1;
             ID3D11DepthStencilView* dsv = texture->getDSV(desc.format, sr);
             m_immediateContext->ClearDepthStencilView(dsv, clearFlags, cmd.depthValue, cmd.stencilValue);
         }

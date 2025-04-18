@@ -28,21 +28,21 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
     {
     case TextureType::Texture1D:
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1D;
-        rtvDesc.Texture1D.MipSlice = range.mipLevel;
+        rtvDesc.Texture1D.MipSlice = range.mip;
         break;
     case TextureType::Texture1DArray:
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1DARRAY;
-        rtvDesc.Texture1DArray.MipSlice = range.mipLevel;
+        rtvDesc.Texture1DArray.MipSlice = range.mip;
         rtvDesc.Texture1DArray.FirstArraySlice = range.layer;
         rtvDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-        rtvDesc.Texture2D.MipSlice = range.mipLevel;
+        rtvDesc.Texture2D.MipSlice = range.mip;
         break;
     case TextureType::Texture2DArray:
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-        rtvDesc.Texture2DArray.MipSlice = range.mipLevel;
+        rtvDesc.Texture2DArray.MipSlice = range.mip;
         rtvDesc.Texture2DArray.FirstArraySlice = range.layer;
         rtvDesc.Texture2DArray.ArraySize = range.layerCount;
         break;
@@ -56,7 +56,7 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
         break;
     case TextureType::Texture3D:
         rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
-        rtvDesc.Texture3D.MipSlice = range.mipLevel;
+        rtvDesc.Texture3D.MipSlice = range.mip;
         rtvDesc.Texture3D.FirstWSlice = 0;
         rtvDesc.Texture3D.WSize = -1;
         break;
@@ -89,21 +89,21 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
     {
     case TextureType::Texture1D:
         dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE1D;
-        dsvDesc.Texture1D.MipSlice = range.mipLevel;
+        dsvDesc.Texture1D.MipSlice = range.mip;
         break;
     case TextureType::Texture1DArray:
         dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE1DARRAY;
-        dsvDesc.Texture1DArray.MipSlice = range.mipLevel;
+        dsvDesc.Texture1DArray.MipSlice = range.mip;
         dsvDesc.Texture1DArray.FirstArraySlice = range.layer;
         dsvDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
         dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-        dsvDesc.Texture2D.MipSlice = range.mipLevel;
+        dsvDesc.Texture2D.MipSlice = range.mip;
         break;
     case TextureType::Texture2DArray:
         dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
-        dsvDesc.Texture2DArray.MipSlice = range.mipLevel;
+        dsvDesc.Texture2DArray.MipSlice = range.mip;
         dsvDesc.Texture2DArray.FirstArraySlice = range.layer;
         dsvDesc.Texture2DArray.ArraySize = range.layerCount;
         break;
@@ -145,25 +145,25 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
     {
     case TextureType::Texture1D:
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
-        srvDesc.Texture1D.MostDetailedMip = range.mipLevel;
-        srvDesc.Texture1D.MipLevels = range.mipLevelCount;
+        srvDesc.Texture1D.MostDetailedMip = range.mip;
+        srvDesc.Texture1D.MipLevels = range.mipCount;
         break;
     case TextureType::Texture1DArray:
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
-        srvDesc.Texture1DArray.MostDetailedMip = range.mipLevel;
-        srvDesc.Texture1DArray.MipLevels = range.mipLevelCount;
+        srvDesc.Texture1DArray.MostDetailedMip = range.mip;
+        srvDesc.Texture1DArray.MipLevels = range.mipCount;
         srvDesc.Texture1DArray.FirstArraySlice = range.layer;
         srvDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Texture2D.MostDetailedMip = range.mipLevel;
-        srvDesc.Texture2D.MipLevels = range.mipLevelCount;
+        srvDesc.Texture2D.MostDetailedMip = range.mip;
+        srvDesc.Texture2D.MipLevels = range.mipCount;
         break;
     case TextureType::Texture2DArray:
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-        srvDesc.Texture2DArray.MostDetailedMip = range.mipLevel;
-        srvDesc.Texture2DArray.MipLevels = range.mipLevelCount;
+        srvDesc.Texture2DArray.MostDetailedMip = range.mip;
+        srvDesc.Texture2DArray.MipLevels = range.mipCount;
         srvDesc.Texture2DArray.FirstArraySlice = range.layer;
         srvDesc.Texture2DArray.ArraySize = range.layerCount;
         break;
@@ -177,18 +177,18 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
         break;
     case TextureType::Texture3D:
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-        srvDesc.Texture3D.MostDetailedMip = range.mipLevel;
-        srvDesc.Texture3D.MipLevels = range.mipLevelCount;
+        srvDesc.Texture3D.MostDetailedMip = range.mip;
+        srvDesc.Texture3D.MipLevels = range.mipCount;
         break;
     case TextureType::TextureCube:
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-        srvDesc.TextureCube.MostDetailedMip = range.mipLevel;
-        srvDesc.TextureCube.MipLevels = range.mipLevelCount;
+        srvDesc.TextureCube.MostDetailedMip = range.mip;
+        srvDesc.TextureCube.MipLevels = range.mipCount;
         break;
     case TextureType::TextureCubeArray:
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
-        srvDesc.TextureCubeArray.MostDetailedMip = range.mipLevel;
-        srvDesc.TextureCubeArray.MipLevels = range.mipLevelCount;
+        srvDesc.TextureCubeArray.MostDetailedMip = range.mip;
+        srvDesc.TextureCubeArray.MipLevels = range.mipCount;
         srvDesc.TextureCubeArray.First2DArrayFace = range.layer;
         srvDesc.TextureCubeArray.NumCubes = range.layerCount / 6;
         break;
@@ -218,21 +218,21 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
     {
     case TextureType::Texture1D:
         uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1D;
-        uavDesc.Texture1D.MipSlice = range.mipLevel;
+        uavDesc.Texture1D.MipSlice = range.mip;
         break;
     case TextureType::Texture1DArray:
         uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1DARRAY;
-        uavDesc.Texture1DArray.MipSlice = range.mipLevel;
+        uavDesc.Texture1DArray.MipSlice = range.mip;
         uavDesc.Texture1DArray.FirstArraySlice = range.layer;
         uavDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
         uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-        uavDesc.Texture2D.MipSlice = range.mipLevel;
+        uavDesc.Texture2D.MipSlice = range.mip;
         break;
     case TextureType::Texture2DArray:
         uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
-        uavDesc.Texture2DArray.MipSlice = range.mipLevel;
+        uavDesc.Texture2DArray.MipSlice = range.mip;
         uavDesc.Texture2DArray.FirstArraySlice = range.layer;
         uavDesc.Texture2DArray.ArraySize = range.layerCount;
         break;
@@ -241,7 +241,7 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
         break;
     case TextureType::Texture3D:
         uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
-        uavDesc.Texture3D.MipSlice = range.mipLevel;
+        uavDesc.Texture3D.MipSlice = range.mip;
         uavDesc.Texture3D.FirstWSlice = 0;
         uavDesc.Texture3D.WSize = -1;
         break;
@@ -261,7 +261,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
 
-    uint32_t mipLevelCount = desc.mipLevelCount;
+    uint32_t mipCount = desc.mipCount;
     uint32_t layerCount = desc.getLayerCount();
 
     bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
@@ -287,12 +287,12 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     D3D11_SUBRESOURCE_DATA* subresourcesPtr = nullptr;
     if (initData)
     {
-        subRes.resize(mipLevelCount * layerCount);
+        subRes.resize(mipCount * layerCount);
         {
             uint32_t subresourceIndex = 0;
             for (uint32_t i = 0; i < layerCount; i++)
             {
-                for (uint32_t j = 0; j < mipLevelCount; j++)
+                for (uint32_t j = 0; j < mipCount; j++)
                 {
                     D3D11_SUBRESOURCE_DATA& data = subRes[subresourceIndex];
                     auto& srcData = initData[subresourceIndex];
@@ -345,7 +345,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         d3dDesc.CPUAccessFlags = accessFlags;
         d3dDesc.Format = format;
         d3dDesc.MiscFlags = 0;
-        d3dDesc.MipLevels = mipLevelCount;
+        d3dDesc.MipLevels = mipCount;
         d3dDesc.ArraySize = layerCount;
         d3dDesc.Width = desc.size.width;
         d3dDesc.Usage = d3dUsage;
@@ -368,7 +368,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         d3dDesc.CPUAccessFlags = accessFlags;
         d3dDesc.Format = format;
         d3dDesc.MiscFlags = 0;
-        d3dDesc.MipLevels = mipLevelCount;
+        d3dDesc.MipLevels = mipCount;
         d3dDesc.ArraySize = layerCount;
 
         d3dDesc.Width = desc.size.width;
@@ -394,7 +394,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         d3dDesc.CPUAccessFlags = accessFlags;
         d3dDesc.Format = format;
         d3dDesc.MiscFlags = 0;
-        d3dDesc.MipLevels = mipLevelCount;
+        d3dDesc.MipLevels = mipCount;
         d3dDesc.Width = desc.size.width;
         d3dDesc.Height = desc.size.height;
         d3dDesc.Depth = desc.size.depth;

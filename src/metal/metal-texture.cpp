@@ -43,7 +43,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     TextureDesc desc = fixupTextureDesc(desc_);
 
     // Metal doesn't support mip-mapping for 1D textures
-    if ((desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipLevelCount > 1)
+    if ((desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipCount > 1)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
@@ -81,7 +81,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureDesc->setWidth(desc.size.width);
     textureDesc->setHeight(desc.size.height);
     textureDesc->setDepth(desc.size.depth);
-    textureDesc->setMipmapLevelCount(desc.mipLevelCount);
+    textureDesc->setMipmapLevelCount(desc.mipCount);
     textureDesc->setArrayLength(desc.arrayLength);
     textureDesc->setPixelFormat(pixelFormat);
     textureDesc->setSampleCount(desc.sampleCount);
@@ -149,11 +149,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             MTL::Region region;
             region.origin = MTL::Origin(0, 0, 0);
             region.size = MTL::Size(desc.size.width, desc.size.height, desc.size.depth);
-            for (uint32_t level = 0; level < desc.mipLevelCount; ++level)
+            for (uint32_t level = 0; level < desc.mipCount; ++level)
             {
-                if (level >= desc.mipLevelCount)
+                if (level >= desc.mipCount)
                     continue;
-                const SubresourceData& subresourceData = initData[slice * desc.mipLevelCount + level];
+                const SubresourceData& subresourceData = initData[slice * desc.mipCount + level];
                 stagingTexture->replaceRegion(
                     region,
                     level,
@@ -193,8 +193,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     const TextureDesc& textureDesc = textureImpl->m_desc;
     uint32_t layerCount = textureDesc.arrayLength * (textureDesc.type == TextureType::TextureCube ? 6 : 1);
     SubresourceRange sr = viewImpl->m_desc.subresourceRange;
-    if (sr.layer == 0 && sr.layerCount == layerCount && sr.mipLevel == 0 &&
-        sr.mipLevelCount == textureDesc.mipLevelCount)
+    if (sr.layer == 0 && sr.layerCount == layerCount && sr.mip == 0 && sr.mipCount == textureDesc.mipCount)
     {
         viewImpl->m_textureView = textureImpl->m_texture;
         returnComPtr(outView, viewImpl);
@@ -204,7 +203,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     MTL::PixelFormat pixelFormat =
         desc.format == Format::Undefined ? textureImpl->m_pixelFormat : MetalUtil::translatePixelFormat(desc.format);
     NS::Range sliceRange(sr.layer, sr.layerCount);
-    NS::Range levelRange(sr.mipLevel, sr.mipLevelCount);
+    NS::Range levelRange(sr.mip, sr.mipCount);
 
     viewImpl->m_textureView = NS::TransferPtr(
         textureImpl->m_texture->newTextureView(pixelFormat, textureImpl->m_textureType, levelRange, sliceRange)

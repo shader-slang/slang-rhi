@@ -243,7 +243,7 @@ struct ComputeSurfaceTest : SurfaceTest
             textureDesc.size.width = width;
             textureDesc.size.height = height;
             textureDesc.format = getSurfaceFormat();
-            textureDesc.mipLevelCount = 1;
+            textureDesc.mipCount = 1;
             textureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
             renderTexture = device->createTexture(textureDesc);
             REQUIRE(renderTexture);

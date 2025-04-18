@@ -97,9 +97,9 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         RHI_VALIDATION_ERROR("Texture array length must be at least 1");
         return SLANG_E_INVALID_ARG;
     }
-    if (desc.mipLevelCount < 1)
+    if (desc.mipCount < 1)
     {
-        RHI_VALIDATION_ERROR("Texture mip level count must be at least 1");
+        RHI_VALIDATION_ERROR("Texture mip count must be at least 1");
         return SLANG_E_INVALID_ARG;
     }
     if (desc.format == Format::Undefined)
@@ -131,7 +131,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have initial data");
             return SLANG_E_INVALID_ARG;
         }
-        if (desc.mipLevelCount != 1)
+        if (desc.mipCount != 1)
         {
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have mip levels");
             return SLANG_E_INVALID_ARG;
@@ -515,7 +515,7 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
 Result DebugDevice::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     ISlangBlob** outBlob,
     SubresourceLayout* outLayout
 )
@@ -524,12 +524,12 @@ Result DebugDevice::readTexture(
 
     if (layer > desc.getLayerCount())
     {
-        RHI_VALIDATION_ERROR("Layer index out of bounds");
+        RHI_VALIDATION_ERROR("Layer out of bounds");
         return SLANG_E_INVALID_ARG;
     }
-    if (mipLevel > desc.mipLevelCount)
+    if (mip > desc.mipCount)
     {
-        RHI_VALIDATION_ERROR("Mip level out of bounds");
+        RHI_VALIDATION_ERROR("Mip out of bounds");
         return SLANG_E_INVALID_ARG;
     }
 
@@ -543,7 +543,7 @@ Result DebugDevice::readTexture(
         break;
     }
 
-    return baseObject->readTexture(texture, layer, mipLevel, outBlob, outLayout);
+    return baseObject->readTexture(texture, layer, mip, outBlob, outLayout);
 }
 
 Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)

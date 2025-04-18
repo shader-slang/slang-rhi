@@ -327,7 +327,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         limits.maxTextureDimension2D = maxTextureDimensionUV;
         limits.maxTextureDimension3D = maxTextureDimensionW;
         limits.maxTextureDimensionCube = maxTextureDimensionCube;
-        limits.maxTextureArrayLayers = maxTextureDimensionCube;
+        limits.maxTextureLayers = maxTextureDimensionCube;
 
         limits.maxVertexInputElements = maxInputElements;
         limits.maxVertexInputElementOffset = 256; // TODO
@@ -362,7 +362,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 Result DeviceImpl::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     ISlangBlob** outBlob,
     SubresourceLayout* outLayout
 )
@@ -385,10 +385,10 @@ Result DeviceImpl::readTexture(
 
     // Calculate layout info.
     SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
 
     TextureImpl* stagingTextureImpl = nullptr;
-    uint32_t subResourceIdx = D3D11CalcSubresource(mipLevel, layer, desc.mipLevelCount);
+    uint32_t subResourceIdx = D3D11CalcSubresource(mip, layer, desc.mipCount);
     if (desc.memoryType == MemoryType::ReadBack)
     {
         // The texture is already a staging texture, so we can just use it directly.
@@ -409,7 +409,7 @@ Result DeviceImpl::readTexture(
         // - Cube maps turn into 2D textures (as we only want 1 face)
 
         // Adjust mips, size and array
-        copyDesc.mipLevelCount = 1;
+        copyDesc.mipCount = 1;
         copyDesc.size = layout.size;
         copyDesc.arrayLength = 1;
 
@@ -439,7 +439,7 @@ Result DeviceImpl::readTexture(
         // Create texture + do a few checks to make sure logic is correct
         SLANG_RETURN_ON_FAIL(createTexture(copyDesc, nullptr, tempTexture.writeRef()));
         stagingTextureImpl = checked_cast<TextureImpl*>(tempTexture.get());
-        SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().mipLevelCount == 1);
+        SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().mipCount == 1);
         SLANG_RHI_ASSERT(stagingTextureImpl->getDesc().getLayerCount() == 1);
 
         // Copy the source subresource to subresource 0 of the staging texture, then switch

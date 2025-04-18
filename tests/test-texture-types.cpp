@@ -85,7 +85,7 @@ struct TextureAccessTest : TextureTest
     {
         TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
-        textureDesc.mipLevelCount = textureInfo->mipLevelCount;
+        textureDesc.mipCount = textureInfo->mipCount;
         textureDesc.arrayLength = textureInfo->arrayLength;
         textureDesc.size = textureInfo->extent;
         textureDesc.usage = (readWrite ? TextureUsage::UnorderedAccess : TextureUsage::ShaderResource) |
@@ -219,7 +219,7 @@ struct TextureAccessTest : TextureTest
         textureInfo->extent.width = 4;
         textureInfo->extent.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
         textureInfo->extent.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
-        textureInfo->mipLevelCount = 1;
+        textureInfo->mipCount = 1;
         textureInfo->arrayLength = 1;
         generateTextureData(textureInfo, validationFormat);
 
@@ -297,7 +297,7 @@ struct RenderTargetTests : TextureTest
 
         TextureDesc renderTextureDesc = {};
         renderTextureDesc.type = textureInfo->textureType;
-        renderTextureDesc.mipLevelCount = textureInfo->mipLevelCount;
+        renderTextureDesc.mipCount = textureInfo->mipCount;
         renderTextureDesc.arrayLength = textureInfo->arrayLength;
         renderTextureDesc.size = textureInfo->extent;
         renderTextureDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource | TextureUsage::CopySource;
@@ -313,7 +313,7 @@ struct RenderTargetTests : TextureTest
 
         TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
-        textureDesc.mipLevelCount = textureInfo->mipLevelCount;
+        textureDesc.mipCount = textureInfo->mipCount;
         textureDesc.arrayLength = textureInfo->arrayLength;
         textureDesc.size = textureInfo->extent;
         textureDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
@@ -461,7 +461,7 @@ struct RenderTargetTests : TextureTest
         textureInfo->extent.width = 4;
         textureInfo->extent.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
         textureInfo->extent.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
-        textureInfo->mipLevelCount = 1;
+        textureInfo->mipCount = 1;
         textureInfo->arrayLength = 1;
         generateTextureData(textureInfo, validationFormat);
 

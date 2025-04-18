@@ -66,7 +66,7 @@ GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal)
 
     TextureDesc desc = {};
     desc.type = TextureType::Texture2D;
-    desc.mipLevelCount = 1;
+    desc.mipCount = 1;
     desc.size.width = 1;
     desc.size.height = 1;
     desc.size.depth = 1;

@@ -782,7 +782,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         limits.maxTextureDimension2D = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
         limits.maxTextureDimension3D = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
         limits.maxTextureDimensionCube = D3D12_REQ_TEXTURECUBE_DIMENSION;
-        limits.maxTextureArrayLayers = D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
+        limits.maxTextureLayers = D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
 
         limits.maxVertexInputElements = D3D12_IA_VERTEX_INPUT_STRUCTURE_ELEMENT_COUNT;
         limits.maxVertexInputElementOffset = 256; // TODO
@@ -1055,8 +1055,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SubresourceRange range;
         range.layer = 0;
         range.layerCount = desc.getLayerCount();
-        range.mipLevel = 0;
-        range.mipLevelCount = desc.mipLevelCount;
+        range.mip = 0;
+        range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(
             texture,
@@ -1064,7 +1064,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             {0, 0, 0},
             Extent3D::kWholeTexture,
             initData,
-            range.layerCount * desc.mipLevelCount
+            range.layerCount * desc.mipCount
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));

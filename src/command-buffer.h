@@ -220,7 +220,7 @@ public:
         Size dstRowPitch,
         ITexture* src,
         uint32_t srcLayer,
-        uint32_t srcMipLevel,
+        uint32_t srcMip,
         Offset3D srcOffset,
         Extent3D extent
     ) override;
@@ -228,7 +228,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL copyBufferToTexture(
         ITexture* dst,
         uint32_t dstLayer,
-        uint32_t dstMipLevel,
+        uint32_t dstMip,
         Offset3D dstOffset,
         IBuffer* src,
         Offset srcOffset,

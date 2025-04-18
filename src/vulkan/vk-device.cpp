@@ -409,7 +409,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         limits.maxTextureDimension2D = basicProps.limits.maxImageDimension2D;
         limits.maxTextureDimension3D = basicProps.limits.maxImageDimension3D;
         limits.maxTextureDimensionCube = basicProps.limits.maxImageDimensionCube;
-        limits.maxTextureArrayLayers = basicProps.limits.maxImageArrayLayers;
+        limits.maxTextureLayers = basicProps.limits.maxImageArrayLayers;
 
         limits.maxVertexInputElements = basicProps.limits.maxVertexInputAttributes;
         limits.maxVertexInputElementOffset = basicProps.limits.maxVertexInputAttributeOffset;
@@ -1364,7 +1364,7 @@ void DeviceImpl::_transitionImageLayout(
     barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(format);
 
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = desc.mipLevelCount;
+    barrier.subresourceRange.levelCount = desc.mipCount;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
     barrier.srcAccessMask = calcAccessFlagsFromImageLayout(oldLayout);
@@ -1457,7 +1457,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     }
     }
 
-    imageInfo.mipLevels = desc.mipLevelCount;
+    imageInfo.mipLevels = desc.mipCount;
     imageInfo.arrayLayers = desc.getLayerCount();
 
     imageInfo.format = format;

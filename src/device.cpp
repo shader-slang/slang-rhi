@@ -574,7 +574,7 @@ Result Device::waitForFences(
 Result Device::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
+    uint32_t mip,
     ISlangBlob** outBlob,
     SubresourceLayout* outLayout
 )
@@ -586,7 +586,7 @@ Result Device::readTexture(
     SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
     SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
 
     StagingHeap::Allocation stagingAllocation;
     SLANG_RETURN_ON_FAIL(m_readbackHeap.alloc(layout.sizeInBytes, {}, &stagingAllocation));
@@ -598,7 +598,7 @@ Result Device::readTexture(
         layout.rowPitch,
         texture,
         layer,
-        mipLevel,
+        mip,
         {0, 0, 0},
         {layout.size.width, layout.size.height, layout.size.depth}
     );
