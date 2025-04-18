@@ -2,6 +2,7 @@ Buffer<float> buffer1;
 Buffer<float> buffer2;
 Buffer<float> buffer3;
 RWBuffer<float> rwBuffer1;
+[format("r32f")]
 RWBuffer<float> rwBuffer2;
 RWBuffer<float> rwBuffer3;
 StructuredBuffer<float> structuredBuffer1;
