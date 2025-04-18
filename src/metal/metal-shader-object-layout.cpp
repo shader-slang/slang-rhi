@@ -164,8 +164,8 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         break;
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ConstantBuffer:
-            // On metal, ParameterBlock and ConstantBuffer are represented as a single argument buffer. We will let _unwrapParameterGroups to handle
-            // the dereference logic.
+            // On metal, ParameterBlock and ConstantBuffer are represented as a single argument buffer.
+            // We will let _unwrapParameterGroups to handle the dereference logic.
             createForElementType(m_device, m_session, slangLeafTypeLayout, subObjectLayout.writeRef());
             break;
         case slang::BindingType::ExistentialValue:
