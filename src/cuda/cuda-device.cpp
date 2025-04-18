@@ -127,6 +127,7 @@ DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
 {
+    if (m_ctx.context)
     {
         SLANG_CUDA_CTX_SCOPE(this);
 
