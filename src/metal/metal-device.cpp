@@ -65,22 +65,20 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_commandQueue);
 
-    // Supports surface/swapchain
-    m_features.push_back("surface");
-    // Supports rasterization
-    m_features.push_back("rasterization");
+    addFeature(Feature::HardwareDevice);
+    addFeature(Feature::Surface);
+    addFeature(Feature::Rasterization);
 
     if (m_device->supportsRaytracing())
     {
-        m_features.push_back("acceleration-structure");
+        addFeature(Feature::AccelerationStructure);
     }
 
     m_hasArgumentBufferTier2 = m_device->argumentBuffersSupport() >= MTL::ArgumentBuffersTier2;
     if (m_hasArgumentBufferTier2)
     {
-        m_features.push_back("argument-buffer-tier-2");
-        // ParameterBlock requires argument buffer tier 2
-        m_features.push_back("parameter-block");
+        addFeature(Feature::ArgumentBufferTier2);
+        addFeature(Feature::ParameterBlock);
     }
 
     SLANG_RETURN_ON_FAIL(

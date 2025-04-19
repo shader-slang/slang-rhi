@@ -381,7 +381,7 @@ struct RayTracingTestB : BaseRayTracingTest
 
 GPU_TEST_CASE("ray-tracing-a", ALL)
 {
-    if (!device->hasFeature("ray-tracing"))
+    if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
     RayTracingTestA test;
@@ -391,7 +391,7 @@ GPU_TEST_CASE("ray-tracing-a", ALL)
 
 GPU_TEST_CASE("ray-tracing-b", ALL)
 {
-    if (!device->hasFeature("ray-tracing"))
+    if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
     RayTracingTestB test;

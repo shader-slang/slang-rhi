@@ -41,7 +41,7 @@ GPU_TEST_CASE("device-lifetime", ALL)
 
     // Create acceleration structure
     ComPtr<IAccelerationStructure> accelerationStructure;
-    if (testDevice->hasFeature("acceleration-structure"))
+    if (testDevice->hasFeature(Feature::AccelerationStructure))
     {
         AccelerationStructureDesc accelerationStructureDesc = {};
         accelerationStructureDesc.size = 1024;

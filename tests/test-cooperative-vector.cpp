@@ -5,7 +5,7 @@ using namespace rhi::testing;
 
 GPU_TEST_CASE("cooperative-vector-properties", D3D12 | Vulkan)
 {
-    if (!device->hasFeature("cooperative-vector"))
+    if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
     uint32_t propertyCount = 0;
@@ -18,7 +18,7 @@ GPU_TEST_CASE("cooperative-vector-properties", D3D12 | Vulkan)
 
 GPU_TEST_CASE("cooperative-vector-query-size", D3D12 | Vulkan)
 {
-    if (!device->hasFeature("cooperative-vector"))
+    if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
     auto getComponentSize = [&](CooperativeVectorComponentType type)
@@ -76,7 +76,7 @@ GPU_TEST_CASE("cooperative-vector-query-size", D3D12 | Vulkan)
 
 GPU_TEST_CASE("cooperative-vector-convert-host", D3D12 | Vulkan)
 {
-    if (!device->hasFeature("cooperative-vector"))
+    if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
     float matrix[4][8];
@@ -108,7 +108,7 @@ GPU_TEST_CASE("cooperative-vector-convert-host", D3D12 | Vulkan)
 
 GPU_TEST_CASE("cooperative-vector-convert-device", D3D12 | Vulkan)
 {
-    if (!device->hasFeature("cooperative-vector"))
+    if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
     float matrix[4][8];

@@ -98,6 +98,71 @@ enum class DeviceType
     WGPU,
 };
 
+// clang-format off
+#define SLANG_RHI_FEATURES(x) \
+    x(HardwareDevice,                           "hardware-device"                               ) \
+    x(SoftwareDevice,                           "software-device"                               ) \
+    x(ParameterBlock,                           "parameter-block"                               ) \
+    x(Surface,                                  "surface"                                       ) \
+    /* Rasterization features */                                                                  \
+    x(Rasterization,                            "rasterization"                                 ) \
+    x(Barycentrics,                             "barycentrics"                                  ) \
+    x(MultiView,                                "multi-view"                                    ) \
+    x(RasterizerOrderedViews,                   "rasterizer-ordered-views"                      ) \
+    x(ConservativeRasterization,                "conservative-rasterization"                    ) \
+    x(CustomBorderColor,                        "custom-border-color"                           ) \
+    x(FragmentShadingRate,                      "fragment-shading-rate"                         ) \
+    x(SamplerFeedback,                          "sampler-feedback"                              ) \
+    /* Ray tracing features */                                                                    \
+    x(AccelerationStructure,                    "acceleration-structure"                        ) \
+    x(AccelerationStructureSpheres,             "acceleration-structure-spheres"                ) \
+    x(AccelerationStructureLinearSweptSpheres,  "acceleration-structure-linear-swept-spheres"   ) \
+    x(RayTracing,                               "ray-tracing"                                   ) \
+    x(RayQuery,                                 "ray-query"                                     ) \
+    x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
+    x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
+    /* Misc features */                                                                           \
+    x(TimestampQuery,                           "timestamp-query"                               ) \
+    x(RealtimeClock,                            "realtime-clock"                                ) \
+    x(CooperativeVector,                        "cooperative-vector"                            ) \
+    x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
+    x(SM_5_1,                                   "sm_5_1"                                        ) \
+    x(SM_6_0,                                   "sm_6_0"                                        ) \
+    x(SM_6_1,                                   "sm_6_1"                                        ) \
+    x(SM_6_2,                                   "sm_6_2"                                        ) \
+    x(SM_6_3,                                   "sm_6_3"                                        ) \
+    x(SM_6_4,                                   "sm_6_4"                                        ) \
+    x(SM_6_5,                                   "sm_6_5"                                        ) \
+    x(SM_6_6,                                   "sm_6_6"                                        ) \
+    x(SM_6_7,                                   "sm_6_7"                                        ) \
+    x(Half,                                     "half"                                          ) \
+    x(Double,                                   "double"                                        ) \
+    x(Int16,                                    "int16"                                         ) \
+    x(Int64,                                    "int64"                                         ) \
+    x(AtomicFloat,                              "atomic-float"                                  ) \
+    x(AtomicHalf,                               "atomic-half"                                   ) \
+    x(AtomicInt64,                              "atomic-int64"                                  ) \
+    x(WaveOps,                                  "wave-ops"                                      ) \
+    x(MeshShader,                               "mesh-shader"                                   ) \
+    x(Pointer,                                  "has-ptr"                                       ) \
+    /* D3D12 specific features */                                                                 \
+    x(ConservativeRasterization1,               "conservative-rasterization-1"                  ) \
+    x(ConservativeRasterization2,               "conservative-rasterization-2"                  ) \
+    x(ConservativeRasterization3,               "conservative-rasterization-3"                  ) \
+    x(ProgrammableSamplePositions1,             "programmable-sample-positions-1"               ) \
+    x(ProgrammableSamplePositions2,             "programmable-sample-positions-2"               ) \
+    /* Vulkan specific features */                                                                \
+    /* Metal specific features */                                                                 \
+    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) // clang-format on
+
+#define SLANG_RHI_FEATURE_X(e, _) e,
+enum class Feature
+{
+    SLANG_RHI_FEATURES(SLANG_RHI_FEATURE_X) _Count,
+};
+#undef SLANG_RHI_FEATURE_X
+
+
 // TODO: Is this actually a flag when there are no bit fields?
 enum class AccessFlag
 {
@@ -2475,6 +2540,7 @@ class IDevice : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) = 0;
 
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) = 0;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) = 0;
 
     /// Returns a list of features supported by the device.

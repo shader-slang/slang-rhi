@@ -141,7 +141,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount) override;
-    virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* featureName) override;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override;
@@ -314,8 +315,10 @@ public:
 protected:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc);
 
+    void addFeature(Feature feature);
+
 protected:
-    std::vector<std::string> m_features;
+    std::array<bool, size_t(Feature::_Count)> m_featureSet;
     std::vector<CooperativeVectorProperties> m_cooperativeVectorProperties;
 
 public:
