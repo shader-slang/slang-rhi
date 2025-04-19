@@ -327,6 +327,8 @@ IDevice* Device::getInterface(const Guid& guid)
 
 Result Device::initialize(const DeviceDesc& desc)
 {
+    m_featureSet.fill(false);
+
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
 
     m_persistentShaderCache = desc.persistentShaderCache;
