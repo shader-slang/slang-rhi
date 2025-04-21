@@ -121,7 +121,7 @@ enum class DeviceType
     x(RayQuery,                                 "ray-query"                                     ) \
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
-    /* Misc features */                                                                           \
+    /* Other features */                                                                           \
     x(TimestampQuery,                           "timestamp-query"                               ) \
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \
@@ -153,7 +153,8 @@ enum class DeviceType
     x(ProgrammableSamplePositions2,             "programmable-sample-positions-2"               ) \
     /* Vulkan specific features */                                                                \
     /* Metal specific features */                                                                 \
-    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) // clang-format on
+    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        )
+// clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
 enum class Feature
