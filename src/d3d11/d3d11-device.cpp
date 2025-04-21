@@ -86,6 +86,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     };
     D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_9_1;
     const int totalNumFeatureLevels = SLANG_COUNT_OF(featureLevels);
+    bool isHardwareDevice = false;
 
     {
         // On a machine that does not have an up-to-date version of D3D installed,
@@ -116,6 +117,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         for (int i = 0; i < numCombinations; ++i)
         {
             const auto deviceCheckFlags = combiner.getCombination(i);
+            isHardwareDevice = (deviceCheckFlags & DeviceCheckFlag::UseHardwareDevice) != 0;
             D3DUtil::createFactory(deviceCheckFlags, m_dxgiFactory);
 
             // If we have an adapter set on the desc, look it up.
@@ -213,6 +215,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
+    addFeature(isHardwareDevice ? Feature::HardwareDevice : Feature::SoftwareDevice);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
