@@ -360,8 +360,8 @@ Result DeviceImpl::readTexture(
     ITexture* texture,
     uint32_t layer,
     uint32_t mip,
-    ISlangBlob** outBlob,
-    SubresourceLayout* outLayout
+    const SubresourceLayout& layout,
+    void* outData
 )
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
@@ -379,10 +379,6 @@ Result DeviceImpl::readTexture(
     // This pointer exists at root scope to ensure that if a temp texture
     // needs to be made, it is kept alive for the duration of the function.
     ComPtr<ITexture> tempTexture;
-
-    // Calculate layout info.
-    SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
 
     TextureImpl* stagingTextureImpl = nullptr;
     uint32_t subResourceIdx = D3D11CalcSubresource(mip, layer, desc.mipCount);
@@ -454,10 +450,6 @@ Result DeviceImpl::readTexture(
         subResourceIdx = 0;
     }
 
-    // Output layout
-    if (outLayout)
-        *outLayout = layout;
-
     // Now just read back texels from the staging textures
     {
         D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -468,7 +460,7 @@ Result DeviceImpl::readTexture(
 
         auto blob = OwnedBlob::create(layout.sizeInBytes);
         uint8_t* srcBuffer = (uint8_t*)mappedResource.pData;
-        uint8_t* dstBuffer = (uint8_t*)blob->getBufferPointer();
+        uint8_t* dstBuffer = (uint8_t*)outData;
 
         // Data should be the same, but alignment may not be, so the row copy
         // needs to be the minimum of the two row sizes.
@@ -492,7 +484,6 @@ Result DeviceImpl::readTexture(
         // Make sure to unmap
         m_immediateContext->Unmap(stagingTextureImpl->m_resource.get(), subResourceIdx);
 
-        returnComPtr(outBlob, blob);
         return SLANG_OK;
     }
 }

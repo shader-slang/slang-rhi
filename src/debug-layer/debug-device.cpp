@@ -523,6 +523,40 @@ Result DebugDevice::readTexture(
     ITexture* texture,
     uint32_t layer,
     uint32_t mip,
+    const SubresourceLayout& layout,
+    void* outData
+)
+{
+    const TextureDesc& desc = texture->getDesc();
+
+    if (layer > desc.getLayerCount())
+    {
+        RHI_VALIDATION_ERROR("Layer out of bounds");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (mip > desc.mipCount)
+    {
+        RHI_VALIDATION_ERROR("Mip out of bounds");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    switch (desc.type)
+    {
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        RHI_VALIDATION_ERROR("Multisample textures cannot be read");
+        return SLANG_E_INVALID_ARG;
+    default:
+        break;
+    }
+
+    return baseObject->readTexture(texture, layer, mip, layout, outData);
+}
+
+Result DebugDevice::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mip,
     ISlangBlob** outBlob,
     SubresourceLayout* outLayout
 )

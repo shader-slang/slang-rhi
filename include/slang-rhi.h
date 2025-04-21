@@ -2800,6 +2800,14 @@ public:
         return pipeline;
     }
 
+    /// Read back texture resource and stores the result in `outData`.
+    /// `layout` is the layout to store the data in. It is the caller's responsibility to
+    /// ensure that the layout is compatible with the texture format and mip level.
+    /// This can be achieved by using `getTextureLayout()` to get the layout for the texture.
+    /// The `outData` pointer must be large enough to hold the data (i.e. `layout.sizeInBytes`).
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData) = 0;
+
     /// Read back texture resource and stores the result in `outBlob`.
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,

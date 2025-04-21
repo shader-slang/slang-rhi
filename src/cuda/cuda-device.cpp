@@ -567,19 +567,13 @@ Result DeviceImpl::readTexture(
     ITexture* texture,
     uint32_t layer,
     uint32_t mip,
-    ISlangBlob** outBlob,
-    SubresourceLayout* outLayout
+    const SubresourceLayout& layout,
+    void* outData
 )
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
     auto textureImpl = checked_cast<TextureImpl*>(texture);
-
-    // Calculate layout info.
-    SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
-
-    auto blob = OwnedBlob::create(layout.sizeInBytes);
 
     CUarray srcArray = textureImpl->m_cudaArray;
     if (textureImpl->m_cudaMipMappedArray)
@@ -589,7 +583,7 @@ Result DeviceImpl::readTexture(
 
     CUDA_MEMCPY3D copyParam = {};
     copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
-    copyParam.dstHost = (void*)blob->getBufferPointer();
+    copyParam.dstHost = outData;
     copyParam.dstPitch = layout.rowPitch;
     copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
     copyParam.srcArray = srcArray;
@@ -599,10 +593,6 @@ Result DeviceImpl::readTexture(
     copyParam.Depth = layout.size.depth;
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
 
-    if (outLayout)
-        *outLayout = layout;
-
-    returnComPtr(outBlob, blob);
     return SLANG_OK;
 }
 
