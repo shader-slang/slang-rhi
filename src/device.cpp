@@ -364,18 +364,18 @@ Result Device::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t
         return SLANG_E_INVALID_ARG;
     }
 
-    size_t j = 0;
+    size_t featureCount = 0;
     for (size_t i = 0; i < m_featureSet.size(); i++)
     {
-        if (m_featureSet[i] && j < bufferSize)
+        if (m_featureSet[i] && featureCount < bufferSize)
         {
-            outFeatures[j] = kFeatureNames[i];
-            j++;
+            outFeatures[featureCount] = kFeatureNames[i];
+            featureCount++;
         }
     }
     if (outFeatureCount)
     {
-        *outFeatureCount = uint32_t(j);
+        *outFeatureCount = uint32_t(featureCount);
     }
     return SLANG_OK;
 }
