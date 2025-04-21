@@ -37,13 +37,16 @@ struct ShaderModelInfo
     D3D_SHADER_MODEL shaderModel;
     SlangCompileTarget compileTarget;
     const char* profileName;
+    Feature feature;
 };
 // List of shader models. Do not change oldest to newest order.
 static ShaderModelInfo kKnownShaderModels[] = {
-#define SHADER_MODEL_INFO_DXBC(major, minor) {D3D_SHADER_MODEL_##major##_##minor, SLANG_DXBC, "sm_" #major "_" #minor}
+#define SHADER_MODEL_INFO_DXBC(major, minor)                                                                           \
+    {D3D_SHADER_MODEL_##major##_##minor, SLANG_DXBC, "sm_" #major "_" #minor, Feature::SM_##major##_##minor}
     SHADER_MODEL_INFO_DXBC(5, 1),
 #undef SHADER_MODEL_INFO_DXBC
-#define SHADER_MODEL_INFO_DXIL(major, minor) {(D3D_SHADER_MODEL)0x##major##minor, SLANG_DXIL, "sm_" #major "_" #minor}
+#define SHADER_MODEL_INFO_DXIL(major, minor)                                                                           \
+    {(D3D_SHADER_MODEL)0x##major##minor, SLANG_DXIL, "sm_" #major "_" #minor, Feature::SM_##major##_##minor}
     SHADER_MODEL_INFO_DXIL(6, 0),
     SHADER_MODEL_INFO_DXIL(6, 1),
     SHADER_MODEL_INFO_DXIL(6, 2),
@@ -519,25 +522,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_device5 = m_deviceInfo.m_device5.get();
 #endif
 
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
-    // Supports surface/swapchain
-    m_features.push_back("surface");
-    // Supports rasterization
-    m_features.push_back("rasterization");
-    // Supports custom border color
-    m_features.push_back("custom-border-color");
-    // Supports timestamp queries
-    m_features.push_back("timestamp-query");
-
-    if (m_deviceInfo.m_isSoftware)
-    {
-        m_features.push_back("software-device");
-    }
-    else
-    {
-        m_features.push_back("hardware-device");
-    }
+    addFeature(m_deviceInfo.m_isSoftware ? Feature::SoftwareDevice : Feature::HardwareDevice);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Surface);
+    addFeature(Feature::Rasterization);
+    addFeature(Feature::CustomBorderColor);
+    addFeature(Feature::TimestampQuery);
 
     // Initialize NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
@@ -549,19 +539,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
                 {
-                    m_features.push_back("atomic-int64");
+                    addFeature(Feature::AtomicInt64);
                 }
                 if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
                 {
-                    m_features.push_back("atomic-half");
+                    addFeature(Feature::AtomicHalf);
                 }
                 if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
                 {
-                    m_features.push_back("atomic-float");
+                    addFeature(Feature::AtomicFloat);
                 }
                 if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
                 {
-                    m_features.push_back("realtime-clock");
+                    addFeature(Feature::RealtimeClock);
                 }
                 NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
                 if (NvAPI_D3D12_GetRaytracingCaps(
@@ -572,7 +562,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     ) == NVAPI_OK &&
                     spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
                 {
-                    m_features.push_back("acceleration-structure-spheres");
+                    addFeature(Feature::AccelerationStructureSpheres);
                 }
                 NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
                 if (NvAPI_D3D12_GetRaytracingCaps(
@@ -583,7 +573,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     ) == NVAPI_OK &&
                     lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
                 {
-                    m_features.push_back("acceleration-structure-linear-swept-spheres");
+                    addFeature(Feature::AccelerationStructureLinearSweptSpheres);
                 }
                 NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
                 if (NvAPI_D3D12_GetRaytracingCaps(
@@ -594,7 +584,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     ) == NVAPI_OK &&
                     reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
                 {
-                    m_features.push_back("ray-tracing-reordering");
+                    addFeature(Feature::ShaderExecutionReordering);
                 }
 
                 // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
@@ -606,7 +596,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 {
                     // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
                     // hardware/driver support.
-                    // m_features.push_back("cooperative-vector");
+                    // addFeature(Feature::CooperativeVector);
                 }
             }
         }
@@ -656,13 +646,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     )))
                     break;
             }
-
-            // TODO: Currently warp causes a crash when using half, so disable for now
-            if (m_deviceInfo.m_isWarp == false && shaderModelData.HighestShaderModel >= D3D_SHADER_MODEL_6_2)
-            {
-                // With sm_6_2 we have half
-                m_features.push_back("half");
-            }
         }
         {
             D3D12_FEATURE_DATA_D3D12_OPTIONS options;
@@ -670,30 +653,33 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 // Check double precision support
                 if (options.DoublePrecisionFloatShaderOps)
-                    m_features.push_back("double");
+                {
+                    addFeature(Feature::Double);
+                }
 
                 // Check conservative-rasterization support
                 auto conservativeRasterTier = options.ConservativeRasterizationTier;
                 if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_3)
                 {
-                    m_features.push_back("conservative-rasterization-3");
-                    m_features.push_back("conservative-rasterization-2");
-                    m_features.push_back("conservative-rasterization-1");
+                    addFeature(Feature::ConservativeRasterization);
+                    addFeature(Feature::ConservativeRasterization1);
+                    addFeature(Feature::ConservativeRasterization2);
+                    addFeature(Feature::ConservativeRasterization3);
                 }
                 else if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_2)
                 {
-                    m_features.push_back("conservative-rasterization-2");
-                    m_features.push_back("conservative-rasterization-1");
+                    addFeature(Feature::ConservativeRasterization1);
+                    addFeature(Feature::ConservativeRasterization2);
                 }
                 else if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_1)
                 {
-                    m_features.push_back("conservative-rasterization-1");
+                    addFeature(Feature::ConservativeRasterization1);
                 }
 
                 // Check rasterizer ordered views support
                 if (options.ROVsSupported)
                 {
-                    m_features.push_back("rasterizer-ordered-views");
+                    addFeature(Feature::RasterizerOrderedViews);
                 }
             }
         }
@@ -703,7 +689,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 // Check wave operations support
                 if (options.WaveOps)
-                    m_features.push_back("wave-ops");
+                {
+                    addFeature(Feature::WaveOps);
+                }
+                if (options.Int64ShaderOps)
+                {
+                    addFeature(Feature::Int64);
+                }
             }
         }
         {
@@ -713,12 +705,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 // Check programmable sample positions support
                 switch (options.ProgrammableSamplePositionsTier)
                 {
-                case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_2:
-                    m_features.push_back("programmable-sample-positions-2");
-                    m_features.push_back("programmable-sample-positions-1");
-                    break;
                 case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_1:
-                    m_features.push_back("programmable-sample-positions-1");
+                    addFeature(Feature::ProgrammableSamplePositions1);
+                    break;
+                case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_2:
+                    addFeature(Feature::ProgrammableSamplePositions1);
+                    addFeature(Feature::ProgrammableSamplePositions2);
                     break;
                 default:
                     break;
@@ -732,34 +724,67 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 // Check barycentrics support
                 if (options.BarycentricsSupported)
                 {
-                    m_features.push_back("barycentrics");
+                    addFeature(Feature::Barycentrics);
+                }
+                // Check multi view support
+                if (options.ViewInstancingTier >= D3D12_VIEW_INSTANCING_TIER_3)
+                {
+                    addFeature(Feature::MultiView);
                 }
             }
         }
-        // Check ray tracing support
+        {
+            D3D12_FEATURE_DATA_D3D12_OPTIONS4 options;
+            if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS4, &options, sizeof(options))))
+            {
+                if (options.Native16BitShaderOpsSupported)
+                {
+                    addFeature(Feature::Half);
+                    addFeature(Feature::Int16);
+                }
+            }
+        }
         {
             D3D12_FEATURE_DATA_D3D12_OPTIONS5 options;
             if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options, sizeof(options))))
             {
-                if (options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+                // Check ray tracing support
+                if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0)
                 {
-                    m_features.push_back("acceleration-structure");
-                    m_features.push_back("ray-tracing");
+                    addFeature(Feature::AccelerationStructure);
+                    addFeature(Feature::RayTracing);
                 }
+                // Check ray query support
                 if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
                 {
-                    m_features.push_back("ray-query");
+                    addFeature(Feature::RayQuery);
                 }
             }
         }
-        // Check mesh shader support
+        {
+            D3D12_FEATURE_DATA_D3D12_OPTIONS6 options;
+            if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &options, sizeof(options))))
+            {
+                // Check fragment shading rate support
+                if (options.VariableShadingRateTier >= D3D12_VARIABLE_SHADING_RATE_TIER_2)
+                {
+                    addFeature(Feature::FragmentShadingRate);
+                }
+            }
+        }
         {
             D3D12_FEATURE_DATA_D3D12_OPTIONS7 options;
             if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &options, sizeof(options))))
             {
+                // Check mesh shader support
                 if (options.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
                 {
-                    m_features.push_back("mesh-shader");
+                    addFeature(Feature::MeshShader);
+                }
+                // Check sampler feedback support
+                if (options.SamplerFeedbackTier >= D3D12_SAMPLER_FEEDBACK_TIER_1_0)
+                {
+                    addFeature(Feature::SamplerFeedback);
                 }
             }
         }
@@ -855,7 +880,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         if (sm.shaderModel <= shaderModelData.HighestShaderModel)
         {
-            m_features.push_back(sm.profileName);
+            addFeature(sm.feature);
             profileName = sm.profileName;
             compileTarget = sm.compileTarget;
         }

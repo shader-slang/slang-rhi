@@ -52,6 +52,13 @@ DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
     RHI_VALIDATION_INFO("Debug layer is enabled.");
 }
 
+bool DebugDevice::hasFeature(Feature feature)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasFeature(feature);
+}
+
 bool DebugDevice::hasFeature(const char* feature)
 {
     SLANG_RHI_API_FUNC;
@@ -347,7 +354,7 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         if (!(color[0] == 0.f && color[1] == 0.f && color[2] == 0.f && color[3] == 0.f) &&
             !(color[0] == 0.f && color[1] == 0.f && color[2] == 0.f && color[3] == 1.f) &&
             !(color[0] == 1.f && color[1] == 1.f && color[2] == 1.f && color[3] == 1.f) &&
-            !baseObject->hasFeature("custom-border-color"))
+            !baseObject->hasFeature(Feature::CustomBorderColor))
         {
             RHI_VALIDATION_WARNING(
                 "Border color is not a predefined color and custom border color is not supported. "

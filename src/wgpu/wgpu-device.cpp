@@ -209,15 +209,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     api.wgpuDeviceEnumerateFeatures(m_ctx.device, deviceFeatures.data());
     m_ctx.features.insert(deviceFeatures.begin(), deviceFeatures.end());
 
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
-    // Supports surface/swapchain
-    m_features.push_back("surface");
-    // Supports rasterization
-    m_features.push_back("rasterization");
+    addFeature(Feature::HardwareDevice);
+    addFeature(Feature::Surface);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Rasterization);
 
     if (api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_ShaderF16))
-        m_features.push_back("half");
+    {
+        addFeature(Feature::Half);
+    }
 
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
