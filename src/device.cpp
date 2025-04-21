@@ -348,6 +348,7 @@ Result Device::initialize(const DeviceDesc& desc)
 
 void Device::addFeature(Feature feature)
 {
+    SLANG_RHI_ASSERT(size_t(feature) < size_t(Feature::_Count));
     m_featureSet[size_t(feature)] = true;
 }
 
