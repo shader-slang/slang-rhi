@@ -2817,41 +2817,6 @@ public:
         SubresourceLayout* outLayout
     ) = 0;
 
-
-    /// Helper that just outputs row pitch and (optionally) pixel size
-    /// instead of whole texture layout.
-    inline SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mip,
-        ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize = nullptr
-    )
-    {
-        SubresourceLayout layout;
-        SLANG_RETURN_ON_FAIL(readTexture(texture, layer, mip, outBlob, &layout));
-        if (outRowPitch)
-            *outRowPitch = layout.rowPitch;
-        if (outPixelSize)
-            *outPixelSize = layout.colPitch;
-        return SLANG_OK;
-    };
-
-    /// Helper overload that reads the entire texture (layer 0, mip level 0)
-    inline SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, SubresourceLayout* outLayout)
-    {
-        return readTexture(texture, 0, 0, outBlob, outLayout);
-    };
-
-    /// Helper overload that reads the entire texture (layer 0, mip level 0)
-    inline SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize = nullptr)
-    {
-        return readTexture(texture, 0, 0, outBlob, outRowPitch, outPixelSize);
-    };
-
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL

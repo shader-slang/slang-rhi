@@ -171,9 +171,8 @@ public:
         // and compare against expected values (because testing every single pixel will be too long and tedious
         // and requires maintaining reference images).
         ComPtr<ISlangBlob> resultBlob;
-        size_t rowPitch = 0;
-        size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTexture(colorBuffer, 0, 0, resultBlob.writeRef(), &rowPitch, &pixelSize));
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(colorBuffer, 0, 0, resultBlob.writeRef(), &layout));
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
@@ -181,7 +180,7 @@ public:
         {
             auto x = testXCoords[i];
             auto y = testYCoords[i];
-            auto pixelPtr = result + x * channelCount + y * rowPitch / sizeof(float);
+            auto pixelPtr = result + x * channelCount + y * layout.rowPitch / sizeof(float);
             for (int j = 0; j < channelCount; ++j)
             {
                 testResults[cursor] = pixelPtr[j];
