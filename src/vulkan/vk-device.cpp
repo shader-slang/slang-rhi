@@ -573,7 +573,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         if (deviceFeatures2.features.shaderResourceMinLod)
         {
-            // m_features.push_back("shader-resource-min-lod");
+            /* "shader-resource-min-lod" */
         }
         if (deviceFeatures2.features.shaderFloat64)
         {
@@ -608,12 +608,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             return true;
         };
 
-        // SIMPLE_EXTENSION_FEATURE(struct, feature member name, extension
-        // name, features...) will check for the presence of the boolean
-        // feature member in struct and the availability of the extensions. If
-        // they are both present then the extensions are added, the struct
-        // linked into the deviceCreateInfo chain and the features added to the
-        // supported features list.
+        // SIMPLE_EXTENSION_FEATURE(struct, feature member name, extension, code)
+        // will check for the presence of the boolean feature member in struct and the availability of the extensions.
+        // If they are both present then the extension is added, the struct linked into the deviceCreateInfo chain
+        // and the code block is executed.
 #define SIMPLE_EXTENSION_FEATURE(s, m, e, code)                                                                        \
     {                                                                                                                  \
         if (addFeatureExtension(s.m, s, e))                                                                            \
@@ -1576,12 +1574,14 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
-    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
-        this,
-        shaderProgram->linkedProgram,
-        shaderProgram->linkedProgram->getLayout(),
-        shaderProgram->m_rootShaderObjectLayout.writeRef()
-    ));
+    SLANG_RETURN_ON_FAIL(
+        RootShaderObjectLayoutImpl::create(
+            this,
+            shaderProgram->linkedProgram,
+            shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->m_rootShaderObjectLayout.writeRef()
+        )
+    );
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
