@@ -552,7 +552,11 @@ Result DebugDevice::readTexture(
 
     SubresourceLayout expectedLayout;
     SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &expectedLayout));
-    if (std::memcmp(&layout, &expectedLayout, sizeof(SubresourceLayout)) != 0)
+    if (layout.size.width != expectedLayout.size.width || layout.size.height != expectedLayout.size.height ||
+        layout.size.depth != expectedLayout.size.depth || layout.colPitch != expectedLayout.colPitch ||
+        layout.rowPitch != expectedLayout.rowPitch || layout.slicePitch != expectedLayout.slicePitch ||
+        layout.sizeInBytes != expectedLayout.sizeInBytes || layout.blockWidth != expectedLayout.blockWidth ||
+        layout.blockHeight != expectedLayout.blockHeight || layout.rowCount != expectedLayout.rowCount)
     {
         RHI_VALIDATION_ERROR("Layout does not match the expected layout");
         return SLANG_E_INVALID_ARG;
