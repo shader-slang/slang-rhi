@@ -161,7 +161,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     WGPUTextureViewDescriptor viewDesc = {};
     viewDesc.format =
         translateTextureFormat(desc.format == Format::Undefined ? textureImpl->m_desc.format : desc.format);
-    viewDesc.dimension = translateTextureViewDimension(textureImpl->m_desc.type, textureImpl->m_desc.arrayLength > 1);
+    viewDesc.dimension = translateTextureViewDimension(textureImpl->m_desc.type);
     viewDesc.baseMipLevel = view->m_desc.subresourceRange.mip;
     viewDesc.mipLevelCount = view->m_desc.subresourceRange.mipCount;
     viewDesc.baseArrayLayer = view->m_desc.subresourceRange.layer;

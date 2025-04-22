@@ -293,20 +293,26 @@ WGPUTextureUsage translateTextureUsage(TextureUsage usage)
     return result;
 }
 
-WGPUTextureViewDimension translateTextureViewDimension(TextureType type, bool array)
+WGPUTextureViewDimension translateTextureViewDimension(TextureType type)
 {
     switch (type)
     {
     case TextureType::Texture1D:
-        SLANG_RHI_ASSERT(!array);
         return WGPUTextureViewDimension_1D;
+    case TextureType::Texture1DArray:
+        return WGPUTextureViewDimension_Undefined;
     case TextureType::Texture2D:
-        return array ? WGPUTextureViewDimension_2DArray : WGPUTextureViewDimension_2D;
-    case TextureType::Texture3D:
-        SLANG_RHI_ASSERT(!array);
-        return WGPUTextureViewDimension_3D;
+    case TextureType::Texture2DMS:
+        return WGPUTextureViewDimension_2D;
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMSArray:
+        return WGPUTextureViewDimension_2DArray;
     case TextureType::TextureCube:
-        return array ? WGPUTextureViewDimension_CubeArray : WGPUTextureViewDimension_Cube;
+        return WGPUTextureViewDimension_Cube;
+    case TextureType::TextureCubeArray:
+        return WGPUTextureViewDimension_CubeArray;
+    case TextureType::Texture3D:
+        return WGPUTextureViewDimension_3D;
     default:
         return WGPUTextureViewDimension_Undefined;
     }
