@@ -135,6 +135,8 @@ enum class DeviceType
     x(SM_6_5,                                   "sm_6_5"                                        ) \
     x(SM_6_6,                                   "sm_6_6"                                        ) \
     x(SM_6_7,                                   "sm_6_7"                                        ) \
+    x(SM_6_8,                                   "sm_6_8"                                        ) \
+    x(SM_6_9,                                   "sm_6_9"                                        ) \
     x(Half,                                     "half"                                          ) \
     x(Double,                                   "double"                                        ) \
     x(Int16,                                    "int16"                                         ) \
