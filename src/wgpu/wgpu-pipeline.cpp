@@ -65,16 +65,19 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         depthStencil.depthWriteEnabled =
             depthStencilIn.depthWriteEnable ? WGPUOptionalBool_True : WGPUOptionalBool_False;
         depthStencil.depthCompare = translateCompareFunction(depthStencilIn.depthFunc);
-        depthStencil.stencilFront.compare = translateCompareFunction(depthStencilIn.frontFace.stencilFunc);
-        depthStencil.stencilFront.failOp = translateStencilOp(depthStencilIn.frontFace.stencilFailOp);
-        depthStencil.stencilFront.depthFailOp = translateStencilOp(depthStencilIn.frontFace.stencilDepthFailOp);
-        depthStencil.stencilFront.passOp = translateStencilOp(depthStencilIn.frontFace.stencilPassOp);
-        depthStencil.stencilBack.compare = translateCompareFunction(depthStencilIn.backFace.stencilFunc);
-        depthStencil.stencilBack.failOp = translateStencilOp(depthStencilIn.backFace.stencilFailOp);
-        depthStencil.stencilBack.depthFailOp = translateStencilOp(depthStencilIn.backFace.stencilDepthFailOp);
-        depthStencil.stencilBack.passOp = translateStencilOp(depthStencilIn.backFace.stencilPassOp);
-        depthStencil.stencilReadMask = depthStencilIn.stencilReadMask;
-        depthStencil.stencilWriteMask = depthStencilIn.stencilWriteMask;
+        if (getFormatInfo(desc.depthStencil.format).hasStencil)
+        {
+            depthStencil.stencilFront.compare = translateCompareFunction(depthStencilIn.frontFace.stencilFunc);
+            depthStencil.stencilFront.failOp = translateStencilOp(depthStencilIn.frontFace.stencilFailOp);
+            depthStencil.stencilFront.depthFailOp = translateStencilOp(depthStencilIn.frontFace.stencilDepthFailOp);
+            depthStencil.stencilFront.passOp = translateStencilOp(depthStencilIn.frontFace.stencilPassOp);
+            depthStencil.stencilBack.compare = translateCompareFunction(depthStencilIn.backFace.stencilFunc);
+            depthStencil.stencilBack.failOp = translateStencilOp(depthStencilIn.backFace.stencilFailOp);
+            depthStencil.stencilBack.depthFailOp = translateStencilOp(depthStencilIn.backFace.stencilDepthFailOp);
+            depthStencil.stencilBack.passOp = translateStencilOp(depthStencilIn.backFace.stencilPassOp);
+            depthStencil.stencilReadMask = depthStencilIn.stencilReadMask;
+            depthStencil.stencilWriteMask = depthStencilIn.stencilWriteMask;
+        }
         depthStencil.depthBias = desc.rasterizer.depthBias;
         depthStencil.depthBiasSlopeScale = desc.rasterizer.slopeScaledDepthBias;
         depthStencil.depthBiasClamp = desc.rasterizer.depthBiasClamp;
