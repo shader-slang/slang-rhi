@@ -550,6 +550,14 @@ Result DebugDevice::readTexture(
         break;
     }
 
+    SubresourceLayout expectedLayout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &expectedLayout));
+    if (std::memcmp(&layout, &expectedLayout, sizeof(SubresourceLayout)) != 0)
+    {
+        RHI_VALIDATION_ERROR("Layout does not match the expected layout");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->readTexture(texture, layer, mip, layout, outData);
 }
 
