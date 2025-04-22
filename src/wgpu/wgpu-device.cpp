@@ -93,11 +93,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
     );
 
-    const std::vector<const char*> enabledToggles = {"use_dxc"};
+    const std::vector<const char*> enabledToggles = {
+        "use_dxc",
+        // "d3d12_force_clear_copyable_depth_stencil_texture_on_creation",
+    };
+    const std::vector<const char*> disabledToggles = {
+        "d3d12_create_not_zeroed_heap",
+    };
     WGPUDawnTogglesDescriptor togglesDesc = {};
     togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
     togglesDesc.enabledToggleCount = enabledToggles.size();
     togglesDesc.enabledToggles = enabledToggles.data();
+    togglesDesc.disabledToggleCount = disabledToggles.size();
+    togglesDesc.disabledToggles = disabledToggles.data();
 
     WGPUInstanceDescriptor instanceDesc = {};
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
@@ -109,7 +117,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     options.powerPreference = WGPUPowerPreference_HighPerformance;
 #if SLANG_WINDOWS_FAMILY
     // TODO(webgpu-d3d): New validation error in D3D kills webgpu, so use vulkan for now.
-    options.backendType = WGPUBackendType_Vulkan;
+    options.backendType = WGPUBackendType_D3D12;
 #elif SLANG_LINUX_FAMILY
     options.backendType = WGPUBackendType_Vulkan;
 #endif
