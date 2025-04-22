@@ -573,7 +573,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         if (deviceFeatures2.features.shaderResourceMinLod)
         {
-            /* "shader-resource-min-lod" */
+            addFeature(Feature::ShaderResourceMinLod);
         }
         if (deviceFeatures2.features.shaderFloat64)
         {
@@ -1574,14 +1574,12 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
-    SLANG_RETURN_ON_FAIL(
-        RootShaderObjectLayoutImpl::create(
-            this,
-            shaderProgram->linkedProgram,
-            shaderProgram->linkedProgram->getLayout(),
-            shaderProgram->m_rootShaderObjectLayout.writeRef()
-        )
-    );
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
+        this,
+        shaderProgram->linkedProgram,
+        shaderProgram->linkedProgram->getLayout(),
+        shaderProgram->m_rootShaderObjectLayout.writeRef()
+    ));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
