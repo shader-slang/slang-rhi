@@ -433,10 +433,13 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         attachment.depthStoreOp = translateStoreOp(attachmentIn.depthStoreOp);
         attachment.depthClearValue = attachmentIn.depthClearValue;
         attachment.depthReadOnly = attachmentIn.depthReadOnly;
-        attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
-        attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
-        attachment.stencilClearValue = attachmentIn.stencilClearValue;
-        attachment.stencilReadOnly = attachmentIn.stencilReadOnly;
+        if (getFormatInfo(attachmentIn.view->getDesc().format).hasStencil)
+        {
+            attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
+            attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
+            attachment.stencilClearValue = attachmentIn.stencilClearValue;
+            attachment.stencilReadOnly = attachmentIn.stencilReadOnly;
+        }
     }
 
     WGPURenderPassDescriptor passDesc = {};
