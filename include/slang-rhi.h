@@ -154,6 +154,7 @@ enum class DeviceType
     x(ProgrammableSamplePositions1,             "programmable-sample-positions-1"               ) \
     x(ProgrammableSamplePositions2,             "programmable-sample-positions-2"               ) \
     /* Vulkan specific features */                                                                \
+    x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        )
 // clang-format on
