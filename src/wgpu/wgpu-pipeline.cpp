@@ -46,7 +46,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipelineDesc.layout = program->m_rootObjectLayout->m_pipelineLayout;
 
     pipelineDesc.vertex.module = vertexModule->module;
-    pipelineDesc.vertex.entryPoint = vertexModule->entryPointName.c_str();
+    pipelineDesc.vertex.entryPoint = translateString(vertexModule->entryPointName.c_str());
     pipelineDesc.vertex.buffers = inputLayout->m_vertexBufferLayouts.data();
     pipelineDesc.vertex.bufferCount = (uint32_t)inputLayout->m_vertexBufferLayouts.size();
 
@@ -112,7 +112,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     WGPUFragmentState fragment = {};
     fragment.module = fragmentModule->module;
-    fragment.entryPoint = fragmentModule->entryPointName.c_str();
+    fragment.entryPoint = translateString(fragmentModule->entryPointName.c_str());
     fragment.targetCount = targets.size();
     fragment.targets = targets.data();
     pipelineDesc.fragment = &fragment;
@@ -164,7 +164,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     WGPUComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.layout = program->m_rootObjectLayout->m_pipelineLayout;
     pipelineDesc.compute.module = computeModule->module;
-    pipelineDesc.compute.entryPoint = computeModule->entryPointName.c_str();
+    pipelineDesc.compute.entryPoint = translateString(computeModule->entryPointName.c_str());
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
     pipeline->m_program = program;
