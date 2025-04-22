@@ -330,15 +330,14 @@ void compareComputeResult(
 {
     // Read back the results.
     ComPtr<ISlangBlob> resultBlob;
-    size_t rowPitch = 0;
-    size_t pixelSize = 0;
-    REQUIRE_CALL(device->readTexture(texture, 0, 0, resultBlob.writeRef(), &rowPitch, &pixelSize));
+    SubresourceLayout layout;
+    REQUIRE_CALL(device->readTexture(texture, 0, 0, resultBlob.writeRef(), &layout));
     // Compare results.
     for (size_t row = 0; row < rowCount; row++)
     {
         CHECK(
             memcmp(
-                (uint8_t*)resultBlob->getBufferPointer() + rowPitch * row,
+                (uint8_t*)resultBlob->getBufferPointer() + layout.rowPitch * row,
                 (uint8_t*)expectedResult + expectedResultRowPitch * row,
                 expectedResultRowPitch
             ) == 0

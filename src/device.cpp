@@ -608,8 +608,8 @@ Result Device::readTexture(
     ITexture* texture,
     uint32_t layer,
     uint32_t mip,
-    ISlangBlob** outBlob,
-    SubresourceLayout* outLayout
+    const SubresourceLayout& layout,
+    void* outData
 )
 {
     ComPtr<ICommandQueue> queue;
@@ -617,9 +617,6 @@ Result Device::readTexture(
 
     ComPtr<ICommandEncoder> commandEncoder;
     SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
-
-    SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
 
     StagingHeap::Allocation stagingAllocation;
     SLANG_RETURN_ON_FAIL(m_readbackHeap.alloc(layout.sizeInBytes, {}, &stagingAllocation));
@@ -642,11 +639,29 @@ Result Device::readTexture(
     void* mappedData;
     SLANG_RETURN_ON_FAIL(m_readbackHeap.map(stagingAllocation, &mappedData));
 
-    auto blob = OwnedBlob::create(mappedData, layout.sizeInBytes);
+    std::memcpy(outData, mappedData, layout.sizeInBytes);
 
     SLANG_RETURN_ON_FAIL(m_readbackHeap.unmap(stagingAllocation));
 
     m_readbackHeap.free(stagingAllocation);
+
+    return SLANG_OK;
+}
+
+Result Device::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mip,
+    ISlangBlob** outBlob,
+    SubresourceLayout* outLayout
+)
+{
+    SubresourceLayout layout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
+
+    auto blob = OwnedBlob::create(layout.sizeInBytes);
+
+    SLANG_RETURN_ON_FAIL(readTexture(texture, layer, mip, layout, (void*)blob->getBufferPointer()));
 
     if (outLayout)
         *outLayout = layout;

@@ -403,22 +403,15 @@ Result DeviceImpl::readTexture(
     ITexture* texture,
     uint32_t layer,
     uint32_t mip,
-    ISlangBlob** outBlob,
-    SubresourceLayout* outLayout
+    const SubresourceLayout& layout,
+    void* outData
 )
 {
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 
-    // Calculate layout info.
-    SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
-
-    // Create blob for result.
-    auto blob = OwnedBlob::create(layout.sizeInBytes);
-
     // Get src + dest buffers.
     uint8_t* srcBuffer = (uint8_t*)textureImpl->m_data;
-    uint8_t* dstBuffer = (uint8_t*)blob->getBufferPointer();
+    uint8_t* dstBuffer = (uint8_t*)outData;
 
     // Should be able to make assumption that subresource layout info
     // matches those stored in the mip. If they don't match, this is a bug.
@@ -447,10 +440,6 @@ Result DeviceImpl::readTexture(
         dstBuffer += layout.slicePitch;
     }
 
-    // Return data.
-    returnComPtr(outBlob, blob);
-    if (outLayout)
-        *outLayout = layout;
     return SLANG_OK;
 }
 

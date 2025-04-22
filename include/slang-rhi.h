@@ -2800,6 +2800,14 @@ public:
         return pipeline;
     }
 
+    /// Read back texture resource and stores the result in `outData`.
+    /// `layout` is the layout to store the data in. It is the caller's responsibility to
+    /// ensure that the layout is compatible with the texture format and mip level.
+    /// This can be achieved by using `getTextureLayout()` to get the layout for the texture.
+    /// The `outData` pointer must be large enough to hold the data (i.e. `layout.sizeInBytes`).
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData) = 0;
+
     /// Read back texture resource and stores the result in `outBlob`.
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
@@ -2808,41 +2816,6 @@ public:
         ISlangBlob** outBlob,
         SubresourceLayout* outLayout
     ) = 0;
-
-
-    /// Helper that just outputs row pitch and (optionally) pixel size
-    /// instead of whole texture layout.
-    inline SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mip,
-        ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize = nullptr
-    )
-    {
-        SubresourceLayout layout;
-        SLANG_RETURN_ON_FAIL(readTexture(texture, layer, mip, outBlob, &layout));
-        if (outRowPitch)
-            *outRowPitch = layout.rowPitch;
-        if (outPixelSize)
-            *outPixelSize = layout.colPitch;
-        return SLANG_OK;
-    };
-
-    /// Helper overload that reads the entire texture (layer 0, mip level 0)
-    inline SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, SubresourceLayout* outLayout)
-    {
-        return readTexture(texture, 0, 0, outBlob, outLayout);
-    };
-
-    /// Helper overload that reads the entire texture (layer 0, mip level 0)
-    inline SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize = nullptr)
-    {
-        return readTexture(texture, 0, 0, outBlob, outRowPitch, outPixelSize);
-    };
 
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) = 0;
 

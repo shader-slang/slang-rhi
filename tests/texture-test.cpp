@@ -413,14 +413,10 @@ void TextureData::checkMipLevelsEqual(
     const Subresource& thisSubresource = getSubresource(thisLayer, thisMipLevel);
     const SubresourceLayout& thisLayout = thisSubresource.layout;
 
+    ComPtr<ISlangBlob> textureBlob;
     SubresourceLayout textureLayout;
-    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, kDefaultAlignment, &textureLayout));
-
-    ComPtr<ISlangBlob> blob;
-    Size rowPitch;
-    REQUIRE_CALL(
-        textureImpl->getDevice()->readTexture(textureImpl, textureLayer, textureMipLevel, blob.writeRef(), &rowPitch)
-    );
+    REQUIRE_CALL(textureImpl->getDevice()
+                     ->readTexture(textureImpl, textureLayer, textureMipLevel, textureBlob.writeRef(), &textureLayout));
 
     // For compressed textures, raise error if attempting to check non-aligned blocks
     if (formatInfo.blockWidth > 1)
@@ -453,7 +449,7 @@ void TextureData::checkMipLevelsEqual(
             thisSubresource.data.get(),
             thisLayout,
             thisOffset,
-            blob->getBufferPointer(),
+            textureBlob->getBufferPointer(),
             textureLayout,
             textureOffset,
             textureExtent
@@ -496,7 +492,7 @@ void TextureData::checkMipLevelsEqual(
                             thisSubresource.data.get(),
                             thisLayout,
                             {offsetX, offsetY, offsetZ},
-                            blob->getBufferPointer(),
+                            textureBlob->getBufferPointer(),
                             textureLayout,
                             {offsetX, offsetY, offsetZ},
                             {sizeX, sizeY, sizeZ}
@@ -533,21 +529,17 @@ void TextureData::checkSliceEqual(
     const Subresource& thisSubresource = getSubresource(thisLayer, thisMipLevel);
     const SubresourceLayout& thisLayout = thisSubresource.layout;
 
+    ComPtr<ISlangBlob> textureBlob;
     SubresourceLayout textureLayout;
-    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, kDefaultAlignment, &textureLayout));
-
-    ComPtr<ISlangBlob> blob;
-    Size rowPitch;
-    REQUIRE_CALL(
-        textureImpl->getDevice()->readTexture(textureImpl, textureLayer, textureMipLevel, blob.writeRef(), &rowPitch)
-    );
+    REQUIRE_CALL(textureImpl->getDevice()
+                     ->readTexture(textureImpl, textureLayer, textureMipLevel, textureBlob.writeRef(), &textureLayout));
 
     // Calculate overall dimensions in blocks rather than pixels to handle compressed textures.
     uint32_t rowCount = thisLayout.rowCount;
     uint32_t colCount = thisLayout.size.width / formatInfo.blockWidth;
 
     uint8_t* thisData = thisSubresource.data.get();
-    uint8_t* textureData = (uint8_t*)blob->getBufferPointer();
+    uint8_t* textureData = (uint8_t*)textureBlob->getBufferPointer();
 
     // Iterate rows
     for (uint32_t row = 0; row < rowCount; row++)
@@ -597,12 +589,14 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
         {
             const Subresource& sr = getSubresource(layer, mip);
 
-            ComPtr<ISlangBlob> blob;
-            Size rowPitch;
-            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mip, blob.writeRef(), &rowPitch));
+            ComPtr<ISlangBlob> textureBlob;
+            SubresourceLayout textureLayout;
+            REQUIRE_CALL(
+                textureImpl->getDevice()->readTexture(textureImpl, layer, mip, textureBlob.writeRef(), &textureLayout)
+            );
 
             const uint8_t* expectedSlice = sr.data.get();
-            const uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
+            const uint8_t* actualSlice = (uint8_t*)textureBlob->getBufferPointer();
 
             for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
             {
@@ -632,11 +626,11 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
                     CHECK(isEqual);
 
                     expectedRow += sr.layout.rowPitch;
-                    actualRow += rowPitch;
+                    actualRow += textureLayout.rowPitch;
                 }
 
                 expectedSlice += sr.layout.slicePitch;
-                actualSlice += rowPitch * sr.layout.rowCount;
+                actualSlice += textureLayout.rowPitch * sr.layout.rowCount;
             }
         }
     }

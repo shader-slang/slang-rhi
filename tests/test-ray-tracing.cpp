@@ -311,13 +311,12 @@ struct BaseRayTracingTest
     void checkTestResults(float* expectedResult, uint32_t count)
     {
         ComPtr<ISlangBlob> resultBlob;
-        size_t rowPitch = 0;
-        size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &rowPitch, &pixelSize));
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &layout));
 #if 0 // for debugging only
-        writeImage("test.hdr", resultBlob, width, height, (uint32_t)rowPitch, (uint32_t)pixelSize);
+        writeImage("test.hdr", resultBlob, width, height, (uint32_t)layout.rowPitch, (uint32_t)layout.colPitch);
 #endif
-        auto buffer = removePadding(resultBlob, width, height, rowPitch, pixelSize);
+        auto buffer = removePadding(resultBlob, width, height, layout.rowPitch, layout.colPitch);
         auto actualData = (float*)buffer.data();
         CHECK(memcmp(actualData, expectedResult, count * sizeof(float)) == 0);
     }

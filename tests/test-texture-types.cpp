@@ -175,22 +175,21 @@ struct TextureAccessTest : TextureTest
         if (readWrite)
         {
             ComPtr<ISlangBlob> textureBlob;
-            size_t rowPitch;
-            size_t pixelSize;
-            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            SubresourceLayout layout;
+            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &layout));
             auto textureValues = (uint8_t*)textureBlob->getBufferPointer();
 
             ValidationTextureData textureResults;
             textureResults.extent = textureInfo->extent;
             textureResults.textureData = textureValues;
-            textureResults.pitches.x = (uint32_t)pixelSize;
-            textureResults.pitches.y = (uint32_t)rowPitch;
+            textureResults.pitches.x = (uint32_t)layout.colPitch;
+            textureResults.pitches.y = (uint32_t)layout.rowPitch;
             textureResults.pitches.z = textureResults.extent.height * textureResults.pitches.y;
 
             ValidationTextureData originalData;
             originalData.extent = textureInfo->extent;
             originalData.textureData = textureInfo->subresourceDatas.data();
-            originalData.pitches.x = (uint32_t)pixelSize;
+            originalData.pitches.x = (uint32_t)layout.colPitch;
             originalData.pitches.y = textureInfo->extent.width * originalData.pitches.x;
             originalData.pitches.z = textureInfo->extent.height * originalData.pitches.y;
 
@@ -430,23 +429,22 @@ struct RenderTargetTests : TextureTest
     void checkTestResults()
     {
         ComPtr<ISlangBlob> textureBlob;
-        size_t rowPitch;
-        size_t pixelSize;
+        SubresourceLayout layout;
         if (sampleCount > 1)
         {
-            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &layout));
         }
         else
         {
-            REQUIRE_CALL(device->readTexture(renderTexture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTexture(renderTexture, 0, 0, textureBlob.writeRef(), &layout));
         }
         auto textureValues = (float*)textureBlob->getBufferPointer();
 
         ValidationTextureData textureResults;
         textureResults.extent = textureInfo->extent;
         textureResults.textureData = textureValues;
-        textureResults.pitches.x = (uint32_t)pixelSize;
-        textureResults.pitches.y = (uint32_t)rowPitch;
+        textureResults.pitches.x = (uint32_t)layout.colPitch;
+        textureResults.pitches.y = (uint32_t)layout.rowPitch;
         textureResults.pitches.z = textureResults.extent.height * textureResults.pitches.y;
 
         validateTextureValues(textureResults);
