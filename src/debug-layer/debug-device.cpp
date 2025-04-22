@@ -558,7 +558,7 @@ Result DebugDevice::readTexture(
         layout.sizeInBytes != expectedLayout.sizeInBytes || layout.blockWidth != expectedLayout.blockWidth ||
         layout.blockHeight != expectedLayout.blockHeight || layout.rowCount != expectedLayout.rowCount)
     {
-        RHI_VALIDATION_ERROR("Row pitch does not match the expected layout");
+        RHI_VALIDATION_ERROR("Layout does not match the expected layout");
         return SLANG_E_INVALID_ARG;
     }
 
