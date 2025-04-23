@@ -3,6 +3,7 @@
 #include "metal-buffer.h"
 #include "metal-texture.h"
 #include "metal-sampler.h"
+#include <slang.h>
 
 namespace rhi::metal {
 
@@ -547,12 +548,52 @@ Result BindingDataBuilder::writeArgumentBuffer(
         }
     }
 
+    SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
+        argumentBufferTypeLayout,
+        shaderObject->getElementTypeLayout(),
+        (uint8_t*)argumentData,
+        (uint8_t*)shaderObject->m_data.data()
+    ));
+
     argumentBufferImpl->m_buffer->didModifyRange(NS::Range(0, argumentBufferImpl->m_desc.size));
 
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(argumentBufferImpl);
 
     outArgumentBuffer = argumentBufferImpl;
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
+    slang::TypeLayoutReflection* argumentBufferTypeLayout,
+    slang::TypeLayoutReflection* defaultTypeLayout,
+    uint8_t* argumentBuffer,
+    uint8_t* srcData
+)
+{
+    // If we are pure data, just copy it over from srcData.
+    if (defaultTypeLayout->getCategoryCount() == 1)
+    {
+        if (defaultTypeLayout->getCategoryByIndex(0) == slang::ParameterCategory::Uniform)
+        {
+            // Just write the uniform data.
+            memcpy(argumentBuffer, srcData, defaultTypeLayout->getSize());
+        }
+        return SLANG_OK;
+    }
+
+    for (unsigned int i = 0; i < argumentBufferTypeLayout->getFieldCount(); i++)
+    {
+        auto argumentBufferField = argumentBufferTypeLayout->getFieldByIndex(i);
+        auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
+        // If the field is mixed type, recurse.
+        SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
+            argumentBufferField->getTypeLayout(),
+            defaultLayoutField->getTypeLayout(),
+            argumentBuffer + argumentBufferField->getOffset(),
+            srcData + defaultLayoutField->getOffset()
+        ));
+    }
     return SLANG_OK;
 }
 
