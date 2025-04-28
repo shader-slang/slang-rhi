@@ -678,6 +678,7 @@ target_compile_definitions(slang-rhi
     SLANG_USER_CONFIG="slang-user-config.h"
     PRIVATE
     SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+    $<$<CXX_COMPILER_ID:MSVC>:_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
