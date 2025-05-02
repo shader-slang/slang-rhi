@@ -27,10 +27,33 @@ void RenderPassEncoder::writeRenderState()
     cmd.state = m_renderState;
     cmd.pipeline = m_pipeline;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    
+    // Add debug logging
+    m_commandEncoder->getDevice()->handleMessage(
+        DebugMessageType::Error, 
+        DebugMessageSource::Layer, 
+        "Attempting to get binding data"
+    );
+    
+    Result bindingResult = m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData);
+    
+    // Log binding data details
+    if (cmd.bindingData) {
+        m_commandEncoder->getDevice()->handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
+            "Binding data retrieved"
+        );
+    }
+    
+    if (!SLANG_SUCCEEDED(bindingResult))
     {
         m_commandEncoder->getDevice()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+            ->handleMessage(
+                DebugMessageType::Error, 
+                DebugMessageSource::Layer, 
+                "Failed to get binding data. Result code: %d"
+        );
         return;
     }
     m_commandList->write(std::move(cmd));
@@ -200,13 +223,27 @@ ComputePassEncoder::ComputePassEncoder(CommandEncoder* commandEncoder)
 
 void ComputePassEncoder::writeComputeState()
 {
+    printf("=================== writeComputeState\n");
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+
+    
+    Result bindingResult = m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData);
+    printf("bindingResult = %d\n", bindingResult);
+    // Log binding data details
+    if (cmd.bindingData) {
+        printf("Binding data retrieved; cmd.bindingData = %p\n", (void*)cmd.bindingData);
+    }
+    
+    if (!SLANG_SUCCEEDED(bindingResult))
     {
         m_commandEncoder->getDevice()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+            ->handleMessage(
+                DebugMessageType::Error, 
+                DebugMessageSource::Layer, 
+                "Failed to get binding data."
+            );
         return;
     }
     m_commandList->write(std::move(cmd));

@@ -4,6 +4,7 @@
 #include "metal-texture.h"
 #include "metal-sampler.h"
 #include <slang.h>
+#include <stdio.h>
 
 namespace rhi::metal {
 
@@ -118,8 +119,10 @@ Result BindingDataBuilder::bindAsRoot(
     //
 #if 1
     BindingOffset ordinaryDataBufferOffset = offset;
+    printf("DEBUG: Before bindOrdinaryDataBufferIfNeeded\n");
     SLANG_RETURN_ON_FAIL(bindOrdinaryDataBufferIfNeeded(shaderObject, ordinaryDataBufferOffset, specializedLayout));
 #endif
+    printf("DEBUG: Before bindAsValue\n");
     SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, specializedLayout));
 
     // Once the state stored in the root shader object itself has been bound,
@@ -142,6 +145,7 @@ Result BindingDataBuilder::bindAsRoot(
         // the absolute offsets as are used for the global scope do not apply
         // (because entry points don't need to deal with explicit bindings).
         //
+        printf("DEBUG: Before bindAsConstantBuffer (entry point %zu)\n", i);
         SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(entryPoint, entryPointOffset, entryPointLayout));
     }
 
@@ -185,14 +189,17 @@ Result BindingDataBuilder::bindAsParameterBlock(
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
-    if (!m_device->m_hasArgumentBufferTier2)
+    if (!m_device->m_hasArgumentBufferTier2) {
+        printf("DEBUG: bindAsParameterBlock: !m_device->m_hasArgumentBufferTier2\n");
         return SLANG_FAIL;
+    }
 
     BufferImpl* argumentBuffer = nullptr;
     SLANG_RETURN_ON_FAIL(writeArgumentBuffer(shaderObject, specializedLayout, argumentBuffer));
 
     if (argumentBuffer)
     {
+        printf("DEBUG: bindAsParameterBlock: argumentBuffer; setBuffer\n");
         SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, inOffset.buffer, argumentBuffer->m_buffer.get()));
     }
 
@@ -412,7 +419,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
     // If the argument buffer has no fields, we don't need to create one, note this is legal because there could be an
     // empty struct type in AST. We need to handle this correctly.
     if (argumentBufferTypeLayout->getFieldCount() == 0)
-    {
+    {   
+        printf("DEBUG: writeArgumentBuffer: argumentBufferTypeLayout->getFieldCount() == 0\n");
         outArgumentBuffer = nullptr;
         return SLANG_OK;
     }
