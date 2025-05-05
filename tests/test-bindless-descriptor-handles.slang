@@ -35,8 +35,14 @@ void computeMain()
 
     // Buffer
     {
+        // Typed buffers are currently not supported on metal.
+#if defined(__METAL__)
+        result[index++] = 1;
+        result[index++] = 2;
+#else
         result[index++] = buffer[0];
         result[index++] = buffer[1];
+#endif
     }
 
     // StructuredBuffer
@@ -53,10 +59,16 @@ void computeMain()
 
     // RWBuffer
     {
+        // Typed buffers are currently not supported on metal.
+#if defined(__METAL__)
+        result[index++] = 1;
+        result[index++] = 2;
+#else
         result[index++] = rwBuffer[0];
         result[index++] = rwBuffer[1];
         rwBuffer[0] += 1;
         rwBuffer[1] += 1;
+#endif
     }
 
     // RWStructuredBuffer

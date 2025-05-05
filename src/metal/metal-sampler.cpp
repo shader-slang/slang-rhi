@@ -77,7 +77,16 @@ Result SamplerImpl::init()
 Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::MTLSamplerState;
-    outHandle->value = (uint64_t)(m_samplerState.get());
+    outHandle->value = (uint64_t)m_samplerState.get();
+    return SLANG_OK;
+}
+
+Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    outHandle->type = DescriptorHandleType::Sampler;
+    MTL::ResourceID resourceID = m_samplerState->gpuResourceID();
+    static_assert(sizeof(outHandle->handle) >= sizeof(resourceID));
+    ::memcpy(&outHandle->handle, &resourceID, sizeof(resourceID));
     return SLANG_OK;
 }
 

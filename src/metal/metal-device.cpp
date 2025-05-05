@@ -79,6 +79,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         addFeature(Feature::ArgumentBufferTier2);
         addFeature(Feature::ParameterBlock);
+        addFeature(Feature::Bindless);
     }
 
     SLANG_RETURN_ON_FAIL(
