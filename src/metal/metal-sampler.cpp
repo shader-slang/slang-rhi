@@ -77,7 +77,14 @@ Result SamplerImpl::init()
 Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::MTLSamplerState;
-    outHandle->value = (uint64_t)(m_samplerState.get());
+    outHandle->value = (uint64_t)m_samplerState.get();
+    return SLANG_OK;
+}
+
+Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    outHandle->type = DescriptorHandleType::Sampler;
+    outHandle->handle = (uint64_t)m_samplerState->gpuResourceID();
     return SLANG_OK;
 }
 
