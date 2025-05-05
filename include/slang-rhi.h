@@ -535,7 +535,7 @@ enum class DescriptorHandleAccess
 struct DescriptorHandle
 {
     DescriptorHandleType type = DescriptorHandleType::Undefined;
-    uint64_t handle;
+    uint64_t value;
 
     explicit operator bool() const { return type != DescriptorHandleType::Undefined; }
 };

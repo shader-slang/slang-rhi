@@ -196,7 +196,7 @@ Result BindlessDescriptorSet::allocBufferHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->handle = slot;
+    outHandle->value = slot;
 
     return SLANG_OK;
 }
@@ -241,7 +241,7 @@ Result BindlessDescriptorSet::allocTextureHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->handle = m_firstTextureHandle + slot;
+    outHandle->value = m_firstTextureHandle + slot;
 
     return SLANG_OK;
 }
@@ -269,7 +269,7 @@ Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHa
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
     outHandle->type = DescriptorHandleType::Sampler;
-    outHandle->handle = slot;
+    outHandle->value = slot;
 
     return SLANG_OK;
 }
@@ -302,7 +302,7 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
     outHandle->type = DescriptorHandleType::AccelerationStructure;
-    outHandle->handle = m_firstAccelerationStructureHandle + slot;
+    outHandle->value = m_firstAccelerationStructureHandle + slot;
 
     return SLANG_OK;
 }
@@ -313,14 +313,14 @@ Result BindlessDescriptorSet::freeHandle(const DescriptorHandle& handle)
     {
     case DescriptorHandleType::Buffer:
     case DescriptorHandleType::RWBuffer:
-        return m_bufferAllocator.free(handle.handle);
+        return m_bufferAllocator.free(handle.value);
     case DescriptorHandleType::Texture:
     case DescriptorHandleType::RWTexture:
-        return m_textureAllocator.free(handle.handle - m_firstTextureHandle);
+        return m_textureAllocator.free(handle.value - m_firstTextureHandle);
     case DescriptorHandleType::Sampler:
-        return m_samplerAllocator.free(handle.handle);
+        return m_samplerAllocator.free(handle.value);
     case DescriptorHandleType::AccelerationStructure:
-        return m_accelerationStructureAllocator.free(handle.handle - m_firstAccelerationStructureHandle);
+        return m_accelerationStructureAllocator.free(handle.value - m_firstAccelerationStructureHandle);
     default:
         return SLANG_E_INVALID_ARG;
     }
