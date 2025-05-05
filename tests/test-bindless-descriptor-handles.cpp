@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("bindless-descriptor-handles", D3D12)
+GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 {
     if (!device->hasFeature(Feature::Bindless))
     {

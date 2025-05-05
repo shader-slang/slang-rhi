@@ -36,6 +36,26 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
     return m_buffer->getDeviceAddress();
 }
 
+Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    if (!m_descriptorHandle)
+    {
+        SLANG_RETURN_ON_FAIL(
+            device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &m_descriptorHandle)
+        );
+    }
+
+    *outHandle = m_descriptorHandle;
+    return SLANG_OK;
+}
+
 Result AccelerationStructureBuildDescConverter::convert(
     const AccelerationStructureBuildDesc& buildDesc,
     IDebugCallback* debugCallback
