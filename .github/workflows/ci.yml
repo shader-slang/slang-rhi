@@ -27,7 +27,7 @@ jobs:
           - { os: macos, compiler: gcc }
         include:
           # Builds running on self-hosted runners (build + tests)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
+          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: gcp, labels: [Windows, X64] } }
           - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
@@ -62,7 +62,9 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Configure
-        run: cmake --preset ${{matrix.preset}} -S . -B build ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
+        run: |
+          ${{ matrix.os == 'windows' && contains(matrix.runs-on.group, 'gcp') && '$env:PATH = "C:\Program Files\LLVM\bin;" + $env:PATH' || '' }}
+          cmake --preset ${{matrix.preset}} -S . -B build ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
