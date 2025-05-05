@@ -195,6 +195,9 @@ struct GPUDescriptorRange
 /// Represents a range of allocated GPU descriptors.
 struct GPUDescriptorRangeAllocation : GPUDescriptorRange
 {
+    /// Returns the descriptor heap offset of the first descriptor in the range.
+    uint32_t getHeapOffset() const { return heapOffset.offset; }
+
 private:
     OffsetAllocator::Allocation heapOffset;
 

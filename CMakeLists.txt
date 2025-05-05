@@ -547,6 +547,7 @@ endif()
 if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
+        src/d3d12/d3d12-bindless-descriptor-set.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
         src/d3d12/d3d12-constant-buffer-pool.cpp
@@ -697,6 +698,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/main.cpp
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
+        tests/test-bindless-descriptor-handles.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp

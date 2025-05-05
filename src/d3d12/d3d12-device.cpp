@@ -683,6 +683,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 {
                     addFeature(Feature::RasterizerOrderedViews);
                 }
+
+                // Check for bindless resources support
+                if (options.ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3 &&
+                    shaderModelData.HighestShaderModel >= D3D_SHADER_MODEL_6_6)
+                {
+                    addFeature(Feature::Bindless);
+                }
             }
         }
         {
@@ -865,6 +872,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         2 * 1024,
         m_gpuSamplerHeap.writeRef()
     ));
+
+    // Initialize bindless descriptor set if supported.
+    if (hasFeature(Feature::Bindless))
+    {
+        m_bindlessDescriptorSet = new BindlessDescriptorSet(this, m_desc.bindless);
+        SLANG_RETURN_ON_FAIL(m_bindlessDescriptorSet->initialize());
+    }
 
     ComPtr<IDXGIDevice> dxgiDevice;
     if (m_deviceInfo.m_adapter)
@@ -1679,7 +1693,6 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructure;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
-    result->m_device5 = m_device5;
     result->m_descriptor = m_cpuCbvSrvUavHeap->allocate();
     if (!result->m_descriptor)
         return SLANG_FAIL;
@@ -1775,6 +1788,8 @@ DeviceImpl::~DeviceImpl()
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_queue.setNull();
+
+    m_bindlessDescriptorSet.setNull();
 
     for (const auto& [_, allocation] : m_nullDescriptors)
     {
