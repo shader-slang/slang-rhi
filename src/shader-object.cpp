@@ -318,6 +318,22 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     return SLANG_OK;
 }
 
+Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle)
+{
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+
+    if (offset.uniformOffset + 8 > m_data.size())
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    ::memcpy(m_data.data() + offset.uniformOffset, &handle.handle, 8);
+
+    incrementVersion();
+
+    return SLANG_OK;
+}
+
 Result ShaderObject::setSpecializationArgs(
     const ShaderOffset& offset,
     const slang::SpecializationArg* args,

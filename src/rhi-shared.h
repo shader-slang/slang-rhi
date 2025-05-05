@@ -87,6 +87,9 @@ public:
     virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getDescriptorHandle(DescriptorHandleAccess access, Format format, BufferRange range, DescriptorHandle* outHandle)
+        override;
 
 public:
     BufferDesc m_desc;
@@ -176,6 +179,8 @@ public:
     // ITextureView interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() override { return m_desc; }
+    virtual SLANG_NO_THROW Result
+    getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle) override;
 
 public:
     TextureViewDesc m_desc;
@@ -198,6 +203,9 @@ public:
 
     // ISampler interface
     virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
+
+    // IResource interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
@@ -221,6 +229,7 @@ public:
 
     // IAccelerationStructure interface
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 
 public:
     AccelerationStructureDesc m_desc;
