@@ -320,31 +320,6 @@ Result loadGraphicsProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-void compareComputeResult(
-    IDevice* device,
-    ITexture* texture,
-    void* expectedResult,
-    size_t expectedResultRowPitch,
-    size_t rowCount
-)
-{
-    // Read back the results.
-    ComPtr<ISlangBlob> resultBlob;
-    SubresourceLayout layout;
-    REQUIRE_CALL(device->readTexture(texture, 0, 0, resultBlob.writeRef(), &layout));
-    // Compare results.
-    for (size_t row = 0; row < rowCount; row++)
-    {
-        CHECK(
-            memcmp(
-                (uint8_t*)resultBlob->getBufferPointer() + layout.rowPitch * row,
-                (uint8_t*)expectedResult + expectedResultRowPitch * row,
-                expectedResultRowPitch
-            ) == 0
-        );
-    }
-}
-
 ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
@@ -380,13 +355,13 @@ ComPtr<IDevice> createTestingDevice(
     emitSpirvDirectlyEntry.value.intValue0 = 1;
     compilerOptions.push_back(emitSpirvDirectlyEntry);
 #if DEBUG_SPIRV
-    slang::CompilerOptionEntry debugLevelCompilerOptionEntry;
+    slang::CompilerOptionEntry debugLevelCompilerOptionEntry = {};
     debugLevelCompilerOptionEntry.name = slang::CompilerOptionName::DebugInformation;
     debugLevelCompilerOptionEntry.value.intValue0 = SLANG_DEBUG_INFO_LEVEL_STANDARD;
     compilerOptions.push_back(debugLevelCompilerOptionEntry);
 #endif
 #if DUMP_INTERMEDIATES
-    slang::CompilerOptionEntry dumpIntermediatesOptionEntry;
+    slang::CompilerOptionEntry dumpIntermediatesOptionEntry = {};
     dumpIntermediatesOptionEntry.name = slang::CompilerOptionName::DumpIntermediates;
     dumpIntermediatesOptionEntry.value.intValue0 = 1;
     compilerOptions.push_back(dumpIntermediatesOptionEntry);
@@ -412,7 +387,7 @@ ComPtr<IDevice> createTestingDevice(
     {
         deviceDesc.nvapiExtUavSlot = 999;
         preprocessorMacros.push_back({"NV_SHADER_EXTN_SLOT", "u999"});
-        slang::CompilerOptionEntry nvapiSearchPath;
+        slang::CompilerOptionEntry nvapiSearchPath = {};
         nvapiSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         nvapiSearchPath.value.kind = slang::CompilerOptionValueKind::String;
         nvapiSearchPath.value.stringValue0 = "dxc";

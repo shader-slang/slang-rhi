@@ -6,6 +6,7 @@
 
 #include "enum-strings.h"
 #include "../src/core/blob.h"
+#include "../src/core/span.h"
 
 #include <array>
 #include <string_view>
@@ -76,28 +77,10 @@ Result loadGraphicsProgram(
     slang::ProgramLayout*& slangReflection
 );
 
-/// Reads back the content of `buffer` and compares it against `expectedResult`.
-void compareComputeResult(
-    IDevice* device,
-    IBuffer* buffer,
-    size_t offset,
-    const void* expectedResult,
-    size_t expectedBufferSize
-);
-
-/// Reads back the content of `texture` and compares it against `expectedResult`.
-void compareComputeResult(
-    IDevice* device,
-    ITexture* texture,
-    void* expectedResult,
-    size_t expectedResultRowPitch,
-    size_t rowCount
-);
-
-template<typename T, size_t Count>
-void compareResult(const T* result, const T* expectedResult)
+template<typename T>
+void compareResult(const T* result, const T* expectedResult, size_t count)
 {
-    for (size_t i = 0; i < Count; i++)
+    for (size_t i = 0; i < count; i++)
     {
         CAPTURE(i);
         CHECK_EQ(result[i], expectedResult[i]);
@@ -114,20 +97,74 @@ inline void compareResultFuzzy(const float* result, const float* expectedResult,
     }
 }
 
-template<typename T, size_t Count>
-void compareComputeResult(IDevice* device, IBuffer* buffer, std::array<T, Count> expectedResult)
+template<typename T>
+void compareComputeResult(IDevice* device, IBuffer* buffer, span<T> expectedResult)
 {
-    size_t bufferSize = Count * sizeof(T);
+    size_t bufferSize = expectedResult.size() * sizeof(T);
     // Read back the results.
     ComPtr<ISlangBlob> bufferData;
-    REQUIRE(!SLANG_FAILED(device->readBuffer(buffer, 0, bufferSize, bufferData.writeRef())));
-    REQUIRE_EQ(bufferData->getBufferSize(), bufferSize);
+    REQUIRE(SLANG_SUCCEEDED(device->readBuffer(buffer, 0, bufferSize, bufferData.writeRef())));
+    REQUIRE(bufferData->getBufferSize() == bufferSize);
     const T* result = reinterpret_cast<const T*>(bufferData->getBufferPointer());
 
     if constexpr (std::is_same<T, float>::value)
-        compareResultFuzzy(result, expectedResult.data(), Count);
+        compareResultFuzzy(result, expectedResult.data(), expectedResult.size());
     else
-        compareResult<T, Count>(result, expectedResult.data());
+        compareResult<T>(result, expectedResult.data(), expectedResult.size());
+}
+
+template<typename T, size_t Count>
+void compareComputeResult(IDevice* device, IBuffer* buffer, std::array<T, Count> expectedResult)
+{
+    compareComputeResult(device, buffer, span<T>(expectedResult.data(), Count));
+}
+
+template<typename T>
+void compareComputeResult(IDevice* device, ITexture* texture, uint32_t layer, uint32_t mip, span<T> expectedResult)
+{
+    size_t bufferSize = expectedResult.size() * sizeof(T);
+    // Read back the results.
+    ComPtr<ISlangBlob> textureData;
+    SubresourceLayout layout;
+    REQUIRE(SLANG_SUCCEEDED(device->readTexture(texture, layer, mip, textureData.writeRef(), &layout)));
+    REQUIRE(textureData->getBufferSize() >= bufferSize);
+
+    uint8_t* buffer = (uint8_t*)textureData->getBufferPointer();
+    for (uint32_t z = 0; z < layout.size.depth; z++)
+    {
+        for (uint32_t y = 0; y < layout.size.height; y++)
+        {
+            for (uint32_t x = 0; x < layout.size.width; x++)
+            {
+                const uint8_t* src = reinterpret_cast<const uint8_t*>(
+                    buffer + z * layout.slicePitch + y * layout.rowPitch + x * layout.colPitch
+                );
+                uint8_t* dst = reinterpret_cast<uint8_t*>(
+                    buffer + (((z * layout.size.depth + y) * layout.size.width) + x) * layout.colPitch
+                );
+                ::memcpy(dst, src, layout.colPitch);
+            }
+        }
+    }
+
+    const T* result = reinterpret_cast<const T*>(textureData->getBufferPointer());
+
+    if constexpr (std::is_same<T, float>::value)
+        compareResultFuzzy(result, expectedResult.data(), expectedResult.size());
+    else
+        compareResult<T>(result, expectedResult.data(), expectedResult.size());
+}
+
+template<typename T, size_t Count>
+void compareComputeResult(
+    IDevice* device,
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mip,
+    std::array<T, Count> expectedResult
+)
+{
+    compareComputeResult(device, texture, layer, mip, span<T>(expectedResult.data(), Count));
 }
 
 ComPtr<IDevice> createTestingDevice(
