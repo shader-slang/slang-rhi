@@ -327,7 +327,7 @@ Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const Descr
         return SLANG_E_INVALID_ARG;
     }
 
-    ::memcpy(m_data.data() + offset.uniformOffset, &handle.handle, 8);
+    ::memcpy(m_data.data() + offset.uniformOffset, &handle.value, 8);
 
     incrementVersion();
 
