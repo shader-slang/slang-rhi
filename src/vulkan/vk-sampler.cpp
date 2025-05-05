@@ -23,6 +23,21 @@ Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if (!m_descriptorHandle)
+    {
+        SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &m_descriptorHandle));
+    }
+    *outHandle = m_descriptorHandle;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     VkSamplerCreateInfo samplerInfo = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
