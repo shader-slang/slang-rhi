@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
+GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::Bindless))
     {
@@ -22,7 +22,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
     ComPtr<IBuffer> buffer;
-    DescriptorHandle bufferHandle;
+    DescriptorHandle bufferHandle = {};
     {
         BufferDesc desc = {};
         desc.format = Format::R32Float;
@@ -37,7 +37,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<IBuffer> structuredBuffer;
-    DescriptorHandle structuredBufferHandle;
+    DescriptorHandle structuredBufferHandle = {};
     {
         BufferDesc desc = {};
         desc.size = 8;
@@ -54,7 +54,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<IBuffer> byteAddressBuffer;
-    DescriptorHandle byteAddressBufferHandle;
+    DescriptorHandle byteAddressBufferHandle = {};
     {
         BufferDesc desc = {};
         desc.size = 8;
@@ -71,7 +71,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<IBuffer> rwBuffer;
-    DescriptorHandle rwBufferHandle;
+    DescriptorHandle rwBufferHandle = {};
     {
         BufferDesc desc = {};
         desc.format = Format::R32Float;
@@ -89,7 +89,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<IBuffer> rwStructuredBuffer;
-    DescriptorHandle rwStructuredBufferHandle;
+    DescriptorHandle rwStructuredBufferHandle = {};
     {
         BufferDesc desc = {};
         desc.format = Format::R32Float;
@@ -107,7 +107,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<IBuffer> rwByteAddressBuffer;
-    DescriptorHandle rwByteAddressBufferHandle;
+    DescriptorHandle rwByteAddressBufferHandle = {};
     {
         BufferDesc desc = {};
         desc.format = Format::R32Float;
@@ -126,7 +126,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> texture1D;
     ComPtr<ITextureView> texture1DView;
-    DescriptorHandle texture1DHandle;
+    DescriptorHandle texture1DHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture1D;
@@ -143,7 +143,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> texture2D;
     ComPtr<ITextureView> texture2DView;
-    DescriptorHandle texture2DHandle;
+    DescriptorHandle texture2DHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture2D;
@@ -160,7 +160,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> texture3D;
     ComPtr<ITextureView> texture3DView;
-    DescriptorHandle texture3DHandle;
+    DescriptorHandle texture3DHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture3D;
@@ -177,7 +177,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> textureCube;
     ComPtr<ITextureView> textureCubeView;
-    DescriptorHandle textureCubeHandle;
+    DescriptorHandle textureCubeHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::TextureCube;
@@ -195,7 +195,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> texture1DArray;
     ComPtr<ITextureView> texture1DArrayView;
-    DescriptorHandle texture1DArrayHandle;
+    DescriptorHandle texture1DArrayHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture1DArray;
@@ -213,7 +213,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> texture2DArray;
     ComPtr<ITextureView> texture2DArrayView;
-    DescriptorHandle texture2DArrayHandle;
+    DescriptorHandle texture2DArrayHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture2DArray;
@@ -231,7 +231,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> textureCubeArray;
     ComPtr<ITextureView> textureCubeArrayView;
-    DescriptorHandle textureCubeArrayHandle;
+    DescriptorHandle textureCubeArrayHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::TextureCubeArray;
@@ -262,7 +262,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> rwTexture1D;
     ComPtr<ITextureView> rwTexture1DView;
-    DescriptorHandle rwTexture1DHandle;
+    DescriptorHandle rwTexture1DHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture1D;
@@ -279,7 +279,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> rwTexture2D;
     ComPtr<ITextureView> rwTexture2DView;
-    DescriptorHandle rwTexture2DHandle;
+    DescriptorHandle rwTexture2DHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture2D;
@@ -297,7 +297,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> rwTexture3D;
     ComPtr<ITextureView> rwTexture3DView;
-    DescriptorHandle rwTexture3DHandle;
+    DescriptorHandle rwTexture3DHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture3D;
@@ -315,7 +315,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> rwTexture1DArray;
     ComPtr<ITextureView> rwTexture1DArrayView;
-    DescriptorHandle rwTexture1DArrayHandle;
+    DescriptorHandle rwTexture1DArrayHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture1DArray;
@@ -336,7 +336,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
 
     ComPtr<ITexture> rwTexture2DArray;
     ComPtr<ITextureView> rwTexture2DArrayView;
-    DescriptorHandle rwTexture2DArrayHandle;
+    DescriptorHandle rwTexture2DArrayHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture2DArray;
@@ -356,7 +356,8 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<ISampler> samplerPoint;
-    DescriptorHandle samplerPointHandle;
+    DescriptorHandle samplerPointHandle = {};
+    if (device->getDeviceType() != DeviceType::CUDA)
     {
         SamplerDesc desc = {};
         desc.minFilter = desc.magFilter = desc.mipFilter = TextureFilteringMode::Point;
@@ -366,7 +367,8 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<ISampler> samplerLinear;
-    DescriptorHandle samplerLinearHandle;
+    DescriptorHandle samplerLinearHandle = {};
+    if (device->getDeviceType() != DeviceType::CUDA)
     {
         SamplerDesc desc = {};
         desc.minFilter = desc.magFilter = desc.mipFilter = TextureFilteringMode::Linear;
@@ -376,7 +378,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<IBuffer> result;
-    DescriptorHandle resultHandle;
+    DescriptorHandle resultHandle = {};
     {
         BufferDesc desc = {};
         desc.size = 1024;

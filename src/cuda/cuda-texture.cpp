@@ -493,6 +493,25 @@ TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
 {
 }
 
+Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    switch (access)
+    {
+    case DescriptorHandleAccess::Read:
+        outHandle->type = DescriptorHandleType::Texture;
+        outHandle->handle = (uint64_t)m_cudaTexObj;
+        break;
+    case DescriptorHandleAccess::ReadWrite:
+        outHandle->type = DescriptorHandleType::RWTexture;
+        outHandle->handle = (uint64_t)m_cudaSurfObj;
+        break;
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     SLANG_CUDA_CTX_SCOPE(this);
