@@ -15,8 +15,15 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    if (m_descriptorHandle)
+    {
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+    }
+
     if (m_descriptor)
+    {
         device->m_cpuCbvSrvUavHeap->free(m_descriptor);
+    }
 }
 
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
@@ -34,6 +41,26 @@ AccelerationStructureHandle AccelerationStructureImpl::getHandle()
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 {
     return m_buffer->getDeviceAddress();
+}
+
+Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    if (!m_descriptorHandle)
+    {
+        SLANG_RETURN_ON_FAIL(
+            device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &m_descriptorHandle)
+        );
+    }
+
+    *outHandle = m_descriptorHandle;
+    return SLANG_OK;
 }
 
 Result AccelerationStructureBuildDescConverter::convert(

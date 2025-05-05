@@ -547,6 +547,7 @@ endif()
 if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
+        src/d3d12/d3d12-bindless-descriptor-set.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
         src/d3d12/d3d12-constant-buffer-pool.cpp
