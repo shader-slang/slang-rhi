@@ -1114,7 +1114,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             // SM 6.4
             Feature::SM_6_4,
             Feature::FragmentShadingRate,
-            Feature::SamplerFeedback,
+            // TODO: Check VK_NV_shader_image_footprint?
+            // Feature::SamplerFeedback,
             // SM 6.3
             Feature::SM_6_3,
             Feature::RayTracing,
@@ -1134,7 +1135,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         for (int i = SLANG_COUNT_OF(featureTable) - 1; i >= 0; --i)
         {
             Feature feature = featureTable[i];
-            if (i >= int(Feature::SM_6_0) && i <= int(Feature::SM_6_7))
+            if (int(feature) >= int(Feature::SM_6_0) && int(feature) <= int(Feature::SM_6_9))
             {
                 addFeature(feature);
             }
