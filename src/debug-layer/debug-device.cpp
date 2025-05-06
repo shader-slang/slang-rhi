@@ -30,11 +30,46 @@ Result DebugDevice::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return baseObject->getNativeDeviceHandles(outHandles);
 }
 
-Result DebugDevice::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
+Result DebugDevice::getFeatures(uint32_t* outFeatureCount, Feature* outFeatures)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->getFeatures(outFeatures, bufferSize, outFeatureCount);
+    return baseObject->getFeatures(outFeatureCount, outFeatures);
+}
+
+bool DebugDevice::hasFeature(Feature feature)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasFeature(feature);
+}
+
+bool DebugDevice::hasFeature(const char* feature)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasFeature(feature);
+}
+
+Result DebugDevice::getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->getCapabilities(outCapabilityCount, outCapabilities);
+}
+
+bool DebugDevice::hasCapability(Capability capability)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasCapability(capability);
+}
+
+bool DebugDevice::hasCapability(const char* capability)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasCapability(capability);
 }
 
 Result DebugDevice::getFormatSupport(Format format, FormatSupport* outFormatSupport)
@@ -50,20 +85,6 @@ DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
     ctx->debugCallback = debugCallback;
     SLANG_RHI_API_FUNC_NAME("CreateDevice");
     RHI_VALIDATION_INFO("Debug layer is enabled.");
-}
-
-bool DebugDevice::hasFeature(Feature feature)
-{
-    SLANG_RHI_API_FUNC;
-
-    return baseObject->hasFeature(feature);
-}
-
-bool DebugDevice::hasFeature(const char* feature)
-{
-    SLANG_RHI_API_FUNC;
-
-    return baseObject->hasFeature(feature);
 }
 
 Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
