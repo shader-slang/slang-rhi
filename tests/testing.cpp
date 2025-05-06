@@ -650,7 +650,7 @@ bool isDeviceTypeAvailable(DeviceType deviceType)
 
 bool isSwiftShaderDevice(IDevice* device)
 {
-    std::string adapterName = device->getDeviceInfo().adapterName;
+    std::string adapterName = device->getInfo().adapterName;
     std::transform(
         adapterName.begin(),
         adapterName.end(),

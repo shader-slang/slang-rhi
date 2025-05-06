@@ -119,11 +119,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
 // void DeviceImpl::waitForGpu() { m_deviceQueue.flushAndWait(); }
 
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
-{
-    return m_info;
-}
-
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     AUTORELEASEPOOL

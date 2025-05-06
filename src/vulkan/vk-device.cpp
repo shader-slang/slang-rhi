@@ -1168,11 +1168,6 @@ void DeviceImpl::waitForGpu()
     m_deviceQueue.flushAndWait();
 }
 
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
-{
-    return m_info;
-}
-
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)

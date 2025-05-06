@@ -23,7 +23,7 @@ static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 
 GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
 {
-    if (device->getDeviceInfo().deviceType == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
+    if (device->getDeviceType() == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
         SKIP("not supported on MoltenVK");
     if (!device->hasFeature(Feature::ParameterBlock))
         SKIP("no support for parameter blocks");

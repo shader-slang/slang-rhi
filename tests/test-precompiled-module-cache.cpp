@@ -21,7 +21,7 @@ ComPtr<slang::ISession> createSession(gfx::IDevice* device, ISlangFileSystemExt*
     entry.value.intValue0 = 1;
     sessionDesc.compilerOptionEntries = &entry;
     slang::TargetDesc targetDesc = {};
-    switch (device->getDeviceInfo().deviceType)
+    switch (device->getDeviceType())
     {
     case gfx::DeviceType::D3D12:
         targetDesc.format = SLANG_DXIL;

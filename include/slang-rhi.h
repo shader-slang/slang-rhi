@@ -2593,6 +2593,11 @@ class IDevice : public ISlangUnknown
     SLANG_COM_INTERFACE(0x311ee28b, 0xdb5a, 0x4a3c, {0x89, 0xda, 0xf0, 0x03, 0x0f, 0xd5, 0x70, 0x4b});
 
 public:
+    /// Get information about the device.
+    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getInfo() const = 0;
+
+    inline DeviceType getDeviceType() const { return getInfo().deviceType; }
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) = 0;
 
     /// Returns a list of features supported by the device.
@@ -2876,11 +2881,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;
-
-    /// Get information about the device.
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const = 0;
-
-    inline DeviceType getDeviceType() const { return getDeviceInfo().deviceType; }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) = 0;
 
