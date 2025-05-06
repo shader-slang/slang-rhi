@@ -440,6 +440,7 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
+        -Wno-gnu-anonymous-struct
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
         -Wno-cast-function-type-mismatch
