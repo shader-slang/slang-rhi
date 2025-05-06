@@ -67,22 +67,10 @@ WGPUErrorType DeviceImpl::getAndClearLastError()
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
+
     SLANG_RETURN_ON_FAIL(m_ctx.api.init());
     API& api = m_ctx.api;
-
-    // Initialize device info.
-    {
-        m_info.apiName = "WGPU";
-        m_info.deviceType = DeviceType::WGPU;
-        m_info.adapterName = "default";
-    }
-
-    m_desc = desc;
-
-    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
-    );
 
     const std::vector<const char*> enabledToggles = {"use_dxc"};
     WGPUDawnTogglesDescriptor togglesDesc = {};
@@ -199,26 +187,63 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     api.wgpuDeviceGetLimits(m_ctx.device, &supportedLimits);
     m_ctx.limits = supportedLimits.limits;
 
-    m_info.limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
-
     // Query device features.
     size_t deviceFeatureCount = api.wgpuDeviceEnumerateFeatures(m_ctx.device, nullptr);
     std::vector<WGPUFeatureName> deviceFeatures(deviceFeatureCount);
     api.wgpuDeviceEnumerateFeatures(m_ctx.device, deviceFeatures.data());
     m_ctx.features.insert(deviceFeatures.begin(), deviceFeatures.end());
 
+    // Initialize device info.
+    {
+        m_info.apiName = "WGPU";
+        m_info.deviceType = DeviceType::WGPU;
+        m_info.adapterName = "default";
+    }
+
+    // Initialize device limits.
+    {
+        m_info.limits.maxTextureDimension1D = m_ctx.limits.maxTextureDimension1D;
+        m_info.limits.maxTextureDimension2D = m_ctx.limits.maxTextureDimension2D;
+        m_info.limits.maxTextureDimension3D = m_ctx.limits.maxTextureDimension3D;
+        m_info.limits.maxTextureDimensionCube = m_ctx.limits.maxTextureDimension2D;
+        m_info.limits.maxTextureLayers = m_ctx.limits.maxTextureArrayLayers;
+        m_info.limits.maxVertexInputElements = m_ctx.limits.maxVertexAttributes;
+        m_info.limits.maxVertexInputElementOffset = m_ctx.limits.maxVertexBufferArrayStride;
+        m_info.limits.maxVertexStreams = m_ctx.limits.maxVertexBuffers;
+        m_info.limits.maxVertexStreamStride = m_ctx.limits.maxVertexBufferArrayStride;
+        m_info.limits.maxComputeThreadsPerGroup = m_ctx.limits.maxComputeInvocationsPerWorkgroup;
+        m_info.limits.maxComputeThreadGroupSize[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
+        m_info.limits.maxComputeThreadGroupSize[1] = m_ctx.limits.maxComputeWorkgroupSizeY;
+        m_info.limits.maxComputeThreadGroupSize[2] = m_ctx.limits.maxComputeWorkgroupSizeZ;
+        m_info.limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        m_info.limits.maxComputeDispatchThreadGroups[1] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        m_info.limits.maxComputeDispatchThreadGroups[2] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        // m_info.limits.maxViewports
+        // m_info.limits.maxViewportDimensions[2]
+        // m_info.limits.maxFramebufferDimensions[3]
+        m_info.limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
+    }
+
+    // Initialize features & capabilities.
     addFeature(Feature::HardwareDevice);
     addFeature(Feature::Surface);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Rasterization);
-
     if (api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_ShaderF16))
     {
         addFeature(Feature::Half);
     }
 
+    addCapability(Capability::wgsl);
+
+    // Initialize slang context.
+    SLANG_RETURN_ON_FAIL(
+        m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
+    );
+
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+
     return SLANG_OK;
 }
 
