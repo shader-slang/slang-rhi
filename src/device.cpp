@@ -78,16 +78,6 @@ void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> speci
 // Device
 // ----------------------------------------------------------------------------
 
-// Feature lookup
-
-#define SLANG_RHI_FEATURE_X(id, name) name,
-static const std::array<const char*, size_t(Feature::_Count)> kFeatureNames = {SLANG_RHI_FEATURES(SLANG_RHI_FEATURE_X)};
-#undef SLANG_RHI_FEATURE_X
-
-#define SLANG_RHI_FEATURE_X(id, name) {name, Feature::id},
-static const std::unordered_map<std::string_view, Feature> kFeatureNameMap = {SLANG_RHI_FEATURES(SLANG_RHI_FEATURE_X)};
-#undef SLANG_RHI_FEATURE_X
-
 Result Device::createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject)
 {
     return ShaderObject::create(this, layout, outObject);
@@ -328,6 +318,7 @@ IDevice* Device::getInterface(const Guid& guid)
 Result Device::initialize(const DeviceDesc& desc)
 {
     m_featureSet.fill(false);
+    m_capabilitySet.fill(false);
 
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
 
@@ -352,30 +343,49 @@ void Device::addFeature(Feature feature)
     m_featureSet[size_t(feature)] = true;
 }
 
+void Device::addCapability(Capability capability)
+{
+    SLANG_RHI_ASSERT(size_t(capability) < size_t(Capability::_Count));
+    m_capabilitySet[size_t(capability)] = true;
+}
+
 Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return SLANG_OK;
 }
 
-Result Device::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
+Result Device::getFeatures(uint32_t* outFeatureCount, Feature* outFeatures)
 {
-    if (!outFeatures)
+    if (!outFeatureCount)
     {
         return SLANG_E_INVALID_ARG;
     }
-
-    size_t featureCount = 0;
-    for (size_t i = 0; i < m_featureSet.size(); i++)
+    if (outFeatures)
     {
-        if (m_featureSet[i] && featureCount < bufferSize)
+        uint32_t featureIndex = 0;
+        for (size_t i = 0; i < m_featureSet.size(); i++)
         {
-            outFeatures[featureCount] = kFeatureNames[i];
-            featureCount++;
+            if (m_featureSet[i])
+            {
+                if (featureIndex < *outFeatureCount)
+                {
+                    outFeatures[featureIndex++] = Feature(i);
+                }
+                else
+                {
+                    return SLANG_E_INVALID_ARG;
+                }
+            }
         }
     }
-    if (outFeatureCount)
+    else
     {
-        *outFeatureCount = uint32_t(featureCount);
+        uint32_t featureCount = 0;
+        for (size_t i = 0; i < m_featureSet.size(); i++)
+        {
+            featureCount += m_featureSet[i] ? 1 : 0;
+        }
+        *outFeatureCount = featureCount;
     }
     return SLANG_OK;
 }
@@ -387,10 +397,73 @@ bool Device::hasFeature(Feature feature)
 
 bool Device::hasFeature(const char* feature)
 {
+#define SLANG_RHI_FEATURES_X(id, name) {name, Feature::id},
+    static const std::unordered_map<std::string_view, Feature> kFeatureNameMap = {
+        SLANG_RHI_FEATURES(SLANG_RHI_FEATURES_X)
+    };
+#undef SLANG_RHI_FEATURES_X
+
     auto it = kFeatureNameMap.find(feature);
     if (it != kFeatureNameMap.end())
     {
         return hasFeature(it->second);
+    }
+    return false;
+}
+
+Result Device::getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
+{
+    if (!outCapabilityCount)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    if (outCapabilities)
+    {
+        uint32_t capabilityIndex = 0;
+        for (size_t i = 0; i < m_capabilitySet.size(); i++)
+        {
+            if (m_capabilitySet[i])
+            {
+                if (capabilityIndex < *outCapabilityCount)
+                {
+                    outCapabilities[capabilityIndex++] = Capability(i);
+                }
+                else
+                {
+                    return SLANG_E_INVALID_ARG;
+                }
+            }
+        }
+    }
+    else
+    {
+        uint32_t capabilityCount = 0;
+        for (size_t i = 0; i < m_capabilitySet.size(); i++)
+        {
+            capabilityCount += m_capabilitySet[i] ? 1 : 0;
+        }
+        *outCapabilityCount = capabilityCount;
+    }
+    return SLANG_OK;
+}
+
+bool Device::hasCapability(Capability capability)
+{
+    return size_t(capability) < size_t(Capability::_Count) ? m_featureSet[size_t(capability)] : false;
+}
+
+bool Device::hasCapability(const char* capability)
+{
+#define SLANG_RHI_CAPABILITIES_X(id) {#id, Capability::id},
+    static const std::unordered_map<std::string_view, Capability> kCapabilityMap = {
+        SLANG_RHI_CAPABILITIES(SLANG_RHI_CAPABILITIES_X)
+    };
+#undef SLANG_RHI_CAPABILITIES_X
+
+    auto it = kCapabilityMap.find(capability);
+    if (it != kCapabilityMap.end())
+    {
+        return hasCapability(it->second);
     }
     return false;
 }

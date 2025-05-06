@@ -15,10 +15,13 @@ public:
     DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback);
     IDevice* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount) override;
+    getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities) override;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) override;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;

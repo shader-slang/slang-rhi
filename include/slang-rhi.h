@@ -5,6 +5,8 @@
 #include <slang-com-ptr.h>
 #include <slang.h>
 
+#include <slang-rhi/capabilities.h>
+
 #if defined(SLANG_RHI_DYNAMIC)
 #if defined(_MSC_VER)
 #ifdef SLANG_RHI_DYNAMIC_EXPORT
@@ -2597,12 +2599,16 @@ class IDevice : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) = 0;
 
+    /// Returns a list of features supported by the device.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) = 0;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) = 0;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) = 0;
 
-    /// Returns a list of features supported by the device.
+    /// Returns a list of capabilities supported by the device.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount) = 0;
+    getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities) = 0;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) = 0;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) = 0;
 
@@ -2999,6 +3005,9 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDeviceTypeName(DeviceType type) = 0;
 
     virtual SLANG_NO_THROW bool SLANG_MCALL isDeviceTypeSupported(DeviceType type) = 0;
+
+    virtual SLANG_NO_THROW const char* SLANG_MCALL getFeatureName(Feature feature) = 0;
+    virtual SLANG_NO_THROW const char* SLANG_MCALL getCapabilityName(Capability capability) = 0;
 
     /// Gets a list of available adapters for a given device type.
     virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
