@@ -75,8 +75,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.apiName = "WGPU";
         m_info.deviceType = DeviceType::WGPU;
         m_info.adapterName = "default";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
     }
 
     m_desc = desc;

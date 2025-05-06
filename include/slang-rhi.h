@@ -2472,10 +2472,6 @@ struct DeviceInfo
 
     DeviceLimits limits;
 
-    /// An projection matrix that ensures x, y mapping to pixels
-    /// is the same on all targets
-    float identityProjectionMatrix[16];
-
     /// The name of the graphics API being used by this device.
     const char* apiName = nullptr;
 

@@ -275,8 +275,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         m_info.deviceType = DeviceType::CUDA;
         m_info.apiName = "CUDA";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
         char deviceName[256];
         SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device));
         m_adapterName = deviceName;

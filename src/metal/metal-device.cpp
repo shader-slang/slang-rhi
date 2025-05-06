@@ -52,8 +52,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.apiName = "Metal";
         m_info.deviceType = DeviceType::Metal;
         m_info.adapterName = "default";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
     }
 
     m_desc = desc;
