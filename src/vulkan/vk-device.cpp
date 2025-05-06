@@ -52,6 +52,8 @@ DeviceImpl::~DeviceImpl()
     m_uploadHeap.release();
     m_readbackHeap.release();
 
+    m_bindlessDescriptorSet.setNull();
+
     if (m_api.vkDestroySampler)
     {
         m_api.vkDestroySampler(m_device, m_defaultSampler, nullptr);
@@ -557,6 +559,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.cooperativeMatrix1Features.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.cooperativeMatrix1Features;
 
+        extendedFeatures.descriptorIndexingFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.descriptorIndexingFeatures;
+
+        extendedFeatures.mutableDescriptorTypeFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.mutableDescriptorTypeFeatures;
+
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
             extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
@@ -827,6 +835,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             { addFeature(Feature::CooperativeMatrix); }
         );
 
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.mutableDescriptorTypeFeatures,
+            mutableDescriptorType,
+            VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME,
+            {}
+        );
+
 #undef SIMPLE_EXTENSION_FEATURE
 
         if (extendedFeatures.vulkan12Features.shaderBufferInt64Atomics)
@@ -976,6 +991,24 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     addFeature(Feature::Rasterization);
     addFeature(Feature::TimestampQuery);
 
+    if (extendedFeatures.vulkan12Features.descriptorIndexing &&
+        extendedFeatures.descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing &&
+        extendedFeatures.descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing &&
+        extendedFeatures.descriptorIndexingFeatures.shaderStorageImageArrayNonUniformIndexing &&
+        extendedFeatures.descriptorIndexingFeatures.shaderUniformTexelBufferArrayNonUniformIndexing &&
+        extendedFeatures.descriptorIndexingFeatures.shaderStorageTexelBufferArrayNonUniformIndexing &&
+        extendedFeatures.descriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind &&
+        extendedFeatures.descriptorIndexingFeatures.descriptorBindingStorageImageUpdateAfterBind &&
+        extendedFeatures.descriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind &&
+        extendedFeatures.descriptorIndexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind &&
+        extendedFeatures.descriptorIndexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind &&
+        extendedFeatures.descriptorIndexingFeatures.descriptorBindingUpdateUnusedWhilePending &&
+        extendedFeatures.descriptorIndexingFeatures.descriptorBindingPartiallyBound &&
+        extendedFeatures.mutableDescriptorTypeFeatures.mutableDescriptorType)
+    {
+        addFeature(Feature::Bindless);
+    }
+
     int queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
     SLANG_RHI_ASSERT(queueFamilyIndex >= 0);
     m_queueFamilyIndex = queueFamilyIndex;
@@ -1117,6 +1150,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
+    }
+
+    // Create bindless descriptor set if needed.
+    if (hasFeature(Feature::Bindless))
+    {
+        m_bindlessDescriptorSet = new BindlessDescriptorSet(this, m_desc.bindless);
+        SLANG_RETURN_ON_FAIL(m_bindlessDescriptorSet->initialize());
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);

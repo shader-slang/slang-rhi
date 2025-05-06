@@ -123,6 +123,13 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& 
     return baseObject->setBinding(offset, binding);
 }
 
+Result DebugShaderObject::setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle)
+{
+    SLANG_RHI_API_FUNC;
+    checkNotFinalized();
+    return baseObject->setDescriptorHandle(offset, handle);
+}
+
 Result DebugShaderObject::setSpecializationArgs(
     const ShaderOffset& offset,
     const slang::SpecializationArg* args,

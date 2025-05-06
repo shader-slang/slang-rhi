@@ -190,7 +190,11 @@ Result BindingDataBuilder::bindAsParameterBlock(
 
     BufferImpl* argumentBuffer = nullptr;
     SLANG_RETURN_ON_FAIL(writeArgumentBuffer(shaderObject, specializedLayout, argumentBuffer));
-    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, inOffset.buffer, argumentBuffer->m_buffer.get()));
+
+    if (argumentBuffer)
+    {
+        SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, inOffset.buffer, argumentBuffer->m_buffer.get()));
+    }
 
     return SLANG_OK;
 }
@@ -404,6 +408,14 @@ Result BindingDataBuilder::writeArgumentBuffer(
 )
 {
     auto argumentBufferTypeLayout = specializedLayout->getParameterBlockTypeLayout();
+
+    // If the argument buffer has no fields, we don't need to create one, note this is legal because there could be an
+    // empty struct type in AST. We need to handle this correctly.
+    if (argumentBufferTypeLayout->getFieldCount() == 0)
+    {
+        outArgumentBuffer = nullptr;
+        return SLANG_OK;
+    }
 
     ComPtr<IBuffer> argumentBuffer;
     BufferDesc argumentBufferDesc = {};

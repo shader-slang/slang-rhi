@@ -53,6 +53,10 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getDescriptorHandle(DescriptorHandleAccess access, Format format, BufferRange range, DescriptorHandle* outHandle)
+        override;
+
     struct ViewKey
     {
         Format format;
@@ -76,6 +80,32 @@ public:
     std::unordered_map<ViewKey, VkBufferView, ViewKeyHasher> m_views;
 
     VkBufferView getView(Format format, const BufferRange& range);
+
+    struct DescriptorHandleKey
+    {
+        DescriptorHandleAccess access;
+        Format format;
+        BufferRange range;
+        bool operator==(const DescriptorHandleKey& other) const
+        {
+            return access == other.access && format == other.format && range == other.range;
+        }
+    };
+
+    struct DescriptorHandleKeyHasher
+    {
+        size_t operator()(const DescriptorHandleKey& key) const
+        {
+            size_t hash = 0;
+            hash_combine(hash, key.access);
+            hash_combine(hash, key.format);
+            hash_combine(hash, key.range.offset);
+            hash_combine(hash, key.range.size);
+            return hash;
+        }
+    };
+
+    std::unordered_map<DescriptorHandleKey, DescriptorHandle, DescriptorHandleKeyHasher> m_descriptorHandles;
 };
 
 } // namespace rhi::vk

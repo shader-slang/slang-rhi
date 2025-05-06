@@ -17,18 +17,19 @@ public:
 
     BreakableReference<DeviceImpl> m_device;
 
-    std::vector<VkPipelineShaderStageCreateInfo> m_stageCreateInfos;
-    std::vector<std::string> m_entryPointNames;
-    std::vector<ComPtr<ISlangBlob>> m_codeBlobs; //< To keep storage of code in scope
-    std::vector<VkShaderModule> m_modules;
     RefPtr<RootShaderObjectLayoutImpl> m_rootShaderObjectLayout;
 
-    VkPipelineShaderStageCreateInfo compileEntryPoint(
-        const char* entryPointName,
-        ISlangBlob* code,
-        VkShaderStageFlagBits stage,
-        VkShaderModule& outShaderModule
-    );
+    struct Module
+    {
+        ComPtr<ISlangBlob> code;
+        std::string entryPointName;
+        VkShaderModule shaderModule;
+        bool hasBindlessDescriptorSet;
+        uint32_t bindlessDescriptorSet;
+    };
+
+    std::vector<Module> m_modules;
+    std::vector<VkPipelineShaderStageCreateInfo> m_stageCreateInfos;
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;

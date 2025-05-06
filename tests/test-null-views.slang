@@ -35,7 +35,7 @@ RWStructuredBuffer<float> result;
 
 [shader("compute")]
 [numthreads(1, 1, 1)]
-void compute_main()
+void computeMain()
 {
     // TODO: CUDA/Metal don't fully support typed buffers yet
 #if !(defined(__CUDA__) || defined(__METAL__))
