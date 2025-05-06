@@ -71,8 +71,6 @@ public:
 
 
 public:
-    // D3D11Device members.
-
     std::string m_adapterName;
 
     RefPtr<CommandQueueImpl> m_queue;
@@ -82,8 +80,6 @@ public:
     ComPtr<ID3D11DeviceContext1> m_immediateContext1;
     ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<ID3D11Query> m_disjointQuery;
-
-    DeviceDesc m_desc;
 
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;
