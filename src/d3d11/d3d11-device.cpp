@@ -39,8 +39,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         m_info.deviceType = DeviceType::D3D11;
         m_info.apiName = "D3D11";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
     }
 
     m_desc = desc;

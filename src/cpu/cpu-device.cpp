@@ -24,8 +24,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         m_info.deviceType = DeviceType::CPU;
         m_info.apiName = "CPU";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
         m_info.adapterName = "CPU";
         m_info.timestampFrequency = 1000000000;
     }
