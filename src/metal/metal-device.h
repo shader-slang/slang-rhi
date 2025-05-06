@@ -108,7 +108,6 @@ public:
 
     bool captureEnabled() const { return std::getenv("MTL_CAPTURE_ENABLED") != nullptr; }
 
-    DeviceDesc m_desc;
     NS::SharedPtr<MTL::Device> m_device;
     RefPtr<CommandQueueImpl> m_queue;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
