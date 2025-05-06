@@ -180,6 +180,8 @@ bool isDeviceTypeAvailable(DeviceType deviceType);
 
 bool isSwiftShaderDevice(IDevice* device);
 
+slang::IGlobalSession* getSlangGlobalSession();
+
 const char* getTestsDir();
 
 std::vector<const char*> getSlangSearchPaths();
