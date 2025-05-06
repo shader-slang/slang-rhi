@@ -15,9 +15,10 @@ public:
     using Device::readBuffer;
 
     Result initVulkanInstanceAndDevice(
-        const NativeHandle* handles,
+        const DeviceDesc& desc,
         bool enableValidationLayer,
-        bool enableRayTracingValidation
+        std::vector<Feature>& availableFeatures,
+        std::vector<Capability>& availableCapabilities
     );
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
@@ -142,7 +143,7 @@ public:
     uint32_t getQueueFamilyIndex(QueueType queueType);
 
 public:
-    DeviceDesc m_desc;
+    DeviceNativeHandles m_existingDeviceHandles;
     VulkanDeviceExtendedDesc m_extendedDesc;
 
     std::string m_adapterName;
