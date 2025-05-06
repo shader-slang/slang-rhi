@@ -11,16 +11,9 @@ DeviceImpl::~DeviceImpl() {}
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
-    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
-        desc.slang,
-        SLANG_SHADER_HOST_CALLABLE,
-        "sm_5_1",
-        std::array{slang::PreprocessorMacroDesc{"__CPU__", "1"}}
-    ));
-
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    // Initialize DeviceInfo
+    // Initialize device info
     {
         m_info.deviceType = DeviceType::CPU;
         m_info.apiName = "CPU";
@@ -28,11 +21,21 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.timestampFrequency = 1000000000;
     }
 
-    // Initialize features
+    // Initialize features & capabilities
     addFeature(Feature::SoftwareDevice);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::TimestampQuery);
     addFeature(Feature::Pointer);
+
+    addCapability(Capability::cpp);
+
+    // Initialize slang context
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
+        desc.slang,
+        SLANG_SHADER_HOST_CALLABLE,
+        "sm_5_1",
+        std::array{slang::PreprocessorMacroDesc{"__CPU__", "1"}}
+    ));
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
 
