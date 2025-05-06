@@ -88,8 +88,6 @@ public:
     /// True if the adapter is warp
     static bool isWarp(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapter);
 
-    static int getShaderModelFromProfileName(const char* profile);
-
     static uint32_t getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect);
 
     static uint32_t getPlaneSliceCount(DXGI_FORMAT format);

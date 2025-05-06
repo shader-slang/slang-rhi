@@ -48,12 +48,9 @@ struct D3D12DeviceInfo
 class DeviceImpl : public Device
 {
 public:
-    DeviceDesc m_desc;
     D3D12DeviceExtendedDesc m_extendedDesc;
 
     std::string m_adapterName;
-
-    bool m_isInitialized = false;
 
     ComPtr<ID3D12Debug> m_dxDebug;
 
