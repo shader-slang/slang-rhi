@@ -24,7 +24,6 @@ class DeviceImpl : public Device
 public:
     using Device::readBuffer;
 
-    DeviceDesc m_desc;
     std::string m_adapterName;
 
     Context m_ctx;
