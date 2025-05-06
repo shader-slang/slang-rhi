@@ -10,7 +10,7 @@ GPU_TEST_CASE("device-from-handle", D3D12 | Vulkan | CUDA)
 
     ComPtr<IDevice> newDevice;
     DeviceDesc newDeviceDesc = {};
-    newDeviceDesc.deviceType = device->getDeviceInfo().deviceType;
+    newDeviceDesc.deviceType = device->getDeviceType();
     newDeviceDesc.existingDeviceHandles.handles[0] = handles.handles[0];
     if (newDeviceDesc.deviceType == DeviceType::Vulkan)
     {

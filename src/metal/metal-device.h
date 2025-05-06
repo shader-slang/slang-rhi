@@ -98,14 +98,12 @@ public:
         override;
 
     // void waitForGpu();
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     DeviceImpl();
     ~DeviceImpl();
 
 public:
-    DeviceInfo m_info;
     std::string m_adapterName;
 
     bool captureEnabled() const { return std::getenv("MTL_CAPTURE_ENABLED") != nullptr; }

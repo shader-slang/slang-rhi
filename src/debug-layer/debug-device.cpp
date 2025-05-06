@@ -632,10 +632,10 @@ Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISla
     return baseObject->readBuffer(buffer, offset, size, outBlob);
 }
 
-const DeviceInfo& DebugDevice::getDeviceInfo() const
+const DeviceInfo& DebugDevice::getInfo() const
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getDeviceInfo();
+    return baseObject->getInfo();
 }
 
 Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)

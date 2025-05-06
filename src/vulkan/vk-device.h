@@ -101,8 +101,6 @@ public:
 
     void waitForGpu();
 
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     DeviceImpl();
@@ -147,7 +145,6 @@ public:
     DeviceDesc m_desc;
     VulkanDeviceExtendedDesc m_extendedDesc;
 
-    DeviceInfo m_info;
     std::string m_adapterName;
 
     VkDebugUtilsMessengerEXT m_debugReportCallback = VK_NULL_HANDLE;

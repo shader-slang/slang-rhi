@@ -533,11 +533,6 @@ void DeviceImpl::unmap(IBuffer* buffer)
     SLANG_UNUSED(buffer);
 }
 
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
-{
-    return m_info;
-}
-
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)

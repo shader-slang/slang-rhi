@@ -58,7 +58,7 @@ static Result precompileProgram(
     sessionDesc.searchPaths = searchPaths.data();
     sessionDesc.searchPathCount = searchPaths.size();
     slang::TargetDesc targetDesc =
-        getTargetDesc(device->getDeviceInfo().deviceType, device->getSlangSession()->getGlobalSession());
+        getTargetDesc(device->getDeviceType(), device->getSlangSession()->getGlobalSession());
     sessionDesc.targets = &targetDesc;
     sessionDesc.targetCount = 1;
     auto globalSession = slangSession->getGlobalSession();
@@ -79,7 +79,7 @@ static Result precompileProgram(
         ));
 
         SlangCompileTarget target;
-        switch (device->getDeviceInfo().deviceType)
+        switch (device->getDeviceType())
         {
         case DeviceType::D3D12:
             target = SLANG_DXIL;
@@ -137,7 +137,7 @@ static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompi
     device->getSlangSession(slangSession.writeRef());
     slang::SessionDesc sessionDesc = {};
     slang::TargetDesc targetDesc =
-        getTargetDesc(device->getDeviceInfo().deviceType, device->getSlangSession()->getGlobalSession());
+        getTargetDesc(device->getDeviceType(), device->getSlangSession()->getGlobalSession());
     sessionDesc.targets = &targetDesc;
     sessionDesc.targetCount = 1;
     const char* searchPaths[] = {tempDirStr.c_str()};

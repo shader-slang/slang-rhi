@@ -79,7 +79,7 @@ Result ShaderProgram::compileShaders(Device* device)
     if (m_compiledShaders)
         return SLANG_OK;
 
-    if (device->getDeviceInfo().deviceType == DeviceType::CPU)
+    if (device->getInfo().deviceType == DeviceType::CPU)
     {
         // CPU device does not need to compile shaders.
         m_compiledShaders = true;

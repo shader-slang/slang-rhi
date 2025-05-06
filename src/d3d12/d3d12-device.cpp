@@ -1325,11 +1325,6 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     return SLANG_OK;
 }
 
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
-{
-    return m_info;
-}
-
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
     auto bufferImpl = checked_cast<BufferImpl*>(buffer);

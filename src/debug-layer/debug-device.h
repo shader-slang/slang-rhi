@@ -86,7 +86,7 @@ public:
     readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
+    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

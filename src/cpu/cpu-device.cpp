@@ -102,11 +102,6 @@ Result DeviceImpl::createShaderProgram(
     return SLANG_OK;
 }
 
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
-{
-    return m_info;
-}
-
 Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     SLANG_UNUSED(desc);
