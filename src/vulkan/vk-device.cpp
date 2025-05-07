@@ -871,6 +871,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             cooperativeMatrixPerElementOperations,
             VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
             { addFeature(Feature::CooperativeMatrixPerElementOperations); }
+        );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.cooperativeMatrix2Features,
