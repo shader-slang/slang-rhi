@@ -432,20 +432,6 @@ ComPtr<IDevice> createTestingDevice(
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
 
-#if SLANG_RHI_DEBUG
-    const char* features[128];
-    uint32_t featureCount;
-    REQUIRE_CALL(device->getFeatures(features, SLANG_COUNT_OF(features), &featureCount));
-    std::string featureStr;
-    for (uint32_t i = 0; i < featureCount; i++)
-    {
-        featureStr += features[i];
-        if (i < featureCount - 1)
-            featureStr += " ";
-    }
-    INFO("Device features: ", featureStr);
-#endif
-
     if (useCachedDevice)
     {
         gCachedDevices[deviceType] = device;
@@ -557,6 +543,43 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     if (!SLANG_SUCCEEDED(rhi::getRHI()->createDevice(desc, device.writeRef())))
         RETURN_NOT_AVAILABLE("failed to create device");
 
+#if SLANG_RHI_DEBUG
+    std::string deviceInfo;
+    deviceInfo += "Device type: ";
+    deviceInfo += deviceTypeToString(deviceType);
+    deviceInfo += "\n";
+    deviceInfo += "Adapter name: ";
+    deviceInfo += device->getInfo().adapterName;
+    deviceInfo += "\n";
+    {
+        uint32_t featureCount;
+        SLANG_RETURN_ON_FAIL(device->getFeatures(&featureCount, nullptr));
+        std::vector<Feature> features(featureCount);
+        SLANG_RETURN_ON_FAIL(device->getFeatures(&featureCount, features.data()));
+        deviceInfo += "Device features:";
+        for (uint32_t i = 0; i < featureCount; i++)
+        {
+            deviceInfo += " ";
+            deviceInfo += rhi::getRHI()->getFeatureName(features[i]);
+        }
+        deviceInfo += "\n";
+    }
+    {
+        uint32_t capabilityCount;
+        SLANG_RETURN_ON_FAIL(device->getCapabilities(&capabilityCount, nullptr));
+        std::vector<Capability> capabilities(capabilityCount);
+        SLANG_RETURN_ON_FAIL(device->getCapabilities(&capabilityCount, capabilities.data()));
+        deviceInfo += "Device capabilities:";
+        for (uint32_t i = 0; i < capabilityCount; i++)
+        {
+            deviceInfo += " ";
+            deviceInfo += rhi::getRHI()->getCapabilityName(capabilities[i]);
+        }
+        deviceInfo += "\n";
+    }
+    MESSAGE("Device info:\n", doctest::String(deviceInfo.c_str()));
+#endif
+
     // Try compiling a trivial shader.
     ComPtr<slang::ISession> session = device->getSlangSession();
     if (!session)
@@ -650,7 +673,7 @@ bool isDeviceTypeAvailable(DeviceType deviceType)
 
 bool isSwiftShaderDevice(IDevice* device)
 {
-    std::string adapterName = device->getDeviceInfo().adapterName;
+    std::string adapterName = device->getInfo().adapterName;
     std::transform(
         adapterName.begin(),
         adapterName.end(),
@@ -660,7 +683,7 @@ bool isSwiftShaderDevice(IDevice* device)
     return adapterName.find("swiftshader") != std::string::npos;
 }
 
-static slang::IGlobalSession* getSlangGlobalSession()
+slang::IGlobalSession* getSlangGlobalSession()
 {
     static slang::IGlobalSession* slangGlobalSession = []()
     {

@@ -111,7 +111,7 @@ Result ExampleBase::createDevice(DeviceType deviceType)
 
 Result ExampleBase::createWindow(uint32_t width, uint32_t height)
 {
-    const auto& deviceInfo = device->getDeviceInfo();
+    const auto& deviceInfo = device->getInfo();
     std::string title = string::format(
         "%s | %s (%s)",
         getName(),

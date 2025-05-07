@@ -27,7 +27,7 @@ GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal)
 
     NativeHandle handle;
     REQUIRE_CALL(buffer->getNativeHandle(&handle));
-    switch (device->getDeviceInfo().deviceType)
+    switch (device->getDeviceType())
     {
     case DeviceType::D3D12:
     {
@@ -79,7 +79,7 @@ GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal)
 
     NativeHandle handle;
     REQUIRE_CALL(texture->getNativeHandle(&handle));
-    switch (device->getDeviceInfo().deviceType)
+    switch (device->getDeviceType())
     {
     case DeviceType::D3D12:
     {
@@ -119,7 +119,7 @@ GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal)
     auto queue = device->getQueue(QueueType::Graphics);
     NativeHandle handle;
     REQUIRE_CALL(queue->getNativeHandle(&handle));
-    switch (device->getDeviceInfo().deviceType)
+    switch (device->getDeviceType())
     {
     case DeviceType::D3D12:
     {
@@ -161,7 +161,7 @@ GPU_TEST_CASE("native-handle-command-buffer", D3D12 | Vulkan | Metal)
     auto commandBuffer = commandEncoder->finish();
     NativeHandle handle;
     REQUIRE_CALL(commandBuffer->getNativeHandle(&handle));
-    switch (device->getDeviceInfo().deviceType)
+    switch (device->getDeviceType())
     {
     case DeviceType::D3D12:
     {

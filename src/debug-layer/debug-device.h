@@ -15,10 +15,13 @@ public:
     DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback);
     IDevice* getInterface(const Guid& guid);
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount) override;
+    getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities) override;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) override;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
@@ -83,7 +86,7 @@ public:
     readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
+    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

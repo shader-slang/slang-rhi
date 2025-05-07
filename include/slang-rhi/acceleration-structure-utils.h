@@ -23,7 +23,7 @@ inline AccelerationStructureInstanceDescType getAccelerationStructureInstanceDes
 
 inline AccelerationStructureInstanceDescType getAccelerationStructureInstanceDescType(IDevice* device)
 {
-    return getAccelerationStructureInstanceDescType(device->getDeviceInfo().deviceType);
+    return getAccelerationStructureInstanceDescType(device->getDeviceType());
 }
 
 inline size_t getAccelerationStructureInstanceDescSize(AccelerationStructureInstanceDescType type)

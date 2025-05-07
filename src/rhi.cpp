@@ -139,6 +139,8 @@ public:
     virtual const FormatInfo& getFormatInfo(Format format) override { return _getFormatInfo(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;
+    virtual const char* getFeatureName(Feature feature) override;
+    virtual const char* getCapabilityName(Capability capability) override;
 
     Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
@@ -199,6 +201,26 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
     default:
         return false;
     }
+}
+
+const char* RHI::getFeatureName(Feature feature)
+{
+#define SLANG_RHI_FEATURES_X(id, name) name,
+    static const std::array<const char*, size_t(Feature::_Count)> kFeatureNames = {
+        SLANG_RHI_FEATURES(SLANG_RHI_FEATURES_X)
+    };
+#undef SLANG_RHI_FEATURES_X
+    return size_t(feature) < kFeatureNames.size() ? kFeatureNames[size_t(feature)] : nullptr;
+}
+
+const char* RHI::getCapabilityName(Capability capability)
+{
+#define SLANG_RHI_CAPABILITIES_X(x) #x,
+    static const std::array<const char*, size_t(Capability::_Count)> kCapabilityNames = {
+        SLANG_RHI_CAPABILITIES(SLANG_RHI_CAPABILITIES_X)
+    };
+#undef SLANG_RHI_CAPABILITIES_X
+    return size_t(capability) < kCapabilityNames.size() ? kCapabilityNames[size_t(capability)] : nullptr;
 }
 
 Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
@@ -340,8 +362,7 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
         return resultCode;
     }
     IDebugCallback* debugCallback = checked_cast<Device*>(innerDevice.get())->m_debugCallback;
-    RefPtr<debug::DebugDevice> debugDevice =
-        new debug::DebugDevice(innerDevice->getDeviceInfo().deviceType, debugCallback);
+    RefPtr<debug::DebugDevice> debugDevice = new debug::DebugDevice(innerDevice->getInfo().deviceType, debugCallback);
     debugDevice->baseObject = innerDevice;
     returnComPtr(outDevice, debugDevice);
     return resultCode;

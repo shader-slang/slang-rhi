@@ -28,22 +28,7 @@ DeviceImpl::~DeviceImpl() {}
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext
-            .initialize(desc.slang, SLANG_DXBC, "sm_5_0", std::array{slang::PreprocessorMacroDesc{"__D3D11__", "1"}})
-    );
-
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
-
-    // Initialize DeviceInfo
-    {
-        m_info.deviceType = DeviceType::D3D11;
-        m_info.apiName = "D3D11";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
-    }
-
-    m_desc = desc;
 
     // Rather than statically link against D3D, we load it dynamically.
     SharedLibraryHandle d3dModule;
@@ -202,71 +187,28 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         SLANG_RHI_ASSERT(m_immediateContext && m_device);
 
         SLANG_RETURN_ON_FAIL(m_immediateContext->QueryInterface(m_immediateContext1.writeRef()));
+    }
 
+    // Initialize device info
+    {
+        m_info.deviceType = DeviceType::D3D11;
+        m_info.apiName = "D3D11";
+    }
+
+    // Query adapter name
+    {
         ComPtr<IDXGIDevice> dxgiDevice;
-        if (m_device->QueryInterface(dxgiDevice.writeRef()) == 0)
-        {
-            ComPtr<IDXGIAdapter> dxgiAdapter;
-            dxgiDevice->GetAdapter(dxgiAdapter.writeRef());
-            DXGI_ADAPTER_DESC adapterDesc;
-            dxgiAdapter->GetDesc(&adapterDesc);
-            m_adapterName = string::from_wstring(adapterDesc.Description);
-            m_info.adapterName = m_adapterName.data();
-        }
+        SLANG_RETURN_ON_FAIL(m_device->QueryInterface(dxgiDevice.writeRef()));
+        ComPtr<IDXGIAdapter> dxgiAdapter;
+        dxgiDevice->GetAdapter(dxgiAdapter.writeRef());
+        DXGI_ADAPTER_DESC adapterDesc;
+        dxgiAdapter->GetDesc(&adapterDesc);
+        m_adapterName = string::from_wstring(adapterDesc.Description);
+        m_info.adapterName = m_adapterName.data();
     }
 
-    addFeature(isHardwareDevice ? Feature::HardwareDevice : Feature::SoftwareDevice);
-    addFeature(Feature::ParameterBlock);
-    addFeature(Feature::Surface);
-    addFeature(Feature::Rasterization);
-    addFeature(Feature::CustomBorderColor);
-    addFeature(Feature::TimestampQuery);
-
-    // NVAPI
-#if SLANG_RHI_ENABLE_NVAPI
+    // Query timestamp frequency
     {
-        if (SLANG_SUCCEEDED(NVAPIUtil::initialize()))
-        {
-            m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
-            if (m_nvapiShaderExtension)
-            {
-                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
-                {
-                    addFeature(Feature::AtomicInt64);
-                }
-                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
-                {
-                    addFeature(Feature::AtomicHalf);
-                }
-                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
-                {
-                    addFeature(Feature::AtomicFloat);
-                }
-                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
-                {
-                    addFeature(Feature::RealtimeClock);
-                }
-            }
-        }
-    }
-#endif // SLANG_RHI_ENABLE_NVAPI
-
-    // Check double precision support
-    {
-        D3D11_FEATURE_DATA_DOUBLES doublePrecisionFeature = {};
-        if (SUCCEEDED(m_device->CheckFeatureSupport(
-                D3D11_FEATURE_DOUBLES,
-                &doublePrecisionFeature,
-                sizeof(doublePrecisionFeature)
-            )) &&
-            doublePrecisionFeature.DoublePrecisionFloatShaderOps)
-        {
-            addFeature(Feature::Double);
-        }
-    }
-
-    {
-        // Create a TIMESTAMP_DISJOINT query object to query/update frequency info.
         D3D11_QUERY_DESC disjointQueryDesc = {};
         disjointQueryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
         SLANG_RETURN_ON_FAIL(m_device->CreateQuery(&disjointQueryDesc, m_disjointQuery.writeRef()));
@@ -277,7 +219,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.timestampFrequency = disjointData.Frequency;
     }
 
-    // Get device limits.
+    // Query device limits
     {
         uint32_t maxTextureDimensionUV = 2048;
         if (featureLevel >= D3D_FEATURE_LEVEL_9_3)
@@ -350,6 +292,67 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
         m_info.limits = limits;
     }
+
+    // Initialize features & capabilities
+    addFeature(isHardwareDevice ? Feature::HardwareDevice : Feature::SoftwareDevice);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Surface);
+    addFeature(Feature::Rasterization);
+    addFeature(Feature::CustomBorderColor);
+    addFeature(Feature::TimestampQuery);
+
+    addCapability(Capability::hlsl);
+
+    // Initialize NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
+    {
+        if (SLANG_SUCCEEDED(NVAPIUtil::initialize()))
+        {
+            m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
+            if (m_nvapiShaderExtension)
+            {
+                addCapability(Capability::hlsl_nvapi);
+
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+                {
+                    addFeature(Feature::AtomicInt64);
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
+                {
+                    addFeature(Feature::AtomicHalf);
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
+                {
+                    addFeature(Feature::AtomicFloat);
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
+                {
+                    addFeature(Feature::RealtimeClock);
+                }
+            }
+        }
+    }
+#endif // SLANG_RHI_ENABLE_NVAPI
+
+    // Check double precision support
+    {
+        D3D11_FEATURE_DATA_DOUBLES doublePrecisionFeature = {};
+        if (SUCCEEDED(m_device->CheckFeatureSupport(
+                D3D11_FEATURE_DOUBLES,
+                &doublePrecisionFeature,
+                sizeof(doublePrecisionFeature)
+            )) &&
+            doublePrecisionFeature.DoublePrecisionFloatShaderOps)
+        {
+            addFeature(Feature::Double);
+        }
+    }
+
+    // Initialize slang context
+    SLANG_RETURN_ON_FAIL(
+        m_slangContext
+            .initialize(desc.slang, SLANG_DXBC, "sm_5_0", std::array{slang::PreprocessorMacroDesc{"__D3D11__", "1"}})
+    );
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
 

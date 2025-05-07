@@ -63,8 +63,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
 
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override { return m_info; }
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
@@ -73,9 +71,6 @@ public:
 
 
 public:
-    // D3D11Device members.
-
-    DeviceInfo m_info;
     std::string m_adapterName;
 
     RefPtr<CommandQueueImpl> m_queue;
@@ -85,8 +80,6 @@ public:
     ComPtr<ID3D11DeviceContext1> m_immediateContext1;
     ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<ID3D11Query> m_disjointQuery;
-
-    DeviceDesc m_desc;
 
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;

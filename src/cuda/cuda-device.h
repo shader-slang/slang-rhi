@@ -28,7 +28,6 @@ private:
 
 public:
     Context m_ctx;
-    DeviceInfo m_info;
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
@@ -102,8 +101,6 @@ public:
     void* map(IBuffer* buffer);
 
     void unmap(IBuffer* buffer);
-
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;

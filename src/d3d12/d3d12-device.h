@@ -48,13 +48,9 @@ struct D3D12DeviceInfo
 class DeviceImpl : public Device
 {
 public:
-    DeviceDesc m_desc;
     D3D12DeviceExtendedDesc m_extendedDesc;
 
-    DeviceInfo m_info;
     std::string m_adapterName;
-
-    bool m_isInitialized = false;
 
     ComPtr<ID3D12Debug> m_dxDebug;
 
@@ -166,8 +162,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
-
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
