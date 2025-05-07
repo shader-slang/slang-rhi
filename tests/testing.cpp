@@ -540,12 +540,11 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     desc.debugCallback = &sDebugCallback;
 #endif
 
-#if SLANG_RHI_DEBUG
-
     if (!SLANG_SUCCEEDED(rhi::getRHI()->createDevice(desc, device.writeRef())))
         RETURN_NOT_AVAILABLE("failed to create device");
 
-    std::string deviceInfo;
+        #if SLANG_RHI_DEBUG
+        std::string deviceInfo;
     deviceInfo += "Device type: ";
     deviceInfo += deviceTypeToString(deviceType);
     deviceInfo += "\n";
