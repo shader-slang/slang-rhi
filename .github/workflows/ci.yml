@@ -18,8 +18,8 @@ jobs:
         config: ["Debug", "Release"]
         include:
           # Builds running on self-hosted runners (build + tests)
-          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
-          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfxstage, labels: [Linux, X64] } }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { group: nvrgfxstage, labels: [Linux, X64] } }
 
     runs-on: ${{ matrix.runs-on }}
 
