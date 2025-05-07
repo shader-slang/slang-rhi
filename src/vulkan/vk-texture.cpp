@@ -94,6 +94,10 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
+{
+}
 
 TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect, const SubresourceRange& range)
 {
@@ -160,6 +164,23 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    DescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
+    if (!handle)
+    {
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocTextureHandle(this, access, &handle));
+    }
+    *outHandle = handle;
+    return SLANG_OK;
 }
 
 TextureSubresourceView TextureViewImpl::getView()
@@ -327,11 +348,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;
-}
-
-TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
-    : TextureView(device, desc)
-{
 }
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)

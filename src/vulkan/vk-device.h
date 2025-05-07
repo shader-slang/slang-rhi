@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk-base.h"
+#include "vk-bindless-descriptor-set.h"
 
 #include "core/stable_vector.h"
 
@@ -161,6 +162,7 @@ public:
     RefPtr<CommandQueueImpl> m_queue;
 
     DescriptorSetAllocator descriptorSetAllocator;
+    RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
 
     VkSampler m_defaultSampler;
 };

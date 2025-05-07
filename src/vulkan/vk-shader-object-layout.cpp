@@ -1,5 +1,6 @@
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
+#include "vk-bindless-descriptor-set.h"
 #include "vk-util.h"
 
 namespace rhi::vk {
@@ -770,6 +771,14 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
 
     // Once we've collected the information across the entire
     // tree of sub-objects
+
+    // Add bindless descriptor set layout if needed.
+    // We currently assume that the bindless descriptor set is always the last,
+    // following all other descriptor sets, without any gaps.
+    if (m_device->m_bindlessDescriptorSet)
+    {
+        m_vkDescriptorSetLayouts.push_back(m_device->m_bindlessDescriptorSet->m_descriptorSetLayout);
+    }
 
     // Now call Vulkan API to create a pipeline layout.
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};

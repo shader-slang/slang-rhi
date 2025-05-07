@@ -11,7 +11,7 @@ class AccelerationStructureImpl : public AccelerationStructure
 public:
     RefPtr<BufferImpl> m_buffer;
     CPUDescriptorAllocation m_descriptor;
-    ComPtr<ID3D12Device5> m_device5;
+    DescriptorHandle m_descriptorHandle;
 
 public:
     AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc);
@@ -21,6 +21,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 };
 
 struct AccelerationStructureBuildDescConverter

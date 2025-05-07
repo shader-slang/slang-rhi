@@ -103,7 +103,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_N
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.6.3" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.7.1" CACHE STRING "Slang version to fetch")
 
 # Fetch dxc options
 option(SLANG_RHI_FETCH_DXC "Fetch dxc (DirectX Shader Compiler)" ON)
@@ -547,6 +547,7 @@ endif()
 if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
+        src/d3d12/d3d12-bindless-descriptor-set.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
         src/d3d12/d3d12-constant-buffer-pool.cpp
@@ -572,6 +573,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
     target_sources(slang-rhi PRIVATE
         src/vulkan/vk-acceleration-structure.cpp
         src/vulkan/vk-api.cpp
+        src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
         src/vulkan/vk-constant-buffer-pool.cpp
@@ -697,6 +699,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/main.cpp
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
+        tests/test-bindless-descriptor-handles.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp

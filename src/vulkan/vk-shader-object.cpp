@@ -5,6 +5,7 @@
 #include "vk-sampler.h"
 #include "vk-acceleration-structure.h"
 #include "vk-shader-object-layout.h"
+#include "vk-bindless-descriptor-set.h"
 
 #include "../state-tracking.h"
 
@@ -203,8 +204,14 @@ Result BindingDataBuilder::bindAsRoot(
 
     m_bindingData->pipelineLayout = specializedLayout->m_pipelineLayout;
 
-    m_bindingData->descriptorSets =
-        m_allocator->allocate<VkDescriptorSet>(specializedLayout->getTotalDescriptorSetCount());
+    uint32_t totalDescriptorSetCount = specializedLayout->getTotalDescriptorSetCount();
+    if (m_device->m_bindlessDescriptorSet)
+    {
+        // The bindless descriptor set is always the last descriptor set in the pipeline layout.
+        // We need to add one more descriptor set to the count to account for it.
+        totalDescriptorSetCount++;
+    }
+    m_bindingData->descriptorSets = m_allocator->allocate<VkDescriptorSet>(totalDescriptorSetCount);
     m_bindingData->descriptorSetCount = 0;
 
     m_pushConstantRanges = specializedLayout->getAllPushConstantRanges();
@@ -250,6 +257,13 @@ Result BindingDataBuilder::bindAsRoot(
         // from the global layout into the `entryPointInfo`.
 
         SLANG_RETURN_ON_FAIL(bindAsEntryPoint(entryPoint, entryPointInfo.offset, entryPointLayout));
+    }
+
+    // Assign bindless descriptor set to the last slot if available.
+    if (m_device->m_bindlessDescriptorSet)
+    {
+        m_bindingData->descriptorSets[m_bindingData->descriptorSetCount++] =
+            m_device->m_bindlessDescriptorSet->m_descriptorSet;
     }
 
     outBindingData = m_bindingData;

@@ -8,17 +8,15 @@ namespace rhi::vk {
 ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device)
     : m_device(device)
 {
-    for (auto& shaderModule : m_modules)
-        shaderModule = VK_NULL_HANDLE;
 }
 
 ShaderProgramImpl::~ShaderProgramImpl()
 {
-    for (auto shaderModule : m_modules)
+    for (const auto& module : m_modules)
     {
-        if (shaderModule != VK_NULL_HANDLE)
+        if (module.shaderModule != VK_NULL_HANDLE)
         {
-            m_device->m_api.vkDestroyShaderModule(m_device->m_api.m_device, shaderModule, nullptr);
+            m_device->m_api.vkDestroyShaderModule(m_device->m_api.m_device, module.shaderModule, nullptr);
         }
     }
 }
@@ -28,47 +26,129 @@ void ShaderProgramImpl::comFree()
     m_device.breakStrongReference();
 }
 
-VkPipelineShaderStageCreateInfo ShaderProgramImpl::compileEntryPoint(
-    const char* entryPointName,
-    ISlangBlob* code,
-    VkShaderStageFlagBits stage,
-    VkShaderModule& outShaderModule
-)
+// Scan SPIR-V code to find the bindless descriptor set.
+// Returns descriptorSet index -1 if not found.
+inline Result findBindlessDescriptorSet(const void* codeData, size_t codeSize, uint32_t& outDescriptorSet)
 {
-    // We need to make a copy of the code, since the Slang compiler
-    // will free the memory after a compile request is closed.
+    const uint32_t* word = (const uint32_t*)codeData;
+    size_t wordsLeft = codeSize / sizeof(uint32_t);
 
-    VkShaderModuleCreateInfo moduleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-    moduleCreateInfo.pCode = (uint32_t*)code->getBufferPointer();
-    moduleCreateInfo.codeSize = code->getBufferSize();
+    struct HeapInfo
+    {
+        uint32_t id;
+        uint32_t binding = uint32_t(-1);
+        uint32_t descriptorSet = uint32_t(-1);
+    };
 
-    VkShaderModule module;
-    SLANG_VK_CHECK(m_device->m_api.vkCreateShaderModule(m_device->m_device, &moduleCreateInfo, nullptr, &module));
-    outShaderModule = module;
+    static_vector<HeapInfo, 32> infos;
 
-    VkPipelineShaderStageCreateInfo shaderStageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-    shaderStageCreateInfo.stage = stage;
+    static constexpr char kName[24] = "__slang_resource_heap\0\0";
+    static_assert(sizeof(kName) % 4 == 0, "Name must be 4-byte aligned");
+    static_assert(kName[sizeof(kName) - 1] == 0, "Name must be null-terminated");
+    static constexpr size_t kNameWords = sizeof(kName) / sizeof(uint32_t);
 
-    shaderStageCreateInfo.module = module;
-    shaderStageCreateInfo.pName = entryPointName;
+#define ADVANCE(n)                                                                                                     \
+    word += n;                                                                                                         \
+    wordsLeft -= n;
 
-    return shaderStageCreateInfo;
+    // Process SPIRV header
+    if (wordsLeft < 5 || word[0] != 0x07230203)
+    {
+        return SLANG_FAIL;
+    }
+    ADVANCE(5);
+
+    // Process opcodes
+    while (wordsLeft > 0)
+    {
+        uint32_t opcode = *word & 0xFFFF;
+        uint32_t wordCount = *word >> 16;
+
+        if (wordCount > wordsLeft)
+        {
+            return SLANG_FAIL;
+        }
+
+        if (opcode == 5 && wordCount == 2 + kNameWords) // OpName
+        {
+            // Check if the name is "__slang_resource_heap" and if so, store the ID
+            if (::memcmp(word + 2, kName, sizeof(kName)) == 0)
+            {
+                infos.push_back({word[1]});
+            }
+        }
+        if (opcode == 71 && wordCount == 4) // OpDecorate
+        {
+            for (auto& info : infos)
+            {
+                if (info.id == word[1])
+                {
+                    if (word[2] == 33) // Binding
+                    {
+                        info.binding = word[3];
+                    }
+                    else if (word[2] == 34) // DescriptorSet
+                    {
+                        info.descriptorSet = word[3];
+                    }
+                }
+            }
+        }
+
+        ADVANCE(wordCount);
+    }
+
+#undef ADVANCE
+
+    uint32_t descriptorSet = uint32_t(-1);
+
+    // Find common descriptor set index.
+    if (infos.size() > 0)
+    {
+        uint32_t binding = infos[0].binding;
+        descriptorSet = infos[0].descriptorSet;
+        for (size_t i = 1; i < infos.size(); ++i)
+        {
+            if (infos[i].binding != binding || infos[i].descriptorSet != descriptorSet)
+            {
+                return SLANG_FAIL;
+            }
+        }
+    }
+
+    outDescriptorSet = descriptorSet;
+
+    return SLANG_OK;
 }
 
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
-    m_codeBlobs.push_back(kernelCode);
-    VkShaderModule shaderModule;
-    auto realEntryPointName = entryPointInfo->getNameOverride();
-    const char* spirvBinaryEntryPointName = "main";
-    m_stageCreateInfos.push_back(compileEntryPoint(
-        spirvBinaryEntryPointName,
-        kernelCode,
-        (VkShaderStageFlagBits)VulkanUtil::getShaderStage(entryPointInfo->getStage()),
-        shaderModule
+    m_modules.push_back({});
+    auto& module = m_modules.back();
+    m_stageCreateInfos.push_back({});
+    auto& stageCreateInfo = m_stageCreateInfos.back();
+
+    module.code = kernelCode;
+    module.entryPointName = entryPointInfo->getNameOverride();
+    SLANG_RETURN_ON_FAIL(findBindlessDescriptorSet(
+        kernelCode->getBufferPointer(),
+        kernelCode->getBufferSize(),
+        module.bindlessDescriptorSet
     ));
-    m_entryPointNames.push_back(realEntryPointName);
-    m_modules.push_back(shaderModule);
+    module.hasBindlessDescriptorSet = module.bindlessDescriptorSet != uint32_t(-1);
+
+    VkShaderModuleCreateInfo moduleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+    moduleCreateInfo.pCode = (uint32_t*)module.code->getBufferPointer();
+    moduleCreateInfo.codeSize = module.code->getBufferSize();
+    SLANG_VK_RETURN_ON_FAIL(
+        m_device->m_api.vkCreateShaderModule(m_device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule)
+    );
+
+    stageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    stageCreateInfo.stage = (VkShaderStageFlagBits)VulkanUtil::getShaderStage(entryPointInfo->getStage());
+    stageCreateInfo.module = module.shaderModule;
+    stageCreateInfo.pName = "main";
+
     return SLANG_OK;
 }
 

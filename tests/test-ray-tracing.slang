@@ -1,8 +1,9 @@
 // ray-tracing-test-shaders.slang
 
+[raypayload]
 struct RayPayload
 {
-    float4 color;
+    float4 color : read(caller) : write(closesthit, miss);
 };
 
 uniform RWTexture2D resultTexture;

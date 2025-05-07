@@ -38,7 +38,7 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
-    SLANG_RHI_ASSERT(!program->m_stageCreateInfos.empty());
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
 
     // VertexBuffer/s
@@ -275,7 +275,7 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
-    SLANG_RHI_ASSERT(!program->m_stageCreateInfos.empty());
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
     VkPipeline vkPipeline = VK_NULL_HANDLE;
 
     VkComputePipelineCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
@@ -346,7 +346,7 @@ inline uint32_t findEntryPointIndexByName(
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
-    SLANG_RHI_ASSERT(!program->m_stageCreateInfos.empty());
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
 
     VkRayTracingPipelineCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
     createInfo.pNext = nullptr;
@@ -365,7 +365,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     for (uint32_t i = 0; i < createInfo.stageCount; ++i)
     {
         auto stageCreateInfo = program->m_stageCreateInfos[i];
-        auto entryPointName = program->m_entryPointNames[i];
+        auto entryPointName = program->m_modules[i].entryPointName;
         entryPointNameToIndex.emplace(entryPointName, i);
         if (stageCreateInfo.stage & (VK_SHADER_STAGE_ANY_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
                                      VK_SHADER_STAGE_INTERSECTION_BIT_KHR))

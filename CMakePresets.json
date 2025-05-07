@@ -49,6 +49,10 @@
                 "CMAKE_C_COMPILER": "cl",
                 "CMAKE_CXX_COMPILER": "cl"
             },
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
                     "hostOS": [

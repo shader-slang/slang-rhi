@@ -67,6 +67,17 @@ Result Buffer::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Buffer::getDescriptorHandle(
+    DescriptorHandleAccess access,
+    Format format,
+    BufferRange range,
+    DescriptorHandle* outHandle
+)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 // ----------------------------------------------------------------------------
 // Texture helpers
 // ----------------------------------------------------------------------------
@@ -211,6 +222,12 @@ Result TextureView::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result TextureView::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 // ----------------------------------------------------------------------------
 // Sampler
 // ----------------------------------------------------------------------------
@@ -227,10 +244,16 @@ const SamplerDesc& Sampler::getDesc()
     return m_desc;
 }
 
+Result Sampler::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Sampler::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 // ----------------------------------------------------------------------------
@@ -250,6 +273,11 @@ AccelerationStructureHandle AccelerationStructure::getHandle()
     return {};
 }
 
+Result AccelerationStructure::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
 
 // ----------------------------------------------------------------------------
 // InputLayout

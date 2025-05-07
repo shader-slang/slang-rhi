@@ -103,6 +103,7 @@ enum class DeviceType
     x(HardwareDevice,                           "hardware-device"                               ) \
     x(SoftwareDevice,                           "software-device"                               ) \
     x(ParameterBlock,                           "parameter-block"                               ) \
+    x(Bindless,                                 "bindless"                                      ) \
     x(Surface,                                  "surface"                                       ) \
     /* Rasterization features */                                                                  \
     x(Rasterization,                            "rasterization"                                 ) \
@@ -514,6 +515,31 @@ struct NativeHandle
     explicit operator bool() const { return type != NativeHandleType::Undefined; }
 };
 
+enum class DescriptorHandleType
+{
+    Undefined,
+    Buffer,
+    RWBuffer,
+    Texture,
+    RWTexture,
+    Sampler,
+    AccelerationStructure,
+};
+
+enum class DescriptorHandleAccess
+{
+    Read,
+    ReadWrite,
+};
+
+struct DescriptorHandle
+{
+    DescriptorHandleType type = DescriptorHandleType::Undefined;
+    uint64_t value;
+
+    explicit operator bool() const { return type != DescriptorHandleType::Undefined; }
+};
+
 struct InputElementDesc
 {
     /// The name of the corresponding parameter in shader code.
@@ -630,6 +656,12 @@ public:
     virtual SLANG_NO_THROW const BufferDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
+        DescriptorHandleAccess access,
+        Format format,
+        BufferRange range,
+        DescriptorHandle* outHandle
+    ) = 0;
 };
 
 struct DepthStencilClearValue
@@ -951,6 +983,8 @@ class ITextureView : public IResource
 public:
     virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle) = 0;
 };
 
 enum class ComparisonFunc : uint8_t
@@ -1016,6 +1050,7 @@ class ISampler : public IResource
 
 public:
     virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
 };
 
 struct BufferOffsetPair
@@ -1322,6 +1357,7 @@ class IAccelerationStructure : public IResource
 public:
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
 };
 
 struct FenceDesc
@@ -1449,6 +1485,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
@@ -2490,6 +2528,18 @@ struct SlangDesc
     SlangLineDirectiveMode lineDirectiveMode = SLANG_LINE_DIRECTIVE_MODE_DEFAULT;
 };
 
+struct BindlessDesc
+{
+    // Maximum number of bindless buffers.
+    uint32_t bufferCount = 1024;
+    // Maximum number of bindless textures.
+    uint32_t textureCount = 1024;
+    // Maximum number of bindless samplers.
+    uint32_t samplerCount = 128;
+    // Maximum number of bindless acceleration structures.
+    uint32_t accelerationStructureCount = 128;
+};
+
 struct DeviceNativeHandles
 {
     NativeHandle handles[3] = {};
@@ -2535,6 +2585,9 @@ struct DeviceDesc
 
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;
+
+    // Configuration for bindless resources.
+    BindlessDesc bindless = {};
 };
 
 class IDevice : public ISlangUnknown
