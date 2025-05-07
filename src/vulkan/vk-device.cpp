@@ -559,6 +559,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.cooperativeMatrix1Features.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.cooperativeMatrix1Features;
 
+        extendedFeatures.cooperativeMatrix2Features.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.cooperativeMatrix2Features;
+
         extendedFeatures.descriptorIndexingFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.descriptorIndexingFeatures;
 
@@ -833,6 +836,54 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             cooperativeMatrix,
             VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME,
             { addFeature(Feature::CooperativeMatrix); }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixWorkgroupScope,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            { addFeature(Feature::CooperativeMatrixWorkgroupScope); }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixFlexibleDimensions,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            { addFeature(Feature::CooperativeMatrixFlexibleDimensions); }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixReductions,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            { addFeature(Feature::CooperativeMatrixReductions); }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixConversions,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            { addFeature(Feature::CooperativeMatrixConversions); }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixPerElementOperations,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            { addFeature(Feature::CooperativeMatrixPerElementOperations); }
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixTensorAddressing,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            { addFeature(Feature::CooperativeMatrixTensorAddressing); }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixBlockLoads,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            { addFeature(Feature::CooperativeMatrixBlockLoads); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
