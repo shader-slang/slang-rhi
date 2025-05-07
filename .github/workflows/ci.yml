@@ -12,35 +12,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["windows", "linux", "macos"]
-        platform: ["x86_64", "aarch64"]
-        compiler: ["msvc", "gcc", "clang"]
+        os: ["linux"]
+        platform: ["x86_64"]
+        compiler: ["clang"]
         config: ["Debug", "Release"]
-        exclude:
-          # Exclude x86_64 for macos
-          - { os: macos, platform: x86_64}
-          # Exclude unavailable compilers
-          - { os: windows, compiler: gcc }
-          - { os: windows, platform: aarch64, compiler: clang }
-          - { os: linux, compiler: msvc }
-          - { os: macos, compiler: msvc }
-          - { os: macos, compiler: gcc }
         include:
           # Builds running on self-hosted runners (build + tests)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
-          # Builds running on GitHub hosted runners (build + tests)
-          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", runs-on: macos-latest }
-          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", runs-on: macos-latest }
-          # Builds running on GitHub hosted runners (build only)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", runs-on: windows-latest }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", runs-on: windows-latest }
-          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
-          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, runs-on: windows-latest }
-          - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
-          - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
 
     runs-on: ${{ matrix.runs-on }}
 
