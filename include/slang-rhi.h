@@ -127,6 +127,13 @@ enum class DeviceType
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \
     x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
+    x(CooperativeMatrixWorkgroupScope,          "cooperative-matrix-workgroup-scope"            ) \
+    x(CooperativeMatrixFlexibleDimensions,      "cooperative-matrix-flexible-dimensions"        ) \
+    x(CooperativeMatrixReductions,              "cooperative-matrix-reductions"                 ) \
+    x(CooperativeMatrixConversions,             "cooperative-matrix-conversions"                ) \
+    x(CooperativeMatrixPerElementOperations,    "cooperative-matrix-per-element-operations"     ) \
+    x(CooperativeMatrixTensorAddressing,        "cooperative-matrix-tensor-addressing"          ) \
+    x(CooperativeMatrixBlockLoads,              "cooperative-matrix-block-loads"                ) \
     x(SM_5_1,                                   "sm_5_1"                                        ) \
     x(SM_6_0,                                   "sm_6_0"                                        ) \
     x(SM_6_1,                                   "sm_6_1"                                        ) \
