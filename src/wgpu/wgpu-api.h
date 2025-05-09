@@ -10,37 +10,37 @@
 // clang-format off
 
 #define SLANG_RHI_WGPU_PROCS(x) \
+    /* TODO(374150686): Remove these Emscripten specific declarations from the */ \
+    /* header once they are fully deprecated. */ \
     x(AdapterInfoFreeMembers) \
     x(AdapterPropertiesMemoryHeapsFreeMembers) \
+    x(AdapterPropertiesSubgroupMatrixConfigsFreeMembers) \
     x(CreateInstance) \
-    x(DrmFormatCapabilitiesFreeMembers) \
-    x(GetInstanceFeatures) \
+    x(DawnDrmFormatCapabilitiesFreeMembers) \
+    x(GetInstanceCapabilities) \
     x(GetProcAddress) \
-    x(GetProcAddress2) \
     x(SharedBufferMemoryEndAccessStateFreeMembers) \
     x(SharedTextureMemoryEndAccessStateFreeMembers) \
+    x(SupportedWGSLLanguageFeaturesFreeMembers) \
+    x(SupportedFeaturesFreeMembers) \
     x(SurfaceCapabilitiesFreeMembers) \
     /* Procs of Adapter */ \
     x(AdapterCreateDevice) \
-    x(AdapterEnumerateFeatures) \
+    x(AdapterGetFeatures) \
     x(AdapterGetFormatCapabilities) \
     x(AdapterGetInfo) \
     x(AdapterGetInstance) \
     x(AdapterGetLimits) \
     x(AdapterHasFeature) \
     x(AdapterRequestDevice) \
-    x(AdapterRequestDevice2) \
-    x(AdapterRequestDeviceF) \
     x(AdapterAddRef) \
     x(AdapterRelease) \
     /* Procs of BindGroup */ \
     x(BindGroupSetLabel) \
-    x(BindGroupSetLabel2) \
     x(BindGroupAddRef) \
     x(BindGroupRelease) \
     /* Procs of BindGroupLayout */ \
     x(BindGroupLayoutSetLabel) \
-    x(BindGroupLayoutSetLabel2) \
     x(BindGroupLayoutAddRef) \
     x(BindGroupLayoutRelease) \
     /* Procs of Buffer */ \
@@ -51,16 +51,14 @@
     x(BufferGetSize) \
     x(BufferGetUsage) \
     x(BufferMapAsync) \
-    x(BufferMapAsync2) \
-    x(BufferMapAsyncF) \
+    x(BufferReadMappedRange) \
     x(BufferSetLabel) \
-    x(BufferSetLabel2) \
     x(BufferUnmap) \
+    x(BufferWriteMappedRange) \
     x(BufferAddRef) \
     x(BufferRelease) \
     /* Procs of CommandBuffer */ \
     x(CommandBufferSetLabel) \
-    x(CommandBufferSetLabel2) \
     x(CommandBufferAddRef) \
     x(CommandBufferRelease) \
     /* Procs of CommandEncoder */ \
@@ -73,15 +71,11 @@
     x(CommandEncoderCopyTextureToTexture) \
     x(CommandEncoderFinish) \
     x(CommandEncoderInjectValidationError) \
-    x(CommandEncoderInjectValidationError2) \
     x(CommandEncoderInsertDebugMarker) \
-    x(CommandEncoderInsertDebugMarker2) \
     x(CommandEncoderPopDebugGroup) \
     x(CommandEncoderPushDebugGroup) \
-    x(CommandEncoderPushDebugGroup2) \
     x(CommandEncoderResolveQuerySet) \
     x(CommandEncoderSetLabel) \
-    x(CommandEncoderSetLabel2) \
     x(CommandEncoderWriteBuffer) \
     x(CommandEncoderWriteTimestamp) \
     x(CommandEncoderAddRef) \
@@ -91,13 +85,11 @@
     x(ComputePassEncoderDispatchWorkgroupsIndirect) \
     x(ComputePassEncoderEnd) \
     x(ComputePassEncoderInsertDebugMarker) \
-    x(ComputePassEncoderInsertDebugMarker2) \
     x(ComputePassEncoderPopDebugGroup) \
     x(ComputePassEncoderPushDebugGroup) \
-    x(ComputePassEncoderPushDebugGroup2) \
     x(ComputePassEncoderSetBindGroup) \
+    x(ComputePassEncoderSetImmediateData) \
     x(ComputePassEncoderSetLabel) \
-    x(ComputePassEncoderSetLabel2) \
     x(ComputePassEncoderSetPipeline) \
     x(ComputePassEncoderWriteTimestamp) \
     x(ComputePassEncoderAddRef) \
@@ -105,7 +97,6 @@
     /* Procs of ComputePipeline */ \
     x(ComputePipelineGetBindGroupLayout) \
     x(ComputePipelineSetLabel) \
-    x(ComputePipelineSetLabel2) \
     x(ComputePipelineAddRef) \
     x(ComputePipelineRelease) \
     /* Procs of Device */ \
@@ -115,12 +106,9 @@
     x(DeviceCreateCommandEncoder) \
     x(DeviceCreateComputePipeline) \
     x(DeviceCreateComputePipelineAsync) \
-    x(DeviceCreateComputePipelineAsync2) \
-    x(DeviceCreateComputePipelineAsyncF) \
     x(DeviceCreateErrorBuffer) \
     x(DeviceCreateErrorExternalTexture) \
     x(DeviceCreateErrorShaderModule) \
-    x(DeviceCreateErrorShaderModule2) \
     x(DeviceCreateErrorTexture) \
     x(DeviceCreateExternalTexture) \
     x(DeviceCreatePipelineLayout) \
@@ -128,36 +116,27 @@
     x(DeviceCreateRenderBundleEncoder) \
     x(DeviceCreateRenderPipeline) \
     x(DeviceCreateRenderPipelineAsync) \
-    x(DeviceCreateRenderPipelineAsync2) \
-    x(DeviceCreateRenderPipelineAsyncF) \
     x(DeviceCreateSampler) \
     x(DeviceCreateShaderModule) \
-    x(DeviceCreateSwapChain) \
     x(DeviceCreateTexture) \
     x(DeviceDestroy) \
-    x(DeviceEnumerateFeatures) \
     x(DeviceForceLoss) \
-    x(DeviceForceLoss2) \
     x(DeviceGetAHardwareBufferProperties) \
     x(DeviceGetAdapter) \
+    x(DeviceGetAdapterInfo) \
+    x(DeviceGetFeatures) \
     x(DeviceGetLimits) \
+    x(DeviceGetLostFuture) \
     x(DeviceGetQueue) \
-    x(DeviceGetSupportedSurfaceUsage) \
     x(DeviceHasFeature) \
     x(DeviceImportSharedBufferMemory) \
     x(DeviceImportSharedFence) \
     x(DeviceImportSharedTextureMemory) \
     x(DeviceInjectError) \
-    x(DeviceInjectError2) \
     x(DevicePopErrorScope) \
-    x(DevicePopErrorScope2) \
-    x(DevicePopErrorScopeF) \
     x(DevicePushErrorScope) \
-    x(DeviceSetDeviceLostCallback) \
     x(DeviceSetLabel) \
-    x(DeviceSetLabel2) \
     x(DeviceSetLoggingCallback) \
-    x(DeviceSetUncapturedErrorCallback) \
     x(DeviceTick) \
     x(DeviceValidateTextureDescriptor) \
     x(DeviceAddRef) \
@@ -167,23 +146,19 @@
     x(ExternalTextureExpire) \
     x(ExternalTextureRefresh) \
     x(ExternalTextureSetLabel) \
-    x(ExternalTextureSetLabel2) \
     x(ExternalTextureAddRef) \
     x(ExternalTextureRelease) \
     /* Procs of Instance */ \
     x(InstanceCreateSurface) \
-    x(InstanceEnumerateWGSLLanguageFeatures) \
+    x(InstanceGetWGSLLanguageFeatures) \
     x(InstanceHasWGSLLanguageFeature) \
     x(InstanceProcessEvents) \
     x(InstanceRequestAdapter) \
-    x(InstanceRequestAdapter2) \
-    x(InstanceRequestAdapterF) \
     x(InstanceWaitAny) \
     x(InstanceAddRef) \
     x(InstanceRelease) \
     /* Procs of PipelineLayout */ \
     x(PipelineLayoutSetLabel) \
-    x(PipelineLayoutSetLabel2) \
     x(PipelineLayoutAddRef) \
     x(PipelineLayoutRelease) \
     /* Procs of QuerySet */ \
@@ -191,17 +166,13 @@
     x(QuerySetGetCount) \
     x(QuerySetGetType) \
     x(QuerySetSetLabel) \
-    x(QuerySetSetLabel2) \
     x(QuerySetAddRef) \
     x(QuerySetRelease) \
     /* Procs of Queue */ \
     x(QueueCopyExternalTextureForBrowser) \
     x(QueueCopyTextureForBrowser) \
     x(QueueOnSubmittedWorkDone) \
-    x(QueueOnSubmittedWorkDone2) \
-    x(QueueOnSubmittedWorkDoneF) \
     x(QueueSetLabel) \
-    x(QueueSetLabel2) \
     x(QueueSubmit) \
     x(QueueWriteBuffer) \
     x(QueueWriteTexture) \
@@ -209,7 +180,6 @@
     x(QueueRelease) \
     /* Procs of RenderBundle */ \
     x(RenderBundleSetLabel) \
-    x(RenderBundleSetLabel2) \
     x(RenderBundleAddRef) \
     x(RenderBundleRelease) \
     /* Procs of RenderBundleEncoder */ \
@@ -219,14 +189,12 @@
     x(RenderBundleEncoderDrawIndirect) \
     x(RenderBundleEncoderFinish) \
     x(RenderBundleEncoderInsertDebugMarker) \
-    x(RenderBundleEncoderInsertDebugMarker2) \
     x(RenderBundleEncoderPopDebugGroup) \
     x(RenderBundleEncoderPushDebugGroup) \
-    x(RenderBundleEncoderPushDebugGroup2) \
     x(RenderBundleEncoderSetBindGroup) \
+    x(RenderBundleEncoderSetImmediateData) \
     x(RenderBundleEncoderSetIndexBuffer) \
     x(RenderBundleEncoderSetLabel) \
-    x(RenderBundleEncoderSetLabel2) \
     x(RenderBundleEncoderSetPipeline) \
     x(RenderBundleEncoderSetVertexBuffer) \
     x(RenderBundleEncoderAddRef) \
@@ -241,18 +209,16 @@
     x(RenderPassEncoderEndOcclusionQuery) \
     x(RenderPassEncoderExecuteBundles) \
     x(RenderPassEncoderInsertDebugMarker) \
-    x(RenderPassEncoderInsertDebugMarker2) \
     x(RenderPassEncoderMultiDrawIndexedIndirect) \
     x(RenderPassEncoderMultiDrawIndirect) \
     x(RenderPassEncoderPixelLocalStorageBarrier) \
     x(RenderPassEncoderPopDebugGroup) \
     x(RenderPassEncoderPushDebugGroup) \
-    x(RenderPassEncoderPushDebugGroup2) \
     x(RenderPassEncoderSetBindGroup) \
     x(RenderPassEncoderSetBlendConstant) \
+    x(RenderPassEncoderSetImmediateData) \
     x(RenderPassEncoderSetIndexBuffer) \
     x(RenderPassEncoderSetLabel) \
-    x(RenderPassEncoderSetLabel2) \
     x(RenderPassEncoderSetPipeline) \
     x(RenderPassEncoderSetScissorRect) \
     x(RenderPassEncoderSetStencilReference) \
@@ -264,20 +230,15 @@
     /* Procs of RenderPipeline */ \
     x(RenderPipelineGetBindGroupLayout) \
     x(RenderPipelineSetLabel) \
-    x(RenderPipelineSetLabel2) \
     x(RenderPipelineAddRef) \
     x(RenderPipelineRelease) \
     /* Procs of Sampler */ \
     x(SamplerSetLabel) \
-    x(SamplerSetLabel2) \
     x(SamplerAddRef) \
     x(SamplerRelease) \
     /* Procs of ShaderModule */ \
     x(ShaderModuleGetCompilationInfo) \
-    x(ShaderModuleGetCompilationInfo2) \
-    x(ShaderModuleGetCompilationInfoF) \
     x(ShaderModuleSetLabel) \
-    x(ShaderModuleSetLabel2) \
     x(ShaderModuleAddRef) \
     x(ShaderModuleRelease) \
     /* Procs of SharedBufferMemory */ \
@@ -287,7 +248,6 @@
     x(SharedBufferMemoryGetProperties) \
     x(SharedBufferMemoryIsDeviceLost) \
     x(SharedBufferMemorySetLabel) \
-    x(SharedBufferMemorySetLabel2) \
     x(SharedBufferMemoryAddRef) \
     x(SharedBufferMemoryRelease) \
     /* Procs of SharedFence */ \
@@ -301,26 +261,17 @@
     x(SharedTextureMemoryGetProperties) \
     x(SharedTextureMemoryIsDeviceLost) \
     x(SharedTextureMemorySetLabel) \
-    x(SharedTextureMemorySetLabel2) \
     x(SharedTextureMemoryAddRef) \
     x(SharedTextureMemoryRelease) \
     /* Procs of Surface */ \
     x(SurfaceConfigure) \
     x(SurfaceGetCapabilities) \
     x(SurfaceGetCurrentTexture) \
-    x(SurfaceGetPreferredFormat) \
     x(SurfacePresent) \
     x(SurfaceSetLabel) \
-    x(SurfaceSetLabel2) \
     x(SurfaceUnconfigure) \
     x(SurfaceAddRef) \
     x(SurfaceRelease) \
-    /* Procs of SwapChain */ \
-    x(SwapChainGetCurrentTexture) \
-    x(SwapChainGetCurrentTextureView) \
-    x(SwapChainPresent) \
-    x(SwapChainAddRef) \
-    x(SwapChainRelease) \
     /* Procs of Texture */ \
     x(TextureCreateErrorView) \
     x(TextureCreateView) \
@@ -334,12 +285,10 @@
     x(TextureGetUsage) \
     x(TextureGetWidth) \
     x(TextureSetLabel) \
-    x(TextureSetLabel2) \
     x(TextureAddRef) \
     x(TextureRelease) \
     /* Procs of TextureView */ \
     x(TextureViewSetLabel) \
-    x(TextureViewSetLabel2) \
     x(TextureViewAddRef) \
     x(TextureViewRelease)
 
