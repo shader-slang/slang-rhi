@@ -145,7 +145,7 @@ public:
     void enableDebugLayers() override;
     Result reportLiveObjects() override;
     Result setTaskPoolWorkerCount(uint32_t count) override;
-    Result setTaskScheduler(ITaskScheduler* scheduler) override;
+    Result setTaskPool(ITaskPool* scheduler) override;
 
     static RHI* getInstance()
     {
@@ -360,9 +360,9 @@ Result RHI::setTaskPoolWorkerCount(uint32_t count)
     return setGlobalTaskPoolWorkerCount(count);
 }
 
-Result RHI::setTaskScheduler(ITaskScheduler* scheduler)
+Result RHI::setTaskPool(ITaskPool* taskPool)
 {
-    return setGlobalTaskScheduler(scheduler);
+    return setGlobalTaskPool(taskPool);
 }
 
 bool isDebugLayersEnabled()
