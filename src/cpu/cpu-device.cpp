@@ -30,6 +30,25 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::cpp);
 
+    // Initialize format support table
+    for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
+    {
+        Format format = Format(formatIndex);
+        FormatSupport formatSupport = FormatSupport::None;
+        if (_getFormatInfo(format))
+        {
+            formatSupport |= FormatSupport::CopySource;
+            formatSupport |= FormatSupport::CopyDestination;
+            formatSupport |= FormatSupport::Texture;
+            formatSupport |= FormatSupport::ShaderLoad;
+            formatSupport |= FormatSupport::ShaderSample;
+            formatSupport |= FormatSupport::ShaderUavLoad;
+            formatSupport |= FormatSupport::ShaderUavStore;
+            formatSupport |= FormatSupport::ShaderAtomic;
+        }
+        m_formatSupport[formatIndex] = formatSupport;
+    }
+
     // Initialize slang context
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
@@ -39,17 +58,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     ));
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
-
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
-
-    // Disable formats for which we have no mapping
-    if (!_getFormatInfo(format))
-        *outFormatSupport = FormatSupport::None;
 
     return SLANG_OK;
 }
