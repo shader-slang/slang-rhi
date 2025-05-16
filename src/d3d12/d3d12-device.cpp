@@ -539,12 +539,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Query adapter name & LUID.
+    if (m_deviceInfo.m_adapter)
     {
         DXGI_ADAPTER_DESC adapterDesc;
         m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
         m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
         m_info.adapterLUID = D3DUtil::getAdapterLUID(m_deviceInfo.m_adapter);
+    }
+    else
+    {
+        m_adapterName = "Unknown";
+        m_info.adapterName = m_adapterName.data();
+        m_info.adapterLUID = {};
     }
 
     // Query device limits.
