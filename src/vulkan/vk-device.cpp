@@ -1047,6 +1047,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_adapterName = basicProps.deviceName;
         m_info.adapterName = m_adapterName.data();
 
+        // Query adapeter LUID.
+        m_info.adapterLUID = getAdapterLUID(m_api, m_api.m_physicalDevice);
+
         // Query timestamp frequency.
         m_info.timestampFrequency = uint64_t(1e9 / basicProps.limits.timestampPeriod);
 

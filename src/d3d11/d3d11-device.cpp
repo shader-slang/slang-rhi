@@ -195,7 +195,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.apiName = "D3D11";
     }
 
-    // Query adapter name
+    // Query adapter name & LUID
     {
         ComPtr<IDXGIDevice> dxgiDevice;
         SLANG_RETURN_ON_FAIL(m_device->QueryInterface(dxgiDevice.writeRef()));
@@ -205,6 +205,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         dxgiAdapter->GetDesc(&adapterDesc);
         m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
+        m_info.adapterLUID = D3DUtil::getAdapterLUID(dxgiAdapter);
     }
 
     // Query timestamp frequency

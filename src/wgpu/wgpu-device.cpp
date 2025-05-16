@@ -195,9 +195,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Initialize device info.
     {
-        m_info.apiName = "WGPU";
         m_info.deviceType = DeviceType::WGPU;
+        m_info.apiName = "WGPU";
         m_info.adapterName = "default";
+        m_info.adapterLUID = {};
     }
 
     // Initialize device limits.

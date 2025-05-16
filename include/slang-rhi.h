@@ -2478,6 +2478,9 @@ struct DeviceInfo
     /// The name of the graphics adapter.
     const char* adapterName = nullptr;
 
+    /// The LUID of the graphics adapter.
+    AdapterLUID adapterLUID;
+
     /// The clock frequency used in timestamp queries.
     uint64_t timestampFrequency = 0;
 };
