@@ -222,12 +222,12 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
 
     // The size of the element/texel in bytes
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
     const FormatMapping& mapping = getFormatMapping(desc.format);
     if (mapping.arrayFormat == 0)
     {
         return SLANG_E_INVALID_ARG;
     }
-    bool isBC = getFormatInfo(desc.format).isCompressed;
 
     switch (desc.type)
     {
@@ -376,9 +376,9 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 copyParam.srcMemoryType = CU_MEMORYTYPE_HOST;
                 copyParam.srcHost = subresourceData.data;
                 copyParam.srcPitch = subresourceData.rowPitch;
-                copyParam.srcHeight = isBC ? (mipSize.height + 3) / 4 : mipSize.height;
-                copyParam.WidthInBytes = (isBC ? (mipSize.width + 3) / 4 : mipSize.width) * mapping.elementSize;
-                copyParam.Height = isBC ? (mipSize.height + 3) / 4 : mipSize.height;
+                copyParam.srcHeight = heightInBlocks(formatInfo, mipSize.height);
+                copyParam.WidthInBytes = widthInBlocks(formatInfo, mipSize.width) * mapping.elementSize;
+                copyParam.Height = heightInBlocks(formatInfo, mipSize.height);
                 copyParam.Depth = mipSize.depth;
                 SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
             }

@@ -503,8 +503,6 @@ Result DeviceImpl::readTexture(
         SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, textureImpl->m_cudaMipMappedArray, mip));
     }
 
-    bool isBC = getFormatInfo(textureImpl->m_desc.format).isCompressed;
-
     CUDA_MEMCPY3D copyParam = {};
     copyParam.dstMemoryType = CU_MEMORYTYPE_HOST;
     copyParam.dstHost = outData;
@@ -513,7 +511,7 @@ Result DeviceImpl::readTexture(
     copyParam.srcArray = srcArray;
     copyParam.srcZ = layer;
     copyParam.WidthInBytes = layout.rowPitch;
-    copyParam.Height = isBC ? (layout.size.height + 3) / 4 : layout.size.height;
+    copyParam.Height = (layout.size.height + layout.blockHeight - 1) / layout.blockHeight;
     copyParam.Depth = layout.size.depth;
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
 
