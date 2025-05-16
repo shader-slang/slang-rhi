@@ -538,13 +538,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.apiName = "D3D12";
     }
 
-    // Query adapter name.
-    if (m_deviceInfo.m_adapter)
+    // Query adapter name & LUID.
     {
         DXGI_ADAPTER_DESC adapterDesc;
         m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
         m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
+        m_info.adapterLUID = D3DUtil::getAdapterLUID(m_deviceInfo.m_adapter);
     }
 
     // Query device limits.

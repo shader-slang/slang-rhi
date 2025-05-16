@@ -95,9 +95,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Initialize device info.
     {
-        m_info.apiName = "Metal";
         m_info.deviceType = DeviceType::Metal;
+        m_info.apiName = "Metal";
         m_info.adapterName = "default";
+        m_info.adapterLUID = {};
     }
 
     // Initialize features & capabilities.

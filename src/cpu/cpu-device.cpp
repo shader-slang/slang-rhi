@@ -18,6 +18,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.deviceType = DeviceType::CPU;
         m_info.apiName = "CPU";
         m_info.adapterName = "CPU";
+        m_info.adapterLUID = {};
         m_info.timestampFrequency = 1000000000;
     }
 

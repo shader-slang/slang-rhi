@@ -205,6 +205,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device));
         m_adapterName = deviceName;
         m_info.adapterName = m_adapterName.data();
+        m_info.adapterLUID = cuda::getAdapterLUID(m_ctx.device);
         m_info.timestampFrequency = 1000000;
     }
 
