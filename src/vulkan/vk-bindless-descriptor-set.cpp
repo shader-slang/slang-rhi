@@ -6,6 +6,8 @@
 #include "vk-acceleration-structure.h"
 #include "vk-helper-functions.h"
 
+#include "core/static_vector.h"
+
 namespace rhi::vk {
 
 BindlessDescriptorSet::BindlessDescriptorSet(DeviceImpl* device, const BindlessDesc& desc)
