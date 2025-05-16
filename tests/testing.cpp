@@ -544,40 +544,49 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
         RETURN_NOT_AVAILABLE("failed to create device");
 
 #if SLANG_RHI_DEBUG
-    std::string deviceInfo;
-    deviceInfo += "Device type: ";
-    deviceInfo += deviceTypeToString(deviceType);
-    deviceInfo += "\n";
-    deviceInfo += "Adapter name: ";
-    deviceInfo += device->getInfo().adapterName;
-    deviceInfo += "\n";
+    const DeviceInfo& deviceInfo = device->getInfo();
+    std::string deviceInfoStr;
+    deviceInfoStr += "Device type: ";
+    deviceInfoStr += deviceTypeToString(deviceInfo.deviceType);
+    deviceInfoStr += "\n";
+    deviceInfoStr += "Adapter name: ";
+    deviceInfoStr += deviceInfo.adapterName;
+    deviceInfoStr += "\n";
+    deviceInfoStr += "Adapter LUID: ";
+    for (size_t i = 0; i < sizeof(AdapterLUID); i++)
+    {
+        char hex[3];
+        snprintf(hex, sizeof(hex), "%02x", deviceInfo.adapterLUID.luid[i]);
+        deviceInfoStr += hex;
+    }
+    deviceInfoStr += "\n";
     {
         uint32_t featureCount;
         SLANG_RETURN_ON_FAIL(device->getFeatures(&featureCount, nullptr));
         std::vector<Feature> features(featureCount);
         SLANG_RETURN_ON_FAIL(device->getFeatures(&featureCount, features.data()));
-        deviceInfo += "Device features:";
+        deviceInfoStr += "Device features:";
         for (uint32_t i = 0; i < featureCount; i++)
         {
-            deviceInfo += " ";
-            deviceInfo += rhi::getRHI()->getFeatureName(features[i]);
+            deviceInfoStr += " ";
+            deviceInfoStr += rhi::getRHI()->getFeatureName(features[i]);
         }
-        deviceInfo += "\n";
+        deviceInfoStr += "\n";
     }
     {
         uint32_t capabilityCount;
         SLANG_RETURN_ON_FAIL(device->getCapabilities(&capabilityCount, nullptr));
         std::vector<Capability> capabilities(capabilityCount);
         SLANG_RETURN_ON_FAIL(device->getCapabilities(&capabilityCount, capabilities.data()));
-        deviceInfo += "Device capabilities:";
+        deviceInfoStr += "Device capabilities:";
         for (uint32_t i = 0; i < capabilityCount; i++)
         {
-            deviceInfo += " ";
-            deviceInfo += rhi::getRHI()->getCapabilityName(capabilities[i]);
+            deviceInfoStr += " ";
+            deviceInfoStr += rhi::getRHI()->getCapabilityName(capabilities[i]);
         }
-        deviceInfo += "\n";
+        deviceInfoStr += "\n";
     }
-    MESSAGE("Device info:\n", doctest::String(deviceInfo.c_str()));
+    MESSAGE("Device info:\n", doctest::String(deviceInfoStr.c_str()));
 #endif
 
     // Try compiling a trivial shader.
