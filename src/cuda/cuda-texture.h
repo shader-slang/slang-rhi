@@ -4,6 +4,17 @@
 
 namespace rhi::cuda {
 
+struct FormatMapping
+{
+    Format format;
+    CUarray_format arrayFormat;
+    uint32_t elementSize;
+    uint32_t channelCount;
+    CUresourceViewFormat viewFormat;
+};
+
+const FormatMapping& getFormatMapping(Format format);
+
 class TextureImpl : public Texture
 {
 public:

@@ -148,6 +148,7 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
         srcSubresource.mipCount = src->m_desc.mipCount;
 
     const FormatInfo& formatInfo = getFormatInfo(src->m_desc.format);
+    bool isBC = formatInfo.isCompressed;
     Extent3D srcTextureSize = src->m_desc.size;
 
     // Copy each layer and mip level
@@ -198,18 +199,19 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
             CUDA_MEMCPY3D copyParam = {};
             copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
             copyParam.srcArray = srcArray;
-            copyParam.srcXInBytes = srcOffset.x * formatInfo.blockSizeInBytes;
-            copyParam.srcY = srcOffset.y;
+            copyParam.srcXInBytes = (isBC ? (srcOffset.x + 3) / 4 : srcOffset.x) * formatInfo.blockSizeInBytes;
+            copyParam.srcY = isBC ? (srcOffset.y + 3) / 4 : srcOffset.y;
             copyParam.srcZ = srcOffset.z + srcLayer;
 
             copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
             copyParam.dstArray = dstArray;
-            copyParam.dstXInBytes = dstOffset.x * formatInfo.blockSizeInBytes;
-            copyParam.dstY = dstOffset.y;
+            copyParam.dstXInBytes = (isBC ? (dstOffset.x + 3) / 4 : dstOffset.x) * formatInfo.blockSizeInBytes;
+            copyParam.dstY = isBC ? (dstOffset.y + 3) / 4 : dstOffset.y;
             copyParam.dstZ = dstOffset.z + dstLayer;
 
-            copyParam.WidthInBytes = adjustedExtent.width * formatInfo.blockSizeInBytes;
-            copyParam.Height = adjustedExtent.height;
+            copyParam.WidthInBytes =
+                (isBC ? (adjustedExtent.width + 3) / 4 : adjustedExtent.width) * formatInfo.blockSizeInBytes;
+            copyParam.Height = isBC ? (adjustedExtent.height + 3) / 4 : adjustedExtent.height;
             copyParam.Depth = adjustedExtent.depth;
 
             SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
@@ -225,6 +227,7 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const TextureDesc& srcDesc = src->getDesc();
     Extent3D textureSize = srcDesc.size;
     const FormatInfo& formatInfo = getFormatInfo(srcDesc.format);
+    bool isBC = formatInfo.isCompressed;
 
     const uint64_t dstOffset = cmd.dstOffset;
     const Size dstRowPitch = cmd.dstRowPitch;
@@ -273,16 +276,17 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     CUDA_MEMCPY3D copyParam = {};
     copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
     copyParam.srcArray = srcArray;
-    copyParam.srcXInBytes = srcOffset.x * formatInfo.blockSizeInBytes;
-    copyParam.srcY = srcOffset.y;
+    copyParam.srcXInBytes = (isBC ? (srcOffset.x + 3) / 4 : srcOffset.x) * formatInfo.blockSizeInBytes;
+    copyParam.srcY = isBC ? (srcOffset.y + 3) / 4 : srcOffset.y;
     copyParam.srcZ = z;
 
     copyParam.dstMemoryType = CU_MEMORYTYPE_DEVICE;
     copyParam.dstDevice = (CUdeviceptr)((uint8_t*)dst->m_cudaMemory + dstOffset);
     copyParam.dstPitch = dstRowPitch;
 
-    copyParam.WidthInBytes = adjustedExtent.width * formatInfo.blockSizeInBytes;
-    copyParam.Height = adjustedExtent.height;
+    copyParam.WidthInBytes =
+        (isBC ? (adjustedExtent.width + 3) / 4 : adjustedExtent.width) * formatInfo.blockSizeInBytes;
+    copyParam.Height = isBC ? (adjustedExtent.height + 3) / 4 : adjustedExtent.height;
     copyParam.Depth = adjustedExtent.depth;
 
     SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
@@ -322,6 +326,7 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
     auto buffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
 
     const FormatInfo& formatInfo = getFormatInfo(dst->m_desc.format);
+    bool isBC = formatInfo.isCompressed;
 
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
@@ -339,14 +344,15 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
             CUDA_MEMCPY3D copyParam = {};
             copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
             copyParam.dstArray = dstArray;
-            copyParam.dstXInBytes = cmd.offset.x * formatInfo.blockSizeInBytes;
-            copyParam.dstY = cmd.offset.y;
+            copyParam.dstXInBytes = (isBC ? (cmd.offset.x + 3) / 4 : cmd.offset.x) * formatInfo.blockSizeInBytes;
+            copyParam.dstY = isBC ? (cmd.offset.y + 3) / 4 : cmd.offset.y;
             copyParam.dstZ = cmd.offset.z + layer;
             copyParam.srcMemoryType = CU_MEMORYTYPE_DEVICE;
             copyParam.srcDevice = (CUdeviceptr)((uint8_t*)buffer->m_cudaMemory + bufferOffset);
             copyParam.srcPitch = srLayout->rowPitch;
-            copyParam.WidthInBytes = srLayout->size.width * formatInfo.blockSizeInBytes;
-            copyParam.Height = srLayout->size.height;
+            copyParam.WidthInBytes =
+                (isBC ? (srLayout->size.width + 3) / 4 : srLayout->size.width) * formatInfo.blockSizeInBytes;
+            copyParam.Height = isBC ? (srLayout->size.height + 3) / 4 : srLayout->size.height;
             copyParam.Depth = srLayout->size.depth;
             SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
 
