@@ -36,7 +36,6 @@ public:
     WGPUErrorType getAndClearLastError();
 
     // IDevice implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -102,6 +101,8 @@ public:
 
 private:
     WGPUErrorType m_lastError = WGPUErrorType_NoError;
+
+    void initializeFormatSupport();
 };
 
 } // namespace rhi::wgpu
