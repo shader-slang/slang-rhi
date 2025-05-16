@@ -121,6 +121,45 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::metal);
 
+    // Initialize format support table.
+    // TODO: add table based on https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
+    for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
+    {
+        Format format = Format(formatIndex);
+        FormatSupport formatSupport = FormatSupport::None;
+        if (MetalUtil::translatePixelFormat(format) != MTL::PixelFormatInvalid)
+        {
+            // depth/stencil formats?
+            formatSupport |= FormatSupport::CopySource;
+            formatSupport |= FormatSupport::CopyDestination;
+            formatSupport |= FormatSupport::Texture;
+            if (isDepthFormat(format))
+                formatSupport |= FormatSupport::DepthStencil;
+            formatSupport |= FormatSupport::RenderTarget;
+            formatSupport |= FormatSupport::Blendable;
+            formatSupport |= FormatSupport::Resolvable;
+            formatSupport |= FormatSupport::ShaderLoad;
+            formatSupport |= FormatSupport::ShaderSample;
+            formatSupport |= FormatSupport::ShaderUavLoad;
+            formatSupport |= FormatSupport::ShaderUavStore;
+            formatSupport |= FormatSupport::ShaderAtomic;
+            formatSupport |= FormatSupport::Buffer;
+        }
+        if (MetalUtil::translateVertexFormat(format) != MTL::VertexFormatInvalid)
+        {
+            formatSupport |= FormatSupport::VertexBuffer;
+            formatSupport |= FormatSupport::CopySource;
+            formatSupport |= FormatSupport::CopyDestination;
+        }
+        if (format == Format::R32Uint || format == Format::R16Uint)
+        {
+            formatSupport |= FormatSupport::IndexBuffer;
+            formatSupport |= FormatSupport::CopySource;
+            formatSupport |= FormatSupport::CopyDestination;
+        }
+        m_formatSupport[formatIndex] = formatSupport;
+    }
+
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(
         m_slangContext
@@ -255,40 +294,6 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
         MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(format);
         *outAlignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     }
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    AUTORELEASEPOOL
-
-    FormatSupport support = FormatSupport::None;
-
-    if (MetalUtil::translatePixelFormat(format) != MTL::PixelFormatInvalid)
-    {
-        // TODO - add table based on https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
-        support |= FormatSupport::Buffer;
-        support |= FormatSupport::Texture;
-        if (isDepthFormat(format))
-            support |= FormatSupport::DepthStencil;
-        support |= FormatSupport::RenderTarget;
-        support |= FormatSupport::Blendable;
-        support |= FormatSupport::ShaderLoad;
-        support |= FormatSupport::ShaderSample;
-        support |= FormatSupport::ShaderUavLoad;
-        support |= FormatSupport::ShaderUavStore;
-        support |= FormatSupport::ShaderAtomic;
-    }
-    if (MetalUtil::translateVertexFormat(format) != MTL::VertexFormatInvalid)
-    {
-        support |= FormatSupport::VertexBuffer;
-    }
-    if (format == Format::R32Uint || format == Format::R16Uint)
-    {
-        support |= FormatSupport::IndexBuffer;
-    }
-
-    *outFormatSupport = support;
     return SLANG_OK;
 }
 
