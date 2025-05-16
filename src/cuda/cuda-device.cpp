@@ -342,107 +342,30 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             .initialize(desc.slang, SLANG_PTX, "sm_7_5", std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}})
     );
 
+    // Initialize format support table
+    for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
+    {
+        Format format = Format(formatIndex);
+        FormatSupport formatSupport = FormatSupport::None;
+        const FormatMapping& mapping = getFormatMapping(format);
+        if (mapping.arrayFormat != 0)
+        {
+            formatSupport |= FormatSupport::CopySource;
+            formatSupport |= FormatSupport::CopyDestination;
+            formatSupport |= FormatSupport::Texture;
+            formatSupport |= FormatSupport::ShaderLoad;
+            formatSupport |= FormatSupport::ShaderSample;
+            formatSupport |= FormatSupport::ShaderUavLoad;
+            formatSupport |= FormatSupport::ShaderUavStore;
+            formatSupport |= FormatSupport::ShaderAtomic;
+        }
+        m_formatSupport[formatIndex] = formatSupport;
+    }
+
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
 
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getCUDAFormat(Format format, CUarray_format* outFormat)
-{
-    // TODO: Expand to cover all available formats that can be supported in CUDA
-    // NOTE: If adding to this, update getFormatSupport accordingly.
-    switch (format)
-    {
-    case Format::RGBA32Float:
-    case Format::RG32Float:
-    case Format::R32Float:
-    case Format::D32Float:
-        *outFormat = CU_AD_FORMAT_FLOAT;
-        return SLANG_OK;
-    case Format::RGBA16Float:
-    case Format::RG16Float:
-    case Format::R16Float:
-        *outFormat = CU_AD_FORMAT_HALF;
-        return SLANG_OK;
-    case Format::RGBA32Uint:
-    case Format::RG32Uint:
-    case Format::R32Uint:
-        *outFormat = CU_AD_FORMAT_UNSIGNED_INT32;
-        return SLANG_OK;
-    case Format::RGBA16Uint:
-    case Format::RG16Uint:
-    case Format::R16Uint:
-        *outFormat = CU_AD_FORMAT_UNSIGNED_INT16;
-        return SLANG_OK;
-    case Format::RGBA8Uint:
-    case Format::RG8Uint:
-    case Format::R8Uint:
-    case Format::RGBA8Unorm:
-        *outFormat = CU_AD_FORMAT_UNSIGNED_INT8;
-        return SLANG_OK;
-    case Format::RGBA32Sint:
-    case Format::RG32Sint:
-    case Format::R32Sint:
-        *outFormat = CU_AD_FORMAT_SIGNED_INT32;
-        return SLANG_OK;
-    case Format::RGBA16Sint:
-    case Format::RG16Sint:
-    case Format::R16Sint:
-        *outFormat = CU_AD_FORMAT_SIGNED_INT16;
-        return SLANG_OK;
-    case Format::RGBA8Sint:
-    case Format::RG8Sint:
-    case Format::R8Sint:
-        *outFormat = CU_AD_FORMAT_SIGNED_INT8;
-        return SLANG_OK;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Only support R32Float/RGBA8Unorm formats for now");
-        return SLANG_FAIL;
-    }
-}
-
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
-    switch (format)
-    {
-    case Format::R8Uint:
-    case Format::R8Sint:
-    case Format::RG8Uint:
-    case Format::RG8Sint:
-    case Format::RGBA8Uint:
-    case Format::RGBA8Sint:
-    case Format::RGBA8Unorm:
-
-    case Format::R16Uint:
-    case Format::R16Sint:
-    case Format::R16Float:
-    case Format::RG16Uint:
-    case Format::RG16Sint:
-    case Format::RG16Float:
-    case Format::RGBA16Uint:
-    case Format::RGBA16Sint:
-    case Format::RGBA16Float:
-
-    case Format::R32Uint:
-    case Format::R32Sint:
-    case Format::R32Float:
-    case Format::RG32Uint:
-    case Format::RG32Sint:
-    case Format::RG32Float:
-    case Format::RGBA32Uint:
-    case Format::RGBA32Sint:
-    case Format::RGBA32Float:
-
-    case Format::D32Float:
-        break;
-    default:
-        // Disable formats not available in getCUDAFormat
-        *outFormatSupport = (FormatSupport)0;
-        break;
-    }
     return SLANG_OK;
 }
 
@@ -588,7 +511,7 @@ Result DeviceImpl::readTexture(
     copyParam.srcArray = srcArray;
     copyParam.srcZ = layer;
     copyParam.WidthInBytes = layout.rowPitch;
-    copyParam.Height = layout.size.height;
+    copyParam.Height = (layout.size.height + layout.blockHeight - 1) / layout.blockHeight;
     copyParam.Depth = layout.size.depth;
     SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
 

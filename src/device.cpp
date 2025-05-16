@@ -322,6 +322,7 @@ Result Device::initialize(const DeviceDesc& desc)
 
     m_featureSet.fill(false);
     m_capabilitySet.fill(false);
+    m_formatSupport.fill(FormatSupport::None);
 
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
 
@@ -473,21 +474,11 @@ bool Device::hasCapability(const char* capability)
 
 Result Device::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
-    SLANG_UNUSED(format);
-    FormatSupport support = FormatSupport::None;
-    support |= FormatSupport::Buffer;
-    support |= FormatSupport::IndexBuffer;
-    support |= FormatSupport::VertexBuffer;
-    support |= FormatSupport::Texture;
-    support |= FormatSupport::DepthStencil;
-    support |= FormatSupport::RenderTarget;
-    support |= FormatSupport::Blendable;
-    support |= FormatSupport::ShaderLoad;
-    support |= FormatSupport::ShaderSample;
-    support |= FormatSupport::ShaderUavLoad;
-    support |= FormatSupport::ShaderUavStore;
-    support |= FormatSupport::ShaderAtomic;
-    *outFormatSupport = support;
+    if (size_t(format) >= m_formatSupport.size() || !outFormatSupport)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    *outFormatSupport = m_formatSupport[size_t(format)];
     return SLANG_OK;
 }
 

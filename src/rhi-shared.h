@@ -306,9 +306,18 @@ public:
     StructHolder m_configHolder;
 };
 
-
 bool isDepthFormat(Format format);
 bool isStencilFormat(Format format);
+
+inline uint32_t widthInBlocks(const FormatInfo& formatInfo, uint32_t size)
+{
+    return formatInfo.isCompressed ? (size + formatInfo.blockWidth - 1) / formatInfo.blockWidth : size;
+}
+
+inline uint32_t heightInBlocks(const FormatInfo& formatInfo, uint32_t size)
+{
+    return formatInfo.isCompressed ? (size + formatInfo.blockHeight - 1) / formatInfo.blockHeight : size;
+}
 
 bool isDebugLayersEnabled();
 

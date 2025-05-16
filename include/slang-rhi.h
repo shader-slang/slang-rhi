@@ -383,20 +383,25 @@ enum class FormatSupport
 {
     None = 0x0,
 
-    Buffer = 0x1,
-    IndexBuffer = 0x2,
-    VertexBuffer = 0x4,
+    CopySource = 0x1,
+    CopyDestination = 0x2,
 
-    Texture = 0x8,
-    DepthStencil = 0x10,
-    RenderTarget = 0x20,
-    Blendable = 0x40,
+    Texture = 0x4,
+    DepthStencil = 0x8,
+    RenderTarget = 0x10,
+    Blendable = 0x20,
+    Multisampling = 0x40,
+    Resolvable = 0x80,
 
-    ShaderLoad = 0x80,
-    ShaderSample = 0x100,
-    ShaderUavLoad = 0x200,
-    ShaderUavStore = 0x400,
-    ShaderAtomic = 0x800,
+    ShaderLoad = 0x100,
+    ShaderSample = 0x200,
+    ShaderUavLoad = 0x400,
+    ShaderUavStore = 0x800,
+    ShaderAtomic = 0x1000,
+
+    Buffer = 0x2000,
+    IndexBuffer = 0x4000,
+    VertexBuffer = 0x8000,
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(FormatSupport);
 

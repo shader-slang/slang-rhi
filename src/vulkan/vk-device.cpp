@@ -1149,6 +1149,94 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
+    // Initialize format support table.
+    for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
+    {
+        Format format = Format(formatIndex);
+        FormatSupport formatSupport = FormatSupport::None;
+
+#define UPDATE_FLAGS(vkFlags, vkMask, formatSupportFlags)                                                              \
+    formatSupport |= (vkFlags & vkMask) ? formatSupportFlags : FormatSupport::None;
+
+        VkFormat vkFormat = VulkanUtil::getVkFormat(format);
+
+        VkFormatProperties2 props2 = {VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2};
+        m_api.vkGetPhysicalDeviceFormatProperties2(m_api.m_physicalDevice, vkFormat, &props2);
+
+        VkFormatFeatureFlags bf = props2.formatProperties.bufferFeatures;
+        VkFormatFeatureFlags ltf = props2.formatProperties.linearTilingFeatures;
+        VkFormatFeatureFlags otf = props2.formatProperties.optimalTilingFeatures;
+
+        UPDATE_FLAGS(ltf, VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT, FormatSupport::CopySource);
+        UPDATE_FLAGS(ltf, VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT, FormatSupport::CopyDestination);
+
+        if (otf)
+        {
+            formatSupport |= FormatSupport::Texture;
+
+            UPDATE_FLAGS(otf, VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT, FormatSupport::RenderTarget);
+            UPDATE_FLAGS(otf, VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BLEND_BIT, FormatSupport::Blendable);
+            UPDATE_FLAGS(otf, VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT, FormatSupport::DepthStencil);
+
+            UPDATE_FLAGS(otf, VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT, FormatSupport::ShaderLoad);
+            UPDATE_FLAGS(otf, VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_LINEAR_BIT, FormatSupport::ShaderSample);
+            UPDATE_FLAGS(
+                otf,
+                VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT,
+                FormatSupport::ShaderUavLoad | FormatSupport::ShaderUavStore
+            );
+            UPDATE_FLAGS(otf, VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT, FormatSupport::ShaderAtomic);
+
+            VkPhysicalDeviceImageFormatInfo2 imageInfo = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2};
+            imageInfo.format = vkFormat;
+            imageInfo.type = VK_IMAGE_TYPE_2D;
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageInfo.flags = 0; // TODO: kinda needed, but unknown here
+
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+            if (is_set(formatSupport, FormatSupport::Texture))
+                imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+            if (is_set(formatSupport, FormatSupport::RenderTarget))
+                imageInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            if (is_set(formatSupport, FormatSupport::DepthStencil))
+                imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+            VkImageFormatProperties2 imageProps = {VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2};
+            m_api.vkGetPhysicalDeviceImageFormatProperties2(m_api.m_physicalDevice, &imageInfo, &imageProps);
+
+            if (imageProps.imageFormatProperties.sampleCounts > 1)
+            {
+                formatSupport |= FormatSupport::Multisampling;
+                if (imageProps.imageFormatProperties.sampleCounts & VK_SAMPLE_COUNT_1_BIT)
+                {
+                    formatSupport |= FormatSupport::Resolvable;
+                }
+            }
+        }
+        if (bf)
+        {
+            formatSupport |= FormatSupport::Buffer;
+
+            UPDATE_FLAGS(bf, VK_FORMAT_FEATURE_2_UNIFORM_TEXEL_BUFFER_BIT, FormatSupport::ShaderLoad);
+            UPDATE_FLAGS(
+                bf,
+                VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_BIT,
+                FormatSupport::ShaderUavLoad | FormatSupport::ShaderUavStore
+            );
+            UPDATE_FLAGS(bf, VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_ATOMIC_BIT, FormatSupport::ShaderAtomic);
+
+            UPDATE_FLAGS(bf, VK_FORMAT_FEATURE_2_VERTEX_BUFFER_BIT, FormatSupport::VertexBuffer);
+            if (format == Format::R32Uint || format == Format::R16Uint)
+            {
+                formatSupport |= FormatSupport::IndexBuffer;
+            }
+        }
+
+#undef UPDATE_FLAGS
+
+        m_formatSupport[formatIndex] = formatSupport;
+    }
+
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(
         m_slangContext
@@ -1544,49 +1632,6 @@ Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVector
         SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
     }
 
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    VkFormat vkFormat = VulkanUtil::getVkFormat(format);
-
-    VkFormatProperties props = {};
-    m_api.vkGetPhysicalDeviceFormatProperties(m_api.m_physicalDevice, vkFormat, &props);
-
-    FormatSupport support = FormatSupport::None;
-
-    if (props.bufferFeatures)
-        support = support | FormatSupport::Buffer;
-
-    if (format == Format::R32Uint || format == Format::R16Uint)
-    {
-        // There is no explicit bit in vk::FormatFeatureFlags for index buffers
-        support = support | FormatSupport::IndexBuffer;
-    }
-
-    if (props.bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT)
-        support = support | FormatSupport::VertexBuffer;
-
-    if (props.optimalTilingFeatures)
-        support = support | FormatSupport::Texture;
-
-    if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
-        support = support | FormatSupport::DepthStencil;
-
-    if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
-        support = support | FormatSupport::RenderTarget;
-
-    if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT)
-        support = support | FormatSupport::Blendable;
-
-    if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) ||
-        (props.bufferFeatures & VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT))
-    {
-        support = support | FormatSupport::ShaderLoad;
-    }
-
-    *outFormatSupport = support;
     return SLANG_OK;
 }
 

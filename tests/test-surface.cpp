@@ -307,12 +307,20 @@ GPU_TEST_CASE("surface-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 // skip WGPU: RWTexture binding fails
 GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
+    if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
+    {
+        SKIP("CUDA surface requires Vulkan");
+    }
     CHECK(device->hasFeature(Feature::Surface));
     testSurface<ComputeSurfaceTest>(device);
 }
 
 GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
+    if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
+    {
+        SKIP("CUDA surface requires Vulkan");
+    }
     CHECK(device->hasFeature(Feature::Surface));
     testSurface<NoRenderSurfaceTest>(device);
 }

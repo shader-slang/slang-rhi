@@ -329,6 +329,7 @@ protected:
 protected:
     std::array<bool, size_t(Feature::_Count)> m_featureSet;
     std::array<bool, size_t(Capability::_Count)> m_capabilitySet;
+    std::array<FormatSupport, size_t(Format::_Count)> m_formatSupport;
     std::vector<CooperativeVectorProperties> m_cooperativeVectorProperties;
 
 public:

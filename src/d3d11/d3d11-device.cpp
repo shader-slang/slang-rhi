@@ -349,6 +349,71 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
+    // Initialize format support table
+    for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
+    {
+        Format format = Format(formatIndex);
+        const D3DUtil::FormatMapping& formatMapping = D3DUtil::getFormatMapping(format);
+        FormatSupport formatSupport = FormatSupport::None;
+
+#define UPDATE_FLAGS(d3dFlags, formatSupportFlags)                                                                     \
+    formatSupport |= (flags & d3dFlags) ? formatSupportFlags : FormatSupport::None;
+
+        D3D11_FEATURE_DATA_FORMAT_SUPPORT d3dFormatSupport = {formatMapping.srvFormat};
+        if (SLANG_SUCCEEDED(
+                m_device->CheckFeatureSupport(D3D11_FEATURE_FORMAT_SUPPORT, &d3dFormatSupport, sizeof(d3dFormatSupport))
+            ))
+        {
+            UINT flags = d3dFormatSupport.OutFormatSupport;
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_BUFFER, FormatSupport::Buffer);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_IA_VERTEX_BUFFER, FormatSupport::VertexBuffer);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_IA_INDEX_BUFFER, FormatSupport::IndexBuffer);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_TEXTURE1D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_TEXTURE2D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_TEXTURE3D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_TEXTURECUBE, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_SHADER_LOAD, FormatSupport::ShaderLoad);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_SHADER_SAMPLE, FormatSupport::ShaderSample);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_RENDER_TARGET, FormatSupport::RenderTarget);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_BLENDABLE, FormatSupport::Blendable);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_DEPTH_STENCIL, FormatSupport::DepthStencil);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE, FormatSupport::Resolvable);
+            UPDATE_FLAGS(D3D11_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET, FormatSupport::Multisampling);
+            UPDATE_FLAGS(
+                D3D11_FORMAT_SUPPORT_TYPED_UNORDERED_ACCESS_VIEW,
+                FormatSupport::ShaderUavLoad | FormatSupport::ShaderUavStore
+            );
+        }
+        D3D11_FEATURE_DATA_FORMAT_SUPPORT2 d3dFormatSupport2 = {formatMapping.srvFormat};
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(
+                D3D11_FEATURE_FORMAT_SUPPORT2,
+                &d3dFormatSupport2,
+                sizeof(d3dFormatSupport2)
+            )))
+        {
+            UINT flags = d3dFormatSupport2.OutFormatSupport2;
+            if (is_set(formatSupport, FormatSupport::ShaderUavStore))
+            {
+                UPDATE_FLAGS(
+                    (D3D11_FORMAT_SUPPORT2_UAV_ATOMIC_ADD | D3D11_FORMAT_SUPPORT2_UAV_ATOMIC_BITWISE_OPS |
+                     D3D11_FORMAT_SUPPORT2_UAV_ATOMIC_COMPARE_STORE_OR_COMPARE_EXCHANGE |
+                     D3D11_FORMAT_SUPPORT2_UAV_ATOMIC_EXCHANGE | D3D11_FORMAT_SUPPORT2_UAV_ATOMIC_SIGNED_MIN_OR_MAX |
+                     D3D11_FORMAT_SUPPORT2_UAV_ATOMIC_UNSIGNED_MIN_OR_MAX),
+                    FormatSupport::ShaderAtomic
+                );
+            }
+        }
+
+#undef UPDATE_FLAGS
+
+        if (formatSupport != FormatSupport::None)
+        {
+            formatSupport |= FormatSupport::CopySource | FormatSupport::CopyDestination;
+        }
+
+        m_formatSupport[formatIndex] = formatSupport;
+    }
+
     // Initialize slang context
     SLANG_RETURN_ON_FAIL(
         m_slangContext
@@ -538,17 +603,6 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 256;
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
-
-    // Disable formats for which we have no mapping
-    if (D3DUtil::getFormatMapping(format).srvFormat == DXGI_FORMAT_UNKNOWN)
-        *outFormatSupport = FormatSupport::None;
-
     return SLANG_OK;
 }
 

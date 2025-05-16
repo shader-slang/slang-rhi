@@ -31,6 +31,8 @@ namespace rhi::vk {
     x(vkGetPhysicalDeviceMemoryProperties) \
     x(vkGetPhysicalDeviceQueueFamilyProperties) \
     x(vkGetPhysicalDeviceFormatProperties) \
+    x(vkGetPhysicalDeviceFormatProperties2) \
+    x(vkGetPhysicalDeviceImageFormatProperties2) \
     x(vkGetDeviceProcAddr) \
     /* */
 

@@ -864,6 +864,62 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
+    // Initialize format support table
+    for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
+    {
+        Format format = Format(formatIndex);
+        const D3DUtil::FormatMapping& formatMapping = D3DUtil::getFormatMapping(format);
+        FormatSupport formatSupport = FormatSupport::None;
+
+#define UPDATE_FLAGS(d3dFlags, formatSupportFlags)                                                                     \
+    formatSupport |= (flags & d3dFlags) ? formatSupportFlags : FormatSupport::None;
+
+        D3D12_FEATURE_DATA_FORMAT_SUPPORT d3dFormatSupport = {formatMapping.srvFormat};
+        if (SLANG_SUCCEEDED(
+                m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &d3dFormatSupport, sizeof(d3dFormatSupport))
+            ))
+        {
+            UINT flags = d3dFormatSupport.Support1;
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_BUFFER, FormatSupport::Buffer);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER, FormatSupport::VertexBuffer);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_IA_INDEX_BUFFER, FormatSupport::IndexBuffer);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_TEXTURE1D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_TEXTURE2D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_TEXTURE3D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_TEXTURECUBE, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_SHADER_LOAD, FormatSupport::ShaderLoad);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE, FormatSupport::ShaderSample);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_RENDER_TARGET, FormatSupport::RenderTarget);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_BLENDABLE, FormatSupport::Blendable);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL, FormatSupport::DepthStencil);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_MULTISAMPLE_RESOLVE, FormatSupport::Resolvable);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_MULTISAMPLE_RENDERTARGET, FormatSupport::Multisampling);
+
+            flags = d3dFormatSupport.Support2;
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD, FormatSupport::ShaderUavLoad);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE, FormatSupport::ShaderUavStore);
+            if (is_set(formatSupport, FormatSupport::ShaderUavStore))
+            {
+                UPDATE_FLAGS(
+                    (D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_ADD | D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_BITWISE_OPS |
+                     D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_COMPARE_STORE_OR_COMPARE_EXCHANGE |
+                     D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_EXCHANGE | D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_SIGNED_MIN_OR_MAX |
+                     D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_UNSIGNED_MIN_OR_MAX),
+                    FormatSupport::ShaderAtomic
+                );
+            }
+        }
+
+#undef UPDATE_FLAGS
+
+        if (formatSupport != FormatSupport::None)
+        {
+            formatSupport |= FormatSupport::CopySource | FormatSupport::CopyDestination;
+        }
+
+        m_formatSupport[formatIndex] = formatSupport;
+    }
+
     // If user specified a higher shader model than what the system supports, return failure.
     int userSpecifiedShaderModel = getShaderModelFromProfileName(desc.slang.targetProfile);
     if (userSpecifiedShaderModel > shaderModelData.HighestShaderModel)
@@ -1280,45 +1336,6 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
     returnComPtr(outView, view);
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    D3D12_FEATURE_DATA_FORMAT_SUPPORT featureData;
-    featureData.Format = D3DUtil::getMapFormat(format);
-    SLANG_RETURN_ON_FAIL(m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &featureData, sizeof(featureData))
-    );
-
-    FormatSupport support = FormatSupport::None;
-
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_BUFFER)
-        support = support | FormatSupport::Buffer;
-    if (featureData.Support1 & (D3D12_FORMAT_SUPPORT1_TEXTURE1D | D3D12_FORMAT_SUPPORT1_TEXTURE2D |
-                                D3D12_FORMAT_SUPPORT1_TEXTURE3D | D3D12_FORMAT_SUPPORT1_TEXTURECUBE))
-        support = support | FormatSupport::Texture;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL)
-        support = support | FormatSupport::DepthStencil;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET)
-        support = support | FormatSupport::RenderTarget;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_BLENDABLE)
-        support = support | FormatSupport::Blendable;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_IA_INDEX_BUFFER)
-        support = support | FormatSupport::IndexBuffer;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER)
-        support = support | FormatSupport::VertexBuffer;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_LOAD)
-        support = support | FormatSupport::ShaderLoad;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE)
-        support = support | FormatSupport::ShaderSample;
-    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_ADD)
-        support = support | FormatSupport::ShaderAtomic;
-    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD)
-        support = support | FormatSupport::ShaderUavLoad;
-    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE)
-        support = support | FormatSupport::ShaderUavStore;
-
-    *outFormatSupport = support;
     return SLANG_OK;
 }
 

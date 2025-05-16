@@ -198,18 +198,18 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
             CUDA_MEMCPY3D copyParam = {};
             copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
             copyParam.srcArray = srcArray;
-            copyParam.srcXInBytes = srcOffset.x * formatInfo.blockSizeInBytes;
-            copyParam.srcY = srcOffset.y;
+            copyParam.srcXInBytes = widthInBlocks(formatInfo, srcOffset.x) * formatInfo.blockSizeInBytes;
+            copyParam.srcY = heightInBlocks(formatInfo, srcOffset.y);
             copyParam.srcZ = srcOffset.z + srcLayer;
 
             copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
             copyParam.dstArray = dstArray;
-            copyParam.dstXInBytes = dstOffset.x * formatInfo.blockSizeInBytes;
-            copyParam.dstY = dstOffset.y;
+            copyParam.dstXInBytes = widthInBlocks(formatInfo, dstOffset.x) * formatInfo.blockSizeInBytes;
+            copyParam.dstY = heightInBlocks(formatInfo, dstOffset.y);
             copyParam.dstZ = dstOffset.z + dstLayer;
 
-            copyParam.WidthInBytes = adjustedExtent.width * formatInfo.blockSizeInBytes;
-            copyParam.Height = adjustedExtent.height;
+            copyParam.WidthInBytes = widthInBlocks(formatInfo, adjustedExtent.width) * formatInfo.blockSizeInBytes;
+            copyParam.Height = heightInBlocks(formatInfo, adjustedExtent.height);
             copyParam.Depth = adjustedExtent.depth;
 
             SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
@@ -273,16 +273,16 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     CUDA_MEMCPY3D copyParam = {};
     copyParam.srcMemoryType = CU_MEMORYTYPE_ARRAY;
     copyParam.srcArray = srcArray;
-    copyParam.srcXInBytes = srcOffset.x * formatInfo.blockSizeInBytes;
-    copyParam.srcY = srcOffset.y;
+    copyParam.srcXInBytes = widthInBlocks(formatInfo, srcOffset.x) * formatInfo.blockSizeInBytes;
+    copyParam.srcY = heightInBlocks(formatInfo, srcOffset.y);
     copyParam.srcZ = z;
 
     copyParam.dstMemoryType = CU_MEMORYTYPE_DEVICE;
     copyParam.dstDevice = (CUdeviceptr)((uint8_t*)dst->m_cudaMemory + dstOffset);
     copyParam.dstPitch = dstRowPitch;
 
-    copyParam.WidthInBytes = adjustedExtent.width * formatInfo.blockSizeInBytes;
-    copyParam.Height = adjustedExtent.height;
+    copyParam.WidthInBytes = widthInBlocks(formatInfo, adjustedExtent.width) * formatInfo.blockSizeInBytes;
+    copyParam.Height = heightInBlocks(formatInfo, adjustedExtent.height);
     copyParam.Depth = adjustedExtent.depth;
 
     SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
@@ -339,14 +339,14 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
             CUDA_MEMCPY3D copyParam = {};
             copyParam.dstMemoryType = CU_MEMORYTYPE_ARRAY;
             copyParam.dstArray = dstArray;
-            copyParam.dstXInBytes = cmd.offset.x * formatInfo.blockSizeInBytes;
-            copyParam.dstY = cmd.offset.y;
+            copyParam.dstXInBytes = widthInBlocks(formatInfo, cmd.offset.x) * formatInfo.blockSizeInBytes;
+            copyParam.dstY = heightInBlocks(formatInfo, cmd.offset.y);
             copyParam.dstZ = cmd.offset.z + layer;
             copyParam.srcMemoryType = CU_MEMORYTYPE_DEVICE;
             copyParam.srcDevice = (CUdeviceptr)((uint8_t*)buffer->m_cudaMemory + bufferOffset);
             copyParam.srcPitch = srLayout->rowPitch;
-            copyParam.WidthInBytes = srLayout->size.width * formatInfo.blockSizeInBytes;
-            copyParam.Height = srLayout->size.height;
+            copyParam.WidthInBytes = widthInBlocks(formatInfo, srLayout->size.width) * formatInfo.blockSizeInBytes;
+            copyParam.Height = heightInBlocks(formatInfo, srLayout->size.height);
             copyParam.Depth = srLayout->size.depth;
             SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
 
