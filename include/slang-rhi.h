@@ -345,8 +345,12 @@ enum class IndexFormat
 // TODO: Width/Height/Depth/whatever should not be used. We should use extentX, extentY, etc.
 struct FormatInfo
 {
+    /// Format type.
     Format format;
+    /// Format name.
     const char* name;
+    /// Slang format name (used in [format("xxx")] attribute).
+    /// nullptr if the format doesn't have a slang name.
     const char* slangName;
     /// The kind of format.
     FormatKind kind;
