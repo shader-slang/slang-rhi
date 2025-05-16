@@ -24,8 +24,6 @@ class DeviceImpl : public Device
 public:
     using Device::readBuffer;
 
-    DeviceDesc m_desc;
-    DeviceInfo m_info;
     std::string m_adapterName;
 
     Context m_ctx;
@@ -100,7 +98,6 @@ public:
         override;
 
     // void waitForGpu();
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
 private:

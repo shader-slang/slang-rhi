@@ -149,9 +149,12 @@
 
 // Device
 #define S_Device "Device"
+#define S_Device_getInfo "getInfo"
 #define S_Device_getNativeDeviceHandles "getNativeDeviceHandles"
-#define S_Device_hasFeature "hasFeature"
 #define S_Device_getFeatures "getFeatures"
+#define S_Device_hasFeature "hasFeature"
+#define S_Device_getCapabilities "getCapabilities"
+#define S_Device_hasCapability "hasCapability"
 #define S_Device_getFormatSupport "getFormatSupport"
 #define S_Device_getSlangSession "getSlangSession"
 #define S_Device_createTransientResourceHeap "createTransientResourceHeap"
@@ -178,7 +181,6 @@
 #define S_Device_createRayTracingPipeline "createRayTracingPipeline"
 #define S_Device_readTexture "readTexture"
 #define S_Device_readBuffer "readBuffer"
-#define S_Device_getDeviceInfo "getDeviceInfo"
 #define S_Device_createQueryPool "createQueryPool"
 #define S_Device_getAccelerationStructureSizes "getAccelerationStructureSizes"
 #define S_Device_createAccelerationStructure "createAccelerationStructure"

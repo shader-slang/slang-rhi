@@ -66,12 +66,12 @@ DeviceImpl::~DeviceImpl()
 
     if (m_device != VK_NULL_HANDLE)
     {
-        if (!m_desc.existingDeviceHandles.handles[2])
+        if (!m_existingDeviceHandles.handles[2])
             m_api.vkDestroyDevice(m_device, nullptr);
         m_device = VK_NULL_HANDLE;
         if (m_debugReportCallback != VK_NULL_HANDLE)
             m_api.vkDestroyDebugUtilsMessengerEXT(m_api.m_instance, m_debugReportCallback, nullptr);
-        if (m_api.m_instance != VK_NULL_HANDLE && !m_desc.existingDeviceHandles.handles[0])
+        if (m_api.m_instance != VK_NULL_HANDLE && !m_existingDeviceHandles.handles[0])
             m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
 }
@@ -161,13 +161,18 @@ static bool _hasAnySetBits(const T& val, size_t offset)
 }
 
 Result DeviceImpl::initVulkanInstanceAndDevice(
-    const NativeHandle* handles,
+    const DeviceDesc& desc,
     bool enableValidationLayer,
-    bool enableRayTracingValidation
+    std::vector<Feature>& availableFeatures,
+    std::vector<Capability>& availableCapabilities
 )
 {
+    availableFeatures.clear();
+    availableCapabilities.clear();
+
+    // Initialize Vulkan instance.
     VkInstance instance = VK_NULL_HANDLE;
-    if (!handles[0])
+    if (!desc.existingDeviceHandles.handles[0])
     {
         VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
         applicationInfo.pApplicationName = "slang-rhi";
@@ -268,17 +273,19 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     else
     {
-        if (handles[0].type != NativeHandleType::VkInstance)
+        if (desc.existingDeviceHandles.handles[0].type != NativeHandleType::VkInstance)
         {
             return SLANG_FAIL;
         }
-        instance = (VkInstance)handles[0].value;
+        instance = (VkInstance)desc.existingDeviceHandles.handles[0].value;
     }
     if (!instance)
+    {
         return SLANG_FAIL;
+    }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((enableRayTracingValidation || enableValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((desc.enableRayTracingValidation || enableValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
@@ -296,8 +303,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         );
     }
 
+    // Initialize Vulkan physical device.
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    if (!handles[1])
+    if (!desc.existingDeviceHandles.handles[1])
     {
         uint32_t numPhysicalDevices = 0;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
@@ -311,11 +319,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         int selectedDeviceIndex = -1;
 
         // Search for requested adapter.
-        if (m_desc.adapterLUID)
+        if (desc.adapterLUID)
         {
             for (size_t i = 0; i < physicalDevices.size(); ++i)
             {
-                if (vk::getAdapterLUID(m_api, physicalDevices[i]) == *m_desc.adapterLUID)
+                if (vk::getAdapterLUID(m_api, physicalDevices[i]) == *desc.adapterLUID)
                 {
                     selectedDeviceIndex = (int)i;
                     break;
@@ -350,22 +358,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     else
     {
-        if (handles[1].type != NativeHandleType::VkPhysicalDevice)
+        if (desc.existingDeviceHandles.handles[1].type != NativeHandleType::VkPhysicalDevice)
         {
             return SLANG_FAIL;
         }
-        physicalDevice = (VkPhysicalDevice)handles[1].value;
+        physicalDevice = (VkPhysicalDevice)desc.existingDeviceHandles.handles[1].value;
     }
-
-    SLANG_RETURN_ON_FAIL(m_api.initPhysicalDevice(physicalDevice));
-
-    // Obtain the name of the selected adapter.
+    if (!physicalDevice)
     {
-        VkPhysicalDeviceProperties basicProps = {};
-        m_api.vkGetPhysicalDeviceProperties(physicalDevice, &basicProps);
-        m_adapterName = basicProps.deviceName;
-        m_info.adapterName = m_adapterName.data();
+        return SLANG_FAIL;
     }
+    SLANG_RETURN_ON_FAIL(m_api.initPhysicalDevice(physicalDevice));
 
     // Query the available extensions
     uint32_t extensionCount = 0;
@@ -398,43 +401,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
     VkPhysicalDeviceProperties basicProps = {};
     m_api.vkGetPhysicalDeviceProperties(m_api.m_physicalDevice, &basicProps);
-
-    // Compute timestamp frequency.
-    m_info.timestampFrequency = uint64_t(1e9 / basicProps.limits.timestampPeriod);
-
-    // Get device limits.
-    {
-        DeviceLimits limits = {};
-        limits.maxTextureDimension1D = basicProps.limits.maxImageDimension1D;
-        limits.maxTextureDimension2D = basicProps.limits.maxImageDimension2D;
-        limits.maxTextureDimension3D = basicProps.limits.maxImageDimension3D;
-        limits.maxTextureDimensionCube = basicProps.limits.maxImageDimensionCube;
-        limits.maxTextureLayers = basicProps.limits.maxImageArrayLayers;
-
-        limits.maxVertexInputElements = basicProps.limits.maxVertexInputAttributes;
-        limits.maxVertexInputElementOffset = basicProps.limits.maxVertexInputAttributeOffset;
-        limits.maxVertexStreams = basicProps.limits.maxVertexInputBindings;
-        limits.maxVertexStreamStride = basicProps.limits.maxVertexInputBindingStride;
-
-        limits.maxComputeThreadsPerGroup = basicProps.limits.maxComputeWorkGroupInvocations;
-        limits.maxComputeThreadGroupSize[0] = basicProps.limits.maxComputeWorkGroupSize[0];
-        limits.maxComputeThreadGroupSize[1] = basicProps.limits.maxComputeWorkGroupSize[1];
-        limits.maxComputeThreadGroupSize[2] = basicProps.limits.maxComputeWorkGroupSize[2];
-        limits.maxComputeDispatchThreadGroups[0] = basicProps.limits.maxComputeWorkGroupCount[0];
-        limits.maxComputeDispatchThreadGroups[1] = basicProps.limits.maxComputeWorkGroupCount[1];
-        limits.maxComputeDispatchThreadGroups[2] = basicProps.limits.maxComputeWorkGroupCount[2];
-
-        limits.maxViewports = basicProps.limits.maxViewports;
-        limits.maxViewportDimensions[0] = basicProps.limits.maxViewportDimensions[0];
-        limits.maxViewportDimensions[1] = basicProps.limits.maxViewportDimensions[1];
-        limits.maxFramebufferDimensions[0] = basicProps.limits.maxFramebufferWidth;
-        limits.maxFramebufferDimensions[1] = basicProps.limits.maxFramebufferHeight;
-        limits.maxFramebufferDimensions[2] = basicProps.limits.maxFramebufferLayers;
-
-        limits.maxShaderVisibleSamplers = basicProps.limits.maxPerStageDescriptorSamplers;
-
-        m_info.limits = limits;
-    }
 
     // Get the API version
     const uint32_t majorVersion = VK_VERSION_MAJOR(basicProps.apiVersion);
@@ -581,24 +547,25 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         if (deviceFeatures2.features.shaderResourceMinLod)
         {
-            addFeature(Feature::ShaderResourceMinLod);
+            availableFeatures.push_back(Feature::ShaderResourceMinLod);
+            availableCapabilities.push_back(Capability::spvMinLod);
         }
         if (deviceFeatures2.features.shaderFloat64)
         {
-            addFeature(Feature::Double);
+            availableFeatures.push_back(Feature::Double);
         }
         if (deviceFeatures2.features.shaderInt64)
         {
-            addFeature(Feature::Int64);
+            availableFeatures.push_back(Feature::Int64);
         }
         if (deviceFeatures2.features.shaderInt16)
         {
-            addFeature(Feature::Int16);
+            availableFeatures.push_back(Feature::Int16);
         }
         // If we have float16 features then enable
         if (extendedFeatures.vulkan12Features.shaderFloat16)
         {
-            addFeature(Feature::Half);
+            availableFeatures.push_back(Feature::Half);
         }
 
         const auto addFeatureExtension = [&](const bool feature, auto& featureStruct, const char* extension = nullptr)
@@ -660,14 +627,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.atomicFloatFeatures,
             shaderBufferFloat32Atomics,
             VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
-            { addFeature(Feature::AtomicFloat); }
+            { availableFeatures.push_back(Feature::AtomicFloat); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.atomicFloat2Features,
             shaderBufferFloat16Atomics,
             VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME,
-            { addFeature(Feature::AtomicFloat); }
+            { availableFeatures.push_back(Feature::AtomicFloat); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -688,7 +655,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.customBorderColorFeatures,
             customBorderColors,
             VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
-            { addFeature(Feature::CustomBorderColor); }
+            { availableFeatures.push_back(Feature::CustomBorderColor); }
         );
 
         if (extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
@@ -699,7 +666,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             deviceCreateInfo.pNext = &extendedFeatures.accelerationStructureFeatures;
             deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
             deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
-            addFeature(Feature::AccelerationStructure);
+            availableFeatures.push_back(Feature::AccelerationStructure);
 
             // These both depend on VK_KHR_acceleration_structure
 
@@ -707,11 +674,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 extendedFeatures.rayTracingPipelineFeatures,
                 rayTracingPipeline,
                 VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-                { addFeature(Feature::RayTracing); }
+                { availableFeatures.push_back(Feature::RayTracing); }
             );
 
             SIMPLE_EXTENSION_FEATURE(extendedFeatures.rayQueryFeatures, rayQuery, VK_KHR_RAY_QUERY_EXTENSION_NAME, {
-                addFeature(Feature::RayQuery);
+                availableFeatures.push_back(Feature::RayQuery);
             });
 
             if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
@@ -723,11 +690,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 }
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres)
                 {
-                    addFeature(Feature::AccelerationStructureSpheres);
+                    availableFeatures.push_back(Feature::AccelerationStructureSpheres);
                 }
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
                 {
-                    addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+                    availableFeatures.push_back(Feature::AccelerationStructureLinearSweptSpheres);
                 }
             }
         }
@@ -750,29 +717,29 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.clockFeatures,
             shaderDeviceClock,
             VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
-            { addFeature(Feature::RealtimeClock); }
+            { availableFeatures.push_back(Feature::RealtimeClock); }
         );
 
         SIMPLE_EXTENSION_FEATURE(extendedFeatures.meshShaderFeatures, meshShader, VK_EXT_MESH_SHADER_EXTENSION_NAME, {
-            addFeature(Feature::MeshShader);
+            availableFeatures.push_back(Feature::MeshShader);
         });
 
         SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {
-            addFeature(Feature::MultiView);
+            availableFeatures.push_back(Feature::MultiView);
         });
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.fragmentShadingRateFeatures,
             primitiveFragmentShadingRate,
             VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME,
-            { addFeature(Feature::FragmentShadingRate); }
+            { availableFeatures.push_back(Feature::FragmentShadingRate); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.rayTracingInvocationReorderFeatures,
             rayTracingInvocationReorder,
             VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME,
-            { addFeature(Feature::ShaderExecutionReordering); }
+            { availableFeatures.push_back(Feature::ShaderExecutionReordering); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -790,13 +757,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         );
 
         // Only enable raytracing validation if both requested and supported
-        if (enableRayTracingValidation && extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
+        if (desc.enableRayTracingValidation && extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
         {
             SIMPLE_EXTENSION_FEATURE(
                 extendedFeatures.rayTracingValidationFeatures,
                 rayTracingValidation,
                 VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
-                { addFeature(Feature::RayTracingValidation); }
+                { availableFeatures.push_back(Feature::RayTracingValidation); }
             );
         }
 
@@ -825,14 +792,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.cooperativeVectorFeatures,
             cooperativeVector,
             VK_NV_COOPERATIVE_VECTOR_EXTENSION_NAME,
-            { addFeature(Feature::CooperativeVector); }
+            { availableFeatures.push_back(Feature::CooperativeVector); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.cooperativeMatrix1Features,
             cooperativeMatrix,
             VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME,
-            { addFeature(Feature::CooperativeMatrix); }
+            { availableFeatures.push_back(Feature::CooperativeMatrix); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -845,7 +812,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #undef SIMPLE_EXTENSION_FEATURE
 
         if (extendedFeatures.vulkan12Features.shaderBufferInt64Atomics)
-            addFeature(Feature::AtomicInt64);
+            availableFeatures.push_back(Feature::AtomicInt64);
 
         if (_hasAnySetBits(
                 extendedFeatures.vulkan12Features,
@@ -877,7 +844,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
              VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT | VK_SUBGROUP_FEATURE_CLUSTERED_BIT |
              VK_SUBGROUP_FEATURE_QUAD_BIT | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV))
         {
-            addFeature(Feature::WaveOps);
+            availableFeatures.push_back(Feature::WaveOps);
         }
 
         if (extensionNames.count("VK_KHR_external_memory"))
@@ -913,7 +880,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         if (extensionNames.count(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
-            addFeature(Feature::ConservativeRasterization);
+            availableFeatures.push_back(Feature::ConservativeRasterization);
         }
         if (extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
         {
@@ -934,62 +901,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         if (extensionNames.count(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-            addFeature(Feature::Barycentrics);
+            availableFeatures.push_back(Feature::Barycentrics);
         }
         if (extensionNames.count(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
         }
-
-        // Derive approximate DX12 shader model.
-        Feature featureTable[] = {
-            // SM 6.6
-            Feature::SM_6_6,
-            Feature::AtomicFloat,
-            Feature::AtomicInt64,
-            // SM 6.5
-            Feature::SM_6_5,
-            Feature::RayQuery,
-            Feature::MeshShader,
-            // SM 6.4
-            Feature::SM_6_4,
-            Feature::FragmentShadingRate,
-            Feature::SamplerFeedback,
-            // SM 6.3
-            Feature::SM_6_3,
-            Feature::RayTracing,
-            // SM 6.2
-            Feature::SM_6_2,
-            Feature::Half,
-            // SM 6.1
-            Feature::SM_6_1,
-            Feature::Barycentrics,
-            Feature::MultiView,
-            // SM 6.0
-            Feature::SM_6_0,
-            Feature::Int64,
-            Feature::WaveOps,
-        };
-
-        for (int i = SLANG_COUNT_OF(featureTable) - 1; i >= 0; --i)
-        {
-            Feature feature = featureTable[i];
-            if (i >= int(Feature::SM_6_0) && i <= int(Feature::SM_6_7))
-            {
-                addFeature(feature);
-            }
-            else if (!hasFeature(feature))
-            {
-                break;
-            }
-        }
     }
-
-    addFeature(m_api.m_module->isSoftware() ? Feature::SoftwareDevice : Feature::HardwareDevice);
-    addFeature(Feature::Surface);
-    addFeature(Feature::ParameterBlock);
-    addFeature(Feature::Rasterization);
-    addFeature(Feature::TimestampQuery);
 
     if (extendedFeatures.vulkan12Features.descriptorIndexing &&
         extendedFeatures.descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing &&
@@ -1006,7 +924,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.descriptorIndexingFeatures.descriptorBindingPartiallyBound &&
         extendedFeatures.mutableDescriptorTypeFeatures.mutableDescriptorType)
     {
-        addFeature(Feature::Bindless);
+        availableFeatures.push_back(Feature::Bindless);
     }
 
     int queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
@@ -1043,7 +961,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
 #endif
 
-    if (!handles[2])
+    // Create Vulkan device.
+    if (!desc.existingDeviceHandles.handles[2])
     {
         float queuePriority = 0.0f;
         VkDeviceQueueCreateInfo queueCreateInfo = {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -1061,13 +980,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     else
     {
-        if (handles[2].type != NativeHandleType::VkDevice)
+        if (desc.existingDeviceHandles.handles[2].type != NativeHandleType::VkDevice)
         {
             return SLANG_FAIL;
         }
-        m_device = (VkDevice)handles[2].value;
+        m_device = (VkDevice)desc.existingDeviceHandles.handles[2].value;
     }
-
+    if (!m_device)
+    {
+        return SLANG_FAIL;
+    }
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
 
     return SLANG_OK;
@@ -1075,15 +997,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
-    // Initialize device info.
-    {
-        m_info.apiName = "Vulkan";
-        m_info.deviceType = DeviceType::Vulkan;
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
-    }
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    m_desc = desc;
+    // During shutdown we need to know if existing device handles were used.
+    m_existingDeviceHandles = desc.existingDeviceHandles;
 
     // Process chained descs
     for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
@@ -1099,9 +1016,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
     Result initDeviceResult = SLANG_OK;
-
+    std::vector<Feature> availableFeatures;
+    std::vector<Capability> availableCapabilities;
     for (int forceSoftware = 0; forceSoftware <= 1; forceSoftware++)
     {
         initDeviceResult = m_module.init(forceSoftware != 0);
@@ -1111,22 +1028,125 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         if (initDeviceResult != SLANG_OK)
             continue;
         descriptorSetAllocator.m_api = &m_api;
-        initDeviceResult = initVulkanInstanceAndDevice(
-            desc.existingDeviceHandles.handles,
-            isDebugLayersEnabled(),
-            desc.enableRayTracingValidation
-        );
+        initDeviceResult =
+            initVulkanInstanceAndDevice(desc, isDebugLayersEnabled(), availableFeatures, availableCapabilities);
         if (initDeviceResult == SLANG_OK)
             break;
     }
     SLANG_RETURN_ON_FAIL(initDeviceResult);
 
+    // Initialize device info.
     {
-        VkQueue queue;
-        m_api.vkGetDeviceQueue(m_device, m_queueFamilyIndex, 0, &queue);
-        SLANG_RETURN_ON_FAIL(m_deviceQueue.init(m_api, queue, m_queueFamilyIndex));
+        m_info.deviceType = DeviceType::Vulkan;
+        m_info.apiName = "Vulkan";
+
+        VkPhysicalDeviceProperties basicProps = {};
+        m_api.vkGetPhysicalDeviceProperties(m_api.m_physicalDevice, &basicProps);
+
+        // Query adapter name.
+        m_adapterName = basicProps.deviceName;
+        m_info.adapterName = m_adapterName.data();
+
+        // Query timestamp frequency.
+        m_info.timestampFrequency = uint64_t(1e9 / basicProps.limits.timestampPeriod);
+
+        // Query device limits.
+        DeviceLimits limits = {};
+        limits.maxTextureDimension1D = basicProps.limits.maxImageDimension1D;
+        limits.maxTextureDimension2D = basicProps.limits.maxImageDimension2D;
+        limits.maxTextureDimension3D = basicProps.limits.maxImageDimension3D;
+        limits.maxTextureDimensionCube = basicProps.limits.maxImageDimensionCube;
+        limits.maxTextureLayers = basicProps.limits.maxImageArrayLayers;
+
+        limits.maxVertexInputElements = basicProps.limits.maxVertexInputAttributes;
+        limits.maxVertexInputElementOffset = basicProps.limits.maxVertexInputAttributeOffset;
+        limits.maxVertexStreams = basicProps.limits.maxVertexInputBindings;
+        limits.maxVertexStreamStride = basicProps.limits.maxVertexInputBindingStride;
+
+        limits.maxComputeThreadsPerGroup = basicProps.limits.maxComputeWorkGroupInvocations;
+        limits.maxComputeThreadGroupSize[0] = basicProps.limits.maxComputeWorkGroupSize[0];
+        limits.maxComputeThreadGroupSize[1] = basicProps.limits.maxComputeWorkGroupSize[1];
+        limits.maxComputeThreadGroupSize[2] = basicProps.limits.maxComputeWorkGroupSize[2];
+        limits.maxComputeDispatchThreadGroups[0] = basicProps.limits.maxComputeWorkGroupCount[0];
+        limits.maxComputeDispatchThreadGroups[1] = basicProps.limits.maxComputeWorkGroupCount[1];
+        limits.maxComputeDispatchThreadGroups[2] = basicProps.limits.maxComputeWorkGroupCount[2];
+
+        limits.maxViewports = basicProps.limits.maxViewports;
+        limits.maxViewportDimensions[0] = basicProps.limits.maxViewportDimensions[0];
+        limits.maxViewportDimensions[1] = basicProps.limits.maxViewportDimensions[1];
+        limits.maxFramebufferDimensions[0] = basicProps.limits.maxFramebufferWidth;
+        limits.maxFramebufferDimensions[1] = basicProps.limits.maxFramebufferHeight;
+        limits.maxFramebufferDimensions[2] = basicProps.limits.maxFramebufferLayers;
+
+        limits.maxShaderVisibleSamplers = basicProps.limits.maxPerStageDescriptorSamplers;
+
+        m_info.limits = limits;
     }
 
+    // Initialize features & capabilities.
+    addFeature(m_api.m_module->isSoftware() ? Feature::SoftwareDevice : Feature::HardwareDevice);
+    addFeature(Feature::Surface);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Rasterization);
+    addFeature(Feature::TimestampQuery);
+    for (auto feature : availableFeatures)
+    {
+        addFeature(feature);
+    }
+
+    addCapability(Capability::spirv);
+    for (auto capability : availableCapabilities)
+    {
+        addCapability(capability);
+    }
+
+    // Derive approximate DX12 shader model.
+    {
+        Feature featureTable[] = {
+            // SM 6.6
+            Feature::SM_6_6,
+            Feature::AtomicFloat,
+            Feature::AtomicInt64,
+            // SM 6.5
+            Feature::SM_6_5,
+            Feature::RayQuery,
+            Feature::MeshShader,
+            // SM 6.4
+            Feature::SM_6_4,
+            Feature::FragmentShadingRate,
+            // TODO: Check VK_NV_shader_image_footprint?
+            // Feature::SamplerFeedback,
+            // SM 6.3
+            Feature::SM_6_3,
+            Feature::RayTracing,
+            // SM 6.2
+            Feature::SM_6_2,
+            Feature::Half,
+            // SM 6.1
+            Feature::SM_6_1,
+            Feature::Barycentrics,
+            Feature::MultiView,
+            // SM 6.0
+            Feature::SM_6_0,
+            Feature::Int64,
+            Feature::WaveOps,
+        };
+
+        for (int i = SLANG_COUNT_OF(featureTable) - 1; i >= 0; --i)
+        {
+            Feature feature = featureTable[i];
+            if (int(feature) >= int(Feature::SM_6_0) && int(feature) <= int(Feature::SM_6_9))
+            {
+                addFeature(feature);
+            }
+            else if (!hasFeature(feature))
+            {
+                break;
+            }
+        }
+    }
+
+    // Initialize slang context.
     SLANG_RETURN_ON_FAIL(
         m_slangContext
             .initialize(desc.slang, SLANG_SPIRV, "sm_6_0", std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}})
@@ -1155,8 +1175,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Create bindless descriptor set if needed.
     if (hasFeature(Feature::Bindless))
     {
-        m_bindlessDescriptorSet = new BindlessDescriptorSet(this, m_desc.bindless);
+        m_bindlessDescriptorSet = new BindlessDescriptorSet(this, desc.bindless);
         SLANG_RETURN_ON_FAIL(m_bindlessDescriptorSet->initialize());
+    }
+
+    {
+        VkQueue queue;
+        m_api.vkGetDeviceQueue(m_device, m_queueFamilyIndex, 0, &queue);
+        SLANG_RETURN_ON_FAIL(m_deviceQueue.init(m_api, queue, m_queueFamilyIndex));
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
@@ -1168,11 +1194,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 void DeviceImpl::waitForGpu()
 {
     m_deviceQueue.flushAndWait();
-}
-
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
-{
-    return m_info;
 }
 
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
