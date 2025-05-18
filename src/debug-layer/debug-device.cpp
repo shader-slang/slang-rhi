@@ -226,6 +226,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         label = createTextureLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
     return baseObject->createTexture(patchedDesc, initData, outTexture);
 }
 
@@ -259,6 +260,7 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
         label = createBufferLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
     return baseObject->createBuffer(patchedDesc, initData, outBuffer);
 }
 
@@ -391,6 +393,7 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         label = createSamplerLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
     return baseObject->createSampler(patchedDesc, outSampler);
 }
 
@@ -405,6 +408,7 @@ Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& 
         label = createTextureViewLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
     return baseObject->createTextureView(texture, patchedDesc, outView);
 }
 
@@ -424,6 +428,14 @@ Result DebugDevice::createAccelerationStructure(
 )
 {
     SLANG_RHI_API_FUNC;
+
+    AccelerationStructureDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createAccelerationStructureLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
 
     return baseObject->createAccelerationStructure(desc, outAccelerationStructure);
 }
@@ -641,9 +653,17 @@ const DeviceInfo& DebugDevice::getInfo() const
 Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     SLANG_RHI_API_FUNC;
+
+    QueryPoolDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createQueryPoolLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugQueryPool> result = new DebugQueryPool(ctx);
-    result->desc = desc;
-    SLANG_RETURN_ON_FAIL(baseObject->createQueryPool(desc, result->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->createQueryPool(patchedDesc, result->baseObject.writeRef()));
     returnComPtr(outPool, result);
     return SLANG_OK;
 }
@@ -651,8 +671,17 @@ Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outP
 Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 {
     SLANG_RHI_API_FUNC;
+
+    FenceDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createFenceLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugFence> result = new DebugFence(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createFence(desc, result->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->createFence(patchedDesc, result->baseObject.writeRef()));
     returnComPtr(outFence, result);
     return SLANG_OK;
 }

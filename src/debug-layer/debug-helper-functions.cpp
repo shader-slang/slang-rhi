@@ -112,6 +112,26 @@ std::string createSamplerLabel(const SamplerDesc& desc)
     );
 }
 
+std::string createAccelerationStructureLabel(const AccelerationStructureDesc& desc)
+{
+    return string::format("Unnamed acceleration structure (size=%llu)", desc.size);
+}
+
+std::string createFenceLabel(const FenceDesc& desc)
+{
+    return string::format(
+        "Unnamed fence (initialValue=%llu, isShared=%s)",
+        desc.initialValue,
+        desc.isShared ? "true" : "false"
+    );
+}
+
+std::string createQueryPoolLabel(const QueryPoolDesc& desc)
+{
+    return string::format("Unnamed query pool (type=%s, count=%u)", enumToString(desc.type), desc.count);
+}
+
+
 void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc)
 {
     if (buildDesc.inputCount < 1)

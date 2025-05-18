@@ -254,12 +254,15 @@ public:
         : DeviceChild(device)
         , m_desc(desc)
     {
+        m_descHolder.holdString(m_desc.label);
     }
 
+    virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override { return SLANG_OK; }
 
 public:
     QueryPoolDesc m_desc;
+    StructHolder m_descHolder;
 };
 
 static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
