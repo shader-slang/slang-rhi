@@ -64,7 +64,7 @@ Result FenceImpl::init()
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkCreateSemaphore(device->m_api.m_device, &createInfo, nullptr, &m_semaphore)
     );
 
-    device->_labelObject((uint64_t)m_semaphore, VK_OBJECT_TYPE_FENCE, m_desc.label);
+    device->_labelObject((uint64_t)m_semaphore, VK_OBJECT_TYPE_SEMAPHORE, m_desc.label);
 
     return SLANG_OK;
 }
