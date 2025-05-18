@@ -375,4 +375,20 @@ const char* enumToString(PrimitiveTopology value)
     return S_INVALID;
 }
 
+const char* enumToString(QueryType value)
+{
+    switch (value)
+    {
+    case QueryType::Timestamp:
+        return S_QueryType_Timestamp;
+    case QueryType::AccelerationStructureCompactedSize:
+        return S_QueryType_AccelerationStructureCompactedSize;
+    case QueryType::AccelerationStructureSerializedSize:
+        return S_QueryType_AccelerationStructureSerializedSize;
+    case QueryType::AccelerationStructureCurrentSize:
+        return S_QueryType_AccelerationStructureCurrentSize;
+    }
+    return S_INVALID;
+}
+
 } // namespace rhi
