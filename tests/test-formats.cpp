@@ -658,7 +658,7 @@ struct TestFormats
 
 // skip CPU: Vector types not implemented
 // skip CUDA: GetDimensions not implemented
-GPU_TEST_CASE("formats", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("formats", D3D11 | D3D12 | Vulkan | Metal | WGPU | CUDA)
 {
     TestFormats test;
     test.init(device);
