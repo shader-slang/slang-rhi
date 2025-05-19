@@ -10,7 +10,18 @@
 #include "cuda-acceleration-structure.h"
 #include "cuda-shader-table.h"
 
+#include <fstream>
+
 namespace rhi::cuda {
+
+std::string readFile(std::string_view path)
+{
+    std::ifstream file(std::string(path).c_str());
+    if (!file.is_open())
+        return "";
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return content;
+}
 
 int DeviceImpl::_calcSMCountPerMultiProcessor(int major, int minor)
 {
@@ -341,6 +352,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_slangContext
             .initialize(desc.slang, SLANG_PTX, "sm_7_5", std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}})
     );
+
+    auto cudaPrelude = readFile("C:/src/slang-rhi/prelude.h");
+    m_slangContext.globalSession->setLanguagePrelude(SLANG_SOURCE_LANGUAGE_CUDA, cudaPrelude.c_str());
 
     // Initialize format support table
     for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
