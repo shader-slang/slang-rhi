@@ -4,96 +4,108 @@
 
 namespace rhi::cuda {
 
-const FormatMapping& getFormatMapping(Format format)
+#define FLAG_INT 0x1
+#define FLAG_SRGB 0x2
+
+struct FormatMapping
+{
+    Format format;
+    CUarray_format arrayFormat;
+    uint32_t elementSize;
+    uint32_t channelCount;
+    uint32_t flags;
+};
+
+inline const FormatMapping& getFormatMapping(Format format)
 {
     static const FormatMapping mappings[] = {
         // clang-format off
-        // format                   arrayFormat                     es  cc  viewFormat
-        { Format::Undefined,        CUarray_format(0),              0,  0,  CUresourceViewFormat(0)         },
+        // format                   arrayFormat                     es  cc  flags
+        { Format::Undefined,        CUarray_format(0),              0,  0,  0           },
 
-        { Format::R8Uint,           CU_AD_FORMAT_UNSIGNED_INT8,     1,  1,  CU_RES_VIEW_FORMAT_UINT_1X8     },
-        { Format::R8Sint,           CU_AD_FORMAT_SIGNED_INT8,       1,  1,  CU_RES_VIEW_FORMAT_SINT_1X8     },
-        { Format::R8Unorm,          CU_AD_FORMAT_UNORM_INT8X1,      1,  1,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::R8Snorm,          CU_AD_FORMAT_SNORM_INT8X1,      1,  1,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::R8Uint,           CU_AD_FORMAT_UNSIGNED_INT8,     1,  1,  FLAG_INT    },
+        { Format::R8Sint,           CU_AD_FORMAT_SIGNED_INT8,       1,  1,  FLAG_INT    },
+        { Format::R8Unorm,          CU_AD_FORMAT_UNORM_INT8X1,      1,  1,  0           },
+        { Format::R8Snorm,          CU_AD_FORMAT_SNORM_INT8X1,      1,  1,  0           },
 
-        { Format::RG8Uint,          CU_AD_FORMAT_UNSIGNED_INT8,     2,  2,  CU_RES_VIEW_FORMAT_UINT_2X8     },
-        { Format::RG8Sint,          CU_AD_FORMAT_SIGNED_INT8,       2,  2,  CU_RES_VIEW_FORMAT_SINT_2X8     },
-        { Format::RG8Unorm,         CU_AD_FORMAT_UNORM_INT8X2,      2,  2,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RG8Snorm,         CU_AD_FORMAT_SNORM_INT8X2,      2,  2,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RG8Uint,          CU_AD_FORMAT_UNSIGNED_INT8,     2,  2,  FLAG_INT    },
+        { Format::RG8Sint,          CU_AD_FORMAT_SIGNED_INT8,       2,  2,  FLAG_INT    },
+        { Format::RG8Unorm,         CU_AD_FORMAT_UNORM_INT8X2,      2,  2,  0           },
+        { Format::RG8Snorm,         CU_AD_FORMAT_SNORM_INT8X2,      2,  2,  0           },
 
-        { Format::RGBA8Uint,        CU_AD_FORMAT_UNSIGNED_INT8,     4,  4,  CU_RES_VIEW_FORMAT_UINT_4X8     },
-        { Format::RGBA8Sint,        CU_AD_FORMAT_SIGNED_INT8,       4,  4,  CU_RES_VIEW_FORMAT_SINT_4X8     },
-        { Format::RGBA8Unorm,       CU_AD_FORMAT_UNORM_INT8X4,      4,  4,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGBA8UnormSrgb,   CU_AD_FORMAT_UNORM_INT8X4,      4,  4,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGBA8Snorm,       CU_AD_FORMAT_SNORM_INT8X4,      4,  4,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::BGRA8Unorm,       CU_AD_FORMAT_UNORM_INT8X4,      4,  4,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::BGRA8UnormSrgb,   CU_AD_FORMAT_UNORM_INT8X4,      4,  4,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::BGRX8Unorm,       CU_AD_FORMAT_UNORM_INT8X4,      4,  4,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::BGRX8UnormSrgb,   CU_AD_FORMAT_UNORM_INT8X4,      4,  4,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGBA8Uint,        CU_AD_FORMAT_UNSIGNED_INT8,     4,  4,  FLAG_INT    },
+        { Format::RGBA8Sint,        CU_AD_FORMAT_SIGNED_INT8,       4,  4,  FLAG_INT    },
+        { Format::RGBA8Unorm,       CU_AD_FORMAT_UNORM_INT8X4,      4,  4,  0           },
+        { Format::RGBA8UnormSrgb,   CU_AD_FORMAT_UNORM_INT8X4,      4,  4,  FLAG_SRGB   },
+        { Format::RGBA8Snorm,       CU_AD_FORMAT_SNORM_INT8X4,      4,  4,  0           },
+        { Format::BGRA8Unorm,       CUarray_format(0),              4,  4,  0           },
+        { Format::BGRA8UnormSrgb,   CUarray_format(0),              4,  4,  0           },
+        { Format::BGRX8Unorm,       CUarray_format(0),              4,  4,  0           },
+        { Format::BGRX8UnormSrgb,   CUarray_format(0),              4,  4,  0           },
 
-        { Format::R16Uint,          CU_AD_FORMAT_UNSIGNED_INT16,    2,  1,  CU_RES_VIEW_FORMAT_UINT_1X16    },
-        { Format::R16Sint,          CU_AD_FORMAT_SIGNED_INT16,      2,  1,  CU_RES_VIEW_FORMAT_SINT_1X16    },
-        { Format::R16Unorm,         CU_AD_FORMAT_UNORM_INT16X1,     2,  1,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::R16Snorm,         CU_AD_FORMAT_SNORM_INT16X1,     2,  1,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::R16Float,         CU_AD_FORMAT_HALF,              2,  1,  CU_RES_VIEW_FORMAT_FLOAT_1X16   },
+        { Format::R16Uint,          CU_AD_FORMAT_UNSIGNED_INT16,    2,  1,  FLAG_INT    },
+        { Format::R16Sint,          CU_AD_FORMAT_SIGNED_INT16,      2,  1,  FLAG_INT    },
+        { Format::R16Unorm,         CU_AD_FORMAT_UNORM_INT16X1,     2,  1,  0           },
+        { Format::R16Snorm,         CU_AD_FORMAT_SNORM_INT16X1,     2,  1,  0           },
+        { Format::R16Float,         CU_AD_FORMAT_HALF,              2,  1,  0           },
 
-        { Format::RG16Uint,         CU_AD_FORMAT_UNSIGNED_INT16,    4,  2,  CU_RES_VIEW_FORMAT_UINT_2X16    },
-        { Format::RG16Sint,         CU_AD_FORMAT_SIGNED_INT16,      4,  2,  CU_RES_VIEW_FORMAT_SINT_2X16    },
-        { Format::RG16Unorm,        CU_AD_FORMAT_UNORM_INT16X2,     4,  2,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RG16Snorm,        CU_AD_FORMAT_SNORM_INT16X2,     4,  2,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RG16Float,        CU_AD_FORMAT_HALF,              4,  2,  CU_RES_VIEW_FORMAT_FLOAT_2X16   },
+        { Format::RG16Uint,         CU_AD_FORMAT_UNSIGNED_INT16,    4,  2,  FLAG_INT    },
+        { Format::RG16Sint,         CU_AD_FORMAT_SIGNED_INT16,      4,  2,  FLAG_INT    },
+        { Format::RG16Unorm,        CU_AD_FORMAT_UNORM_INT16X2,     4,  2,  0           },
+        { Format::RG16Snorm,        CU_AD_FORMAT_SNORM_INT16X2,     4,  2,  0           },
+        { Format::RG16Float,        CU_AD_FORMAT_HALF,              4,  2,  0           },
 
-        { Format::RGBA16Uint,       CU_AD_FORMAT_UNSIGNED_INT16,    8,  4,  CU_RES_VIEW_FORMAT_UINT_4X16    },
-        { Format::RGBA16Sint,       CU_AD_FORMAT_SIGNED_INT16,      8,  4,  CU_RES_VIEW_FORMAT_SINT_4X16    },
-        { Format::RGBA16Unorm,      CU_AD_FORMAT_UNORM_INT16X4,     8,  4,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGBA16Snorm,      CU_AD_FORMAT_SNORM_INT16X4,     8,  4,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGBA16Float,      CU_AD_FORMAT_HALF,              8,  4,  CU_RES_VIEW_FORMAT_FLOAT_4X16   },
+        { Format::RGBA16Uint,       CU_AD_FORMAT_UNSIGNED_INT16,    8,  4,  FLAG_INT    },
+        { Format::RGBA16Sint,       CU_AD_FORMAT_SIGNED_INT16,      8,  4,  FLAG_INT    },
+        { Format::RGBA16Unorm,      CU_AD_FORMAT_UNORM_INT16X4,     8,  4,  0           },
+        { Format::RGBA16Snorm,      CU_AD_FORMAT_SNORM_INT16X4,     8,  4,  0           },
+        { Format::RGBA16Float,      CU_AD_FORMAT_HALF,              8,  4,  0           },
 
-        { Format::R32Uint,          CU_AD_FORMAT_UNSIGNED_INT32,    4,  1,  CU_RES_VIEW_FORMAT_UINT_1X32    },
-        { Format::R32Sint,          CU_AD_FORMAT_SIGNED_INT32,      4,  1,  CU_RES_VIEW_FORMAT_SINT_1X32    },
-        { Format::R32Float,         CU_AD_FORMAT_FLOAT,             4,  1,  CU_RES_VIEW_FORMAT_FLOAT_1X32   },
+        { Format::R32Uint,          CU_AD_FORMAT_UNSIGNED_INT32,    4,  1,  FLAG_INT    },
+        { Format::R32Sint,          CU_AD_FORMAT_SIGNED_INT32,      4,  1,  FLAG_INT    },
+        { Format::R32Float,         CU_AD_FORMAT_FLOAT,             4,  1,  0           },
 
-        { Format::RG32Uint,         CU_AD_FORMAT_UNSIGNED_INT32,    8,  2,  CU_RES_VIEW_FORMAT_UINT_2X32    },
-        { Format::RG32Sint,         CU_AD_FORMAT_SIGNED_INT32,      8,  2,  CU_RES_VIEW_FORMAT_SINT_2X32    },
-        { Format::RG32Float,        CU_AD_FORMAT_FLOAT,             8,  2,  CU_RES_VIEW_FORMAT_FLOAT_2X32   },
+        { Format::RG32Uint,         CU_AD_FORMAT_UNSIGNED_INT32,    8,  2,  FLAG_INT    },
+        { Format::RG32Sint,         CU_AD_FORMAT_SIGNED_INT32,      8,  2,  FLAG_INT    },
+        { Format::RG32Float,        CU_AD_FORMAT_FLOAT,             8,  2,  0           },
 
-        { Format::RGB32Uint,        CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGB32Sint,        CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGB32Float,       CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::RGB32Uint,        CUarray_format(0),              0,  0,  0           },
+        { Format::RGB32Sint,        CUarray_format(0),              0,  0,  0           },
+        { Format::RGB32Float,       CUarray_format(0),              0,  0,  0           },
 
-        { Format::RGBA32Uint,       CU_AD_FORMAT_UNSIGNED_INT32,    16, 4,  CU_RES_VIEW_FORMAT_UINT_4X32    },
-        { Format::RGBA32Sint,       CU_AD_FORMAT_SIGNED_INT32,      16, 4,  CU_RES_VIEW_FORMAT_SINT_4X32    },
-        { Format::RGBA32Float,      CU_AD_FORMAT_FLOAT,             16, 4,  CU_RES_VIEW_FORMAT_FLOAT_4X32   },
+        { Format::RGBA32Uint,       CU_AD_FORMAT_UNSIGNED_INT32,    16, 4,  FLAG_INT    },
+        { Format::RGBA32Sint,       CU_AD_FORMAT_SIGNED_INT32,      16, 4,  FLAG_INT    },
+        { Format::RGBA32Float,      CU_AD_FORMAT_FLOAT,             16, 4,  0           },
 
-        { Format::R64Uint,          CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::R64Sint,          CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::R64Uint,          CUarray_format(0),              0,  0,  0           },
+        { Format::R64Sint,          CUarray_format(0),              0,  0,  0           },
 
-        { Format::BGRA4Unorm,       CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::B5G6R5Unorm,      CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::BGR5A1Unorm,      CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGB9E5Ufloat,     CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGB10A2Uint,      CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::RGB10A2Unorm,     CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::R11G11B10Float,   CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::BGRA4Unorm,       CUarray_format(0),              0,  0,  0           },
+        { Format::B5G6R5Unorm,      CUarray_format(0),              0,  0,  0           },
+        { Format::BGR5A1Unorm,      CUarray_format(0),              0,  0,  0           },
+        { Format::RGB9E5Ufloat,     CUarray_format(0),              0,  0,  0           },
+        { Format::RGB10A2Uint,      CUarray_format(0),              0,  0,  0           },
+        { Format::RGB10A2Unorm,     CUarray_format(0),              0,  0,  0           },
+        { Format::R11G11B10Float,   CUarray_format(0),              0,  0,  0           },
 
-        { Format::D32Float,         CU_AD_FORMAT_FLOAT,             4,  1,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::D16Unorm,         CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
-        { Format::D32FloatS8Uint,   CUarray_format(0),              0,  0,  CU_RES_VIEW_FORMAT_NONE         },
+        { Format::D32Float,         CU_AD_FORMAT_FLOAT,             4,  1,  0           },
+        { Format::D16Unorm,         CUarray_format(0),              0,  0,  0           },
+        { Format::D32FloatS8Uint,   CUarray_format(0),              0,  0,  0           },
 
-        { Format::BC1Unorm,         CU_AD_FORMAT_BC1_UNORM,         8,  4,  CU_RES_VIEW_FORMAT_UNSIGNED_BC1 },
-        { Format::BC1UnormSrgb,     CU_AD_FORMAT_BC1_UNORM_SRGB,    8,  4,  CU_RES_VIEW_FORMAT_UNSIGNED_BC1 },
-        { Format::BC2Unorm,         CU_AD_FORMAT_BC2_UNORM,         16, 4,  CU_RES_VIEW_FORMAT_UNSIGNED_BC2 },
-        { Format::BC2UnormSrgb,     CU_AD_FORMAT_BC2_UNORM_SRGB,    16, 4,  CU_RES_VIEW_FORMAT_UNSIGNED_BC2 },
-        { Format::BC3Unorm,         CU_AD_FORMAT_BC3_UNORM,         16, 4,  CU_RES_VIEW_FORMAT_UNSIGNED_BC3 },
-        { Format::BC3UnormSrgb,     CU_AD_FORMAT_BC3_UNORM_SRGB,    16, 4,  CU_RES_VIEW_FORMAT_UNSIGNED_BC3 },
-        { Format::BC4Unorm,         CU_AD_FORMAT_BC4_UNORM,         8,  1,  CU_RES_VIEW_FORMAT_UNSIGNED_BC4 },
-        { Format::BC4Snorm,         CU_AD_FORMAT_BC4_SNORM,         8,  1,  CU_RES_VIEW_FORMAT_SIGNED_BC4   },
-        { Format::BC5Unorm,         CU_AD_FORMAT_BC5_UNORM,         16, 2,  CU_RES_VIEW_FORMAT_UNSIGNED_BC5 },
-        { Format::BC5Snorm,         CU_AD_FORMAT_BC5_SNORM,         16, 2,  CU_RES_VIEW_FORMAT_SIGNED_BC5   },
-        { Format::BC6HUfloat,       CU_AD_FORMAT_BC6H_UF16,         16, 3,  CU_RES_VIEW_FORMAT_UNSIGNED_BC6H},
-        { Format::BC6HSfloat,       CU_AD_FORMAT_BC6H_SF16,         16, 3,  CU_RES_VIEW_FORMAT_SIGNED_BC6H  },
-        { Format::BC7Unorm,         CU_AD_FORMAT_BC7_UNORM,         16, 4,  CU_RES_VIEW_FORMAT_UNSIGNED_BC7 },
-        { Format::BC7UnormSrgb,     CU_AD_FORMAT_BC7_UNORM_SRGB,    16, 4,  CU_RES_VIEW_FORMAT_UNSIGNED_BC7 },
+        { Format::BC1Unorm,         CU_AD_FORMAT_BC1_UNORM,         8,  4,  0           },
+        { Format::BC1UnormSrgb,     CU_AD_FORMAT_BC1_UNORM_SRGB,    8,  4,  FLAG_SRGB   },
+        { Format::BC2Unorm,         CU_AD_FORMAT_BC2_UNORM,         16, 4,  0           },
+        { Format::BC2UnormSrgb,     CU_AD_FORMAT_BC2_UNORM_SRGB,    16, 4,  FLAG_SRGB   },
+        { Format::BC3Unorm,         CU_AD_FORMAT_BC3_UNORM,         16, 4,  0           },
+        { Format::BC3UnormSrgb,     CU_AD_FORMAT_BC3_UNORM_SRGB,    16, 4,  FLAG_SRGB   },
+        { Format::BC4Unorm,         CU_AD_FORMAT_BC4_UNORM,         8,  1,  0           },
+        { Format::BC4Snorm,         CU_AD_FORMAT_BC4_SNORM,         8,  1,  0           },
+        { Format::BC5Unorm,         CU_AD_FORMAT_BC5_UNORM,         16, 2,  0           },
+        { Format::BC5Snorm,         CU_AD_FORMAT_BC5_SNORM,         16, 2,  0           },
+        { Format::BC6HUfloat,       CU_AD_FORMAT_BC6H_UF16,         16, 3,  0           },
+        { Format::BC6HSfloat,       CU_AD_FORMAT_BC6H_SF16,         16, 3,  0           },
+        { Format::BC7Unorm,         CU_AD_FORMAT_BC7_UNORM,         16, 4,  0           },
+        { Format::BC7UnormSrgb,     CU_AD_FORMAT_BC7_UNORM_SRGB,    16, 4,  FLAG_SRGB   },
         // clang-format on
     };
 
@@ -102,6 +114,10 @@ const FormatMapping& getFormatMapping(Format format)
     return mappings[int(format)];
 }
 
+bool isFormatSupported(Format format)
+{
+    return getFormatMapping(format).arrayFormat != CUarray_format(0);
+}
 
 TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
     : Texture(device, desc)
@@ -174,6 +190,11 @@ CUtexObject TextureImpl::getTexObject(Format format, const SubresourceRange& ran
     texDesc.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
     texDesc.filterMode = CU_TR_FILTER_MODE_LINEAR;
     texDesc.flags = CU_TRSF_NORMALIZED_COORDINATES;
+    const FormatMapping& mapping = getFormatMapping(format);
+    if (mapping.flags & FLAG_INT)
+        texDesc.flags |= CU_TRSF_READ_AS_INTEGER;
+    if (mapping.flags & FLAG_SRGB)
+        texDesc.flags |= CU_TRSF_SRGB;
 
     CUDA_RESOURCE_VIEW_DESC viewDesc = {};
     viewDesc.format = CU_RES_VIEW_FORMAT_NONE; // Use underlaying format
