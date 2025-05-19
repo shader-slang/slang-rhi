@@ -347,8 +347,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         Format format = Format(formatIndex);
         FormatSupport formatSupport = FormatSupport::None;
-        const FormatMapping& mapping = getFormatMapping(format);
-        if (mapping.arrayFormat != 0)
+        if (isFormatSupported(format))
         {
             formatSupport |= FormatSupport::CopySource;
             formatSupport |= FormatSupport::CopyDestination;

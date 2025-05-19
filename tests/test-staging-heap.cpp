@@ -163,7 +163,7 @@ void thrashHeap(Device* device, StagingHeap* heap, int idx)
     heap->checkConsistency();
 }
 
-GPU_TEST_CASE("staging-heap-mutithreading", ALL & ~CUDA)
+GPU_TEST_CASE("staging-heap-mutithreading", ALL)
 {
     Device* deviceimpl = (Device*)device;
 
@@ -198,7 +198,7 @@ void doTenAllocations(Device* device, StagingHeap* heap, int idx)
     }
 }
 
-GPU_TEST_CASE("staging-heap-threadlock-pages", ALL & ~CUDA)
+GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
 {
     Device* deviceimpl = (Device*)device;
 
@@ -223,7 +223,7 @@ GPU_TEST_CASE("staging-heap-threadlock-pages", ALL & ~CUDA)
     CHECK_EQ(heap.getNumPages(), 3);
 }
 
-GPU_TEST_CASE("staging-heap-shared-pages", ALL & ~CUDA)
+GPU_TEST_CASE("staging-heap-shared-pages", ALL)
 {
     Device* deviceimpl = (Device*)device;
 
@@ -248,7 +248,7 @@ GPU_TEST_CASE("staging-heap-shared-pages", ALL & ~CUDA)
     CHECK_EQ(heap.getNumPages(), 1);
 }
 
-GPU_TEST_CASE("staging-heap-unlockpage-1", ALL & ~CUDA)
+GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
 {
     Device* deviceimpl = (Device*)device;
 
@@ -272,7 +272,7 @@ GPU_TEST_CASE("staging-heap-unlockpage-1", ALL & ~CUDA)
     CHECK_EQ(heap.getNumPages(), 2);
 }
 
-GPU_TEST_CASE("staging-heap-unlockpage-2", ALL & ~CUDA)
+GPU_TEST_CASE("staging-heap-unlockpage-2", ALL)
 {
     Device* deviceimpl = (Device*)device;
 

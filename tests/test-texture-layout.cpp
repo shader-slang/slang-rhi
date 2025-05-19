@@ -243,7 +243,7 @@ GPU_TEST_CASE("texture-layout-2d-mip", ALL_TEX)
     testTextureLayout(device, texture, 0, 1, {128, 16, 1, 4, 512, 512 * 16, 512 * 16});
 }
 
-GPU_TEST_CASE("texture-layout-2d-array-nomip", ALL_TEX & ~CUDA)
+GPU_TEST_CASE("texture-layout-2d-array-nomip", ALL_TEX)
 {
 
     TextureDesc desc;
@@ -261,7 +261,7 @@ GPU_TEST_CASE("texture-layout-2d-array-nomip", ALL_TEX & ~CUDA)
     testTextureLayout(device, texture, 3, 0, {256, 32, 1, 4, 1024, 1024 * 32, 1024 * 32});
 }
 
-GPU_TEST_CASE("texture-layout-2d-array-mips", ALL_TEX & ~CUDA)
+GPU_TEST_CASE("texture-layout-2d-array-mips", ALL_TEX)
 {
 
     TextureDesc desc;
@@ -369,7 +369,7 @@ GPU_TEST_CASE("texture-layout-cube-mip", ALL_TEX)
     testTextureLayout(device, texture, 0, 1, {128, 128, 1, 4, 512, 512 * 128, 512 * 128});
 }
 
-GPU_TEST_CASE("texture-layout-cube-array-nomip", ALL_TEX & ~CUDA)
+GPU_TEST_CASE("texture-layout-cube-array-nomip", ALL_TEX)
 {
 
     TextureDesc desc;
@@ -387,7 +387,7 @@ GPU_TEST_CASE("texture-layout-cube-array-nomip", ALL_TEX & ~CUDA)
     testTextureLayout(device, texture, 3 * 6, 0, {256, 256, 1, 4, 1024, 1024 * 256, 1024 * 256});
 }
 
-GPU_TEST_CASE("texture-layout-cube-array-mips", ALL_TEX & ~CUDA)
+GPU_TEST_CASE("texture-layout-cube-array-mips", ALL_TEX)
 {
 
     TextureDesc desc;

@@ -7,7 +7,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal | CUDA)
 {
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
@@ -54,12 +54,18 @@ GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal)
         CHECK_NE(handle.value, 0);
         break;
     }
+    case DeviceType::CUDA:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::CUdeviceptr);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
     default:
         break;
     }
 }
 
-GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal | CUDA)
 {
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
@@ -106,12 +112,18 @@ GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal)
         CHECK_NE(handle.value, 0);
         break;
     }
+    case DeviceType::CUDA:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::CUarray);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
     default:
         break;
     }
 }
 
-GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal | CUDA)
 {
     if (isSwiftShaderDevice(device))
         SKIP("not supported with swiftshader");
@@ -143,6 +155,12 @@ GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal)
     case DeviceType::Metal:
     {
         CHECK_EQ(handle.type, NativeHandleType::MTLCommandQueue);
+        CHECK_NE(handle.value, 0);
+        break;
+    }
+    case DeviceType::CUDA:
+    {
+        CHECK_EQ(handle.type, NativeHandleType::CUstream);
         CHECK_NE(handle.value, 0);
         break;
     }
