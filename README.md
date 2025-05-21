@@ -5,7 +5,7 @@
 
 ## Introduction
 
-The `slang-rhi` library provides a render hardware interface for the Slang shading language.
+The `slang-rhi` library provides a render hardware interface for the Slang shading language
 It is based on the "gfx" layer originally developed in the Slang repository.
 This library is under active refactoring and development, and is not yet ready for general use.
 
