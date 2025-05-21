@@ -27,7 +27,7 @@ struct TextureData
 {
     struct Subresource
     {
-        uint32_t mipLevel;
+        uint32_t mip;
         uint32_t layer;
         std::unique_ptr<uint8_t[]> data;
         SubresourceData subresourceData;
@@ -159,19 +159,19 @@ struct TextureData
     inline void checkMipLevelsEqual(
         ITexture* texture,
         int layer,
-        int mipLevel,
+        int mip,
         Offset3D offset,
         Extent3D extent,
         bool compareOutsideRegion = false
     ) const
     {
-        checkMipLevelsEqual(layer, mipLevel, offset, texture, layer, mipLevel, offset, extent, compareOutsideRegion);
+        checkMipLevelsEqual(layer, mip, offset, texture, layer, mip, offset, extent, compareOutsideRegion);
     }
 
     /// Helper for checkMipLevelsEqual that tests the same layers and mip levels of the whole of each texture
-    inline void checkMipLevelsEqual(ITexture* texture, int layer, int mipLevel) const
+    inline void checkMipLevelsEqual(ITexture* texture, int layer, int mip) const
     {
-        checkMipLevelsEqual(layer, mipLevel, {0, 0, 0}, texture, layer, mipLevel, {0, 0, 0}, Extent3D::kWholeTexture);
+        checkMipLevelsEqual(layer, mip, {0, 0, 0}, texture, layer, mip, {0, 0, 0}, Extent3D::kWholeTexture);
     }
 
     /// Compare a slice of this TextureData (must be 3D) against a 2D
@@ -188,23 +188,23 @@ struct TextureData
 
     void checkEqualFloat(ITexture* texture, float epsilon = 0.f) const;
 
-    const Subresource& getSubresource(uint32_t layer, uint32_t mipLevel) const
+    const Subresource& getSubresource(uint32_t layer, uint32_t mip) const
     {
-        return subresources[layer * desc.mipLevelCount + mipLevel];
+        return subresources[layer * desc.mipCount + mip];
     }
     const SubresourceData* getLayerFirstSubresourceData(uint32_t layer) const
     {
-        return subresourceData.data() + layer * desc.mipLevelCount;
+        return subresourceData.data() + layer * desc.mipCount;
     }
 
     void clearFloat(const float clearValue[4]) const;
-    void clearFloat(uint32_t layer, uint32_t mipLevel, const float clearValue[4]) const;
+    void clearFloat(uint32_t layer, uint32_t mip, const float clearValue[4]) const;
 
     void clearUint(const uint32_t clearValue[4]) const;
-    void clearUint(uint32_t layer, uint32_t mipLevel, const uint32_t clearValue[4]) const;
+    void clearUint(uint32_t layer, uint32_t mip, const uint32_t clearValue[4]) const;
 
     void clearSint(const int32_t clearValue[4]) const;
-    void clearSint(uint32_t layer, uint32_t mipLevel, const int32_t clearValue[4]) const;
+    void clearSint(uint32_t layer, uint32_t mip, const int32_t clearValue[4]) const;
 };
 
 void checkRegionsEqual(
@@ -534,7 +534,7 @@ inline void runTextureTest(TextureTestOptions& options, Func&& func, Args&&... a
             CAPTURE(td.size.width);
             CAPTURE(td.size.height);
             CAPTURE(td.size.depth);
-            CAPTURE(td.mipLevelCount);
+            CAPTURE(td.mipCount);
             CAPTURE(td.arrayLength);
             CAPTURE(td.format);
 

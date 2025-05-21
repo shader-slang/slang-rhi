@@ -30,11 +30,46 @@ Result DebugDevice::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return baseObject->getNativeDeviceHandles(outHandles);
 }
 
-Result DebugDevice::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
+Result DebugDevice::getFeatures(uint32_t* outFeatureCount, Feature* outFeatures)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->getFeatures(outFeatures, bufferSize, outFeatureCount);
+    return baseObject->getFeatures(outFeatureCount, outFeatures);
+}
+
+bool DebugDevice::hasFeature(Feature feature)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasFeature(feature);
+}
+
+bool DebugDevice::hasFeature(const char* feature)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasFeature(feature);
+}
+
+Result DebugDevice::getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->getCapabilities(outCapabilityCount, outCapabilities);
+}
+
+bool DebugDevice::hasCapability(Capability capability)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasCapability(capability);
+}
+
+bool DebugDevice::hasCapability(const char* capability)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->hasCapability(capability);
 }
 
 Result DebugDevice::getFormatSupport(Format format, FormatSupport* outFormatSupport)
@@ -50,13 +85,6 @@ DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
     ctx->debugCallback = debugCallback;
     SLANG_RHI_API_FUNC_NAME("CreateDevice");
     RHI_VALIDATION_INFO("Debug layer is enabled.");
-}
-
-bool DebugDevice::hasFeature(const char* feature)
-{
-    SLANG_RHI_API_FUNC;
-
-    return baseObject->hasFeature(feature);
 }
 
 Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
@@ -97,9 +125,9 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         RHI_VALIDATION_ERROR("Texture array length must be at least 1");
         return SLANG_E_INVALID_ARG;
     }
-    if (desc.mipLevelCount < 1)
+    if (desc.mipCount < 1)
     {
-        RHI_VALIDATION_ERROR("Texture mip level count must be at least 1");
+        RHI_VALIDATION_ERROR("Texture mip count must be at least 1");
         return SLANG_E_INVALID_ARG;
     }
     if (desc.format == Format::Undefined)
@@ -131,7 +159,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have initial data");
             return SLANG_E_INVALID_ARG;
         }
-        if (desc.mipLevelCount != 1)
+        if (desc.mipCount != 1)
         {
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have mip levels");
             return SLANG_E_INVALID_ARG;
@@ -198,6 +226,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         label = createTextureLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
     return baseObject->createTexture(patchedDesc, initData, outTexture);
 }
 
@@ -231,6 +260,7 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
         label = createBufferLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
     return baseObject->createBuffer(patchedDesc, initData, outBuffer);
 }
 
@@ -347,7 +377,7 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         if (!(color[0] == 0.f && color[1] == 0.f && color[2] == 0.f && color[3] == 0.f) &&
             !(color[0] == 0.f && color[1] == 0.f && color[2] == 0.f && color[3] == 1.f) &&
             !(color[0] == 1.f && color[1] == 1.f && color[2] == 1.f && color[3] == 1.f) &&
-            !baseObject->hasFeature("custom-border-color"))
+            !baseObject->hasFeature(Feature::CustomBorderColor))
         {
             RHI_VALIDATION_WARNING(
                 "Border color is not a predefined color and custom border color is not supported. "
@@ -363,6 +393,7 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         label = createSamplerLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
     return baseObject->createSampler(patchedDesc, outSampler);
 }
 
@@ -377,6 +408,7 @@ Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& 
         label = createTextureViewLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
     return baseObject->createTextureView(texture, patchedDesc, outView);
 }
 
@@ -396,6 +428,14 @@ Result DebugDevice::createAccelerationStructure(
 )
 {
     SLANG_RHI_API_FUNC;
+
+    AccelerationStructureDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createAccelerationStructureLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
 
     return baseObject->createAccelerationStructure(desc, outAccelerationStructure);
 }
@@ -515,21 +555,21 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
 Result DebugDevice::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
-    ISlangBlob** outBlob,
-    SubresourceLayout* outLayout
+    uint32_t mip,
+    const SubresourceLayout& layout,
+    void* outData
 )
 {
     const TextureDesc& desc = texture->getDesc();
 
     if (layer > desc.getLayerCount())
     {
-        RHI_VALIDATION_ERROR("Layer index out of bounds");
+        RHI_VALIDATION_ERROR("Layer out of bounds");
         return SLANG_E_INVALID_ARG;
     }
-    if (mipLevel > desc.mipLevelCount)
+    if (mip > desc.mipCount)
     {
-        RHI_VALIDATION_ERROR("Mip level out of bounds");
+        RHI_VALIDATION_ERROR("Mip out of bounds");
         return SLANG_E_INVALID_ARG;
     }
 
@@ -543,7 +583,53 @@ Result DebugDevice::readTexture(
         break;
     }
 
-    return baseObject->readTexture(texture, layer, mipLevel, outBlob, outLayout);
+    SubresourceLayout expectedLayout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &expectedLayout));
+    if (layout.size.width != expectedLayout.size.width || layout.size.height != expectedLayout.size.height ||
+        layout.size.depth != expectedLayout.size.depth || layout.colPitch != expectedLayout.colPitch ||
+        layout.rowPitch != expectedLayout.rowPitch || layout.slicePitch != expectedLayout.slicePitch ||
+        layout.sizeInBytes != expectedLayout.sizeInBytes || layout.blockWidth != expectedLayout.blockWidth ||
+        layout.blockHeight != expectedLayout.blockHeight || layout.rowCount != expectedLayout.rowCount)
+    {
+        RHI_VALIDATION_ERROR("Layout does not match the expected layout");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->readTexture(texture, layer, mip, layout, outData);
+}
+
+Result DebugDevice::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mip,
+    ISlangBlob** outBlob,
+    SubresourceLayout* outLayout
+)
+{
+    const TextureDesc& desc = texture->getDesc();
+
+    if (layer > desc.getLayerCount())
+    {
+        RHI_VALIDATION_ERROR("Layer out of bounds");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (mip > desc.mipCount)
+    {
+        RHI_VALIDATION_ERROR("Mip out of bounds");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    switch (desc.type)
+    {
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        RHI_VALIDATION_ERROR("Multisample textures cannot be read");
+        return SLANG_E_INVALID_ARG;
+    default:
+        break;
+    }
+
+    return baseObject->readTexture(texture, layer, mip, outBlob, outLayout);
 }
 
 Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
@@ -558,18 +644,26 @@ Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISla
     return baseObject->readBuffer(buffer, offset, size, outBlob);
 }
 
-const DeviceInfo& DebugDevice::getDeviceInfo() const
+const DeviceInfo& DebugDevice::getInfo() const
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getDeviceInfo();
+    return baseObject->getInfo();
 }
 
 Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     SLANG_RHI_API_FUNC;
+
+    QueryPoolDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createQueryPoolLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugQueryPool> result = new DebugQueryPool(ctx);
-    result->desc = desc;
-    SLANG_RETURN_ON_FAIL(baseObject->createQueryPool(desc, result->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->createQueryPool(patchedDesc, result->baseObject.writeRef()));
     returnComPtr(outPool, result);
     return SLANG_OK;
 }
@@ -577,8 +671,17 @@ Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outP
 Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 {
     SLANG_RHI_API_FUNC;
+
+    FenceDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createFenceLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugFence> result = new DebugFence(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createFence(desc, result->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->createFence(patchedDesc, result->baseObject.writeRef()));
     returnComPtr(outFence, result);
     return SLANG_OK;
 }

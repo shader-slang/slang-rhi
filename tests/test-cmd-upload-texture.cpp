@@ -31,7 +31,7 @@ GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | Metal | CUDA | WGPU)
             // Upload new texture data + wait
             commandEncoder->uploadTextureData(
                 c->getTexture(),
-                {0, data.desc.getLayerCount(), 0, data.desc.mipLevelCount},
+                {0, data.desc.getLayerCount(), 0, data.desc.mipCount},
                 {0, 0, 0},
                 Extent3D::kWholeTexture,
                 data.subresourceData.data(),
@@ -76,11 +76,11 @@ GPU_TEST_CASE("cmd-upload-texture-single-layer", D3D12 | Vulkan | Metal | CUDA |
                     auto srdata = newData.getLayerFirstSubresourceData(layer);
                     commandEncoder->uploadTextureData(
                         c->getTexture(),
-                        {layer, 1, 0, newData.desc.mipLevelCount},
+                        {layer, 1, 0, newData.desc.mipCount},
                         {0, 0, 0},
                         Extent3D::kWholeTexture,
                         srdata,
-                        currentData.desc.mipLevelCount
+                        currentData.desc.mipCount
                     );
                 }
             }
@@ -120,20 +120,20 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | Metal | CUDA | W
             auto queue = device->getQueue(QueueType::Graphics);
             auto commandEncoder = queue->createCommandEncoder();
 
-            uint32_t mipLevelCount = currentData.desc.mipLevelCount;
+            uint32_t mipCount = currentData.desc.mipCount;
 
             // Replace alternate mipLevels
             for (uint32_t layerIdx = 0; layerIdx < currentData.desc.getLayerCount(); layerIdx++)
             {
-                for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
+                for (uint32_t mip = 0; mip < mipCount; mip++)
                 {
-                    if ((mipLevel % 2) == 1)
+                    if ((mip % 2) == 1)
                     {
                         // Copy the subresource data from inverted layer index to this layer
-                        auto srdata = newData.getLayerFirstSubresourceData(layerIdx) + mipLevel;
+                        auto srdata = newData.getLayerFirstSubresourceData(layerIdx) + mip;
                         commandEncoder->uploadTextureData(
                             c->getTexture(),
-                            {layerIdx, 1, mipLevel, 1},
+                            {layerIdx, 1, mip, 1},
                             {0, 0, 0},
                             Extent3D::kWholeTexture,
                             srdata,
@@ -149,12 +149,12 @@ GPU_TEST_CASE("cmd-upload-texture-single-mip", D3D12 | Vulkan | Metal | CUDA | W
             // Verify alternate layers from original and new data
             for (uint32_t layerIdx = 0; layerIdx < currentData.desc.getLayerCount(); layerIdx++)
             {
-                for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
+                for (uint32_t mip = 0; mip < mipCount; mip++)
                 {
-                    if ((mipLevel % 2) == 0)
-                        currentData.checkMipLevelsEqual(c->getTexture(), layerIdx, mipLevel);
+                    if ((mip % 2) == 0)
+                        currentData.checkMipLevelsEqual(c->getTexture(), layerIdx, mip);
                     else
-                        newData.checkMipLevelsEqual(c->getTexture(), layerIdx, mipLevel);
+                        newData.checkMipLevelsEqual(c->getTexture(), layerIdx, mip);
                 }
             }
         }
@@ -179,21 +179,21 @@ GPU_TEST_CASE("cmd-upload-texture-multisubmit", D3D12 | Vulkan | Metal | CUDA | 
             // Create command encoder
             auto device = c->getDevice();
 
-            uint32_t mipLevelCount = currentData.desc.mipLevelCount;
+            uint32_t mipCount = currentData.desc.mipCount;
 
             auto queue = device->getQueue(QueueType::Graphics);
 
             // Replace mipLevels one at a time
             for (uint32_t layerIdx = 0; layerIdx < currentData.desc.getLayerCount(); layerIdx++)
             {
-                for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
+                for (uint32_t mip = 0; mip < mipCount; mip++)
                 {
                     // Copy the subresource data from inverted layer index to this layer
                     auto commandEncoder = queue->createCommandEncoder();
-                    auto srdata = newData.getLayerFirstSubresourceData(layerIdx) + mipLevel;
+                    auto srdata = newData.getLayerFirstSubresourceData(layerIdx) + mip;
                     commandEncoder->uploadTextureData(
                         c->getTexture(),
-                        {layerIdx, 1, mipLevel, 1},
+                        {layerIdx, 1, mip, 1},
                         {0, 0, 0},
                         Extent3D::kWholeTexture,
                         srdata,
@@ -208,9 +208,9 @@ GPU_TEST_CASE("cmd-upload-texture-multisubmit", D3D12 | Vulkan | Metal | CUDA | 
             // Verify everything now matches
             for (uint32_t layerIdx = 0; layerIdx < currentData.desc.getLayerCount(); layerIdx++)
             {
-                for (uint32_t mipLevel = 0; mipLevel < mipLevelCount; mipLevel++)
+                for (uint32_t mip = 0; mip < mipCount; mip++)
                 {
-                    newData.checkMipLevelsEqual(c->getTexture(), layerIdx, mipLevel);
+                    newData.checkMipLevelsEqual(c->getTexture(), layerIdx, mip);
                 }
             }
         }

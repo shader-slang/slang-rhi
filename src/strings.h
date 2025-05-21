@@ -20,18 +20,22 @@
 
 // FormatSupport
 #define S_FormatSupport_None "None"
-#define S_FormatSupport_Buffer "Buffer"
-#define S_FormatSupport_IndexBuffer "IndexBuffer"
-#define S_FormatSupport_VertexBuffer "VertexBuffer"
+#define S_FormatSupport_CopySource "CopySource"
+#define S_FormatSupport_CopyDestination "CopyDestination"
 #define S_FormatSupport_Texture "Texture"
 #define S_FormatSupport_DepthStencil "DepthStencil"
 #define S_FormatSupport_RenderTarget "RenderTarget"
 #define S_FormatSupport_Blendable "Blendable"
+#define S_FormatSupport_Multisampling "Multisampling"
+#define S_FormatSupport_Resolvable "Resolvable"
 #define S_FormatSupport_ShaderLoad "ShaderLoad"
 #define S_FormatSupport_ShaderSample "ShaderSample"
 #define S_FormatSupport_ShaderUavLoad "ShaderUavLoad"
 #define S_FormatSupport_ShaderUavStore "ShaderUavStore"
 #define S_FormatSupport_ShaderAtomic "ShaderAtomic"
+#define S_FormatSupport_Buffer "Buffer"
+#define S_FormatSupport_IndexBuffer "IndexBuffer"
+#define S_FormatSupport_VertexBuffer "VertexBuffer"
 
 // MemoryType
 #define S_MemoryType_DeviceLocal "DeviceLocal"
@@ -143,15 +147,24 @@
 #define S_PrimitiveTopology_TriangleStrip "TriangleStrip"
 #define S_PrimitiveTopology_PatchList "PatchList"
 
+// QueryType
+#define S_QueryType_Timestamp "Timestamp"
+#define S_QueryType_AccelerationStructureCompactedSize "AccelerationStructureCompactedSize"
+#define S_QueryType_AccelerationStructureSerializedSize "AccelerationStructureSerializedSize"
+#define S_QueryType_AccelerationStructureCurrentSize "AccelerationStructureCurrentSize"
+
 // ----------------------------------------------------------------------------
 // Functions
 // ----------------------------------------------------------------------------
 
 // Device
 #define S_Device "Device"
+#define S_Device_getInfo "getInfo"
 #define S_Device_getNativeDeviceHandles "getNativeDeviceHandles"
-#define S_Device_hasFeature "hasFeature"
 #define S_Device_getFeatures "getFeatures"
+#define S_Device_hasFeature "hasFeature"
+#define S_Device_getCapabilities "getCapabilities"
+#define S_Device_hasCapability "hasCapability"
 #define S_Device_getFormatSupport "getFormatSupport"
 #define S_Device_getSlangSession "getSlangSession"
 #define S_Device_createTransientResourceHeap "createTransientResourceHeap"
@@ -178,7 +191,6 @@
 #define S_Device_createRayTracingPipeline "createRayTracingPipeline"
 #define S_Device_readTexture "readTexture"
 #define S_Device_readBuffer "readBuffer"
-#define S_Device_getDeviceInfo "getDeviceInfo"
 #define S_Device_createQueryPool "createQueryPool"
 #define S_Device_getAccelerationStructureSizes "getAccelerationStructureSizes"
 #define S_Device_createAccelerationStructure "createAccelerationStructure"

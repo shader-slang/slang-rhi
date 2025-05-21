@@ -5,6 +5,8 @@
 #include <slang-com-ptr.h>
 #include <slang.h>
 
+#include <slang-rhi/capabilities.h>
+
 #if defined(SLANG_RHI_DYNAMIC)
 #if defined(_MSC_VER)
 #ifdef SLANG_RHI_DYNAMIC_EXPORT
@@ -97,6 +99,76 @@ enum class DeviceType
     CUDA,
     WGPU,
 };
+
+// clang-format off
+#define SLANG_RHI_FEATURES(x) \
+    x(HardwareDevice,                           "hardware-device"                               ) \
+    x(SoftwareDevice,                           "software-device"                               ) \
+    x(ParameterBlock,                           "parameter-block"                               ) \
+    x(Bindless,                                 "bindless"                                      ) \
+    x(Surface,                                  "surface"                                       ) \
+    /* Rasterization features */                                                                  \
+    x(Rasterization,                            "rasterization"                                 ) \
+    x(Barycentrics,                             "barycentrics"                                  ) \
+    x(MultiView,                                "multi-view"                                    ) \
+    x(RasterizerOrderedViews,                   "rasterizer-ordered-views"                      ) \
+    x(ConservativeRasterization,                "conservative-rasterization"                    ) \
+    x(CustomBorderColor,                        "custom-border-color"                           ) \
+    x(FragmentShadingRate,                      "fragment-shading-rate"                         ) \
+    x(SamplerFeedback,                          "sampler-feedback"                              ) \
+    /* Ray tracing features */                                                                    \
+    x(AccelerationStructure,                    "acceleration-structure"                        ) \
+    x(AccelerationStructureSpheres,             "acceleration-structure-spheres"                ) \
+    x(AccelerationStructureLinearSweptSpheres,  "acceleration-structure-linear-swept-spheres"   ) \
+    x(RayTracing,                               "ray-tracing"                                   ) \
+    x(RayQuery,                                 "ray-query"                                     ) \
+    x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
+    x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
+    /* Other features */                                                                           \
+    x(TimestampQuery,                           "timestamp-query"                               ) \
+    x(RealtimeClock,                            "realtime-clock"                                ) \
+    x(CooperativeVector,                        "cooperative-vector"                            ) \
+    x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
+    x(SM_5_1,                                   "sm_5_1"                                        ) \
+    x(SM_6_0,                                   "sm_6_0"                                        ) \
+    x(SM_6_1,                                   "sm_6_1"                                        ) \
+    x(SM_6_2,                                   "sm_6_2"                                        ) \
+    x(SM_6_3,                                   "sm_6_3"                                        ) \
+    x(SM_6_4,                                   "sm_6_4"                                        ) \
+    x(SM_6_5,                                   "sm_6_5"                                        ) \
+    x(SM_6_6,                                   "sm_6_6"                                        ) \
+    x(SM_6_7,                                   "sm_6_7"                                        ) \
+    x(SM_6_8,                                   "sm_6_8"                                        ) \
+    x(SM_6_9,                                   "sm_6_9"                                        ) \
+    x(Half,                                     "half"                                          ) \
+    x(Double,                                   "double"                                        ) \
+    x(Int16,                                    "int16"                                         ) \
+    x(Int64,                                    "int64"                                         ) \
+    x(AtomicFloat,                              "atomic-float"                                  ) \
+    x(AtomicHalf,                               "atomic-half"                                   ) \
+    x(AtomicInt64,                              "atomic-int64"                                  ) \
+    x(WaveOps,                                  "wave-ops"                                      ) \
+    x(MeshShader,                               "mesh-shader"                                   ) \
+    x(Pointer,                                  "has-ptr"                                       ) \
+    /* D3D12 specific features */                                                                 \
+    x(ConservativeRasterization1,               "conservative-rasterization-1"                  ) \
+    x(ConservativeRasterization2,               "conservative-rasterization-2"                  ) \
+    x(ConservativeRasterization3,               "conservative-rasterization-3"                  ) \
+    x(ProgrammableSamplePositions1,             "programmable-sample-positions-1"               ) \
+    x(ProgrammableSamplePositions2,             "programmable-sample-positions-2"               ) \
+    /* Vulkan specific features */                                                                \
+    x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
+    /* Metal specific features */                                                                 \
+    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        )
+// clang-format on
+
+#define SLANG_RHI_FEATURE_X(e, _) e,
+enum class Feature
+{
+    SLANG_RHI_FEATURES(SLANG_RHI_FEATURE_X) _Count,
+};
+#undef SLANG_RHI_FEATURE_X
+
 
 // TODO: Is this actually a flag when there are no bit fields?
 enum class AccessFlag
@@ -273,8 +345,13 @@ enum class IndexFormat
 // TODO: Width/Height/Depth/whatever should not be used. We should use extentX, extentY, etc.
 struct FormatInfo
 {
+    /// Format type.
     Format format;
+    /// Format name.
     const char* name;
+    /// Slang format name (used in [format("xxx")] attribute).
+    /// nullptr if the format doesn't have a slang name.
+    const char* slangName;
     /// The kind of format.
     FormatKind kind;
     /// The amount of channels in the format. Only set if the channelType is set.
@@ -306,20 +383,25 @@ enum class FormatSupport
 {
     None = 0x0,
 
-    Buffer = 0x1,
-    IndexBuffer = 0x2,
-    VertexBuffer = 0x4,
+    CopySource = 0x1,
+    CopyDestination = 0x2,
 
-    Texture = 0x8,
-    DepthStencil = 0x10,
-    RenderTarget = 0x20,
-    Blendable = 0x40,
+    Texture = 0x4,
+    DepthStencil = 0x8,
+    RenderTarget = 0x10,
+    Blendable = 0x20,
+    Multisampling = 0x40,
+    Resolvable = 0x80,
 
-    ShaderLoad = 0x80,
-    ShaderSample = 0x100,
-    ShaderUavLoad = 0x200,
-    ShaderUavStore = 0x400,
-    ShaderAtomic = 0x800,
+    ShaderLoad = 0x100,
+    ShaderSample = 0x200,
+    ShaderUavLoad = 0x400,
+    ShaderUavStore = 0x800,
+    ShaderAtomic = 0x1000,
+
+    Buffer = 0x2000,
+    IndexBuffer = 0x4000,
+    VertexBuffer = 0x8000,
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(FormatSupport);
 
@@ -445,6 +527,31 @@ struct NativeHandle
     explicit operator bool() const { return type != NativeHandleType::Undefined; }
 };
 
+enum class DescriptorHandleType
+{
+    Undefined,
+    Buffer,
+    RWBuffer,
+    Texture,
+    RWTexture,
+    Sampler,
+    AccelerationStructure,
+};
+
+enum class DescriptorHandleAccess
+{
+    Read,
+    ReadWrite,
+};
+
+struct DescriptorHandle
+{
+    DescriptorHandleType type = DescriptorHandleType::Undefined;
+    uint64_t value;
+
+    explicit operator bool() const { return type != DescriptorHandleType::Undefined; }
+};
+
 struct InputElementDesc
 {
     /// The name of the corresponding parameter in shader code.
@@ -561,6 +668,12 @@ public:
     virtual SLANG_NO_THROW const BufferDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
+        DescriptorHandleAccess access,
+        Format format,
+        BufferRange range,
+        DescriptorHandle* outHandle
+    ) = 0;
 };
 
 struct DepthStencilClearValue
@@ -659,15 +772,14 @@ struct SubresourceRange
     /// Use kAllLayers to use all remaining layers.
     uint32_t layerCount;
     /// First mip level to use.
-    uint32_t mipLevel;
+    uint32_t mip;
     /// Number of mip levels to use
-    /// Use kAllMipLevels to use all remaining mip levels.
-    uint32_t mipLevelCount;
+    /// Use kAllMips to use all remaining mip levels.
+    uint32_t mipCount;
 
     bool operator==(const SubresourceRange& other) const
     {
-        return layer == other.layer && layerCount == other.layerCount && mipLevel == other.mipLevel &&
-               mipLevelCount == other.mipLevelCount;
+        return layer == other.layer && layerCount == other.layerCount && mip == other.mip && mipCount == other.mipCount;
     }
     bool operator!=(const SubresourceRange& other) const { return !(*this == other); }
 };
@@ -693,7 +805,7 @@ static const size_t kDefaultAlignment = 0xffffffff;
 /// each mip level and array element is stored as a distinct
 /// subresource. When indexing into an array of subresources,
 /// the index of a subresoruce for mip level `m` and array
-/// index `a` is `m + a*mipLevelCount`.
+/// index `a` is `m + a*mipCount`.
 ///
 struct SubresourceData
 {
@@ -790,8 +902,8 @@ struct SubresourceLayout
 };
 
 static const uint32_t kAllLayers = 0xffffffff;
-static const uint32_t kAllMipLevels = 0xffffffff;
-static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMipLevels};
+static const uint32_t kAllMips = 0xffffffff;
+static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
 
 struct TextureDesc
 {
@@ -805,8 +917,8 @@ struct TextureDesc
     /// Array length.
     uint32_t arrayLength = 1;
     /// Number of mip levels.
-    /// Set to kAllMipLevels to create all mip levels.
-    uint32_t mipLevelCount = 1;
+    /// Set to kAllMips to create all mip levels.
+    uint32_t mipCount = 1;
 
     /// The resources format.
     Format format = Format::Undefined;
@@ -831,7 +943,7 @@ struct TextureDesc
         return (type == TextureType::TextureCube || type == TextureType::TextureCubeArray) ? arrayLength * 6
                                                                                            : arrayLength;
     }
-    uint32_t getSubresourceCount() const { return mipLevelCount * getLayerCount(); }
+    uint32_t getSubresourceCount() const { return mipCount * getLayerCount(); }
 };
 
 struct TextureViewDesc
@@ -867,12 +979,12 @@ public:
     /// Get layout of a subresource with given packing. If rowAlignment is kDefaultAlignment, uses the platform's
     /// minimal texture row alignment for buffer upload/download.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mipLevel, size_t rowAlignment, SubresourceLayout* outLayout) = 0;
+    getSubresourceLayout(uint32_t mip, size_t rowAlignment, SubresourceLayout* outLayout) = 0;
 
     /// Helper to get layout of a subresource with platform's minimal texture row alignment.
-    inline Result getSubresourceLayout(uint32_t mipLevel, SubresourceLayout* outLayout)
+    inline Result getSubresourceLayout(uint32_t mip, SubresourceLayout* outLayout)
     {
-        return getSubresourceLayout(mipLevel, kDefaultAlignment, outLayout);
+        return getSubresourceLayout(mip, kDefaultAlignment, outLayout);
     }
 };
 
@@ -883,6 +995,8 @@ class ITextureView : public IResource
 public:
     virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle) = 0;
 };
 
 enum class ComparisonFunc : uint8_t
@@ -948,6 +1062,7 @@ class ISampler : public IResource
 
 public:
     virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
 };
 
 struct BufferOffsetPair
@@ -1254,6 +1369,7 @@ class IAccelerationStructure : public IResource
 public:
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
 };
 
 struct FenceDesc
@@ -1314,7 +1430,8 @@ enum class ShaderObjectContainerType
 {
     None,
     Array,
-    StructuredBuffer
+    StructuredBuffer,
+    ParameterBlock
 };
 
 enum class BindingType
@@ -1380,6 +1497,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
@@ -1817,6 +1936,7 @@ class IQueryPool : public ISlangUnknown
     SLANG_COM_INTERFACE(0xe4b585e4, 0x9da9, 0x479b, {0x89, 0x5c, 0x48, 0x78, 0x8e, 0xf2, 0x33, 0x65});
 
 public:
+    virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
 };
@@ -2029,7 +2149,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) = 0;
 
-    /// Copies texture from src to dst. If dstSubresource and srcSubresource has mipLevelCount = 0
+    /// Copies texture from src to dst. If dstSubresource and srcSubresource has mipCount = 0
     /// and layerCount = 0, the entire resource is being copied and dstOffset, srcOffset and extent
     /// arguments are ignored.
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
@@ -2050,7 +2170,7 @@ public:
         Size dstRowPitch,
         ITexture* src,
         uint32_t srcLayer,
-        uint32_t srcMipLevel,
+        uint32_t srcMip,
         Offset3D srcOffset,
         Extent3D extent
     ) = 0;
@@ -2060,7 +2180,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL copyBufferToTexture(
         ITexture* dst,
         uint32_t dstLayer,
-        uint32_t dstMipLevel,
+        uint32_t dstMip,
         Offset3D dstOffset,
         IBuffer* src,
         Offset srcOffset,
@@ -2328,7 +2448,7 @@ struct DeviceLimits
     /// Maximum dimensions for cube textures.
     uint32_t maxTextureDimensionCube;
     /// Maximum number of texture layers.
-    uint32_t maxTextureArrayLayers;
+    uint32_t maxTextureLayers;
 
     /// Maximum number of vertex input elements in a graphics pipeline.
     uint32_t maxVertexInputElements;
@@ -2363,15 +2483,14 @@ struct DeviceInfo
 
     DeviceLimits limits;
 
-    /// An projection matrix that ensures x, y mapping to pixels
-    /// is the same on all targets
-    float identityProjectionMatrix[16];
-
     /// The name of the graphics API being used by this device.
     const char* apiName = nullptr;
 
     /// The name of the graphics adapter.
     const char* adapterName = nullptr;
+
+    /// The LUID of the graphics adapter.
+    AdapterLUID adapterLUID;
 
     /// The clock frequency used in timestamp queries.
     uint64_t timestampFrequency = 0;
@@ -2421,6 +2540,18 @@ struct SlangDesc
     SlangLineDirectiveMode lineDirectiveMode = SLANG_LINE_DIRECTIVE_MODE_DEFAULT;
 };
 
+struct BindlessDesc
+{
+    // Maximum number of bindless buffers.
+    uint32_t bufferCount = 1024;
+    // Maximum number of bindless textures.
+    uint32_t textureCount = 1024;
+    // Maximum number of bindless samplers.
+    uint32_t samplerCount = 128;
+    // Maximum number of bindless acceleration structures.
+    uint32_t accelerationStructureCount = 128;
+};
+
 struct DeviceNativeHandles
 {
     NativeHandle handles[3] = {};
@@ -2466,6 +2597,9 @@ struct DeviceDesc
 
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;
+
+    // Configuration for bindless resources.
+    BindlessDesc bindless = {};
 };
 
 class IDevice : public ISlangUnknown
@@ -2473,13 +2607,23 @@ class IDevice : public ISlangUnknown
     SLANG_COM_INTERFACE(0x311ee28b, 0xdb5a, 0x4a3c, {0x89, 0xda, 0xf0, 0x03, 0x0f, 0xd5, 0x70, 0x4b});
 
 public:
+    /// Get information about the device.
+    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getInfo() const = 0;
+
+    inline DeviceType getDeviceType() const { return getInfo().deviceType; }
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) = 0;
 
+    /// Returns a list of features supported by the device.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) = 0;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) = 0;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) = 0;
 
-    /// Returns a list of features supported by the device.
+    /// Returns a list of capabilities supported by the device.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount) = 0;
+    getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities) = 0;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) = 0;
+    virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) = 0;
 
@@ -2500,7 +2644,7 @@ public:
     ///
     /// The number of subresources in a texture is:
     ///
-    ///     effectiveElementCount * mipLevelCount
+    ///     effectiveElementCount * mipCount
     ///
     /// where the effective element count is computed as:
     ///
@@ -2730,59 +2874,27 @@ public:
         return pipeline;
     }
 
+    /// Read back texture resource and stores the result in `outData`.
+    /// `layout` is the layout to store the data in. It is the caller's responsibility to
+    /// ensure that the layout is compatible with the texture format and mip level.
+    /// This can be achieved by using `getTextureLayout()` to get the layout for the texture.
+    /// The `outData` pointer must be large enough to hold the data (i.e. `layout.sizeInBytes`).
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData) = 0;
+
     /// Read back texture resource and stores the result in `outBlob`.
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
         uint32_t layer,
-        uint32_t mipLevel,
+        uint32_t mip,
         ISlangBlob** outBlob,
         SubresourceLayout* outLayout
     ) = 0;
-
-
-    /// Helper that just outputs row pitch and (optionally) pixel size
-    /// instead of whole texture layout.
-    inline SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mipLevel,
-        ISlangBlob** outBlob,
-        Size* outRowPitch,
-        Size* outPixelSize = nullptr
-    )
-    {
-        SubresourceLayout layout;
-        SLANG_RETURN_ON_FAIL(readTexture(texture, layer, mipLevel, outBlob, &layout));
-        if (outRowPitch)
-            *outRowPitch = layout.rowPitch;
-        if (outPixelSize)
-            *outPixelSize = layout.colPitch;
-        return SLANG_OK;
-    };
-
-    /// Helper overload that reads the entire texture (layer 0, mip level 0)
-    inline SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, SubresourceLayout* outLayout)
-    {
-        return readTexture(texture, 0, 0, outBlob, outLayout);
-    };
-
-    /// Helper overload that reads the entire texture (layer 0, mip level 0)
-    inline SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, ISlangBlob** outBlob, Size* outRowPitch, Size* outPixelSize = nullptr)
-    {
-        return readTexture(texture, 0, 0, outBlob, outRowPitch, outPixelSize);
-    };
 
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;
-
-    /// Get information about the device.
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const = 0;
-
-    inline DeviceType getDeviceType() const { return getDeviceInfo().deviceType; }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) = 0;
 
@@ -2903,6 +3015,9 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDeviceTypeName(DeviceType type) = 0;
 
     virtual SLANG_NO_THROW bool SLANG_MCALL isDeviceTypeSupported(DeviceType type) = 0;
+
+    virtual SLANG_NO_THROW const char* SLANG_MCALL getFeatureName(Feature feature) = 0;
+    virtual SLANG_NO_THROW const char* SLANG_MCALL getCapabilityName(Capability capability) = 0;
 
     /// Gets a list of available adapters for a given device type.
     virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;

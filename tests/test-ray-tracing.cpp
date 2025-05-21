@@ -111,7 +111,7 @@ struct BaseRayTracingTest
     {
         TextureDesc resultTextureDesc = {};
         resultTextureDesc.type = TextureType::Texture2D;
-        resultTextureDesc.mipLevelCount = 1;
+        resultTextureDesc.mipCount = 1;
         resultTextureDesc.size.width = width;
         resultTextureDesc.size.height = height;
         resultTextureDesc.size.depth = 1;
@@ -311,13 +311,12 @@ struct BaseRayTracingTest
     void checkTestResults(float* expectedResult, uint32_t count)
     {
         ComPtr<ISlangBlob> resultBlob;
-        size_t rowPitch = 0;
-        size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &rowPitch, &pixelSize));
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &layout));
 #if 0 // for debugging only
-        writeImage("test.hdr", resultBlob, width, height, (uint32_t)rowPitch, (uint32_t)pixelSize);
+        writeImage("test.hdr", resultBlob, width, height, (uint32_t)layout.rowPitch, (uint32_t)layout.colPitch);
 #endif
-        auto buffer = removePadding(resultBlob, width, height, rowPitch, pixelSize);
+        auto buffer = removePadding(resultBlob, width, height, layout.rowPitch, layout.colPitch);
         auto actualData = (float*)buffer.data();
         CHECK(memcmp(actualData, expectedResult, count * sizeof(float)) == 0);
     }
@@ -381,7 +380,7 @@ struct RayTracingTestB : BaseRayTracingTest
 
 GPU_TEST_CASE("ray-tracing-a", ALL)
 {
-    if (!device->hasFeature("ray-tracing"))
+    if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
     RayTracingTestA test;
@@ -391,7 +390,7 @@ GPU_TEST_CASE("ray-tracing-a", ALL)
 
 GPU_TEST_CASE("ray-tracing-b", ALL)
 {
-    if (!device->hasFeature("ray-tracing"))
+    if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
     RayTracingTestB test;

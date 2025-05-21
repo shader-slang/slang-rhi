@@ -971,6 +971,11 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
     D3D12_VERSIONED_ROOT_SIGNATURE_DESC versionedDesc = {};
     versionedDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
     versionedDesc.Desc_1_1 = rootSignatureDesc;
+    if (builder.m_device->hasFeature(Feature::Bindless))
+    {
+        versionedDesc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |
+                                        D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
+    }
     ComPtr<ID3DBlob> signature;
     ComPtr<ID3DBlob> error;
     if (SLANG_FAILED(

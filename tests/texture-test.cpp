@@ -23,14 +23,14 @@ namespace rhi::testing {
 bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
 {
     // WGPU does not support mip levels for 1D textures.
-    if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1D && desc.mipLevelCount != 1)
+    if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1D && desc.mipCount != 1)
         return false;
     // WGPU does not support 1D texture arrays.
     if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1DArray)
         return false;
     // Metal does not support mip levels for 1D textures (and 1d texture arrays).
     if (device->getDeviceType() == DeviceType::Metal &&
-        (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipLevelCount != 1)
+        (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray) && desc.mipCount != 1)
         return false;
     // Metal does not support multisampled textures with 1 sample
     if (device->getDeviceType() == DeviceType::Metal && isMultisamplingType(desc.type) && desc.sampleCount == 1)
@@ -39,7 +39,7 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     if (device->getDeviceType() == DeviceType::CUDA && isMultisamplingType(desc.type))
         return false;
     // Mip mapped multisampled textures not supported
-    if (isMultisamplingType(desc.type) && desc.mipLevelCount > 1)
+    if (isMultisamplingType(desc.type) && desc.mipCount > 1)
         return false;
     // Array multisampled textures not supported on WebGPU
     if (device->getDeviceType() == DeviceType::WGPU && isMultisamplingType(desc.type) && desc.getLayerCount() > 1)
@@ -163,14 +163,14 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initRow
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
         {
             SubresourceLayout layout;
-            calcSubresourceRegionLayout(desc, mipLevel, {0, 0, 0}, Extent3D::kWholeTexture, initRowAlignment, &layout);
+            calcSubresourceRegionLayout(desc, mip, {0, 0, 0}, Extent3D::kWholeTexture, initRowAlignment, &layout);
 
             Subresource sr;
             sr.layer = layer;
-            sr.mipLevel = mipLevel;
+            sr.mip = mip;
             sr.layout = layout;
             sr.data = std::unique_ptr<uint8_t[]>(new uint8_t[sr.layout.sizeInBytes]);
 
@@ -189,10 +189,10 @@ void TextureData::initData(TextureInitMode initMode_, int initSeed_, int initRow
                 memset(sr.data.get(), 0xcd, sr.layout.sizeInBytes);
                 break;
             case rhi::testing::TextureInitMode::MipLevel:
-                memset(sr.data.get(), mipLevel, sr.layout.sizeInBytes);
+                memset(sr.data.get(), mip, sr.layout.sizeInBytes);
                 break;
             case rhi::testing::TextureInitMode::Random:
-                std::mt19937 rng(initSeed + layer * desc.mipLevelCount + mipLevel);
+                std::mt19937 rng(initSeed + layer * desc.mipCount + mip);
                 std::uniform_int_distribution<int> dist(0, 255);
                 for (size_t i = 0; i < sr.layout.sizeInBytes; ++i)
                     sr.data[i] = (uint8_t)dist(rng);
@@ -239,17 +239,17 @@ void TextureData::checkLayersEqual(
 ) const
 {
     const TextureDesc& otherDesc = texture->getDesc();
-    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
+    CHECK_EQ(otherDesc.mipCount, desc.mipCount);
 
-    for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+    for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
     {
         checkMipLevelsEqual(
             thisLayer,
-            mipLevel,
+            mip,
             thisOffset,
             texture,
             textureLayer,
-            mipLevel,
+            mip,
             textureOffset,
             textureExtent,
             compareOutsideRegion
@@ -413,14 +413,10 @@ void TextureData::checkMipLevelsEqual(
     const Subresource& thisSubresource = getSubresource(thisLayer, thisMipLevel);
     const SubresourceLayout& thisLayout = thisSubresource.layout;
 
+    ComPtr<ISlangBlob> textureBlob;
     SubresourceLayout textureLayout;
-    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, kDefaultAlignment, &textureLayout));
-
-    ComPtr<ISlangBlob> blob;
-    Size rowPitch;
-    REQUIRE_CALL(
-        textureImpl->getDevice()->readTexture(textureImpl, textureLayer, textureMipLevel, blob.writeRef(), &rowPitch)
-    );
+    REQUIRE_CALL(textureImpl->getDevice()
+                     ->readTexture(textureImpl, textureLayer, textureMipLevel, textureBlob.writeRef(), &textureLayout));
 
     // For compressed textures, raise error if attempting to check non-aligned blocks
     if (formatInfo.blockWidth > 1)
@@ -453,7 +449,7 @@ void TextureData::checkMipLevelsEqual(
             thisSubresource.data.get(),
             thisLayout,
             thisOffset,
-            blob->getBufferPointer(),
+            textureBlob->getBufferPointer(),
             textureLayout,
             textureOffset,
             textureExtent
@@ -496,7 +492,7 @@ void TextureData::checkMipLevelsEqual(
                             thisSubresource.data.get(),
                             thisLayout,
                             {offsetX, offsetY, offsetZ},
-                            blob->getBufferPointer(),
+                            textureBlob->getBufferPointer(),
                             textureLayout,
                             {offsetX, offsetY, offsetZ},
                             {sizeX, sizeY, sizeZ}
@@ -533,21 +529,17 @@ void TextureData::checkSliceEqual(
     const Subresource& thisSubresource = getSubresource(thisLayer, thisMipLevel);
     const SubresourceLayout& thisLayout = thisSubresource.layout;
 
+    ComPtr<ISlangBlob> textureBlob;
     SubresourceLayout textureLayout;
-    REQUIRE_CALL(textureImpl->getSubresourceLayout(textureMipLevel, kDefaultAlignment, &textureLayout));
-
-    ComPtr<ISlangBlob> blob;
-    Size rowPitch;
-    REQUIRE_CALL(
-        textureImpl->getDevice()->readTexture(textureImpl, textureLayer, textureMipLevel, blob.writeRef(), &rowPitch)
-    );
+    REQUIRE_CALL(textureImpl->getDevice()
+                     ->readTexture(textureImpl, textureLayer, textureMipLevel, textureBlob.writeRef(), &textureLayout));
 
     // Calculate overall dimensions in blocks rather than pixels to handle compressed textures.
     uint32_t rowCount = thisLayout.rowCount;
     uint32_t colCount = thisLayout.size.width / formatInfo.blockWidth;
 
     uint8_t* thisData = thisSubresource.data.get();
-    uint8_t* textureData = (uint8_t*)blob->getBufferPointer();
+    uint8_t* textureData = (uint8_t*)textureBlob->getBufferPointer();
 
     // Iterate rows
     for (uint32_t row = 0; row < rowCount; row++)
@@ -585,7 +577,7 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
     CHECK_EQ(otherDesc.size.height, desc.size.height);
     CHECK_EQ(otherDesc.size.depth, desc.size.depth);
     CHECK_EQ(otherDesc.arrayLength, desc.arrayLength);
-    CHECK_EQ(otherDesc.mipLevelCount, desc.mipLevelCount);
+    CHECK_EQ(otherDesc.mipCount, desc.mipCount);
 
     UnpackFloatFunc unpackFloatFunc = getFormatConversionFuncs(desc.format).unpackFloatFunc;
     SLANG_RHI_ASSERT(unpackFloatFunc);
@@ -593,17 +585,18 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
 
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
         {
-            const Subresource& sr = getSubresource(layer, mipLevel);
+            const Subresource& sr = getSubresource(layer, mip);
 
-            ComPtr<ISlangBlob> blob;
-            Size rowPitch;
-            REQUIRE_CALL(textureImpl->getDevice()->readTexture(textureImpl, layer, mipLevel, blob.writeRef(), &rowPitch)
+            ComPtr<ISlangBlob> textureBlob;
+            SubresourceLayout textureLayout;
+            REQUIRE_CALL(
+                textureImpl->getDevice()->readTexture(textureImpl, layer, mip, textureBlob.writeRef(), &textureLayout)
             );
 
             const uint8_t* expectedSlice = sr.data.get();
-            const uint8_t* actualSlice = (uint8_t*)blob->getBufferPointer();
+            const uint8_t* actualSlice = (uint8_t*)textureBlob->getBufferPointer();
 
             for (uint32_t slice = 0; slice < sr.layout.size.depth; slice++)
             {
@@ -633,11 +626,11 @@ void TextureData::checkEqualFloat(ITexture* texture, float epsilon) const
                     CHECK(isEqual);
 
                     expectedRow += sr.layout.rowPitch;
-                    actualRow += rowPitch;
+                    actualRow += textureLayout.rowPitch;
                 }
 
                 expectedSlice += sr.layout.slicePitch;
-                actualSlice += rowPitch * sr.layout.rowCount;
+                actualSlice += textureLayout.rowPitch * sr.layout.rowCount;
             }
         }
     }
@@ -647,16 +640,16 @@ void TextureData::clearFloat(const float clearValue[4]) const
 {
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
         {
-            clearFloat(layer, mipLevel, clearValue);
+            clearFloat(layer, mip, clearValue);
         }
     }
 }
 
-void TextureData::clearFloat(uint32_t layer, uint32_t mipLevel, const float clearValue[4]) const
+void TextureData::clearFloat(uint32_t layer, uint32_t mip, const float clearValue[4]) const
 {
-    const Subresource& subresource = getSubresource(layer, mipLevel);
+    const Subresource& subresource = getSubresource(layer, mip);
     FormatConversionFuncs funcs = getFormatConversionFuncs(desc.format);
     SLANG_RHI_ASSERT(funcs.packFloatFunc);
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
@@ -680,16 +673,16 @@ void TextureData::clearUint(const uint32_t clearValue[4]) const
 {
     for (uint32_t layer = 0; layer < desc.getLayerCount(); ++layer)
     {
-        for (uint32_t mipLevel = 0; mipLevel < desc.mipLevelCount; ++mipLevel)
+        for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
         {
-            clearUint(layer, mipLevel, clearValue);
+            clearUint(layer, mip, clearValue);
         }
     }
 }
 
-void TextureData::clearUint(uint32_t layer, uint32_t mipLevel, const uint32_t clearValue[4]) const
+void TextureData::clearUint(uint32_t layer, uint32_t mip, const uint32_t clearValue[4]) const
 {
-    const Subresource& subresource = getSubresource(layer, mipLevel);
+    const Subresource& subresource = getSubresource(layer, mip);
     FormatConversionFuncs funcs = getFormatConversionFuncs(desc.format);
     SLANG_RHI_ASSERT(funcs.packIntFunc);
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
@@ -716,11 +709,11 @@ void TextureData::clearSint(const int32_t clearValue[4]) const
     clearUint(clearValueUint);
 }
 
-void TextureData::clearSint(uint32_t layer, uint32_t mipLevel, const int32_t clearValue[4]) const
+void TextureData::clearSint(uint32_t layer, uint32_t mip, const int32_t clearValue[4]) const
 {
     uint32_t clearValueUint[4];
     truncateBySintFormat(desc.format, reinterpret_cast<const uint32_t*>(clearValue), clearValueUint);
-    clearUint(layer, mipLevel, clearValueUint);
+    clearUint(layer, mip, clearValueUint);
 }
 
 
@@ -753,7 +746,7 @@ void TextureTestOptions::executeGeneratorList(int listIdx)
         desc.desc.type = (TextureType)-1;
         desc.desc.arrayLength = 0;
         desc.desc.sampleCount = 0;
-        desc.desc.mipLevelCount = 0;
+        desc.desc.mipCount = 0;
         desc.initMode = TextureInitMode::Random;
     }
 
@@ -903,13 +896,13 @@ void TextureTestOptions::processVariantArg(TTMip mip)
             if (is_set(mip, TTMip::Off))
             {
                 for (auto& testTexture : variant.descriptors)
-                    testTexture.desc.mipLevelCount = 1;
+                    testTexture.desc.mipCount = 1;
                 next(state, variant);
             }
             if (is_set(mip, TTMip::On))
             {
                 for (auto& testTexture : variant.descriptors)
-                    testTexture.desc.mipLevelCount = kAllMipLevels;
+                    testTexture.desc.mipCount = kAllMips;
                 next(state, variant);
             }
         }
@@ -1101,8 +1094,8 @@ void TextureTestOptions::postProcessVariant(int state, TextureTestVariant varian
         TextureDesc& desc = testTexture.desc;
         if (desc.arrayLength == 0)
             desc.arrayLength = 1;
-        if (desc.mipLevelCount == 0)
-            desc.mipLevelCount = 1;
+        if (desc.mipCount == 0)
+            desc.mipCount = 1;
         if (desc.sampleCount == 0)
             desc.sampleCount = 1;
 

@@ -108,7 +108,8 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
     //    field, a constant buffer or a parameter block.
     // We handle each case separately below.
 
-    if (m_layout->getContainerType() != ShaderObjectContainerType::None)
+    if (m_layout->getContainerType() != ShaderObjectContainerType::None &&
+        m_layout->getContainerType() != ShaderObjectContainerType::ParameterBlock)
     {
         // Case 1:
         // We are setting an element into a `StructuredBuffer` object.
@@ -317,6 +318,22 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     return SLANG_OK;
 }
 
+Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle)
+{
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+
+    if (offset.uniformOffset + 8 > m_data.size())
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    ::memcpy(m_data.data() + offset.uniformOffset, &handle.value, 8);
+
+    incrementVersion();
+
+    return SLANG_OK;
+}
+
 Result ShaderObject::setSpecializationArgs(
     const ShaderOffset& offset,
     const slang::SpecializationArg* args,
@@ -411,7 +428,17 @@ Result ShaderObject::init(Device* device, ShaderObjectLayout* layout)
     // uniform data (which includes values from this object and
     // any existential-type sub-objects).
     //
-    size_t uniformSize = layout->getElementTypeLayout()->getSize();
+    size_t uniformSize = 0;
+    if (layout->getContainerType() == ShaderObjectContainerType::ParameterBlock)
+    {
+        auto parameterBlockTypeLayout = layout->getParameterBlockTypeLayout();
+        uniformSize = parameterBlockTypeLayout->getSize();
+    }
+    else
+    {
+        uniformSize = layout->getElementTypeLayout()->getSize();
+    }
+
     if (uniformSize)
     {
         m_data.resize(uniformSize);

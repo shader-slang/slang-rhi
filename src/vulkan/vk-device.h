@@ -1,8 +1,7 @@
 #pragma once
 
 #include "vk-base.h"
-
-#include "core/stable_vector.h"
+#include "vk-bindless-descriptor-set.h"
 
 #include <string>
 
@@ -14,12 +13,12 @@ public:
     using Device::readBuffer;
 
     Result initVulkanInstanceAndDevice(
-        const NativeHandle* handles,
+        const DeviceDesc& desc,
         bool enableValidationLayer,
-        bool enableRayTracingValidation
+        std::vector<Feature>& availableFeatures,
+        std::vector<Capability>& availableCapabilities
     );
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -100,8 +99,6 @@ public:
 
     void waitForGpu();
 
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     DeviceImpl();
@@ -143,10 +140,9 @@ public:
     uint32_t getQueueFamilyIndex(QueueType queueType);
 
 public:
-    DeviceDesc m_desc;
+    DeviceNativeHandles m_existingDeviceHandles;
     VulkanDeviceExtendedDesc m_extendedDesc;
 
-    DeviceInfo m_info;
     std::string m_adapterName;
 
     VkDebugUtilsMessengerEXT m_debugReportCallback = VK_NULL_HANDLE;
@@ -161,6 +157,7 @@ public:
     RefPtr<CommandQueueImpl> m_queue;
 
     DescriptorSetAllocator descriptorSetAllocator;
+    RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
 
     VkSampler m_defaultSampler;
 };

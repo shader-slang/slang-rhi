@@ -32,93 +32,93 @@ void SLANG_MCALL enableD3D12DebugLayerIfAvailable();
 
 static const FormatInfo s_formatInfos[] = {
     // clang-format off
-    // format                   name                kind                    cc  ct                          bs  ppb bw  bh  red    green  blue   alpha  depth  stenci signed srgb   comp   nonpo2
-    { Format::Undefined,        "Undefined",        FormatKind::Integer,    0,  SLANG_SCALAR_TYPE_NONE,     0,  0,  0,  0,  false, false, false, false, false, false, false, false, false, true },
-    { Format::R8Uint,           "R8Uint",           FormatKind::Integer,    1,  SLANG_SCALAR_TYPE_UINT8,    1,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true },
-    { Format::R8Sint,           "R8Sint",           FormatKind::Integer,    1,  SLANG_SCALAR_TYPE_INT8,     1,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true },
-    { Format::R8Unorm,          "R8Unorm",          FormatKind::Normalized, 1,  SLANG_SCALAR_TYPE_FLOAT32,  1,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true },
-    { Format::R8Snorm,          "R8Snorm",          FormatKind::Normalized, 1,  SLANG_SCALAR_TYPE_FLOAT32,  1,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true },
+    // format                   name                slangName           kind                        cc  ct                          bs  ppb bw  bh  red    green  blue   alpha  depth  stenci signed srgb   comp   nonpo2
+    { Format::Undefined,        "Undefined",        nullptr,            FormatKind::Integer,        0,  SLANG_SCALAR_TYPE_NONE,     0,  0,  0,  0,  false, false, false, false, false, false, false, false, false, true  },
+    { Format::R8Uint,           "R8Uint",           "r8ui",             FormatKind::Integer,        1,  SLANG_SCALAR_TYPE_UINT8,    1,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true  },
+    { Format::R8Sint,           "R8Sint",           "r8i",              FormatKind::Integer,        1,  SLANG_SCALAR_TYPE_INT8,     1,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true  },
+    { Format::R8Unorm,          "R8Unorm",          "r8",               FormatKind::Normalized,     1,  SLANG_SCALAR_TYPE_FLOAT32,  1,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true  },
+    { Format::R8Snorm,          "R8Snorm",          "r8_snorm",         FormatKind::Normalized,     1,  SLANG_SCALAR_TYPE_FLOAT32,  1,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true  },
 
-    { Format::RG8Uint,          "RG8Uint",          FormatKind::Integer,    2,  SLANG_SCALAR_TYPE_UINT8,    2,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true },
-    { Format::RG8Sint,          "RG8Sint",          FormatKind::Integer,    2,  SLANG_SCALAR_TYPE_INT8,     2,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true },
-    { Format::RG8Unorm,         "RG8Unorm",         FormatKind::Normalized, 2,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true },
-    { Format::RG8Snorm,         "RG8Snorm",         FormatKind::Normalized, 2,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true },
+    { Format::RG8Uint,          "RG8Uint",          "rg8ui",            FormatKind::Integer,        2,  SLANG_SCALAR_TYPE_UINT8,    2,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true  },
+    { Format::RG8Sint,          "RG8Sint",          "rg8i",             FormatKind::Integer,        2,  SLANG_SCALAR_TYPE_INT8,     2,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true  },
+    { Format::RG8Unorm,         "RG8Unorm",         "rg8",              FormatKind::Normalized,     2,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true  },
+    { Format::RG8Snorm,         "RG8Snorm",         "rg8_snorm",        FormatKind::Normalized,     2,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true  },
 
-    { Format::RGBA8Uint,        "RGBA8Uint",        FormatKind::Integer,    4,  SLANG_SCALAR_TYPE_UINT8,    4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::RGBA8Sint,        "RGBA8Sint",        FormatKind::Integer,    4,  SLANG_SCALAR_TYPE_INT8,     4,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true },
-    { Format::RGBA8Unorm,       "RGBA8Unorm",       FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::RGBA8UnormSrgb,   "RGBA8UnormSrgb",   FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, true,  false, true },
-    { Format::RGBA8Snorm,       "RGBA8Snorm",       FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true },
+    { Format::RGBA8Uint,        "RGBA8Uint",        "rgba8ui",          FormatKind::Integer,        4,  SLANG_SCALAR_TYPE_UINT8,    4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::RGBA8Sint,        "RGBA8Sint",        "rgba8i",           FormatKind::Integer,        4,  SLANG_SCALAR_TYPE_INT8,     4,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true  },
+    { Format::RGBA8Unorm,       "RGBA8Unorm",       "rgba8",            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::RGBA8UnormSrgb,   "RGBA8UnormSrgb",   nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, true,  false, true  },
+    { Format::RGBA8Snorm,       "RGBA8Snorm",       "rgba8_snorm",      FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true  },
 
-    { Format::BGRA8Unorm,       "BGRA8Unorm",       FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::BGRA8UnormSrgb,   "BGRA8UnormSrgb",   FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, true,  false, true },
-    { Format::BGRX8Unorm,       "BGRX8Unorm",       FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  false, false, false, false, false, false, true },
-    { Format::BGRX8UnormSrgb,   "BGRX8UnormSrgb",   FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  false, false, false, false, true,  false, true },
+    { Format::BGRA8Unorm,       "BGRA8Unorm",       nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::BGRA8UnormSrgb,   "BGRA8UnormSrgb",   nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, true,  false, true  },
+    { Format::BGRX8Unorm,       "BGRX8Unorm",       nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  false, false, false, false, false, false, true  },
+    { Format::BGRX8UnormSrgb,   "BGRX8UnormSrgb",   nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  false, false, false, false, true,  false, true  },
 
-    { Format::R16Uint,          "R16Uint",          FormatKind::Integer,    1,  SLANG_SCALAR_TYPE_UINT16,   2,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true },
-    { Format::R16Sint,          "R16Sint",          FormatKind::Integer,    1,  SLANG_SCALAR_TYPE_INT16,    2,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true },
-    { Format::R16Unorm,         "R16Unorm",         FormatKind::Normalized, 1,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true },
-    { Format::R16Snorm,         "R16Snorm",         FormatKind::Normalized, 1,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true },
-    { Format::R16Float,         "R16Float",         FormatKind::Float,      1,  SLANG_SCALAR_TYPE_FLOAT16,  2,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true },
+    { Format::R16Uint,          "R16Uint",          "r16ui",            FormatKind::Integer,        1,  SLANG_SCALAR_TYPE_UINT16,   2,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true  },
+    { Format::R16Sint,          "R16Sint",          "r16i",             FormatKind::Integer,        1,  SLANG_SCALAR_TYPE_INT16,    2,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true  },
+    { Format::R16Unorm,         "R16Unorm",         "r16",              FormatKind::Normalized,     1,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true  },
+    { Format::R16Snorm,         "R16Snorm",         "r16_snorm",        FormatKind::Normalized,     1,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true  },
+    { Format::R16Float,         "R16Float",         "r16f",             FormatKind::Float,          1,  SLANG_SCALAR_TYPE_FLOAT16,  2,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true  },
 
-    { Format::RG16Uint,         "RG16Uint",         FormatKind::Integer,    2,  SLANG_SCALAR_TYPE_UINT16,   4,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true },
-    { Format::RG16Sint,         "RG16Sint",         FormatKind::Integer,    2,  SLANG_SCALAR_TYPE_INT16,    4,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true },
-    { Format::RG16Unorm,        "RG16Unorm",        FormatKind::Normalized, 2,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true },
-    { Format::RG16Snorm,        "RG16Snorm",        FormatKind::Normalized, 2,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true },
-    { Format::RG16Float,        "RG16Float",        FormatKind::Float,      2,  SLANG_SCALAR_TYPE_FLOAT16,  4,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true },
+    { Format::RG16Uint,         "RG16Uint",         "rg16ui",           FormatKind::Integer,        2,  SLANG_SCALAR_TYPE_UINT16,   4,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true  },
+    { Format::RG16Sint,         "RG16Sint",         "rg16i",            FormatKind::Integer,        2,  SLANG_SCALAR_TYPE_INT16,    4,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true  },
+    { Format::RG16Unorm,        "RG16Unorm",        "rg16",             FormatKind::Normalized,     2,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true  },
+    { Format::RG16Snorm,        "RG16Snorm",        "rg16_snorm",       FormatKind::Normalized,     2,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true  },
+    { Format::RG16Float,        "RG16Float",        "rg16f",            FormatKind::Float,          2,  SLANG_SCALAR_TYPE_FLOAT16,  4,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true  },
 
-    { Format::RGBA16Uint,       "RGBA16Uint",       FormatKind::Integer,    4,  SLANG_SCALAR_TYPE_UINT16,   8,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::RGBA16Sint,       "RGBA16Sint",       FormatKind::Integer,    4,  SLANG_SCALAR_TYPE_INT16,    8,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true },
-    { Format::RGBA16Unorm,      "RGBA16Unorm",      FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  8,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::RGBA16Snorm,      "RGBA16Snorm",      FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  8,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true },
-    { Format::RGBA16Float,      "RGBA16Float",      FormatKind::Float,      4,  SLANG_SCALAR_TYPE_FLOAT16,  8,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true },
+    { Format::RGBA16Uint,       "RGBA16Uint",       "rgba16ui",         FormatKind::Integer,        4,  SLANG_SCALAR_TYPE_UINT16,   8,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::RGBA16Sint,       "RGBA16Sint",       "rgba16i",          FormatKind::Integer,        4,  SLANG_SCALAR_TYPE_INT16,    8,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true  },
+    { Format::RGBA16Unorm,      "RGBA16Unorm",      "rgba16",           FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  8,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::RGBA16Snorm,      "RGBA16Snorm",      "rgba16_snorm",     FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  8,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true  },
+    { Format::RGBA16Float,      "RGBA16Float",      "rgba16f",          FormatKind::Float,          4,  SLANG_SCALAR_TYPE_FLOAT16,  8,  1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true  },
 
-    { Format::R32Uint,          "R32Uint",          FormatKind::Integer,    1,  SLANG_SCALAR_TYPE_UINT32,   4,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true },
-    { Format::R32Sint,          "R32Sint",          FormatKind::Integer,    1,  SLANG_SCALAR_TYPE_INT32,    4,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true },
-    { Format::R32Float,         "R32Float",         FormatKind::Float,      1,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true },
+    { Format::R32Uint,          "R32Uint",          "r32ui",            FormatKind::Integer,        1,  SLANG_SCALAR_TYPE_UINT32,   4,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true  },
+    { Format::R32Sint,          "R32Sint",          "r32i",             FormatKind::Integer,        1,  SLANG_SCALAR_TYPE_INT32,    4,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true  },
+    { Format::R32Float,         "R32Float",         "r32f",             FormatKind::Float,          1,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true  },
 
-    { Format::RG32Uint,         "RG32Uint",         FormatKind::Integer,    2,  SLANG_SCALAR_TYPE_UINT32,   8,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true },
-    { Format::RG32Sint,         "RG32Sint",         FormatKind::Integer,    2,  SLANG_SCALAR_TYPE_INT32,    8,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true },
-    { Format::RG32Float,        "RG32Float",        FormatKind::Float,      2,  SLANG_SCALAR_TYPE_FLOAT32,  8,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true },
+    { Format::RG32Uint,         "RG32Uint",         "rg32ui",           FormatKind::Integer,        2,  SLANG_SCALAR_TYPE_UINT32,   8,  1,  1,  1,  true,  true,  false, false, false, false, false, false, false, true  },
+    { Format::RG32Sint,         "RG32Sint",         "rg32i",            FormatKind::Integer,        2,  SLANG_SCALAR_TYPE_INT32,    8,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true  },
+    { Format::RG32Float,        "RG32Float",        "rg32f",            FormatKind::Float,          2,  SLANG_SCALAR_TYPE_FLOAT32,  8,  1,  1,  1,  true,  true,  false, false, false, false, true,  false, false, true  },
 
-    { Format::RGB32Uint,        "RGB32Uint",        FormatKind::Integer,    3,  SLANG_SCALAR_TYPE_UINT32,   12, 1,  1,  1,  true,  true,  true,  false, false, false, false, false, false, true },
-    { Format::RGB32Sint,        "RGB32Sint",        FormatKind::Integer,    3,  SLANG_SCALAR_TYPE_INT32,    12, 1,  1,  1,  true,  true,  true,  false, false, false, true,  false, false, true },
-    { Format::RGB32Float,       "RGB32Float",       FormatKind::Float,      3,  SLANG_SCALAR_TYPE_FLOAT32,  12, 1,  1,  1,  true,  true,  true,  false, false, false, true,  false, false, true },
+    { Format::RGB32Uint,        "RGB32Uint",        nullptr,            FormatKind::Integer,        3,  SLANG_SCALAR_TYPE_UINT32,   12, 1,  1,  1,  true,  true,  true,  false, false, false, false, false, false, true  },
+    { Format::RGB32Sint,        "RGB32Sint",        nullptr,            FormatKind::Integer,        3,  SLANG_SCALAR_TYPE_INT32,    12, 1,  1,  1,  true,  true,  true,  false, false, false, true,  false, false, true  },
+    { Format::RGB32Float,       "RGB32Float",       nullptr,            FormatKind::Float,          3,  SLANG_SCALAR_TYPE_FLOAT32,  12, 1,  1,  1,  true,  true,  true,  false, false, false, true,  false, false, true  },
 
-    { Format::RGBA32Uint,       "RGBA32Uint",       FormatKind::Integer,    4,  SLANG_SCALAR_TYPE_UINT32,   16, 1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::RGBA32Sint,       "RGBA32Sint",       FormatKind::Integer,    4,  SLANG_SCALAR_TYPE_INT32,    16, 1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true },
-    { Format::RGBA32Float,      "RGBA32Float",      FormatKind::Float,      4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true },
+    { Format::RGBA32Uint,       "RGBA32Uint",       "rgba32ui",         FormatKind::Integer,        4,  SLANG_SCALAR_TYPE_UINT32,   16, 1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::RGBA32Sint,       "RGBA32Sint",       "rgba32i",          FormatKind::Integer,        4,  SLANG_SCALAR_TYPE_INT32,    16, 1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true  },
+    { Format::RGBA32Float,      "RGBA32Float",      "rgba32f",          FormatKind::Float,          4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 1,  1,  1,  true,  true,  true,  true,  false, false, true,  false, false, true  },
 
-    { Format::R64Uint,          "R64Uint",          FormatKind::Integer,    1,  SLANG_SCALAR_TYPE_UINT64,   8,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true },
-    { Format::R64Sint,          "R64Sint",          FormatKind::Integer,    1,  SLANG_SCALAR_TYPE_INT64,    8,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true },
+    { Format::R64Uint,          "R64Uint",          "r64ui",            FormatKind::Integer,        1,  SLANG_SCALAR_TYPE_UINT64,   8,  1,  1,  1,  true,  false, false, false, false, false, false, false, false, true  },
+    { Format::R64Sint,          "R64Sint",          "r64i",             FormatKind::Integer,        1,  SLANG_SCALAR_TYPE_INT64,    8,  1,  1,  1,  true,  false, false, false, false, false, true,  false, false, true  },
 
-    { Format::BGRA4Unorm,       "BGRA4Unorm",       FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::B5G6R5Unorm,      "B5G6R5Unorm",      FormatKind::Normalized, 3,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::BGR5A1Unorm,      "BGR5A1Unorm",      FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
+    { Format::BGRA4Unorm,       "BGRA4Unorm",       nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::B5G6R5Unorm,      "B5G6R5Unorm",      nullptr,            FormatKind::Normalized,     3,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::BGR5A1Unorm,      "BGR5A1Unorm",      nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
 
-    { Format::RGB9E5Ufloat,     "RGB9E5Ufloat",     FormatKind::Float,      3,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  false, false, false, false, false, false, true },
-    { Format::RGB10A2Uint,      "RGB10A2Uint",      FormatKind::Integer,    4,  SLANG_SCALAR_TYPE_UINT32,   4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::RGB10A2Unorm,     "RGB10A2Unorm",     FormatKind::Normalized, 4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true },
-    { Format::R11G11B10Float,   "R11G11B10Float",   FormatKind::Float,      3,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  false, false, false, true,  false, false, true },
+    { Format::RGB9E5Ufloat,     "RGB9E5Ufloat",     nullptr,            FormatKind::Float,          3,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  false, false, false, false, false, false, true  },
+    { Format::RGB10A2Uint,      "RGB10A2Uint",      "rgb10_a2ui",       FormatKind::Integer,        4,  SLANG_SCALAR_TYPE_UINT32,   4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::RGB10A2Unorm,     "RGB10A2Unorm",     "rgb10_a2",         FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  true,  false, false, false, false, false, true  },
+    { Format::R11G11B10Float,   "R11G11B10Float",   "r11f_g11f_b10f",   FormatKind::Float,          3,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  true,  true,  true,  false, false, false, true,  false, false, true  },
 
-    { Format::D32Float,         "D32Float",         FormatKind::DepthStencil,1, SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  false, false, false, false, true,  false, true,  false, false, false },
-    { Format::D16Unorm,         "D16Unorm",         FormatKind::DepthStencil,1, SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  false, false, false, false, true,  false, false, false, false, false },
-    { Format::D32FloatS8Uint,   "D32FloatS8Uint",   FormatKind::DepthStencil,2, SLANG_SCALAR_TYPE_FLOAT32,  8,  1,  1,  1,  false, false, false, false, true,  true,  false, false, false, false },
+    { Format::D32Float,         "D32Float",         nullptr,            FormatKind::DepthStencil,   1,  SLANG_SCALAR_TYPE_FLOAT32,  4,  1,  1,  1,  false, false, false, false, true,  false, true,  false, false, false },
+    { Format::D16Unorm,         "D16Unorm",         nullptr,            FormatKind::DepthStencil,   1,  SLANG_SCALAR_TYPE_FLOAT32,  2,  1,  1,  1,  false, false, false, false, true,  false, false, false, false, false },
+    { Format::D32FloatS8Uint,   "D32FloatS8Uint",   nullptr,            FormatKind::DepthStencil,   2,  SLANG_SCALAR_TYPE_FLOAT32,  8,  1,  1,  1,  false, false, false, false, true,  true,  false, false, false, false },
 
-    { Format::BC1Unorm,         "BC1Unorm",         FormatKind::Normalized, 4, SLANG_SCALAR_TYPE_FLOAT32,   8,  16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
-    { Format::BC1UnormSrgb,     "BC1UnormSrgb",     FormatKind::Normalized, 4, SLANG_SCALAR_TYPE_FLOAT32,   8,  16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
-    { Format::BC2Unorm,         "BC2Unorm",         FormatKind::Normalized, 4, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
-    { Format::BC2UnormSrgb,     "BC2UnormSrgb",     FormatKind::Normalized, 4, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
-    { Format::BC3Unorm,         "BC3Unorm",         FormatKind::Normalized, 4, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
-    { Format::BC3UnormSrgb,     "BC3UnormSrgb",     FormatKind::Normalized, 4, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
-    { Format::BC4Unorm,         "BC4Unorm",         FormatKind::Normalized, 1, SLANG_SCALAR_TYPE_FLOAT32,   8,  16, 4,  4,  true,  false, false, false, false, false, false, false, true,  true  },
-    { Format::BC4Snorm,         "BC4Snorm",         FormatKind::Normalized, 1, SLANG_SCALAR_TYPE_FLOAT32,   8,  16, 4,  4,  true,  false, false, false, false, false, true,  false, true,  true  },
-    { Format::BC5Unorm,         "BC5Unorm",         FormatKind::Normalized, 2, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  false, false, false, false, false, false, true,  true  },
-    { Format::BC5Snorm,         "BC5Snorm",         FormatKind::Normalized, 2, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  false, false, false, false, false, true,  true,  true  },
-    { Format::BC6HUfloat,       "BC6HUfloat",       FormatKind::Float,      3, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  true,  false, false, false, false, false, true,  true  },
-    { Format::BC6HSfloat,       "BC6HSfloat",       FormatKind::Float,      3, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  true,  false, false, false, false, true,  true,  true  },
-    { Format::BC7Unorm,         "BC7Unorm",         FormatKind::Normalized, 4, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
-    { Format::BC7UnormSrgb,     "BC7UnormSrgb",     FormatKind::Normalized, 4, SLANG_SCALAR_TYPE_FLOAT32,   16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
+    { Format::BC1Unorm,         "BC1Unorm",         nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  8,  16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
+    { Format::BC1UnormSrgb,     "BC1UnormSrgb",     nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  8,  16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
+    { Format::BC2Unorm,         "BC2Unorm",         nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
+    { Format::BC2UnormSrgb,     "BC2UnormSrgb",     nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
+    { Format::BC3Unorm,         "BC3Unorm",         nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
+    { Format::BC3UnormSrgb,     "BC3UnormSrgb",     nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
+    { Format::BC4Unorm,         "BC4Unorm",         nullptr,            FormatKind::Normalized,     1,  SLANG_SCALAR_TYPE_FLOAT32,  8,  16, 4,  4,  true,  false, false, false, false, false, false, false, true,  true  },
+    { Format::BC4Snorm,         "BC4Snorm",         nullptr,            FormatKind::Normalized,     1,  SLANG_SCALAR_TYPE_FLOAT32,  8,  16, 4,  4,  true,  false, false, false, false, false, true,  false, true,  true  },
+    { Format::BC5Unorm,         "BC5Unorm",         nullptr,            FormatKind::Normalized,     2,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  false, false, false, false, false, false, true,  true  },
+    { Format::BC5Snorm,         "BC5Snorm",         nullptr,            FormatKind::Normalized,     2,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  false, false, false, false, false, true,  true,  true  },
+    { Format::BC6HUfloat,       "BC6HUfloat",       nullptr,            FormatKind::Float,          3,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  false, false, false, false, false, true,  true  },
+    { Format::BC6HSfloat,       "BC6HSfloat",       nullptr,            FormatKind::Float,          3,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  false, false, false, false, true,  true,  true  },
+    { Format::BC7Unorm,         "BC7Unorm",         nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
+    { Format::BC7UnormSrgb,     "BC7UnormSrgb",     nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
     // clang-format on
 };
 
@@ -139,6 +139,8 @@ public:
     virtual const FormatInfo& getFormatInfo(Format format) override { return _getFormatInfo(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;
+    virtual const char* getFeatureName(Feature feature) override;
+    virtual const char* getCapabilityName(Capability capability) override;
 
     Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
@@ -199,6 +201,26 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
     default:
         return false;
     }
+}
+
+const char* RHI::getFeatureName(Feature feature)
+{
+#define SLANG_RHI_FEATURES_X(id, name) name,
+    static const std::array<const char*, size_t(Feature::_Count)> kFeatureNames = {
+        SLANG_RHI_FEATURES(SLANG_RHI_FEATURES_X)
+    };
+#undef SLANG_RHI_FEATURES_X
+    return size_t(feature) < kFeatureNames.size() ? kFeatureNames[size_t(feature)] : nullptr;
+}
+
+const char* RHI::getCapabilityName(Capability capability)
+{
+#define SLANG_RHI_CAPABILITIES_X(x) #x,
+    static const std::array<const char*, size_t(Capability::_Count)> kCapabilityNames = {
+        SLANG_RHI_CAPABILITIES(SLANG_RHI_CAPABILITIES_X)
+    };
+#undef SLANG_RHI_CAPABILITIES_X
+    return size_t(capability) < kCapabilityNames.size() ? kCapabilityNames[size_t(capability)] : nullptr;
 }
 
 Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
@@ -340,8 +362,7 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
         return resultCode;
     }
     IDebugCallback* debugCallback = checked_cast<Device*>(innerDevice.get())->m_debugCallback;
-    RefPtr<debug::DebugDevice> debugDevice =
-        new debug::DebugDevice(innerDevice->getDeviceInfo().deviceType, debugCallback);
+    RefPtr<debug::DebugDevice> debugDevice = new debug::DebugDevice(innerDevice->getInfo().deviceType, debugCallback);
     debugDevice->baseObject = innerDevice;
     returnComPtr(outDevice, debugDevice);
     return resultCode;

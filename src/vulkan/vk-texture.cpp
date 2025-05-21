@@ -94,6 +94,10 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
+{
+}
 
 TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect, const SubresourceRange& range)
 {
@@ -148,9 +152,9 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     createInfo.subresourceRange.aspectMask = getAspectMaskFromFormat(m_vkformat, aspect);
 
     createInfo.subresourceRange.baseArrayLayer = range.layer;
-    createInfo.subresourceRange.baseMipLevel = range.mipLevel;
+    createInfo.subresourceRange.baseMipLevel = range.mip;
     createInfo.subresourceRange.layerCount = range.layerCount;
-    createInfo.subresourceRange.levelCount = range.mipLevelCount;
+    createInfo.subresourceRange.levelCount = range.mipCount;
 
     VkResult result = device->m_api.vkCreateImageView(device->m_api.m_device, &createInfo, nullptr, &view.imageView);
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
@@ -160,6 +164,23 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    DescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
+    if (!handle)
+    {
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocTextureHandle(this, access, &handle));
+    }
+    *outHandle = handle;
+    return SLANG_OK;
 }
 
 TextureSubresourceView TextureViewImpl::getView()
@@ -224,7 +245,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     uint32_t layerCount = desc.getLayerCount();
 
-    imageInfo.mipLevels = desc.mipLevelCount;
+    imageInfo.mipLevels = desc.mipCount;
     imageInfo.arrayLayers = layerCount;
 
     imageInfo.format = format;
@@ -310,8 +331,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SubresourceRange range;
         range.layer = 0;
         range.layerCount = layerCount;
-        range.mipLevel = 0;
-        range.mipLevelCount = desc.mipLevelCount;
+        range.mip = 0;
+        range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(
             texture,
@@ -319,7 +340,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             {0, 0, 0},
             Extent3D::kWholeTexture,
             initData,
-            layerCount * desc.mipLevelCount
+            layerCount * desc.mipCount
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
@@ -327,11 +348,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;
-}
-
-TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
-    : TextureView(device, desc)
-{
 }
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)

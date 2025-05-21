@@ -35,7 +35,7 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
         textureDesc.size.width = m_config.width;
         textureDesc.size.height = m_config.height;
         textureDesc.size.depth = 1;
-        textureDesc.mipLevelCount = 1;
+        textureDesc.mipCount = 1;
         textureDesc.defaultState = ResourceState::Present;
         RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
         texture->m_resource.setResource(d3dResource.get());

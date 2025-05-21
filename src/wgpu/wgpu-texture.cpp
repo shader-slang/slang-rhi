@@ -38,7 +38,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     // WebGPU only supports 1 MIP level for 1d textures
     // https://www.w3.org/TR/webgpu/#abstract-opdef-maximum-miplevel-count
-    if ((desc.type == TextureType::Texture1D) && (desc.mipLevelCount > 1))
+    if ((desc.type == TextureType::Texture1D) && (desc.mipCount > 1))
     {
         return SLANG_FAIL;
     }
@@ -55,7 +55,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureDesc.size.width = desc.size.width;
     textureDesc.size.height = desc.size.height;
     textureDesc.size.depthOrArrayLayers = desc.getLayerCount();
-    textureDesc.mipLevelCount = desc.mipLevelCount;
+    textureDesc.mipLevelCount = desc.mipCount;
     textureDesc.sampleCount = desc.sampleCount;
     textureDesc.format = translateTextureFormat(desc.format);
     textureDesc.label = desc.label;
@@ -69,7 +69,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     {
     case TextureType::Texture1D:
         // 1D texture with mip levels is not supported in WebGPU.
-        if (desc.mipLevelCount > 1)
+        if (desc.mipCount > 1)
         {
             return SLANG_E_NOT_AVAILABLE;
         }
@@ -111,8 +111,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SubresourceRange range;
         range.layer = 0;
         range.layerCount = desc.getLayerCount();
-        range.mipLevel = 0;
-        range.mipLevelCount = desc.mipLevelCount;
+        range.mip = 0;
+        range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(
             texture,
@@ -120,7 +120,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             {0, 0, 0},
             Extent3D::kWholeTexture,
             initData,
-            range.layerCount * desc.mipLevelCount
+            range.layerCount * desc.mipCount
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
@@ -161,9 +161,9 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     WGPUTextureViewDescriptor viewDesc = {};
     viewDesc.format =
         translateTextureFormat(desc.format == Format::Undefined ? textureImpl->m_desc.format : desc.format);
-    viewDesc.dimension = translateTextureViewDimension(textureImpl->m_desc.type, textureImpl->m_desc.arrayLength > 1);
-    viewDesc.baseMipLevel = view->m_desc.subresourceRange.mipLevel;
-    viewDesc.mipLevelCount = view->m_desc.subresourceRange.mipLevelCount;
+    viewDesc.dimension = translateTextureViewDimension(textureImpl->m_desc.type);
+    viewDesc.baseMipLevel = view->m_desc.subresourceRange.mip;
+    viewDesc.mipLevelCount = view->m_desc.subresourceRange.mipCount;
     viewDesc.baseArrayLayer = view->m_desc.subresourceRange.layer;
     viewDesc.arrayLayerCount = view->m_desc.subresourceRange.layerCount;
     viewDesc.aspect = translateTextureAspect(desc.aspect);

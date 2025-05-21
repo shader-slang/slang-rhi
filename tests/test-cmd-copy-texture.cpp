@@ -142,7 +142,7 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU | CUDA)
             auto queue = device->getQueue(QueueType::Graphics);
             auto commandEncoder = queue->createCommandEncoder();
 
-            uint32_t halfMipCount = calcMipLevelCount(data.desc) / 2;
+            uint32_t halfMipCount = calcMipCount(data.desc) / 2;
 
             // Copy the 1st half of the mips for all layers
             commandEncoder->copyTexture(
@@ -160,13 +160,13 @@ GPU_TEST_CASE("cmd-copy-texture-miprange", D3D12 | Vulkan | WGPU | CUDA)
             // of the source texture.
             for (uint32_t layer = 0; layer < data.desc.getLayerCount(); layer++)
             {
-                for (uint32_t mipLevel = 0; mipLevel < halfMipCount; mipLevel++)
+                for (uint32_t mip = 0; mip < halfMipCount; mip++)
                 {
                     // 1st half should be the copy
-                    data.checkMipLevelsEqual(newTexture, layer, mipLevel);
+                    data.checkMipLevelsEqual(newTexture, layer, mip);
 
                     // 2nd half should be unchanged
-                    newData.checkMipLevelsEqual(newTexture, layer, mipLevel + halfMipCount);
+                    newData.checkMipLevelsEqual(newTexture, layer, mip + halfMipCount);
                 }
             }
         }

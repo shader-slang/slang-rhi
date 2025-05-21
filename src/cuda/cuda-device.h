@@ -28,7 +28,6 @@ private:
 
 public:
     Context m_ctx;
-    DeviceInfo m_info;
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
@@ -42,10 +41,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
-
-    Result getCUDAFormat(Format format, CUarray_format* outFormat);
-
-    Result getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
@@ -103,8 +98,6 @@ public:
 
     void unmap(IBuffer* buffer);
 
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
 
@@ -115,13 +108,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mipLevel,
-        ISlangBlob** outBlob,
-        SubresourceLayout* outLayout
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, size_t offset, size_t size, void* outData) override;

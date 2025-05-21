@@ -16,8 +16,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -30,13 +28,9 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mipLevel,
-        ISlangBlob** outBlob,
-        SubresourceLayout* outLayout
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createTextureView(ITexture* inTexture, const TextureViewDesc& desc, ITextureView** outView) override;
@@ -64,8 +58,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
@@ -82,8 +74,6 @@ public:
     void customizeShaderObject(ShaderObject* shaderObject) override;
 
 private:
-    DeviceInfo m_info;
-
     RefPtr<CommandQueueImpl> m_queue;
 };
 

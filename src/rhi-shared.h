@@ -87,6 +87,9 @@ public:
     virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getDescriptorHandle(DescriptorHandleAccess access, Format format, BufferRange range, DescriptorHandle* outHandle)
+        override;
 
 public:
     BufferDesc m_desc;
@@ -105,7 +108,7 @@ struct SubResourceLayout
 // a texture description given a minimum row alignment.
 Result calcSubresourceRegionLayout(
     const TextureDesc& desc,
-    uint32_t mipLevel,
+    uint32_t mip,
     Offset3D offset,
     Extent3D extent,
     Size rowAlignment,
@@ -133,7 +136,7 @@ public:
     // of this texture. Supply offset==0 and extent==kRemainingTextureSize to indicate whole sub resource.
     // If rowAlignment is kDefaultAlignment, implementation uses Device::getTextureRowAlignment for alignment.
     virtual Result getSubresourceRegionLayout(
-        uint32_t mipLevel,
+        uint32_t mip,
         Offset3D offset,
         Extent3D extent,
         size_t rowAlignment,
@@ -148,9 +151,9 @@ public:
     createView(const TextureViewDesc& desc, ITextureView** outTextureView) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mipLevel, size_t rowAlignment, SubresourceLayout* outLayout) override
+    getSubresourceLayout(uint32_t mip, size_t rowAlignment, SubresourceLayout* outLayout) override
     {
-        return getSubresourceRegionLayout(mipLevel, {0, 0, 0}, Extent3D::kWholeTexture, rowAlignment, outLayout);
+        return getSubresourceRegionLayout(mip, {0, 0, 0}, Extent3D::kWholeTexture, rowAlignment, outLayout);
     }
 
 public:
@@ -176,6 +179,8 @@ public:
     // ITextureView interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() override { return m_desc; }
+    virtual SLANG_NO_THROW Result
+    getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle) override;
 
 public:
     TextureViewDesc m_desc;
@@ -198,6 +203,9 @@ public:
 
     // ISampler interface
     virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
+
+    // IResource interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
@@ -221,6 +229,7 @@ public:
 
     // IAccelerationStructure interface
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 
 public:
     AccelerationStructureDesc m_desc;
@@ -245,12 +254,15 @@ public:
         : DeviceChild(device)
         , m_desc(desc)
     {
+        m_descHolder.holdString(m_desc.label);
     }
 
+    virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override { return SLANG_OK; }
 
 public:
     QueryPoolDesc m_desc;
+    StructHolder m_descHolder;
 };
 
 static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
@@ -297,9 +309,18 @@ public:
     StructHolder m_configHolder;
 };
 
-
 bool isDepthFormat(Format format);
 bool isStencilFormat(Format format);
+
+inline uint32_t widthInBlocks(const FormatInfo& formatInfo, uint32_t size)
+{
+    return formatInfo.isCompressed ? (size + formatInfo.blockWidth - 1) / formatInfo.blockWidth : size;
+}
+
+inline uint32_t heightInBlocks(const FormatInfo& formatInfo, uint32_t size)
+{
+    return formatInfo.isCompressed ? (size + formatInfo.blockHeight - 1) / formatInfo.blockHeight : size;
+}
 
 bool isDebugLayersEnabled();
 

@@ -99,26 +99,26 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
     {
     case TextureType::Texture1D:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
-        viewDesc.Texture1D.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture1D.MipLevels = range.mipLevelCount;
+        viewDesc.Texture1D.MostDetailedMip = range.mip;
+        viewDesc.Texture1D.MipLevels = range.mipCount;
         break;
     case TextureType::Texture1DArray:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
-        viewDesc.Texture1DArray.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture1DArray.MipLevels = range.mipLevelCount;
+        viewDesc.Texture1DArray.MostDetailedMip = range.mip;
+        viewDesc.Texture1DArray.MipLevels = range.mipCount;
         viewDesc.Texture1DArray.FirstArraySlice = range.layer;
         viewDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-        viewDesc.Texture2D.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture2D.MipLevels = range.mipLevelCount;
+        viewDesc.Texture2D.MostDetailedMip = range.mip;
+        viewDesc.Texture2D.MipLevels = range.mipCount;
         viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DArray:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-        viewDesc.Texture2DArray.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture2DArray.MipLevels = range.mipLevelCount;
+        viewDesc.Texture2DArray.MostDetailedMip = range.mip;
+        viewDesc.Texture2DArray.MipLevels = range.mipCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
@@ -133,18 +133,18 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
         break;
     case TextureType::Texture3D:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
-        viewDesc.Texture3D.MostDetailedMip = range.mipLevel;
-        viewDesc.Texture3D.MipLevels = range.mipLevelCount;
+        viewDesc.Texture3D.MostDetailedMip = range.mip;
+        viewDesc.Texture3D.MipLevels = range.mipCount;
         break;
     case TextureType::TextureCube:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-        viewDesc.TextureCube.MostDetailedMip = range.mipLevel;
-        viewDesc.TextureCube.MipLevels = range.mipLevelCount;
+        viewDesc.TextureCube.MostDetailedMip = range.mip;
+        viewDesc.TextureCube.MipLevels = range.mipCount;
         break;
     case TextureType::TextureCubeArray:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
-        viewDesc.TextureCubeArray.MostDetailedMip = range.mipLevel;
-        viewDesc.TextureCubeArray.MipLevels = range.mipLevelCount;
+        viewDesc.TextureCubeArray.MostDetailedMip = range.mip;
+        viewDesc.TextureCubeArray.MipLevels = range.mipCount;
         viewDesc.TextureCubeArray.First2DArrayFace = range.layer;
         viewDesc.TextureCubeArray.NumCubes = range.layerCount / 6;
         break;
@@ -176,24 +176,24 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
     {
     case TextureType::Texture1D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
-        viewDesc.Texture1D.MipSlice = range.mipLevel;
+        viewDesc.Texture1D.MipSlice = range.mip;
         break;
     case TextureType::Texture1DArray:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
-        viewDesc.Texture1DArray.MipSlice = range.mipLevel;
+        viewDesc.Texture1DArray.MipSlice = range.mip;
         viewDesc.Texture1DArray.ArraySize = range.layerCount;
         viewDesc.Texture1DArray.FirstArraySlice = range.layer;
         break;
     case TextureType::Texture2D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-        viewDesc.Texture2D.MipSlice = range.mipLevel;
+        viewDesc.Texture2D.MipSlice = range.mip;
         viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DArray:
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-        viewDesc.Texture2DArray.MipSlice = range.mipLevel;
+        viewDesc.Texture2DArray.MipSlice = range.mip;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
         viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
@@ -214,7 +214,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
 #endif // SLANG_RHI_ENABLE_AGILITY_SDK
     case TextureType::Texture3D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-        viewDesc.Texture3D.MipSlice = range.mipLevel;
+        viewDesc.Texture3D.MipSlice = range.mip;
         // Set these to 0 and -1 for now to select all depth
         // slices by default, as selecting a subset of depth slices
         // is a concept currently only supported by d3d12.
@@ -249,24 +249,24 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
     {
     case TextureType::Texture1D:
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1D;
-        viewDesc.Texture1D.MipSlice = range.mipLevel;
+        viewDesc.Texture1D.MipSlice = range.mip;
         break;
     case TextureType::Texture1DArray:
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
-        viewDesc.Texture1DArray.MipSlice = range.mipLevel;
+        viewDesc.Texture1DArray.MipSlice = range.mip;
         viewDesc.Texture1DArray.FirstArraySlice = range.layer;
         viewDesc.Texture1DArray.ArraySize = range.layerCount;
         break;
     case TextureType::Texture2D:
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-        viewDesc.Texture2D.MipSlice = range.mipLevel;
+        viewDesc.Texture2D.MipSlice = range.mip;
         viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DArray:
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
-        viewDesc.Texture2DArray.MipSlice = range.mipLevel;
+        viewDesc.Texture2DArray.MipSlice = range.mip;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
         viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
@@ -281,7 +281,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
         break;
     case TextureType::Texture3D:
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
-        viewDesc.Texture3D.MipSlice = range.mipLevel;
+        viewDesc.Texture3D.MipSlice = range.mip;
         // Set these to 0 and -1 for now to select all depth
         // slices by default, as selecting a subset of depth slices
         // is a concept currently only supported by d3d12.
@@ -316,21 +316,21 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
     {
     case TextureType::Texture1D:
         viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1D;
-        viewDesc.Texture1D.MipSlice = range.mipLevel;
+        viewDesc.Texture1D.MipSlice = range.mip;
         break;
     case TextureType::Texture1DArray:
         viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
-        viewDesc.Texture1DArray.MipSlice = range.mipLevel;
+        viewDesc.Texture1DArray.MipSlice = range.mip;
         viewDesc.Texture1DArray.ArraySize = range.layerCount;
         viewDesc.Texture1DArray.FirstArraySlice = range.layer;
         break;
     case TextureType::Texture2D:
         viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-        viewDesc.Texture2D.MipSlice = range.mipLevel;
+        viewDesc.Texture2D.MipSlice = range.mip;
         break;
     case TextureType::Texture2DArray:
         viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
-        viewDesc.Texture2DArray.MipSlice = range.mipLevel;
+        viewDesc.Texture2DArray.MipSlice = range.mip;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
         break;
@@ -348,7 +348,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
         viewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
-        viewDesc.Texture2DArray.MipSlice = range.mipLevel;
+        viewDesc.Texture2DArray.MipSlice = range.mip;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
         break;
@@ -363,6 +363,23 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
 TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
     : TextureView(device, desc)
 {
+}
+
+Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    DescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
+    if (!handle)
+    {
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocTextureHandle(this, access, &handle));
+    }
+    *outHandle = handle;
+    return SLANG_OK;
 }
 
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)

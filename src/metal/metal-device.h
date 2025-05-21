@@ -13,7 +13,6 @@ public:
     using Device::readBuffer;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -66,7 +65,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
         uint32_t layer,
-        uint32_t mipLevel,
+        uint32_t mip,
         ISlangBlob** outBlob,
         Size* outRowPitch,
         Size* outPixelSize
@@ -98,19 +97,16 @@ public:
         override;
 
     // void waitForGpu();
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     DeviceImpl();
     ~DeviceImpl();
 
 public:
-    DeviceInfo m_info;
     std::string m_adapterName;
 
     bool captureEnabled() const { return std::getenv("MTL_CAPTURE_ENABLED") != nullptr; }
 
-    DeviceDesc m_desc;
     NS::SharedPtr<MTL::Device> m_device;
     RefPtr<CommandQueueImpl> m_queue;
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;

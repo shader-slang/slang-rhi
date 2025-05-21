@@ -158,6 +158,9 @@ std::string createBufferLabel(const BufferDesc& desc);
 std::string createTextureLabel(const TextureDesc& desc);
 std::string createTextureViewLabel(const TextureViewDesc& desc);
 std::string createSamplerLabel(const SamplerDesc& desc);
+std::string createAccelerationStructureLabel(const AccelerationStructureDesc& desc);
+std::string createFenceLabel(const FenceDesc& desc);
+std::string createQueryPoolLabel(const QueryPoolDesc& desc);
 
 void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
 

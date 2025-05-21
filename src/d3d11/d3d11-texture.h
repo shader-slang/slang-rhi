@@ -28,8 +28,8 @@ public:
             hash_combine(hash, key.format);
             hash_combine(hash, key.range.layer);
             hash_combine(hash, key.range.layerCount);
-            hash_combine(hash, key.range.mipLevel);
-            hash_combine(hash, key.range.mipLevelCount);
+            hash_combine(hash, key.range.mip);
+            hash_combine(hash, key.range.mipCount);
             return hash;
         }
     };

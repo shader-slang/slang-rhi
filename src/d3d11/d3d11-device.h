@@ -56,30 +56,19 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
-        ITexture* texture,
-        uint32_t layer,
-        uint32_t mipLevel,
-        ISlangBlob** outBlob,
-        SubresourceLayout* outLayout
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData)
+        override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
 
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override { return m_info; }
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
 
 
 public:
-    // D3D11Device members.
-
-    DeviceInfo m_info;
     std::string m_adapterName;
 
     RefPtr<CommandQueueImpl> m_queue;
@@ -89,8 +78,6 @@ public:
     ComPtr<ID3D11DeviceContext1> m_immediateContext1;
     ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<ID3D11Query> m_disjointQuery;
-
-    DeviceDesc m_desc;
 
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;

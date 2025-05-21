@@ -13,6 +13,13 @@ BufferImpl::~BufferImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    for (auto& handle : m_descriptorHandles)
+    {
+        if (handle.second)
+        {
+            device->m_bindlessDescriptorSet->freeHandle(handle.second);
+        }
+    }
     for (auto& srv : m_srvs)
     {
         if (srv.second)
@@ -69,6 +76,36 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     *outHandle = m_sharedHandle;
     return SLANG_OK;
 #endif
+}
+
+Result BufferImpl::getDescriptorHandle(
+    DescriptorHandleAccess access,
+    Format format,
+    BufferRange range,
+    DescriptorHandle* outHandle
+)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    range = resolveBufferRange(range);
+
+    DescriptorHandleKey key = {access, format, range};
+    DescriptorHandle& handle = m_descriptorHandles[key];
+    if (handle)
+    {
+        *outHandle = handle;
+        return SLANG_OK;
+    }
+
+    SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle)
+    );
+    *outHandle = handle;
+    return SLANG_OK;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)

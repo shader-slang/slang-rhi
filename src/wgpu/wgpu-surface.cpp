@@ -197,7 +197,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     textureDesc.size.height = m_config.height;
     textureDesc.size.depth = 1;
     textureDesc.arrayLength = 1;
-    textureDesc.mipLevelCount = 1;
+    textureDesc.mipCount = 1;
     textureDesc.format = m_config.format;
 
     RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);

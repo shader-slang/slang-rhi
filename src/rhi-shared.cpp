@@ -67,13 +67,24 @@ Result Buffer::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Buffer::getDescriptorHandle(
+    DescriptorHandleAccess access,
+    Format format,
+    BufferRange range,
+    DescriptorHandle* outHandle
+)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 // ----------------------------------------------------------------------------
 // Texture helpers
 // ----------------------------------------------------------------------------
 
 Result calcSubresourceRegionLayout(
     const TextureDesc& desc,
-    uint32_t mipLevel,
+    uint32_t mip,
     Offset3D offset,
     Extent3D extent,
     Size rowAlignment,
@@ -85,21 +96,21 @@ Result calcSubresourceRegionLayout(
 
     if (extent.width == kRemainingTextureSize)
     {
-        extent.width = max(1u, (textureSize.width >> mipLevel));
+        extent.width = max(1u, (textureSize.width >> mip));
         if (offset.x >= extent.width)
             return SLANG_E_INVALID_ARG;
         extent.width -= offset.x;
     }
     if (extent.height == kRemainingTextureSize)
     {
-        extent.height = max(1u, (textureSize.height >> mipLevel));
+        extent.height = max(1u, (textureSize.height >> mip));
         if (offset.y >= extent.height)
             return SLANG_E_INVALID_ARG;
         extent.height -= offset.y;
     }
     if (extent.depth == kRemainingTextureSize)
     {
-        extent.depth = max(1u, (textureSize.depth >> mipLevel));
+        extent.depth = max(1u, (textureSize.depth >> mip));
         if (offset.z >= extent.depth)
             return SLANG_E_INVALID_ARG;
         extent.depth -= offset.z;
@@ -139,8 +150,8 @@ SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
     SubresourceRange resolved = range;
     resolved.layer = min(resolved.layer, (m_desc.getLayerCount() - 1));
     resolved.layerCount = min(resolved.layerCount, m_desc.getLayerCount() - resolved.layer);
-    resolved.mipLevel = min(resolved.mipLevel, m_desc.mipLevelCount - 1);
-    resolved.mipLevelCount = min(resolved.mipLevelCount, m_desc.mipLevelCount - resolved.mipLevel);
+    resolved.mip = min(resolved.mip, m_desc.mipCount - 1);
+    resolved.mipCount = min(resolved.mipCount, m_desc.mipCount - resolved.mip);
     return resolved;
 }
 
@@ -150,7 +161,7 @@ bool Texture::isEntireTexture(const SubresourceRange& range)
     {
         return false;
     }
-    if (range.mipLevel > 0 || range.mipLevelCount < m_desc.mipLevelCount)
+    if (range.mip > 0 || range.mipCount < m_desc.mipCount)
     {
         return false;
     }
@@ -175,7 +186,7 @@ Result Texture::getSharedHandle(NativeHandle* outHandle)
 }
 
 Result Texture::getSubresourceRegionLayout(
-    uint32_t mipLevel,
+    uint32_t mip,
     Offset3D offset,
     Extent3D extent,
     size_t rowAlignment,
@@ -186,7 +197,7 @@ Result Texture::getSubresourceRegionLayout(
     {
         SLANG_RETURN_ON_FAIL(m_device->getTextureRowAlignment(m_desc.format, &rowAlignment));
     }
-    return calcSubresourceRegionLayout(m_desc, mipLevel, offset, extent, rowAlignment, outLayout);
+    return calcSubresourceRegionLayout(m_desc, mip, offset, extent, rowAlignment, outLayout);
 }
 
 Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextureView)
@@ -211,6 +222,12 @@ Result TextureView::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result TextureView::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 // ----------------------------------------------------------------------------
 // Sampler
 // ----------------------------------------------------------------------------
@@ -227,10 +244,16 @@ const SamplerDesc& Sampler::getDesc()
     return m_desc;
 }
 
+Result Sampler::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Sampler::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
-    return SLANG_E_NOT_IMPLEMENTED;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 // ----------------------------------------------------------------------------
@@ -250,6 +273,11 @@ AccelerationStructureHandle AccelerationStructure::getHandle()
     return {};
 }
 
+Result AccelerationStructure::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
 
 // ----------------------------------------------------------------------------
 // InputLayout

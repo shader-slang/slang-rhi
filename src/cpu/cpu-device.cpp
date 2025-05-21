@@ -11,6 +11,45 @@ DeviceImpl::~DeviceImpl() {}
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
+
+    // Initialize device info
+    {
+        m_info.deviceType = DeviceType::CPU;
+        m_info.apiName = "CPU";
+        m_info.adapterName = "CPU";
+        m_info.adapterLUID = {};
+        m_info.timestampFrequency = 1000000000;
+    }
+
+    // Initialize features & capabilities
+    addFeature(Feature::SoftwareDevice);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::TimestampQuery);
+    addFeature(Feature::Pointer);
+
+    addCapability(Capability::cpp);
+
+    // Initialize format support table
+    for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
+    {
+        Format format = Format(formatIndex);
+        FormatSupport formatSupport = FormatSupport::None;
+        if (_getFormatInfo(format))
+        {
+            formatSupport |= FormatSupport::CopySource;
+            formatSupport |= FormatSupport::CopyDestination;
+            formatSupport |= FormatSupport::Texture;
+            formatSupport |= FormatSupport::ShaderLoad;
+            formatSupport |= FormatSupport::ShaderSample;
+            formatSupport |= FormatSupport::ShaderUavLoad;
+            formatSupport |= FormatSupport::ShaderUavStore;
+            formatSupport |= FormatSupport::ShaderAtomic;
+        }
+        m_formatSupport[formatIndex] = formatSupport;
+    }
+
+    // Initialize slang context
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_SHADER_HOST_CALLABLE,
@@ -18,37 +57,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         std::array{slang::PreprocessorMacroDesc{"__CPU__", "1"}}
     ));
 
-    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
-
-    // Initialize DeviceInfo
-    {
-        m_info.deviceType = DeviceType::CPU;
-        m_info.apiName = "CPU";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
-        m_info.adapterName = "CPU";
-        m_info.timestampFrequency = 1000000000;
-    }
-
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
-    // Supports timestamp queries
-    m_features.push_back("timestamp-query");
-    // Supports pointers (or something akin to that)
-    m_features.push_back("has-ptr");
-
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
-
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    SLANG_RETURN_ON_FAIL(Device::getFormatSupport(format, outFormatSupport));
-
-    // Disable formats for which we have no mapping
-    if (!_getFormatInfo(format))
-        *outFormatSupport = FormatSupport::None;
 
     return SLANG_OK;
 }
@@ -103,11 +112,6 @@ Result DeviceImpl::createShaderProgram(
 
     returnComPtr(outProgram, program);
     return SLANG_OK;
-}
-
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
-{
-    return m_info;
 }
 
 Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)

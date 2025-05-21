@@ -23,9 +23,9 @@ static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 
 GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
 {
-    if (device->getDeviceInfo().deviceType == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
+    if (device->getDeviceType() == DeviceType::Vulkan && SLANG_APPLE_FAMILY)
         SKIP("not supported on MoltenVK");
-    if (!device->hasFeature("parameter-block"))
+    if (!device->hasFeature(Feature::ParameterBlock))
         SKIP("no support for parameter blocks");
 
     ComPtr<IShaderProgram> shaderProgram;
@@ -48,7 +48,7 @@ GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
         textureDesc.size.width = 2;
         textureDesc.size.height = 2;
         textureDesc.size.depth = 1;
-        textureDesc.mipLevelCount = 2;
+        textureDesc.mipCount = 2;
         textureDesc.memoryType = MemoryType::DeviceLocal;
         textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::CopyDestination;
         textureDesc.defaultState = ResourceState::ShaderResource;

@@ -31,6 +31,8 @@ namespace rhi::vk {
     x(vkGetPhysicalDeviceMemoryProperties) \
     x(vkGetPhysicalDeviceQueueFamilyProperties) \
     x(vkGetPhysicalDeviceFormatProperties) \
+    x(vkGetPhysicalDeviceFormatProperties2) \
+    x(vkGetPhysicalDeviceImageFormatProperties2) \
     x(vkGetDeviceProcAddr) \
     /* */
 
@@ -221,6 +223,7 @@ namespace rhi::vk {
     x(vkCmdDrawMeshTasksEXT) \
     x(vkConvertCooperativeVectorMatrixNV) \
     x(vkCmdConvertCooperativeVectorMatrixNV) \
+    x(vkGetDescriptorSetLayoutSupport) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
@@ -372,6 +375,16 @@ struct VulkanExtendedFeatureProperties
     // Cooperative matrix 1 features.
     VkPhysicalDeviceCooperativeMatrixFeaturesKHR cooperativeMatrix1Features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR
+    };
+
+    // Descriptor indexing features
+    VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES
+    };
+
+    // Mutable descriptor type features
+    VkPhysicalDeviceMutableDescriptorTypeFeaturesEXT mutableDescriptorTypeFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MUTABLE_DESCRIPTOR_TYPE_FEATURES_EXT
     };
 };
 

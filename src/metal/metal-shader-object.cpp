@@ -3,6 +3,7 @@
 #include "metal-buffer.h"
 #include "metal-texture.h"
 #include "metal-sampler.h"
+#include <slang.h>
 
 namespace rhi::metal {
 
@@ -189,7 +190,11 @@ Result BindingDataBuilder::bindAsParameterBlock(
 
     BufferImpl* argumentBuffer = nullptr;
     SLANG_RETURN_ON_FAIL(writeArgumentBuffer(shaderObject, specializedLayout, argumentBuffer));
-    SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, inOffset.buffer, argumentBuffer->m_buffer.get()));
+
+    if (argumentBuffer)
+    {
+        SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, inOffset.buffer, argumentBuffer->m_buffer.get()));
+    }
 
     return SLANG_OK;
 }
@@ -403,9 +408,14 @@ Result BindingDataBuilder::writeArgumentBuffer(
 )
 {
     auto argumentBufferTypeLayout = specializedLayout->getParameterBlockTypeLayout();
-    // TODO(shaderobject) for some reason, using the specialized layout here always returns zero uniform data size
-    // auto elementTypeLayout = specializedLayout->getElementTypeLayout();
-    auto elementTypeLayout = shaderObject->getElementTypeLayout();
+
+    // If the argument buffer has no fields, we don't need to create one, note this is legal because there could be an
+    // empty struct type in AST. We need to handle this correctly.
+    if (argumentBufferTypeLayout->getFieldCount() == 0)
+    {
+        outArgumentBuffer = nullptr;
+        return SLANG_OK;
+    }
 
     ComPtr<IBuffer> argumentBuffer;
     BufferDesc argumentBufferDesc = {};
@@ -415,6 +425,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
     argumentBufferDesc.memoryType = MemoryType::Upload;
     SLANG_RETURN_ON_FAIL(m_device->createBuffer(argumentBufferDesc, nullptr, argumentBuffer.writeRef()));
     auto argumentBufferImpl = checked_cast<BufferImpl*>(argumentBuffer.get());
+
+    memcpy(argumentBufferImpl->m_buffer->contents(), shaderObject->m_data.data(), shaderObject->m_data.size());
 
     // Once the buffer is allocated, we can fill it in with the uniform data
     // and resource bindings we have tracked, using `argumentBufferTypeLayout` to obtain
@@ -429,8 +441,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
         uint32_t slotIndex = bindingRangeInfo.slotIndex;
         uint32_t count = bindingRangeInfo.count;
 
-        SlangInt setIndex = elementTypeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
-        SlangInt rangeIndex = elementTypeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
+        SlangInt setIndex = argumentBufferTypeLayout->getBindingRangeDescriptorSetIndex(bindingRangeIndex);
+        SlangInt rangeIndex = argumentBufferTypeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
         SlangInt argumentOffset =
             argumentBufferTypeLayout->getDescriptorSetDescriptorRangeIndexOffset(setIndex, rangeIndex);
         uint8_t* argumentPtr = argumentData + argumentOffset;
@@ -550,7 +562,7 @@ Result BindingDataBuilder::writeArgumentBuffer(
 
     SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
         argumentBufferTypeLayout,
-        elementTypeLayout,
+        shaderObject->getElementTypeLayout(),
         (uint8_t*)argumentData,
         (uint8_t*)shaderObject->m_data.data()
     ));

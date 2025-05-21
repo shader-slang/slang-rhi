@@ -10,7 +10,7 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-null-views", "compute_main", slangReflection));
+    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-null-views", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

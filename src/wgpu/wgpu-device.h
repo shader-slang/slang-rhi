@@ -24,8 +24,6 @@ class DeviceImpl : public Device
 public:
     using Device::readBuffer;
 
-    DeviceDesc m_desc;
-    DeviceInfo m_info;
     std::string m_adapterName;
 
     Context m_ctx;
@@ -38,7 +36,6 @@ public:
     WGPUErrorType getAndClearLastError();
 
     // IDevice implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -100,11 +97,12 @@ public:
         override;
 
     // void waitForGpu();
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
 private:
     WGPUErrorType m_lastError = WGPUErrorType_NoError;
+
+    void initializeFormatSupport();
 };
 
 } // namespace rhi::wgpu

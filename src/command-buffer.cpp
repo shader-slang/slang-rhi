@@ -497,7 +497,7 @@ void CommandEncoder::copyTextureToBuffer(
     Size dstRowPitch,
     ITexture* src,
     uint32_t srcLayer,
-    uint32_t srcMipLevel,
+    uint32_t srcMip,
     Offset3D srcOffset,
     Extent3D extent
 )
@@ -509,7 +509,7 @@ void CommandEncoder::copyTextureToBuffer(
     cmd.dstRowPitch = dstRowPitch;
     cmd.src = src;
     cmd.srcLayer = srcLayer;
-    cmd.srcMipLevel = srcMipLevel;
+    cmd.srcMip = srcMip;
     cmd.srcOffset = srcOffset;
     cmd.extent = extent;
     m_commandList->write(std::move(cmd));
@@ -518,7 +518,7 @@ void CommandEncoder::copyTextureToBuffer(
 void CommandEncoder::copyBufferToTexture(
     ITexture* dst,
     uint32_t dstLayer,
-    uint32_t dstMipLevel,
+    uint32_t dstMip,
     Offset3D dstOffset,
     IBuffer* src,
     Offset srcOffset,
@@ -531,7 +531,7 @@ void CommandEncoder::copyBufferToTexture(
 
     // Get basic layout info from the texture
     Texture* textureImpl = checked_cast<Texture*>(dst);
-    textureImpl->getSubresourceRegionLayout(dstMipLevel, dstOffset, extent, kDefaultAlignment, layout);
+    textureImpl->getSubresourceRegionLayout(dstMip, dstOffset, extent, kDefaultAlignment, layout);
 
     // The layout that actually matters is the layout of the buffer, defined
     // by the row stride, so recalculate it given srcRowPitch.
@@ -543,7 +543,7 @@ void CommandEncoder::copyBufferToTexture(
     // Add texture upload command for just this layer/mip
     commands::UploadTextureData cmd;
     cmd.dst = dst;
-    cmd.subresourceRange = {dstLayer, 1, dstMipLevel, 1};
+    cmd.subresourceRange = {dstLayer, 1, dstMip, 1};
     cmd.offset = dstOffset;
     cmd.extent = extent;
     cmd.layouts = layout;
@@ -574,11 +574,11 @@ Result CommandEncoder::uploadTextureData(
         SubresourceLayout* srLayout = layouts;
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
         {
-            for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+            for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
             {
-                uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+                uint32_t mip = subresourceRange.mip + mipOffset;
 
-                textureImpl->getSubresourceRegionLayout(mipLevel, offset, extent, kDefaultAlignment, srLayout);
+                textureImpl->getSubresourceRegionLayout(mip, offset, extent, kDefaultAlignment, srLayout);
                 totalSize += srLayout->sizeInBytes;
                 srLayout++;
             }
@@ -602,7 +602,7 @@ Result CommandEncoder::uploadTextureData(
         uint8_t* srDestData = dstData;
         for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
         {
-            for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+            for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
             {
                 // Source and dest rows may have different alignments, so its valid for strides to be
                 // different (even if data itself isn't). We copy the minimum of the two to avoid

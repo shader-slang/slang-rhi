@@ -37,13 +37,25 @@ struct ShaderModelInfo
     D3D_SHADER_MODEL shaderModel;
     SlangCompileTarget compileTarget;
     const char* profileName;
+    Feature feature;
+    Capability capability;
 };
 // List of shader models. Do not change oldest to newest order.
 static ShaderModelInfo kKnownShaderModels[] = {
-#define SHADER_MODEL_INFO_DXBC(major, minor) {D3D_SHADER_MODEL_##major##_##minor, SLANG_DXBC, "sm_" #major "_" #minor}
+#define SHADER_MODEL_INFO_DXBC(major, minor)                                                                           \
+    {D3D_SHADER_MODEL_##major##_##minor,                                                                               \
+     SLANG_DXBC,                                                                                                       \
+     "sm_" #major "_" #minor,                                                                                          \
+     Feature::SM_##major##_##minor,                                                                                    \
+     Capability::_sm_##major##_##minor}
     SHADER_MODEL_INFO_DXBC(5, 1),
 #undef SHADER_MODEL_INFO_DXBC
-#define SHADER_MODEL_INFO_DXIL(major, minor) {(D3D_SHADER_MODEL)0x##major##minor, SLANG_DXIL, "sm_" #major "_" #minor}
+#define SHADER_MODEL_INFO_DXIL(major, minor)                                                                           \
+    {(D3D_SHADER_MODEL)0x##major##minor,                                                                               \
+     SLANG_DXIL,                                                                                                       \
+     "sm_" #major "_" #minor,                                                                                          \
+     Feature::SM_##major##_##minor,                                                                                    \
+     Capability::_sm_##major##_##minor}
     SHADER_MODEL_INFO_DXIL(6, 0),
     SHADER_MODEL_INFO_DXIL(6, 1),
     SHADER_MODEL_INFO_DXIL(6, 2),
@@ -51,9 +63,32 @@ static ShaderModelInfo kKnownShaderModels[] = {
     SHADER_MODEL_INFO_DXIL(6, 4),
     SHADER_MODEL_INFO_DXIL(6, 5),
     SHADER_MODEL_INFO_DXIL(6, 6),
-    SHADER_MODEL_INFO_DXIL(6, 7)
+    SHADER_MODEL_INFO_DXIL(6, 7),
+    SHADER_MODEL_INFO_DXIL(6, 8),
+    SHADER_MODEL_INFO_DXIL(6, 9)
 #undef SHADER_MODEL_INFO_DXIL
 };
+
+inline int getShaderModelFromProfileName(const char* name)
+{
+    if (!name)
+    {
+        return -1;
+    }
+
+    std::string_view nameStr(name);
+
+    for (int i = 0; i < SLANG_COUNT_OF(kKnownShaderModels); ++i)
+    {
+        std::string_view versionStr(kKnownShaderModels[i].profileName + 3, 3);
+        if (string::ends_with(nameStr, versionStr))
+        {
+            return kKnownShaderModels[i].shaderModel;
+        }
+    }
+    return -1;
+}
+
 
 #if SLANG_RHI_ENABLE_NVAPI
 // Raytracing validation callback
@@ -89,114 +124,6 @@ static void __stdcall raytracingValidationMessageCallback(
     device->m_debugCallback->handleMessage(type, DebugMessageSource::Driver, msg);
 }
 #endif // SLANG_RHI_ENABLE_NVAPI
-
-Result DeviceImpl::createBuffer(
-    const D3D12_RESOURCE_DESC& resourceDesc,
-    const void* srcData,
-    Size srcDataSize,
-    D3D12_RESOURCE_STATES finalState,
-    D3D12Resource& resourceOut,
-    bool isShared,
-    MemoryType memoryType
-)
-{
-    const Size bufferSize = Size(resourceDesc.Width);
-
-    D3D12_HEAP_PROPERTIES heapProps;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
-
-    D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
-    if (isShared)
-        flags |= D3D12_HEAP_FLAG_SHARED;
-
-    D3D12_RESOURCE_DESC desc = resourceDesc;
-
-    D3D12_RESOURCE_STATES initialState = finalState;
-
-    switch (memoryType)
-    {
-    case MemoryType::ReadBack:
-        SLANG_RHI_ASSERT(!srcData);
-
-        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        initialState |= D3D12_RESOURCE_STATE_COPY_DEST;
-        break;
-    case MemoryType::Upload:
-
-        heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-        initialState |= D3D12_RESOURCE_STATE_GENERIC_READ;
-        break;
-    case MemoryType::DeviceLocal:
-        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-        if (initialState != D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
-            initialState = D3D12_RESOURCE_STATE_COMMON;
-        break;
-    default:
-        return SLANG_FAIL;
-    }
-
-    // Create the resource.
-    SLANG_RETURN_ON_FAIL(resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr));
-
-    if (srcData)
-    {
-        D3D12Resource uploadResource;
-
-        if (memoryType == MemoryType::DeviceLocal)
-        {
-            // If the buffer is on the default heap, create upload buffer.
-            D3D12_RESOURCE_DESC uploadDesc(resourceDesc);
-            uploadDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-            heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-
-            SLANG_RETURN_ON_FAIL(uploadResource.initCommitted(
-                m_device,
-                heapProps,
-                D3D12_HEAP_FLAG_NONE,
-                uploadDesc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr
-            ));
-        }
-
-        // Be careful not to actually copy a resource here.
-        D3D12Resource& uploadResourceRef = (memoryType == MemoryType::DeviceLocal) ? uploadResource : resourceOut;
-
-        // Copy data to the intermediate upload heap and then schedule a copy
-        // from the upload heap to the vertex buffer.
-        UINT8* dstData;
-        D3D12_RANGE readRange = {}; // We do not intend to read from this resource on the CPU.
-
-        ID3D12Resource* dxUploadResource = uploadResourceRef.getResource();
-
-        SLANG_RETURN_ON_FAIL(dxUploadResource->Map(0, &readRange, reinterpret_cast<void**>(&dstData)));
-        ::memcpy(dstData, srcData, srcDataSize);
-        dxUploadResource->Unmap(0, nullptr);
-
-        if (memoryType == MemoryType::DeviceLocal)
-        {
-            ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
-            commandList->CopyBufferRegion(resourceOut, 0, uploadResourceRef, 0, bufferSize);
-            endImmediateCommandList();
-        }
-    }
-
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
-{
-    outHandles->handles[0].type = NativeHandleType::D3D12Device;
-    outHandles->handles[0].value = (uint64_t)m_device;
-    outHandles->handles[1] = {};
-    outHandles->handles[2] = {};
-    return SLANG_OK;
-}
 
 Result DeviceImpl::_createDevice(
     DeviceCheckFlags deviceCheckFlags,
@@ -348,7 +275,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
     // Rather than statically link against D3D, we load it dynamically.
-
     SharedLibraryHandle d3dModule;
 #if SLANG_WINDOWS_FAMILY
     const char* libName = "d3d12";
@@ -378,40 +304,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    // Initialize DeviceInfo
-    {
-        m_info.deviceType = DeviceType::D3D12;
-        m_info.apiName = "D3D12";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
-    }
-
-    // Get all the dll entry points
-    m_D3D12SerializeRootSignature =
-        (PFN_D3D12_SERIALIZE_ROOT_SIGNATURE)loadProc(d3dModule, "D3D12SerializeRootSignature");
-    if (!m_D3D12SerializeRootSignature)
-    {
-        return SLANG_FAIL;
-    }
-
-    m_D3D12SerializeVersionedRootSignature =
-        (PFN_D3D12_SERIALIZE_VERSIONED_ROOT_SIGNATURE)loadProc(d3dModule, "D3D12SerializeVersionedRootSignature");
-    if (!m_D3D12SerializeVersionedRootSignature)
-    {
-        return SLANG_FAIL;
-    }
-
-#if SLANG_ENABLE_PIX
-    HMODULE pixModule = LoadLibraryW(L"WinPixEventRuntime.dll");
-    if (pixModule)
-    {
-        m_BeginEventOnCommandList =
-            (PFN_BeginEventOnCommandList)GetProcAddress(pixModule, "PIXBeginEventOnCommandList");
-        m_EndEventOnCommandList = (PFN_EndEventOnCommandList)GetProcAddress(pixModule, "PIXEndEventOnCommandList");
-        m_SetMarkerOnCommandList = (PFN_SetMarkerOnCommandList)GetProcAddress(pixModule, "PIXSetMarkerOnCommandList");
-    }
-#endif
-
     // If Aftermath is enabled, we can't enable the D3D12 debug layer as well
     if (isDebugLayersEnabled() && !g_isAftermathEnabled)
     {
@@ -438,11 +330,42 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    m_D3D12CreateDevice = (PFN_D3D12_CREATE_DEVICE)loadProc(d3dModule, "D3D12CreateDevice");
-    if (!m_D3D12CreateDevice)
+    // Get D3D12 entry points.
     {
-        return SLANG_FAIL;
+        m_D3D12CreateDevice = (PFN_D3D12_CREATE_DEVICE)loadProc(d3dModule, "D3D12CreateDevice");
+        if (!m_D3D12CreateDevice)
+        {
+            return SLANG_FAIL;
+        }
+        m_D3D12SerializeRootSignature =
+            (PFN_D3D12_SERIALIZE_ROOT_SIGNATURE)loadProc(d3dModule, "D3D12SerializeRootSignature");
+        if (!m_D3D12SerializeRootSignature)
+        {
+            return SLANG_FAIL;
+        }
+
+        m_D3D12SerializeVersionedRootSignature =
+            (PFN_D3D12_SERIALIZE_VERSIONED_ROOT_SIGNATURE)loadProc(d3dModule, "D3D12SerializeVersionedRootSignature");
+        if (!m_D3D12SerializeVersionedRootSignature)
+        {
+            return SLANG_FAIL;
+        }
     }
+
+    // Get PIX entry points.
+#if SLANG_ENABLE_PIX
+    {
+        HMODULE pixModule = LoadLibraryW(L"WinPixEventRuntime.dll");
+        if (pixModule)
+        {
+            m_BeginEventOnCommandList =
+                (PFN_BeginEventOnCommandList)GetProcAddress(pixModule, "PIXBeginEventOnCommandList");
+            m_EndEventOnCommandList = (PFN_EndEventOnCommandList)GetProcAddress(pixModule, "PIXEndEventOnCommandList");
+            m_SetMarkerOnCommandList =
+                (PFN_SetMarkerOnCommandList)GetProcAddress(pixModule, "PIXSetMarkerOnCommandList");
+        }
+    }
+#endif
 
     if (!desc.existingDeviceHandles.handles[0])
     {
@@ -494,6 +417,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Set the device
     m_device = m_deviceInfo.m_device;
+#if SLANG_RHI_DXR
+    m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
+    m_device5 = m_deviceInfo.m_device5.get();
+#endif
 
     // Disable noisy debug layer messages.
     if (isDebugLayersEnabled())
@@ -513,375 +440,42 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    // Initialize DXR interface.
-#if SLANG_RHI_DXR
-    m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
-    m_device5 = m_deviceInfo.m_device5.get();
-#endif
-
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
-    // Supports surface/swapchain
-    m_features.push_back("surface");
-    // Supports rasterization
-    m_features.push_back("rasterization");
-    // Supports custom border color
-    m_features.push_back("custom-border-color");
-    // Supports timestamp queries
-    m_features.push_back("timestamp-query");
-
-    if (m_deviceInfo.m_isSoftware)
+    // Initialize descriptor heaps.
     {
-        m_features.push_back("software-device");
-    }
-    else
-    {
-        m_features.push_back("hardware-device");
-    }
-
-    // Initialize NVAPI
-#if SLANG_RHI_ENABLE_NVAPI
-    {
-        if (SLANG_FAILED(NVAPIUtil::initialize()))
-        {
-            return SLANG_E_NOT_AVAILABLE;
-        }
-        m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
-        if (m_nvapiShaderExtension)
-        {
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
-            {
-                m_features.push_back("atomic-int64");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
-            {
-                m_features.push_back("atomic-half");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
-            {
-                m_features.push_back("atomic-float");
-            }
-            if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
-            {
-                m_features.push_back("realtime-clock");
-            }
-            NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
-            if (NvAPI_D3D12_GetRaytracingCaps(
-                    m_device,
-                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_SPHERES,
-                    &spheresCaps,
-                    sizeof(spheresCaps)
-                ) == NVAPI_OK &&
-                spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
-            {
-                m_features.push_back("acceleration-structure-spheres");
-            }
-            NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
-            if (NvAPI_D3D12_GetRaytracingCaps(
-                    m_device,
-                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_LINEAR_SWEPT_SPHERES,
-                    &lssCaps,
-                    sizeof(lssCaps)
-                ) == NVAPI_OK &&
-                lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
-            {
-                m_features.push_back("acceleration-structure-linear-swept-spheres");
-            }
-            NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
-            if (NvAPI_D3D12_GetRaytracingCaps(
-                    m_device,
-                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_THREAD_REORDERING,
-                    &reorderingCaps,
-                    sizeof(reorderingCaps)
-                ) == NVAPI_OK &&
-                reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
-            {
-                m_features.push_back("ray-tracing-reordering");
-            }
-
-            // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
-            // so we query the number of cooperative vector properties to determine if it is supported.
-            NvU32 propertyCount = 0;
-            if (NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr) ==
-                    NVAPI_OK &&
-                propertyCount > 0)
-            {
-                // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
-                // hardware/driver support.
-                // m_features.push_back("cooperative-vector");
-            }
-        }
-
-        // Enable ray tracing validation if requested
-#if SLANG_RHI_DXR
-        if (m_desc.enableRayTracingValidation)
-        {
-            if (NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE) ==
-                NVAPI_OK)
-            {
-                SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
-                    m_device5,
-                    &raytracingValidationMessageCallback,
-                    this,
-                    &m_raytracingValidationHandle
-                ));
-            }
-        }
-#endif // SLANG_RHI_DXR
-    }
-#endif // SLANG_RHI_ENABLE_NVAPI
-
-    D3D12_FEATURE_DATA_SHADER_MODEL shaderModelData = {};
-
-    // Find what features are supported
-    {
-        // Check this is how this is laid out...
-        static_assert(D3D_SHADER_MODEL_6_0 == 0x60);
-
-        {
-            // CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL) can fail if the runtime/driver does not yet know the
-            // specified highest shader model. Therefore we assemble a list of shader models to check and
-            // walk it from highest to lowest to find the supported shader model.
-            short_vector<D3D_SHADER_MODEL> shaderModels;
-            if (m_extendedDesc.highestShaderModel != 0)
-                shaderModels.push_back((D3D_SHADER_MODEL)m_extendedDesc.highestShaderModel);
-            for (int i = SLANG_COUNT_OF(kKnownShaderModels) - 1; i >= 0; --i)
-                shaderModels.push_back(kKnownShaderModels[i].shaderModel);
-            for (D3D_SHADER_MODEL shaderModel : shaderModels)
-            {
-                shaderModelData.HighestShaderModel = shaderModel;
-                if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(
-                        D3D12_FEATURE_SHADER_MODEL,
-                        &shaderModelData,
-                        sizeof(shaderModelData)
-                    )))
-                    break;
-            }
-
-            // TODO: Currently warp causes a crash when using half, so disable for now
-            if (m_deviceInfo.m_isWarp == false && shaderModelData.HighestShaderModel >= D3D_SHADER_MODEL_6_2)
-            {
-                // With sm_6_2 we have half
-                m_features.push_back("half");
-            }
-        }
-        {
-            D3D12_FEATURE_DATA_D3D12_OPTIONS options;
-            if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options))))
-            {
-                // Check double precision support
-                if (options.DoublePrecisionFloatShaderOps)
-                    m_features.push_back("double");
-
-                // Check conservative-rasterization support
-                auto conservativeRasterTier = options.ConservativeRasterizationTier;
-                if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_3)
-                {
-                    m_features.push_back("conservative-rasterization-3");
-                    m_features.push_back("conservative-rasterization-2");
-                    m_features.push_back("conservative-rasterization-1");
-                }
-                else if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_2)
-                {
-                    m_features.push_back("conservative-rasterization-2");
-                    m_features.push_back("conservative-rasterization-1");
-                }
-                else if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_1)
-                {
-                    m_features.push_back("conservative-rasterization-1");
-                }
-
-                // Check rasterizer ordered views support
-                if (options.ROVsSupported)
-                {
-                    m_features.push_back("rasterizer-ordered-views");
-                }
-            }
-        }
-        {
-            D3D12_FEATURE_DATA_D3D12_OPTIONS1 options;
-            if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &options, sizeof(options))))
-            {
-                // Check wave operations support
-                if (options.WaveOps)
-                    m_features.push_back("wave-ops");
-            }
-        }
-        {
-            D3D12_FEATURE_DATA_D3D12_OPTIONS2 options;
-            if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS2, &options, sizeof(options))))
-            {
-                // Check programmable sample positions support
-                switch (options.ProgrammableSamplePositionsTier)
-                {
-                case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_2:
-                    m_features.push_back("programmable-sample-positions-2");
-                    m_features.push_back("programmable-sample-positions-1");
-                    break;
-                case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_1:
-                    m_features.push_back("programmable-sample-positions-1");
-                    break;
-                default:
-                    break;
-                }
-            }
-        }
-        {
-            D3D12_FEATURE_DATA_D3D12_OPTIONS3 options;
-            if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS3, &options, sizeof(options))))
-            {
-                // Check barycentrics support
-                if (options.BarycentricsSupported)
-                {
-                    m_features.push_back("barycentrics");
-                }
-            }
-        }
-        // Check ray tracing support
-        {
-            D3D12_FEATURE_DATA_D3D12_OPTIONS5 options;
-            if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options, sizeof(options))))
-            {
-                if (options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
-                {
-                    m_features.push_back("acceleration-structure");
-                    m_features.push_back("ray-tracing");
-                }
-                if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
-                {
-                    m_features.push_back("ray-query");
-                }
-            }
-        }
-        // Check mesh shader support
-        {
-            D3D12_FEATURE_DATA_D3D12_OPTIONS7 options;
-            if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &options, sizeof(options))))
-            {
-                if (options.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
-                {
-                    m_features.push_back("mesh-shader");
-                }
-            }
-        }
-    }
-
-    m_desc = desc;
-
-    // Create queue.
-    m_queue = new CommandQueueImpl(this, QueueType::Graphics);
-    m_queue->init(0);
-
-    // Retrieve timestamp frequency.
-    m_queue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency);
-
-    // Get device limits.
-    {
-        DeviceLimits limits = {};
-        limits.maxTextureDimension1D = D3D12_REQ_TEXTURE1D_U_DIMENSION;
-        limits.maxTextureDimension2D = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-        limits.maxTextureDimension3D = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
-        limits.maxTextureDimensionCube = D3D12_REQ_TEXTURECUBE_DIMENSION;
-        limits.maxTextureArrayLayers = D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
-
-        limits.maxVertexInputElements = D3D12_IA_VERTEX_INPUT_STRUCTURE_ELEMENT_COUNT;
-        limits.maxVertexInputElementOffset = 256; // TODO
-        limits.maxVertexStreams = D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
-        limits.maxVertexStreamStride = D3D12_REQ_MULTI_ELEMENT_STRUCTURE_SIZE_IN_BYTES;
-
-        limits.maxComputeThreadsPerGroup = D3D12_CS_THREAD_GROUP_MAX_THREADS_PER_GROUP;
-        limits.maxComputeThreadGroupSize[0] = D3D12_CS_THREAD_GROUP_MAX_X;
-        limits.maxComputeThreadGroupSize[1] = D3D12_CS_THREAD_GROUP_MAX_Y;
-        limits.maxComputeThreadGroupSize[2] = D3D12_CS_THREAD_GROUP_MAX_Z;
-        limits.maxComputeDispatchThreadGroups[0] = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
-        limits.maxComputeDispatchThreadGroups[1] = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
-        limits.maxComputeDispatchThreadGroups[2] = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
-
-        limits.maxViewports = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
-        limits.maxViewportDimensions[0] = D3D12_VIEWPORT_BOUNDS_MAX;
-        limits.maxViewportDimensions[1] = D3D12_VIEWPORT_BOUNDS_MAX;
-        limits.maxFramebufferDimensions[0] = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-        limits.maxFramebufferDimensions[1] = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-        limits.maxFramebufferDimensions[2] = 1;
-
-        limits.maxShaderVisibleSamplers = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
-
-        m_info.limits = limits;
-    }
-
-    SLANG_RETURN_ON_FAIL(CPUDescriptorHeap::create(
-        m_device,
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        16 * 1024,
-        m_cpuCbvSrvUavHeap.writeRef()
-    ));
-    SLANG_RETURN_ON_FAIL(
-        CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 4 * 1024, m_cpuRtvHeap.writeRef())
-    );
-    SLANG_RETURN_ON_FAIL(
-        CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4 * 1024, m_cpuDsvHeap.writeRef())
-    );
-    SLANG_RETURN_ON_FAIL(
-        CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 4 * 1024, m_cpuSamplerHeap.writeRef())
-    );
-
-    SLANG_RETURN_ON_FAIL(GPUDescriptorHeap::create(
-        m_device,
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        1000000,
-        16 * 1024,
-        m_gpuCbvSrvUavHeap.writeRef()
-    ));
-    SLANG_RETURN_ON_FAIL(GPUDescriptorHeap::create(
-        m_device,
-        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-        2 * 1024,
-        2 * 1024,
-        m_gpuSamplerHeap.writeRef()
-    ));
-
-    ComPtr<IDXGIDevice> dxgiDevice;
-    if (m_deviceInfo.m_adapter)
-    {
-        DXGI_ADAPTER_DESC adapterDesc;
-        m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
-        m_adapterName = string::from_wstring(adapterDesc.Description);
-        m_info.adapterName = m_adapterName.data();
-    }
-
-    // Check shader model version.
-    SlangCompileTarget compileTarget = SLANG_DXBC;
-    const char* profileName = "sm_5_1";
-    for (auto& sm : kKnownShaderModels)
-    {
-        if (sm.shaderModel <= shaderModelData.HighestShaderModel)
-        {
-            m_features.push_back(sm.profileName);
-            profileName = sm.profileName;
-            compileTarget = sm.compileTarget;
-        }
-        else
-        {
-            break;
-        }
-    }
-    // If user specified a higher shader model than what the system supports, return failure.
-    int userSpecifiedShaderModel = D3DUtil::getShaderModelFromProfileName(desc.slang.targetProfile);
-    if (userSpecifiedShaderModel > shaderModelData.HighestShaderModel)
-    {
-        handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "The requested shader model is not supported by the system."
+        SLANG_RETURN_ON_FAIL(CPUDescriptorHeap::create(
+            m_device,
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            16 * 1024,
+            m_cpuCbvSrvUavHeap.writeRef()
+        ));
+        SLANG_RETURN_ON_FAIL(
+            CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 4 * 1024, m_cpuRtvHeap.writeRef())
         );
-        return SLANG_E_NOT_AVAILABLE;
+        SLANG_RETURN_ON_FAIL(
+            CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4 * 1024, m_cpuDsvHeap.writeRef())
+        );
+        SLANG_RETURN_ON_FAIL(CPUDescriptorHeap::create(
+            m_device,
+            D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+            4 * 1024,
+            m_cpuSamplerHeap.writeRef()
+        ));
+
+        SLANG_RETURN_ON_FAIL(GPUDescriptorHeap::create(
+            m_device,
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            1000000,
+            16 * 1024,
+            m_gpuCbvSrvUavHeap.writeRef()
+        ));
+        SLANG_RETURN_ON_FAIL(GPUDescriptorHeap::create(
+            m_device,
+            D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+            2048,
+            2048,
+            m_gpuSamplerHeap.writeRef()
+        ));
     }
-    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
-        desc.slang,
-        compileTarget,
-        profileName,
-        std::array{slang::PreprocessorMacroDesc{"__D3D12__", "1"}}
-    ));
 
     // Allocate a D3D12 "command signature" object that matches the behavior
     // of a D3D11-style `DrawInstancedIndirect` operation.
@@ -937,7 +531,456 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             IID_PPV_ARGS(dispatchIndirectCmdSignature.writeRef())
         ));
     }
-    m_isInitialized = true;
+
+    // Initialize device info.
+    {
+        m_info.deviceType = DeviceType::D3D12;
+        m_info.apiName = "D3D12";
+    }
+
+    // Query adapter name & LUID.
+    if (m_deviceInfo.m_adapter)
+    {
+        DXGI_ADAPTER_DESC adapterDesc;
+        m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
+        m_adapterName = string::from_wstring(adapterDesc.Description);
+        m_info.adapterName = m_adapterName.data();
+        m_info.adapterLUID = D3DUtil::getAdapterLUID(m_deviceInfo.m_adapter);
+    }
+    else
+    {
+        m_adapterName = "Unknown";
+        m_info.adapterName = m_adapterName.data();
+        m_info.adapterLUID = {};
+    }
+
+    // Query device limits.
+    {
+        DeviceLimits limits = {};
+        limits.maxTextureDimension1D = D3D12_REQ_TEXTURE1D_U_DIMENSION;
+        limits.maxTextureDimension2D = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        limits.maxTextureDimension3D = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
+        limits.maxTextureDimensionCube = D3D12_REQ_TEXTURECUBE_DIMENSION;
+        limits.maxTextureLayers = D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
+
+        limits.maxVertexInputElements = D3D12_IA_VERTEX_INPUT_STRUCTURE_ELEMENT_COUNT;
+        limits.maxVertexInputElementOffset = 256; // TODO
+        limits.maxVertexStreams = D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT;
+        limits.maxVertexStreamStride = D3D12_REQ_MULTI_ELEMENT_STRUCTURE_SIZE_IN_BYTES;
+
+        limits.maxComputeThreadsPerGroup = D3D12_CS_THREAD_GROUP_MAX_THREADS_PER_GROUP;
+        limits.maxComputeThreadGroupSize[0] = D3D12_CS_THREAD_GROUP_MAX_X;
+        limits.maxComputeThreadGroupSize[1] = D3D12_CS_THREAD_GROUP_MAX_Y;
+        limits.maxComputeThreadGroupSize[2] = D3D12_CS_THREAD_GROUP_MAX_Z;
+        limits.maxComputeDispatchThreadGroups[0] = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+        limits.maxComputeDispatchThreadGroups[1] = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+        limits.maxComputeDispatchThreadGroups[2] = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+
+        limits.maxViewports = D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+        limits.maxViewportDimensions[0] = D3D12_VIEWPORT_BOUNDS_MAX;
+        limits.maxViewportDimensions[1] = D3D12_VIEWPORT_BOUNDS_MAX;
+        limits.maxFramebufferDimensions[0] = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        limits.maxFramebufferDimensions[1] = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        limits.maxFramebufferDimensions[2] = 1;
+
+        limits.maxShaderVisibleSamplers = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
+
+        m_info.limits = limits;
+    }
+
+    // Initialize features & capabilities.
+    addFeature(m_deviceInfo.m_isSoftware ? Feature::SoftwareDevice : Feature::HardwareDevice);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Surface);
+    addFeature(Feature::Rasterization);
+    addFeature(Feature::CustomBorderColor);
+    addFeature(Feature::TimestampQuery);
+
+    addCapability(Capability::hlsl);
+    addCapability(Capability::vertex);
+    addCapability(Capability::fragment);
+    addCapability(Capability::compute);
+    addCapability(Capability::geometry);
+
+    D3D12_FEATURE_DATA_SHADER_MODEL shaderModelData = {};
+
+    {
+        // CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL) can fail if the runtime/driver does not yet know the
+        // specified highest shader model. Therefore we assemble a list of shader models to check and
+        // walk it from highest to lowest to find the supported shader model.
+        short_vector<D3D_SHADER_MODEL> shaderModels;
+        if (m_extendedDesc.highestShaderModel != 0)
+            shaderModels.push_back((D3D_SHADER_MODEL)m_extendedDesc.highestShaderModel);
+        for (int i = SLANG_COUNT_OF(kKnownShaderModels) - 1; i >= 0; --i)
+            shaderModels.push_back(kKnownShaderModels[i].shaderModel);
+        for (D3D_SHADER_MODEL shaderModel : shaderModels)
+        {
+            shaderModelData.HighestShaderModel = shaderModel;
+            if (SLANG_SUCCEEDED(
+                    m_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModelData, sizeof(shaderModelData))
+                ))
+                break;
+        }
+    }
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS options;
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options))))
+        {
+            // Check double precision support
+            if (options.DoublePrecisionFloatShaderOps)
+            {
+                addFeature(Feature::Double);
+            }
+
+            // Check conservative-rasterization support
+            auto conservativeRasterTier = options.ConservativeRasterizationTier;
+            if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_3)
+            {
+                addFeature(Feature::ConservativeRasterization);
+                addFeature(Feature::ConservativeRasterization1);
+                addFeature(Feature::ConservativeRasterization2);
+                addFeature(Feature::ConservativeRasterization3);
+            }
+            else if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_2)
+            {
+                addFeature(Feature::ConservativeRasterization1);
+                addFeature(Feature::ConservativeRasterization2);
+            }
+            else if (conservativeRasterTier == D3D12_CONSERVATIVE_RASTERIZATION_TIER_1)
+            {
+                addFeature(Feature::ConservativeRasterization1);
+            }
+
+            // Check rasterizer ordered views support
+            if (options.ROVsSupported)
+            {
+                addFeature(Feature::RasterizerOrderedViews);
+            }
+
+            // Check for bindless resources support
+            if (options.ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3 &&
+                shaderModelData.HighestShaderModel >= D3D_SHADER_MODEL_6_6)
+            {
+                addFeature(Feature::Bindless);
+            }
+        }
+    }
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS1 options;
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &options, sizeof(options))))
+        {
+            // Check wave operations support
+            if (options.WaveOps)
+            {
+                addFeature(Feature::WaveOps);
+            }
+            if (options.Int64ShaderOps)
+            {
+                addFeature(Feature::Int64);
+            }
+        }
+    }
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS2 options;
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS2, &options, sizeof(options))))
+        {
+            // Check programmable sample positions support
+            switch (options.ProgrammableSamplePositionsTier)
+            {
+            case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_1:
+                addFeature(Feature::ProgrammableSamplePositions1);
+                break;
+            case D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_2:
+                addFeature(Feature::ProgrammableSamplePositions1);
+                addFeature(Feature::ProgrammableSamplePositions2);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS3 options;
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS3, &options, sizeof(options))))
+        {
+            // Check barycentrics support
+            if (options.BarycentricsSupported)
+            {
+                addFeature(Feature::Barycentrics);
+            }
+            // Check multi view support
+            if (options.ViewInstancingTier >= D3D12_VIEW_INSTANCING_TIER_3)
+            {
+                addFeature(Feature::MultiView);
+            }
+        }
+    }
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS4 options;
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS4, &options, sizeof(options))))
+        {
+            if (options.Native16BitShaderOpsSupported)
+            {
+                addFeature(Feature::Half);
+                addFeature(Feature::Int16);
+            }
+        }
+    }
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS5 options;
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options, sizeof(options))))
+        {
+            // Check ray tracing support
+            if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0)
+            {
+                addFeature(Feature::AccelerationStructure);
+                addFeature(Feature::RayTracing);
+            }
+            // Check ray query support
+            if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
+            {
+                addFeature(Feature::RayQuery);
+            }
+        }
+    }
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS6 options;
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &options, sizeof(options))))
+        {
+            // Check fragment shading rate support
+            if (options.VariableShadingRateTier >= D3D12_VARIABLE_SHADING_RATE_TIER_2)
+            {
+                addFeature(Feature::FragmentShadingRate);
+            }
+        }
+    }
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS7 options;
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &options, sizeof(options))))
+        {
+            // Check mesh shader support
+            if (options.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
+            {
+                addFeature(Feature::MeshShader);
+            }
+            // Check sampler feedback support
+            if (options.SamplerFeedbackTier >= D3D12_SAMPLER_FEEDBACK_TIER_1_0)
+            {
+                addFeature(Feature::SamplerFeedback);
+            }
+        }
+    }
+
+    // Initialize NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
+    {
+        if (SLANG_SUCCEEDED(NVAPIUtil::initialize()))
+        {
+            m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
+            if (m_nvapiShaderExtension)
+            {
+                addCapability(Capability::hlsl_nvapi);
+
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_UINT64_ATOMIC))
+                {
+                    addFeature(Feature::AtomicInt64);
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP16_ATOMIC))
+                {
+                    addFeature(Feature::AtomicHalf);
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_FP32_ATOMIC))
+                {
+                    addFeature(Feature::AtomicFloat);
+                }
+                if (isSupportedNVAPIOp(m_device, NV_EXTN_OP_GET_SPECIAL))
+                {
+                    addFeature(Feature::RealtimeClock);
+                }
+                NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
+                if (NvAPI_D3D12_GetRaytracingCaps(
+                        m_device,
+                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_SPHERES,
+                        &spheresCaps,
+                        sizeof(spheresCaps)
+                    ) == NVAPI_OK &&
+                    spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
+                {
+                    addFeature(Feature::AccelerationStructureSpheres);
+                }
+                NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
+                if (NvAPI_D3D12_GetRaytracingCaps(
+                        m_device,
+                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_LINEAR_SWEPT_SPHERES,
+                        &lssCaps,
+                        sizeof(lssCaps)
+                    ) == NVAPI_OK &&
+                    lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
+                {
+                    addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+                }
+                NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
+                if (NvAPI_D3D12_GetRaytracingCaps(
+                        m_device,
+                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_THREAD_REORDERING,
+                        &reorderingCaps,
+                        sizeof(reorderingCaps)
+                    ) == NVAPI_OK &&
+                    reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
+                {
+                    addFeature(Feature::ShaderExecutionReordering);
+                }
+
+                // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
+                // so we query the number of cooperative vector properties to determine if it is supported.
+                NvU32 propertyCount = 0;
+                if (NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr) ==
+                        NVAPI_OK &&
+                    propertyCount > 0)
+                {
+                    // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
+                    // hardware/driver support.
+                    // addFeature(Feature::CooperativeVector);
+                }
+            }
+        }
+
+        // Enable ray tracing validation if requested
+#if SLANG_RHI_DXR
+        if (desc.enableRayTracingValidation)
+        {
+            if (NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE) ==
+                NVAPI_OK)
+            {
+                SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
+                    m_device5,
+                    &raytracingValidationMessageCallback,
+                    this,
+                    &m_raytracingValidationHandle
+                ));
+            }
+        }
+#endif // SLANG_RHI_DXR
+    }
+#endif // SLANG_RHI_ENABLE_NVAPI
+
+    // Initialize format support table
+    for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
+    {
+        Format format = Format(formatIndex);
+        const D3DUtil::FormatMapping& formatMapping = D3DUtil::getFormatMapping(format);
+        FormatSupport formatSupport = FormatSupport::None;
+
+#define UPDATE_FLAGS(d3dFlags, formatSupportFlags)                                                                     \
+    formatSupport |= (flags & d3dFlags) ? formatSupportFlags : FormatSupport::None;
+
+        D3D12_FEATURE_DATA_FORMAT_SUPPORT d3dFormatSupport = {formatMapping.srvFormat};
+        if (SLANG_SUCCEEDED(
+                m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &d3dFormatSupport, sizeof(d3dFormatSupport))
+            ))
+        {
+            UINT flags = d3dFormatSupport.Support1;
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_BUFFER, FormatSupport::Buffer);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER, FormatSupport::VertexBuffer);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_IA_INDEX_BUFFER, FormatSupport::IndexBuffer);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_TEXTURE1D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_TEXTURE2D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_TEXTURE3D, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_TEXTURECUBE, FormatSupport::Texture);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_SHADER_LOAD, FormatSupport::ShaderLoad);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE, FormatSupport::ShaderSample);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_RENDER_TARGET, FormatSupport::RenderTarget);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_BLENDABLE, FormatSupport::Blendable);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL, FormatSupport::DepthStencil);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_MULTISAMPLE_RESOLVE, FormatSupport::Resolvable);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT1_MULTISAMPLE_RENDERTARGET, FormatSupport::Multisampling);
+
+            flags = d3dFormatSupport.Support2;
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD, FormatSupport::ShaderUavLoad);
+            UPDATE_FLAGS(D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE, FormatSupport::ShaderUavStore);
+            if (is_set(formatSupport, FormatSupport::ShaderUavStore))
+            {
+                UPDATE_FLAGS(
+                    (D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_ADD | D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_BITWISE_OPS |
+                     D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_COMPARE_STORE_OR_COMPARE_EXCHANGE |
+                     D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_EXCHANGE | D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_SIGNED_MIN_OR_MAX |
+                     D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_UNSIGNED_MIN_OR_MAX),
+                    FormatSupport::ShaderAtomic
+                );
+            }
+        }
+
+#undef UPDATE_FLAGS
+
+        if (formatSupport != FormatSupport::None)
+        {
+            formatSupport |= FormatSupport::CopySource | FormatSupport::CopyDestination;
+        }
+
+        m_formatSupport[formatIndex] = formatSupport;
+    }
+
+    // If user specified a higher shader model than what the system supports, return failure.
+    int userSpecifiedShaderModel = getShaderModelFromProfileName(desc.slang.targetProfile);
+    if (userSpecifiedShaderModel > shaderModelData.HighestShaderModel)
+    {
+        handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Layer,
+            "The requested shader model is not supported by the system."
+        );
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    // Check shader model version.
+    SlangCompileTarget compileTarget = SLANG_DXBC;
+    const char* profileName = "sm_5_1";
+    for (auto& sm : kKnownShaderModels)
+    {
+        if (sm.shaderModel <= shaderModelData.HighestShaderModel)
+        {
+            addFeature(sm.feature);
+            addCapability(sm.capability);
+            profileName = sm.profileName;
+            compileTarget = sm.compileTarget;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    // Initialize slang context.
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
+        desc.slang,
+        compileTarget,
+        profileName,
+        std::array{slang::PreprocessorMacroDesc{"__D3D12__", "1"}}
+    ));
+
+    // Create queue.
+    m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    m_queue->init(0);
+
+    // Retrieve timestamp frequency.
+    m_queue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency);
+
+    // Initialize bindless descriptor set if supported.
+    if (hasFeature(Feature::Bindless))
+    {
+        m_bindlessDescriptorSet = new BindlessDescriptorSet(this, desc.bindless);
+        SLANG_RETURN_ON_FAIL(m_bindlessDescriptorSet->initialize());
+    }
+
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
+{
+    outHandles->handles[0].type = NativeHandleType::D3D12Device;
+    outHandles->handles[0].value = (uint64_t)m_device;
+    outHandles->handles[1] = {};
+    outHandles->handles[2] = {};
     return SLANG_OK;
 }
 
@@ -957,6 +1000,105 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
     RefPtr<SurfaceImpl> surface = new SurfaceImpl();
     SLANG_RETURN_ON_FAIL(surface->init(this, windowHandle));
     returnComPtr(outSurface, surface);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createBuffer(
+    const D3D12_RESOURCE_DESC& resourceDesc,
+    const void* srcData,
+    Size srcDataSize,
+    D3D12_RESOURCE_STATES finalState,
+    D3D12Resource& resourceOut,
+    bool isShared,
+    MemoryType memoryType
+)
+{
+    const Size bufferSize = Size(resourceDesc.Width);
+
+    D3D12_HEAP_PROPERTIES heapProps;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+
+    D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
+    if (isShared)
+        flags |= D3D12_HEAP_FLAG_SHARED;
+
+    D3D12_RESOURCE_DESC desc = resourceDesc;
+
+    D3D12_RESOURCE_STATES initialState = finalState;
+
+    switch (memoryType)
+    {
+    case MemoryType::ReadBack:
+        SLANG_RHI_ASSERT(!srcData);
+
+        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        initialState |= D3D12_RESOURCE_STATE_COPY_DEST;
+        break;
+    case MemoryType::Upload:
+
+        heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+        initialState |= D3D12_RESOURCE_STATE_GENERIC_READ;
+        break;
+    case MemoryType::DeviceLocal:
+        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+        if (initialState != D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+            initialState = D3D12_RESOURCE_STATE_COMMON;
+        break;
+    default:
+        return SLANG_FAIL;
+    }
+
+    // Create the resource.
+    SLANG_RETURN_ON_FAIL(resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr));
+
+    if (srcData)
+    {
+        D3D12Resource uploadResource;
+
+        if (memoryType == MemoryType::DeviceLocal)
+        {
+            // If the buffer is on the default heap, create upload buffer.
+            D3D12_RESOURCE_DESC uploadDesc(resourceDesc);
+            uploadDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+            heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+            SLANG_RETURN_ON_FAIL(uploadResource.initCommitted(
+                m_device,
+                heapProps,
+                D3D12_HEAP_FLAG_NONE,
+                uploadDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr
+            ));
+        }
+
+        // Be careful not to actually copy a resource here.
+        D3D12Resource& uploadResourceRef = (memoryType == MemoryType::DeviceLocal) ? uploadResource : resourceOut;
+
+        // Copy data to the intermediate upload heap and then schedule a copy
+        // from the upload heap to the vertex buffer.
+        UINT8* dstData;
+        D3D12_RANGE readRange = {}; // We do not intend to read from this resource on the CPU.
+
+        ID3D12Resource* dxUploadResource = uploadResourceRef.getResource();
+
+        SLANG_RETURN_ON_FAIL(dxUploadResource->Map(0, &readRange, reinterpret_cast<void**>(&dstData)));
+        ::memcpy(dstData, srcData, srcDataSize);
+        dxUploadResource->Unmap(0, nullptr);
+
+        if (memoryType == MemoryType::DeviceLocal)
+        {
+            ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
+            commandList->CopyBufferRegion(resourceOut, 0, uploadResourceRef, 0, bufferSize);
+            endImmediateCommandList();
+        }
+    }
+
     return SLANG_OK;
 }
 
@@ -1055,8 +1197,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SubresourceRange range;
         range.layer = 0;
         range.layerCount = desc.getLayerCount();
-        range.mipLevel = 0;
-        range.mipLevelCount = desc.mipLevelCount;
+        range.mip = 0;
+        range.mipCount = desc.mipCount;
 
         commandEncoder->uploadTextureData(
             texture,
@@ -1064,7 +1206,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             {0, 0, 0},
             Extent3D::kWholeTexture,
             initData,
-            range.layerCount * desc.mipLevelCount
+            range.layerCount * desc.mipCount
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
@@ -1197,45 +1339,6 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     return SLANG_OK;
 }
 
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    D3D12_FEATURE_DATA_FORMAT_SUPPORT featureData;
-    featureData.Format = D3DUtil::getMapFormat(format);
-    SLANG_RETURN_ON_FAIL(m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &featureData, sizeof(featureData))
-    );
-
-    FormatSupport support = FormatSupport::None;
-
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_BUFFER)
-        support = support | FormatSupport::Buffer;
-    if (featureData.Support1 & (D3D12_FORMAT_SUPPORT1_TEXTURE1D | D3D12_FORMAT_SUPPORT1_TEXTURE2D |
-                                D3D12_FORMAT_SUPPORT1_TEXTURE3D | D3D12_FORMAT_SUPPORT1_TEXTURECUBE))
-        support = support | FormatSupport::Texture;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL)
-        support = support | FormatSupport::DepthStencil;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_RENDER_TARGET)
-        support = support | FormatSupport::RenderTarget;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_BLENDABLE)
-        support = support | FormatSupport::Blendable;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_IA_INDEX_BUFFER)
-        support = support | FormatSupport::IndexBuffer;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER)
-        support = support | FormatSupport::VertexBuffer;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_LOAD)
-        support = support | FormatSupport::ShaderLoad;
-    if (featureData.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE)
-        support = support | FormatSupport::ShaderSample;
-    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_ADD)
-        support = support | FormatSupport::ShaderAtomic;
-    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD)
-        support = support | FormatSupport::ShaderUavLoad;
-    if (featureData.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE)
-        support = support | FormatSupport::ShaderUavStore;
-
-    *outFormatSupport = support;
-    return SLANG_OK;
-}
-
 Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     RefPtr<InputLayoutImpl> layout = new InputLayoutImpl();
@@ -1285,11 +1388,6 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
     returnComPtr(outLayout, layout);
     return SLANG_OK;
-}
-
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
-{
-    return m_info;
 }
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
@@ -1611,7 +1709,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (!NVAPIUtil::isAvailable())
+    if (NVAPIUtil::isAvailable())
     {
 
         AccelerationStructureBuildDescConverterNVAPI converter;
@@ -1653,7 +1751,6 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.usage = BufferUsage::AccelerationStructure;
     bufferDesc.defaultState = ResourceState::AccelerationStructure;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
-    result->m_device5 = m_device5;
     result->m_descriptor = m_cpuCbvSrvUavHeap->allocate();
     if (!result->m_descriptor)
         return SLANG_FAIL;
@@ -1749,6 +1846,8 @@ DeviceImpl::~DeviceImpl()
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
     m_queue.setNull();
+
+    m_bindlessDescriptorSet.setNull();
 
     for (const auto& [_, allocation] : m_nullDescriptors)
     {

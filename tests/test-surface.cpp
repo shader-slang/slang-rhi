@@ -243,7 +243,7 @@ struct ComputeSurfaceTest : SurfaceTest
             textureDesc.size.width = width;
             textureDesc.size.height = height;
             textureDesc.format = getSurfaceFormat();
-            textureDesc.mipLevelCount = 1;
+            textureDesc.mipCount = 1;
             textureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
             renderTexture = device->createTexture(textureDesc);
             REQUIRE(renderTexture);
@@ -300,19 +300,27 @@ void testSurface(IDevice* device)
 
 GPU_TEST_CASE("surface-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
 {
-    CHECK(device->hasFeature("surface"));
+    CHECK(device->hasFeature(Feature::Surface));
     testSurface<RenderSurfaceTest>(device);
 }
 
 // skip WGPU: RWTexture binding fails
 GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
-    CHECK(device->hasFeature("surface"));
+    if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
+    {
+        SKIP("CUDA surface requires Vulkan");
+    }
+    CHECK(device->hasFeature(Feature::Surface));
     testSurface<ComputeSurfaceTest>(device);
 }
 
 GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
-    CHECK(device->hasFeature("surface"));
+    if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)
+    {
+        SKIP("CUDA surface requires Vulkan");
+    }
+    CHECK(device->hasFeature(Feature::Surface));
     testSurface<NoRenderSurfaceTest>(device);
 }

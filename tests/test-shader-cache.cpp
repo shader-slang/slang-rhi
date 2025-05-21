@@ -688,7 +688,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         colorBufferDesc.size.width = kWidth;
         colorBufferDesc.size.height = kHeight;
         colorBufferDesc.size.depth = 1;
-        colorBufferDesc.mipLevelCount = 1;
+        colorBufferDesc.mipCount = 1;
         colorBufferDesc.format = format;
         colorBufferDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
         colorBufferDesc.defaultState = ResourceState::RenderTarget;

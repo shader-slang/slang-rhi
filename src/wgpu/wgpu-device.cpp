@@ -67,24 +67,10 @@ WGPUErrorType DeviceImpl::getAndClearLastError()
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
+
     SLANG_RETURN_ON_FAIL(m_ctx.api.init());
     API& api = m_ctx.api;
-
-    // Initialize device info.
-    {
-        m_info.apiName = "WGPU";
-        m_info.deviceType = DeviceType::WGPU;
-        m_info.adapterName = "default";
-        static const float kIdentity[] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-        ::memcpy(m_info.identityProjectionMatrix, kIdentity, sizeof(kIdentity));
-    }
-
-    m_desc = desc;
-
-    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
-    );
 
     const std::vector<const char*> enabledToggles = {"use_dxc"};
     WGPUDawnTogglesDescriptor togglesDesc = {};
@@ -201,32 +187,239 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     api.wgpuDeviceGetLimits(m_ctx.device, &supportedLimits);
     m_ctx.limits = supportedLimits.limits;
 
-    m_info.limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
-
     // Query device features.
     size_t deviceFeatureCount = api.wgpuDeviceEnumerateFeatures(m_ctx.device, nullptr);
     std::vector<WGPUFeatureName> deviceFeatures(deviceFeatureCount);
     api.wgpuDeviceEnumerateFeatures(m_ctx.device, deviceFeatures.data());
     m_ctx.features.insert(deviceFeatures.begin(), deviceFeatures.end());
 
-    // Supports ParameterBlock
-    m_features.push_back("parameter-block");
-    // Supports surface/swapchain
-    m_features.push_back("surface");
-    // Supports rasterization
-    m_features.push_back("rasterization");
+    // Initialize device info.
+    {
+        m_info.deviceType = DeviceType::WGPU;
+        m_info.apiName = "WGPU";
+        m_info.adapterName = "default";
+        m_info.adapterLUID = {};
+    }
 
+    // Initialize device limits.
+    {
+        m_info.limits.maxTextureDimension1D = m_ctx.limits.maxTextureDimension1D;
+        m_info.limits.maxTextureDimension2D = m_ctx.limits.maxTextureDimension2D;
+        m_info.limits.maxTextureDimension3D = m_ctx.limits.maxTextureDimension3D;
+        m_info.limits.maxTextureDimensionCube = m_ctx.limits.maxTextureDimension2D;
+        m_info.limits.maxTextureLayers = m_ctx.limits.maxTextureArrayLayers;
+        m_info.limits.maxVertexInputElements = m_ctx.limits.maxVertexAttributes;
+        m_info.limits.maxVertexInputElementOffset = m_ctx.limits.maxVertexBufferArrayStride;
+        m_info.limits.maxVertexStreams = m_ctx.limits.maxVertexBuffers;
+        m_info.limits.maxVertexStreamStride = m_ctx.limits.maxVertexBufferArrayStride;
+        m_info.limits.maxComputeThreadsPerGroup = m_ctx.limits.maxComputeInvocationsPerWorkgroup;
+        m_info.limits.maxComputeThreadGroupSize[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
+        m_info.limits.maxComputeThreadGroupSize[1] = m_ctx.limits.maxComputeWorkgroupSizeY;
+        m_info.limits.maxComputeThreadGroupSize[2] = m_ctx.limits.maxComputeWorkgroupSizeZ;
+        m_info.limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        m_info.limits.maxComputeDispatchThreadGroups[1] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        m_info.limits.maxComputeDispatchThreadGroups[2] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        // m_info.limits.maxViewports
+        // m_info.limits.maxViewportDimensions[2]
+        // m_info.limits.maxFramebufferDimensions[3]
+        m_info.limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
+    }
+
+    // Initialize features & capabilities.
+    addFeature(Feature::HardwareDevice);
+    addFeature(Feature::Surface);
+    addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Rasterization);
     if (api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_ShaderF16))
-        m_features.push_back("half");
+    {
+        addFeature(Feature::Half);
+    }
+
+    addCapability(Capability::wgsl);
+
+    // Initialize format support table.
+    initializeFormatSupport();
+
+    // Initialize slang context.
+    SLANG_RETURN_ON_FAIL(
+        m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
+    );
 
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+
     return SLANG_OK;
 }
 
-const DeviceInfo& DeviceImpl::getDeviceInfo() const
+void DeviceImpl::initializeFormatSupport()
 {
-    return m_info;
+    // WebGPU format support table based on the spec:
+    // https://www.w3.org/TR/webgpu/#texture-format-caps
+
+    API& api = m_ctx.api;
+    bool supportDepth32FloatStencil8 = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Depth32FloatStencil8);
+    bool supportBC = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_TextureCompressionBC);
+    bool supportBGRA8UnormStorage = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_BGRA8UnormStorage);
+    bool supportFloat32Filterable = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Float32Filterable);
+    bool supportFloat32Blendable = true; // api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Float32Blendable);
+    bool supportRG11B10UfloatRenderable =
+        api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_RG11B10UfloatRenderable);
+
+    // clang-format off
+#define FLOAT               0x0001 // GPUTextureSampleType "float"
+#define UNFILTERABLE_FLOAT  0x0002 // GPUTextureSampleType "unfilterable-float"
+#define UINT                0x0004 // GPUTextureSampleType "uint"
+#define SINT                0x0008 // GPUTextureSampleType "sint"
+#define DEPTH               0x0010 // GPUTextureSampleType "depth"
+#define COPY_SRC            0x0020 // "copy-src"
+#define COPY_DST            0x0040 // "copy-dst"
+#define RENDER              0x0080 // "RENDER_ATTACHMENT"
+#define BLENDABLE           0x0100 // "blendable"
+#define MULTISAMPLING       0x0200 // "multisampling"
+#define RESOLVE             0x0400 // "resolve"
+#define STORAGE_WO          0x0800 // "STORAGE_BINDING" write-only
+#define STORAGE_RO          0x1000 // "STORAGE_BINDING" read-only
+#define STORAGE_RW          0x2000 // "STORAGE_BINDING" read-write
+    // clang-format on
+
+    auto set = [&](Format format, int flags, bool supported = true)
+    {
+        if (flags == 0 || !supported)
+        {
+            return;
+        }
+
+        // Add flags depending on feature support.
+        if (format == Format::BGRA8UnormSrgb)
+        {
+            flags |= supportBGRA8UnormStorage ? STORAGE_WO : 0;
+        }
+        if (format == Format::R32Float || format == Format::RG32Float || format == Format::RGBA32Float)
+        {
+            flags |= supportFloat32Filterable ? FLOAT : 0;
+            flags |= supportFloat32Blendable ? BLENDABLE : 0;
+        }
+        if (format == Format::R11G11B10Float)
+        {
+            flags |= supportRG11B10UfloatRenderable ? (RENDER | BLENDABLE | MULTISAMPLING | RESOLVE) : 0;
+        }
+
+        FormatSupport support = FormatSupport::None;
+        support |= (flags & COPY_SRC) ? FormatSupport::CopySource : FormatSupport::None;
+        support |= (flags & COPY_DST) ? FormatSupport::CopyDestination : FormatSupport::None;
+        support |= FormatSupport::Texture;
+        if (flags & RENDER)
+        {
+            support |= (flags & DEPTH) ? FormatSupport::DepthStencil : FormatSupport::RenderTarget;
+        }
+        support |= (flags & MULTISAMPLING) ? FormatSupport::Multisampling : FormatSupport::None;
+        support |= (flags & BLENDABLE) ? FormatSupport::Blendable : FormatSupport::None;
+        support |= (flags & RESOLVE) ? FormatSupport::Resolvable : FormatSupport::None;
+
+        support |= FormatSupport::ShaderLoad;
+        support |= FormatSupport::ShaderSample;
+        support |= ((flags & STORAGE_WO) || (flags & STORAGE_RW)) ? FormatSupport::ShaderUavStore : FormatSupport::None;
+        support |= ((flags & STORAGE_RO) || (flags & STORAGE_RW)) ? FormatSupport::ShaderUavLoad : FormatSupport::None;
+
+        if (translateVertexFormat(format) != WGPUVertexFormat(0))
+        {
+            support |= FormatSupport::VertexBuffer;
+        }
+        if (format == Format::R32Uint || format == Format::R16Uint)
+        {
+            support |= FormatSupport::IndexBuffer;
+        }
+
+        m_formatSupport[size_t(format)] = support;
+    };
+
+    // clang-format off
+    set(Format::R8Uint,         UINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::R8Sint,         SINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::R8Unorm,        FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE);
+    set(Format::R8Snorm,        FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST);
+
+    set(Format::RG8Uint,        UINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::RG8Sint,        SINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::RG8Unorm,       FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE);
+    set(Format::RG8Snorm,       FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST);
+
+    set(Format::RGBA8Uint,      UINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING | STORAGE_WO | STORAGE_RO);
+    set(Format::RGBA8Sint,      SINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING | STORAGE_WO | STORAGE_RO);
+    set(Format::RGBA8Unorm,     FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE | STORAGE_WO | STORAGE_RO);
+    set(Format::RGBA8UnormSrgb, FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE | STORAGE_WO | STORAGE_RO);
+    set(Format::RGBA8Snorm,     FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | STORAGE_WO | STORAGE_RO);
+
+    set(Format::BGRA8Unorm,     FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE);
+    set(Format::BGRA8UnormSrgb, FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE); // STORAGE_WO if supportBGRA8UnormStorage
+    set(Format::BGRX8Unorm,     0);
+    set(Format::BGRX8UnormSrgb, 0);
+
+    set(Format::R16Uint,        UINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::R16Sint,        SINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::R16Unorm,       0);
+    set(Format::R16Snorm,       0);
+    set(Format::R16Float,       FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE);
+
+    set(Format::RG16Uint,       UINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::RG16Sint,       SINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::RG16Unorm,      0);
+    set(Format::RG16Snorm,      0);
+    set(Format::RG16Float,      FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE);
+
+    set(Format::RGBA16Uint,     UINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING | STORAGE_WO | STORAGE_RO);
+    set(Format::RGBA16Sint,     SINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING | STORAGE_WO | STORAGE_RO);
+    set(Format::RGBA16Unorm,    0);
+    set(Format::RGBA16Snorm,    0);
+    set(Format::RGBA16Float,    FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE | STORAGE_WO | STORAGE_RO);
+
+    set(Format::R32Uint,        UINT | COPY_SRC | COPY_DST | RENDER | STORAGE_WO | STORAGE_RO | STORAGE_RW);
+    set(Format::R32Sint,        SINT | COPY_SRC | COPY_DST | RENDER | STORAGE_WO | STORAGE_RO | STORAGE_RW);
+    set(Format::R32Float,       UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING | STORAGE_WO | STORAGE_RO | STORAGE_RW); // FLOAT if supportFloat32Filterable, BLENDABLE if supportFloat32Blendable
+
+    set(Format::RG32Uint,       UINT | COPY_SRC | COPY_DST | RENDER | STORAGE_WO | STORAGE_RO);
+    set(Format::RG32Sint,       SINT | COPY_SRC | COPY_DST | RENDER | STORAGE_WO | STORAGE_RO);
+    set(Format::RG32Float,      UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | STORAGE_WO | STORAGE_RO); // FLOAT if supportFloat32Filterable, BLENDABLE if supportFloat32Blendable
+
+    set(Format::RGB32Uint,      0);
+    set(Format::RGB32Sint,      0);
+    set(Format::RGB32Float,     0);
+
+    set(Format::RGBA32Uint,     UINT | COPY_SRC | COPY_DST | RENDER | STORAGE_WO | STORAGE_RO);
+    set(Format::RGBA32Sint,     SINT | COPY_SRC | COPY_DST | RENDER | STORAGE_WO | STORAGE_RO);
+    set(Format::RGBA32Float,    UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | STORAGE_WO | STORAGE_RO); // FLOAT if supportFloat32Filterable, BLENDABLE if supportFloat32Blendable
+
+    set(Format::R64Uint,        0);
+    set(Format::R64Sint,        0);
+
+    set(Format::BGRA4Unorm,     0);
+    set(Format::B5G6R5Unorm,    0);
+    set(Format::BGR5A1Unorm,    0);
+
+    set(Format::RGB9E5Ufloat,   FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST);
+    set(Format::RGB10A2Uint,    UINT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::RGB10A2Unorm,   FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | BLENDABLE | MULTISAMPLING | RESOLVE);
+    set(Format::R11G11B10Float, FLOAT | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST); // RENDER | BLENDABLE | MULTISAMPLING | RESOLVE if supportRG11B10UfloatRenderable
+
+    set(Format::D32Float,       DEPTH | COPY_SRC | RENDER | MULTISAMPLING);
+    set(Format::D16Unorm,       DEPTH | UNFILTERABLE_FLOAT | COPY_SRC | COPY_DST | RENDER | MULTISAMPLING);
+    set(Format::D32FloatS8Uint, DEPTH | UNFILTERABLE_FLOAT | RENDER | MULTISAMPLING, supportDepth32FloatStencil8);
+
+    set(Format::BC1Unorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC1UnormSrgb,   FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC2Unorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC2UnormSrgb,   FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC3Unorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC3UnormSrgb,   FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC4Unorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC4Snorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC5Unorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC5Snorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC6HUfloat,     FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC6HSfloat,     FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC7Unorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
+    set(Format::BC7UnormSrgb,   FLOAT | COPY_SRC | COPY_DST, supportBC);
+    // clang-format on
 }
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
@@ -324,35 +517,6 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc, Size* outSi
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 256;
-    return SLANG_OK;
-}
-
-Result DeviceImpl::getFormatSupport(Format format, FormatSupport* outFormatSupport)
-{
-    FormatSupport support = FormatSupport::None;
-
-    if (translateTextureFormat(format) != WGPUTextureFormat_Undefined)
-    {
-        support |= FormatSupport::Texture;
-        if (isDepthFormat(format))
-            support |= FormatSupport::DepthStencil;
-        support |= FormatSupport::RenderTarget;
-        support |= FormatSupport::Blendable;
-        support |= FormatSupport::ShaderLoad;
-        support |= FormatSupport::ShaderSample;
-        support |= FormatSupport::ShaderUavLoad;
-        support |= FormatSupport::ShaderUavStore;
-        support |= FormatSupport::ShaderAtomic;
-    }
-    if (translateVertexFormat(format) != WGPUVertexFormat(0))
-    {
-        support |= FormatSupport::VertexBuffer;
-    }
-    if (format == Format::R32Uint || format == Format::R16Uint)
-    {
-        support |= FormatSupport::IndexBuffer;
-    }
-    *outFormatSupport = support;
     return SLANG_OK;
 }
 

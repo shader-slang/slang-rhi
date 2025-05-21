@@ -119,7 +119,7 @@ GPU_TEST_CASE("texture-resource-states", D3D12 | Vulkan)
         texDesc.type = TextureType::Texture2D;
         texDesc.format = format;
         texDesc.size = Extent3D{4, 4, 1};
-        texDesc.mipLevelCount = 1;
+        texDesc.mipCount = 1;
         texDesc.usage = textureUsage;
         texDesc.memoryType = MemoryType::DeviceLocal;
         ComPtr<ITexture> texture;

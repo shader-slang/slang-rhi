@@ -85,7 +85,7 @@ struct TextureAccessTest : TextureTest
     {
         TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
-        textureDesc.mipLevelCount = textureInfo->mipLevelCount;
+        textureDesc.mipCount = textureInfo->mipCount;
         textureDesc.arrayLength = textureInfo->arrayLength;
         textureDesc.size = textureInfo->extent;
         textureDesc.usage = (readWrite ? TextureUsage::UnorderedAccess : TextureUsage::ShaderResource) |
@@ -175,22 +175,21 @@ struct TextureAccessTest : TextureTest
         if (readWrite)
         {
             ComPtr<ISlangBlob> textureBlob;
-            size_t rowPitch;
-            size_t pixelSize;
-            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            SubresourceLayout layout;
+            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &layout));
             auto textureValues = (uint8_t*)textureBlob->getBufferPointer();
 
             ValidationTextureData textureResults;
             textureResults.extent = textureInfo->extent;
             textureResults.textureData = textureValues;
-            textureResults.pitches.x = (uint32_t)pixelSize;
-            textureResults.pitches.y = (uint32_t)rowPitch;
+            textureResults.pitches.x = (uint32_t)layout.colPitch;
+            textureResults.pitches.y = (uint32_t)layout.rowPitch;
             textureResults.pitches.z = textureResults.extent.height * textureResults.pitches.y;
 
             ValidationTextureData originalData;
             originalData.extent = textureInfo->extent;
             originalData.textureData = textureInfo->subresourceDatas.data();
-            originalData.pitches.x = (uint32_t)pixelSize;
+            originalData.pitches.x = (uint32_t)layout.colPitch;
             originalData.pitches.y = textureInfo->extent.width * originalData.pitches.x;
             originalData.pitches.z = textureInfo->extent.height * originalData.pitches.y;
 
@@ -219,7 +218,7 @@ struct TextureAccessTest : TextureTest
         textureInfo->extent.width = 4;
         textureInfo->extent.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
         textureInfo->extent.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
-        textureInfo->mipLevelCount = 1;
+        textureInfo->mipCount = 1;
         textureInfo->arrayLength = 1;
         generateTextureData(textureInfo, validationFormat);
 
@@ -297,7 +296,7 @@ struct RenderTargetTests : TextureTest
 
         TextureDesc renderTextureDesc = {};
         renderTextureDesc.type = textureInfo->textureType;
-        renderTextureDesc.mipLevelCount = textureInfo->mipLevelCount;
+        renderTextureDesc.mipCount = textureInfo->mipCount;
         renderTextureDesc.arrayLength = textureInfo->arrayLength;
         renderTextureDesc.size = textureInfo->extent;
         renderTextureDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource | TextureUsage::CopySource;
@@ -313,7 +312,7 @@ struct RenderTargetTests : TextureTest
 
         TextureDesc textureDesc = {};
         textureDesc.type = textureInfo->textureType;
-        textureDesc.mipLevelCount = textureInfo->mipLevelCount;
+        textureDesc.mipCount = textureInfo->mipCount;
         textureDesc.arrayLength = textureInfo->arrayLength;
         textureDesc.size = textureInfo->extent;
         textureDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource;
@@ -430,23 +429,22 @@ struct RenderTargetTests : TextureTest
     void checkTestResults()
     {
         ComPtr<ISlangBlob> textureBlob;
-        size_t rowPitch;
-        size_t pixelSize;
+        SubresourceLayout layout;
         if (sampleCount > 1)
         {
-            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &layout));
         }
         else
         {
-            REQUIRE_CALL(device->readTexture(renderTexture, 0, 0, textureBlob.writeRef(), &rowPitch, &pixelSize));
+            REQUIRE_CALL(device->readTexture(renderTexture, 0, 0, textureBlob.writeRef(), &layout));
         }
         auto textureValues = (float*)textureBlob->getBufferPointer();
 
         ValidationTextureData textureResults;
         textureResults.extent = textureInfo->extent;
         textureResults.textureData = textureValues;
-        textureResults.pitches.x = (uint32_t)pixelSize;
-        textureResults.pitches.y = (uint32_t)rowPitch;
+        textureResults.pitches.x = (uint32_t)layout.colPitch;
+        textureResults.pitches.y = (uint32_t)layout.rowPitch;
         textureResults.pitches.z = textureResults.extent.height * textureResults.pitches.y;
 
         validateTextureValues(textureResults);
@@ -461,7 +459,7 @@ struct RenderTargetTests : TextureTest
         textureInfo->extent.width = 4;
         textureInfo->extent.height = (textureInfo->textureType == TextureType::Texture1D) ? 1 : 4;
         textureInfo->extent.depth = (textureInfo->textureType != TextureType::Texture3D) ? 1 : 2;
-        textureInfo->mipLevelCount = 1;
+        textureInfo->mipCount = 1;
         textureInfo->arrayLength = 1;
         generateTextureData(textureInfo, validationFormat);
 

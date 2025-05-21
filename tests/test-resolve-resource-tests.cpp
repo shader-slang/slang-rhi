@@ -67,7 +67,7 @@ struct BaseResolveResourceTest
     struct TextureInfo
     {
         Extent3D extent;
-        int mipLevelCount;
+        int mipCount;
         int arrayLength;
         const SubresourceData* initData;
     };
@@ -88,7 +88,7 @@ struct BaseResolveResourceTest
 
         TextureDesc msaaTexDesc = {};
         msaaTexDesc.type = TextureType::Texture2DMS;
-        msaaTexDesc.mipLevelCount = dstTextureInfo.mipLevelCount;
+        msaaTexDesc.mipCount = dstTextureInfo.mipCount;
         msaaTexDesc.arrayLength = dstTextureInfo.arrayLength;
         msaaTexDesc.size = dstTextureInfo.extent;
         msaaTexDesc.usage = TextureUsage::RenderTarget | TextureUsage::ResolveSource;
@@ -100,7 +100,7 @@ struct BaseResolveResourceTest
 
         TextureDesc dstTexDesc = {};
         dstTexDesc.type = TextureType::Texture2D;
-        dstTexDesc.mipLevelCount = dstTextureInfo.mipLevelCount;
+        dstTexDesc.mipCount = dstTextureInfo.mipCount;
         dstTexDesc.arrayLength = dstTextureInfo.arrayLength;
         dstTexDesc.size = dstTextureInfo.extent;
         dstTexDesc.usage = TextureUsage::ResolveDestination | TextureUsage::CopySource | TextureUsage::RenderTarget;
@@ -196,9 +196,8 @@ struct BaseResolveResourceTest
         // and compare against expected values (because testing every single pixel will be too long and tedious
         // and requires maintaining reference images).
         ComPtr<ISlangBlob> resultBlob;
-        size_t rowPitch = 0;
-        size_t pixelSize = 0;
-        REQUIRE_CALL(device->readTexture(dstTexture, 0, 0, resultBlob.writeRef(), &rowPitch, &pixelSize));
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(dstTexture, 0, 0, resultBlob.writeRef(), &layout));
         auto result = (float*)resultBlob->getBufferPointer();
 
         int cursor = 0;
@@ -206,7 +205,7 @@ struct BaseResolveResourceTest
         {
             auto x = testXCoords[i];
             auto y = testYCoords[i];
-            auto pixelPtr = result + x * channelCount + y * rowPitch / sizeof(float);
+            auto pixelPtr = result + x * channelCount + y * layout.rowPitch / sizeof(float);
             for (int j = 0; j < channelCount; ++j)
             {
                 testResults[cursor] = pixelPtr[j];
@@ -240,14 +239,14 @@ struct ResolveResourceSimple : BaseResolveResourceTest
         SubresourceRange msaaSubresource = {};
         msaaSubresource.layer = 0;
         msaaSubresource.layerCount = 1;
-        msaaSubresource.mipLevel = 0;
-        msaaSubresource.mipLevelCount = 1;
+        msaaSubresource.mip = 0;
+        msaaSubresource.mipCount = 1;
 
         SubresourceRange dstSubresource = {};
         dstSubresource.layer = 0;
         dstSubresource.layerCount = 1;
-        dstSubresource.mipLevel = 0;
-        dstSubresource.mipLevelCount = 1;
+        dstSubresource.mip = 0;
+        dstSubresource.mipCount = 1;
 
         submitGPUWork(msaaSubresource, dstSubresource, extent);
 

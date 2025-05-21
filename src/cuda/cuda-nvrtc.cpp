@@ -73,6 +73,7 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
         if (path)
         {
             outPaths.push_back(std::filesystem::path(path) / "lib64");
+            outPaths.push_back(std::filesystem::path(path) / "lib");
         }
     }
     // Next, check default installation paths.

@@ -61,12 +61,10 @@ const char* enumToString(FormatSupport value)
     {
     case FormatSupport::None:
         return S_FormatSupport_None;
-    case FormatSupport::Buffer:
-        return S_FormatSupport_Buffer;
-    case FormatSupport::IndexBuffer:
-        return S_FormatSupport_IndexBuffer;
-    case FormatSupport::VertexBuffer:
-        return S_FormatSupport_VertexBuffer;
+    case FormatSupport::CopySource:
+        return S_FormatSupport_CopySource;
+    case FormatSupport::CopyDestination:
+        return S_FormatSupport_CopyDestination;
     case FormatSupport::Texture:
         return S_FormatSupport_Texture;
     case FormatSupport::DepthStencil:
@@ -75,6 +73,10 @@ const char* enumToString(FormatSupport value)
         return S_FormatSupport_RenderTarget;
     case FormatSupport::Blendable:
         return S_FormatSupport_Blendable;
+    case FormatSupport::Multisampling:
+        return S_FormatSupport_Multisampling;
+    case FormatSupport::Resolvable:
+        return S_FormatSupport_Resolvable;
     case FormatSupport::ShaderLoad:
         return S_FormatSupport_ShaderLoad;
     case FormatSupport::ShaderSample:
@@ -85,6 +87,12 @@ const char* enumToString(FormatSupport value)
         return S_FormatSupport_ShaderUavStore;
     case FormatSupport::ShaderAtomic:
         return S_FormatSupport_ShaderAtomic;
+    case FormatSupport::Buffer:
+        return S_FormatSupport_Buffer;
+    case FormatSupport::IndexBuffer:
+        return S_FormatSupport_IndexBuffer;
+    case FormatSupport::VertexBuffer:
+        return S_FormatSupport_VertexBuffer;
     }
     return S_INVALID;
 }
@@ -363,6 +371,22 @@ const char* enumToString(PrimitiveTopology value)
         return S_PrimitiveTopology_TriangleStrip;
     case PrimitiveTopology::PatchList:
         return S_PrimitiveTopology_PatchList;
+    }
+    return S_INVALID;
+}
+
+const char* enumToString(QueryType value)
+{
+    switch (value)
+    {
+    case QueryType::Timestamp:
+        return S_QueryType_Timestamp;
+    case QueryType::AccelerationStructureCompactedSize:
+        return S_QueryType_AccelerationStructureCompactedSize;
+    case QueryType::AccelerationStructureSerializedSize:
+        return S_QueryType_AccelerationStructureSerializedSize;
+    case QueryType::AccelerationStructureCurrentSize:
+        return S_QueryType_AccelerationStructureCurrentSize;
     }
     return S_INVALID;
 }

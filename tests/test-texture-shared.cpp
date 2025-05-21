@@ -49,7 +49,7 @@ static ComPtr<ITexture> createTexture(IDevice* device, Extent3D extent, Format f
 {
     TextureDesc texDesc = {};
     texDesc.type = TextureType::Texture2D;
-    texDesc.mipLevelCount = 1;
+    texDesc.mipCount = 1;
     texDesc.size = extent;
     texDesc.usage = TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::CopyDestination |
                     TextureUsage::CopySource | TextureUsage::Shared;
@@ -101,11 +101,6 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     size.height = 2;
     size.depth = 1;
 
-    Extent3D bcSize = {};
-    bcSize.width = 4;
-    bcSize.height = 4;
-    bcSize.depth = 1;
-
     {
         float texData[] =
             {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f};
@@ -130,8 +125,7 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
         );
         // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
         // dstDevice
-        // TODO: Implement actual synchronization (and not this hacky solution)
-        compareComputeResult(dstDevice, dstTexture, texData, 32, 2);
+        compareComputeResult(dstDevice, dstTexture, 0, 0, span(texData, texData + 16));
 
         setUpAndRunShader(dstDevice, dstTexture, floatResults, "copyTexFloat4");
         compareComputeResult(

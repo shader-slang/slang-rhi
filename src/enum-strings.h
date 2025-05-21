@@ -23,5 +23,6 @@ const char* enumToString(ComparisonFunc value);
 const char* enumToString(TextureReductionOp value);
 const char* enumToString(InputSlotClass value);
 const char* enumToString(PrimitiveTopology value);
+const char* enumToString(QueryType value);
 
 } // namespace rhi

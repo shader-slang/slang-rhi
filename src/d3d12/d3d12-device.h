@@ -2,6 +2,7 @@
 
 #include "d3d12-command.h"
 #include "d3d12-texture.h"
+#include "d3d12-bindless-descriptor-set.h"
 
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
@@ -47,13 +48,9 @@ struct D3D12DeviceInfo
 class DeviceImpl : public Device
 {
 public:
-    DeviceDesc m_desc;
     D3D12DeviceExtendedDesc m_extendedDesc;
 
-    DeviceInfo m_info;
     std::string m_adapterName;
-
-    bool m_isInitialized = false;
 
     ComPtr<ID3D12Debug> m_dxDebug;
 
@@ -100,7 +97,6 @@ public:
     using Device::readBuffer;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
@@ -166,8 +162,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
 
-    virtual SLANG_NO_THROW const DeviceInfo& SLANG_MCALL getDeviceInfo() const override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     ~DeviceImpl();
@@ -219,6 +213,7 @@ public:
 
     void flushValidationMessages();
 
+    RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
 
     using NullDescriptorKey = std::pair<slang::BindingType, SlangResourceShape>;
     std::map<NullDescriptorKey, CPUDescriptorAllocation> m_nullDescriptors;

@@ -317,6 +317,13 @@ IDevice* Device::getInterface(const Guid& guid)
 
 Result Device::initialize(const DeviceDesc& desc)
 {
+    m_info = {};
+    m_info.deviceType = desc.deviceType;
+
+    m_featureSet.fill(false);
+    m_capabilitySet.fill(false);
+    m_formatSupport.fill(FormatSupport::None);
+
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
 
     m_persistentShaderCache = desc.persistentShaderCache;
@@ -334,51 +341,144 @@ Result Device::initialize(const DeviceDesc& desc)
     return SLANG_OK;
 }
 
+void Device::addFeature(Feature feature)
+{
+    SLANG_RHI_ASSERT(size_t(feature) < size_t(Feature::_Count));
+    m_featureSet[size_t(feature)] = true;
+}
+
+void Device::addCapability(Capability capability)
+{
+    SLANG_RHI_ASSERT(size_t(capability) < size_t(Capability::_Count));
+    m_capabilitySet[size_t(capability)] = true;
+}
+
 Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return SLANG_OK;
 }
 
-Result Device::getFeatures(const char** outFeatures, size_t bufferSize, uint32_t* outFeatureCount)
+Result Device::getFeatures(uint32_t* outFeatureCount, Feature* outFeatures)
 {
-    if (bufferSize >= m_features.size())
+    if (!outFeatureCount)
     {
-        for (size_t i = 0; i < m_features.size(); i++)
+        return SLANG_E_INVALID_ARG;
+    }
+    if (outFeatures)
+    {
+        uint32_t featureIndex = 0;
+        for (size_t i = 0; i < m_featureSet.size(); i++)
         {
-            outFeatures[i] = m_features[i].data();
+            if (m_featureSet[i])
+            {
+                if (featureIndex < *outFeatureCount)
+                {
+                    outFeatures[featureIndex++] = Feature(i);
+                }
+                else
+                {
+                    return SLANG_E_INVALID_ARG;
+                }
+            }
         }
     }
-    if (outFeatureCount)
-        *outFeatureCount = (uint32_t)m_features.size();
+    else
+    {
+        uint32_t featureCount = 0;
+        for (size_t i = 0; i < m_featureSet.size(); i++)
+        {
+            featureCount += m_featureSet[i] ? 1 : 0;
+        }
+        *outFeatureCount = featureCount;
+    }
     return SLANG_OK;
 }
 
-bool Device::hasFeature(const char* featureName)
+bool Device::hasFeature(Feature feature)
 {
-    return std::any_of(
-        m_features.begin(),
-        m_features.end(),
-        [&](const std::string& feature) { return feature == featureName; }
-    );
+    return size_t(feature) < size_t(Feature::_Count) ? m_featureSet[size_t(feature)] : false;
+}
+
+bool Device::hasFeature(const char* feature)
+{
+#define SLANG_RHI_FEATURES_X(id, name) {name, Feature::id},
+    static const std::unordered_map<std::string_view, Feature> kFeatureNameMap = {
+        SLANG_RHI_FEATURES(SLANG_RHI_FEATURES_X)
+    };
+#undef SLANG_RHI_FEATURES_X
+
+    auto it = kFeatureNameMap.find(feature);
+    if (it != kFeatureNameMap.end())
+    {
+        return hasFeature(it->second);
+    }
+    return false;
+}
+
+Result Device::getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
+{
+    if (!outCapabilityCount)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    if (outCapabilities)
+    {
+        uint32_t capabilityIndex = 0;
+        for (size_t i = 0; i < m_capabilitySet.size(); i++)
+        {
+            if (m_capabilitySet[i])
+            {
+                if (capabilityIndex < *outCapabilityCount)
+                {
+                    outCapabilities[capabilityIndex++] = Capability(i);
+                }
+                else
+                {
+                    return SLANG_E_INVALID_ARG;
+                }
+            }
+        }
+    }
+    else
+    {
+        uint32_t capabilityCount = 0;
+        for (size_t i = 0; i < m_capabilitySet.size(); i++)
+        {
+            capabilityCount += m_capabilitySet[i] ? 1 : 0;
+        }
+        *outCapabilityCount = capabilityCount;
+    }
+    return SLANG_OK;
+}
+
+bool Device::hasCapability(Capability capability)
+{
+    return size_t(capability) < size_t(Capability::_Count) ? m_featureSet[size_t(capability)] : false;
+}
+
+bool Device::hasCapability(const char* capability)
+{
+#define SLANG_RHI_CAPABILITIES_X(id) {#id, Capability::id},
+    static const std::unordered_map<std::string_view, Capability> kCapabilityMap = {
+        SLANG_RHI_CAPABILITIES(SLANG_RHI_CAPABILITIES_X)
+    };
+#undef SLANG_RHI_CAPABILITIES_X
+
+    auto it = kCapabilityMap.find(capability);
+    if (it != kCapabilityMap.end())
+    {
+        return hasCapability(it->second);
+    }
+    return false;
 }
 
 Result Device::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
-    SLANG_UNUSED(format);
-    FormatSupport support = FormatSupport::None;
-    support |= FormatSupport::Buffer;
-    support |= FormatSupport::IndexBuffer;
-    support |= FormatSupport::VertexBuffer;
-    support |= FormatSupport::Texture;
-    support |= FormatSupport::DepthStencil;
-    support |= FormatSupport::RenderTarget;
-    support |= FormatSupport::Blendable;
-    support |= FormatSupport::ShaderLoad;
-    support |= FormatSupport::ShaderSample;
-    support |= FormatSupport::ShaderUavLoad;
-    support |= FormatSupport::ShaderUavStore;
-    support |= FormatSupport::ShaderAtomic;
-    *outFormatSupport = support;
+    if (size_t(format) >= m_formatSupport.size() || !outFormatSupport)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    *outFormatSupport = m_formatSupport[size_t(format)];
     return SLANG_OK;
 }
 
@@ -574,9 +674,9 @@ Result Device::waitForFences(
 Result Device::readTexture(
     ITexture* texture,
     uint32_t layer,
-    uint32_t mipLevel,
-    ISlangBlob** outBlob,
-    SubresourceLayout* outLayout
+    uint32_t mip,
+    const SubresourceLayout& layout,
+    void* outData
 )
 {
     ComPtr<ICommandQueue> queue;
@@ -584,9 +684,6 @@ Result Device::readTexture(
 
     ComPtr<ICommandEncoder> commandEncoder;
     SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
-
-    SubresourceLayout layout;
-    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mipLevel, &layout));
 
     StagingHeap::Allocation stagingAllocation;
     SLANG_RETURN_ON_FAIL(m_readbackHeap.alloc(layout.sizeInBytes, {}, &stagingAllocation));
@@ -598,7 +695,7 @@ Result Device::readTexture(
         layout.rowPitch,
         texture,
         layer,
-        mipLevel,
+        mip,
         {0, 0, 0},
         {layout.size.width, layout.size.height, layout.size.depth}
     );
@@ -609,11 +706,29 @@ Result Device::readTexture(
     void* mappedData;
     SLANG_RETURN_ON_FAIL(m_readbackHeap.map(stagingAllocation, &mappedData));
 
-    auto blob = OwnedBlob::create(mappedData, layout.sizeInBytes);
+    std::memcpy(outData, mappedData, layout.sizeInBytes);
 
     SLANG_RETURN_ON_FAIL(m_readbackHeap.unmap(stagingAllocation));
 
     m_readbackHeap.free(stagingAllocation);
+
+    return SLANG_OK;
+}
+
+Result Device::readTexture(
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mip,
+    ISlangBlob** outBlob,
+    SubresourceLayout* outLayout
+)
+{
+    SubresourceLayout layout;
+    SLANG_RETURN_ON_FAIL(texture->getSubresourceLayout(mip, &layout));
+
+    auto blob = OwnedBlob::create(layout.sizeInBytes);
+
+    SLANG_RETURN_ON_FAIL(readTexture(texture, layer, mip, layout, (void*)blob->getBufferPointer()));
 
     if (outLayout)
         *outLayout = layout;

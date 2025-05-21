@@ -435,34 +435,6 @@ bool D3DUtil::isWarp(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
     return false;
 }
 
-int D3DUtil::getShaderModelFromProfileName(const char* name)
-{
-    if (!name)
-        return 0;
-
-    std::string_view str(name);
-
-    if (string::ends_with(str, "5_1"))
-        return D3D_SHADER_MODEL_5_1;
-    if (string::ends_with(str, "6_0"))
-        return D3D_SHADER_MODEL_6_0;
-    if (string::ends_with(str, "6_1"))
-        return D3D_SHADER_MODEL_6_1;
-    if (string::ends_with(str, "6_2"))
-        return D3D_SHADER_MODEL_6_2;
-    if (string::ends_with(str, "6_3"))
-        return D3D_SHADER_MODEL_6_3;
-    if (string::ends_with(str, "6_4"))
-        return D3D_SHADER_MODEL_6_4;
-    if (string::ends_with(str, "6_5"))
-        return D3D_SHADER_MODEL_6_5;
-    if (string::ends_with(str, "6_6"))
-        return D3D_SHADER_MODEL_6_6;
-    if (string::ends_with(str, "6_7"))
-        return 0x67;
-    return 0;
-}
-
 uint32_t D3DUtil::getPlaneSliceCount(DXGI_FORMAT format)
 {
     switch (format)
@@ -609,16 +581,16 @@ uint32_t D3DUtil::getSubresourceIndex(
     uint32_t mipIndex,
     uint32_t arrayIndex,
     uint32_t planeIndex,
-    uint32_t mipLevelCount,
+    uint32_t mipCount,
     uint32_t layerCount
 )
 {
-    return mipIndex + arrayIndex * mipLevelCount + planeIndex * mipLevelCount * layerCount;
+    return mipIndex + arrayIndex * mipCount + planeIndex * mipCount * layerCount;
 }
 
-uint32_t D3DUtil::getSubresourceMipLevel(uint32_t subresourceIndex, uint32_t mipLevelCount)
+uint32_t D3DUtil::getSubresourceMip(uint32_t subresourceIndex, uint32_t mipCount)
 {
-    return subresourceIndex % mipLevelCount;
+    return subresourceIndex % mipCount;
 }
 
 D3D12_RESOURCE_STATES D3DUtil::getResourceState(ResourceState state)

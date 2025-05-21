@@ -177,22 +177,22 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     // Fix up sub resource ranges.
     if (dstSubresource.layerCount == 0)
         dstSubresource.layerCount = dst->m_desc.getLayerCount();
-    if (dstSubresource.mipLevelCount == 0)
-        dstSubresource.mipLevelCount = dst->m_desc.mipLevelCount;
+    if (dstSubresource.mipCount == 0)
+        dstSubresource.mipCount = dst->m_desc.mipCount;
     if (srcSubresource.layerCount == 0)
         srcSubresource.layerCount = src->m_desc.getLayerCount();
-    if (srcSubresource.mipLevelCount == 0)
-        srcSubresource.mipLevelCount = src->m_desc.mipLevelCount;
+    if (srcSubresource.mipCount == 0)
+        srcSubresource.mipCount = src->m_desc.mipCount;
 
     // Validate subresource ranges
     SLANG_RHI_ASSERT(srcSubresource.layer + srcSubresource.layerCount <= src->m_desc.getLayerCount());
     SLANG_RHI_ASSERT(dstSubresource.layer + dstSubresource.layerCount <= dst->m_desc.getLayerCount());
-    SLANG_RHI_ASSERT(srcSubresource.mipLevel + srcSubresource.mipLevelCount <= src->m_desc.mipLevelCount);
-    SLANG_RHI_ASSERT(dstSubresource.mipLevel + dstSubresource.mipLevelCount <= dst->m_desc.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.mip + srcSubresource.mipCount <= src->m_desc.mipCount);
+    SLANG_RHI_ASSERT(dstSubresource.mip + dstSubresource.mipCount <= dst->m_desc.mipCount);
 
     // Validate matching dimensions between source and destination
     SLANG_RHI_ASSERT(srcSubresource.layerCount == dstSubresource.layerCount);
-    SLANG_RHI_ASSERT(srcSubresource.mipLevelCount == dstSubresource.mipLevelCount);
+    SLANG_RHI_ASSERT(srcSubresource.mipCount == dstSubresource.mipCount);
 
     Extent3D srcTextureSize = src->m_desc.size;
     const FormatInfo& srcFormatInfo = getFormatInfo(src->m_desc.format);
@@ -200,15 +200,15 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
     for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
     {
-        for (uint32_t mipLevel = 0; mipLevel < dstSubresource.mipLevelCount; mipLevel++)
+        for (uint32_t mip = 0; mip < dstSubresource.mipCount; mip++)
         {
-            uint32_t srcMipLevel = srcSubresource.mipLevel + mipLevel;
-            uint32_t dstMipLevel = dstSubresource.mipLevel + mipLevel;
+            uint32_t srcMip = srcSubresource.mip + mip;
+            uint32_t dstMip = dstSubresource.mip + mip;
 
             // Calculate adjusted extents. Note it is required and enforced
             // by debug layer that if 'remaining texture' is used, src and
             // dst offsets are the same.
-            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMipLevel);
+            Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMip);
             Extent3D adjustedExtent = extent;
             if (adjustedExtent.width == kRemainingTextureSize)
             {
@@ -240,13 +240,13 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             WGPUImageCopyTexture source = {};
             source.texture = src->m_texture;
             source.origin = {cmd.srcOffset.x, cmd.srcOffset.y, srcZ};
-            source.mipLevel = srcMipLevel;
+            source.mipLevel = srcMip;
             source.aspect = WGPUTextureAspect_All;
 
             WGPUImageCopyTexture destination = {};
             destination.texture = dst->m_texture;
             destination.origin = {cmd.dstOffset.x, cmd.dstOffset.y, dstZ};
-            destination.mipLevel = dstMipLevel;
+            destination.mipLevel = dstMip;
             destination.aspect = WGPUTextureAspect_All;
 
             WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
@@ -274,14 +274,14 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     const uint64_t dstOffset = cmd.dstOffset;
     const Size dstRowPitch = cmd.dstRowPitch;
     uint32_t srcLayer = cmd.srcLayer;
-    uint32_t srcMipLevel = cmd.srcMipLevel;
+    uint32_t srcMip = cmd.srcMip;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Extent3D& extent = cmd.extent;
 
     // Calculate adjusted extents. Note it is required and enforced
     // by debug layer that if 'remaining texture' is used, src and
     // dst offsets are the same.
-    Extent3D srcMipSize = calcMipSize(textureSize, srcMipLevel);
+    Extent3D srcMipSize = calcMipSize(textureSize, srcMip);
     Extent3D adjustedExtent = extent;
     if (adjustedExtent.width == kRemainingTextureSize)
     {
@@ -310,7 +310,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     WGPUImageCopyTexture source = {};
     source.texture = src->m_texture;
     source.origin = {srcOffset.x, srcOffset.y, z};
-    source.mipLevel = srcMipLevel;
+    source.mipLevel = srcMip;
     source.aspect = WGPUTextureAspect_All;
 
     WGPUImageCopyBuffer destination = {};
@@ -361,9 +361,9 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
     for (uint32_t layerOffset = 0; layerOffset < subresourceRange.layerCount; layerOffset++)
     {
         uint32_t layer = subresourceRange.layer + layerOffset;
-        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipLevelCount; mipOffset++)
+        for (uint32_t mipOffset = 0; mipOffset < subresourceRange.mipCount; mipOffset++)
         {
-            uint32_t mipLevel = subresourceRange.mipLevel + mipOffset;
+            uint32_t mip = subresourceRange.mip + mipOffset;
 
             WGPUImageCopyBuffer srcRegion;
             srcRegion.buffer = buffer->m_buffer;
@@ -378,7 +378,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
 
             WGPUImageCopyTexture dstRegion;
             dstRegion.aspect = WGPUTextureAspect_All;
-            dstRegion.mipLevel = mipLevel;
+            dstRegion.mipLevel = mip;
             dstRegion.origin = {(uint32_t)cmd.offset.x, (uint32_t)cmd.offset.y, z};
             dstRegion.texture = dst->m_texture;
 
@@ -433,10 +433,13 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         attachment.depthStoreOp = translateStoreOp(attachmentIn.depthStoreOp);
         attachment.depthClearValue = attachmentIn.depthClearValue;
         attachment.depthReadOnly = attachmentIn.depthReadOnly;
-        attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
-        attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
-        attachment.stencilClearValue = attachmentIn.stencilClearValue;
-        attachment.stencilReadOnly = attachmentIn.stencilReadOnly;
+        if (getFormatInfo(attachmentIn.view->getDesc().format).hasStencil)
+        {
+            attachment.stencilLoadOp = translateLoadOp(attachmentIn.stencilLoadOp);
+            attachment.stencilStoreOp = translateStoreOp(attachmentIn.stencilStoreOp);
+            attachment.stencilClearValue = attachmentIn.stencilClearValue;
+            attachment.stencilReadOnly = attachmentIn.stencilReadOnly;
+        }
     }
 
     WGPURenderPassDescriptor passDesc = {};

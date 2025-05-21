@@ -47,8 +47,8 @@ public:
             hash_combine(hash, key.aspect);
             hash_combine(hash, key.range.layer);
             hash_combine(hash, key.range.layerCount);
-            hash_combine(hash, key.range.mipLevel);
-            hash_combine(hash, key.range.mipLevelCount);
+            hash_combine(hash, key.range.mip);
+            hash_combine(hash, key.range.mipCount);
             return hash;
         }
     };
@@ -65,10 +65,13 @@ public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
     RefPtr<TextureImpl> m_texture;
+    DescriptorHandle m_descriptorHandle[2] = {};
 
     // ITextureView implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle) override;
 
     TextureSubresourceView getView();
 };

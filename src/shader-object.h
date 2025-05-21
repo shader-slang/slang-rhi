@@ -162,6 +162,7 @@ public:
                 return typeLayout;
             case slang::TypeReflection::Kind::ConstantBuffer:
             case slang::TypeReflection::Kind::ParameterBlock:
+                outContainerType = ShaderObjectContainerType::ParameterBlock;
                 typeLayout = typeLayout->getElementTypeLayout();
                 continue;
             default:
@@ -195,6 +196,7 @@ public:
         return dummy;
     }
     virtual ShaderObjectLayout* getEntryPointLayout(uint32_t index) const { return nullptr; }
+    virtual slang::TypeLayoutReflection* getParameterBlockTypeLayout() { return m_elementTypeLayout; }
 
     void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
 };
@@ -262,6 +264,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, uint32_t count) override;
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;

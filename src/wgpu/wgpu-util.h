@@ -9,7 +9,7 @@ WGPUVertexFormat translateVertexFormat(Format format);
 
 WGPUBufferUsage translateBufferUsage(BufferUsage usage);
 WGPUTextureUsage translateTextureUsage(TextureUsage usage);
-WGPUTextureViewDimension translateTextureViewDimension(TextureType type, bool array);
+WGPUTextureViewDimension translateTextureViewDimension(TextureType type);
 WGPUTextureAspect translateTextureAspect(TextureAspect aspect);
 
 WGPUAddressMode translateAddressMode(TextureAddressingMode mode);

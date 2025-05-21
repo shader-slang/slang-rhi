@@ -36,11 +36,11 @@ std::string _rhiGetFuncName(const char* input)
 std::string subresourceRangeToString(const SubresourceRange& range)
 {
     return string::format(
-        "(layer=%u, layerCount=%u, mipLevel=%u, mipLevelCount=%u)",
+        "(layer=%u, layerCount=%u, mip=%u, mipCount=%u)",
         range.layer,
         range.layerCount,
-        range.mipLevel,
-        range.mipLevelCount
+        range.mip,
+        range.mipCount
     );
 }
 
@@ -60,14 +60,14 @@ std::string createBufferLabel(const BufferDesc& desc)
 std::string createTextureLabel(const TextureDesc& desc)
 {
     return string::format(
-        "Unnamed texture (type=%s, size=%dx%dx%d, arrayLength=%d, mipLevelCount=%d, sampleCount=%d, sampleQuality=%d, "
+        "Unnamed texture (type=%s, size=%dx%dx%d, arrayLength=%d, mipCount=%d, sampleCount=%d, sampleQuality=%d, "
         "format=%s, memoryType=%s, usage=%s, defaultState=%s)",
         enumToString(desc.type),
         desc.size.width,
         desc.size.height,
         desc.size.depth,
         desc.arrayLength,
-        desc.mipLevelCount,
+        desc.mipCount,
         desc.sampleCount,
         desc.sampleQuality,
         enumToString(desc.format),
@@ -111,6 +111,26 @@ std::string createSamplerLabel(const SamplerDesc& desc)
         desc.maxLOD
     );
 }
+
+std::string createAccelerationStructureLabel(const AccelerationStructureDesc& desc)
+{
+    return string::format("Unnamed acceleration structure (size=%llu)", desc.size);
+}
+
+std::string createFenceLabel(const FenceDesc& desc)
+{
+    return string::format(
+        "Unnamed fence (initialValue=%llu, isShared=%s)",
+        desc.initialValue,
+        desc.isShared ? "true" : "false"
+    );
+}
+
+std::string createQueryPoolLabel(const QueryPoolDesc& desc)
+{
+    return string::format("Unnamed query pool (type=%s, count=%u)", enumToString(desc.type), desc.count);
+}
+
 
 void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc)
 {

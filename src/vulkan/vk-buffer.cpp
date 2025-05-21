@@ -177,6 +177,37 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result BufferImpl::getDescriptorHandle(
+    DescriptorHandleAccess access,
+    Format format,
+    BufferRange range,
+    DescriptorHandle* outHandle
+)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    range = resolveBufferRange(range);
+
+    DescriptorHandleKey key = {access, format, range};
+
+    DescriptorHandle& handle = m_descriptorHandles[key];
+    if (handle)
+    {
+        *outHandle = handle;
+        return SLANG_OK;
+    }
+
+    SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle)
+    );
+    *outHandle = handle;
+    return SLANG_OK;
+}
+
 VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
 {
     ViewKey key = {format, range};

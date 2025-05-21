@@ -23,7 +23,7 @@ static ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t content)
 
 GPU_TEST_CASE("root-shader-parameter", ALL)
 {
-    if (!device->hasFeature("parameter-block"))
+    if (!device->hasFeature(Feature::ParameterBlock))
         SKIP("no support for parameter blocks");
 
     ComPtr<IShaderProgram> shaderProgram;

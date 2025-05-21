@@ -15,7 +15,7 @@ struct Shader
 
 GPU_TEST_CASE("benchmark-command", ALL)
 {
-    if (!device->hasFeature("parameter-block"))
+    if (!device->hasFeature(Feature::ParameterBlock))
         SKIP("no support for parameter blocks");
 
     Shader shader;

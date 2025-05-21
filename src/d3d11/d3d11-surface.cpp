@@ -21,7 +21,7 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
     textureDesc.arrayLength = 1;
-    textureDesc.mipLevelCount = 1;
+    textureDesc.mipCount = 1;
     textureDesc.size.width = m_config.width;
     textureDesc.size.height = m_config.height;
     textureDesc.size.depth = 1;
