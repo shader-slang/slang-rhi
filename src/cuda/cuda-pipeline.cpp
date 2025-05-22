@@ -35,10 +35,11 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
 
-    SLANG_CUDA_RETURN_ON_FAIL(cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()), this);
     pipeline->m_kernelName = module.entryPointName;
-    SLANG_CUDA_RETURN_ON_FAIL(
-        cuModuleGetFunction(&pipeline->m_function, pipeline->m_module, pipeline->m_kernelName.data())
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuModuleGetFunction(&pipeline->m_function, pipeline->m_module, pipeline->m_kernelName.data()),
+        this
     );
     int kernelIndex = pipeline->m_rootObjectLayout->getKernelIndex(pipeline->m_kernelName);
     SLANG_RHI_ASSERT(kernelIndex >= 0);
@@ -64,8 +65,9 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 
     // Query the shared memory size.
     int sharedSizeBytes = 0;
-    SLANG_CUDA_RETURN_ON_FAIL(
-        cuFuncGetAttribute(&sharedSizeBytes, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, pipeline->m_function)
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuFuncGetAttribute(&sharedSizeBytes, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, pipeline->m_function),
+        this
     );
     pipeline->m_sharedMemorySize = sharedSizeBytes;
 
@@ -139,16 +141,19 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     std::map<std::string, uint32_t> shaderGroupNameToIndex;
     for (const auto& module : program->m_modules)
     {
-        SLANG_OPTIX_RETURN_ON_FAIL(optixModuleCreate(
-            m_ctx.optixContext,
-            &optixModuleCompileOptions,
-            &optixPipelineCompileOptions,
-            static_cast<const char*>(module.code->getBufferPointer()),
-            module.code->getBufferSize(),
-            nullptr,
-            0,
-            &optixModules.emplace_back()
-        ));
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixModuleCreate(
+                m_ctx.optixContext,
+                &optixModuleCompileOptions,
+                &optixPipelineCompileOptions,
+                static_cast<const char*>(module.code->getBufferPointer()),
+                module.code->getBufferSize(),
+                nullptr,
+                0,
+                &optixModules.emplace_back()
+            ),
+            this
+        );
         entryPointNameToModuleIndex[module.entryPointName] = optixModules.size() - 1;
 
         OptixProgramGroupDesc optixProgramGroupDesc = {};
@@ -177,15 +182,18 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         default:
             continue;
         }
-        SLANG_OPTIX_RETURN_ON_FAIL(optixProgramGroupCreate(
-            m_ctx.optixContext,
-            &optixProgramGroupDesc,
-            1,
-            &optixProgramGroupOptions,
-            nullptr,
-            0,
-            &optixProgramGroups.emplace_back()
-        ));
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixProgramGroupCreate(
+                m_ctx.optixContext,
+                &optixProgramGroupDesc,
+                1,
+                &optixProgramGroupOptions,
+                nullptr,
+                0,
+                &optixProgramGroups.emplace_back()
+            ),
+            this
+        );
         shaderGroupNameToIndex[module.entryPointName] = optixProgramGroups.size() - 1;
     }
 
@@ -220,15 +228,18 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             entryFunctionNameIS = std::string("__intersection__") + hitGroupDesc.intersectionEntryPoint;
             optixProgramGroupDesc.hitgroup.entryFunctionNameIS = entryFunctionNameIS.data();
         }
-        SLANG_OPTIX_RETURN_ON_FAIL(optixProgramGroupCreate(
-            m_ctx.optixContext,
-            &optixProgramGroupDesc,
-            1,
-            &optixProgramGroupOptions,
-            nullptr,
-            0,
-            &optixProgramGroups.emplace_back()
-        ));
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixProgramGroupCreate(
+                m_ctx.optixContext,
+                &optixProgramGroupDesc,
+                1,
+                &optixProgramGroupOptions,
+                nullptr,
+                0,
+                &optixProgramGroups.emplace_back()
+            ),
+            this
+        );
         shaderGroupNameToIndex[hitGroupDesc.hitGroupName] = optixProgramGroups.size() - 1;
     }
 
@@ -236,16 +247,19 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     OptixPipelineLinkOptions optixPipelineLinkOptions = {};
     optixPipelineLinkOptions.maxTraceDepth = desc.maxRecursion;
 
-    SLANG_OPTIX_RETURN_ON_FAIL(optixPipelineCreate(
-        m_ctx.optixContext,
-        &optixPipelineCompileOptions,
-        &optixPipelineLinkOptions,
-        optixProgramGroups.data(),
-        optixProgramGroups.size(),
-        nullptr,
-        0,
-        &optixPipeline
-    ));
+    SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+        optixPipelineCreate(
+            m_ctx.optixContext,
+            &optixPipelineCompileOptions,
+            &optixPipelineLinkOptions,
+            optixProgramGroups.data(),
+            optixProgramGroups.size(),
+            nullptr,
+            0,
+            &optixPipeline
+        ),
+        this
+    );
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
     pipeline->m_program = program;

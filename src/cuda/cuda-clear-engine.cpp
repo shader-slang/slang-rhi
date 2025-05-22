@@ -25,7 +25,7 @@ Result ClearEngine::initialize(IDebugCallback* debugCallback)
     }
 
     // Load PTX module
-    SLANG_CUDA_RETURN_ON_FAIL(cuModuleLoadData(&m_module, compileResult.ptx.data()));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&m_module, compileResult.ptx.data()), debugCallback);
 
     // Get clear kernel functions
     for (size_t dim = 0; dim < size_t(Dimension::Count); ++dim)
@@ -51,7 +51,10 @@ Result ClearEngine::initialize(IDebugCallback* debugCallback)
                     sizeNames[size],
                     layeredNames[layered]
                 );
-                SLANG_CUDA_RETURN_ON_FAIL(cuModuleGetFunction(&m_clearFunction[dim][size][layered], m_module, name));
+                SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+                    cuModuleGetFunction(&m_clearFunction[dim][size][layered], m_module, name),
+                    debugCallback
+                );
             }
         }
     }

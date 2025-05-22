@@ -276,10 +276,9 @@ public:
         m_debugCallback->handleMessage(type, source, message);
     }
 
-    inline void warning(const char* message)
-    {
-        handleMessage(DebugMessageType::Warning, DebugMessageSource::Layer, message);
-    }
+    void printMessage(DebugMessageType type, DebugMessageSource source, const char* message, ...);
+    void printWarning(const char* message, ...);
+    void printError(const char* message, ...);
 
     Result createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject);
     Result createRootShaderObject(ShaderProgram* program, RootShaderObject** outObject);

@@ -63,17 +63,26 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
     int deviceCount = 0;
 
     uint64_t maxComputePerf = 0;
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGetCount(&deviceCount), this);
 
     // Find the best CUDA capable GPU device
     for (int currentDevice = 0; currentDevice < deviceCount; ++currentDevice)
     {
         CUdevice device;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, currentDevice));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&device, currentDevice), this);
         int computeMode = -1, major = 0, minor = 0;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&computeMode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, device));
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device));
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&computeMode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, device),
+            this
+        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device),
+            this
+        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device),
+            this
+        );
 
         // If this GPU is not running on Compute Mode prohibited,
         // then we can add it to the list
@@ -89,10 +98,14 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
             }
 
             int multiProcessorCount = 0, clockRate = 0;
-            SLANG_CUDA_RETURN_ON_FAIL(
-                cuDeviceGetAttribute(&multiProcessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device)
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+                cuDeviceGetAttribute(&multiProcessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device),
+                this
             );
-            SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device));
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+                cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device),
+                this
+            );
             uint64_t compute_perf = uint64_t(multiProcessorCount) * smPerMultiproc * clockRate;
 
             if (compute_perf > maxComputePerf)
@@ -112,14 +125,14 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
     return SLANG_OK;
 }
 
-Result DeviceImpl::_initCuda(CUDAReportStyle reportType)
+Result DeviceImpl::_initCuda()
 {
     if (!rhiCudaDriverApiInit())
     {
+        printError("Failed to initialize CUDA driver API.");
         return SLANG_FAIL;
     }
-    CUresult res = cuInit(0);
-    SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(res, reportType);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuInit(0), this);
     return SLANG_OK;
 }
 
@@ -170,7 +183,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    SLANG_RETURN_ON_FAIL(_initCuda(kReportType));
+    SLANG_RETURN_ON_FAIL(_initCuda());
 
     int selectedDeviceIndex = -1;
     if (desc.adapterLUID)
@@ -191,9 +204,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&selectedDeviceIndex));
     }
 
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&m_ctx.device, selectedDeviceIndex));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, selectedDeviceIndex), this);
 
-    SLANG_CUDA_RETURN_WITH_REPORT_ON_FAIL(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), kReportType);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), this);
 
     SLANG_CUDA_CTX_SCOPE(this);
 
@@ -211,13 +224,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Query device limits
     {
-        CUresult lastResult = CUDA_SUCCESS;
         auto getAttribute = [&](CUdevice_attribute attribute) -> int
         {
-            int value;
-            CUresult result = cuDeviceGetAttribute(&value, attribute, m_ctx.device);
-            if (result != CUDA_SUCCESS)
-                lastResult = result;
+            int value = 0;
+            cuDeviceGetAttribute(&value, attribute, m_ctx.device);
             return value;
         };
 
@@ -239,11 +249,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_LAYERED_LAYERS),
         });
 
-        // limits.maxVertexInputElements
-        // limits.maxVertexInputElementOffset
-        // limits.maxVertexStreams
-        // limits.maxVertexStreamStride
-
         limits.maxComputeThreadsPerGroup = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK);
         limits.maxComputeThreadGroupSize[0] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X);
         limits.maxComputeThreadGroupSize[1] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y);
@@ -252,15 +257,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         limits.maxComputeDispatchThreadGroups[1] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y);
         limits.maxComputeDispatchThreadGroups[2] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z);
 
-        // limits.maxViewports
-        // limits.maxViewportDimensions
-        // limits.maxFramebufferDimensions
-
-        // limits.maxShaderVisibleSamplers
-
         m_info.limits = limits;
-
-        SLANG_CUDA_RETURN_ON_FAIL(lastResult);
     }
 
     // Initialize features & capabilities
@@ -323,7 +320,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             options.validationMode = desc.enableRayTracingValidation ? OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL
                                                                      : OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
 
-            SLANG_OPTIX_RETURN_ON_FAIL(optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext));
+            SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext),
+                this
+            );
 
             addFeature(Feature::AccelerationStructure);
             addFeature(Feature::AccelerationStructureSpheres);
@@ -331,7 +331,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
         else
         {
-            SLANG_OPTIX_HANDLE_ERROR(result);
+            printWarning("Failed to initialize OptiX: %s (%s)", optixGetErrorString(result), optixGetErrorName(result));
         }
     }
 #endif
@@ -499,7 +499,10 @@ Result DeviceImpl::readTexture(
     CUarray srcArray = textureImpl->m_cudaArray;
     if (textureImpl->m_cudaMipMappedArray)
     {
-        SLANG_CUDA_RETURN_ON_FAIL(cuMipmappedArrayGetLevel(&srcArray, textureImpl->m_cudaMipMappedArray, mip));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuMipmappedArrayGetLevel(&srcArray, textureImpl->m_cudaMipMappedArray, mip),
+            this
+        );
     }
 
     CUDA_MEMCPY3D copyParam = {};
@@ -512,7 +515,7 @@ Result DeviceImpl::readTexture(
     copyParam.WidthInBytes = layout.rowPitch;
     copyParam.Height = (layout.size.height + layout.blockHeight - 1) / layout.blockHeight;
     copyParam.Depth = layout.size.depth;
-    SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy3D(&copyParam));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpy3D(&copyParam), this);
 
     return SLANG_OK;
 }
@@ -526,8 +529,9 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, void*
     {
         return SLANG_FAIL;
     }
-    SLANG_CUDA_RETURN_ON_FAIL(
-        cuMemcpy((CUdeviceptr)outData, (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size)
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuMemcpy((CUdeviceptr)outData, (CUdeviceptr)((uint8_t*)bufferImpl->m_cudaMemory + offset), size),
+        this
     );
     return SLANG_OK;
 }
@@ -547,13 +551,16 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AccelerationStructureBuildDescConverter converter;
     SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
     OptixAccelBufferSizes sizes;
-    SLANG_OPTIX_RETURN_ON_FAIL(optixAccelComputeMemoryUsage(
-        m_ctx.optixContext,
-        &converter.buildOptions,
-        converter.buildInputs.data(),
-        converter.buildInputs.size(),
-        &sizes
-    ));
+    SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+        optixAccelComputeMemoryUsage(
+            m_ctx.optixContext,
+            &converter.buildOptions,
+            converter.buildInputs.data(),
+            converter.buildInputs.size(),
+            &sizes
+        ),
+        this
+    );
     outSizes->accelerationStructureSize = sizes.outputSizeInBytes;
     outSizes->scratchSize = sizes.tempSizeInBytes;
     outSizes->updateScratchSize = sizes.tempUpdateSizeInBytes;
@@ -577,8 +584,8 @@ Result DeviceImpl::createAccelerationStructure(
         return SLANG_E_NOT_AVAILABLE;
     }
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
-    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_buffer, desc.size));
-    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&result->m_propertyBuffer, 8));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
 #else

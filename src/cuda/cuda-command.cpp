@@ -113,7 +113,7 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->warning(x " command is not supported!")
+#define NOT_SUPPORTED(x) m_device->printWarning(x " command is not supported!")
 
 void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -773,8 +773,8 @@ Result CommandQueueImpl::waitOnHost()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    SLANG_CUDA_RETURN_ON_FAIL(cuStreamSynchronize(m_stream));
-    SLANG_CUDA_RETURN_ON_FAIL(cuCtxSynchronize());
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
     return SLANG_OK;
 }
 

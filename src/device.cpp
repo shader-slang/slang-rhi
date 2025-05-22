@@ -3,6 +3,7 @@
 #include "rhi-shared.h"
 
 #include <algorithm>
+#include <cstdarg>
 
 namespace rhi {
 
@@ -77,6 +78,36 @@ void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> speci
 // ----------------------------------------------------------------------------
 // Device
 // ----------------------------------------------------------------------------
+
+void Device::printMessage(DebugMessageType type, DebugMessageSource source, const char* message, ...)
+{
+    va_list args;
+    va_start(args, message);
+    char buffer[4096];
+    vsnprintf(buffer, sizeof(buffer), message, args);
+    va_end(args);
+    handleMessage(type, source, buffer);
+}
+
+void Device::printWarning(const char* message, ...)
+{
+    va_list args;
+    va_start(args, message);
+    char buffer[4096];
+    vsnprintf(buffer, sizeof(buffer), message, args);
+    va_end(args);
+    handleMessage(DebugMessageType::Warning, DebugMessageSource::Layer, buffer);
+}
+
+void Device::printError(const char* message, ...)
+{
+    va_list args;
+    va_start(args, message);
+    char buffer[4096];
+    vsnprintf(buffer, sizeof(buffer), message, args);
+    va_end(args);
+    handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, buffer);
+}
 
 Result Device::createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject)
 {

@@ -125,7 +125,7 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->warning(x " command is not supported!")
+#define NOT_SUPPORTED(x) m_device->printWarning(x " command is not supported!")
 
 void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -552,7 +552,7 @@ void CommandExecutor::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     // D3D11 does not support sourcing the count from a buffer.
     if (cmd.countBuffer)
     {
-        m_device->warning(S_RenderPassEncoder_drawIndirect " with countBuffer not supported");
+        m_device->printWarning(S_RenderPassEncoder_drawIndirect " with countBuffer not supported");
         return;
     }
 
@@ -569,7 +569,7 @@ void CommandExecutor::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     // D3D11 does not support sourcing the count from a buffer.
     if (cmd.countBuffer)
     {
-        m_device->warning(S_RenderPassEncoder_drawIndirect " with countBuffer not supported");
+        m_device->printWarning(S_RenderPassEncoder_drawIndirect " with countBuffer not supported");
         return;
     }
 
