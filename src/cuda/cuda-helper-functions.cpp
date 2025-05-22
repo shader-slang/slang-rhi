@@ -34,34 +34,75 @@ CUcontext getCurrentContext()
 }
 #endif
 
-Result CUDAErrorInfo::handle() const
+void _reportCUDAError(
+    CUresult result,
+    const char* call,
+    const char* file,
+    int line,
+    DebugCallbackAdapter debug_callback
+)
 {
-    fprintf(stderr, "%s(%d): CUDA: %s (%s)\n", m_filePath, m_lineNo, m_errorString, m_errorName);
-    return SLANG_FAIL;
+    if (!debug_callback)
+        return;
+
+    const char* errorString = nullptr;
+    const char* errorName = nullptr;
+    cuGetErrorString(result, &errorString);
+    cuGetErrorName(result, &errorName);
+    char buf[4096];
+    snprintf(buf, sizeof(buf), "%s failed: %s (%s)\nAt %s:%d\n", call, errorString, errorName, file, line);
+    debug_callback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
 }
 
-Result _handleCUDAError(CUresult cuResult, const char* file, int line)
+void _reportCUDAAssert(CUresult result, const char* call, const char* file, int line)
 {
-    CUDAErrorInfo info(file, line);
-    cuGetErrorString(cuResult, &info.m_errorString);
-    cuGetErrorName(cuResult, &info.m_errorName);
-    return info.handle();
+    const char* errorString = nullptr;
+    const char* errorName = nullptr;
+    cuGetErrorString(result, &errorString);
+    cuGetErrorName(result, &errorName);
+    std::fprintf(stderr, "%s failed: %s (%s)\n", call, errorString, errorName);
 }
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-#if 1
-Result _handleOptixError(OptixResult result, const char* file, int line)
+void _reportOptixError(
+    OptixResult result,
+    const char* call,
+    const char* file,
+    int line,
+    DebugCallbackAdapter debug_callback
+)
 {
-    fprintf(stderr, "%s(%d): optix: %s (%s)\n", file, line, optixGetErrorString(result), optixGetErrorName(result));
-    return SLANG_FAIL;
+    if (!debug_callback)
+        return;
+
+    char buf[4096];
+    snprintf(
+        buf,
+        sizeof(buf),
+        "%s failed: %s (%s)\nAt %s:%d\n",
+        call,
+        optixGetErrorString(result),
+        optixGetErrorName(result),
+        file,
+        line
+    );
+    debug_callback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
 }
 
-void _optixLogCallback(unsigned int level, const char* tag, const char* message, void* userData)
+void _reportOptixAssert(OptixResult result, const char* call, const char* file, int line)
 {
-    fprintf(stderr, "optix: %s (%s)\n", message, tag);
+    std::fprintf(
+        stderr,
+        "%s:%d: %s failed: %s (%s)\n",
+        file,
+        line,
+        call,
+        optixGetErrorString(result),
+        optixGetErrorName(result)
+    );
 }
-#endif
+
 #endif // SLANG_RHI_ENABLE_OPTIX
 
 AdapterLUID getAdapterLUID(int deviceIndex)

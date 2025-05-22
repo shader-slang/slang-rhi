@@ -44,17 +44,21 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     if (desc.memoryType == MemoryType::DeviceLocal)
     {
-        SLANG_CUDA_RETURN_ON_FAIL(
-            cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size, CU_MEM_ATTACH_GLOBAL)
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size, CU_MEM_ATTACH_GLOBAL),
+            this
         );
     }
     else
     {
-        SLANG_CUDA_RETURN_ON_FAIL(cuMemAllocHost(&buffer->m_cudaMemory, desc.size));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost(&buffer->m_cudaMemory, desc.size), this);
     }
     if (initData)
     {
-        SLANG_CUDA_RETURN_ON_FAIL(cuMemcpy((CUdeviceptr)buffer->m_cudaMemory, (CUdeviceptr)initData, desc.size));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuMemcpy((CUdeviceptr)buffer->m_cudaMemory, (CUdeviceptr)initData, desc.size),
+            this
+        );
     }
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;
@@ -97,7 +101,7 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
     // that CUDA create the required association between the
     // external buffer and its own memory.
     CUexternalMemory externalMemory;
-    SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc), this);
     buffer->m_cudaExternalMemory = externalMemory;
 
     // The CUDA "external memory" handle is not itself a device
@@ -113,7 +117,9 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
 
     // Finally, we can "map" the buffer to get a device address.
     void* deviceAddress;
-    SLANG_CUDA_RETURN_ON_FAIL(cuExternalMemoryGetMappedBuffer((CUdeviceptr*)&deviceAddress, externalMemory, &bufferDesc)
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuExternalMemoryGetMappedBuffer((CUdeviceptr*)&deviceAddress, externalMemory, &bufferDesc),
+        this
     );
     buffer->m_cudaMemory = deviceAddress;
 

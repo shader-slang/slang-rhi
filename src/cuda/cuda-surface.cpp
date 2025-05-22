@@ -570,7 +570,10 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
         externalSemaphoreHandleDesc.type = CU_EXTERNAL_SEMAPHORE_HANDLE_TYPE_TIMELINE_SEMAPHORE_FD;
         externalSemaphoreHandleDesc.handle.fd = (int)frameData.sharedSemaphoreHandle.value;
 #endif
-        SLANG_CUDA_RETURN_ON_FAIL(cuImportExternalSemaphore(&frameData.cudaSemaphore, &externalSemaphoreHandleDesc));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuImportExternalSemaphore(&frameData.cudaSemaphore, &externalSemaphoreHandleDesc),
+            m_deviceImpl->m_debugCallback
+        );
     }
 
     SLANG_RETURN_ON_FAIL(createSharedTexture(frameData.sharedTexture));

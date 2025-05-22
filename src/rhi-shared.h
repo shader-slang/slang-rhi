@@ -309,6 +309,29 @@ public:
     StructHolder m_configHolder;
 };
 
+struct DebugCallbackAdapter
+{
+    IDebugCallback* callback;
+    DebugCallbackAdapter(IDebugCallback* callback)
+        : callback(callback)
+    {
+    }
+    DebugCallbackAdapter(Device* device)
+        : callback(device ? device->m_debugCallback : nullptr)
+    {
+    }
+    DebugCallbackAdapter(DeviceChild* deviceChild)
+        : callback(deviceChild && deviceChild->getDevice() ? deviceChild->getDevice()->m_debugCallback : nullptr)
+    {
+    }
+    DebugCallbackAdapter(const BreakableReference<Device>& device)
+        : callback(device ? device->m_debugCallback : nullptr)
+    {
+    }
+    explicit operator bool() const { return callback != nullptr; }
+    IDebugCallback* operator->() const { return callback; }
+};
+
 bool isDepthFormat(Format format);
 bool isStencilFormat(Format format);
 

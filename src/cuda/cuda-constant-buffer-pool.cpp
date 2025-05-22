@@ -98,7 +98,7 @@ Result ConstantBufferPool::createPage(size_t size, Page& outPage)
     {
         return SLANG_FAIL;
     }
-    SLANG_CUDA_RETURN_ON_FAIL(cuMemAlloc(&outPage.deviceData, size));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&outPage.deviceData, size), m_device);
     outPage.size = size;
     return SLANG_OK;
 }

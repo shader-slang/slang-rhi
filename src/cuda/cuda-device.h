@@ -18,13 +18,11 @@ struct Context
 class DeviceImpl : public Device
 {
 private:
-    static const CUDAReportStyle kReportType = CUDAReportStyle::Normal;
-
     static int _calcSMCountPerMultiProcessor(int major, int minor);
 
-    static Result _findMaxFlopsDeviceIndex(int* outDeviceIndex);
+    Result _findMaxFlopsDeviceIndex(int* outDeviceIndex);
 
-    static Result _initCuda(CUDAReportStyle reportType = CUDAReportStyle::Normal);
+    Result _initCuda();
 
 public:
     Context m_ctx;

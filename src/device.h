@@ -281,6 +281,11 @@ public:
         handleMessage(DebugMessageType::Warning, DebugMessageSource::Layer, message);
     }
 
+    inline void error(const char* message)
+    {
+        handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, message);
+    }
+
     Result createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject);
     Result createRootShaderObject(ShaderProgram* program, RootShaderObject** outObject);
 
