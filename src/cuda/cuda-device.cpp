@@ -224,13 +224,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Query device limits
     {
-        CUresult lastResult = CUDA_SUCCESS;
         auto getAttribute = [&](CUdevice_attribute attribute) -> int
         {
-            int value;
-            CUresult result = cuDeviceGetAttribute(&value, attribute, m_ctx.device);
-            if (result != CUDA_SUCCESS)
-                lastResult = result;
+            int value = 0;
+            cuDeviceGetAttribute(&value, attribute, m_ctx.device);
             return value;
         };
 
@@ -252,11 +249,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_LAYERED_LAYERS),
         });
 
-        // limits.maxVertexInputElements
-        // limits.maxVertexInputElementOffset
-        // limits.maxVertexStreams
-        // limits.maxVertexStreamStride
-
         limits.maxComputeThreadsPerGroup = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK);
         limits.maxComputeThreadGroupSize[0] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X);
         limits.maxComputeThreadGroupSize[1] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y);
@@ -265,15 +257,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         limits.maxComputeDispatchThreadGroups[1] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y);
         limits.maxComputeDispatchThreadGroups[2] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z);
 
-        // limits.maxViewports
-        // limits.maxViewportDimensions
-        // limits.maxFramebufferDimensions
-
-        // limits.maxShaderVisibleSamplers
-
         m_info.limits = limits;
-
-        SLANG_CUDA_RETURN_ON_FAIL(lastResult);
     }
 
     // Initialize features & capabilities
