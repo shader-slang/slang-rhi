@@ -26,7 +26,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
 {
     auto existingError = m_device->getAndClearLastError();
     if (existingError != WGPUErrorType_NoError)
-        m_device->warning("Web GPU device had reported error before shader compilation.");
+        m_device->printWarning("Web GPU device had reported error before shader compilation.");
 
     Module module;
     module.stage = entryPointInfo->getStage();

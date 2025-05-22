@@ -129,7 +129,7 @@ Result DeviceImpl::_initCuda()
 {
     if (!rhiCudaDriverApiInit())
     {
-        error("Failed to initialize CUDA driver API.");
+        printError("Failed to initialize CUDA driver API.");
         return SLANG_FAIL;
     }
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuInit(0), this);
@@ -347,8 +347,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
         else
         {
-            // TODO print error code
-            warning("Failed to initialize OptiX");
+            printWarning("Failed to initialize OptiX: %s (%s)", optixGetErrorString(result), optixGetErrorName(result));
         }
     }
 #endif
