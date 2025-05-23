@@ -5,14 +5,6 @@
 
 namespace rhi {
 
-void CocoaUtil::getNSWindowContentSize(void* nswindow, int* widthOut, int* heightOut)
-{
-    NSWindow* window = (NSWindow*)nswindow;
-    const NSRect contentRect = [window.contentView frame];
-    *widthOut = contentRect.size.width;
-    *heightOut = contentRect.size.height;
-}
-
 void* CocoaUtil::createMetalLayer(void* nswindow)
 {
     CAMetalLayer* layer = [CAMetalLayer layer];
