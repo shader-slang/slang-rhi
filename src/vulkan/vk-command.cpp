@@ -717,6 +717,11 @@ void CommandRecorder::prepareSetRenderState(const commands::SetRenderState& cmd)
             requireBufferState(buffer, ResourceState::IndexBuffer);
         }
     }
+
+    if (cmd.bindingData)
+    {
+        setBindings(static_cast<BindingDataImpl*>(cmd.bindingData), VK_PIPELINE_BIND_POINT_GRAPHICS);
+    }
 }
 
 void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
@@ -757,8 +762,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateBindings)
     {
-        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
-        setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_GRAPHICS);
+        // m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        // setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_GRAPHICS);
     }
 
     // TODO support setting sample positions
