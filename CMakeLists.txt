@@ -105,6 +105,10 @@ cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_N
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
 set(SLANG_RHI_FETCH_SLANG_VERSION "2025.7.1" CACHE STRING "Slang version to fetch")
 
+# Fetch WinPixEventRuntime options
+option(SLANG_RHI_FETCH_WINPIX "Fetch WinPixEventRuntime" ON)
+set(SLANG_RHI_FETCH_WINPIX_URL "https://www.nuget.org/api/v2/package/WinPixEventRuntime/1.0.240308001" CACHE STRING "WinPixEventRuntime URL to fetch")
+
 # Fetch dxc options
 option(SLANG_RHI_FETCH_DXC "Fetch dxc (DirectX Shader Compiler)" ON)
 set(SLANG_RHI_FETCH_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip" CACHE STRING "DXC URL to fetch")
@@ -252,6 +256,17 @@ if(SLANG_RHI_FETCH_DXC AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUA
     elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
         copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxcompiler.dll .)
         copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxil.dll .)
+    endif()
+endif()
+
+# Fetch WinPixEventRuntime
+if(SLANG_RHI_FETCH_WINPIX AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+    message(STATUS "Fetching WinPixEventRuntime ...")
+    FetchPackage(winpix URL ${SLANG_RHI_FETCH_WINPIX_URL})
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+        copy_file(${winpix_SOURCE_DIR}/bin/x64/WinPixEventRuntime.dll .)
+    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+        copy_file(${winpix_SOURCE_DIR}/bin/arm64/WinPixEventRuntime.dll .)
     endif()
 endif()
 

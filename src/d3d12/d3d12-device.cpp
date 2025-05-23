@@ -353,7 +353,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Get PIX entry points.
-#if SLANG_ENABLE_PIX
     {
         HMODULE pixModule = LoadLibraryW(L"WinPixEventRuntime.dll");
         if (pixModule)
@@ -365,7 +364,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 (PFN_SetMarkerOnCommandList)GetProcAddress(pixModule, "PIXSetMarkerOnCommandList");
         }
     }
-#endif
 
     if (!desc.existingDeviceHandles.handles[0])
     {

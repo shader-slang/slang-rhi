@@ -22,3 +22,4 @@ This library is under active refactoring and development, and is not yet ready f
 - [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) (MIT)
 - [OffsetAllocator](https://github.com/sebbbi/OffsetAllocator) (MIT)
 - [nanothread](https://github.com/mitsuba-renderer/nanothread) (BSD 3-Clause)
+- [WinPixEventRuntime](https://www.nuget.org/packages/WinPixEventRuntime) (MIT)
