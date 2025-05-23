@@ -710,6 +710,9 @@ if(SLANG_RHI_BUILD_TESTS)
     add_library(stb INTERFACE)
     target_include_directories(stb INTERFACE external/stb)
 
+    add_library(renderdoc INTERFACE)
+    target_include_directories(renderdoc INTERFACE external/renderdoc)
+
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
@@ -779,7 +782,7 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
-    target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi glfw)
+    target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi glfw renderdoc)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
     endif()

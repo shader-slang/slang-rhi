@@ -1,6 +1,6 @@
 #include "testing.h"
 #include "shader-cache.h"
-
+#include "core/platform.h"
 #include <algorithm>
 #include <cctype>
 #include <ctime>
@@ -14,6 +14,9 @@
 #define DUMP_INTERMEDIATES 0
 #define ENABLE_SHADER_CACHE 0
 
+#if ENABLE_RENDERDOC
+#include <renderdoc_app.h>
+#endif
 
 namespace rhi::testing {
 
@@ -457,28 +460,48 @@ std::vector<const char*> getSlangSearchPaths()
 }
 
 #if ENABLE_RENDERDOC
-RENDERDOC_API_1_1_2* rdoc_api = NULL;
+static RENDERDOC_API_1_6_0* renderdoc_api = nullptr;
 void initializeRenderDoc()
 {
-    if (HMODULE mod = GetModuleHandleA("renderdoc.dll"))
+    if (renderdoc_api)
+        return;
+
+    SharedLibraryHandle module = {};
+#if SLANG_WINDOWS_FAMILY
+    if (!SLANG_SUCCEEDED(loadSharedLibrary("renderdoc.dll", module)))
+        return;
+#elif SLANG_LINUX_FAMILY
+    if (!SLANG_SUCCEEDED(loadSharedLibrary("librenderdoc.so", module)))
+        return;
+#else
+    return;
+#endif
+
+    pRENDERDOC_GetAPI RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)findSymbolAddressByName(module, "RENDERDOC_GetAPI");
+    int ret = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_6_0, (void**)&renderdoc_api);
+    if (ret != 1 || renderdoc_api == nullptr)
     {
-        pRENDERDOC_GetAPI RENDERDOC_GetAPI = (pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
-        int ret = RENDERDOC_GetAPI(eRENDERDOC_API_Version_1_1_2, (void**)&rdoc_api);
-        SLANG_RHI_ASSERT(ret == 1);
+        renderdoc_api = nullptr;
+        unloadSharedLibrary(module);
+        return;
     }
 }
+
 void renderDocBeginFrame()
 {
-    if (!rdoc_api)
-        initializeRenderDoc();
-    if (rdoc_api)
-        rdoc_api->StartFrameCapture(nullptr, nullptr);
+    initializeRenderDoc();
+    if (renderdoc_api)
+    {
+        renderdoc_api->StartFrameCapture(nullptr, nullptr);
+    }
 }
+
 void renderDocEndFrame()
 {
-    if (rdoc_api)
-        rdoc_api->EndFrameCapture(nullptr, nullptr);
-    _fgetchar();
+    if (renderdoc_api)
+    {
+        renderdoc_api->EndFrameCapture(nullptr, nullptr);
+    }
 }
 #else
 void initializeRenderDoc() {}
