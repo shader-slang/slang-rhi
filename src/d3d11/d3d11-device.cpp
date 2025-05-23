@@ -216,6 +216,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_immediateContext->Begin(m_disjointQuery);
         m_immediateContext->End(m_disjointQuery);
         D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData = {};
+        m_immediateContext->Flush();
         m_immediateContext->GetData(m_disjointQuery, &disjointData, sizeof(disjointData), 0);
         m_info.timestampFrequency = disjointData.Frequency;
     }
