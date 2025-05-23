@@ -2073,6 +2073,13 @@ struct CooperativeVectorProperties
     bool transpose;
 };
 
+struct MarkerColor
+{
+    float r;
+    float g;
+    float b;
+};
+
 class ICommandBuffer : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x58e5d83f, 0xad31, 0x44ea, {0xa4, 0xd1, 0x5e, 0x65, 0x9c, 0xd9, 0xa7, 0x57});
@@ -2086,9 +2093,9 @@ class IPassEncoder : public ISlangUnknown
     SLANG_COM_INTERFACE(0x159cd708, 0x4762, 0x4f30, {0xb5, 0x3f, 0xbe, 0x2a, 0xb5, 0x7d, 0x7c, 0x46});
 
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() = 0;
 };
@@ -2267,9 +2274,9 @@ public:
         setTextureState(texture, kEntireTexture, state);
     }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 

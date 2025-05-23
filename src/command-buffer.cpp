@@ -137,15 +137,13 @@ void RenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
     }
 }
 
-void RenderPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+void RenderPassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     if (m_commandList)
     {
         commands::PushDebugGroup cmd;
         cmd.name = name;
-        cmd.rgbColor[0] = rgbColor[0];
-        cmd.rgbColor[1] = rgbColor[1];
-        cmd.rgbColor[2] = rgbColor[2];
+        cmd.color = color;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -159,15 +157,13 @@ void RenderPassEncoder::popDebugGroup()
     }
 }
 
-void RenderPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+void RenderPassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
     if (m_commandList)
     {
         commands::InsertDebugMarker cmd;
         cmd.name = name;
-        cmd.rgbColor[0] = rgbColor[0];
-        cmd.rgbColor[1] = rgbColor[1];
-        cmd.rgbColor[2] = rgbColor[2];
+        cmd.color = color;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -258,15 +254,13 @@ void ComputePassEncoder::dispatchComputeIndirect(BufferOffsetPair argBuffer)
     }
 }
 
-void ComputePassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+void ComputePassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     if (m_commandList)
     {
         commands::PushDebugGroup cmd;
         cmd.name = name;
-        cmd.rgbColor[0] = rgbColor[0];
-        cmd.rgbColor[1] = rgbColor[1];
-        cmd.rgbColor[2] = rgbColor[2];
+        cmd.color = color;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -280,15 +274,13 @@ void ComputePassEncoder::popDebugGroup()
     }
 }
 
-void ComputePassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+void ComputePassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
     if (m_commandList)
     {
         commands::InsertDebugMarker cmd;
         cmd.name = name;
-        cmd.rgbColor[0] = rgbColor[0];
-        cmd.rgbColor[1] = rgbColor[1];
-        cmd.rgbColor[2] = rgbColor[2];
+        cmd.color = color;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -377,15 +369,13 @@ void RayTracingPassEncoder::dispatchRays(uint32_t rayGenShaderIndex, uint32_t wi
     }
 }
 
-void RayTracingPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+void RayTracingPassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     if (m_commandList)
     {
         commands::PushDebugGroup cmd;
         cmd.name = name;
-        cmd.rgbColor[0] = rgbColor[0];
-        cmd.rgbColor[1] = rgbColor[1];
-        cmd.rgbColor[2] = rgbColor[2];
+        cmd.color = color;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -399,15 +389,13 @@ void RayTracingPassEncoder::popDebugGroup()
     }
 }
 
-void RayTracingPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+void RayTracingPassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
     if (m_commandList)
     {
         commands::InsertDebugMarker cmd;
         cmd.name = name;
-        cmd.rgbColor[0] = rgbColor[0];
-        cmd.rgbColor[1] = rgbColor[1];
-        cmd.rgbColor[2] = rgbColor[2];
+        cmd.color = color;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -829,13 +817,11 @@ void CommandEncoder::setTextureState(ITexture* texture, SubresourceRange subreso
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+void CommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     commands::PushDebugGroup cmd;
     cmd.name = name;
-    cmd.rgbColor[0] = rgbColor[0];
-    cmd.rgbColor[1] = rgbColor[1];
-    cmd.rgbColor[2] = rgbColor[2];
+    cmd.color = color;
     m_commandList->write(std::move(cmd));
 }
 
@@ -845,13 +831,11 @@ void CommandEncoder::popDebugGroup()
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+void CommandEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
     commands::InsertDebugMarker cmd;
     cmd.name = name;
-    cmd.rgbColor[0] = rgbColor[0];
-    cmd.rgbColor[1] = rgbColor[1];
-    cmd.rgbColor[2] = rgbColor[2];
+    cmd.color = color;
     m_commandList->write(std::move(cmd));
 }
 

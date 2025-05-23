@@ -1223,9 +1223,9 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 
     VkDebugUtilsLabelEXT label = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     label.pLabelName = cmd.name;
-    label.color[0] = cmd.rgbColor[0];
-    label.color[1] = cmd.rgbColor[1];
-    label.color[2] = cmd.rgbColor[2];
+    label.color[0] = cmd.color.r;
+    label.color[1] = cmd.color.g;
+    label.color[2] = cmd.color.b;
     label.color[3] = 1.0f;
     m_api.vkCmdBeginDebugUtilsLabelEXT(m_cmdBuffer, &label);
 }
@@ -1246,9 +1246,9 @@ void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 
     VkDebugUtilsLabelEXT label = {VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     label.pLabelName = cmd.name;
-    label.color[0] = cmd.rgbColor[0];
-    label.color[1] = cmd.rgbColor[1];
-    label.color[2] = cmd.rgbColor[2];
+    label.color[0] = cmd.color.r;
+    label.color[1] = cmd.color.g;
+    label.color[2] = cmd.color.b;
     label.color[3] = 1.0f;
     m_api.vkCmdInsertDebugUtilsLabelEXT(m_cmdBuffer, &label);
 }
