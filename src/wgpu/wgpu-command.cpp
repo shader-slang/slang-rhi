@@ -451,11 +451,13 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     endPassEncoder();
     m_renderPassEncoder = m_ctx.api.wgpuCommandEncoderBeginRenderPass(m_commandEncoder, &passDesc);
+    m_renderPassActive = true;
 }
 
 void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
 {
     endPassEncoder();
+    m_renderPassActive = false;
 }
 
 void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
@@ -646,11 +648,14 @@ void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 
 void CommandRecorder::cmdBeginComputePass(const commands::BeginComputePass& cmd)
 {
+    endPassEncoder();
+    m_computePassEncoder = m_ctx.api.wgpuCommandEncoderBeginComputePass(m_commandEncoder, nullptr);
     m_computePassActive = true;
 }
 
 void CommandRecorder::cmdEndComputePass(const commands::EndComputePass& cmd)
 {
+    endPassEncoder();
     m_computePassActive = false;
 }
 
@@ -661,11 +666,6 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
 
     bool updatePipeline = !m_computeStateValid || cmd.pipeline != m_computePipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
-
-    if (!m_computePassEncoder)
-    {
-        m_computePassEncoder = m_ctx.api.wgpuCommandEncoderBeginComputePass(m_commandEncoder, nullptr);
-    }
 
     WGPUComputePassEncoder encoder = m_computePassEncoder;
 
@@ -783,32 +783,50 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
-    if (m_renderPassEncoder)
+    if (m_renderPassActive)
+    {
         m_ctx.api.wgpuRenderPassEncoderPushDebugGroup(m_renderPassEncoder, cmd.name);
-    else if (m_computePassEncoder)
+    }
+    else if (m_computePassActive)
+    {
         m_ctx.api.wgpuComputePassEncoderPushDebugGroup(m_computePassEncoder, cmd.name);
+    }
     else
+    {
         m_ctx.api.wgpuCommandEncoderPushDebugGroup(m_commandEncoder, cmd.name);
+    }
 }
 
 void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
-    if (m_renderPassEncoder)
+    if (m_renderPassActive)
+    {
         m_ctx.api.wgpuRenderPassEncoderPopDebugGroup(m_renderPassEncoder);
-    else if (m_computePassEncoder)
+    }
+    else if (m_computePassActive)
+    {
         m_ctx.api.wgpuComputePassEncoderPopDebugGroup(m_computePassEncoder);
+    }
     else
+    {
         m_ctx.api.wgpuCommandEncoderPopDebugGroup(m_commandEncoder);
+    }
 }
 
 void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
 {
-    if (m_renderPassEncoder)
+    if (m_renderPassActive)
+    {
         m_ctx.api.wgpuRenderPassEncoderInsertDebugMarker(m_renderPassEncoder, cmd.name);
-    else if (m_computePassEncoder)
+    }
+    else if (m_computePassActive)
+    {
         m_ctx.api.wgpuComputePassEncoderInsertDebugMarker(m_computePassEncoder, cmd.name);
+    }
     else
+    {
         m_ctx.api.wgpuCommandEncoderInsertDebugMarker(m_commandEncoder, cmd.name);
+    }
 }
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
