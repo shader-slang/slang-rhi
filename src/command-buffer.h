@@ -83,9 +83,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) override;
 
     // IPassEncoder implementation
-    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
-    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
@@ -117,9 +117,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(BufferOffsetPair argBuffer) override;
 
     // IPassEncoder implementation
-    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
-    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
@@ -153,9 +153,9 @@ public:
     dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) override;
 
     // IPassEncoder implementation
-    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
-    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
@@ -309,9 +309,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL
     setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
-    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, float rgbColor[3]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
 

@@ -88,12 +88,12 @@ void DebugRenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
     baseObject->drawMeshTasks(x, y, z);
 }
 
-void DebugRenderPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+void DebugRenderPassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
-    baseObject->pushDebugGroup(name, rgbColor);
+    baseObject->pushDebugGroup(name, color);
 }
 
 void DebugRenderPassEncoder::popDebugGroup()
@@ -104,12 +104,12 @@ void DebugRenderPassEncoder::popDebugGroup()
     baseObject->popDebugGroup();
 }
 
-void DebugRenderPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+void DebugRenderPassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
-    baseObject->insertDebugMarker(name, rgbColor);
+    baseObject->insertDebugMarker(name, color);
 }
 
 void DebugRenderPassEncoder::end()
@@ -162,12 +162,12 @@ void DebugComputePassEncoder::dispatchComputeIndirect(BufferOffsetPair argBuffer
     baseObject->dispatchComputeIndirect(argBuffer);
 }
 
-void DebugComputePassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+void DebugComputePassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
-    baseObject->pushDebugGroup(name, rgbColor);
+    baseObject->pushDebugGroup(name, color);
 }
 
 void DebugComputePassEncoder::popDebugGroup()
@@ -178,12 +178,12 @@ void DebugComputePassEncoder::popDebugGroup()
     baseObject->popDebugGroup();
 }
 
-void DebugComputePassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+void DebugComputePassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
-    baseObject->insertDebugMarker(name, rgbColor);
+    baseObject->insertDebugMarker(name, color);
 }
 
 void DebugComputePassEncoder::end()
@@ -237,12 +237,12 @@ void DebugRayTracingPassEncoder::dispatchRays(
     baseObject->dispatchRays(rayGenShaderIndex, width, height, depth);
 }
 
-void DebugRayTracingPassEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+void DebugRayTracingPassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
-    baseObject->pushDebugGroup(name, rgbColor);
+    baseObject->pushDebugGroup(name, color);
 }
 
 void DebugRayTracingPassEncoder::popDebugGroup()
@@ -253,12 +253,12 @@ void DebugRayTracingPassEncoder::popDebugGroup()
     baseObject->popDebugGroup();
 }
 
-void DebugRayTracingPassEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+void DebugRayTracingPassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
-    baseObject->insertDebugMarker(name, rgbColor);
+    baseObject->insertDebugMarker(name, color);
 }
 
 void DebugRayTracingPassEncoder::end()
@@ -756,12 +756,12 @@ void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange su
     baseObject->setTextureState(texture, subresourceRange, state);
 }
 
-void DebugCommandEncoder::pushDebugGroup(const char* name, float rgbColor[3])
+void DebugCommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-    baseObject->pushDebugGroup(name, rgbColor);
+    baseObject->pushDebugGroup(name, color);
 }
 
 void DebugCommandEncoder::popDebugGroup()
@@ -772,12 +772,12 @@ void DebugCommandEncoder::popDebugGroup()
     baseObject->popDebugGroup();
 }
 
-void DebugCommandEncoder::insertDebugMarker(const char* name, float rgbColor[3])
+void DebugCommandEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
-    baseObject->insertDebugMarker(name, rgbColor);
+    baseObject->insertDebugMarker(name, color);
 }
 
 void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, uint32_t index)

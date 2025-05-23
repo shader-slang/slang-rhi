@@ -728,6 +728,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-cmd-copy-buffer-to-texture.cpp
         tests/test-cmd-copy-texture.cpp
         tests/test-cmd-copy-texture-to-buffer.cpp
+        tests/test-cmd-debug.cpp
         tests/test-cmd-draw.cpp
         tests/test-cmd-query.cpp
         tests/test-cmd-upload-buffer.cpp

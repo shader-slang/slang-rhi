@@ -307,7 +307,7 @@ struct SetTextureState
 struct PushDebugGroup
 {
     const char* name;
-    float rgbColor[3];
+    MarkerColor color;
 };
 
 struct PopDebugGroup
@@ -316,7 +316,7 @@ struct PopDebugGroup
 struct InsertDebugMarker
 {
     const char* name;
-    float rgbColor[3];
+    MarkerColor color;
 };
 
 struct WriteTimestamp
