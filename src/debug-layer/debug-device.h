@@ -101,8 +101,6 @@ public:
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize) override;
 
 private:
     DebugContext m_ctx;

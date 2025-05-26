@@ -93,8 +93,6 @@ public:
         specializedPipelines = decltype(specializedPipelines)();
     }
 
-    size_t getSize() const { return specializedPipelines.size(); }
-
 protected:
     struct ComponentKeyHasher
     {
@@ -244,9 +242,6 @@ public:
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize) override;
 
     Result getEntryPointCodeFromShaderCache(
         slang::IComponentType* program,
