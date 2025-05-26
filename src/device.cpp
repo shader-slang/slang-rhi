@@ -353,6 +353,7 @@ Result Device::initialize(const DeviceDesc& desc)
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
 
     m_persistentShaderCache = desc.persistentShaderCache;
+    m_persistentPipelineCache = desc.persistentPipelineCache;
 
     m_uploadHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::Upload);
     m_readbackHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::ReadBack);

@@ -2601,6 +2601,8 @@ struct DeviceDesc
 
     // Interface to persistent shader cache.
     IPersistentCache* persistentShaderCache = nullptr;
+    // Interface to persistent pipeline cache.
+    IPersistentCache* persistentPipelineCache = nullptr;
 
     /// NVAPI shader extension uav slot (-1 disables the extension).
     uint32_t nvapiExtUavSlot = uint32_t(-1);
