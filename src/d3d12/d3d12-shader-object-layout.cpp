@@ -191,7 +191,23 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
                 break;
 
             case slang::BindingType::CombinedTextureSampler:
-                // TODO: support this case...
+                // Combined texture samplers in D3D12 need to be split into separate
+                // texture (resource) and sampler descriptors, but they represent the
+                // same logical binding. We allocate one slot that will hold references
+                // to both the texture and sampler components.
+                slotIndex = m_slotCount;
+                m_slotCount += count;
+
+                // Both resource and sampler descriptors must start at the same base index
+                // to maintain their logical relationship. We use the maximum of current
+                // counts to ensure both descriptor types start at the same index, even if
+                // this creates gaps in one of the descriptor heaps.
+                baseIndex = std::max(m_ownCounts.resource, m_ownCounts.sampler);
+
+                // Each combined texture sampler consumes one resource descriptor and one
+                // sampler descriptor at synchronized indices (baseIndex + i for the i-th sampler).
+                m_ownCounts.resource = baseIndex + count;
+                m_ownCounts.sampler = baseIndex + count;
                 break;
 
             case slang::BindingType::VaryingInput:
@@ -498,6 +514,12 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::translateDescriptor
         return SLANG_OK;
     case slang::BindingType::Sampler:
         *outType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+        return SLANG_OK;
+    case slang::BindingType::CombinedTextureSampler:
+        // CombinedTextureSampler is translated as SRV here.
+        // There will be a separate binding for sampler and it will
+        // be explicitly handled as a sampler separately.
+        * outType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
         return SLANG_OK;
     default:
         return SLANG_FAIL;

@@ -266,6 +266,9 @@ Result BindingDataBuilder::bindAsValue(
         }
         case slang::BindingType::CombinedTextureSampler:
         {
+            // For combined texture samplers, both resource and sampler descriptors
+            // are allocated at synchronized indices starting from the same baseIndex.
+            // The layout builder ensures both heaps have the same baseIndex for this range.
             uint32_t resourceIndex = rangeOffset.resource + baseIndex;
             uint32_t samplerIndex = rangeOffset.sampler + baseIndex;
             for (uint32_t i = 0; i < count; ++i)
@@ -280,7 +283,7 @@ Result BindingDataBuilder::bindAsValue(
                     textureDescriptor = textureView->getSRV();
                     m_bindingData->textureStates[m_bindingData->textureStateCount++] = {
                         textureView,
-                        ResourceState::UnorderedAccess
+                        ResourceState::ShaderResource
                     };
                 }
                 else
