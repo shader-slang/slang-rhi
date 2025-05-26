@@ -10,7 +10,7 @@
 
 namespace rhi::testing {
 
-class ShaderCache : public IPersistentShaderCache
+class ShaderCache : public IPersistentCache
 {
 public:
     using Key = std::vector<uint8_t>;
@@ -50,9 +50,9 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override
     {
-        if (uuid == IPersistentShaderCache::getTypeGuid())
+        if (uuid == IPersistentCache::getTypeGuid())
         {
-            *outObject = static_cast<IPersistentShaderCache*>(this);
+            *outObject = static_cast<IPersistentCache*>(this);
             return SLANG_OK;
         }
         return SLANG_E_NO_INTERFACE;

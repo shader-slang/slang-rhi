@@ -178,7 +178,7 @@ enum class AccessFlag
     Write,
 };
 
-class IPersistentShaderCache;
+class IPersistentCache;
 
 /// Defines how linking should be performed for a shader program.
 enum class LinkingStyle
@@ -2600,7 +2600,7 @@ struct DeviceDesc
     SlangDesc slang = {};
 
     // Interface to persistent shader cache.
-    IPersistentShaderCache* persistentShaderCache = nullptr;
+    IPersistentCache* persistentShaderCache = nullptr;
 
     /// NVAPI shader extension uav slot (-1 disables the extension).
     uint32_t nvapiExtUavSlot = uint32_t(-1);
@@ -3009,7 +3009,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
 };
 
-class IPersistentShaderCache : public ISlangUnknown
+class IPersistentCache : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x68981742, 0x7fd6, 0x4700, {0x8a, 0x71, 0xe8, 0xea, 0x42, 0x91, 0x3b, 0x28});
 
