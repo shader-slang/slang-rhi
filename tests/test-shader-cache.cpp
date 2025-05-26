@@ -8,7 +8,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-class VirtualShaderCache : public IPersistentShaderCache
+class VirtualShaderCache : public IPersistentCache
 {
 public:
     struct Stats
@@ -85,9 +85,9 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override
     {
-        if (uuid == IPersistentShaderCache::getTypeGuid())
+        if (uuid == IPersistentCache::getTypeGuid())
         {
-            *outObject = static_cast<IPersistentShaderCache*>(this);
+            *outObject = static_cast<IPersistentCache*>(this);
             return SLANG_OK;
         }
         return SLANG_E_NO_INTERFACE;

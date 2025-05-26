@@ -334,9 +334,7 @@ public:
     StagingHeap m_uploadHeap;
     StagingHeap m_readbackHeap;
 
-    ComPtr<IPersistentShaderCache> m_persistentShaderCache;
-    size_t m_shaderCacheHits = 0;
-    size_t m_shaderCacheMisses = 0;
+    ComPtr<IPersistentCache> m_persistentShaderCache;
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
     ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
