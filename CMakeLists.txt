@@ -499,6 +499,7 @@ target_sources(slang-rhi PRIVATE
     src/core/blob.cpp
     src/core/offset-allocator.cpp
     src/core/platform.cpp
+    src/core/sha1.cpp
     src/core/task-pool.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp
@@ -759,6 +760,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-root-shader-parameter.cpp
         tests/test-sampler-array.cpp
         tests/test-sampler.cpp
+        tests/test-sha1.cpp
         tests/test-shader-cache.cpp
         tests/test-staging-heap.cpp
         tests/test-surface.cpp
