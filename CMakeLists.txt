@@ -762,6 +762,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-sampler.cpp
         tests/test-sha1.cpp
         tests/test-shader-cache.cpp
+        tests/test-shader-object-resource-tracking.cpp
         tests/test-staging-heap.cpp
         tests/test-surface.cpp
         tests/test-texture-create.cpp
