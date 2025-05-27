@@ -942,6 +942,15 @@ Result RootShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList&
     return SLANG_OK;
 }
 
+void RootShaderObject::trackResources(std::set<RefPtr<RefObject>>& resources)
+{
+    ShaderObject::trackResources(resources);
+    for (const auto& entryPoint : m_entryPoints)
+    {
+        if (entryPoint)
+            entryPoint->trackResources(resources);
+    }
+}
 
 bool _doesValueFitInExistentialPayload(
     slang::TypeLayoutReflection* concreteTypeLayout,

@@ -343,6 +343,8 @@ public:
     Result getSpecializedLayout(ShaderObjectLayout*& outSpecializedLayout);
 
     virtual Result collectSpecializationArgs(ExtendedShaderObjectTypeList& args) override;
+
+    void trackResources(std::set<RefPtr<RefObject>>& resources);
 };
 
 bool _doesValueFitInExistentialPayload(
