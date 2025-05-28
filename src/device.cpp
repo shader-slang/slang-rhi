@@ -358,13 +358,6 @@ Result Device::initialize(const DeviceDesc& desc)
     m_uploadHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::Upload);
     m_readbackHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::ReadBack);
 
-    if (desc.apiCommandDispatcher)
-    {
-        desc.apiCommandDispatcher->queryInterface(
-            IPipelineCreationAPIDispatcher::getTypeGuid(),
-            (void**)m_pipelineCreationAPIDispatcher.writeRef()
-        );
-    }
     return SLANG_OK;
 }
 
