@@ -224,6 +224,11 @@ namespace rhi::vk {
     x(vkConvertCooperativeVectorMatrixNV) \
     x(vkCmdConvertCooperativeVectorMatrixNV) \
     x(vkGetDescriptorSetLayoutSupport) \
+    x(vkCreatePipelineBinariesKHR) \
+    x(vkDestroyPipelineBinaryKHR) \
+    x(vkGetPipelineBinaryDataKHR) \
+    x(vkGetPipelineKeyKHR) \
+    x(vkReleaseCapturedPipelineDataKHR) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
@@ -385,6 +390,11 @@ struct VulkanExtendedFeatureProperties
     // Mutable descriptor type features
     VkPhysicalDeviceMutableDescriptorTypeFeaturesEXT mutableDescriptorTypeFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MUTABLE_DESCRIPTOR_TYPE_FEATURES_EXT
+    };
+
+    // Pipeline binary features
+    VkPhysicalDevicePipelineBinaryFeaturesKHR pipelineBinaryFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_BINARY_FEATURES_KHR
     };
 };
 
