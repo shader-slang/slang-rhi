@@ -107,6 +107,7 @@ enum class DeviceType
     x(ParameterBlock,                           "parameter-block"                               ) \
     x(Bindless,                                 "bindless"                                      ) \
     x(Surface,                                  "surface"                                       ) \
+    x(PipelineCache,                            "pipeline-cache"                                ) \
     /* Rasterization features */                                                                  \
     x(Rasterization,                            "rasterization"                                 ) \
     x(Barycentrics,                             "barycentrics"                                  ) \
