@@ -338,7 +338,6 @@ public:
     ComPtr<IPersistentCache> m_persistentPipelineCache;
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
-    ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
 
     IDebugCallback* m_debugCallback = nullptr;
 };

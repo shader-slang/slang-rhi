@@ -2595,8 +2595,6 @@ struct DeviceDesc
     uint32_t requiredFeatureCount = 0;
     // Array of required feature names, whose size is `requiredFeatureCount`.
     const char** requiredFeatures = nullptr;
-    // A command dispatcher object that intercepts and handles actual low-level API call.
-    ISlangUnknown* apiCommandDispatcher = nullptr;
     // Configurations for Slang compiler.
     SlangDesc slang = {};
 
@@ -3019,35 +3017,6 @@ class IPersistentCache : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key, ISlangBlob* data) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
-};
-
-class IPipelineCreationAPIDispatcher : public ISlangUnknown
-{
-    SLANG_COM_INTERFACE(0x8d7aa89d, 0x07f1, 0x4e21, {0xbc, 0xd2, 0x9a, 0x71, 0xc7, 0x95, 0xba, 0x91});
-
-public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipeline(
-        IDevice* device,
-        slang::IComponentType* program,
-        void* pipelineDesc,
-        void** outPipelineState
-    ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createRenderPipeline(
-        IDevice* device,
-        slang::IComponentType* program,
-        void* pipelineDesc,
-        void** outPipelineState
-    ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMeshPipeline(
-        IDevice* device,
-        slang::IComponentType* program,
-        void* pipelineDesc,
-        void** outPipelineState
-    ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    beforeCreateRayTracingState(IDevice* device, slang::IComponentType* program) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    afterCreateRayTracingState(IDevice* device, slang::IComponentType* program) = 0;
 };
 
 class IRHI
