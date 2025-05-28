@@ -327,9 +327,15 @@ ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice,
-    std::vector<const char*> additionalSearchPaths
+    const DeviceExtraOptions* extraOptions
 )
 {
+    // Extra options can only be used when not using cached device.
+    if (useCachedDevice)
+    {
+        REQUIRE(extraOptions == nullptr);
+    }
+
     if (useCachedDevice)
     {
         auto it = gCachedDevices.find(deviceType);
@@ -347,8 +353,15 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
     std::vector<const char*> searchPaths = getSlangSearchPaths();
-    for (const char* path : additionalSearchPaths)
-        searchPaths.push_back(path);
+    if (extraOptions)
+    {
+        for (const char* path : extraOptions->searchPaths)
+            searchPaths.push_back(path);
+        if (extraOptions->persistentShaderCache)
+            deviceDesc.persistentShaderCache = extraOptions->persistentShaderCache;
+        if (extraOptions->persistentPipelineCache)
+            deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
+    }
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
     std::vector<slang::CompilerOptionEntry> compilerOptions;
