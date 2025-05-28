@@ -167,11 +167,18 @@ void compareComputeResult(
     compareComputeResult(device, texture, layer, mip, span<T>(expectedResult.data(), Count));
 }
 
+struct DeviceExtraOptions
+{
+    std::vector<const char*> searchPaths;
+    IPersistentCache* persistentShaderCache = nullptr;
+    IPersistentCache* persistentPipelineCache = nullptr;
+};
+
 ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice = true,
-    std::vector<const char*> additionalSearchPaths = {}
+    const DeviceExtraOptions* extraOptions = nullptr
 );
 
 void releaseCachedDevices();
