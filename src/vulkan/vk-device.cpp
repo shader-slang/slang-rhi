@@ -255,7 +255,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 }
             }
         }
-        uint32_t apiVersionsToTry[] = {VK_API_VERSION_1_3, VK_API_VERSION_1_2, VK_API_VERSION_1_1, VK_API_VERSION_1_0};
+        uint32_t apiVersionsToTry[] = {
+            // VK_API_VERSION_1_4,
+            VK_API_VERSION_1_3,
+            VK_API_VERSION_1_2,
+            VK_API_VERSION_1_1,
+            VK_API_VERSION_1_0,
+        };
         for (auto apiVersion : apiVersionsToTry)
         {
             applicationInfo.apiVersion = apiVersion;
@@ -530,6 +536,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         extendedFeatures.mutableDescriptorTypeFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.mutableDescriptorTypeFeatures;
+
+        extendedFeatures.pipelineBinaryFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.pipelineBinaryFeatures;
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -807,6 +816,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             mutableDescriptorType,
             VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME,
             {}
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.pipelineBinaryFeatures,
+            pipelineBinaries,
+            VK_KHR_PIPELINE_BINARY_EXTENSION_NAME,
+            {
+                deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
+                availableFeatures.push_back(Feature::PipelineCache);
+            }
         );
 
 #undef SIMPLE_EXTENSION_FEATURE
