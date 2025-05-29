@@ -172,6 +172,7 @@ Result DeviceImpl::_createDevice(
             D3D12_MESSAGE_ID hideMessages[] = {
                 D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
                 D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+                D3D12_MESSAGE_ID_CREATEPIPELINESTATE_INVALIDCACHEDBLOB,
             };
             D3D12_INFO_QUEUE_FILTER f = {};
             f.DenyList.NumIDs = (UINT)SLANG_COUNT_OF(hideMessages);
@@ -430,6 +431,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             D3D12_MESSAGE_ID hideMessages[] = {
                 D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
                 D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+                D3D12_MESSAGE_ID_CREATEPIPELINESTATE_INVALIDCACHEDBLOB,
             };
             D3D12_INFO_QUEUE_FILTER f = {};
             f.DenyList.NumIDs = (UINT)std::size(hideMessages);

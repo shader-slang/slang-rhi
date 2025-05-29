@@ -73,7 +73,7 @@ Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** ou
         SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineKeyKHR(device->m_device, &pipelineCreateInfo, &pipelineKey));
         sha1.update(pipelineKey.key, pipelineKey.keySize);
     }
-    SHA1::Digest digest = sha1.digest();
+    SHA1::Digest digest = sha1.getDigest();
     ComPtr<ISlangBlob> blob = OwnedBlob::create(digest.data(), digest.size());
     returnComPtr(outBlob, blob);
     return SLANG_OK;

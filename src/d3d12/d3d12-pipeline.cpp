@@ -109,7 +109,7 @@ inline Result getPipelineCacheKey(
     SHA1 sha1;
     hashDevice(sha1, device);
     hashPipelineDesc(sha1, desc);
-    SHA1::Digest digest = sha1.digest();
+    SHA1::Digest digest = sha1.getDigest();
     ComPtr<ISlangBlob> blob = OwnedBlob::create(digest.data(), digest.size());
     returnComPtr(outBlob, blob);
     return SLANG_OK;
@@ -120,7 +120,7 @@ inline void getPipelineCacheKey(DeviceImpl* device, const D3D12_COMPUTE_PIPELINE
     SHA1 sha1;
     hashDevice(sha1, device);
     hashPipelineDesc(sha1, desc);
-    SHA1::Digest digest = sha1.digest();
+    SHA1::Digest digest = sha1.getDigest();
     ComPtr<ISlangBlob> blob = OwnedBlob::create(digest.data(), digest.size());
     returnComPtr(outBlob, blob);
 }

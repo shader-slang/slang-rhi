@@ -55,10 +55,10 @@ public:
     SHA1& update(std::string_view str) { return update(str.data(), str.size()); }
 
     /// Return the message digest.
-    Digest digest() const;
+    Digest getDigest() const;
 
     /// Return the message digest as a hex string.
-    std::string hex_digest() const;
+    std::string getHexDigest() const;
 
 private:
     void addByte(uint8_t x);
@@ -70,4 +70,5 @@ private:
     uint32_t m_state[5];
     uint8_t m_buf[64];
 };
-}; // namespace rhi
+
+} // namespace rhi

@@ -497,6 +497,7 @@ target_sources(slang-rhi PRIVATE
     src/staging-heap.cpp
     src/core/assert.cpp
     src/core/blob.cpp
+    src/core/crc32.cpp
     src/core/offset-allocator.cpp
     src/core/platform.cpp
     src/core/sha1.cpp
@@ -752,6 +753,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-null-views.cpp
         tests/test-nvrtc.cpp
         tests/test-offset-allocator.cpp
+        tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
