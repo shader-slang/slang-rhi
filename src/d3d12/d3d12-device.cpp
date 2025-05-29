@@ -590,6 +590,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     addFeature(m_deviceInfo.m_isSoftware ? Feature::SoftwareDevice : Feature::HardwareDevice);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Surface);
+    addFeature(Feature::PipelineCache);
     addFeature(Feature::Rasterization);
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::TimestampQuery);
