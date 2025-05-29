@@ -3086,6 +3086,16 @@ public:
         return device;
     }
 
+    /// Create a blob. If `data` is non-null, then it must point to a buffer of size `size`.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBlob(const void* data, size_t size, ISlangBlob** outBlob) = 0;
+
+    ComPtr<ISlangBlob> createBlob(const void* data, size_t size)
+    {
+        ComPtr<ISlangBlob> blob;
+        SLANG_RETURN_NULL_ON_FAIL(createBlob(data, size, blob.writeRef()));
+        return blob;
+    }
+
     /// Reports current set of live objects.
     /// Currently this just calls D3D's ReportLiveObjects.
     virtual SLANG_NO_THROW Result SLANG_MCALL reportLiveObjects() = 0;

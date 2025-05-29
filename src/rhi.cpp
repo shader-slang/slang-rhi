@@ -143,8 +143,11 @@ public:
     virtual const char* getCapabilityName(Capability capability) override;
 
     Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
-    Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
     void enableDebugLayers() override;
+    Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
+
+    Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;
+
     Result reportLiveObjects() override;
     Result setTaskPool(ITaskPool* scheduler) override;
 
@@ -365,6 +368,25 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
     debugDevice->baseObject = innerDevice;
     returnComPtr(outDevice, debugDevice);
     return resultCode;
+}
+
+Result RHI::createBlob(const void* data, size_t size, ISlangBlob** outBlob)
+{
+    ComPtr<ISlangBlob> blob;
+    if (data)
+    {
+        blob = OwnedBlob::create(data, size);
+    }
+    else
+    {
+        blob = OwnedBlob::create(size);
+    }
+    if (!blob)
+    {
+        return SLANG_FAIL;
+    }
+    returnComPtr(outBlob, blob);
+    return SLANG_OK;
 }
 
 Result RHI::reportLiveObjects()
