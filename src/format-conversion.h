@@ -322,6 +322,14 @@ inline void truncateBySintFormat(Format format, const uint32_t in[4], uint32_t o
 {
     switch (format)
     {
+    case Format::R8Uint:
+    case Format::RG8Uint:
+    case Format::RGBA8Uint:
+        out[0] = in[0] > 0xff ? 0xff : in[0];
+        out[1] = in[1] > 0xff ? 0xff : in[1];
+        out[2] = in[2] > 0xff ? 0xff : in[2];
+        out[3] = in[3] > 0xff ? 0xff : in[3];
+        break;
     case Format::R8Sint:
     case Format::RG8Sint:
     case Format::RGBA8Sint:
@@ -329,6 +337,14 @@ inline void truncateBySintFormat(Format format, const uint32_t in[4], uint32_t o
         out[1] = in[1] & 0xff;
         out[2] = in[2] & 0xff;
         out[3] = in[3] & 0xff;
+        break;
+    case Format::R16Uint:
+    case Format::RG16Uint:
+    case Format::RGBA16Uint:
+        out[0] = in[0] > 0xffff ? 0xffff : in[0];
+        out[1] = in[1] > 0xffff ? 0xffff : in[1];
+        out[2] = in[2] > 0xffff ? 0xffff : in[2];
+        out[3] = in[3] > 0xffff ? 0xffff : in[3];
         break;
     case Format::R16Sint:
     case Format::RG16Sint:

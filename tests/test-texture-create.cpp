@@ -22,6 +22,10 @@ GPU_TEST_CASE("texture-create", ALL)
         options,
         [](TextureTestContext* c)
         {
+            // if (c->getTexture()->getDesc().type == TextureType::Texture3D && c->getTexture()->getDesc().format == Format::RGB32Uint)
+            // {
+            //     return;
+            // }
             const TextureData& data = c->getTextureData();
 
             // Enable this to helpfully log all created textures.

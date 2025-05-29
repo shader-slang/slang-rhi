@@ -687,7 +687,9 @@ void TextureData::clearUint(uint32_t layer, uint32_t mip, const uint32_t clearVa
     SLANG_RHI_ASSERT(funcs.packIntFunc);
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     uint8_t pixelData[16];
-    funcs.packIntFunc(clearValue, pixelData);
+    uint32_t clearValueUint[4];
+    truncateBySintFormat(desc.format, clearValue, clearValueUint);
+    funcs.packIntFunc(clearValueUint, pixelData);
     for (uint32_t depth = 0; depth < subresource.layout.size.depth; depth++)
     {
         for (uint32_t row = 0; row < subresource.layout.rowCount; row++)

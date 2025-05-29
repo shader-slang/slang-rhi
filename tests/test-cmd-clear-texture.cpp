@@ -270,7 +270,7 @@ GPU_TEST_CASE("cmd-clear-texture-sint-pattern", D3D11 | D3D12 | Vulkan | Metal |
             ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
             {
                 ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
-                int32_t clearValue[4] = {-100, -10, 10, 100};
+                int32_t clearValue[4] = {-1000, -100, 100, 1000};
                 encoder->clearTextureSint(texture, kEntireTexture, clearValue);
                 queue->submit(encoder->finish());
                 c->getTextureData().clearSint(clearValue);
