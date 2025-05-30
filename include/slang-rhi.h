@@ -2954,26 +2954,50 @@ public:
     getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize) = 0;
 };
 
-class ITaskScheduler : public ISlangUnknown
+class ITaskPool : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xab272cee, 0xa546, 0x4ae6, {0xbd, 0x0d, 0xcd, 0xab, 0xa9, 0x3f, 0x6d, 0xa6});
 
 public:
     typedef void* TaskHandle;
 
-    /// Submit a task.
-    /// The scheduler needs to call the `run` function with the `payload` argument.
-    /// The `parentTasks` contains a list of tasks that need to be completed before the submitted task can run.
-    /// Every submitted task is released using `releaseTask` once the task handle is no longer used.
-    virtual SLANG_NO_THROW TaskHandle SLANG_MCALL
-    submitTask(TaskHandle* parentTasks, uint32_t parentTaskCount, void (*run)(void* /*payload*/), void* payload) = 0;
+    /// \brief Submit a new task.
+    /// The returned task must be released with `releaseTask()` when no longer needed
+    /// for specifying dependencies or issuing `waitTask()`.
+    /// \param func Function to execute.
+    /// \param payload Payload to pass to the function.
+    /// \param payloadDeleter Optional payload deleter (called when task is destroyed).
+    /// \param deps Parent tasks to wait for.
+    /// \param depsCount Number of parent tasks.
+    /// \return The new task.
+    virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
+        void (*func)(void*),
+        void* payload,
+        void (*payloadDeleter)(void*),
+        TaskHandle* deps,
+        size_t depsCount
+    ) = 0;
 
-    /// Release a task.
-    /// This is called when the task handle is no longer used.
+    /// \brief Get the task payload data.
+    /// \param task Task to get the payload for.
+    /// \return The payload.
+    virtual SLANG_NO_THROW void* SLANG_MCALL getTaskPayload(TaskHandle task) = 0;
+
+    /// \brief Release a task.
+    /// \param task Task to release.
     virtual SLANG_NO_THROW void SLANG_MCALL releaseTask(TaskHandle task) = 0;
 
-    // Wait for a task to complete.
-    virtual SLANG_NO_THROW void SLANG_MCALL waitForCompletion(TaskHandle task) = 0;
+    /// \brief Wait for a task to finish.
+    /// \param task Task to wait for.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) = 0;
+
+    /// \brief Check if a task is done.
+    /// \param task Task to check.
+    /// \return True if the task is done.
+    virtual SLANG_NO_THROW bool SLANG_MCALL isTaskDone(TaskHandle task) = 0;
+
+    /// \brief Wait for all tasks in the pool to finish.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
 };
 
 class IPersistentShaderCache : public ISlangUnknown
@@ -3054,14 +3078,9 @@ public:
     /// Currently this just calls D3D's ReportLiveObjects.
     virtual SLANG_NO_THROW Result SLANG_MCALL reportLiveObjects() = 0;
 
-    /// Set the global task pool worker count.
+    /// Set the global task pool for the RHI.
     /// Must be called before any devices are created.
-    /// This is ignored if the task scheduler is set.
-    virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPoolWorkerCount(uint32_t count) = 0;
-
-    /// Set the global task scheduler for the RHI.
-    /// Must be called before any devices are created.
-    virtual SLANG_NO_THROW Result SLANG_MCALL setTaskScheduler(ITaskScheduler* scheduler) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPool(ITaskPool* taskPool) = 0;
 };
 
 // Global public functions

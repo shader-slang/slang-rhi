@@ -146,8 +146,7 @@ public:
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
     void enableDebugLayers() override;
     Result reportLiveObjects() override;
-    Result setTaskPoolWorkerCount(uint32_t count) override;
-    Result setTaskScheduler(ITaskScheduler* scheduler) override;
+    Result setTaskPool(ITaskPool* scheduler) override;
 
     static RHI* getInstance()
     {
@@ -376,14 +375,9 @@ Result RHI::reportLiveObjects()
     return SLANG_OK;
 }
 
-Result RHI::setTaskPoolWorkerCount(uint32_t count)
+Result RHI::setTaskPool(ITaskPool* taskPool)
 {
-    return setGlobalTaskPoolWorkerCount(count);
-}
-
-Result RHI::setTaskScheduler(ITaskScheduler* scheduler)
-{
-    return setGlobalTaskScheduler(scheduler);
+    return setGlobalTaskPool(taskPool);
 }
 
 bool isDebugLayersEnabled()

@@ -8,164 +8,259 @@
 
 using namespace rhi;
 
-class SimpleTask : public Task
+// Create a number of tasks and wait for each of them individually.
+void testSimple(ITaskPool* pool)
 {
-public:
-    SimpleTask(
-        std::function<void()> onCreate = nullptr,
-        std::function<void()> onDestroy = nullptr,
-        std::function<void()> onRun = nullptr
-    )
-        : m_onCreate(onCreate)
-        , m_onDestroy(onDestroy)
-        , m_onRun(onRun)
+    REQUIRE(pool != nullptr);
+
+    static constexpr size_t N = 1000;
+    static size_t result[N];
+    static bool deleted[N];
+    ITaskPool::TaskHandle tasks[N];
+
+    ::memset(result, 0, sizeof(result));
+    ::memset(deleted, 0, sizeof(deleted));
+
+    for (size_t i = 0; i < N; ++i)
     {
-        if (onCreate)
-            onCreate();
+        size_t* payload = new size_t{i};
+        tasks[i] = pool->submitTask(
+            [](void* payload)
+            {
+                size_t i = *static_cast<size_t*>(payload);
+                result[i] = i;
+            },
+            payload,
+            [](void* payload)
+            {
+                size_t i = *static_cast<size_t*>(payload);
+                deleted[i] = true;
+                delete static_cast<size_t*>(payload);
+            },
+            nullptr,
+            0
+        );
     }
 
-    ~SimpleTask()
+    for (size_t i = 0; i < N; ++i)
     {
-        if (m_onDestroy)
-            m_onDestroy();
+        CAPTURE(i);
+        CHECK(!deleted[i]);
+        pool->waitTask(tasks[i]);
+        pool->releaseTask(tasks[i]);
+        CHECK(result[i] == (size_t)i);
     }
 
-    void run() override
+    pool->waitAll();
+
+    for (size_t i = 0; i < N; ++i)
     {
-        if (m_onRun)
-            m_onRun();
+        CAPTURE(i);
+        CHECK(deleted[i]);
+    }
+}
+
+// Create a number of tasks and wait for all of them at once.
+void testWaitAll(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    static constexpr size_t N = 1000;
+    static size_t result[N];
+    static bool deleted[N];
+
+    ::memset(result, 0, sizeof(result));
+    ::memset(deleted, 0, sizeof(deleted));
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        size_t* payload = new size_t{i};
+        ITaskPool::TaskHandle task = pool->submitTask(
+            [](void* payload)
+            {
+                size_t i = *static_cast<size_t*>(payload);
+                result[i] = i;
+            },
+            payload,
+            [](void* payload)
+            {
+                size_t i = *static_cast<size_t*>(payload);
+                deleted[i] = true;
+                delete static_cast<size_t*>(payload);
+            },
+            nullptr,
+            0
+        );
+        CHECK(!deleted[i]);
+        pool->releaseTask(task);
     }
 
-private:
-    std::function<void()> m_onCreate;
-    std::function<void()> m_onDestroy;
-    std::function<void()> m_onRun;
+    pool->waitAll();
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        CAPTURE(i);
+        CHECK(result[i] == (size_t)i);
+        CHECK(deleted[i]);
+    }
+}
+
+// Create a number of tasks and wait for all of them at once.
+void testSimpleDependency(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    static constexpr size_t N = 1000;
+    static size_t result[N];
+    static ITaskPool::TaskHandle tasks[N];
+    static std::atomic<size_t> finished;
+
+    finished = 0;
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        tasks[i] = pool->submitTask(
+            [](void* payload)
+            {
+                size_t i = (size_t)(uintptr_t)payload;
+                result[i] = i;
+                finished++;
+            },
+            (void*)i,
+            nullptr,
+            nullptr,
+            0
+        );
+    }
+
+    ITaskPool::TaskHandle waitTask = pool->submitTask([](void*) { CHECK(finished == N); }, nullptr, nullptr, tasks, N);
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        pool->releaseTask(tasks[i]);
+    }
+
+    pool->waitTask(waitTask);
+    pool->releaseTask(waitTask);
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        CAPTURE(i);
+        CHECK(result[i] == (size_t)i);
+    }
+}
+
+inline ITaskPool::TaskHandle spawn(ITaskPool* pool, int depth)
+{
+    if (depth > 0)
+    {
+        ITaskPool::TaskHandle a = spawn(pool, depth - 1);
+        ITaskPool::TaskHandle b = spawn(pool, depth - 1);
+        ITaskPool::TaskHandle tasks[] = {a, b};
+        ITaskPool::TaskHandle c = pool->submitTask([](void*) {}, nullptr, nullptr, tasks, 2);
+        pool->releaseTask(a);
+        pool->releaseTask(b);
+        return c;
+    }
+    else
+    {
+        return pool->submitTask([](void*) {}, nullptr, nullptr, nullptr, 0);
+    }
+}
+
+void testRecursiveDependency(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    ITaskPool::TaskHandle task = spawn(pool, 10);
+    pool->waitTask(task);
+    pool->releaseTask(task);
+}
+
+struct FibonacciPayload
+{
+    int result;
+    ITaskPool::TaskHandle a;
+    ITaskPool::TaskHandle b;
 };
 
-TEST_CASE("task-pool")
+static ITaskPool* fibonacciPool;
+
+inline ITaskPool::TaskHandle fibonacciTask(int n)
 {
-    TaskPool pool;
+    FibonacciPayload* payload = new FibonacciPayload{};
 
-    SUBCASE("wait single")
+    if (n <= 1)
     {
-        std::atomic<bool> alive(false);
-        std::atomic<bool> done(false);
-        RefPtr<SimpleTask> task =
-            new SimpleTask([&]() { alive = true; }, [&]() { alive = false; }, [&]() { done = true; });
-        REQUIRE(task);
-        REQUIRE(alive);
-        REQUIRE(!done);
-        TaskHandle taskHandle = pool.submitTask(task);
-        REQUIRE(taskHandle);
-        task.setNull();
-        pool.waitForCompletion(taskHandle);
-        CHECK(done);
-        pool.releaseTask(taskHandle);
-        CHECK(!alive);
+        payload->result = n;
+        payload->a = nullptr;
+        payload->b = nullptr;
+        return fibonacciPool->submitTask([](void* payload) {}, payload, ::free, nullptr, 0);
     }
-
-    SUBCASE("wait multiple")
+    else
     {
-        static constexpr int N = 100;
-        std::atomic<bool> alive[N];
-        std::atomic<bool> done[N];
-        TaskHandle taskHandles[N];
-        for (int i = 0; i < N; ++i)
-        {
-            alive[i] = false;
-            done[i] = false;
-            RefPtr<SimpleTask> task = new SimpleTask(
-                [&, i]() { alive[i] = true; },
-                [&, i]() { alive[i] = false; },
-                [&, i]() { done[i] = true; }
-            );
-            taskHandles[i] = pool.submitTask(task);
-        }
-        pool.waitForCompletion(taskHandles, N);
-        for (int i = 0; i < N; ++i)
-        {
-            pool.releaseTask(taskHandles[i]);
-            CHECK(!alive[i]);
-            CHECK(done[i]);
-        }
-    }
-
-    SUBCASE("simple dependency")
-    {
-        std::atomic<bool> aliveA(false);
-        std::atomic<bool> doneA(false);
-        std::atomic<bool> aliveB(false);
-        std::atomic<bool> doneB(false);
-        RefPtr<SimpleTask> taskA =
-            new SimpleTask([&]() { aliveA = true; }, [&]() { aliveA = false; }, [&]() { doneA = true; });
-        RefPtr<SimpleTask> taskB = new SimpleTask(
-            [&]() { aliveB = true; },
-            [&]() { aliveB = false; },
-            [&]()
+        payload->a = fibonacciTask(n - 1);
+        payload->b = fibonacciTask(n - 2);
+        ITaskPool::TaskHandle tasks[] = {payload->a, payload->b};
+        return fibonacciPool->submitTask(
+            [](void* payload)
             {
-                CHECK(doneA);
-                doneB = true;
-            }
+                FibonacciPayload* p = static_cast<FibonacciPayload*>(payload);
+                FibonacciPayload* pa = static_cast<FibonacciPayload*>(fibonacciPool->getTaskPayload(p->a));
+                FibonacciPayload* pb = static_cast<FibonacciPayload*>(fibonacciPool->getTaskPayload(p->b));
+                p->result = pa->result + pb->result;
+                fibonacciPool->releaseTask(p->a);
+                fibonacciPool->releaseTask(p->b);
+            },
+            payload,
+            ::free,
+            tasks,
+            2
         );
-        TaskHandle taskHandleA = pool.submitTask(taskA);
-        taskA.setNull();
-        TaskHandle taskHandleB = pool.submitTask(taskB, &taskHandleA, 1);
-        taskB.setNull();
-        pool.releaseTask(taskHandleA);
-        pool.waitForCompletion(taskHandleB);
-        CHECK(doneB);
-        pool.releaseTask(taskHandleB);
-        CHECK(!aliveA);
-        CHECK(!aliveB);
     }
+}
 
-    SUBCASE("complex dependency")
+inline int fibonacci(int n)
+{
+    return n <= 1 ? n : fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+void testFibonacci(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    fibonacciPool = pool;
+    int N = 25;
+    int expected = fibonacci(N);
+    ITaskPool::TaskHandle task = fibonacciTask(N);
+    pool->waitTask(task);
+    int result = static_cast<FibonacciPayload*>(pool->getTaskPayload(task))->result;
+    CHECK(result == expected);
+    pool->releaseTask(task);
+}
+
+TEST_CASE("task-pool-blocking")
+{
+    ComPtr<ITaskPool> pool(new BlockingTaskPool());
+
+    SUBCASE("simple")
     {
-        static constexpr int N = 100;
-        static constexpr int M = 10;
-        std::atomic<bool> aliveInner[N][M];
-        std::atomic<bool> doneInner[N][M];
-        std::atomic<bool> aliveOuter[N];
-        std::atomic<bool> doneOuter[N];
-        TaskHandle taskHandlesOuter[N];
-        for (int i = 0; i < N; ++i)
-        {
-            TaskHandle taskHandlesInner[M];
-            for (int j = 0; j < M; j++)
-            {
-                aliveInner[i][j] = false;
-                doneInner[i][j] = false;
-                RefPtr<SimpleTask> taskInner = new SimpleTask(
-                    [&, i, j]() { aliveInner[i][j] = true; },
-                    [&, i, j]() { aliveInner[i][j] = false; },
-                    [&, i, j]() { doneInner[i][j] = true; }
-                );
-                taskHandlesInner[j] = pool.submitTask(taskInner);
-            }
-            aliveOuter[i] = false;
-            doneOuter[i] = false;
-            RefPtr<SimpleTask> taskOuter = new SimpleTask(
-                [&, i]() { aliveOuter[i] = true; },
-                [&, i]() { aliveOuter[i] = false; },
-                [&, i]()
-                {
-                    for (int k = 0; k < M; ++k)
-                        CHECK(doneInner[i][k]);
-                    doneOuter[i] = true;
-                }
-            );
-            taskHandlesOuter[i] = pool.submitTask(taskOuter, taskHandlesInner, M);
-            for (int j = 0; j < M; j++)
-            {
-                pool.releaseTask(taskHandlesInner[j]);
-            }
-        }
-        pool.waitForCompletion(taskHandlesOuter, N);
-        for (int i = 0; i < N; ++i)
-        {
-            pool.releaseTask(taskHandlesOuter[i]);
-            CHECK(doneOuter[i]);
-            CHECK(!aliveOuter[i]);
-        }
+        testSimple(pool);
+    }
+    SUBCASE("wait-all")
+    {
+        testWaitAll(pool);
+    }
+    SUBCASE("simple-dependency")
+    {
+        testSimpleDependency(pool);
+    }
+    SUBCASE("recursive-dependency")
+    {
+        testRecursiveDependency(pool);
+    }
+    SUBCASE("fibonacci")
+    {
+        testFibonacci(pool);
     }
 }

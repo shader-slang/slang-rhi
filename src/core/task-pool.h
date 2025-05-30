@@ -4,47 +4,41 @@
 
 namespace rhi {
 
-class Task : public RefObject
+class BlockingTaskPool : public ITaskPool, public ComObject
 {
 public:
-    virtual ~Task() {}
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
 
-    virtual void run() = 0;
+    ITaskPool* getInterface(const Guid& guid);
 
-private:
-    std::string m_name;
-};
-
-using TaskHandle = ITaskScheduler::TaskHandle;
-
-class TaskPool
-{
 public:
-    static constexpr uint32_t kAutoWorkerCount = uint32_t(-1);
+    TaskHandle submitTask(
+        void (*func)(void*),
+        void* payload,
+        void (*payloadDeleter)(void*),
+        TaskHandle* deps,
+        size_t depsCount
+    ) override;
 
-    TaskPool(uint32_t workerCount = kAutoWorkerCount);
-    TaskPool(ITaskScheduler* scheduler);
-    ~TaskPool();
+    void* getTaskPayload(TaskHandle task) override;
 
-    TaskHandle submitTask(Task* task, TaskHandle* parentTaskHandles = nullptr, uint32_t parentTaskHandleCount = 0);
-    void releaseTask(TaskHandle taskHandle);
-    void waitForCompletion(TaskHandle taskHandle);
-    void waitForCompletion(TaskHandle* taskHandles, uint32_t taskHandleCount);
+    void releaseTask(TaskHandle task) override;
+
+    void waitTask(TaskHandle task) override;
+
+    bool isTaskDone(TaskHandle task) override;
+
+    void waitAll() override;
 
 private:
-    ComPtr<ITaskScheduler> m_scheduler;
+    struct Task;
 };
-
-/// Set the global task pool worker count.
-/// Must be called before first accessing the global task pool.
-/// This is ignored if the task scheduler is set.
-Result setGlobalTaskPoolWorkerCount(uint32_t count);
 
 /// Set the global task scheduler.
 /// Must be called before first accessing the global task pool.
-Result setGlobalTaskScheduler(ITaskScheduler* scheduler);
+Result setGlobalTaskPool(ITaskPool* taskPool);
 
 /// Returns the global task pool.
-TaskPool& globalTaskPool();
+ITaskPool* globalTaskPool();
 
 } // namespace rhi
