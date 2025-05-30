@@ -182,6 +182,42 @@ inline void writeSamplerDescriptor(
     writeDescriptor(device, write);
 }
 
+inline void writeBufferState(BindingDataBuilder* builder, BufferImpl* buffer, ResourceState state)
+{
+    BindingDataImpl* bindingData = builder->m_bindingData;
+    if (bindingData->bufferStateCount >= bindingData->bufferStateCapacity)
+    {
+        bindingData->bufferStateCapacity *= 2;
+        BindingDataImpl::BufferState* newBufferStates =
+            builder->m_allocator->allocate<BindingDataImpl::BufferState>(bindingData->bufferStateCapacity);
+        std::memcpy(
+            newBufferStates,
+            bindingData->bufferStates,
+            bindingData->bufferStateCount * sizeof(BindingDataImpl::BufferState)
+        );
+        bindingData->bufferStates = newBufferStates;
+    }
+    bindingData->bufferStates[bindingData->bufferStateCount++] = {buffer, state};
+}
+
+inline void writeTextureState(BindingDataBuilder* builder, TextureViewImpl* textureView, ResourceState state)
+{
+    BindingDataImpl* bindingData = builder->m_bindingData;
+    if (bindingData->textureStateCount >= bindingData->textureStateCapacity)
+    {
+        bindingData->textureStateCapacity *= 2;
+        BindingDataImpl::TextureState* newTextureStates =
+            builder->m_allocator->allocate<BindingDataImpl::TextureState>(bindingData->textureStateCapacity);
+        std::memcpy(
+            newTextureStates,
+            bindingData->textureStates,
+            bindingData->textureStateCount * sizeof(BindingDataImpl::TextureState)
+        );
+        bindingData->textureStates = newTextureStates;
+    }
+    bindingData->textureStates[bindingData->textureStateCount++] = {textureView, state};
+}
+
 
 Result BindingDataBuilder::bindAsRoot(
     RootShaderObject* shaderObject,
@@ -196,10 +232,14 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingCache->bindingData.push_back(m_bindingData);
 
     // TODO(shaderobject): we should count number of buffers/textures in the layout and allocate appropriately
-    uint32_t slotCount = 100; // specializedLayout->getSlotCount() is not the total number of slots of all subobjects
-    m_bindingData->bufferStates = m_allocator->allocate<BindingDataImpl::BufferState>(slotCount);
+    // For now we use a fixed starting capacity and grow as needed.
+    m_bindingData->bufferStateCapacity = 1024;
+    m_bindingData->bufferStates =
+        m_allocator->allocate<BindingDataImpl::BufferState>(m_bindingData->bufferStateCapacity);
     m_bindingData->bufferStateCount = 0;
-    m_bindingData->textureStates = m_allocator->allocate<BindingDataImpl::TextureState>(slotCount);
+    m_bindingData->textureStateCapacity = 1024;
+    m_bindingData->textureStates =
+        m_allocator->allocate<BindingDataImpl::TextureState>(m_bindingData->textureStateCapacity);
     m_bindingData->textureStateCount = 0;
 
     m_bindingData->pipelineLayout = specializedLayout->m_pipelineLayout;
@@ -404,7 +444,7 @@ Result BindingDataBuilder::bindAsValue(
                 writeTextureDescriptor(device, descriptorSet, binding, i, descriptorType, textureView);
                 if (textureView)
                 {
-                    m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
+                    writeTextureState(this, textureView, requiredState);
                 }
             }
             break;
@@ -421,7 +461,7 @@ Result BindingDataBuilder::bindAsValue(
                 writeTextureSamplerDescriptor(device, descriptorSet, binding, i, textureView, sampler);
                 if (textureView)
                 {
-                    m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
+                    writeTextureState(this, textureView, requiredState);
                 }
             }
             break;
@@ -453,7 +493,7 @@ Result BindingDataBuilder::bindAsValue(
                 writePlainBufferDescriptor(device, descriptorSet, binding, i, descriptorType, buffer, slot.bufferRange);
                 if (buffer)
                 {
-                    m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                    writeBufferState(this, buffer, requiredState);
                 }
             }
             break;
@@ -484,7 +524,7 @@ Result BindingDataBuilder::bindAsValue(
                 );
                 if (buffer)
                 {
-                    m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                    writeBufferState(this, buffer, requiredState);
                 }
             }
             break;
