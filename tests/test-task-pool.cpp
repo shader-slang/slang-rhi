@@ -264,3 +264,41 @@ TEST_CASE("task-pool-blocking")
         testFibonacci(pool);
     }
 }
+
+TEST_CASE("task-pool-threaded")
+{
+    ComPtr<ITaskPool> pool(new ThreadedTaskPool());
+
+    SUBCASE("simple")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testSimple(pool);
+        }
+    }
+    SUBCASE("wait-all")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testWaitAll(pool);
+        }
+    }
+    SUBCASE("simple-dependency")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testSimpleDependency(pool);
+        }
+    }
+    SUBCASE("recursive-dependency")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testRecursiveDependency(pool);
+        }
+    }
+    SUBCASE("fibonacci")
+    {
+        testFibonacci(pool);
+    }
+}
