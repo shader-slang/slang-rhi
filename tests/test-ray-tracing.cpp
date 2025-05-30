@@ -72,6 +72,7 @@ struct BaseRayTracingTest
 
         ComPtr<slang::IBlob> diagnosticsBlob;
         slang::IModule* module = slangSession->loadModule("test-ray-tracing", diagnosticsBlob.writeRef());
+        diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
             return SLANG_FAIL;
 
