@@ -976,6 +976,15 @@ public:
         return view;
     }
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) = 0;
+
+    inline ComPtr<ITextureView> getDefaultView()
+    {
+        ComPtr<ITextureView> view;
+        getDefaultView(view.writeRef());
+        return view;
+    }
+
     /// Get layout of a subresource with given packing. If rowAlignment is kDefaultAlignment, uses the platform's
     /// minimal texture row alignment for buffer upload/download.
     virtual SLANG_NO_THROW Result SLANG_MCALL
@@ -1464,8 +1473,8 @@ struct Binding
     Binding(IBuffer* buffer, IBuffer* counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer), resource2(counter), bufferRange(range) {}
     Binding(const ComPtr<IBuffer>& buffer, const ComPtr<IBuffer>& counter, const BufferRange& range = kEntireBuffer) : type(BindingType::BufferWithCounter), resource(buffer), resource2(counter), bufferRange(range) {}
 
-    Binding(ITexture* texture) : type(BindingType::Texture), resource(texture->createView({})) {}
-    Binding(const ComPtr<ITexture>& texture) : type(BindingType::Texture), resource(texture->createView({})) {}
+    Binding(ITexture* texture) : type(BindingType::Texture), resource(texture->getDefaultView()) {}
+    Binding(const ComPtr<ITexture>& texture) : type(BindingType::Texture), resource(texture->getDefaultView()) {}
 
     Binding(ITextureView* textureView) : type(BindingType::Texture), resource(textureView) {}
     Binding(const ComPtr<ITextureView>& textureView) : type(BindingType::Texture), resource(textureView) {}
@@ -1473,8 +1482,8 @@ struct Binding
     Binding(ISampler* sampler) : type(BindingType::Sampler) , resource(sampler) {}
     Binding(const ComPtr<ISampler>& sampler) : type(BindingType::Sampler) , resource(sampler) {}
 
-    Binding(ITexture* texture, ISampler* sampler) : type(BindingType::CombinedTextureSampler), resource(texture->createView({})), resource2(sampler) {}
-    Binding(const ComPtr<ITexture>& texture, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureSampler), resource(texture->createView({})), resource2(sampler) {}
+    Binding(ITexture* texture, ISampler* sampler) : type(BindingType::CombinedTextureSampler), resource(texture->getDefaultView()), resource2(sampler) {}
+    Binding(const ComPtr<ITexture>& texture, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureSampler), resource(texture->getDefaultView()), resource2(sampler) {}
 
     Binding(ITextureView* textureView, ISampler* sampler) : type(BindingType::CombinedTextureSampler) , resource(textureView), resource2(sampler) {}
     Binding(const ComPtr<ITextureView>& textureView, const ComPtr<ISampler>& sampler) : type(BindingType::CombinedTextureSampler) , resource(textureView), resource2(sampler) {}

@@ -24,9 +24,8 @@ public:
     bool m_isSwapchainInitialState = false;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
     struct ViewKey
     {
         Format format;
@@ -53,6 +52,7 @@ public:
         }
     };
 
+    ComPtr<ITextureView> m_defaultView;
     std::mutex m_mutex;
     std::unordered_map<ViewKey, TextureSubresourceView, ViewKeyHasher> m_views;
 
@@ -64,7 +64,7 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    RefPtr<TextureImpl> m_texture;
+    BreakableReference<TextureImpl> m_texture;
     DescriptorHandle m_descriptorHandle[2] = {};
 
     // ITextureView implementation

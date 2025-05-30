@@ -19,6 +19,7 @@ public:
     void* m_cudaExternalMemory = nullptr;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
 public:
     struct ViewKey
@@ -55,6 +56,7 @@ public:
         }
     };
 
+    ComPtr<ITextureView> m_defaultView;
     std::mutex m_mutex;
     std::unordered_map<ViewKey, CUtexObject, ViewKeyHasher> m_texObjects;
     std::unordered_map<SubresourceRange, CUsurfObject, SubresourceRangeHasher> m_surfObjects;
@@ -85,7 +87,7 @@ public:
         return m_cudaSurfObj;
     }
 
-    RefPtr<TextureImpl> m_texture;
+    BreakableReference<TextureImpl> m_texture;
     CUtexObject m_cudaTexObj = 0;
     CUsurfObject m_cudaSurfObj = 0;
 };

@@ -32,6 +32,17 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result TextureImpl::getDefaultView(ITextureView** outTextureView)
+{
+    if (!m_defaultView)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, m_defaultView.writeRef()));
+        checked_cast<TextureViewImpl*>(m_defaultView.get())->m_texture.breakStrongReference();
+    }
+    returnComPtr(outTextureView, m_defaultView);
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
     TextureDesc desc = fixupTextureDesc(desc_);

@@ -161,6 +161,17 @@ Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_FAIL;
 }
 
+Result TextureImpl::getDefaultView(ITextureView** outTextureView)
+{
+    if (!m_defaultView)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, m_defaultView.writeRef()));
+        checked_cast<TextureViewImpl*>(m_defaultView.get())->m_texture.breakStrongReference();
+    }
+    returnComPtr(outTextureView, m_defaultView);
+    return SLANG_OK;
+}
+
 CUtexObject TextureImpl::getTexObject(Format format, const SubresourceRange& range)
 {
     std::lock_guard<std::mutex> lock(m_mutex);

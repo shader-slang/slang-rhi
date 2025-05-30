@@ -81,6 +81,17 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 #endif
 }
 
+Result TextureImpl::getDefaultView(ITextureView** outTextureView)
+{
+    if (!m_defaultView)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, m_defaultView.writeRef()));
+        checked_cast<TextureViewImpl*>(m_defaultView.get())->m_texture.breakStrongReference();
+    }
+    returnComPtr(outTextureView, m_defaultView);
+    return SLANG_OK;
+}
+
 D3D12_CPU_DESCRIPTOR_HANDLE
 TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range)
 {

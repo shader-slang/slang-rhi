@@ -13,6 +13,8 @@ public:
     DXGI_FORMAT m_format;
     bool m_isTypeless;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
+
     struct ViewKey
     {
         Format format;
@@ -34,6 +36,7 @@ public:
         }
     };
 
+    ComPtr<ITextureView> m_defaultView;
     std::mutex m_mutex;
     std::unordered_map<ViewKey, ComPtr<ID3D11RenderTargetView>, ViewKeyHasher> m_rtvs;
     std::unordered_map<ViewKey, ComPtr<ID3D11DepthStencilView>, ViewKeyHasher> m_dsvs;
@@ -83,7 +86,7 @@ public:
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
 
 public:
-    RefPtr<TextureImpl> m_texture;
+    BreakableReference<TextureImpl> m_texture;
 
 private:
     ID3D11RenderTargetView* m_rtv = nullptr;
