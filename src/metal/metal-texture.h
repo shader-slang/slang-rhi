@@ -26,7 +26,7 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    virtual void comFree() override { m_texture->breakStrongReferenceToDevice(); }
+    virtual void comFree() override { m_texture.breakStrongReference(); }
 
     BreakableReference<TextureImpl> m_texture;
     NS::SharedPtr<MTL::Texture> m_textureView;

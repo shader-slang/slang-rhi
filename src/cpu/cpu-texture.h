@@ -137,7 +137,7 @@ class TextureViewImpl : public TextureView, public slang_prelude::IRWTexture
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    virtual void comFree() override { m_texture->breakStrongReferenceToDevice(); }
+    virtual void comFree() override { m_texture.breakStrongReference(); }
 
     // ITextureView implementation
     virtual SLANG_NO_THROW rhi::ITexture* SLANG_MCALL getTexture() override { return m_texture; }
