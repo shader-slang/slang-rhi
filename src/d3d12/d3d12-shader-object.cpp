@@ -36,6 +36,42 @@ inline BindingDataImpl::RootParameter createRootUAV(UINT index, D3D12_GPU_VIRTUA
     return result;
 }
 
+inline void writeBufferState(BindingDataBuilder* builder, BufferImpl* buffer, ResourceState state)
+{
+    BindingDataImpl* bindingData = builder->m_bindingData;
+    if (bindingData->bufferStateCount >= bindingData->bufferStateCapacity)
+    {
+        bindingData->bufferStateCapacity *= 2;
+        BindingDataImpl::BufferState* newBufferStates =
+            builder->m_allocator->allocate<BindingDataImpl::BufferState>(bindingData->bufferStateCapacity);
+        std::memcpy(
+            newBufferStates,
+            bindingData->bufferStates,
+            bindingData->bufferStateCount * sizeof(BindingDataImpl::BufferState)
+        );
+        bindingData->bufferStates = newBufferStates;
+    }
+    bindingData->bufferStates[bindingData->bufferStateCount++] = {buffer, state};
+}
+
+inline void writeTextureState(BindingDataBuilder* builder, TextureViewImpl* textureView, ResourceState state)
+{
+    BindingDataImpl* bindingData = builder->m_bindingData;
+    if (bindingData->textureStateCount >= bindingData->textureStateCapacity)
+    {
+        bindingData->textureStateCapacity *= 2;
+        BindingDataImpl::TextureState* newTextureStates =
+            builder->m_allocator->allocate<BindingDataImpl::TextureState>(bindingData->textureStateCapacity);
+        std::memcpy(
+            newTextureStates,
+            bindingData->textureStates,
+            bindingData->textureStateCount * sizeof(BindingDataImpl::TextureState)
+        );
+        bindingData->textureStates = newTextureStates;
+    }
+    bindingData->textureStates[bindingData->textureStateCount++] = {textureView, state};
+}
+
 Result BindingDataBuilder::bindAsRoot(
     RootShaderObject* shaderObject,
     RootShaderObjectLayoutImpl* specializedLayout,
@@ -49,13 +85,12 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData = bindingData;
 
     // TODO(shaderobject): allocate actual number of buffer/texture resources
-    // For now we just use the number of resources (buffers+textures) plus some extra (parameter blocks).
-    uint32_t resourceCount = specializedLayout->m_totalCounts.resource + 16;
-    m_bindingData->bufferStateCapacity = resourceCount;
+    // For now we use a fixed starting capacity and grow as needed.
+    m_bindingData->bufferStateCapacity = 1024;
     m_bindingData->bufferStates =
         m_allocator->allocate<BindingDataImpl::BufferState>(m_bindingData->bufferStateCapacity);
     m_bindingData->bufferStateCount = 0;
-    m_bindingData->textureStateCapacity = resourceCount;
+    m_bindingData->textureStateCapacity = 1024;
     m_bindingData->textureStates =
         m_allocator->allocate<BindingDataImpl::TextureState>(m_bindingData->textureStateCapacity);
     m_bindingData->textureStateCount = 0;
@@ -252,8 +287,7 @@ Result BindingDataBuilder::bindAsValue(
                 {
                     SLANG_RHI_ASSERT(resourceIndex + i < descriptorSet.resources.count);
                     descriptor = isSrv ? textureView->getSRV() : textureView->getUAV();
-                    SLANG_RHI_ASSERT(m_bindingData->textureStateCount < m_bindingData->textureStateCapacity);
-                    m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
+                    writeTextureState(this, textureView, requiredState);
                 }
                 else
                 {
@@ -283,11 +317,7 @@ Result BindingDataBuilder::bindAsValue(
                 if (textureView)
                 {
                     textureDescriptor = textureView->getSRV();
-                    SLANG_RHI_ASSERT(m_bindingData->textureStateCount < m_bindingData->textureStateCapacity);
-                    m_bindingData->textureStates[m_bindingData->textureStateCount++] = {
-                        textureView,
-                        ResourceState::UnorderedAccess
-                    };
+                    writeTextureState(this, textureView, ResourceState::UnorderedAccess);
                 }
                 else
                 {
@@ -412,8 +442,7 @@ Result BindingDataBuilder::bindAsValue(
                 }
                 if (buffer)
                 {
-                    SLANG_RHI_ASSERT(m_bindingData->bufferStateCount < m_bindingData->bufferStateCapacity);
-                    m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
+                    writeBufferState(this, buffer, requiredState);
                 }
             }
             break;
