@@ -972,7 +972,7 @@ public:
     inline ComPtr<ITextureView> createView(const TextureViewDesc& desc)
     {
         ComPtr<ITextureView> view;
-        createView(desc, view.writeRef());
+        SLANG_RETURN_NULL_ON_FAIL(createView(desc, view.writeRef()));
         return view;
     }
 
@@ -981,7 +981,7 @@ public:
     inline ComPtr<ITextureView> getDefaultView()
     {
         ComPtr<ITextureView> view;
-        getDefaultView(view.writeRef());
+        SLANG_RETURN_NULL_ON_FAIL(getDefaultView(view.writeRef()));
         return view;
     }
 
@@ -2648,7 +2648,7 @@ public:
     inline ComPtr<slang::ISession> getSlangSession()
     {
         ComPtr<slang::ISession> result;
-        getSlangSession(result.writeRef());
+        SLANG_RETURN_NULL_ON_FAIL(getSlangSession(result.writeRef()));
         return result;
     }
 
