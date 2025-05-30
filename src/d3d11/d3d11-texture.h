@@ -54,6 +54,8 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
+    virtual void comFree() override { m_texture->breakStrongReferenceToDevice(); }
+
     ID3D11RenderTargetView* getRTV()
     {
         if (!m_rtv)

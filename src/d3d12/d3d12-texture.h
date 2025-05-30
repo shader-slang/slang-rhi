@@ -86,6 +86,8 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
+    virtual void comFree() override { m_texture->breakStrongReferenceToDevice(); }
+
     BreakableReference<TextureImpl> m_texture;
     DescriptorHandle m_descriptorHandle[2] = {};
 
