@@ -49,11 +49,15 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData = bindingData;
 
     // TODO(shaderobject): allocate actual number of buffer/texture resources
-    uint32_t bufferCount = 100;
-    uint32_t textureCount = 100;
-    m_bindingData->bufferStates = m_allocator->allocate<BindingDataImpl::BufferState>(bufferCount);
+    // For now we just use the number of resources (buffers+textures) plus some extra (parameter blocks).
+    uint32_t resourceCount = specializedLayout->m_totalCounts.resource + 16;
+    m_bindingData->bufferStateCapacity = resourceCount;
+    m_bindingData->bufferStates =
+        m_allocator->allocate<BindingDataImpl::BufferState>(m_bindingData->bufferStateCapacity);
     m_bindingData->bufferStateCount = 0;
-    m_bindingData->textureStates = m_allocator->allocate<BindingDataImpl::TextureState>(textureCount);
+    m_bindingData->textureStateCapacity = resourceCount;
+    m_bindingData->textureStates =
+        m_allocator->allocate<BindingDataImpl::TextureState>(m_bindingData->textureStateCapacity);
     m_bindingData->textureStateCount = 0;
 
     uint32_t rootParameterCount = specializedLayout->m_rootSignatureTotalParameterCount;
@@ -248,6 +252,7 @@ Result BindingDataBuilder::bindAsValue(
                 {
                     SLANG_RHI_ASSERT(resourceIndex + i < descriptorSet.resources.count);
                     descriptor = isSrv ? textureView->getSRV() : textureView->getUAV();
+                    SLANG_RHI_ASSERT(m_bindingData->textureStateCount < m_bindingData->textureStateCapacity);
                     m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
                 }
                 else
@@ -278,6 +283,7 @@ Result BindingDataBuilder::bindAsValue(
                 if (textureView)
                 {
                     textureDescriptor = textureView->getSRV();
+                    SLANG_RHI_ASSERT(m_bindingData->textureStateCount < m_bindingData->textureStateCapacity);
                     m_bindingData->textureStates[m_bindingData->textureStateCount++] = {
                         textureView,
                         ResourceState::UnorderedAccess
@@ -406,6 +412,7 @@ Result BindingDataBuilder::bindAsValue(
                 }
                 if (buffer)
                 {
+                    SLANG_RHI_ASSERT(m_bindingData->bufferStateCount < m_bindingData->bufferStateCapacity);
                     m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
                 }
             }

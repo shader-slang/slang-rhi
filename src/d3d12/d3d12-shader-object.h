@@ -121,9 +121,11 @@ public:
 
     /// Required buffer states.
     BufferState* bufferStates;
+    uint32_t bufferStateCapacity;
     uint32_t bufferStateCount;
     /// Required texture states.
     TextureState* textureStates;
+    uint32_t textureStateCapacity;
     uint32_t textureStateCount;
     /// Root parameters.
     RootParameter* rootParameters;
