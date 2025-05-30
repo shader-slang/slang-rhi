@@ -182,6 +182,7 @@ inline void writeSamplerDescriptor(
     writeDescriptor(device, write);
 }
 
+const uint32_t SLOT_COUNT = 4096; // Arbitrary large number for initial allocation
 
 Result BindingDataBuilder::bindAsRoot(
     RootShaderObject* shaderObject,
@@ -196,7 +197,7 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingCache->bindingData.push_back(m_bindingData);
 
     // TODO(shaderobject): we should count number of buffers/textures in the layout and allocate appropriately
-    uint32_t slotCount = 100; // specializedLayout->getSlotCount() is not the total number of slots of all subobjects
+    uint32_t slotCount = SLOT_COUNT; // specializedLayout->getSlotCount() is not the total number of slots of all subobjects
     m_bindingData->bufferStates = m_allocator->allocate<BindingDataImpl::BufferState>(slotCount);
     m_bindingData->bufferStateCount = 0;
     m_bindingData->textureStates = m_allocator->allocate<BindingDataImpl::TextureState>(slotCount);
@@ -404,6 +405,7 @@ Result BindingDataBuilder::bindAsValue(
                 writeTextureDescriptor(device, descriptorSet, binding, i, descriptorType, textureView);
                 if (textureView)
                 {
+                    SLANG_RHI_ASSERT(m_bindingData->textureStateCount < SLOT_COUNT);
                     m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
                 }
             }
@@ -421,6 +423,7 @@ Result BindingDataBuilder::bindAsValue(
                 writeTextureSamplerDescriptor(device, descriptorSet, binding, i, textureView, sampler);
                 if (textureView)
                 {
+                    SLANG_RHI_ASSERT(m_bindingData->textureStateCount < SLOT_COUNT);
                     m_bindingData->textureStates[m_bindingData->textureStateCount++] = {textureView, requiredState};
                 }
             }
@@ -453,6 +456,7 @@ Result BindingDataBuilder::bindAsValue(
                 writePlainBufferDescriptor(device, descriptorSet, binding, i, descriptorType, buffer, slot.bufferRange);
                 if (buffer)
                 {
+                    SLANG_RHI_ASSERT(m_bindingData->bufferStateCount < SLOT_COUNT);
                     m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
                 }
             }
@@ -484,6 +488,7 @@ Result BindingDataBuilder::bindAsValue(
                 );
                 if (buffer)
                 {
+                    SLANG_RHI_ASSERT(m_bindingData->bufferStateCount < SLOT_COUNT);
                     m_bindingData->bufferStates[m_bindingData->bufferStateCount++] = {buffer, requiredState};
                 }
             }
