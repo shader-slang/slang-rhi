@@ -13,6 +13,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
+    m_defaultView.setNull();
     if (m_texture)
     {
         getDevice<DeviceImpl>()->m_ctx.api.wgpuTextureRelease(m_texture);

@@ -8,6 +8,7 @@ class TextureImpl : public Texture
 {
 public:
     TextureImpl(Device* device, const TextureDesc& desc);
+    ~TextureImpl();
 
     ComPtr<ID3D11Resource> m_resource;
     DXGI_FORMAT m_format;

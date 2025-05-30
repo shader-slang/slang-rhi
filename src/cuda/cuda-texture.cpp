@@ -126,6 +126,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
+    m_defaultView.setNull();
     for (auto& pair : m_texObjects)
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuTexObjectDestroy(pair.second));

@@ -12,8 +12,8 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
+    m_defaultView.setNull();
     DeviceImpl* device = getDevice<DeviceImpl>();
-
     for (auto& srv : m_srvs)
     {
         if (srv.second)
@@ -42,7 +42,6 @@ TextureImpl::~TextureImpl()
             device->m_cpuDsvHeap->free(dsv.second);
         }
     }
-
     if (m_sharedHandle)
     {
         ::CloseHandle((HANDLE)m_sharedHandle.value);

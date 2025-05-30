@@ -17,6 +17,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
+    m_defaultView.setNull();
     DeviceImpl* device = getDevice<DeviceImpl>();
     auto& api = device->m_api;
     for (auto& view : m_views)

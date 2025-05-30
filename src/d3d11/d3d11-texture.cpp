@@ -9,6 +9,11 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 {
 }
 
+TextureImpl::~TextureImpl()
+{
+    m_defaultView.setNull();
+}
+
 Result TextureImpl::getDefaultView(ITextureView** outTextureView)
 {
     if (!m_defaultView)
