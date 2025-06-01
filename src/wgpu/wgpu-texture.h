@@ -28,7 +28,7 @@ public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
     ~TextureViewImpl();
 
-    virtual void comFree() override { m_texture.breakStrongReference(); }
+    // virtual void comFree() override { m_texture.breakStrongReference(); }
 
     // ITextureView implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
