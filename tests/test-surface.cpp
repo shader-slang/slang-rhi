@@ -65,8 +65,8 @@ struct SurfaceTest
     void shutdown()
     {
         this->surface = nullptr;
-
         glfwDestroyWindow(window);
+        glfwPollEvents();
     }
 
     void configureSurface(uint32_t width, uint32_t height)
@@ -74,7 +74,6 @@ struct SurfaceTest
         queue->waitOnHost();
 
         SurfaceConfig config = {};
-        config.format = surface->getInfo().preferredFormat;
         config.format = getSurfaceFormat();
         config.usage = surface->getInfo().supportedUsage;
         config.width = width;
@@ -88,32 +87,38 @@ struct SurfaceTest
 
     void run()
     {
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-        configureSurface(width, height);
+        int framebufferWidth, framebufferHeight;
+        glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+        configureSurface(framebufferWidth, framebufferHeight);
 
         for (uint32_t i = 0; i < 10; ++i)
         {
             glfwPollEvents();
             ComPtr<ITexture> texture = surface->acquireNextImage();
-            CHECK(texture->getDesc().size.width == width);
-            CHECK(texture->getDesc().size.height == height);
-            renderFrame(texture, width, height, i);
+            CHECK(texture->getDesc().size.width == framebufferWidth);
+            CHECK(texture->getDesc().size.height == framebufferHeight);
+            renderFrame(texture, framebufferWidth, framebufferHeight, i);
             surface->present();
         }
 
         // Resize window.
         glfwSetWindowSize(window, 700, 700);
-        glfwGetFramebufferSize(window, &width, &height);
-        configureSurface(width, height);
 
         for (uint32_t i = 0; i < 10; ++i)
         {
             glfwPollEvents();
+            int width, height;
+            glfwGetFramebufferSize(window, &width, &height);
+            if (width != framebufferWidth || height != framebufferHeight)
+            {
+                configureSurface(width, height);
+                framebufferWidth = width;
+                framebufferHeight = height;
+            }
             ComPtr<ITexture> texture = surface->acquireNextImage();
-            CHECK(texture->getDesc().size.width == width);
-            CHECK(texture->getDesc().size.height == height);
-            renderFrame(texture, width, height, i);
+            CHECK(texture->getDesc().size.width == framebufferWidth);
+            CHECK(texture->getDesc().size.height == framebufferHeight);
+            renderFrame(texture, framebufferWidth, framebufferHeight, i);
             surface->present();
         }
 

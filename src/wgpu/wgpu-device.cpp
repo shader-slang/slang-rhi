@@ -129,12 +129,94 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     std::vector<WGPUFeatureName> adapterFeatures(adapterFeatureCount);
     api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, adapterFeatures.data());
 
+    std::set<WGPUFeatureName> enableFeatures{
+        WGPUFeatureName_DepthClipControl,
+        WGPUFeatureName_Depth32FloatStencil8,
+        WGPUFeatureName_TimestampQuery,
+        WGPUFeatureName_TextureCompressionBC,
+        // WGPUFeatureName_TextureCompressionETC2,
+        // WGPUFeatureName_TextureCompressionASTC,
+        // WGPUFeatureName_IndirectFirstInstance,
+        WGPUFeatureName_ShaderF16,
+        WGPUFeatureName_RG11B10UfloatRenderable,
+        WGPUFeatureName_BGRA8UnormStorage,
+        WGPUFeatureName_Float32Filterable,
+        WGPUFeatureName_Subgroups,
+        WGPUFeatureName_SubgroupsF16,
+        // WGPUFeatureName_DawnInternalUsages,
+        // WGPUFeatureName_DawnMultiPlanarFormats,
+        // WGPUFeatureName_DawnNative,
+        // WGPUFeatureName_ChromiumExperimentalTimestampQueryInsidePasses,
+        // WGPUFeatureName_ImplicitDeviceSynchronization,
+        WGPUFeatureName_SurfaceCapabilities,
+        // WGPUFeatureName_TransientAttachments,
+        // WGPUFeatureName_MSAARenderToSingleSampled,
+        WGPUFeatureName_DualSourceBlending,
+        // WGPUFeatureName_D3D11MultithreadProtected,
+        // WGPUFeatureName_ANGLETextureSharing,
+        // WGPUFeatureName_ChromiumExperimentalSubgroups,
+        // WGPUFeatureName_ChromiumExperimentalSubgroupUniformControlFlow,
+        WGPUFeatureName_PixelLocalStorageCoherent,
+        WGPUFeatureName_PixelLocalStorageNonCoherent,
+        WGPUFeatureName_Unorm16TextureFormats,
+        WGPUFeatureName_Snorm16TextureFormats,
+        // WGPUFeatureName_MultiPlanarFormatExtendedUsages,
+        // WGPUFeatureName_MultiPlanarFormatP010,
+        WGPUFeatureName_HostMappedPointer,
+        // WGPUFeatureName_MultiPlanarRenderTargets,
+        // WGPUFeatureName_MultiPlanarFormatNv12a,
+        // WGPUFeatureName_FramebufferFetch,
+        // WGPUFeatureName_BufferMapExtendedUsages,
+        // WGPUFeatureName_AdapterPropertiesMemoryHeaps,
+        // WGPUFeatureName_AdapterPropertiesD3D,
+        // WGPUFeatureName_AdapterPropertiesVk,
+        WGPUFeatureName_R8UnormStorage,
+        // WGPUFeatureName_FormatCapabilities,
+        // WGPUFeatureName_DrmFormatCapabilities,
+        // WGPUFeatureName_Norm16TextureFormats,
+        // WGPUFeatureName_MultiPlanarFormatNv16,
+        // WGPUFeatureName_MultiPlanarFormatNv24,
+        // WGPUFeatureName_MultiPlanarFormatP210,
+        // WGPUFeatureName_MultiPlanarFormatP410,
+        // WGPUFeatureName_SharedTextureMemoryVkDedicatedAllocation,
+        // WGPUFeatureName_SharedTextureMemoryAHardwareBuffer,
+        // WGPUFeatureName_SharedTextureMemoryDmaBuf,
+        // WGPUFeatureName_SharedTextureMemoryOpaqueFD,
+        // WGPUFeatureName_SharedTextureMemoryZirconHandle,
+        // WGPUFeatureName_SharedTextureMemoryDXGISharedHandle,
+        // WGPUFeatureName_SharedTextureMemoryD3D11Texture2D,
+        // WGPUFeatureName_SharedTextureMemoryIOSurface,
+        // WGPUFeatureName_SharedTextureMemoryEGLImage,
+        // WGPUFeatureName_SharedFenceVkSemaphoreOpaqueFD,
+        // WGPUFeatureName_SharedFenceVkSemaphoreSyncFD,
+        // WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle,
+        // WGPUFeatureName_SharedFenceDXGISharedHandle,
+        // WGPUFeatureName_SharedFenceMTLSharedEvent,
+        // WGPUFeatureName_SharedBufferMemoryD3D12Resource,
+        // WGPUFeatureName_StaticSamplers,
+        // WGPUFeatureName_YCbCrVulkanSamplers,
+        WGPUFeatureName_ShaderModuleCompilationOptions,
+        // WGPUFeatureName_DawnLoadResolveTexture,
+        // WGPUFeatureName_DawnPartialLoadResolveTexture,
+        WGPUFeatureName_MultiDrawIndirect,
+        WGPUFeatureName_ClipDistances,
+        // WGPUFeatureName_ChromiumExperimentalImmediateData,
+    };
+    std::vector<WGPUFeatureName> requiredFeatures;
+    for (auto feature : adapterFeatures)
+    {
+        if (enableFeatures.count(feature))
+        {
+            requiredFeatures.push_back(feature);
+        }
+    }
+
     // We request a device with the maximum available limits and feature set.
     WGPURequiredLimits requiredLimits = {};
     requiredLimits.limits = adapterLimits.limits;
     WGPUDeviceDescriptor deviceDesc = {};
-    deviceDesc.requiredFeatures = adapterFeatures.data();
-    deviceDesc.requiredFeatureCount = adapterFeatures.size();
+    deviceDesc.requiredFeatures = requiredFeatures.data();
+    deviceDesc.requiredFeatureCount = requiredFeatures.size();
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.uncapturedErrorCallbackInfo.callback = errorCallback;
     deviceDesc.uncapturedErrorCallbackInfo.userdata = this;
