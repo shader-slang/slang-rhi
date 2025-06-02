@@ -52,7 +52,11 @@ namespace rhi {
 class SLANG_RHI_API RefObject
 {
 private:
+    // Total number of references to this object.
     std::atomic<uint32_t> referenceCount;
+    // Number references that are internal (i.e., not externally visible).
+    // This can be used to detect whether the object is currently externally referenced or not.
+    // For more details, see the comments in `setInternalReferenceCount()`.
     std::atomic<uint32_t> internalReferenceCount;
 
 #if SLANG_RHI_DEBUG
@@ -117,6 +121,13 @@ public:
         return count - 1;
     }
 
+    // Set the number of references that are internal.
+    // When the reference count becomes equal or smaller to this value,
+    // the object is considered to be internally referenced and `makeInternal()` is called.
+    // When the reference count is greater than this value, the object is considered to be externally referenced
+    // and `makeExternal()` is called.
+    // Note: Calling this function is not thread-safe and should be used with care (i.e. only be called when the object
+    // is initially created).
     void setInternalReferenceCount(uint32_t count)
     {
         SLANG_RHI_ASSERT(count <= referenceCount.load());
