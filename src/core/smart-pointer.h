@@ -78,7 +78,7 @@ public:
     {
         SLANG_RHI_ASSERT(referenceCount != 0);
         uint64_t prevRefCount = referenceCount.fetch_sub(1);
-        if (internalReferenceCount > 0 && prevRefCount + 1 == internalReferenceCount)
+        if (internalReferenceCount > 0 && prevRefCount == internalReferenceCount + 1)
         {
             // object is now internally referenced only
             externalFree();
