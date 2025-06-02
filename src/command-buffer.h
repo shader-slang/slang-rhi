@@ -36,12 +36,10 @@ public:
         : DeviceChild(device)
     {
         m_type = type;
-        // Strong reference to device is established when the queue is returned to the user.
-        // Once the user releases the queue, the strong reference is broken through `comFree`.
-        breakStrongReferenceToDevice();
     }
 
-    virtual void comFree() override { breakStrongReferenceToDevice(); }
+    virtual void makeExternal() override { establishStrongReferenceToDevice(); }
+    virtual void makeInternal() override { breakStrongReferenceToDevice(); }
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }

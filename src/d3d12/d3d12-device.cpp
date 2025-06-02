@@ -959,6 +959,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(0);
+    m_queue->addInternalReference();
 
     // Retrieve timestamp frequency.
     m_queue->m_d3dQueue->GetTimestampFrequency(&m_info.timestampFrequency);
