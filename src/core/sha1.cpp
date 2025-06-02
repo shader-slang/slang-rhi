@@ -53,18 +53,18 @@ SHA1& SHA1::update(const void* data, size_t len)
     return *this;
 }
 
-SHA1::Digest SHA1::digest() const
+SHA1::Digest SHA1::getDigest() const
 {
     SHA1 copy{*this};
     return copy.finalize();
 }
 
-std::string SHA1::hex_digest() const
+std::string SHA1::getHexDigest() const
 {
     static const char* hex_digits = "0123456789abcdef";
     std::string hex;
     hex.reserve(40);
-    for (auto b : digest())
+    for (auto b : getDigest())
     {
         hex.push_back(hex_digits[b >> 4]);
         hex.push_back(hex_digits[b & 0xf]);
