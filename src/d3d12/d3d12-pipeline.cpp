@@ -100,7 +100,7 @@ inline void hashPipelineDesc(SHA1& sha1, const D3D12_COMPUTE_PIPELINE_STATE_DESC
     hashValue(sha1, desc->Flags);
 }
 
-inline Result getPipelineCacheKey(
+inline void getPipelineCacheKey(
     DeviceImpl* device,
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC* desc,
     ISlangBlob** outBlob
@@ -112,7 +112,6 @@ inline Result getPipelineCacheKey(
     SHA1::Digest digest = sha1.getDigest();
     ComPtr<ISlangBlob> blob = OwnedBlob::create(digest.data(), digest.size());
     returnComPtr(outBlob, blob);
-    return SLANG_OK;
 }
 
 inline void getPipelineCacheKey(DeviceImpl* device, const D3D12_COMPUTE_PIPELINE_STATE_DESC* desc, ISlangBlob** outBlob)
