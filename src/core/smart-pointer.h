@@ -96,8 +96,9 @@ public:
     uint32_t addReference()
     {
         uint32_t count = referenceCount.fetch_add(1);
+        uint32_t internalCount = internalReferenceCount.load();
         // TODO: with C++20 we should mark this branch as [[unlikely]]
-        if (internalReferenceCount > 0 && count == internalReferenceCount)
+        if (internalCount > 0 && count == internalCount)
         {
             // Object is now externally referenced
             makeExternal();
@@ -107,10 +108,11 @@ public:
 
     uint32_t releaseReference()
     {
-        SLANG_RHI_ASSERT(referenceCount != 0);
         uint32_t count = referenceCount.fetch_sub(1);
+        SLANG_RHI_ASSERT(count > 0);
+        uint32_t internalCount = internalReferenceCount.load();
         // TODO: with C++20 we should mark this branch as [[unlikely]]
-        if (internalReferenceCount > 0 && count == internalReferenceCount + 1)
+        if (internalCount > 0 && count == internalCount + 1)
         {
             // Object is now internally referenced only
             makeInternal();
@@ -132,14 +134,15 @@ public:
     // is initially created).
     void setInternalReferenceCount(uint32_t count)
     {
-        SLANG_RHI_ASSERT(count <= referenceCount.load());
+        uint32_t currentCount = referenceCount.load();
+        SLANG_RHI_ASSERT(count <= currentCount);
         internalReferenceCount.store(count);
-        if (count == 0 && referenceCount > 0)
+        if (count == 0 && currentCount > 0)
         {
             // Object is now externally referenced
             makeExternal();
         }
-        else if (count > 0 && referenceCount.load() == count)
+        else if (count > 0 && currentCount == count)
         {
             // Object is now internally referenced
             makeInternal();
