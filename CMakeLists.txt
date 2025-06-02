@@ -714,6 +714,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless-descriptor-handles.cpp
+        tests/test-blob.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
@@ -745,6 +746,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-null-views.cpp
         tests/test-nvrtc.cpp
         tests/test-offset-allocator.cpp
+        tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp

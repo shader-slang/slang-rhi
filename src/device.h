@@ -93,8 +93,6 @@ public:
         specializedPipelines = decltype(specializedPipelines)();
     }
 
-    size_t getSize() const { return specializedPipelines.size(); }
-
 protected:
     struct ComponentKeyHasher
     {
@@ -245,9 +243,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize) override;
-
     Result getEntryPointCodeFromShaderCache(
         slang::IComponentType* program,
         SlangInt entryPointIndex,
@@ -339,12 +334,10 @@ public:
     StagingHeap m_uploadHeap;
     StagingHeap m_readbackHeap;
 
-    ComPtr<IPersistentShaderCache> m_persistentShaderCache;
-    size_t m_shaderCacheHits = 0;
-    size_t m_shaderCacheMisses = 0;
+    ComPtr<IPersistentCache> m_persistentShaderCache;
+    ComPtr<IPersistentCache> m_persistentPipelineCache;
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
-    ComPtr<IPipelineCreationAPIDispatcher> m_pipelineCreationAPIDispatcher;
 
     IDebugCallback* m_debugCallback = nullptr;
 };

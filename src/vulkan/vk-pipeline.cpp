@@ -6,12 +6,324 @@
 #include "vk-input-layout.h"
 
 #include "core/static_vector.h"
+#include "core/sha1.h"
 
 #include <map>
 #include <string>
 #include <vector>
 
 namespace rhi::vk {
+
+// For pipeline caching, we use the VK_KHR_pipeline_binary extension.
+// We serialize the pipeline binaries into a custom format that stores a number of pipeline binaries,
+// each with a key and data size, along with the binary data itself.
+// The format is laid out as follows:
+// Header [PipelineCacheHeader] (12 bytes):
+// - Magic number (4 bytes)
+// - Version (4 bytes)
+// - Number of binaries (4 bytes)
+// Binary headers [PipelineCacheBinaryHeader] (44 bytes each):
+// - Key size (4 bytes)
+// - Key (32 bytes (VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR))
+// - Data size (4 bytes)
+// - Data offset (4 bytes, relative to the start of the blob)
+// Binary data (variable size)
+
+struct PipelineCacheHeader
+{
+    static constexpr uint32_t kMagic = 0x12345678;
+    static constexpr uint32_t kVersion = 1;
+
+    uint32_t magic;
+    uint32_t version;
+    uint32_t binaryCount;
+};
+
+struct PipelineCacheBinaryHeader
+{
+    uint32_t keySize;
+    uint8_t key[VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR];
+    uint32_t dataSize;
+    uint32_t dataOffset;
+};
+
+// Create a pipeline cache key based on the device and pipeline create info.
+// The key is a SHA1 hash that includes the adapter LUID, global pipeline key, and the pipeline create info key.
+Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** outBlob)
+{
+    auto& api = device->m_api;
+
+    SHA1 sha1;
+    // Hash adapter LUID.
+    {
+        const AdapterLUID& luid = device->getInfo().adapterLUID;
+        sha1.update(luid.luid, sizeof(luid.luid));
+    }
+    // Hash global key.
+    {
+        VkPipelineBinaryKeyKHR pipelineKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineKeyKHR(device->m_device, nullptr, &pipelineKey));
+        sha1.update(pipelineKey.key, pipelineKey.keySize);
+    }
+    // Hash pipeline key.
+    {
+        VkPipelineCreateInfoKHR pipelineCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_INFO_KHR};
+        pipelineCreateInfo.pNext = createInfo;
+        VkPipelineBinaryKeyKHR pipelineKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineKeyKHR(device->m_device, &pipelineCreateInfo, &pipelineKey));
+        sha1.update(pipelineKey.key, pipelineKey.keySize);
+    }
+    SHA1::Digest digest = sha1.getDigest();
+    ComPtr<ISlangBlob> blob = OwnedBlob::create(digest.data(), digest.size());
+    returnComPtr(outBlob, blob);
+    return SLANG_OK;
+}
+
+// Serialize a vulkan pipeline into a blob containing the pipeline binaries.
+Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlangBlob** outBlob)
+{
+    auto& api = device->m_api;
+
+    VkPipelineBinaryCreateInfoKHR binaryCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_CREATE_INFO_KHR};
+    binaryCreateInfo.pipeline = pipeline;
+
+    VkPipelineBinaryHandlesInfoKHR binaryHandlesInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_HANDLES_INFO_KHR};
+
+    SLANG_VK_RETURN_ON_FAIL(
+        api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo)
+    );
+
+    short_vector<VkPipelineBinaryKHR> pipelineBinaries(binaryHandlesInfo.pipelineBinaryCount, VK_NULL_HANDLE);
+    binaryHandlesInfo.pPipelineBinaries = pipelineBinaries.data();
+    SLANG_VK_RETURN_ON_FAIL(
+        api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo)
+    );
+
+    // Compute total size of the cache data blob.
+    size_t dataSize = sizeof(PipelineCacheHeader);
+    dataSize += binaryHandlesInfo.pipelineBinaryCount * sizeof(PipelineCacheBinaryHeader);
+    for (uint32_t i = 0; i < binaryHandlesInfo.pipelineBinaryCount; ++i)
+    {
+        VkPipelineBinaryDataInfoKHR binaryInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_DATA_INFO_KHR};
+        binaryInfo.pipelineBinary = pipelineBinaries[i];
+        VkPipelineBinaryKeyKHR binaryKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
+        size_t binaryDataSize = 0;
+        SLANG_VK_RETURN_ON_FAIL(
+            api.vkGetPipelineBinaryDataKHR(device->m_device, &binaryInfo, &binaryKey, &binaryDataSize, nullptr)
+        );
+        dataSize += binaryDataSize;
+    }
+
+    ComPtr<ISlangBlob> blob = OwnedBlob::create(dataSize);
+    uint8_t* data = (uint8_t*)blob->getBufferPointer();
+    uint8_t* dataPtr = data;
+
+    // Write cache data header.
+    PipelineCacheHeader* header = (PipelineCacheHeader*)dataPtr;
+    header->magic = PipelineCacheHeader::kMagic;
+    header->version = PipelineCacheHeader::kVersion;
+    header->binaryCount = binaryHandlesInfo.pipelineBinaryCount;
+    dataPtr += sizeof(PipelineCacheHeader);
+
+    // Write binary data.
+    uint32_t binaryDataOffset =
+        sizeof(PipelineCacheHeader) + binaryHandlesInfo.pipelineBinaryCount * sizeof(PipelineCacheBinaryHeader);
+    for (uint32_t i = 0; i < binaryHandlesInfo.pipelineBinaryCount; ++i)
+    {
+        VkPipelineBinaryDataInfoKHR binaryInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_DATA_INFO_KHR};
+        binaryInfo.pipelineBinary = pipelineBinaries[i];
+
+        VkPipelineBinaryKeyKHR binaryKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
+        size_t binaryDataSize = 0;
+        SLANG_VK_RETURN_ON_FAIL(
+            api.vkGetPipelineBinaryDataKHR(device->m_device, &binaryInfo, &binaryKey, &binaryDataSize, nullptr)
+        );
+
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineBinaryDataKHR(
+            device->m_device,
+            &binaryInfo,
+            &binaryKey,
+            &binaryDataSize,
+            data + binaryDataOffset
+        ));
+
+        PipelineCacheBinaryHeader* binaryHeader = (PipelineCacheBinaryHeader*)dataPtr;
+        std::memset(binaryHeader->key, 0, sizeof(PipelineCacheBinaryHeader::key));
+        std::memcpy(binaryHeader->key, binaryKey.key, binaryKey.keySize);
+        binaryHeader->keySize = binaryKey.keySize;
+        binaryHeader->dataSize = (uint32_t)binaryDataSize;
+        binaryHeader->dataOffset = binaryDataOffset;
+        dataPtr += sizeof(PipelineCacheBinaryHeader);
+
+        binaryDataOffset += binaryDataSize;
+
+        api.vkDestroyPipelineBinaryKHR(device->m_device, pipelineBinaries[i], nullptr);
+    }
+
+    returnComPtr(outBlob, blob);
+    return SLANG_OK;
+}
+
+// Deserialize a blob containing pipeline binaries into a vector of VkPipelineBinaryKHR handles.
+// The caller is responsible for destroying the VkPipelineBinaryKHR handles after use.
+Result deserializePipelineBinaries(DeviceImpl* device, ISlangBlob* blob, short_vector<VkPipelineBinaryKHR>& outBinaries)
+{
+    auto& api = device->m_api;
+
+    size_t dataSize = blob->getBufferSize();
+    const uint8_t* data = (const uint8_t*)blob->getBufferPointer();
+    const uint8_t* dataPtr = data;
+    if (dataSize < sizeof(PipelineCacheHeader))
+    {
+        return SLANG_FAIL;
+    }
+
+    const PipelineCacheHeader* header = (const PipelineCacheHeader*)dataPtr;
+    if (header->magic != PipelineCacheHeader::kMagic || header->version != PipelineCacheHeader::kVersion ||
+        header->binaryCount == 0)
+    {
+        return SLANG_FAIL;
+    }
+    dataPtr += sizeof(PipelineCacheHeader);
+
+    short_vector<VkPipelineBinaryKeyKHR> binaryKeys(header->binaryCount, {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR});
+    short_vector<VkPipelineBinaryDataKHR> pipelineData(header->binaryCount, {});
+
+    for (uint32_t i = 0; i < header->binaryCount; ++i)
+    {
+        const PipelineCacheBinaryHeader* binaryHeader = (const PipelineCacheBinaryHeader*)dataPtr;
+        dataPtr += sizeof(PipelineCacheBinaryHeader);
+
+        binaryKeys[i].keySize = binaryHeader->keySize;
+        std::memcpy(binaryKeys[i].key, binaryHeader->key, binaryHeader->keySize);
+
+        pipelineData[i].dataSize = binaryHeader->dataSize;
+        pipelineData[i].pData = (void*)(data + binaryHeader->dataOffset);
+    }
+
+    VkPipelineBinaryKeysAndDataKHR binaryKeysAndData;
+    binaryKeysAndData.binaryCount = header->binaryCount;
+    binaryKeysAndData.pPipelineBinaryKeys = binaryKeys.data();
+    binaryKeysAndData.pPipelineBinaryData = pipelineData.data();
+
+    VkPipelineBinaryCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_CREATE_INFO_KHR};
+    createInfo.pKeysAndDataInfo = &binaryKeysAndData;
+
+    short_vector<VkPipelineBinaryKHR> binaries(header->binaryCount, VK_NULL_HANDLE);
+
+    VkPipelineBinaryHandlesInfoKHR handlesInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_HANDLES_INFO_KHR};
+    handlesInfo.pipelineBinaryCount = binaries.size();
+    handlesInfo.pPipelineBinaries = binaries.data();
+
+    SLANG_VK_RETURN_ON_FAIL(api.vkCreatePipelineBinariesKHR(device->m_device, &createInfo, nullptr, &handlesInfo));
+
+    outBinaries = binaries;
+    return SLANG_OK;
+}
+
+template<typename VkPipelineCreateInfo>
+Result createPipelineWithCache(
+    DeviceImpl* device,
+    VkPipelineCreateInfo* createInfo,
+    VkResult (*createPipelineFunc)(DeviceImpl* device, VkPipelineCreateInfo* createInfo, VkPipeline* outPipeline),
+    VkPipeline* outPipeline
+)
+{
+    auto& api = device->m_api;
+
+    // Early out if cache is not enabled or the feature is not supported.
+    if (!device->m_persistentPipelineCache || !api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries)
+    {
+        return createPipelineFunc(device, createInfo, outPipeline);
+    }
+
+    bool writeCache = true;
+    ComPtr<ISlangBlob> pipelineCacheKey;
+    ComPtr<ISlangBlob> pipelineCacheData;
+    VkPipeline pipeline = VK_NULL_HANDLE;
+
+    // Create pipeline cache key.
+    if (SLANG_FAILED(getPipelineCacheKey(device, createInfo, pipelineCacheKey.writeRef())))
+    {
+        device->printWarning("Failed to get pipeline cache key, disabling pipeline cache.");
+        return createPipelineFunc(device, createInfo, outPipeline);
+    }
+
+    // Query pipeline cache.
+    if (SLANG_FAILED(device->m_persistentPipelineCache->queryCache(pipelineCacheKey, pipelineCacheData.writeRef())))
+    {
+        pipelineCacheData = nullptr;
+    }
+
+    // Try create pipeline from cache.
+    if (pipelineCacheData)
+    {
+        short_vector<VkPipelineBinaryKHR> pipelineBinaries;
+        if (SLANG_SUCCEEDED(deserializePipelineBinaries(device, pipelineCacheData, pipelineBinaries)))
+        {
+            VkPipelineBinaryInfoKHR binaryInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_INFO_KHR};
+            binaryInfo.binaryCount = (uint32_t)pipelineBinaries.size();
+            binaryInfo.pPipelineBinaries = pipelineBinaries.data();
+            binaryInfo.pNext = createInfo->pNext;
+            createInfo->pNext = &binaryInfo;
+            if (createPipelineFunc(device, createInfo, &pipeline) == VK_SUCCESS)
+            {
+                writeCache = false;
+            }
+            else
+            {
+                createInfo->pNext = binaryInfo.pNext;
+                pipeline = VK_NULL_HANDLE;
+            }
+            for (auto& binary : pipelineBinaries)
+            {
+                api.vkDestroyPipelineBinaryKHR(device->m_device, binary, nullptr);
+            }
+        }
+        else
+        {
+            device->printWarning("Failed to deserialize pipeline binaries from cache, creating new pipeline.");
+        }
+    }
+
+    // Create pipeline if not found in cache.
+    if (!pipeline)
+    {
+        // Enable capturing of pipeline data if we plan to write to the pipeline cache.
+        VkPipelineCreateFlags2CreateInfoKHR createFlags = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR};
+        createFlags.flags = VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR;
+        if (writeCache)
+        {
+            createFlags.pNext = createInfo->pNext;
+            createInfo->pNext = &createFlags;
+        }
+        SLANG_VK_RETURN_ON_FAIL(createPipelineFunc(device, createInfo, &pipeline));
+    }
+
+    // Write to the cache.
+    if (writeCache)
+    {
+        if (SLANG_SUCCEEDED(serializePipelineBinaries(device, pipeline, pipelineCacheData.writeRef())))
+        {
+            device->m_persistentPipelineCache->writeCache(pipelineCacheKey, pipelineCacheData);
+        }
+        else
+        {
+            device->printWarning("Failed to serialize pipeline binaries, cache write skipped.");
+        }
+    }
+
+    // Release captured pipeline data.
+    if (writeCache)
+    {
+        VkReleaseCapturedPipelineDataInfoKHR releaseInfo = {VK_STRUCTURE_TYPE_RELEASE_CAPTURED_PIPELINE_DATA_INFO_KHR};
+        releaseInfo.pipeline = pipeline;
+        SLANG_VK_RETURN_ON_FAIL(api.vkReleaseCapturedPipelineDataKHR(device->m_device, &releaseInfo, nullptr));
+    }
+
+    *outPipeline = pipeline;
+    return SLANG_OK;
+}
 
 RenderPipelineImpl::RenderPipelineImpl(Device* device)
     : RenderPipeline(device)
@@ -226,21 +538,16 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     createInfo.pDynamicState = &dynamicStateInfo;
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
-
-    if (m_pipelineCreationAPIDispatcher)
-    {
-        SLANG_RETURN_ON_FAIL(
-            m_pipelineCreationAPIDispatcher
-                ->createRenderPipeline(this, program->linkedProgram.get(), &createInfo, (void**)&vkPipeline)
-        );
-    }
-    else
-    {
-        VkPipelineCache pipelineCache = VK_NULL_HANDLE;
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateGraphicsPipelines(m_device, pipelineCache, 1, &createInfo, nullptr, &vkPipeline)
-        );
-    }
+    SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkGraphicsPipelineCreateInfo>(
+        this,
+        &createInfo,
+        [](DeviceImpl* device, VkGraphicsPipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
+        {
+            return device->m_api
+                .vkCreateGraphicsPipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
+        },
+        &vkPipeline
+    ));
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
     pipeline->m_program = program;
@@ -276,26 +583,21 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 {
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
-    VkPipeline vkPipeline = VK_NULL_HANDLE;
 
     VkComputePipelineCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     createInfo.stage = program->m_stageCreateInfos[0];
     createInfo.layout = program->m_rootShaderObjectLayout->m_pipelineLayout;
 
-    if (m_pipelineCreationAPIDispatcher)
-    {
-        SLANG_RETURN_ON_FAIL(
-            m_pipelineCreationAPIDispatcher
-                ->createComputePipeline(this, program->linkedProgram.get(), &createInfo, (void**)&vkPipeline)
-        );
-    }
-    else
-    {
-        VkPipelineCache pipelineCache = VK_NULL_HANDLE;
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateComputePipelines(m_device, pipelineCache, 1, &createInfo, nullptr, &vkPipeline)
-        );
-    }
+    VkPipeline vkPipeline = VK_NULL_HANDLE;
+    SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkComputePipelineCreateInfo>(
+        this,
+        &createInfo,
+        [](DeviceImpl* device, VkComputePipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult {
+            return device->m_api
+                .vkCreateComputePipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
+        },
+        &vkPipeline
+    ));
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
     pipeline->m_program = program;
@@ -427,27 +729,24 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.basePipelineIndex = 0;
 
-    if (m_pipelineCreationAPIDispatcher)
-    {
-        m_pipelineCreationAPIDispatcher->beforeCreateRayTracingState(this, program->linkedProgram.get());
-    }
-
     VkPipeline vkPipeline = VK_NULL_HANDLE;
-    VkPipelineCache pipelineCache = VK_NULL_HANDLE;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateRayTracingPipelinesKHR(
-        m_device,
-        VK_NULL_HANDLE,
-        pipelineCache,
-        1,
+    SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkRayTracingPipelineCreateInfoKHR>(
+        this,
         &createInfo,
-        nullptr,
+        [](DeviceImpl* device, VkRayTracingPipelineCreateInfoKHR* createInfo2, VkPipeline* pipeline) -> VkResult
+        {
+            return device->m_api.vkCreateRayTracingPipelinesKHR(
+                device->m_device,
+                VK_NULL_HANDLE,
+                VK_NULL_HANDLE,
+                1,
+                createInfo2,
+                nullptr,
+                pipeline
+            );
+        },
         &vkPipeline
     ));
-
-    if (m_pipelineCreationAPIDispatcher)
-    {
-        m_pipelineCreationAPIDispatcher->afterCreateRayTracingState(this, program->linkedProgram.get());
-    }
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
     pipeline->m_program = program;

@@ -323,13 +323,66 @@ Result loadGraphicsProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
+Result loadRenderProgramFromSource(
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    std::string_view source,
+    const char* vertexEntryPointName,
+    const char* fragmentEntryPointName
+)
+{
+    auto slangSession = device->getSlangSession();
+    slang::IModule* module = nullptr;
+    ComPtr<slang::IBlob> diagnosticsBlob;
+    size_t hash = std::hash<std::string_view>()(source);
+    std::string moduleName = "source_module_" + std::to_string(hash);
+    auto srcBlob = UnownedBlob::create(source.data(), source.size());
+    module =
+        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    if (!module)
+        return SLANG_FAIL;
+
+    std::vector<ComPtr<slang::IComponentType>> componentTypes;
+    componentTypes.push_back(ComPtr<slang::IComponentType>(module));
+
+    ComPtr<slang::IEntryPoint> vertexEntryPoint;
+    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(vertexEntryPointName, vertexEntryPoint.writeRef()));
+    componentTypes.push_back(ComPtr<slang::IComponentType>(vertexEntryPoint.get()));
+
+    ComPtr<slang::IEntryPoint> fragmentEntryPoint;
+    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(fragmentEntryPointName, fragmentEntryPoint.writeRef()));
+    componentTypes.push_back(ComPtr<slang::IComponentType>(fragmentEntryPoint.get()));
+
+    std::vector<slang::IComponentType*> rawComponentTypes;
+    for (auto& compType : componentTypes)
+        rawComponentTypes.push_back(compType.get());
+
+    ComPtr<slang::IComponentType> linkedProgram;
+    Result result = slangSession->createCompositeComponentType(
+        rawComponentTypes.data(),
+        rawComponentTypes.size(),
+        linkedProgram.writeRef(),
+        diagnosticsBlob.writeRef()
+    );
+    SLANG_RETURN_ON_FAIL(result);
+
+    outShaderProgram = device->createShaderProgram(linkedProgram);
+    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+}
+
 ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice,
-    std::vector<const char*> additionalSearchPaths
+    const DeviceExtraOptions* extraOptions
 )
 {
+    // Extra options can only be used when not using cached device.
+    if (useCachedDevice)
+    {
+        REQUIRE(extraOptions == nullptr);
+    }
+
     if (useCachedDevice)
     {
         auto it = gCachedDevices.find(deviceType);
@@ -347,8 +400,15 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
     std::vector<const char*> searchPaths = getSlangSearchPaths();
-    for (const char* path : additionalSearchPaths)
-        searchPaths.push_back(path);
+    if (extraOptions)
+    {
+        for (const char* path : extraOptions->searchPaths)
+            searchPaths.push_back(path);
+        if (extraOptions->persistentShaderCache)
+            deviceDesc.persistentShaderCache = extraOptions->persistentShaderCache;
+        if (extraOptions->persistentPipelineCache)
+            deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
+    }
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
     std::vector<slang::CompilerOptionEntry> compilerOptions;

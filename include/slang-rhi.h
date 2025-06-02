@@ -107,6 +107,7 @@ enum class DeviceType
     x(ParameterBlock,                           "parameter-block"                               ) \
     x(Bindless,                                 "bindless"                                      ) \
     x(Surface,                                  "surface"                                       ) \
+    x(PipelineCache,                            "pipeline-cache"                                ) \
     /* Rasterization features */                                                                  \
     x(Rasterization,                            "rasterization"                                 ) \
     x(Barycentrics,                             "barycentrics"                                  ) \
@@ -178,7 +179,7 @@ enum class AccessFlag
     Write,
 };
 
-class IPersistentShaderCache;
+class IPersistentCache;
 
 /// Defines how linking should be performed for a shader program.
 enum class LinkingStyle
@@ -2594,13 +2595,13 @@ struct DeviceDesc
     uint32_t requiredFeatureCount = 0;
     // Array of required feature names, whose size is `requiredFeatureCount`.
     const char** requiredFeatures = nullptr;
-    // A command dispatcher object that intercepts and handles actual low-level API call.
-    ISlangUnknown* apiCommandDispatcher = nullptr;
     // Configurations for Slang compiler.
     SlangDesc slang = {};
 
     // Interface to persistent shader cache.
-    IPersistentShaderCache* persistentShaderCache = nullptr;
+    IPersistentCache* persistentShaderCache = nullptr;
+    // Interface to persistent pipeline cache.
+    IPersistentCache* persistentPipelineCache = nullptr;
 
     /// NVAPI shader extension uav slot (-1 disables the extension).
     uint32_t nvapiExtUavSlot = uint32_t(-1);
@@ -2961,9 +2962,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize) = 0;
 };
 
 class ITaskPool : public ISlangUnknown
@@ -3012,42 +3010,13 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
 };
 
-class IPersistentShaderCache : public ISlangUnknown
+class IPersistentCache : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x68981742, 0x7fd6, 0x4700, {0x8a, 0x71, 0xe8, 0xea, 0x42, 0x91, 0x3b, 0x28});
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key, ISlangBlob* data) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
-};
-
-class IPipelineCreationAPIDispatcher : public ISlangUnknown
-{
-    SLANG_COM_INTERFACE(0x8d7aa89d, 0x07f1, 0x4e21, {0xbc, 0xd2, 0x9a, 0x71, 0xc7, 0x95, 0xba, 0x91});
-
-public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipeline(
-        IDevice* device,
-        slang::IComponentType* program,
-        void* pipelineDesc,
-        void** outPipelineState
-    ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createRenderPipeline(
-        IDevice* device,
-        slang::IComponentType* program,
-        void* pipelineDesc,
-        void** outPipelineState
-    ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createMeshPipeline(
-        IDevice* device,
-        slang::IComponentType* program,
-        void* pipelineDesc,
-        void** outPipelineState
-    ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    beforeCreateRayTracingState(IDevice* device, slang::IComponentType* program) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    afterCreateRayTracingState(IDevice* device, slang::IComponentType* program) = 0;
 };
 
 class IRHI
@@ -3084,6 +3053,16 @@ public:
         ComPtr<IDevice> device;
         SLANG_RETURN_NULL_ON_FAIL(createDevice(desc, device.writeRef()));
         return device;
+    }
+
+    /// Create a blob. If `data` is non-null, then it must point to a buffer of size `size`.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBlob(const void* data, size_t size, ISlangBlob** outBlob) = 0;
+
+    ComPtr<ISlangBlob> createBlob(const void* data, size_t size)
+    {
+        ComPtr<ISlangBlob> blob;
+        SLANG_RETURN_NULL_ON_FAIL(createBlob(data, size, blob.writeRef()));
+        return blob;
     }
 
     /// Reports current set of live objects.

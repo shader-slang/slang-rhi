@@ -734,10 +734,4 @@ Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable*
     return baseObject->createShaderTable(desc, outTable);
 }
 
-Result DebugDevice::getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize)
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->getShaderCacheStats(outCacheHitCount, outCacheMissCount, outCacheSize);
-}
-
 } // namespace rhi::debug
