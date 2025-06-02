@@ -338,7 +338,11 @@ struct PipelineCacheTestRender : PipelineCacheTest
         ComPtr<ISlangBlob> textureBlob;
         SubresourceLayout layout;
         REQUIRE_CALL(device->readTexture(texture, 0, 0, textureBlob.writeRef(), &layout));
-        return ::memcmp(textureBlob->getBufferPointer(), expectedOutput.data(), expectedOutput.size() * sizeof(float)) == 0;
+        return ::memcmp(
+                   textureBlob->getBufferPointer(),
+                   expectedOutput.data(),
+                   expectedOutput.size() * sizeof(float)
+               ) == 0;
     }
 
     void runRenderPipeline(std::string_view shaderSource, const std::vector<float>& expectedOutput)
