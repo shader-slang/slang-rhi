@@ -228,8 +228,7 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
         m_defaultView->addInternalReference();
     }
     m_defaultView->m_texture.establishStrongReference();
-    m_defaultView->addRef();
-    *outTextureView = m_defaultView;
+    returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
 
