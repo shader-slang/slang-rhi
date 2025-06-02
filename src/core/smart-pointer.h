@@ -53,6 +53,7 @@ class SLANG_RHI_API RefObject
 {
 private:
     std::atomic<uint64_t> referenceCount;
+    uint32_t internalReferenceCount = 0;
 
 public:
     RefObject()
@@ -71,28 +72,30 @@ public:
 
     virtual ~RefObject() { SLANG_RHI_UNTRACK_OBJECT(this); }
 
-    uint64_t addReference() { return ++referenceCount; }
+    void addReference() { referenceCount++; }
 
-    uint64_t decreaseReference() { return --referenceCount; }
-
-    uint64_t releaseReference()
+    void releaseReference()
     {
         SLANG_RHI_ASSERT(referenceCount != 0);
-        if (--referenceCount == 0)
+        uint64_t prevRefCount = referenceCount.fetch_sub(1);
+        if (internalReferenceCount > 0 && prevRefCount + 1 == internalReferenceCount)
+        {
+            // object is now internally referenced only
+            externalFree();
+        }
+        if (prevRefCount == 1)
         {
             delete this;
-            return 0;
         }
-        return referenceCount;
     }
 
-    bool isUniquelyReferenced()
-    {
-        SLANG_RHI_ASSERT(referenceCount != 0);
-        return referenceCount == 1;
-    }
+    void addInternalReference() { internalReferenceCount++; }
+
+    void releaseInternalReference() { internalReferenceCount--; }
 
     uint64_t debugGetReferenceCount() { return referenceCount; }
+
+    virtual void externalFree() {}
 };
 
 SLANG_FORCE_INLINE void addReference(RefObject* obj)
