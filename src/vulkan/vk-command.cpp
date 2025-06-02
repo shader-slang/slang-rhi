@@ -1585,6 +1585,7 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     {
         commandBuffer = m_commandBuffersPool.front();
         m_commandBuffersPool.pop_front();
+        commandBuffer->setInternalReferenceCount(0);
     }
     returnRefPtr(outCommandBuffer, commandBuffer);
     return SLANG_OK;
@@ -1595,6 +1596,7 @@ void CommandQueueImpl::retireUnfinishedCommandBuffer(CommandBufferImpl* commandB
     std::lock_guard<std::mutex> lock(m_mutex);
     commandBuffer->reset();
     m_commandBuffersPool.push_back(commandBuffer);
+    commandBuffer->setInternalReferenceCount(1);
 }
 
 void CommandQueueImpl::retireCommandBuffers()
@@ -1611,6 +1613,7 @@ void CommandQueueImpl::retireCommandBuffers()
             {
                 std::lock_guard<std::mutex> lock(m_mutex);
                 m_commandBuffersPool.push_back(commandBuffer);
+                commandBuffer->setInternalReferenceCount(1);
             }
         }
         else

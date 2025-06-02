@@ -18,6 +18,10 @@ public:
 
     std::vector<Module> m_modules;
 
+    ShaderProgramImpl(Device* device)
+        : ShaderProgram(device)
+    {
+    }
     ~ShaderProgramImpl();
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)

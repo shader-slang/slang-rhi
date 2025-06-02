@@ -422,6 +422,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     );
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    m_queue->setInternalReferenceCount(1);
 
     return SLANG_OK;
 }
@@ -613,7 +614,7 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
     SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
         this,

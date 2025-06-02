@@ -70,7 +70,8 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    virtual void externalFree() override { m_texture.breakStrongReference(); }
+    virtual void makeExternal() override { m_texture.establishStrongReference(); }
+    virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
     // ITextureView implementation
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }

@@ -161,7 +161,6 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
     pipeline->m_program = program;
-    pipeline->m_programImpl = program;
     pipeline->m_inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
     pipeline->m_vertexShader = vertexShader;
     pipeline->m_pixelShader = pixelShader;
@@ -218,7 +217,6 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
     pipeline->m_program = program;
-    pipeline->m_programImpl = program;
     pipeline->m_computeShader = computeShader;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;

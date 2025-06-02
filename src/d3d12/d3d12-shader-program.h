@@ -21,6 +21,8 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     std::vector<ShaderBinary> m_shaders;
 
+    ShaderProgramImpl(Device* device);
+
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;
 
