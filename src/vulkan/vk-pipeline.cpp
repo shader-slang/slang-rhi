@@ -541,9 +541,10 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkGraphicsPipelineCreateInfo>(
         this,
         &createInfo,
-        [](DeviceImpl* device, VkGraphicsPipelineCreateInfo* createInfo, VkPipeline* pipeline) -> VkResult {
+        [](DeviceImpl* device, VkGraphicsPipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
+        {
             return device->m_api
-                .vkCreateGraphicsPipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo, nullptr, pipeline);
+                .vkCreateGraphicsPipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
         },
         &vkPipeline
     ));
@@ -591,9 +592,9 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkComputePipelineCreateInfo>(
         this,
         &createInfo,
-        [](DeviceImpl* device, VkComputePipelineCreateInfo* createInfo, VkPipeline* pipeline) -> VkResult {
+        [](DeviceImpl* device, VkComputePipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult {
             return device->m_api
-                .vkCreateComputePipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo, nullptr, pipeline);
+                .vkCreateComputePipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
         },
         &vkPipeline
     ));
