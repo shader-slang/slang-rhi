@@ -77,9 +77,6 @@ public:
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() = 0;
 
-    virtual void makeExternal() override { m_device.establishStrongReference(); }
-    virtual void makeInternal() override { m_device.breakStrongReference(); }
-
 private:
     bool _isSpecializable()
     {

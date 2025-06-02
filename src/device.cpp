@@ -138,8 +138,8 @@ Result Device::getSpecializedProgram(
         RefPtr<ShaderProgram> specializedProgram;
         SLANG_RETURN_ON_FAIL(specializeProgram(program, specializationArgs, specializedProgram.writeRef()));
         program->m_specializedPrograms[key] = specializedProgram;
-        // Program is owned by the cache
-        specializedProgram->comFree();
+        // Program is owned by the cache (which is owned by the device).
+        specializedProgram->breakStrongReferenceToDevice();
         returnRefPtr(outSpecializedProgram, specializedProgram);
         return SLANG_OK;
     }
@@ -227,8 +227,8 @@ Result Device::getConcretePipeline(
             RefPtr<ShaderProgram> specializedProgram;
             SLANG_RETURN_ON_FAIL(specializeProgram(program, *specializationArgs, specializedProgram.writeRef()));
             program = specializedProgram;
-            // Program is owned by the specialized pipeline.
-            program->comFree();
+            // Program is owned by the specialized pipeline (which is owned by the device).
+            program->breakStrongReferenceToDevice();
         }
 
         // Ensure sure shaders are compiled.
