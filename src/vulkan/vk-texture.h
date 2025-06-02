@@ -52,7 +52,7 @@ public:
         }
     };
 
-    ComPtr<ITextureView> m_defaultView;
+    RefPtr<TextureViewImpl> m_defaultView;
     std::mutex m_mutex;
     std::unordered_map<ViewKey, TextureSubresourceView, ViewKeyHasher> m_views;
 
@@ -64,7 +64,7 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    // virtual void comFree() override { m_texture.breakStrongReference(); }
+    virtual void externalFree() override { m_texture.breakStrongReference(); }
 
     BreakableReference<TextureImpl> m_texture;
     DescriptorHandle m_descriptorHandle[2] = {};
