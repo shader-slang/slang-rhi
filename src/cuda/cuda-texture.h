@@ -56,7 +56,7 @@ public:
         }
     };
 
-    ComPtr<ITextureView> m_defaultView;
+    RefPtr<TextureViewImpl> m_defaultView;
     std::mutex m_mutex;
     std::unordered_map<ViewKey, CUtexObject, ViewKeyHasher> m_texObjects;
     std::unordered_map<SubresourceRange, CUsurfObject, SubresourceRangeHasher> m_surfObjects;
@@ -70,7 +70,7 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    // virtual void comFree() override { m_texture.breakStrongReference(); }
+    virtual void externalFree() override { m_texture.breakStrongReference(); }
 
     // ITextureView implementation
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }

@@ -14,7 +14,7 @@ public:
     MTL::TextureType m_textureType;
     MTL::PixelFormat m_pixelFormat;
 
-    ComPtr<ITextureView> m_defaultView;
+    RefPtr<TextureViewImpl> m_defaultView;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
@@ -26,7 +26,7 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    // virtual void comFree() override { m_texture.breakStrongReference(); }
+    virtual void externalFree() override { m_texture.breakStrongReference(); }
 
     BreakableReference<TextureImpl> m_texture;
     NS::SharedPtr<MTL::Texture> m_textureView;

@@ -8,7 +8,7 @@ class TextureImpl : public Texture
 {
 public:
     WGPUTexture m_texture = nullptr;
-    ComPtr<ITextureView> m_defaultView;
+    RefPtr<TextureViewImpl> m_defaultView;
 
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
@@ -28,7 +28,7 @@ public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
     ~TextureViewImpl();
 
-    // virtual void comFree() override { m_texture.breakStrongReference(); }
+    virtual void externalFree() override { m_texture.breakStrongReference(); }
 
     // ITextureView implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

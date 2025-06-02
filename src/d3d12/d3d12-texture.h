@@ -20,7 +20,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
 public:
-    ComPtr<ITextureView> m_defaultView;
+    RefPtr<TextureViewImpl> m_defaultView;
 
     struct ViewKey
     {
@@ -86,7 +86,7 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    // virtual void comFree() override { m_texture.breakStrongReference(); }
+    virtual void externalFree() override { m_texture.breakStrongReference(); }
 
     BreakableReference<TextureImpl> m_texture;
     DescriptorHandle m_descriptorHandle[2] = {};

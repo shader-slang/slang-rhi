@@ -37,9 +37,10 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
 {
     if (!m_defaultView)
     {
-        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, m_defaultView.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
+        m_defaultView->addInternalReference();
     }
-    checked_cast<TextureViewImpl*>(m_defaultView.get())->m_texture.establishStrongReference();
+    m_defaultView->m_texture.establishStrongReference();
     m_defaultView->addRef();
     *outTextureView = m_defaultView;
     return SLANG_OK;

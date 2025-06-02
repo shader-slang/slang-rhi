@@ -41,6 +41,7 @@ class DeviceImpl;
 class ShaderProgramImpl;
 class BufferImpl;
 class TextureImpl;
+class TextureViewImpl;
 class SamplerImpl;
 class SurfaceImpl;
 class InputLayoutImpl;

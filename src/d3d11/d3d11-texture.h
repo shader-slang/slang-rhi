@@ -37,7 +37,7 @@ public:
         }
     };
 
-    ComPtr<ITextureView> m_defaultView;
+    RefPtr<TextureViewImpl> m_defaultView;
     std::mutex m_mutex;
     std::unordered_map<ViewKey, ComPtr<ID3D11RenderTargetView>, ViewKeyHasher> m_rtvs;
     std::unordered_map<ViewKey, ComPtr<ID3D11DepthStencilView>, ViewKeyHasher> m_dsvs;
@@ -55,7 +55,7 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    // virtual void comFree() override { m_texture.breakStrongReference(); }
+    virtual void externalFree() override { m_texture.breakStrongReference(); }
 
     ID3D11RenderTargetView* getRTV()
     {
