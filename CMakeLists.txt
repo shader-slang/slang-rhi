@@ -702,8 +702,8 @@ if(SLANG_RHI_BUILD_TESTS)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
 
-    add_library(stb INTERFACE)
-    target_include_directories(stb INTERFACE external/stb)
+    add_library(slang-rhi-stb INTERFACE)
+    target_include_directories(slang-rhi-stb INTERFACE external/stb)
 
     add_library(renderdoc INTERFACE)
     target_include_directories(renderdoc INTERFACE external/renderdoc)
