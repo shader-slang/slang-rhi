@@ -96,6 +96,7 @@ public:
     uint32_t addReference()
     {
         uint32_t count = referenceCount.fetch_add(1);
+        // TODO: with C++20 we should mark this branch as [[unlikely]]
         if (internalReferenceCount > 0 && count == internalReferenceCount)
         {
             // Object is now externally referenced
@@ -108,6 +109,7 @@ public:
     {
         SLANG_RHI_ASSERT(referenceCount != 0);
         uint32_t count = referenceCount.fetch_sub(1);
+        // TODO: with C++20 we should mark this branch as [[unlikely]]
         if (internalReferenceCount > 0 && count == internalReferenceCount + 1)
         {
             // Object is now internally referenced only
