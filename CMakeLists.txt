@@ -494,6 +494,7 @@ target_sources(slang-rhi PRIVATE
     src/core/offset-allocator.cpp
     src/core/platform.cpp
     src/core/sha1.cpp
+    src/core/smart-pointer.cpp
     src/core/task-pool.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp

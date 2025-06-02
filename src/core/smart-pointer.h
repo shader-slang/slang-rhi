@@ -53,46 +53,71 @@ class SLANG_RHI_API RefObject
 {
 private:
     std::atomic<uint64_t> referenceCount;
+    uint32_t internalReferenceCount = 0;
+
+#if SLANG_RHI_DEBUG
+    // Track the number of RefObject instances.
+    static std::atomic<uint64_t> s_objectCount;
+#endif
 
 public:
     RefObject()
         : referenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_add(1);
+#endif
     }
 
     RefObject(const RefObject&)
         : referenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_add(1);
+#endif
+    }
+
+    virtual ~RefObject()
+    {
+        SLANG_RHI_UNTRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_sub(1);
+#endif
     }
 
     RefObject& operator=(const RefObject&) { return *this; }
 
-    virtual ~RefObject() { SLANG_RHI_UNTRACK_OBJECT(this); }
+    void addReference() { referenceCount++; }
 
-    uint64_t addReference() { return ++referenceCount; }
-
-    uint64_t decreaseReference() { return --referenceCount; }
-
-    uint64_t releaseReference()
+    void releaseReference()
     {
         SLANG_RHI_ASSERT(referenceCount != 0);
-        if (--referenceCount == 0)
+        uint64_t prevRefCount = referenceCount.fetch_sub(1);
+        if (internalReferenceCount > 0 && prevRefCount == internalReferenceCount + 1)
+        {
+            // object is now internally referenced only
+            externalFree();
+        }
+        if (prevRefCount == 1)
         {
             delete this;
-            return 0;
         }
-        return referenceCount;
     }
 
-    bool isUniquelyReferenced()
-    {
-        SLANG_RHI_ASSERT(referenceCount != 0);
-        return referenceCount == 1;
-    }
+    void addInternalReference() { internalReferenceCount++; }
+
+    void releaseInternalReference() { internalReferenceCount--; }
 
     uint64_t debugGetReferenceCount() { return referenceCount; }
+
+    virtual void externalFree() {}
+
+#if SLANG_RHI_DEBUG
+    // Get the number of RefObject instances currently alive.
+    static uint64_t getObjectCount() { return s_objectCount.load(); }
+#endif
 };
 
 SLANG_FORCE_INLINE void addReference(RefObject* obj)

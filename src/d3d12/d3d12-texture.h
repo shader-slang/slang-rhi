@@ -16,10 +16,12 @@ public:
     D3D12_RESOURCE_STATES m_defaultState;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
 public:
+    RefPtr<TextureViewImpl> m_defaultView;
+
     struct ViewKey
     {
         Format format;
@@ -84,7 +86,9 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
-    RefPtr<TextureImpl> m_texture;
+    virtual void externalFree() override { m_texture.breakStrongReference(); }
+
+    BreakableReference<TextureImpl> m_texture;
     DescriptorHandle m_descriptorHandle[2] = {};
 
     // ITextureView implementation

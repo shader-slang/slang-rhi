@@ -88,6 +88,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
+    m_defaultView.setNull();
     free(m_data);
 }
 
@@ -216,6 +217,18 @@ Result TextureImpl::init(const SubresourceData* initData)
         }
     }
 
+    return SLANG_OK;
+}
+
+Result TextureImpl::getDefaultView(ITextureView** outTextureView)
+{
+    if (!m_defaultView)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
+        m_defaultView->addInternalReference();
+    }
+    m_defaultView->m_texture.establishStrongReference();
+    returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
 

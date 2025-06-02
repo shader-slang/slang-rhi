@@ -8,10 +8,13 @@ class TextureImpl : public Texture
 {
 public:
     TextureImpl(Device* device, const TextureDesc& desc);
+    ~TextureImpl();
 
     ComPtr<ID3D11Resource> m_resource;
     DXGI_FORMAT m_format;
     bool m_isTypeless;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
     struct ViewKey
     {
@@ -34,6 +37,7 @@ public:
         }
     };
 
+    RefPtr<TextureViewImpl> m_defaultView;
     std::mutex m_mutex;
     std::unordered_map<ViewKey, ComPtr<ID3D11RenderTargetView>, ViewKeyHasher> m_rtvs;
     std::unordered_map<ViewKey, ComPtr<ID3D11DepthStencilView>, ViewKeyHasher> m_dsvs;
@@ -50,6 +54,8 @@ class TextureViewImpl : public TextureView
 {
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
+
+    virtual void externalFree() override { m_texture.breakStrongReference(); }
 
     ID3D11RenderTargetView* getRTV()
     {
@@ -83,7 +89,7 @@ public:
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
 
 public:
-    RefPtr<TextureImpl> m_texture;
+    BreakableReference<TextureImpl> m_texture;
 
 private:
     ID3D11RenderTargetView* m_rtv = nullptr;

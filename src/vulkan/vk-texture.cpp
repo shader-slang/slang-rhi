@@ -17,6 +17,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
+    m_defaultView.setNull();
     DeviceImpl* device = getDevice<DeviceImpl>();
     auto& api = device->m_api;
     for (auto& view : m_views)
@@ -91,6 +92,18 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     m_sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
     *outHandle = m_sharedHandle;
+    return SLANG_OK;
+}
+
+Result TextureImpl::getDefaultView(ITextureView** outTextureView)
+{
+    if (!m_defaultView)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
+        m_defaultView->addInternalReference();
+    }
+    m_defaultView->m_texture.establishStrongReference();
+    returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
 
