@@ -733,14 +733,14 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkRayTracingPipelineCreateInfoKHR>(
         this,
         &createInfo,
-        [](DeviceImpl* device, VkRayTracingPipelineCreateInfoKHR* createInfo, VkPipeline* pipeline) -> VkResult
+        [](DeviceImpl* device, VkRayTracingPipelineCreateInfoKHR* createInfo2, VkPipeline* pipeline) -> VkResult
         {
             return device->m_api.vkCreateRayTracingPipelinesKHR(
                 device->m_device,
                 VK_NULL_HANDLE,
                 VK_NULL_HANDLE,
                 1,
-                createInfo,
+                createInfo2,
                 nullptr,
                 pipeline
             );
