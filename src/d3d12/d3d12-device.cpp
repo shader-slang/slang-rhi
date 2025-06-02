@@ -1457,7 +1457,7 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
     ComPtr<ID3DBlob> d3dDiagnosticBlob;
     auto rootShaderLayoutResult = RootShaderObjectLayoutImpl::create(

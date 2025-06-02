@@ -7,7 +7,6 @@ namespace rhi::d3d11 {
 class ShaderProgramImpl : public ShaderProgram
 {
 public:
-    DeviceImpl* m_device;
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
 
     struct Module
@@ -17,6 +16,8 @@ public:
     };
 
     std::vector<Module> m_modules;
+
+    ShaderProgramImpl(Device* device);
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;

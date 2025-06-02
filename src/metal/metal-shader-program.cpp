@@ -6,7 +6,7 @@
 namespace rhi::metal {
 
 ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device)
-    : m_device(device)
+    : ShaderProgram(device)
 {
 }
 
@@ -14,6 +14,8 @@ ShaderProgramImpl::~ShaderProgramImpl() {}
 
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     Module module;
     module.stage = entryPointInfo->getStage();
     module.entryPointName = entryPointInfo->getNameOverride();
@@ -26,11 +28,11 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
         NULL
     );
     NS::Error* error;
-    module.library = NS::TransferPtr(m_device->m_device->newLibrary(data, &error));
+    module.library = NS::TransferPtr(device->m_device->newLibrary(data, &error));
     if (!module.library)
     {
         const char* msg = error->localizedDescription()->utf8String();
-        m_device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg);
+        device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg);
         return SLANG_E_INVALID_ARG;
     }
 

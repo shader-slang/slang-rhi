@@ -614,7 +614,7 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
     SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
         this,

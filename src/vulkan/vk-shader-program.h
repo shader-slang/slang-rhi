@@ -9,13 +9,8 @@ namespace rhi::vk {
 class ShaderProgramImpl : public ShaderProgram
 {
 public:
-    ShaderProgramImpl(DeviceImpl* device);
-
+    ShaderProgramImpl(Device* device);
     ~ShaderProgramImpl();
-
-    virtual void comFree() override;
-
-    BreakableReference<DeviceImpl> m_device;
 
     RefPtr<RootShaderObjectLayoutImpl> m_rootShaderObjectLayout;
 

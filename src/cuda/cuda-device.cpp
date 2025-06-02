@@ -445,7 +445,7 @@ Result DeviceImpl::createShaderProgram(
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
-    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
     shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
     returnComPtr(outProgram, shaderProgram);

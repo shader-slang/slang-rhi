@@ -9,7 +9,6 @@ namespace rhi::metal {
 class ShaderProgramImpl : public ShaderProgram
 {
 public:
-    DeviceImpl* m_device;
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
 
     struct Module
@@ -22,7 +21,7 @@ public:
 
     std::vector<Module> m_modules;
 
-    ShaderProgramImpl(DeviceImpl* device);
+    ShaderProgramImpl(Device* device);
     ~ShaderProgramImpl();
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
