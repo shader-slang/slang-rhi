@@ -17,7 +17,7 @@ namespace rhi::vk {
 // For pipeline caching, we use the VK_KHR_pipeline_binary extension.
 // We serialize the pipeline binaries into a custom format that stores a number of pipeline binaries,
 // each with a key and data size, along with the binary data itself.
-// The format is layed out as follows:
+// The format is laid out as follows:
 // Header [PipelineCacheHeader] (12 bytes):
 // - Magic number (4 bytes)
 // - Version (4 bytes)
