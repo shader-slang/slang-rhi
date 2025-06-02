@@ -362,7 +362,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
-    m_queue->addInternalReference();
+    m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
 

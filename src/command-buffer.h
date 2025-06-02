@@ -330,7 +330,8 @@ public:
     }
     virtual ~CommandBuffer() = default;
 
-    virtual void comFree() override { breakStrongReferenceToDevice(); }
+    virtual void makeExternal() override { establishStrongReferenceToDevice(); }
+    virtual void makeInternal() override { breakStrongReferenceToDevice(); }
 
     virtual Result reset()
     {

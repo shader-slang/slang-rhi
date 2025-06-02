@@ -52,8 +52,8 @@ namespace rhi {
 class SLANG_RHI_API RefObject
 {
 private:
-    std::atomic<uint64_t> referenceCount;
-    uint32_t internalReferenceCount = 0;
+    std::atomic<uint32_t> referenceCount;
+    std::atomic<uint32_t> internalReferenceCount;
 
 #if SLANG_RHI_DEBUG
     // Track the number of RefObject instances.
@@ -89,30 +89,54 @@ public:
 
     RefObject& operator=(const RefObject&) { return *this; }
 
-    void addReference() { referenceCount++; }
+    uint32_t addReference()
+    {
+        uint32_t count = referenceCount.fetch_add(1);
+        if (internalReferenceCount > 0 && count == internalReferenceCount)
+        {
+            // Object is now externally referenced
+            makeExternal();
+        }
+        return count + 1;
+    }
 
-    void releaseReference()
+    uint32_t releaseReference()
     {
         SLANG_RHI_ASSERT(referenceCount != 0);
-        uint64_t prevRefCount = referenceCount.fetch_sub(1);
-        if (internalReferenceCount > 0 && prevRefCount == internalReferenceCount + 1)
+        uint32_t count = referenceCount.fetch_sub(1);
+        if (internalReferenceCount > 0 && count == internalReferenceCount + 1)
         {
-            // object is now internally referenced only
-            externalFree();
+            // Object is now internally referenced only
+            makeInternal();
         }
-        if (prevRefCount == 1)
+        if (count == 1)
         {
+            // Last reference, delete the object
             delete this;
+        }
+        return count - 1;
+    }
+
+    void setInternalReferenceCount(uint32_t count)
+    {
+        SLANG_RHI_ASSERT(count <= referenceCount.load());
+        internalReferenceCount.store(count);
+        if (count == 0 && referenceCount > 0)
+        {
+            // Object is now externally referenced
+            makeExternal();
+        }
+        else if (count > 0 && referenceCount.load() == count)
+        {
+            // Object is now internally referenced
+            makeInternal();
         }
     }
 
-    void addInternalReference() { internalReferenceCount++; }
-
-    void releaseInternalReference() { internalReferenceCount--; }
-
     uint64_t debugGetReferenceCount() { return referenceCount; }
 
-    virtual void externalFree() {}
+    virtual void makeExternal() {}
+    virtual void makeInternal() {}
 
 #if SLANG_RHI_DEBUG
     // Get the number of RefObject instances currently alive.
