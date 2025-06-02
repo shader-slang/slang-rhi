@@ -125,7 +125,7 @@ enum class DeviceType
     x(RayQuery,                                 "ray-query"                                     ) \
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
-    /* Other features */                                                                           \
+    /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \

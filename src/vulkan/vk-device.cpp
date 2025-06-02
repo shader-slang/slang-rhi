@@ -546,11 +546,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             deviceFeatures2.pNext = &extendedFeatures.vulkan12Features;
         }
 
-        // if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
-        // {
-        //     extendedFeatures.vulkan13Features.pNext = deviceFeatures2.pNext;
-        //     deviceFeatures2.pNext = &extendedFeatures.vulkan13Features;
-        // }
+        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
+        {
+            extendedFeatures.vulkan13Features.pNext = deviceFeatures2.pNext;
+            deviceFeatures2.pNext = &extendedFeatures.vulkan13Features;
+        }
+
+        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_4)
+        {
+            extendedFeatures.vulkan14Features.pNext = deviceFeatures2.pNext;
+            deviceFeatures2.pNext = &extendedFeatures.vulkan14Features;
+        }
 
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
 
@@ -666,6 +672,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
             { availableFeatures.push_back(Feature::CustomBorderColor); }
         );
+
+        if (extendedFeatures.vulkan14Features.shaderSubgroupRotate &&
+            extendedFeatures.vulkan14Features.shaderSubgroupRotateClustered &&
+            extensionNames.count(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME))
+        {
+            extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotate = VK_TRUE;
+            extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotateClustered  = VK_TRUE;
+            extendedFeatures.shaderSubgroupRotateFeatures.pNext = (void*)deviceCreateInfo.pNext;
+            deviceCreateInfo.pNext = &extendedFeatures.shaderSubgroupRotateFeatures;
+            deviceExtensions.push_back(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME);
+        }
 
         if (extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
             extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) &&
