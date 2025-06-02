@@ -77,6 +77,14 @@ Result loadGraphicsProgram(
     slang::ProgramLayout*& slangReflection
 );
 
+Result loadRenderProgramFromSource(
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    std::string_view source,
+    const char* vertexEntryPointName,
+    const char* fragmentEntryPointName
+);
+
 template<typename T>
 void compareResult(const T* result, const T* expectedResult, size_t count)
 {
