@@ -55,22 +55,39 @@ private:
     std::atomic<uint64_t> referenceCount;
     uint32_t internalReferenceCount = 0;
 
+#if SLANG_RHI_DEBUG
+    // Track the number of RefObject instances.
+    static std::atomic<uint64_t> s_objectCount;
+#endif
+
 public:
     RefObject()
         : referenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_add(1);
+#endif
     }
 
     RefObject(const RefObject&)
         : referenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_add(1);
+#endif
+    }
+
+    virtual ~RefObject()
+    {
+        SLANG_RHI_UNTRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_sub(1);
+#endif
     }
 
     RefObject& operator=(const RefObject&) { return *this; }
-
-    virtual ~RefObject() { SLANG_RHI_UNTRACK_OBJECT(this); }
 
     void addReference() { referenceCount++; }
 
@@ -96,6 +113,11 @@ public:
     uint64_t debugGetReferenceCount() { return referenceCount; }
 
     virtual void externalFree() {}
+
+#if SLANG_RHI_DEBUG
+    // Get the number of RefObject instances currently alive.
+    static uint64_t getObjectCount() { return s_objectCount.load(); }
+#endif
 };
 
 SLANG_FORCE_INLINE void addReference(RefObject* obj)
