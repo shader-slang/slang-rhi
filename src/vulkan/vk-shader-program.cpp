@@ -102,11 +102,10 @@ inline Result findBindlessDescriptorSet(const void* codeData, size_t codeSize, u
     // Find common descriptor set index.
     if (infos.size() > 0)
     {
-        uint32_t binding = infos[0].binding;
         descriptorSet = infos[0].descriptorSet;
         for (size_t i = 1; i < infos.size(); ++i)
         {
-            if (infos[i].binding != binding || infos[i].descriptorSet != descriptorSet)
+            if (infos[i].descriptorSet != descriptorSet)
             {
                 return SLANG_FAIL;
             }
