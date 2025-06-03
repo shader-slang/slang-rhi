@@ -499,6 +499,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.rayTracingValidationFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.rayTracingValidationFeatures;
 
+        // shader draw parameters features
+        extendedFeatures.shaderDrawParametersFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.shaderDrawParametersFeatures;
+
         // dynamic rendering features
         extendedFeatures.dynamicRenderingFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingFeatures;
@@ -611,6 +615,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
 
         SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderDrawParametersFeatures,
+            shaderDrawParameters,
+            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+            {}
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.dynamicRenderingFeatures,
             dynamicRendering,
             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
@@ -678,7 +689,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extensionNames.count(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME))
         {
             extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotate = VK_TRUE;
-            extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotateClustered  = VK_TRUE;
+            extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotateClustered = VK_TRUE;
             extendedFeatures.shaderSubgroupRotateFeatures.pNext = (void*)deviceCreateInfo.pNext;
             deviceCreateInfo.pNext = &extendedFeatures.shaderSubgroupRotateFeatures;
             deviceExtensions.push_back(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME);
