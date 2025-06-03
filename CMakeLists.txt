@@ -103,7 +103,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_N
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.7.1" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.10.1" CACHE STRING "Slang version to fetch")
 
 # Fetch WinPixEventRuntime options
 option(SLANG_RHI_FETCH_WINPIX "Fetch WinPixEventRuntime" ON)
@@ -185,7 +185,7 @@ if(SLANG_RHI_FETCH_SLANG)
         endif()
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
-            set(SLANG_URL "${SLANG_URL}-linux-x86_64-glibc-2.17.tar.gz")
+            set(SLANG_URL "${SLANG_URL}-linux-x86_64.tar.gz")
         elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
             set(SLANG_URL "${SLANG_URL}-linux-aarch64.tar.gz")
         endif()
