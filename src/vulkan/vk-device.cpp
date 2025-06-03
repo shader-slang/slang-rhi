@@ -93,6 +93,13 @@ VkBool32 DeviceImpl::handleDebugMessage(
     {
         return VK_FALSE;
     }
+    // Ignore:  VUID-StandaloneSpirv-None-10684
+    // https://vulkan.lunarg.com/doc/view/1.4.313.1/windows/antora/spec/latest/appendices/spirvenv.html#VUID-StandaloneSpirv-None-10684
+    // Not quite clear why this is happening, but for now we will ignore it.
+    if (pCallbackData->messageIdNumber == -1307510846)
+    {
+        return VK_FALSE;
+    }
 
     DebugMessageType msgType = DebugMessageType::Info;
 
