@@ -22,10 +22,10 @@
     </Expand>
 </Type>
 
-<Type Name="rhi::short_vector&lt;*,*,*&gt;">
-    <DisplayString>{{ size={m_count} }}</DisplayString>
+<Type Name="rhi::short_vector&lt;*,*&gt;">
+    <DisplayString>{{ size={m_size} }}</DisplayString>
     <Expand>
-        <Item Name="[size]">m_count</Item>
+        <Item Name="[size]">m_size</Item>
         <Item Name="[capacity]">m_capacity</Item>
         <ArrayItems>
             <Size>m_size</Size>

@@ -7,7 +7,6 @@ namespace rhi::wgpu {
 class ShaderProgramImpl : public ShaderProgram
 {
 public:
-    BreakableReference<DeviceImpl> m_device;
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
 
     struct Module
@@ -20,10 +19,8 @@ public:
 
     std::vector<Module> m_modules;
 
-    ShaderProgramImpl(DeviceImpl* device);
+    ShaderProgramImpl(Device* device);
     ~ShaderProgramImpl();
-
-    virtual void comFree() override;
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
         override;

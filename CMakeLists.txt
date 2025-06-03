@@ -103,7 +103,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_N
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.7.1" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.10.1" CACHE STRING "Slang version to fetch")
 
 # Fetch WinPixEventRuntime options
 option(SLANG_RHI_FETCH_WINPIX "Fetch WinPixEventRuntime" ON)
@@ -123,8 +123,9 @@ set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/d08488fcc
 
 # Fetch OptiX options
 option(SLANG_RHI_FETCH_OPTIX "Fetch OptiX" ON)
-set(SLANG_RHI_FETCH_OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.0/OptiX-8.0-Include.zip" CACHE STRING "OptiX URL to fetch")
-# set(SLANG_RHI_FETCH_OPTIX_URL "https://developer.download.nvidia.com/redist/optix/v8.1/OptiX-8.1.0-Include.zip" CACHE STRING "OptiX URL to fetch")
+set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip" CACHE STRING "OptiX URL to fetch") # 9.0.0
+# set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/50021ea0af6d41609a97777ceebbdf1e1d34efe7.zip" CACHE STRING "OptiX URL to fetch") # 8.1.0
+# set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/f60c1e44f18426f426a2ed948f28515b3cf67b8a.zip" CACHE STRING "OptiX URL to fetch") # 8.0.0
 
 # Fetch Dawn options
 option(SLANG_RHI_FETCH_DAWN "Fetch Dawn" ON)
@@ -184,7 +185,7 @@ if(SLANG_RHI_FETCH_SLANG)
         endif()
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
-            set(SLANG_URL "${SLANG_URL}-linux-x86_64-glibc-2.17.tar.gz")
+            set(SLANG_URL "${SLANG_URL}-linux-x86_64.tar.gz")
         elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
             set(SLANG_URL "${SLANG_URL}-linux-aarch64.tar.gz")
         endif()
@@ -320,7 +321,7 @@ endif()
 if(SLANG_RHI_FETCH_OPTIX AND SLANG_RHI_ENABLE_CUDA)
     message(STATUS "Fetching OptiX headers ...")
     FetchPackage(optix URL ${SLANG_RHI_FETCH_OPTIX_URL})
-    set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR})
+    set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR}/include)
 endif()
 
 # Setup OptiX
@@ -421,12 +422,6 @@ if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-assume -Wno-switch")
 endif()
 
-# nanothread
-# TODO: disabled for now as it introduces a dependency to libatomic which leads to issues with cross compilation
-# set(NANOTHREAD_STATIC ON)
-# add_subdirectory(external/nanothread)
-# set_target_properties(nanothread PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 # Setup compiler warnings
 target_compile_options(slang-rhi PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:
@@ -500,6 +495,7 @@ target_sources(slang-rhi PRIVATE
     src/core/offset-allocator.cpp
     src/core/platform.cpp
     src/core/sha1.cpp
+    src/core/smart-pointer.cpp
     src/core/task-pool.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp
@@ -691,7 +687,6 @@ endif()
 
 target_include_directories(slang-rhi PUBLIC include)
 target_include_directories(slang-rhi PRIVATE src)
-# target_link_libraries(slang-rhi PRIVATE nanothread)
 target_compile_definitions(slang-rhi
     PUBLIC
     SLANG_USER_CONFIG="slang-user-config.h"
@@ -708,8 +703,8 @@ if(SLANG_RHI_BUILD_TESTS)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
 
-    add_library(stb INTERFACE)
-    target_include_directories(stb INTERFACE external/stb)
+    add_library(slang-rhi-stb INTERFACE)
+    target_include_directories(slang-rhi-stb INTERFACE external/stb)
 
     add_library(renderdoc INTERFACE)
     target_include_directories(renderdoc INTERFACE external/renderdoc)
@@ -720,6 +715,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless-descriptor-handles.cpp
+        tests/test-blob.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
@@ -751,6 +747,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-null-views.cpp
         tests/test-nvrtc.cpp
         tests/test-offset-allocator.cpp
+        tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
@@ -788,7 +785,7 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
-    target_link_libraries(slang-rhi-tests PRIVATE doctest stb slang slang-rhi glfw renderdoc)
+    target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi glfw renderdoc)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
     endif()

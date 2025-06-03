@@ -95,23 +95,12 @@ void computeMain()
 
     // TextureCube
     {
-        // Slang currently puts the sampler descriptors into binding 0 instead of binding 1,
-        // so we cannot use samplers at this time in Vulkan.
-#if defined(__VULKAN__)
-        result[index++] = 1;
-        result[index++] = 2;
-        result[index++] = 3;
-        result[index++] = 4;
-        result[index++] = 5;
-        result[index++] = 6;
-#else
         result[index++] = textureCube.SampleLevel(samplerPoint, float3(1, 0, 0), 0);
         result[index++] = textureCube.SampleLevel(samplerPoint, float3(-1, 0, 0), 0);
         result[index++] = textureCube.SampleLevel(samplerPoint, float3(0, 1, 0), 0);
         result[index++] = textureCube.SampleLevel(samplerPoint, float3(0, -1, 0), 0);
         result[index++] = textureCube.SampleLevel(samplerPoint, float3(0, 0, 1), 0);
         result[index++] = textureCube.SampleLevel(samplerPoint, float3(0, 0, -1), 0);
-#endif
     }
 
     // Texture1DArray
@@ -134,23 +123,6 @@ void computeMain()
 
     // TextureCubeArray
     {
-        // Slang currently puts the sampler descriptors into binding 0 instead of binding 1,
-        // so we cannot use samplers at this time in Vulkan.
-#if defined(__VULKAN__)
-        result[index++] = 1;
-        result[index++] = 2;
-        result[index++] = 3;
-        result[index++] = 4;
-        result[index++] = 5;
-        result[index++] = 6;
-
-        result[index++] = 7;
-        result[index++] = 8;
-        result[index++] = 9;
-        result[index++] = 10;
-        result[index++] = 11;
-        result[index++] = 12;
-#else
         result[index++] = textureCubeArray.SampleLevel(samplerPoint, float4(1, 0, 0, 0), 0);
         result[index++] = textureCubeArray.SampleLevel(samplerPoint, float4(-1, 0, 0, 0), 0);
         result[index++] = textureCubeArray.SampleLevel(samplerPoint, float4(0, 1, 0, 0), 0);
@@ -164,7 +136,6 @@ void computeMain()
         result[index++] = textureCubeArray.SampleLevel(samplerPoint, float4(0, -1, 0, 1), 0);
         result[index++] = textureCubeArray.SampleLevel(samplerPoint, float4(0, 0, 1, 1), 0);
         result[index++] = textureCubeArray.SampleLevel(samplerPoint, float4(0, 0, -1, 1), 0);
-#endif
     }
 
     // RWTexture1D

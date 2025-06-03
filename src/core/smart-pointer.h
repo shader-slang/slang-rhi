@@ -52,47 +52,112 @@ namespace rhi {
 class SLANG_RHI_API RefObject
 {
 private:
-    std::atomic<uint64_t> referenceCount;
+    // Total number of references to this object.
+    std::atomic<uint32_t> referenceCount;
+    // Number references that are internal (i.e., not externally visible).
+    // This can be used to detect whether the object is currently externally referenced or not.
+    // For more details, see the comments in `setInternalReferenceCount()`.
+    std::atomic<uint32_t> internalReferenceCount;
+
+#if SLANG_RHI_DEBUG
+    // Track the number of RefObject instances.
+    static std::atomic<uint64_t> s_objectCount;
+#endif
 
 public:
     RefObject()
         : referenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_add(1);
+#endif
     }
 
     RefObject(const RefObject&)
         : referenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_add(1);
+#endif
+    }
+
+    virtual ~RefObject()
+    {
+        SLANG_RHI_UNTRACK_OBJECT(this);
+#if SLANG_RHI_DEBUG
+        s_objectCount.fetch_sub(1);
+#endif
     }
 
     RefObject& operator=(const RefObject&) { return *this; }
 
-    virtual ~RefObject() { SLANG_RHI_UNTRACK_OBJECT(this); }
-
-    uint64_t addReference() { return ++referenceCount; }
-
-    uint64_t decreaseReference() { return --referenceCount; }
-
-    uint64_t releaseReference()
+    uint32_t addReference()
     {
-        SLANG_RHI_ASSERT(referenceCount != 0);
-        if (--referenceCount == 0)
+        uint32_t count = referenceCount.fetch_add(1);
+        uint32_t internalCount = internalReferenceCount.load();
+        // TODO: with C++20 we should mark this branch as [[unlikely]]
+        if (internalCount > 0 && count == internalCount)
         {
-            delete this;
-            return 0;
+            // Object is now externally referenced
+            makeExternal();
         }
-        return referenceCount;
+        return count + 1;
     }
 
-    bool isUniquelyReferenced()
+    uint32_t releaseReference()
     {
-        SLANG_RHI_ASSERT(referenceCount != 0);
-        return referenceCount == 1;
+        uint32_t count = referenceCount.fetch_sub(1);
+        SLANG_RHI_ASSERT(count > 0);
+        uint32_t internalCount = internalReferenceCount.load();
+        // TODO: with C++20 we should mark this branch as [[unlikely]]
+        if (internalCount > 0 && count == internalCount + 1)
+        {
+            // Object is now internally referenced only
+            makeInternal();
+        }
+        if (count == 1)
+        {
+            // Last reference, delete the object
+            delete this;
+        }
+        return count - 1;
+    }
+
+    // Set the number of references that are internal.
+    // When the reference count becomes equal or smaller to this value,
+    // the object is considered to be internally referenced and `makeInternal()` is called.
+    // When the reference count is greater than this value, the object is considered to be externally referenced
+    // and `makeExternal()` is called.
+    // Note: Calling this function is not thread-safe and should be used with care (i.e. only be called when the object
+    // is initially created).
+    void setInternalReferenceCount(uint32_t count)
+    {
+        uint32_t currentCount = referenceCount.load();
+        SLANG_RHI_ASSERT(count <= currentCount);
+        internalReferenceCount.store(count);
+        if (count == 0 && currentCount > 0)
+        {
+            // Object is now externally referenced
+            makeExternal();
+        }
+        else if (count > 0 && currentCount == count)
+        {
+            // Object is now internally referenced
+            makeInternal();
+        }
     }
 
     uint64_t debugGetReferenceCount() { return referenceCount; }
+
+    virtual void makeExternal() {}
+    virtual void makeInternal() {}
+
+#if SLANG_RHI_DEBUG
+    // Get the number of RefObject instances currently alive.
+    static uint64_t getObjectCount() { return s_objectCount.load(); }
+#endif
 };
 
 SLANG_FORCE_INLINE void addReference(RefObject* obj)

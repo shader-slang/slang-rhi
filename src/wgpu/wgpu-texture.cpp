@@ -13,6 +13,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
+    m_defaultView.setNull();
     if (m_texture)
     {
         getDevice<DeviceImpl>()->m_ctx.api.wgpuTextureRelease(m_texture);
@@ -30,6 +31,17 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result TextureImpl::getDefaultView(ITextureView** outTextureView)
+{
+    if (!m_defaultView)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
+        m_defaultView->setInternalReferenceCount(1);
+    }
+    returnComPtr(outTextureView, m_defaultView);
+    return SLANG_OK;
 }
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)

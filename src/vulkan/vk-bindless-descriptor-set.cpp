@@ -10,6 +10,11 @@
 
 namespace rhi::vk {
 
+// Default binding locations for bindless descriptor set.
+static constexpr uint32_t kSamplerBinding = 0;
+static constexpr uint32_t kCombinedImageSamplerBinding = 1;
+static constexpr uint32_t kResourceBinding = 2;
+
 BindlessDescriptorSet::BindlessDescriptorSet(DeviceImpl* device, const BindlessDesc& desc)
     : m_device(device)
     , m_desc(desc)
@@ -46,16 +51,11 @@ Result BindlessDescriptorSet::initialize()
         VkDescriptorPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
         static_vector<VkDescriptorPoolSize, 16> poolSizes;
         poolSizes.push_back({VK_DESCRIPTOR_TYPE_SAMPLER, m_desc.samplerCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, m_desc.textureCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_desc.textureCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, m_desc.bufferCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, m_desc.bufferCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_desc.bufferCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_desc.bufferCount});
-        if (api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-        {
-            poolSizes.push_back({VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, m_desc.accelerationStructureCount});
-        }
+        poolSizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1});
+        poolSizes.push_back(
+            {VK_DESCRIPTOR_TYPE_MUTABLE_EXT,
+             m_desc.bufferCount + m_desc.textureCount + m_desc.accelerationStructureCount}
+        );
         createInfo.maxSets = 1;
         createInfo.poolSizeCount = (uint32_t)poolSizes.size();
         createInfo.pPoolSizes = poolSizes.data();
@@ -67,9 +67,9 @@ Result BindlessDescriptorSet::initialize()
 
     // Create descriptor set layout
     {
-        VkDescriptorSetLayoutBinding bindings[2];
-        VkDescriptorBindingFlags flags[2];
-        VkMutableDescriptorTypeListEXT mutableDescriptorTypeLists[2];
+        VkDescriptorSetLayoutBinding bindings[3] = {};
+        VkDescriptorBindingFlags flags[3] = {};
+        VkMutableDescriptorTypeListEXT mutableDescriptorTypeLists[3] = {};
 
         static_vector<VkDescriptorType, 16> mutableDescriptorTypes;
         mutableDescriptorTypes.push_back(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
@@ -83,43 +83,48 @@ Result BindlessDescriptorSet::initialize()
             mutableDescriptorTypes.push_back(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
         }
 
-        // Binding 0 is for resource descriptors
-        bindings[0] = {};
-        bindings[0].binding = 0;
-        bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_MUTABLE_EXT;
-        bindings[0].descriptorCount = m_desc.bufferCount + m_desc.textureCount + m_desc.accelerationStructureCount;
+        // Binding 0 is for samplers
+        bindings[0].binding = kSamplerBinding;
+        bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+        bindings[0].descriptorCount = m_desc.samplerCount;
         bindings[0].stageFlags = VK_SHADER_STAGE_ALL;
+        bindings[0].pImmutableSamplers = nullptr;
         flags[0] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-        mutableDescriptorTypeLists[0] = {};
-        mutableDescriptorTypeLists[0].descriptorTypeCount = mutableDescriptorTypes.size();
-        mutableDescriptorTypeLists[0].pDescriptorTypes = mutableDescriptorTypes.data();
-        // Binding 1 is for samplers
-        bindings[1] = {};
-        bindings[1].binding = 1;
-        bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-        bindings[1].descriptorCount = m_desc.samplerCount;
-        bindings[1].stageFlags = VK_SHADER_STAGE_ALL;
-        bindings[1].pImmutableSamplers = nullptr;
+
+        // Binding 1 is combined image samplers (unused)
+        bindings[1].binding = kCombinedImageSamplerBinding;
+        bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        bindings[1].descriptorCount = 1;
         flags[1] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
         mutableDescriptorTypeLists[1] = {};
+
+        // Binding 2 is for resource descriptors
+        bindings[2].binding = kResourceBinding;
+        bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_MUTABLE_EXT;
+        bindings[2].descriptorCount = m_desc.bufferCount + m_desc.textureCount + m_desc.accelerationStructureCount;
+        bindings[2].stageFlags = VK_SHADER_STAGE_ALL;
+        flags[2] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+        mutableDescriptorTypeLists[2] = {};
+        mutableDescriptorTypeLists[2].descriptorTypeCount = mutableDescriptorTypes.size();
+        mutableDescriptorTypeLists[2].pDescriptorTypes = mutableDescriptorTypes.data();
 
         VkDescriptorSetLayoutBindingFlagsCreateInfo flagsCreateInfo = {
             VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO
         };
-        flagsCreateInfo.bindingCount = 2;
+        flagsCreateInfo.bindingCount = 3;
         flagsCreateInfo.pBindingFlags = flags;
 
         VkMutableDescriptorTypeCreateInfoEXT mutableCreateInfo = {
             VK_STRUCTURE_TYPE_MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_EXT
         };
         mutableCreateInfo.pNext = &flagsCreateInfo;
-        mutableCreateInfo.mutableDescriptorTypeListCount = 2;
+        mutableCreateInfo.mutableDescriptorTypeListCount = 3;
         mutableCreateInfo.pMutableDescriptorTypeLists = mutableDescriptorTypeLists;
 
         VkDescriptorSetLayoutCreateInfo createInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
         createInfo.pNext = &mutableCreateInfo;
         createInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
-        createInfo.bindingCount = 2;
+        createInfo.bindingCount = 3;
         createInfo.pBindings = bindings;
 
         SLANG_VK_RETURN_ON_FAIL(
@@ -159,7 +164,7 @@ Result BindlessDescriptorSet::allocBufferHandle(
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = m_descriptorSet;
-    write.dstBinding = 0;
+    write.dstBinding = kResourceBinding;
     write.descriptorCount = 1;
     write.dstArrayElement = slot;
 
@@ -216,7 +221,7 @@ Result BindlessDescriptorSet::allocTextureHandle(
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = m_descriptorSet;
-    write.dstBinding = 0;
+    write.dstBinding = kResourceBinding;
     write.descriptorCount = 1;
     write.dstArrayElement = m_firstTextureHandle + slot;
 
@@ -257,7 +262,7 @@ Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHa
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = m_descriptorSet;
-    write.dstBinding = 1;
+    write.dstBinding = kSamplerBinding;
     write.descriptorCount = 1;
     write.dstArrayElement = slot;
     write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
@@ -288,7 +293,7 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
 
     VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     write.dstSet = m_descriptorSet;
-    write.dstBinding = 0;
+    write.dstBinding = kResourceBinding;
     write.descriptorCount = 1;
     write.dstArrayElement = m_firstAccelerationStructureHandle + slot;
     write.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;

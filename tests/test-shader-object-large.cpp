@@ -40,13 +40,10 @@ GPU_TEST_CASE("shader-object-large", D3D12 | Vulkan)
 
     std::vector<ComPtr<IBuffer>> globalBuffers;
     std::vector<ComPtr<ITexture>> globalTextures;
-    std::vector<ComPtr<ITextureView>> globalTextureViews;
     std::vector<ComPtr<IBuffer>> pbBuffers;
     std::vector<ComPtr<ITexture>> pbTextures;
-    std::vector<ComPtr<ITextureView>> pbTextureViews;
     std::vector<ComPtr<IBuffer>> localBuffers;
     std::vector<ComPtr<ITexture>> localTextures;
-    std::vector<ComPtr<ITextureView>> localTextureViews;
 
     static constexpr int N = 1024;
 
@@ -60,7 +57,6 @@ GPU_TEST_CASE("shader-object-large", D3D12 | Vulkan)
 
         value = i + 1000;
         globalTextures.push_back(createTexture(device, value));
-        globalTextureViews.push_back(globalTextures.back()->createView({}));
         expectedResult.push_back(value);
 
         value = i * 2;
@@ -69,7 +65,6 @@ GPU_TEST_CASE("shader-object-large", D3D12 | Vulkan)
 
         value = i * 2 + 1000;
         pbTextures.push_back(createTexture(device, value));
-        pbTextureViews.push_back(pbTextures.back()->createView({}));
         expectedResult.push_back(value);
 
         value = i * 3;
@@ -78,7 +73,6 @@ GPU_TEST_CASE("shader-object-large", D3D12 | Vulkan)
 
         value = i * 3 + 1000;
         localTextures.push_back(createTexture(device, value));
-        localTextureViews.push_back(localTextures.back()->createView({}));
         expectedResult.push_back(value);
     }
 
@@ -105,11 +99,11 @@ GPU_TEST_CASE("shader-object-large", D3D12 | Vulkan)
         for (int i = 0; i < N; ++i)
         {
             globalsCursor["globalBuffers"][i].setBinding(globalBuffers[i]);
-            globalsCursor["globalTextures"][i].setBinding(globalTextureViews[i]);
+            globalsCursor["globalTextures"][i].setBinding(globalTextures[i]);
             pbCursor["buffers"][i].setBinding(pbBuffers[i]);
-            pbCursor["textures"][i].setBinding(pbTextureViews[i]);
+            pbCursor["textures"][i].setBinding(pbTextures[i]);
             entryPointCursor["localBuffers"][i].setBinding(localBuffers[i]);
-            entryPointCursor["localTextures"][i].setBinding(localTextureViews[i]);
+            entryPointCursor["localTextures"][i].setBinding(localTextures[i]);
         }
         entryPointCursor["resultBuffer"].setBinding(resultBuffer);
         passEncoder->dispatchCompute(N, 1, 1);

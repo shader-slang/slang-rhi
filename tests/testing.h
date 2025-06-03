@@ -77,6 +77,14 @@ Result loadGraphicsProgram(
     slang::ProgramLayout*& slangReflection
 );
 
+Result loadRenderProgramFromSource(
+    IDevice* device,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    std::string_view source,
+    const char* vertexEntryPointName,
+    const char* fragmentEntryPointName
+);
+
 template<typename T>
 void compareResult(const T* result, const T* expectedResult, size_t count)
 {
@@ -167,11 +175,18 @@ void compareComputeResult(
     compareComputeResult(device, texture, layer, mip, span<T>(expectedResult.data(), Count));
 }
 
+struct DeviceExtraOptions
+{
+    std::vector<const char*> searchPaths;
+    IPersistentCache* persistentShaderCache = nullptr;
+    IPersistentCache* persistentPipelineCache = nullptr;
+};
+
 ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
     bool useCachedDevice = true,
-    std::vector<const char*> additionalSearchPaths = {}
+    const DeviceExtraOptions* extraOptions = nullptr
 );
 
 void releaseCachedDevices();

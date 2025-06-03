@@ -93,6 +93,13 @@ VkBool32 DeviceImpl::handleDebugMessage(
     {
         return VK_FALSE;
     }
+    // Ignore:  VUID-StandaloneSpirv-None-10684
+    // https://vulkan.lunarg.com/doc/view/1.4.313.1/windows/antora/spec/latest/appendices/spirvenv.html#VUID-StandaloneSpirv-None-10684
+    // Not quite clear why this is happening, but for now we will ignore it.
+    if (pCallbackData->messageIdNumber == -1307510846)
+    {
+        return VK_FALSE;
+    }
 
     DebugMessageType msgType = DebugMessageType::Info;
 
@@ -255,7 +262,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 }
             }
         }
-        uint32_t apiVersionsToTry[] = {VK_API_VERSION_1_3, VK_API_VERSION_1_2, VK_API_VERSION_1_1, VK_API_VERSION_1_0};
+        uint32_t apiVersionsToTry[] = {
+            // VK_API_VERSION_1_4,
+            VK_API_VERSION_1_3,
+            VK_API_VERSION_1_2,
+            VK_API_VERSION_1_1,
+            VK_API_VERSION_1_0,
+        };
         for (auto apiVersion : apiVersionsToTry)
         {
             applicationInfo.apiVersion = apiVersion;
@@ -493,6 +506,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.rayTracingValidationFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.rayTracingValidationFeatures;
 
+        // shader draw parameters features
+        extendedFeatures.shaderDrawParametersFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.shaderDrawParametersFeatures;
+
         // dynamic rendering features
         extendedFeatures.dynamicRenderingFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingFeatures;
@@ -531,17 +548,26 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.mutableDescriptorTypeFeatures.pNext = deviceFeatures2.pNext;
         deviceFeatures2.pNext = &extendedFeatures.mutableDescriptorTypeFeatures;
 
+        extendedFeatures.pipelineBinaryFeatures.pNext = deviceFeatures2.pNext;
+        deviceFeatures2.pNext = &extendedFeatures.pipelineBinaryFeatures;
+
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
             extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
             deviceFeatures2.pNext = &extendedFeatures.vulkan12Features;
         }
 
-        // if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
-        // {
-        //     extendedFeatures.vulkan13Features.pNext = deviceFeatures2.pNext;
-        //     deviceFeatures2.pNext = &extendedFeatures.vulkan13Features;
-        // }
+        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
+        {
+            extendedFeatures.vulkan13Features.pNext = deviceFeatures2.pNext;
+            deviceFeatures2.pNext = &extendedFeatures.vulkan13Features;
+        }
+
+        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_4)
+        {
+            extendedFeatures.vulkan14Features.pNext = deviceFeatures2.pNext;
+            deviceFeatures2.pNext = &extendedFeatures.vulkan14Features;
+        }
 
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
 
@@ -594,6 +620,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             code                                                                                                       \
         }                                                                                                              \
     }
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderDrawParametersFeatures,
+            shaderDrawParameters,
+            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+            {}
+        );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.dynamicRenderingFeatures,
@@ -657,6 +690,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
             { availableFeatures.push_back(Feature::CustomBorderColor); }
         );
+
+        if (extendedFeatures.vulkan14Features.shaderSubgroupRotate &&
+            extendedFeatures.vulkan14Features.shaderSubgroupRotateClustered &&
+            extensionNames.count(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME))
+        {
+            extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotate = VK_TRUE;
+            extendedFeatures.shaderSubgroupRotateFeatures.shaderSubgroupRotateClustered = VK_TRUE;
+            extendedFeatures.shaderSubgroupRotateFeatures.pNext = (void*)deviceCreateInfo.pNext;
+            deviceCreateInfo.pNext = &extendedFeatures.shaderSubgroupRotateFeatures;
+            deviceExtensions.push_back(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME);
+        }
 
         if (extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
             extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) &&
@@ -807,6 +851,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             mutableDescriptorType,
             VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME,
             {}
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.pipelineBinaryFeatures,
+            pipelineBinaries,
+            VK_KHR_PIPELINE_BINARY_EXTENSION_NAME,
+            {
+                deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
+                availableFeatures.push_back(Feature::PipelineCache);
+            }
         );
 
 #undef SIMPLE_EXTENSION_FEATURE
@@ -1278,6 +1332,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_deviceQueue.getQueue(), m_queueFamilyIndex);
+    m_queue->setInternalReferenceCount(1);
 
     return SLANG_OK;
 }

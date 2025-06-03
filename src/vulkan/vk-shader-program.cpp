@@ -5,25 +5,22 @@
 
 namespace rhi::vk {
 
-ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device)
-    : m_device(device)
+ShaderProgramImpl::ShaderProgramImpl(Device* device)
+    : ShaderProgram(device)
 {
 }
 
 ShaderProgramImpl::~ShaderProgramImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     for (const auto& module : m_modules)
     {
         if (module.shaderModule != VK_NULL_HANDLE)
         {
-            m_device->m_api.vkDestroyShaderModule(m_device->m_api.m_device, module.shaderModule, nullptr);
+            device->m_api.vkDestroyShaderModule(device->m_device, module.shaderModule, nullptr);
         }
     }
-}
-
-void ShaderProgramImpl::comFree()
-{
-    m_device.breakStrongReference();
 }
 
 // Scan SPIR-V code to find the bindless descriptor set.
@@ -105,11 +102,10 @@ inline Result findBindlessDescriptorSet(const void* codeData, size_t codeSize, u
     // Find common descriptor set index.
     if (infos.size() > 0)
     {
-        uint32_t binding = infos[0].binding;
         descriptorSet = infos[0].descriptorSet;
         for (size_t i = 1; i < infos.size(); ++i)
         {
-            if (infos[i].binding != binding || infos[i].descriptorSet != descriptorSet)
+            if (infos[i].descriptorSet != descriptorSet)
             {
                 return SLANG_FAIL;
             }
@@ -123,6 +119,8 @@ inline Result findBindlessDescriptorSet(const void* codeData, size_t codeSize, u
 
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     m_modules.push_back({});
     auto& module = m_modules.back();
     m_stageCreateInfos.push_back({});
@@ -141,7 +139,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     moduleCreateInfo.pCode = (uint32_t*)module.code->getBufferPointer();
     moduleCreateInfo.codeSize = module.code->getBufferSize();
     SLANG_VK_RETURN_ON_FAIL(
-        m_device->m_api.vkCreateShaderModule(m_device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule)
+        device->m_api.vkCreateShaderModule(device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule)
     );
 
     stageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};

@@ -224,6 +224,11 @@ namespace rhi::vk {
     x(vkConvertCooperativeVectorMatrixNV) \
     x(vkCmdConvertCooperativeVectorMatrixNV) \
     x(vkGetDescriptorSetLayoutSupport) \
+    x(vkCreatePipelineBinariesKHR) \
+    x(vkDestroyPipelineBinaryKHR) \
+    x(vkGetPipelineBinaryDataKHR) \
+    x(vkGetPipelineKeyKHR) \
+    x(vkReleaseCapturedPipelineDataKHR) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
@@ -325,6 +330,14 @@ struct VulkanExtendedFeatureProperties
     // Vulkan 1.3 features.
     VkPhysicalDeviceVulkan13Features vulkan13Features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
 
+    // Vulkan 1.4 features.
+    VkPhysicalDeviceVulkan14Features vulkan14Features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES};
+
+    // Draw parameters features
+    VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParametersFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES
+    };
+
     // Dynamic rendering features
     VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR
@@ -385,6 +398,16 @@ struct VulkanExtendedFeatureProperties
     // Mutable descriptor type features
     VkPhysicalDeviceMutableDescriptorTypeFeaturesEXT mutableDescriptorTypeFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MUTABLE_DESCRIPTOR_TYPE_FEATURES_EXT
+    };
+
+    // Pipeline binary features
+    VkPhysicalDevicePipelineBinaryFeaturesKHR pipelineBinaryFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_BINARY_FEATURES_KHR
+    };
+
+    // Shader subgroup rotate features
+    VkPhysicalDeviceShaderSubgroupRotateFeatures shaderSubgroupRotateFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR
     };
 };
 

@@ -9,6 +9,22 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 {
 }
 
+TextureImpl::~TextureImpl()
+{
+    m_defaultView.setNull();
+}
+
+Result TextureImpl::getDefaultView(ITextureView** outTextureView)
+{
+    if (!m_defaultView)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
+        m_defaultView->setInternalReferenceCount(1);
+    }
+    returnComPtr(outTextureView, m_defaultView);
+    return SLANG_OK;
+}
+
 ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRange& range_)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();

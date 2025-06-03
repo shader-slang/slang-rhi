@@ -82,42 +82,17 @@ inline uint32_t ComBaseObject::_releaseImpl()
 /// COM object that derives from RefObject
 class ComObject : public RefObject
 {
-protected:
-    std::atomic<uint32_t> comRefCount;
-
 public:
     ComObject()
-        : comRefCount(0)
+        : RefObject()
     {
     }
     ComObject(const ComObject& rhs)
         : RefObject(rhs)
-        , comRefCount(0)
     {
     }
 
     ComObject& operator=(const ComObject&) { return *this; }
-
-    virtual void comFree() {}
-
-    uint32_t addRefImpl()
-    {
-        auto oldRefCount = comRefCount++;
-        if (oldRefCount == 0)
-            addReference();
-        return oldRefCount + 1;
-    }
-
-    uint32_t releaseImpl()
-    {
-        auto oldRefCount = comRefCount--;
-        if (oldRefCount == 1)
-        {
-            comFree();
-            releaseReference();
-        }
-        return oldRefCount - 1;
-    }
 };
 
 #define SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE                                                                      \
@@ -135,12 +110,12 @@ public:
 #define SLANG_COM_OBJECT_IUNKNOWN_ADD_REF                                                                              \
     SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override                                                              \
     {                                                                                                                  \
-        return addRefImpl();                                                                                           \
+        return addReference();                                                                                         \
     }
 #define SLANG_COM_OBJECT_IUNKNOWN_RELEASE                                                                              \
     SLANG_NO_THROW uint32_t SLANG_MCALL release() override                                                             \
     {                                                                                                                  \
-        return releaseImpl();                                                                                          \
+        return releaseReference();                                                                                     \
     }
 #define SLANG_COM_OBJECT_IUNKNOWN_ALL                                                                                  \
     SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE                                                                          \

@@ -247,6 +247,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    m_queue->setInternalReferenceCount(1);
 
     return SLANG_OK;
 }

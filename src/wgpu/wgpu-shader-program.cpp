@@ -4,29 +4,28 @@
 
 namespace rhi::wgpu {
 
-ShaderProgramImpl::ShaderProgramImpl(DeviceImpl* device)
-    : m_device(device)
+ShaderProgramImpl::ShaderProgramImpl(Device* device)
+    : ShaderProgram(device)
 {
 }
 
 ShaderProgramImpl::~ShaderProgramImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
     for (Module& module : m_modules)
     {
-        m_device->m_ctx.api.wgpuShaderModuleRelease(module.module);
+        device->m_ctx.api.wgpuShaderModuleRelease(module.module);
     }
-}
-
-void ShaderProgramImpl::comFree()
-{
-    m_device.breakStrongReference();
 }
 
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
-    auto existingError = m_device->getAndClearLastError();
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    auto existingError = device->getAndClearLastError();
     if (existingError != WGPUErrorType_NoError)
-        m_device->printWarning("Web GPU device had reported error before shader compilation.");
+        device->printWarning("Web GPU device had reported error before shader compilation.");
 
     Module module;
     module.stage = entryPointInfo->getStage();
@@ -40,13 +39,13 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     WGPUShaderModuleDescriptor desc = {};
     desc.nextInChain = (WGPUChainedStruct*)&wgslDesc;
 
-    module.module = m_device->m_ctx.api.wgpuDeviceCreateShaderModule(m_device->m_ctx.device, &desc);
+    module.module = device->m_ctx.api.wgpuDeviceCreateShaderModule(device->m_ctx.device, &desc);
     if (!module.module)
     {
         return SLANG_FAIL;
     }
 
-    auto lastError = m_device->getAndClearLastError();
+    auto lastError = device->getAndClearLastError();
     if (lastError != WGPUErrorType_NoError)
     {
         return SLANG_FAIL;

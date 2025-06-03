@@ -54,11 +54,21 @@ int main(int argc, char** argv)
 #if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
     if (!rhi::RefObjectTracker::instance().objects.empty())
     {
+        std::cerr << std::to_string(rhi::RefObjectTracker::instance().objects.size()) << " leaked objects detected!"
+                  << std::endl;
         std::cerr << "Leaked objects detected!" << std::endl;
         for (auto obj : rhi::RefObjectTracker::instance().objects)
         {
             std::cerr << "Leaked object: " << obj << std::endl;
         }
+        return 1;
+    }
+#endif
+
+#if SLANG_RHI_DEBUG
+    if (rhi::RefObject::getObjectCount() > 0)
+    {
+        std::cerr << std::to_string(rhi::RefObject::getObjectCount()) << " leaked objects detected!" << std::endl;
         return 1;
     }
 #endif

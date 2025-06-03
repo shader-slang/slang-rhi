@@ -12,8 +12,8 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 
 TextureImpl::~TextureImpl()
 {
+    m_defaultView.setNull();
     DeviceImpl* device = getDevice<DeviceImpl>();
-
     for (auto& srv : m_srvs)
     {
         if (srv.second)
@@ -42,7 +42,6 @@ TextureImpl::~TextureImpl()
             device->m_cpuDsvHeap->free(dsv.second);
         }
     }
-
     if (m_sharedHandle)
     {
         ::CloseHandle((HANDLE)m_sharedHandle.value);
@@ -79,6 +78,17 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     *outHandle = m_sharedHandle;
     return SLANG_OK;
 #endif
+}
+
+Result TextureImpl::getDefaultView(ITextureView** outTextureView)
+{
+    if (!m_defaultView)
+    {
+        SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
+        m_defaultView->setInternalReferenceCount(1);
+    }
+    returnComPtr(outTextureView, m_defaultView);
+    return SLANG_OK;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE

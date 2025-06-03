@@ -1519,13 +1519,25 @@ void CommandRecorder::accelerationStructureBarrier(
         memBarriers[i].offset = 0;
         memBarriers[i].size = asImpl->m_buffer->m_desc.size;
     }
+
+    VkPipelineStageFlagBits dstStageMask = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    if (m_device->m_api.m_extendedFeatures.rayQueryFeatures.rayQuery)
+    {
+        // for VUID-vkCmdPipelineBarrier-dstAccessMask-06257
+        // If the rayQuery feature is not enabled and a memory barrier dstAccessMask includes
+        // VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR, dstStageMask must not include any of the
+        // VK_PIPELINE_STAGE_*_SHADER_BIT stages except VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR
+        dstStageMask =
+            (VkPipelineStageFlagBits)(VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
+                                      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT |
+                                      VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                                      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                                      VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR);
+    }
     m_device->m_api.vkCmdPipelineBarrier(
         m_cmdBuffer,
         VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT |
-            VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+        dstStageMask,
         0,
         0,
         nullptr,
@@ -1585,6 +1597,7 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     {
         commandBuffer = m_commandBuffersPool.front();
         m_commandBuffersPool.pop_front();
+        commandBuffer->setInternalReferenceCount(0);
     }
     returnRefPtr(outCommandBuffer, commandBuffer);
     return SLANG_OK;
@@ -1595,6 +1608,7 @@ void CommandQueueImpl::retireUnfinishedCommandBuffer(CommandBufferImpl* commandB
     std::lock_guard<std::mutex> lock(m_mutex);
     commandBuffer->reset();
     m_commandBuffersPool.push_back(commandBuffer);
+    commandBuffer->setInternalReferenceCount(1);
 }
 
 void CommandQueueImpl::retireCommandBuffers()
@@ -1611,6 +1625,7 @@ void CommandQueueImpl::retireCommandBuffers()
             {
                 std::lock_guard<std::mutex> lock(m_mutex);
                 m_commandBuffersPool.push_back(commandBuffer);
+                commandBuffer->setInternalReferenceCount(1);
             }
         }
         else

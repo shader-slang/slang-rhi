@@ -3,6 +3,11 @@
 
 namespace rhi::d3d12 {
 
+ShaderProgramImpl::ShaderProgramImpl(Device* device)
+    : ShaderProgram(device)
+{
+}
+
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
     ShaderBinary shaderBin;

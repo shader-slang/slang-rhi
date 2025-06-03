@@ -4,6 +4,11 @@
 
 namespace rhi::d3d11 {
 
+ShaderProgramImpl::ShaderProgramImpl(Device* device)
+    : ShaderProgram(device)
+{
+}
+
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
     m_modules.push_back({entryPointInfo->getStage(), kernelCode});

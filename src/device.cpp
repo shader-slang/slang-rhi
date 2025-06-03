@@ -138,8 +138,8 @@ Result Device::getSpecializedProgram(
         RefPtr<ShaderProgram> specializedProgram;
         SLANG_RETURN_ON_FAIL(specializeProgram(program, specializationArgs, specializedProgram.writeRef()));
         program->m_specializedPrograms[key] = specializedProgram;
-        // Program is owned by the cache
-        specializedProgram->comFree();
+        // Program is owned by the cache (which is owned by the device).
+        specializedProgram->breakStrongReferenceToDevice();
         returnRefPtr(outSpecializedProgram, specializedProgram);
         return SLANG_OK;
     }
@@ -227,8 +227,8 @@ Result Device::getConcretePipeline(
             RefPtr<ShaderProgram> specializedProgram;
             SLANG_RETURN_ON_FAIL(specializeProgram(program, *specializationArgs, specializedProgram.writeRef()));
             program = specializedProgram;
-            // Program is owned by the specialized pipeline.
-            program->comFree();
+            // Program is owned by the specialized pipeline (which is owned by the device).
+            program->breakStrongReferenceToDevice();
         }
 
         // Ensure sure shaders are compiled.
@@ -322,11 +322,6 @@ Result Device::getEntryPointCodeFromShaderCache(
             program->getEntryPointCode(entryPointIndex, targetIndex, codeBlob.writeRef(), outDiagnostics)
         );
         m_persistentShaderCache->writeCache(hashBlob, codeBlob);
-        m_shaderCacheMisses++;
-    }
-    else
-    {
-        m_shaderCacheHits++;
     }
 
     *outCode = codeBlob.detach();
@@ -358,17 +353,11 @@ Result Device::initialize(const DeviceDesc& desc)
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
 
     m_persistentShaderCache = desc.persistentShaderCache;
+    m_persistentPipelineCache = desc.persistentPipelineCache;
 
     m_uploadHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::Upload);
     m_readbackHeap.initialize(this, desc.stagingHeapPageSize, MemoryType::ReadBack);
 
-    if (desc.apiCommandDispatcher)
-    {
-        desc.apiCommandDispatcher->queryInterface(
-            IPipelineCreationAPIDispatcher::getTypeGuid(),
-            (void**)m_pipelineCreationAPIDispatcher.writeRef()
-        );
-    }
     return SLANG_OK;
 }
 
@@ -824,18 +813,6 @@ Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatr
     SLANG_UNUSED(descs);
     SLANG_UNUSED(descCount);
     return SLANG_E_NOT_AVAILABLE;
-}
-
-
-Result Device::getShaderCacheStats(size_t* outCacheHitCount, size_t* outCacheMissCount, size_t* outCacheSize)
-{
-    if (outCacheHitCount)
-        *outCacheHitCount = m_shaderCacheHits;
-    if (outCacheMissCount)
-        *outCacheMissCount = m_shaderCacheMisses;
-    if (outCacheSize)
-        *outCacheSize = m_shaderCache.getSize();
-    return SLANG_OK;
 }
 
 Result Device::getShaderObjectLayout(

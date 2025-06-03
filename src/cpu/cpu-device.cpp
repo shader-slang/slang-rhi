@@ -58,6 +58,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     ));
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    m_queue->setInternalReferenceCount(1);
 
     return SLANG_OK;
 }
@@ -94,7 +95,7 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    RefPtr<ShaderProgramImpl> program = new ShaderProgramImpl();
+    RefPtr<ShaderProgramImpl> program = new ShaderProgramImpl(this);
     program->init(desc);
     auto slangGlobalScope = program->linkedProgram;
     if (slangGlobalScope)

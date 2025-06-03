@@ -362,6 +362,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
 
@@ -444,7 +445,7 @@ Result DeviceImpl::createShaderProgram(
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
-    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl();
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
     shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
     returnComPtr(outProgram, shaderProgram);

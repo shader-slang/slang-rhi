@@ -143,11 +143,13 @@ public:
     virtual const char* getCapabilityName(Capability capability) override;
 
     Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
-    Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
     void enableDebugLayers() override;
+    Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
+
+    Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;
+
     Result reportLiveObjects() override;
-    Result setTaskPoolWorkerCount(uint32_t count) override;
-    Result setTaskScheduler(ITaskScheduler* scheduler) override;
+    Result setTaskPool(ITaskPool* scheduler) override;
 
     static RHI* getInstance()
     {
@@ -368,6 +370,25 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
     return resultCode;
 }
 
+Result RHI::createBlob(const void* data, size_t size, ISlangBlob** outBlob)
+{
+    ComPtr<ISlangBlob> blob;
+    if (data)
+    {
+        blob = OwnedBlob::create(data, size);
+    }
+    else
+    {
+        blob = OwnedBlob::create(size);
+    }
+    if (!blob)
+    {
+        return SLANG_FAIL;
+    }
+    returnComPtr(outBlob, blob);
+    return SLANG_OK;
+}
+
 Result RHI::reportLiveObjects()
 {
 #if SLANG_RHI_ENABLE_D3D11 | SLANG_RHI_ENABLE_D3D12
@@ -376,14 +397,9 @@ Result RHI::reportLiveObjects()
     return SLANG_OK;
 }
 
-Result RHI::setTaskPoolWorkerCount(uint32_t count)
+Result RHI::setTaskPool(ITaskPool* taskPool)
 {
-    return setGlobalTaskPoolWorkerCount(count);
-}
-
-Result RHI::setTaskScheduler(ITaskScheduler* scheduler)
-{
-    return setGlobalTaskScheduler(scheduler);
+    return setGlobalTaskPool(taskPool);
 }
 
 bool isDebugLayersEnabled()

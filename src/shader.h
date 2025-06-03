@@ -6,6 +6,7 @@
 #include "core/short_vector.h"
 
 #include "rhi-shared-fwd.h"
+#include "device-child.h"
 
 #include <unordered_map>
 
@@ -31,7 +32,7 @@ struct SpecializationKey
     };
 };
 
-class ShaderProgram : public IShaderProgram, public ComObject
+class ShaderProgram : public IShaderProgram, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -54,6 +55,11 @@ public:
     bool m_compiledShaders = false;
 
     std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
+
+    ShaderProgram(Device* device)
+        : DeviceChild(device)
+    {
+    }
 
     void init(const ShaderProgramDesc& desc);
 
