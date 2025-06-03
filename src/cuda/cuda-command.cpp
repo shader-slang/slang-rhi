@@ -500,7 +500,7 @@ void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass
 #if SLANG_RHI_ENABLE_OPTIX
     m_rayTracingPassActive = true;
 #else
-    NOT_SUPPORTED(beginRayTracingPass);
+    NOT_SUPPORTED(S_CommandEncoder_beginRayTracingPass);
 #endif
 }
 
@@ -509,8 +509,6 @@ void CommandExecutor::cmdEndRayTracingPass(const commands::EndRayTracingPass& cm
     SLANG_UNUSED(cmd);
 #if SLANG_RHI_ENABLE_OPTIX
     m_rayTracingPassActive = false;
-#else
-    NOT_SUPPORTED(endRayTracingPass);
 #endif
 }
 
@@ -527,7 +525,6 @@ void CommandExecutor::cmdSetRayTracingState(const commands::SetRayTracingState& 
     m_rayTracingStateValid = m_rayTracingPipeline && m_bindingData && m_shaderTable;
 #else
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(setRayTracingState);
 #endif
 }
 
@@ -554,7 +551,7 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
     ));
 #else
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(dispatchRays);
+    NOT_SUPPORTED(S_RayTracingPassEncoder_dispatchRays);
 #endif
 }
 
@@ -597,7 +594,7 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
     ));
 #else  // SLANG_RHI_ENABLE_OPTIX
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(buildAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_buildAccelerationStructure);
 #endif // SLANG_RHI_ENABLE_OPTIX
 }
 
@@ -646,7 +643,7 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
     }
 #else  // SLANG_RHI_ENABLE_OPTIX
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(copyAccelerationStructure);
+    NOT_SUPPORTED(S_CommandEncoder_copyAccelerationStructure);
 #endif // SLANG_RHI_ENABLE_OPTIX
 }
 
