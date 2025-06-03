@@ -45,17 +45,11 @@ Result BindlessDescriptorSet::initialize()
     {
         VkDescriptorPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
         static_vector<VkDescriptorPoolSize, 16> poolSizes;
+        poolSizes.push_back(
+            {VK_DESCRIPTOR_TYPE_MUTABLE_EXT,
+             m_desc.bufferCount + m_desc.textureCount + m_desc.accelerationStructureCount}
+        );
         poolSizes.push_back({VK_DESCRIPTOR_TYPE_SAMPLER, m_desc.samplerCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, m_desc.textureCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_desc.textureCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, m_desc.bufferCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, m_desc.bufferCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_desc.bufferCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_desc.bufferCount});
-        if (api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-        {
-            poolSizes.push_back({VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, m_desc.accelerationStructureCount});
-        }
         createInfo.maxSets = 1;
         createInfo.poolSizeCount = (uint32_t)poolSizes.size();
         createInfo.pPoolSizes = poolSizes.data();
