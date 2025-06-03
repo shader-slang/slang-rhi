@@ -407,7 +407,7 @@ struct VulkanExtendedFeatureProperties
 
     // Shader subgroup rotate features
     VkPhysicalDeviceShaderSubgroupRotateFeatures shaderSubgroupRotateFeatures = {
-       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR
     };
 };
 
