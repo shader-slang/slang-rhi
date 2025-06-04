@@ -29,6 +29,7 @@ jobs:
           # Builds running on self-hosted runners (build + tests)
           - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
           - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
+          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", runs-on: { group: gcp, labels: [Windows, X64] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           # Builds running on GitHub hosted runners (build + tests)
@@ -36,7 +37,6 @@ jobs:
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", runs-on: macos-latest }
           # Builds running on GitHub hosted runners (build only)
           - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", runs-on: windows-latest }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", runs-on: windows-latest }
           - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
           - { os: windows, platform: "aarch64", compiler: msvc, preset: default, runs-on: windows-latest }
           - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
@@ -68,8 +68,21 @@ jobs:
         run: cmake --build build --config ${{matrix.config}}
 
       - name: Unit Tests
-        if: contains(matrix.flags, 'unit-test')
-        run: ctest --test-dir build --build-config ${{matrix.config}} --verbose
+        if: contains(matrix.flags, 'unit-test') && matrix.runs-on.group != 'gcp'
+        run: |
+          ctest --test-dir build --build-config ${{matrix.config}} --verbose
+
+      - name: Unit Tests (Windows GCP)
+        if: contains(matrix.flags, 'unit-test') && matrix.os == 'windows' && matrix.runs-on.group == 'gcp'
+        run: |
+          $testExe = Get-ChildItem -Path . -Recurse -Filter "slang-rhi-tests.exe" | Select-Object -First 1
+          if ($testExe) {
+              & $testExe.FullName -tce=ray-tracing*
+          } else {
+              Write-Error "Could not find slang-rhi-tests.exe"
+              exit 1
+          }
+        shell: powershell
 
       - name: Coverage Report
         if: contains(matrix.flags, 'coverage')
