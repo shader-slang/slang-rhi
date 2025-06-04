@@ -257,20 +257,20 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     case BindingType::Buffer:
     case BindingType::BufferWithCounter:
     {
-        Buffer* buffer = checked_cast<Buffer*>(binding.resource);
+        Buffer* buffer = checked_cast<Buffer*>(binding.resource.get());
         if (!buffer)
             return SLANG_E_INVALID_ARG;
         slot.type = BindingType::Buffer;
         slot.resource = buffer;
         if (binding.type == BindingType::BufferWithCounter)
-            slot.resource2 = checked_cast<Buffer*>(binding.resource2);
+            slot.resource2 = checked_cast<Buffer*>(binding.resource2.get());
         slot.format = buffer->m_desc.format;
         slot.bufferRange = buffer->resolveBufferRange(binding.bufferRange);
         break;
     }
     case BindingType::Texture:
     {
-        TextureView* textureView = checked_cast<TextureView*>(binding.resource);
+        TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
         if (!textureView)
             return SLANG_E_INVALID_ARG;
         slot.type = BindingType::Texture;
@@ -279,7 +279,7 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     }
     case BindingType::Sampler:
     {
-        Sampler* sampler = checked_cast<Sampler*>(binding.resource);
+        Sampler* sampler = checked_cast<Sampler*>(binding.resource.get());
         if (!sampler)
             return SLANG_E_INVALID_ARG;
         slot.type = BindingType::Sampler;
@@ -288,7 +288,7 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     }
     case BindingType::AccelerationStructure:
     {
-        AccelerationStructure* accelerationStructure = checked_cast<AccelerationStructure*>(binding.resource);
+        AccelerationStructure* accelerationStructure = checked_cast<AccelerationStructure*>(binding.resource.get());
         if (!accelerationStructure)
             return SLANG_E_INVALID_ARG;
         slot.type = BindingType::AccelerationStructure;
@@ -297,8 +297,8 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     }
     case BindingType::CombinedTextureSampler:
     {
-        TextureView* textureView = checked_cast<TextureView*>(binding.resource);
-        Sampler* sampler = checked_cast<Sampler*>(binding.resource2);
+        TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
+        Sampler* sampler = checked_cast<Sampler*>(binding.resource2.get());
         if (!textureView || !sampler)
             return SLANG_E_INVALID_ARG;
         slot.type = BindingType::CombinedTextureSampler;
