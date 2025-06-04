@@ -243,8 +243,8 @@ Result createNullDescriptor(
         cbvDesc.BufferLocation = 0;
         cbvDesc.SizeInBytes = 0;
         d3dDevice->CreateConstantBufferView(&cbvDesc, destDescriptor);
+        break;
     }
-    break;
     case slang::BindingType::MutableRawBuffer:
     {
         D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
@@ -252,16 +252,16 @@ Result createNullDescriptor(
         uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
         uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
         d3dDevice->CreateUnorderedAccessView(nullptr, nullptr, &uavDesc, destDescriptor);
+        break;
     }
-    break;
     case slang::BindingType::MutableTypedBuffer:
     {
         D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
         uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         d3dDevice->CreateUnorderedAccessView(nullptr, nullptr, &uavDesc, destDescriptor);
+        break;
     }
-    break;
     case slang::BindingType::RawBuffer:
     {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -270,8 +270,8 @@ Result createNullDescriptor(
         srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         d3dDevice->CreateShaderResourceView(nullptr, &srvDesc, destDescriptor);
+        break;
     }
-    break;
     case slang::BindingType::TypedBuffer:
     {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -279,8 +279,8 @@ Result createNullDescriptor(
         srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         d3dDevice->CreateShaderResourceView(nullptr, &srvDesc, destDescriptor);
+        break;
     }
-    break;
     case slang::BindingType::Texture:
     {
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -319,8 +319,8 @@ Result createNullDescriptor(
             return SLANG_OK;
         }
         d3dDevice->CreateShaderResourceView(nullptr, &srvDesc, destDescriptor);
+        break;
     }
-    break;
     case slang::BindingType::MutableTexture:
     {
         D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
@@ -350,8 +350,18 @@ Result createNullDescriptor(
             return SLANG_OK;
         }
         d3dDevice->CreateUnorderedAccessView(nullptr, nullptr, &uavDesc, destDescriptor);
+        break;
     }
-    break;
+    case slang::BindingType::RayTracingAccelerationStructure:
+    {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.RaytracingAccelerationStructure.Location = 0;
+        d3dDevice->CreateShaderResourceView(nullptr, &srvDesc, destDescriptor);
+        break;
+    }
     default:
         break;
     }
