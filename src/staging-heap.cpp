@@ -7,7 +7,7 @@ namespace rhi {
 
 const std::thread::id NO_THREAD_ID;
 
-void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryType)
+void StagingHeap::initialize(IDevice* device, Size pageSize, MemoryType memoryType)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_device = device;
@@ -373,7 +373,7 @@ void StagingHeap::Page::checkConsistency()
     SLANG_RHI_ASSERT(offset == m_totalCapacity);
 }
 
-Result StagingHeap::Page::map(Device* device)
+Result StagingHeap::Page::map(IDevice* device)
 {
     SLANG_RHI_ASSERT(!m_mapped);
     return device->mapBuffer(
@@ -383,7 +383,7 @@ Result StagingHeap::Page::map(Device* device)
     );
 }
 
-Result StagingHeap::Page::unmap(Device* device)
+Result StagingHeap::Page::unmap(IDevice* device)
 {
     SLANG_RHI_ASSERT(m_mapped);
     SLANG_RETURN_ON_FAIL(device->unmapBuffer(m_buffer));

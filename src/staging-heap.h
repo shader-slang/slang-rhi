@@ -69,10 +69,10 @@ public:
         std::thread::id getLockedToThread() const { return m_locked_to_thread; }
 
         // Map page
-        Result map(Device* device);
+        Result map(IDevice* device);
 
         // Unmap page
-        Result unmap(Device* device);
+        Result unmap(IDevice* device);
 
         // Debug check consistency of page's heap.
         void checkConsistency();
@@ -129,7 +129,7 @@ public:
     };
 
     // Initialize with device pointer.
-    void initialize(Device* device, Size pageSize, MemoryType memoryType);
+    void initialize(IDevice* device, Size pageSize, MemoryType memoryType);
 
     // Attempt to cleanup and check no allocations remain
     void release();
@@ -194,7 +194,7 @@ public:
     Result unmap(const Allocation& allocation);
 
 private:
-    Device* m_device = nullptr;
+    IDevice* m_device = nullptr;
     int m_nextPageId = 1;
     Size m_totalCapacity = 0;
     Size m_totalUsed = 0;
