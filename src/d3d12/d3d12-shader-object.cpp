@@ -467,15 +467,22 @@ Result BindingDataBuilder::bindAsValue(
                 else
                 {
                     SLANG_RHI_ASSERT(resourceIndex + i < descriptorSet.resources.count);
+                    D3D12_CPU_DESCRIPTOR_HANDLE descriptor = {};
                     if (as)
                     {
-                        d3dDevice->CopyDescriptorsSimple(
-                            1,
-                            descriptorSet.resources.getCpuHandle(resourceIndex + i),
-                            as->m_descriptor.cpuHandle,
-                            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
-                        );
+                        descriptor = as->m_descriptor.cpuHandle;
                     }
+                    else
+                    {
+                        descriptor =
+                            m_device->getNullDescriptor(bindingRangeInfo.bindingType, bindingRangeInfo.resourceShape);
+                    }
+                    d3dDevice->CopyDescriptorsSimple(
+                        1,
+                        descriptorSet.resources.getCpuHandle(resourceIndex + i),
+                        descriptor,
+                        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+                    );
                 }
             }
             break;
