@@ -191,6 +191,17 @@ ComPtr<IDevice> createTestingDevice(
 
 void releaseCachedDevices();
 
+struct DeviceAvailabilityResult
+{
+    bool available;
+    std::string error;
+    std::string debugCallbackOutput;
+    std::string diagnostics;
+    ComPtr<IDevice> device;
+};
+
+DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType);
+
 bool isDeviceTypeAvailable(DeviceType deviceType);
 
 bool isSwiftShaderDevice(IDevice* device);
