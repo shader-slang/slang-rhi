@@ -67,6 +67,7 @@ private:
 public:
     RefObject()
         : referenceCount(0)
+        , internalReferenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
 #if SLANG_RHI_DEBUG
@@ -76,6 +77,7 @@ public:
 
     RefObject(const RefObject&)
         : referenceCount(0)
+        , internalReferenceCount(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
 #if SLANG_RHI_DEBUG
