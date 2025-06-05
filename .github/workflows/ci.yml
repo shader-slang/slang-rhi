@@ -1,11 +1,23 @@
-name: CI
+name: ci
 
 on:
   workflow_dispatch:
-  pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "LICENSES/**"
+      - "LICENSE"
+      - "**.md"
+      - .github/workflows/ci-gcp.yml
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "LICENSES/**"
+      - "LICENSE"
+      - "**.md"
+      - .github/workflows/ci-gcp.yml
 
 jobs:
   build:
