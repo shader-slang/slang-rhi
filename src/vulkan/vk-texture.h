@@ -17,7 +17,7 @@ public:
     ~TextureImpl();
 
     VkImage m_image = VK_NULL_HANDLE;
-    VkFormat m_vkformat = VK_FORMAT_R8G8B8A8_UNORM;
+    VkFormat m_vkformat = VK_FORMAT_UNDEFINED;
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
     bool m_isWeakImageReference = false;
 
