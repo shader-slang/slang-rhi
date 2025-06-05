@@ -11,8 +11,8 @@ public:
     ~TextureImpl();
 
     ComPtr<ID3D11Resource> m_resource;
-    DXGI_FORMAT m_format;
-    bool m_isTypeless;
+    DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
+    bool m_isTypeless = false;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 

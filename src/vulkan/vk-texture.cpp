@@ -213,8 +213,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
     texture->m_vkformat = format;
-    // Create the image
 
+    // Create the image
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     switch (desc.type)
     {

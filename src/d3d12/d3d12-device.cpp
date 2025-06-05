@@ -1140,6 +1140,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     texture->m_format = resourceDesc.Format;
     texture->m_isTypeless = isTypeless;
+    texture->m_defaultState = D3DUtil::getResourceState(desc.defaultState);
 
     // Create the target resource
     {
@@ -1228,6 +1229,18 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
     {
         return SLANG_FAIL;
     }
+
+    bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
+    if (isDepthFormat(desc.format) &&
+        (is_set(desc.usage, TextureUsage::ShaderResource) || is_set(desc.usage, TextureUsage::UnorderedAccess)))
+    {
+        isTypeless = true;
+    }
+
+    texture->m_format = isTypeless ? D3DUtil::getFormatMapping(desc.format).typelessFormat
+                                   : D3DUtil::getFormatMapping(desc.format).rtvFormat;
+    texture->m_isTypeless = isTypeless;
+    texture->m_defaultState = D3DUtil::getResourceState(desc.defaultState);
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;
