@@ -12,7 +12,7 @@ public:
 
     D3D12Resource m_resource;
     DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
-    bool m_isTypeless = false;
+    bool m_isTypeless = true;
     D3D12_RESOURCE_STATES m_defaultState = D3D12_RESOURCE_STATE_COMMON;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
