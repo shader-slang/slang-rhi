@@ -39,6 +39,8 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
         textureDesc.defaultState = ResourceState::Present;
         RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
         texture->m_resource.setResource(d3dResource.get());
+        texture->m_format = D3DUtil::getFormatMapping(textureDesc.format).rtvFormat;
+        texture->m_isTypeless = false;
         texture->m_defaultState = D3D12_RESOURCE_STATE_PRESENT;
         m_textures.push_back(texture);
 

@@ -6,7 +6,6 @@ namespace rhi::d3d12 {
 
 TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
     : Texture(device, desc)
-    , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
 {
 }
 
