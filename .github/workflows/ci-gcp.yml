@@ -77,14 +77,14 @@ jobs:
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test') && matrix.runs-on.group != 'gcp'
         run: |
-          ctest --test-dir build --build-config ${{matrix.config}} --verbose
+          build/${{matrix.config}}/slang-rhi-tests -check-devices
 
       - name: Unit Tests (Windows GCP)
         if: contains(matrix.flags, 'unit-test') && matrix.os == 'windows' && matrix.runs-on.group == 'gcp'
         run: |
           $testExe = Get-ChildItem -Path . -Recurse -Filter "slang-rhi-tests.exe" | Select-Object -First 1
           if ($testExe) {
-              & $testExe.FullName -tce=ray-tracing*
+              & $testExe.FullName -check-devices -tce=ray-tracing*
           } else {
               Write-Error "Could not find slang-rhi-tests.exe"
               exit 1
