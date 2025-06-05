@@ -206,7 +206,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, selectedDeviceIndex), this);
 
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxCreate(&m_ctx.context, 0, m_ctx.device + 10), this);
 
     SLANG_CUDA_CTX_SCOPE(this);
 

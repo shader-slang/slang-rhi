@@ -3,12 +3,24 @@
 #include <mutex>
 #include <cstdarg>
 
+#include "testing.h"
+
 namespace doctest {
 
 #define LOCK() std::lock_guard<std::mutex> lock(mutex);
 
 struct CustomReporter : public IReporter
 {
+    struct Options
+    {
+        bool checkDevices = false;
+    };
+    static Options& options()
+    {
+        static Options opts;
+        return opts;
+    }
+
     // caching pointers/references to objects of these types - safe to do
     std::ostream& stream;
     const ContextOptions& opt;
@@ -37,6 +49,22 @@ struct CustomReporter : public IReporter
         LOCK();
         stream << Color::None;
         consoleReporter.test_run_start();
+
+        if (options().checkDevices)
+        {
+            printf("Checking for available devices:\n");
+            for (rhi::DeviceType deviceType : ALL_DEVICE_TYPES)
+            {
+                std::string error;
+                printf("  %s: ", rhi::getRHI()->getDeviceTypeName(deviceType));
+                bool available = rhi::testing::isDeviceTypeAvailable(deviceType, &error);
+                if (available) {
+                    printf("supported\n");
+                } else {
+                    printf("not supported (%s)\n", error.c_str());
+                }
+            }
+        }
     }
 
     void test_run_end(const TestRunStats& in) override

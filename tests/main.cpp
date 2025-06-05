@@ -33,6 +33,16 @@ int main(int argc, char** argv)
     rhi::getRHI()->enableDebugLayers();
 #endif
 
+    // Pass extra command line arguments to the custom reporter.
+    auto& options = doctest::CustomReporter::options();
+    for (int i = 1; i < argc; ++i)
+    {
+        if (strcmp(argv[i], "-check-devices") == 0)
+        {
+            options.checkDevices = true;
+        }
+    }
+
     int result = 1;
     {
         doctest::Context context(argc, argv);
