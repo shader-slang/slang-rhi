@@ -213,7 +213,7 @@ private:
             if (result.available)
             {
                 color(Color::Green);
-                printf("supported\n\n");
+                printf("supported\n");
                 color(Color::None);
                 printDeviceInfo(result.device);
             }
