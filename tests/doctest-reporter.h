@@ -203,6 +203,7 @@ private:
 
     void checkDevices()
     {
+        printSeparator();
         printf("Checking for available devices:\n");
         for (rhi::DeviceType deviceType : ALL_DEVICE_TYPES)
         {
@@ -219,15 +220,15 @@ private:
             else
             {
                 color(Color::Yellow);
-                printf("not supported (%s)\n\n", result.error.c_str());
+                printf("not supported (%s)\n", result.error.c_str());
                 color(Color::None);
             }
             if (result.debugCallbackOutput.size() > 0)
                 printf("Debug callback output: %s\n", result.debugCallbackOutput.c_str());
             if (result.diagnostics.size() > 0)
                 printf("Slang diagnostics: %s\n", result.diagnostics.c_str());
-            printf("\n");
         }
+        printSeparator();
     }
 
     void printSeparator()
