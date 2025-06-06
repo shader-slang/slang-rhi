@@ -89,6 +89,34 @@ inline int getShaderModelFromProfileName(const char* name)
     return -1;
 }
 
+static void validationMessageCallback(
+    D3D12_MESSAGE_CATEGORY Category,
+    D3D12_MESSAGE_SEVERITY Severity,
+    D3D12_MESSAGE_ID ID,
+    LPCSTR pDescription,
+    void* pContext
+)
+{
+    DeviceImpl* device = static_cast<DeviceImpl*>(pContext);
+
+    DebugMessageType type = DebugMessageType::Info;
+    switch (Severity)
+    {
+    case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+    case D3D12_MESSAGE_SEVERITY_ERROR:
+        type = DebugMessageType::Error;
+        break;
+    case D3D12_MESSAGE_SEVERITY_WARNING:
+        type = DebugMessageType::Warning;
+        break;
+    case D3D12_MESSAGE_SEVERITY_INFO:
+    case D3D12_MESSAGE_SEVERITY_MESSAGE:
+        type = DebugMessageType::Info;
+        break;
+    }
+
+    device->m_debugCallback->handleMessage(type, DebugMessageSource::Driver, pDescription);
+}
 
 #if SLANG_RHI_ENABLE_NVAPI
 // Raytracing validation callback
@@ -209,6 +237,19 @@ Result DeviceImpl::_createDevice(
                 infoQueueFilter.DenyList.pIDList = messageIds;
 
                 infoQueue->PushStorageFilter(&infoQueueFilter);
+            }
+        }
+        ComPtr<ID3D12InfoQueue1> infoQueue1;
+        if (SLANG_SUCCEEDED(device->QueryInterface(infoQueue1.writeRef())))
+        {
+            if (!SLANG_SUCCEEDED(infoQueue1->RegisterMessageCallback(
+                    validationMessageCallback,
+                    D3D12_MESSAGE_CALLBACK_FLAG_NONE,
+                    this,
+                    &m_validationMessageCallbackCookie
+                )))
+            {
+                printWarning("Failed to register D3D12 validation message callback.");
             }
         }
     }
@@ -1869,6 +1910,16 @@ DeviceImpl::~DeviceImpl()
     if (m_nullSamplerDescriptor)
     {
         m_cpuSamplerHeap->free(m_nullSamplerDescriptor);
+    }
+
+    if (m_validationMessageCallbackCookie)
+    {
+        ComPtr<ID3D12InfoQueue1> infoQueue1;
+        if (SLANG_SUCCEEDED(m_device->QueryInterface(infoQueue1.writeRef())))
+        {
+            infoQueue1->UnregisterMessageCallback(m_validationMessageCallbackCookie);
+            m_validationMessageCallbackCookie = 0;
+        }
     }
 }
 
