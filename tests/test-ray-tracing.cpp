@@ -376,10 +376,10 @@ struct RayTracingTestA : BaseRayTracingTest
         renderFrame();
 
         ExpectedPixel expectedPixels[] = {
-            EXPECTED_PIXEL(64, 64, 0.f, 1.f, 1.f, 0.f), // Triangle 1
-            EXPECTED_PIXEL(63, 64, 1.f, 0.f, 1.f, 0.f), // Triangle 2
-            EXPECTED_PIXEL(64, 63, 1.f, 1.f, 0.f, 0.f), // Triangle 3
-            EXPECTED_PIXEL(63, 63, 0.f, 0.f, 0.f, 0.f), // Miss
+            EXPECTED_PIXEL(64, 64, 1.f, 0.f, 0.f, 1.f), // Triangle 1
+            EXPECTED_PIXEL(63, 64, 0.f, 1.f, 0.f, 1.f), // Triangle 2
+            EXPECTED_PIXEL(64, 63, 0.f, 0.f, 1.f, 1.f), // Triangle 3
+            EXPECTED_PIXEL(63, 63, 1.f, 1.f, 1.f, 1.f), // Miss
             // Corners should all be misses
             EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss
             EXPECTED_PIXEL(127, 0, 1.f, 1.f, 1.f, 1.f),   // Miss
