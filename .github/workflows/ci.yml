@@ -81,7 +81,7 @@ jobs:
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
-        run: ctest --test-dir build --build-config ${{matrix.config}} --verbose
+        run: build/${{matrix.config}}/slang-rhi-tests -check-devices
 
       - name: Coverage Report
         if: contains(matrix.flags, 'coverage')

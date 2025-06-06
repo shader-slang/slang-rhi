@@ -87,6 +87,51 @@ void writeFile(std::string_view path, const void* data, size_t size)
     file.write((const char*)data, size);
 }
 
+class CaptureDebugCallback : public IDebugCallback
+{
+public:
+    std::string output;
+
+    void clear() { output.clear(); }
+
+    virtual SLANG_NO_THROW void SLANG_MCALL
+    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    {
+        switch (type)
+        {
+        case DebugMessageType::Info:
+            output += "[Info] ";
+            break;
+        case DebugMessageType::Warning:
+            output += "[Warning] ";
+            break;
+        case DebugMessageType::Error:
+            output += "[Error] ";
+            break;
+        default:
+            break;
+        }
+        switch (source)
+        {
+        case DebugMessageSource::Layer:
+            output += "[Layer] ";
+            break;
+        case DebugMessageSource::Driver:
+            output += "[Driver] ";
+            break;
+        case DebugMessageSource::Slang:
+            output += "[Slang] ";
+            break;
+        default:
+            break;
+        }
+        output += message;
+        output += "\n";
+    }
+};
+
+static CaptureDebugCallback sCaptureDebugCallback;
+
 class DebugCallback : public IDebugCallback
 {
 public:
@@ -592,19 +637,25 @@ inline const char* deviceTypeToString(DeviceType deviceType)
     }
 }
 
-inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
+static std::map<DeviceType, bool> sDeviceTypeAvailable;
+
+DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 {
 #define RETURN_NOT_AVAILABLE(msg)                                                                                      \
     {                                                                                                                  \
-        if (verbose)                                                                                                   \
-            MESSAGE(                                                                                                   \
-                doctest::String(deviceTypeToString(deviceType)),                                                       \
-                " is not available (",                                                                                 \
-                doctest::String(msg),                                                                                  \
-                ")"                                                                                                    \
-            );                                                                                                         \
-        return false;                                                                                                  \
+        result.available = false;                                                                                      \
+        result.error = msg;                                                                                            \
+        result.debugCallbackOutput = sCaptureDebugCallback.output;                                                     \
+        result.diagnostics = diagnostics ? (const char*)diagnostics->getBufferPointer() : "";                          \
+        return result;                                                                                                 \
     }
+
+    DeviceAvailabilityResult result;
+    result.available = true;
+
+    ComPtr<slang::IBlob> diagnostics;
+
+    sCaptureDebugCallback.clear();
 
     if (!rhi::getRHI()->isDeviceTypeSupported(deviceType))
         RETURN_NOT_AVAILABLE("backend not supported");
@@ -620,57 +671,12 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     DeviceDesc desc;
     desc.deviceType = deviceType;
 #if SLANG_RHI_DEBUG
-    desc.debugCallback = &sDebugCallback;
+    desc.debugCallback = &sCaptureDebugCallback;
 #endif
 
-    if (!SLANG_SUCCEEDED(rhi::getRHI()->createDevice(desc, device.writeRef())))
+    rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
+    if (!SLANG_SUCCEEDED(createResult))
         RETURN_NOT_AVAILABLE("failed to create device");
-
-#if SLANG_RHI_DEBUG
-    const DeviceInfo& deviceInfo = device->getInfo();
-    std::string deviceInfoStr;
-    deviceInfoStr += "Device type: ";
-    deviceInfoStr += deviceTypeToString(deviceInfo.deviceType);
-    deviceInfoStr += "\n";
-    deviceInfoStr += "Adapter name: ";
-    deviceInfoStr += deviceInfo.adapterName;
-    deviceInfoStr += "\n";
-    deviceInfoStr += "Adapter LUID: ";
-    for (size_t i = 0; i < sizeof(AdapterLUID); i++)
-    {
-        char hex[3];
-        snprintf(hex, sizeof(hex), "%02x", deviceInfo.adapterLUID.luid[i]);
-        deviceInfoStr += hex;
-    }
-    deviceInfoStr += "\n";
-    {
-        uint32_t featureCount;
-        SLANG_RETURN_ON_FAIL(device->getFeatures(&featureCount, nullptr));
-        std::vector<Feature> features(featureCount);
-        SLANG_RETURN_ON_FAIL(device->getFeatures(&featureCount, features.data()));
-        deviceInfoStr += "Device features:";
-        for (uint32_t i = 0; i < featureCount; i++)
-        {
-            deviceInfoStr += " ";
-            deviceInfoStr += rhi::getRHI()->getFeatureName(features[i]);
-        }
-        deviceInfoStr += "\n";
-    }
-    {
-        uint32_t capabilityCount;
-        SLANG_RETURN_ON_FAIL(device->getCapabilities(&capabilityCount, nullptr));
-        std::vector<Capability> capabilities(capabilityCount);
-        SLANG_RETURN_ON_FAIL(device->getCapabilities(&capabilityCount, capabilities.data()));
-        deviceInfoStr += "Device capabilities:";
-        for (uint32_t i = 0; i < capabilityCount; i++)
-        {
-            deviceInfoStr += " ";
-            deviceInfoStr += rhi::getRHI()->getCapabilityName(capabilities[i]);
-        }
-        deviceInfoStr += "\n";
-    }
-    MESSAGE("Device info:\n", doctest::String(deviceInfoStr.c_str()));
-#endif
 
     // Try compiling a trivial shader.
     ComPtr<slang::ISession> session = device->getSlangSession();
@@ -680,56 +686,48 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     // Load shader module.
     slang::IModule* module = nullptr;
     {
-        ComPtr<slang::IBlob> diagnostics;
         const char* source =
             "[shader(\"compute\")] [numthreads(1,1,1)] void computeMain(uint3 tid : SV_DispatchThreadID) {}";
+        diagnostics.setNull();
         module = session->loadModuleFromSourceString("test", "test", source, diagnostics.writeRef());
-        if (verbose && diagnostics)
-            MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
         if (!module)
-            RETURN_NOT_AVAILABLE("failed to load module");
+            RETURN_NOT_AVAILABLE("failed to shader module");
     }
 
     ComPtr<slang::IEntryPoint> entryPoint;
     if (!SLANG_SUCCEEDED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
-        RETURN_NOT_AVAILABLE("failed to find entry point");
+        RETURN_NOT_AVAILABLE("failed to find shader entry point");
 
     ComPtr<slang::IComponentType> composedProgram;
     {
-        ComPtr<slang::IBlob> diagnostics;
         std::vector<slang::IComponentType*> componentTypes;
         componentTypes.push_back(module);
         componentTypes.push_back(entryPoint);
+        diagnostics.setNull();
         session->createCompositeComponentType(
             componentTypes.data(),
             componentTypes.size(),
             composedProgram.writeRef(),
             diagnostics.writeRef()
         );
-        if (verbose && diagnostics)
-            MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
         if (!composedProgram)
             RETURN_NOT_AVAILABLE("failed to create composite component type");
     }
 
     ComPtr<slang::IComponentType> linkedProgram;
     {
-        ComPtr<slang::IBlob> diagnostics;
+        diagnostics.setNull();
         composedProgram->link(linkedProgram.writeRef(), diagnostics.writeRef());
-        if (verbose && diagnostics)
-            MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
         if (!linkedProgram)
-            RETURN_NOT_AVAILABLE("failed to link program");
+            RETURN_NOT_AVAILABLE("failed to link shader program");
     }
 
     if (deviceType == DeviceType::CPU)
     {
         ComPtr<ISlangSharedLibrary> sharedLibrary;
-        ComPtr<ISlangBlob> diagnostics;
+        diagnostics.setNull();
         auto compileResult =
             linkedProgram->getEntryPointHostCallable(0, 0, sharedLibrary.writeRef(), diagnostics.writeRef());
-        if (verbose && diagnostics)
-            MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
         if (SLANG_FAILED(compileResult))
             RETURN_NOT_AVAILABLE("failed to get entry point host callable");
         auto func = sharedLibrary->findSymbolAddressByName("computeMain");
@@ -740,27 +738,27 @@ inline bool checkDeviceTypeAvailable(DeviceType deviceType, bool verbose = true)
     {
         ComPtr<slang::IBlob> code;
         {
-            ComPtr<slang::IBlob> diagnostics;
+            diagnostics.setNull();
             linkedProgram->getEntryPointCode(0, 0, code.writeRef(), diagnostics.writeRef());
-            if (verbose && diagnostics)
-                MESSAGE(doctest::String((const char*)diagnostics->getBufferPointer()));
             if (!code)
-                RETURN_NOT_AVAILABLE("failed to get entry point code");
+                RETURN_NOT_AVAILABLE("failed to get shader entry point code");
         }
     }
 
-    return true;
+    result.device = device;
+    sDeviceTypeAvailable[deviceType] = true;
+
+    return result;
 }
 
 bool isDeviceTypeAvailable(DeviceType deviceType)
 {
-    static std::map<DeviceType, bool> available;
-    auto it = available.find(deviceType);
-    if (it == available.end())
+    auto it = sDeviceTypeAvailable.find(deviceType);
+    if (it == sDeviceTypeAvailable.end())
     {
-        available[deviceType] = checkDeviceTypeAvailable(deviceType, false);
+        checkDeviceTypeAvailable(deviceType);
     }
-    return available[deviceType];
+    return sDeviceTypeAvailable[deviceType];
 }
 
 bool isSwiftShaderDevice(IDevice* device)
