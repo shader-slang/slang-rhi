@@ -14,19 +14,19 @@ struct Vertex
 static const int kVertexCount = 9;
 static const Vertex kVertexData[kVertexCount] = {
     // Triangle 1
-    {0, 0, 1},
-    {4, 0, 1},
-    {0, 4, 1},
+    {0.f, 0.f, 1.f},
+    {1.f, 0.f, 1.f},
+    {0.f, 1.f, 1.f},
 
     // Triangle 2
-    {-4, 0, 1},
-    {0, 0, 1},
-    {0, 4, 1},
+    {0.f, 0.f, 1.f},
+    {0.f, 1.f, 1.f},
+    {-1.f, 0.f, 1.f},
 
     // Triangle 3
-    {0, 0, 1},
-    {4, 0, 1},
-    {0, -4, 1},
+    {0.f, 0.f, 1.f},
+    {1.f, 0.f, 1.f},
+    {0.f, -1.f, 1.f},
 };
 static const int kIndexCount = 9;
 static const uint32_t kIndexData[kIndexCount] = {
@@ -40,6 +40,20 @@ static const uint32_t kIndexData[kIndexCount] = {
     7,
     8,
 };
+
+struct ExpectedPixel
+{
+    uint32_t pos[2];
+    float color[4];
+};
+
+#define EXPECTED_PIXEL(x, y, r, g, b, a)                                                                               \
+    {                                                                                                                  \
+        {x, y},                                                                                                        \
+        {                                                                                                              \
+            r, g, b, a                                                                                                 \
+        }                                                                                                              \
+    }
 
 struct BaseRayTracingTest
 {
@@ -59,8 +73,8 @@ struct BaseRayTracingTest
     ComPtr<ITexture> resultTexture;
     ComPtr<IShaderTable> shaderTable;
 
-    uint32_t width = 2;
-    uint32_t height = 2;
+    uint32_t width = 128;
+    uint32_t height = 128;
 
     void init(IDevice* device) { this->device = device; }
 
@@ -128,22 +142,22 @@ struct BaseRayTracingTest
 
         BufferDesc vertexBufferDesc;
         vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
-        vertexBufferDesc.usage = BufferUsage::ShaderResource;
-        vertexBufferDesc.defaultState = ResourceState::ShaderResource;
+        vertexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        vertexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
         vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
         REQUIRE(vertexBuffer != nullptr);
 
         BufferDesc indexBufferDesc;
         indexBufferDesc.size = kIndexCount * sizeof(int32_t);
-        indexBufferDesc.usage = BufferUsage::ShaderResource;
-        indexBufferDesc.defaultState = ResourceState::ShaderResource;
+        indexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        indexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
         indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
         REQUIRE(indexBuffer != nullptr);
 
         BufferDesc transformBufferDesc;
         transformBufferDesc.size = sizeof(float) * 12;
-        transformBufferDesc.usage = BufferUsage::ShaderResource;
-        transformBufferDesc.defaultState = ResourceState::ShaderResource;
+        transformBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        transformBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
         float transformData[12] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
         transformBuffer = device->createBuffer(transformBufferDesc, &transformData);
         REQUIRE(transformBuffer != nullptr);
@@ -291,6 +305,7 @@ struct BaseRayTracingTest
         hitGroups[1].hitGroupName = hitgroupNames[1];
         rtpDesc.hitGroups = hitGroups;
         rtpDesc.maxRayPayloadSize = 64;
+        rtpDesc.maxAttributeSizeInBytes = 8;
         rtpDesc.maxRecursion = 2;
         REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));
         REQUIRE(raytracingPipeline != nullptr);
@@ -309,17 +324,29 @@ struct BaseRayTracingTest
         REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
     }
 
-    void checkTestResults(float* expectedResult, uint32_t count)
+    void checkTestResults(span<ExpectedPixel> expectedPixels)
     {
         ComPtr<ISlangBlob> resultBlob;
         SubresourceLayout layout;
         REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &layout));
 #if 0 // for debugging only
-        writeImage("test.hdr", resultBlob, width, height, (uint32_t)layout.rowPitch, (uint32_t)layout.colPitch);
+        writeImage("test.hdr", resultBlob, width, height, layout.rowPitch, layout.colPitch);
 #endif
-        auto buffer = removePadding(resultBlob, width, height, layout.rowPitch, layout.colPitch);
-        auto actualData = (float*)buffer.data();
-        CHECK(memcmp(actualData, expectedResult, count * sizeof(float)) == 0);
+
+        for (const auto& ep : expectedPixels)
+        {
+            uint32_t x = ep.pos[0];
+            uint32_t y = ep.pos[1];
+            const float* color = reinterpret_cast<const float*>(
+                static_cast<const uint8_t*>(resultBlob->getBufferPointer()) + y * layout.rowPitch + x * layout.colPitch
+            );
+            CAPTURE(x);
+            CAPTURE(y);
+            CHECK_EQ(color[0], ep.color[0]);
+            CHECK_EQ(color[1], ep.color[1]);
+            CHECK_EQ(color[2], ep.color[2]);
+            CHECK_EQ(color[3], ep.color[3]);
+        }
     }
 };
 
@@ -332,6 +359,8 @@ struct RayTracingTestA : BaseRayTracingTest
         auto passEncoder = commandEncoder->beginRayTracingPass();
         auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
         auto cursor = ShaderCursor(rootObject);
+        uint32_t dims[2] = {width, height};
+        cursor["dims"].setData(dims, sizeof(dims));
         cursor["resultTexture"].setBinding(resultTexture);
         cursor["sceneBVH"].setBinding(TLAS);
         passEncoder->dispatchRays(0, width, height, 1);
@@ -346,8 +375,18 @@ struct RayTracingTestA : BaseRayTracingTest
         createRequiredResources();
         renderFrame();
 
-        float expectedResult[16] = {1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1};
-        checkTestResults(expectedResult, 16);
+        ExpectedPixel expectedPixels[] = {
+            EXPECTED_PIXEL(64, 64, 1.f, 0.f, 0.f, 1.f), // Triangle 1
+            EXPECTED_PIXEL(63, 64, 0.f, 1.f, 0.f, 1.f), // Triangle 2
+            EXPECTED_PIXEL(64, 63, 0.f, 0.f, 1.f, 1.f), // Triangle 3
+            EXPECTED_PIXEL(63, 63, 1.f, 1.f, 1.f, 1.f), // Miss
+            // Corners should all be misses
+            EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss
+            EXPECTED_PIXEL(127, 0, 1.f, 1.f, 1.f, 1.f),   // Miss
+            EXPECTED_PIXEL(127, 127, 1.f, 1.f, 1.f, 1.f), // Miss
+            EXPECTED_PIXEL(0, 127, 1.f, 1.f, 1.f, 1.f),   // Miss
+        };
+        checkTestResults(expectedPixels);
     }
 };
 
@@ -360,6 +399,8 @@ struct RayTracingTestB : BaseRayTracingTest
         auto passEncoder = commandEncoder->beginRayTracingPass();
         auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
         auto cursor = ShaderCursor(rootObject);
+        uint32_t dims[2] = {width, height};
+        cursor["dims"].setData(dims, sizeof(dims));
         cursor["resultTexture"].setBinding(resultTexture);
         cursor["sceneBVH"].setBinding(TLAS);
         passEncoder->dispatchRays(1, width, height, 1);
@@ -374,8 +415,18 @@ struct RayTracingTestB : BaseRayTracingTest
         createRequiredResources();
         renderFrame();
 
-        float expectedResult[16] = {0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1};
-        checkTestResults(expectedResult, 16);
+        ExpectedPixel expectedPixels[] = {
+            EXPECTED_PIXEL(64, 64, 0.f, 1.f, 1.f, 1.f), // Triangle 1
+            EXPECTED_PIXEL(63, 64, 1.f, 0.f, 1.f, 1.f), // Triangle 2
+            EXPECTED_PIXEL(64, 63, 1.f, 1.f, 0.f, 1.f), // Triangle 3
+            EXPECTED_PIXEL(63, 63, 0.f, 0.f, 0.f, 1.f), // Miss
+            // Corners should all be misses
+            EXPECTED_PIXEL(0, 0, 0.f, 0.f, 0.f, 1.f),     // Miss
+            EXPECTED_PIXEL(127, 0, 0.f, 0.f, 0.f, 1.f),   // Miss
+            EXPECTED_PIXEL(127, 127, 0.f, 0.f, 0.f, 1.f), // Miss
+            EXPECTED_PIXEL(0, 127, 0.f, 0.f, 0.f, 1.f),   // Miss
+        };
+        checkTestResults(expectedPixels);
     }
 };
 
