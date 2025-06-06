@@ -298,7 +298,7 @@ endif()
 
 # Allow override of D3D12_SDK_VERSION (can be set in parent CMakeLists.txt)
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)
-    set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_SDK_VERSION" CACHE STRING "AGILITY SDK Version number")
+    set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_SDK_VERSION" CACHE STRING "Agility SDK version number")
 endif()
 
 # Fetch NVAPI
