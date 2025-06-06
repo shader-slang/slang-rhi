@@ -81,5 +81,6 @@ jobs:
 
       - name: Unit Tests (Windows GCP)
         if: contains(matrix.flags, 'unit-test') && matrix.os == 'windows' && matrix.runs-on.group == 'gcp'
-        run: ./slang-rhi-tests -check-devices -tce=ray-tracing*
+        run: ./slang-rhi-tests -check-devices -tce="ray-tracing*,cmd-query-resolve-host"
         working-directory: build/${{matrix.config}}
+        shell: pwsh
