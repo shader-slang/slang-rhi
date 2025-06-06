@@ -213,6 +213,8 @@ public:
 
     void flushValidationMessages();
 
+    DWORD m_validationMessageCallbackCookie = 0;
+
     RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
 
     using NullDescriptorKey = std::pair<slang::BindingType, SlangResourceShape>;
