@@ -43,6 +43,7 @@ endif()
 # Configuration options
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
+option(SLANG_RHI_BUILD_TESTS_WITH_GLFW "Build tests that require GLFW" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
 option(SLANG_RHI_INSTALL "Install library" ON)
@@ -114,7 +115,7 @@ set(SLANG_RHI_FETCH_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/
 
 # Fetch Agility SDK options
 option(SLANG_RHI_FETCH_AGILITY_SDK "Fetch Agility SDK" ON)
-set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.615.1" CACHE STRING "Agility SDK version to fetch")
+set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.616.0" CACHE STRING "Agility SDK version to fetch")
 
 # Fetch NVAPI options
 option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
@@ -395,7 +396,7 @@ elseif(SLANG_RHI_ENABLE_WGPU)
 endif()
 
 # Fetch glfw
-if(SLANG_RHI_BUILD_TESTS OR SLANG_RHI_BUILD_EXAMPLES)
+if((SLANG_RHI_BUILD_TESTS AND SLANG_RHI_BUILD_TESTS_WITH_GLFW) OR SLANG_RHI_BUILD_EXAMPLES)
     FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG master)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -784,12 +785,13 @@ if(SLANG_RHI_BUILD_TESTS)
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
         SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
+        SLANG_RHI_BUILD_TESTS_WITH_GLFW=$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
-    target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi glfw renderdoc)
+    target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
     endif()
