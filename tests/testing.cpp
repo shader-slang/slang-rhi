@@ -144,7 +144,7 @@ public:
             return true;
 
         // Redundant warning about old architectures
-        if (strstr(message, "nvrtc 12.8: nvrtc: warning : Architectures prior to"))
+        if (strstr(message, "nvrtc: warning : Architectures prior to"))
             return true;
 
         return false;

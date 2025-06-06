@@ -195,14 +195,14 @@ static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompi
 
 // CUDA: currently fails due to a slang regression
 // https://github.com/shader-slang/slang/issues/7315
-GPU_TEST_CASE("precompiled-module", ALL & ~CUDA)
+GPU_TEST_CASE("precompiled-module", ALL)
 {
     testPrecompiledModuleImpl(device, false, false);
 }
 
 // CUDA: currently fails due to a slang regression
 // https://github.com/shader-slang/slang/issues/7315
-GPU_TEST_CASE("precompiled-module-mixed", ALL & ~CUDA)
+GPU_TEST_CASE("precompiled-module-mixed", ALL)
 {
     testPrecompiledModuleImpl(device, true, false);
 }
