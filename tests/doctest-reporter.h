@@ -3,12 +3,24 @@
 #include <mutex>
 #include <cstdarg>
 
+#include "testing.h"
+
 namespace doctest {
 
 #define LOCK() std::lock_guard<std::mutex> lock(mutex);
 
 struct CustomReporter : public IReporter
 {
+    struct Options
+    {
+        bool checkDevices = false;
+    };
+    static Options& options()
+    {
+        static Options opts;
+        return opts;
+    }
+
     // caching pointers/references to objects of these types - safe to do
     std::ostream& stream;
     const ContextOptions& opt;
@@ -37,6 +49,11 @@ struct CustomReporter : public IReporter
         LOCK();
         stream << Color::None;
         consoleReporter.test_run_start();
+
+        if (options().checkDevices)
+        {
+            checkDevices();
+        }
     }
 
     void test_run_end(const TestRunStats& in) override
@@ -182,6 +199,74 @@ private:
     {
         if (cursorPos != 0)
             print("\n");
+    }
+
+    void checkDevices()
+    {
+        printSeparator();
+        printf("Checking for available devices:\n");
+        for (rhi::DeviceType deviceType : ALL_DEVICE_TYPES)
+        {
+            printSeparator();
+            printf("%s: ", rhi::getRHI()->getDeviceTypeName(deviceType));
+            rhi::testing::DeviceAvailabilityResult result = rhi::testing::checkDeviceTypeAvailable(deviceType);
+            if (result.available)
+            {
+                color(Color::Green);
+                printf("supported\n");
+                color(Color::None);
+                printDeviceInfo(result.device);
+            }
+            else
+            {
+                color(Color::Yellow);
+                printf("not supported (%s)\n", result.error.c_str());
+                color(Color::None);
+            }
+            if (result.debugCallbackOutput.size() > 0)
+                printf("Debug callback output: %s\n", result.debugCallbackOutput.c_str());
+            if (result.diagnostics.size() > 0)
+                printf("Slang diagnostics: %s\n", result.diagnostics.c_str());
+        }
+        printSeparator();
+    }
+
+    void printSeparator()
+    {
+        color(Color::Grey);
+        fill(79, '-');
+        printf("\n");
+        color(Color::None);
+    }
+
+    void printDeviceInfo(rhi::IDevice* device)
+    {
+        const rhi::DeviceInfo& deviceInfo = device->getInfo();
+        printf("Adapter Name: %s\n", deviceInfo.adapterName);
+        printf("Adapter LUID: ");
+        for (size_t i = 0; i < sizeof(rhi::AdapterLUID); i++)
+            printf("%02x", deviceInfo.adapterLUID.luid[i]);
+        printf("\n");
+        {
+            uint32_t featureCount;
+            device->getFeatures(&featureCount, nullptr);
+            std::vector<rhi::Feature> features(featureCount);
+            device->getFeatures(&featureCount, features.data());
+            printf("Features:     ");
+            for (uint32_t i = 0; i < featureCount; i++)
+                printf("%s ", rhi::getRHI()->getFeatureName(features[i]));
+            printf("\n");
+        }
+        {
+            uint32_t capabilityCount;
+            device->getCapabilities(&capabilityCount, nullptr);
+            std::vector<rhi::Capability> capabilities(capabilityCount);
+            device->getCapabilities(&capabilityCount, capabilities.data());
+            printf("Capabilities: ");
+            for (uint32_t i = 0; i < capabilityCount; i++)
+                printf("%s ", rhi::getRHI()->getCapabilityName(capabilities[i]));
+            printf("\n");
+        }
     }
 };
 
