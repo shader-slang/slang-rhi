@@ -13,7 +13,6 @@ endif()
 # Add the cmake directory to the module path.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-include(CTest)
 include(CMakeDependentOption)
 include(FetchPackage)
 include(DetermineTargetArchitecture)
@@ -103,7 +102,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_N
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.10.1" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.10.2" CACHE STRING "Slang version to fetch")
 
 # Fetch WinPixEventRuntime options
 option(SLANG_RHI_FETCH_WINPIX "Fetch WinPixEventRuntime" ON)
@@ -794,9 +793,6 @@ if(SLANG_RHI_BUILD_TESTS)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
     endif()
-
-    add_test(NAME slang-rhi-tests COMMAND slang-rhi-tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
-    set_property(TEST slang-rhi-tests PROPERTY ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw")
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
