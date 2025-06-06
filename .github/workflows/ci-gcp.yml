@@ -76,8 +76,8 @@ jobs:
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test') && matrix.runs-on.group != 'gcp'
-        run: |
-          build/${{matrix.config}}/slang-rhi-tests -check-devices
+        run: build/${{matrix.config}}/slang-rhi-tests -check-devices
+        working-directory: build/${{matrix.config}}
 
       - name: Unit Tests (Windows GCP)
         if: contains(matrix.flags, 'unit-test') && matrix.os == 'windows' && matrix.runs-on.group == 'gcp'
@@ -90,3 +90,4 @@ jobs:
               exit 1
           }
         shell: powershell
+        working-directory: build/${{matrix.config}}
