@@ -296,6 +296,11 @@ elseif(SLANG_RHI_ENABLE_AGILITY_SDK)
     message(FATAL_ERROR "Agility SDK not found! Either enable SLANG_RHI_FETCH_AGILITY_SDK or set SLANG_RHI_AGILITY_SDK_DIR to the Agility SDK directory.")
 endif()
 
+# Allow override of D3D12_SDK_VERSION (can be set in parent CMakeLists.txt)
+if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)
+    set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_SDK_VERSION" CACHE STRING "Agility SDK version number")
+endif()
+
 # Fetch NVAPI
 if(SLANG_RHI_FETCH_NVAPI AND SLANG_RHI_ENABLE_NVAPI)
     message(STATUS "Fetching NVAPI ...")
