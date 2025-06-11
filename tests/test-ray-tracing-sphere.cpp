@@ -6,39 +6,12 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-struct float3 {
+struct float3
+{
     float x, y, z;
 };
 
-static const int kPositionCount = 3;
-static const float3 kPositions[kPositionCount] = {
-    {-0.5f, -0.5f, 3.0f},
-    {0.5, -0.5f, 3.0f},
-    {0.0f, 0.5f, 3.0f},
-};
-
-static const int kRadiusCount = 3;
-static const float kRadii[kRadiusCount] = {0.4f, 0.2f, 0.6f};
-
-static const int kIndexCount = 3;
-static const uint32_t kIndexData[kIndexCount] = { 0, 1, 2, };
-
-
-struct ExpectedPixel
-{
-    uint32_t pos[2];
-    float color[4];
-};
-
-#define EXPECTED_PIXEL(x, y, r, g, b, a)                                                                               \
-    {                                                                                                                  \
-        {x, y},                                                                                                        \
-        {                                                                                                              \
-            r, g, b, a                                                                                                 \
-        }                                                                                                              \
-    }
-
-struct RayTracingSphereTest
+struct RayTracingSphereTestBase
 {
     IDevice* device;
 
@@ -47,42 +20,38 @@ struct RayTracingSphereTest
     ComPtr<IRayTracingPipeline> raytracingPipeline;
     ComPtr<IBuffer> positionBuffer;
     ComPtr<IBuffer> radiusBuffer;
-    ComPtr<IBuffer> indexBuffer;
     ComPtr<IBuffer> transformBuffer;
     ComPtr<IBuffer> instanceBuffer;
     ComPtr<IBuffer> BLASBuffer;
     ComPtr<IAccelerationStructure> BLAS;
     ComPtr<IBuffer> TLASBuffer;
     ComPtr<IAccelerationStructure> TLAS;
-    ComPtr<ITexture> resultTexture;
     ComPtr<IShaderTable> shaderTable;
-
-    uint32_t width = 128;
-    uint32_t height = 128;
 
     void init(IDevice* device) { this->device = device; }
 
     // Load and compile shader code from source.
-    Result loadShaderProgram(IDevice* device, IShaderProgram** outProgram)
+    Result loadShaderProgram(IDevice* device, span<const char*> entryPointNames, IShaderProgram** outProgram)
     {
         ComPtr<slang::ISession> slangSession;
         slangSession = device->getSlangSession();
 
         ComPtr<slang::IBlob> diagnosticsBlob;
-        slang::IModule* module = slangSession->loadModule("test-ray-tracing-sphere", diagnosticsBlob.writeRef());
+        slang::IModule* module =
+            slangSession->loadModule("test-ray-tracing-sphere-intersection", diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
             return SLANG_FAIL;
 
         std::vector<slang::IComponentType*> componentTypes;
         componentTypes.push_back(module);
+
         ComPtr<slang::IEntryPoint> entryPoint;
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("rayGenShader", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShader", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShader", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
+        for (const char* entryPointName : entryPointNames)
+        {
+            SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, entryPoint.writeRef()));
+            componentTypes.push_back(entryPoint);
+        }
 
         ComPtr<slang::IComponentType> linkedProgram;
         Result result = slangSession->createCompositeComponentType(
@@ -100,65 +69,43 @@ struct RayTracingSphereTest
         return SLANG_OK;
     }
 
-    void createResultTexture()
-    {
-        TextureDesc resultTextureDesc = {};
-        resultTextureDesc.type = TextureType::Texture2D;
-        resultTextureDesc.mipCount = 1;
-        resultTextureDesc.size.width = width;
-        resultTextureDesc.size.height = height;
-        resultTextureDesc.size.depth = 1;
-        resultTextureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
-        resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
-        resultTextureDesc.format = Format::RGBA32Float;
-        resultTexture = device->createTexture(resultTextureDesc);
-    }
-
-    void createRequiredResources()
+    void createRequiredResources(
+        unsigned sphereCount,
+        const float3* positions,
+        const float* radii,
+        const char* raygenName,
+        const char* closestHitName,
+        const char* missName
+    )
     {
         queue = device->getQueue(QueueType::Graphics);
 
         BufferDesc positionBufferDesc;
-        positionBufferDesc.size = kPositionCount * sizeof(float3);
+        positionBufferDesc.size = sphereCount * sizeof(float3);
         positionBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
         positionBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
-        positionBuffer = device->createBuffer(positionBufferDesc, &kPositions[0]);
+        positionBuffer = device->createBuffer(positionBufferDesc, positions);
         REQUIRE(positionBuffer != nullptr);
 
         BufferDesc radiusBufferDesc;
-        radiusBufferDesc.size = kRadiusCount * sizeof(float);
+        radiusBufferDesc.size = sphereCount * sizeof(float);
         radiusBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
         radiusBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
-        radiusBuffer = device->createBuffer(radiusBufferDesc, &kRadii[0]);
+        radiusBuffer = device->createBuffer(radiusBufferDesc, radii);
         REQUIRE(radiusBuffer != nullptr);
-
-        BufferDesc indexBufferDesc;
-        indexBufferDesc.size = kIndexCount * sizeof(int32_t);
-        indexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
-        indexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
-        indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
-        REQUIRE(indexBuffer != nullptr);
-
-        createResultTexture();
 
         // Build bottom level acceleration structure.
         {
             AccelerationStructureBuildInput buildInput = {};
             buildInput.type = AccelerationStructureBuildInputType::Spheres;
             buildInput.spheres.vertexBufferCount = 1;
-            buildInput.spheres.vertexCount = kPositionCount;
+            buildInput.spheres.vertexCount = sphereCount;
             buildInput.spheres.vertexPositionBuffers[0] = positionBuffer;
             buildInput.spheres.vertexPositionFormat = Format::RGB32Float;
             buildInput.spheres.vertexPositionStride = sizeof(float3);
             buildInput.spheres.vertexRadiusBuffers[0] = radiusBuffer;
             buildInput.spheres.vertexRadiusFormat = Format::R32Float;
             buildInput.spheres.vertexRadiusStride = sizeof(float);
-
-            // TODO: slang-rhi's converter returns an error when using an index buffer. Intentional?
-            // buildInput.spheres.indexBuffer = indexBuffer;
-            // buildInput.spheres.indexFormat = IndexFormat::Uint32;
-
-            buildInput.spheres.indexCount = kIndexCount;
             buildInput.spheres.flags = AccelerationStructureGeometryFlags::Opaque;
 
             AccelerationStructureBuildDesc buildDesc = {};
@@ -225,7 +172,6 @@ struct RayTracingSphereTest
             genericInstanceDescs[0].instanceID = 0;
             genericInstanceDescs[0].instanceMask = 0xFF;
             genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
-            //genericInstanceDescs[0].flags = AccelerationStructureInstanceFlags::TriangleFacingCullDisable;
             genericInstanceDescs[0].accelerationStructure = BLAS->getHandle();
 
             std::vector<uint8_t> nativeInstanceDescs(genericInstanceDescs.size() * nativeInstanceDescSize);
@@ -276,12 +222,14 @@ struct RayTracingSphereTest
 
         const char* hitgroupNames[] = {"hitgroup"};
 
+        const char* entryPointNames[] = {raygenName, missName, closestHitName};
+
         ComPtr<IShaderProgram> rayTracingProgram;
-        REQUIRE_CALL(loadShaderProgram(device, rayTracingProgram.writeRef()));
+        REQUIRE_CALL(loadShaderProgram(device, entryPointNames, rayTracingProgram.writeRef()));
 
         HitGroupDesc hitGroups[1];
         hitGroups[0].hitGroupName = hitgroupNames[0];
-        hitGroups[0].closestHitEntryPoint = "closestHitShader";
+        hitGroups[0].closestHitEntryPoint = closestHitName;
         hitGroups[0].intersectionEntryPoint = "__builtin_intersection__sphere";
 
         RayTracingPipelineDesc rtpDesc = {};
@@ -295,18 +243,62 @@ struct RayTracingSphereTest
         REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));
         REQUIRE(raytracingPipeline != nullptr);
 
-        const char* raygenNames[] = {"rayGenShader"};
-        const char* missNames[] = {"missShader"};
-
         ShaderTableDesc shaderTableDesc = {};
         shaderTableDesc.program = rayTracingProgram;
         shaderTableDesc.hitGroupCount = 1;
         shaderTableDesc.hitGroupNames = hitgroupNames;
         shaderTableDesc.rayGenShaderCount = 1;
-        shaderTableDesc.rayGenShaderEntryPointNames = raygenNames;
+        shaderTableDesc.rayGenShaderEntryPointNames = &raygenName;
         shaderTableDesc.missShaderCount = 1;
-        shaderTableDesc.missShaderEntryPointNames = missNames;
+        shaderTableDesc.missShaderEntryPointNames = &missName;
         REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
+    }
+};
+
+struct ExpectedPixel
+{
+    uint32_t pos[2];
+    float color[4];
+};
+
+#define EXPECTED_PIXEL(x, y, r, g, b, a)                                                                               \
+    {                                                                                                                  \
+        {x, y},                                                                                                        \
+        {                                                                                                              \
+            r, g, b, a                                                                                                 \
+        }                                                                                                              \
+    }
+
+// Test that the ray tracing pipeline can perform sphere intersection.
+struct RayTracingSphereIntersectionTest : public RayTracingSphereTestBase
+{
+    static constexpr int kSphereCount = 3;
+
+    static constexpr float3 kPositions[kSphereCount] = {
+        {-0.5f, -0.5f, 3.0f},
+        {0.5, -0.5f, 3.0f},
+        {0.0f, 0.5f, 3.0f},
+    };
+
+    static constexpr float kRadii[kSphereCount] = {0.4f, 0.2f, 0.6f};
+
+    ComPtr<ITexture> resultTexture;
+
+    uint32_t width = 128;
+    uint32_t height = 128;
+
+    void createResultTexture()
+    {
+        TextureDesc resultTextureDesc = {};
+        resultTextureDesc.type = TextureType::Texture2D;
+        resultTextureDesc.mipCount = 1;
+        resultTextureDesc.size.width = width;
+        resultTextureDesc.size.height = height;
+        resultTextureDesc.size.depth = 1;
+        resultTextureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
+        resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
+        resultTextureDesc.format = Format::RGBA32Float;
+        resultTexture = device->createTexture(resultTextureDesc);
     }
 
     void checkTestResults(span<ExpectedPixel> expectedPixels)
@@ -314,8 +306,8 @@ struct RayTracingSphereTest
         ComPtr<ISlangBlob> resultBlob;
         SubresourceLayout layout;
         REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &layout));
-#if 1 // for debugging only
-        writeImage("test-ray-tracing-sphere.hdr", resultBlob, width, height, layout.rowPitch, layout.colPitch);
+#if 0 // for debugging only
+        writeImage("test-ray-tracing-sphere-intersection.hdr", resultBlob, width, height, layout.rowPitch, layout.colPitch);
 #endif
 
         for (const auto& ep : expectedPixels)
@@ -354,7 +346,8 @@ struct RayTracingSphereTest
 
     void run()
     {
-        createRequiredResources();
+        createRequiredResources(kSphereCount, kPositions, kRadii, "rayGenShader", "closestHitShader", "missShader");
+        createResultTexture();
         renderFrame();
 
         ExpectedPixel expectedPixels[] = {
@@ -370,17 +363,108 @@ struct RayTracingSphereTest
         };
         checkTestResults(expectedPixels);
     }
-
 };
 
-GPU_TEST_CASE("ray-tracing-sphere-intersection", CUDA)
+GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureSpheres))
         SKIP("acceleration structure spheres not supported");
 
-    RayTracingSphereTest test;
+    RayTracingSphereIntersectionTest test;
     test.init(device);
     test.run();
+}
+
+struct TestResult
+{
+    int isSphereHit;
+    int pad[3];
+    float spherePositionAndRadius[4];
+};
+
+struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
+{
+    static constexpr int kSphereCount = 1;
+
+    static constexpr float3 kPositions[kSphereCount] = {
+        {0.0f, 0.0f, -3.0f},
+    };
+
+    static constexpr float kRadii[kSphereCount] = {2.0f};
+
+    ComPtr<IBuffer> resultBuffer;
+
+    void createResultBuffer()
+    {
+        BufferDesc resultBufferDesc = {};
+        resultBufferDesc.size = sizeof(TestResult);
+        resultBufferDesc.elementSize = sizeof(TestResult);
+        resultBufferDesc.memoryType = MemoryType::DeviceLocal;
+        resultBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        resultBuffer = device->createBuffer(resultBufferDesc);
+        REQUIRE(resultBuffer != nullptr);
+    }
+
+    void checkTestResults()
+    {
+        ComPtr<ISlangBlob> resultBlob;
+        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(TestResult), resultBlob.writeRef()));
+
+        const TestResult* result = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
+        CHECK_EQ(result->isSphereHit, 1);
+        CHECK_EQ(result->spherePositionAndRadius[0], 0.0f);
+        CHECK_EQ(result->spherePositionAndRadius[1], 0.0f);
+        CHECK_EQ(result->spherePositionAndRadius[2], -3.0f);
+        CHECK_EQ(result->spherePositionAndRadius[3], 2.0f);
+    }
+
+    void renderFrame()
+    {
+        auto commandEncoder = queue->createCommandEncoder();
+
+        auto passEncoder = commandEncoder->beginRayTracingPass();
+        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
+        auto cursor = ShaderCursor(rootObject);
+        cursor["resultBuffer"].setBinding(resultBuffer);
+        cursor["sceneBVH"].setBinding(TLAS);
+        passEncoder->dispatchRays(0, 1, 1, 1);
+        passEncoder->end();
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+
+    void run(const char* raygenName, const char* closestHitName)
+    {
+        createRequiredResources(kSphereCount, kPositions, kRadii, raygenName, closestHitName, "missNOP");
+        createResultBuffer();
+        renderFrame();
+        checkTestResults();
+    }
+};
+
+GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureSpheres))
+        SKIP("acceleration structure spheres not supported");
+
+    RayTracingSphereIntrinsicsTest test;
+    test.init(device);
+    test.run("rayGenSphereIntrinsics", "closestHitSphereIntrinsics");
+}
+
+GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureSpheres))
+        SKIP("acceleration structure spheres not supported");
+
+    RayTracingSphereIntrinsicsTest test;
+    test.init(device);
+    test.run("rayGenSphereIntrinsicsHitObject", "closestHitNOP");
 }
