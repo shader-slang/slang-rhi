@@ -1,0 +1,386 @@
+#include "testing.h"
+#include "texture-utils.h"
+
+#include <slang-rhi/acceleration-structure-utils.h>
+
+using namespace rhi;
+using namespace rhi::testing;
+
+struct float3 {
+    float x, y, z;
+};
+
+static const int kPositionCount = 3;
+static const float3 kPositions[kPositionCount] = {
+    {-0.5f, -0.5f, 3.0f},
+    {0.5, -0.5f, 3.0f},
+    {0.0f, 0.5f, 3.0f},
+};
+
+static const int kRadiusCount = 3;
+static const float kRadii[kRadiusCount] = {0.4f, 0.2f, 0.6f};
+
+static const int kIndexCount = 3;
+static const uint32_t kIndexData[kIndexCount] = { 0, 1, 2, };
+
+
+struct ExpectedPixel
+{
+    uint32_t pos[2];
+    float color[4];
+};
+
+#define EXPECTED_PIXEL(x, y, r, g, b, a)                                                                               \
+    {                                                                                                                  \
+        {x, y},                                                                                                        \
+        {                                                                                                              \
+            r, g, b, a                                                                                                 \
+        }                                                                                                              \
+    }
+
+struct RayTracingSphereTest
+{
+    IDevice* device;
+
+    ComPtr<ICommandQueue> queue;
+
+    ComPtr<IRayTracingPipeline> raytracingPipeline;
+    ComPtr<IBuffer> positionBuffer;
+    ComPtr<IBuffer> radiusBuffer;
+    ComPtr<IBuffer> indexBuffer;
+    ComPtr<IBuffer> transformBuffer;
+    ComPtr<IBuffer> instanceBuffer;
+    ComPtr<IBuffer> BLASBuffer;
+    ComPtr<IAccelerationStructure> BLAS;
+    ComPtr<IBuffer> TLASBuffer;
+    ComPtr<IAccelerationStructure> TLAS;
+    ComPtr<ITexture> resultTexture;
+    ComPtr<IShaderTable> shaderTable;
+
+    uint32_t width = 128;
+    uint32_t height = 128;
+
+    void init(IDevice* device) { this->device = device; }
+
+    // Load and compile shader code from source.
+    Result loadShaderProgram(IDevice* device, IShaderProgram** outProgram)
+    {
+        ComPtr<slang::ISession> slangSession;
+        slangSession = device->getSlangSession();
+
+        ComPtr<slang::IBlob> diagnosticsBlob;
+        slang::IModule* module = slangSession->loadModule("test-ray-tracing-sphere", diagnosticsBlob.writeRef());
+        diagnoseIfNeeded(diagnosticsBlob);
+        if (!module)
+            return SLANG_FAIL;
+
+        std::vector<slang::IComponentType*> componentTypes;
+        componentTypes.push_back(module);
+        ComPtr<slang::IEntryPoint> entryPoint;
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("rayGenShader", entryPoint.writeRef()));
+        componentTypes.push_back(entryPoint);
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShader", entryPoint.writeRef()));
+        componentTypes.push_back(entryPoint);
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShader", entryPoint.writeRef()));
+        componentTypes.push_back(entryPoint);
+
+        ComPtr<slang::IComponentType> linkedProgram;
+        Result result = slangSession->createCompositeComponentType(
+            componentTypes.data(),
+            componentTypes.size(),
+            linkedProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+        SLANG_RETURN_ON_FAIL(result);
+
+        ShaderProgramDesc programDesc = {};
+        programDesc.slangGlobalScope = linkedProgram;
+        SLANG_RETURN_ON_FAIL(device->createShaderProgram(programDesc, outProgram));
+
+        return SLANG_OK;
+    }
+
+    void createResultTexture()
+    {
+        TextureDesc resultTextureDesc = {};
+        resultTextureDesc.type = TextureType::Texture2D;
+        resultTextureDesc.mipCount = 1;
+        resultTextureDesc.size.width = width;
+        resultTextureDesc.size.height = height;
+        resultTextureDesc.size.depth = 1;
+        resultTextureDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
+        resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
+        resultTextureDesc.format = Format::RGBA32Float;
+        resultTexture = device->createTexture(resultTextureDesc);
+    }
+
+    void createRequiredResources()
+    {
+        queue = device->getQueue(QueueType::Graphics);
+
+        BufferDesc positionBufferDesc;
+        positionBufferDesc.size = kPositionCount * sizeof(float3);
+        positionBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        positionBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+        positionBuffer = device->createBuffer(positionBufferDesc, &kPositions[0]);
+        REQUIRE(positionBuffer != nullptr);
+
+        BufferDesc radiusBufferDesc;
+        radiusBufferDesc.size = kRadiusCount * sizeof(float);
+        radiusBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        radiusBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+        radiusBuffer = device->createBuffer(radiusBufferDesc, &kRadii[0]);
+        REQUIRE(radiusBuffer != nullptr);
+
+        BufferDesc indexBufferDesc;
+        indexBufferDesc.size = kIndexCount * sizeof(int32_t);
+        indexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        indexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+        indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
+        REQUIRE(indexBuffer != nullptr);
+
+        createResultTexture();
+
+        // Build bottom level acceleration structure.
+        {
+            AccelerationStructureBuildInput buildInput = {};
+            buildInput.type = AccelerationStructureBuildInputType::Spheres;
+            buildInput.spheres.vertexBufferCount = 1;
+            buildInput.spheres.vertexCount = kPositionCount;
+            buildInput.spheres.vertexPositionBuffers[0] = positionBuffer;
+            buildInput.spheres.vertexPositionFormat = Format::RGB32Float;
+            buildInput.spheres.vertexPositionStride = sizeof(float3);
+            buildInput.spheres.vertexRadiusBuffers[0] = radiusBuffer;
+            buildInput.spheres.vertexRadiusFormat = Format::R32Float;
+            buildInput.spheres.vertexRadiusStride = sizeof(float);
+
+            // TODO: slang-rhi's converter returns an error when using an index buffer. Intentional?
+            // buildInput.spheres.indexBuffer = indexBuffer;
+            // buildInput.spheres.indexFormat = IndexFormat::Uint32;
+
+            buildInput.spheres.indexCount = kIndexCount;
+            buildInput.spheres.flags = AccelerationStructureGeometryFlags::Opaque;
+
+            AccelerationStructureBuildDesc buildDesc = {};
+            buildDesc.inputs = &buildInput;
+            buildDesc.inputCount = 1;
+            buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction;
+
+            // Query buffer size for acceleration structure build.
+            AccelerationStructureSizes sizes;
+            REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+            // Allocate buffers for acceleration structure.
+            BufferDesc scratchBufferDesc;
+            scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+            scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+            scratchBufferDesc.size = sizes.scratchSize;
+            ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+            // Build acceleration structure.
+            ComPtr<IQueryPool> compactedSizeQuery;
+            QueryPoolDesc queryPoolDesc;
+            queryPoolDesc.count = 1;
+            queryPoolDesc.type = QueryType::AccelerationStructureCompactedSize;
+            REQUIRE_CALL(device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));
+
+            ComPtr<IAccelerationStructure> draftAS;
+            AccelerationStructureDesc draftCreateDesc;
+            draftCreateDesc.size = sizes.accelerationStructureSize;
+            REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
+
+            compactedSizeQuery->reset();
+
+            auto commandEncoder = queue->createCommandEncoder();
+            AccelerationStructureQueryDesc compactedSizeQueryDesc = {};
+            compactedSizeQueryDesc.queryPool = compactedSizeQuery;
+            compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
+            commandEncoder
+                ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
+            queue->submit(commandEncoder->finish());
+            queue->waitOnHost();
+
+            uint64_t compactedSize = 0;
+            compactedSizeQuery->getResult(0, 1, &compactedSize);
+            AccelerationStructureDesc createDesc;
+            createDesc.size = compactedSize;
+            device->createAccelerationStructure(createDesc, BLAS.writeRef());
+
+            commandEncoder = queue->createCommandEncoder();
+            commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
+            queue->submit(commandEncoder->finish());
+            queue->waitOnHost();
+        }
+
+        // Build top level acceleration structure.
+        {
+            AccelerationStructureInstanceDescType nativeInstanceDescType =
+                getAccelerationStructureInstanceDescType(device);
+            Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
+
+            std::vector<AccelerationStructureInstanceDescGeneric> genericInstanceDescs;
+            genericInstanceDescs.resize(1);
+            float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+            memcpy(&genericInstanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
+            genericInstanceDescs[0].instanceID = 0;
+            genericInstanceDescs[0].instanceMask = 0xFF;
+            genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
+            //genericInstanceDescs[0].flags = AccelerationStructureInstanceFlags::TriangleFacingCullDisable;
+            genericInstanceDescs[0].accelerationStructure = BLAS->getHandle();
+
+            std::vector<uint8_t> nativeInstanceDescs(genericInstanceDescs.size() * nativeInstanceDescSize);
+            convertAccelerationStructureInstanceDescs(
+                genericInstanceDescs.size(),
+                nativeInstanceDescType,
+                nativeInstanceDescs.data(),
+                nativeInstanceDescSize,
+                genericInstanceDescs.data(),
+                sizeof(AccelerationStructureInstanceDescGeneric)
+            );
+
+            BufferDesc instanceBufferDesc;
+            instanceBufferDesc.size = nativeInstanceDescs.size();
+            instanceBufferDesc.usage = BufferUsage::ShaderResource;
+            instanceBufferDesc.defaultState = ResourceState::ShaderResource;
+            instanceBuffer = device->createBuffer(instanceBufferDesc, nativeInstanceDescs.data());
+            REQUIRE(instanceBuffer != nullptr);
+
+            AccelerationStructureBuildInput buildInput = {};
+            buildInput.type = AccelerationStructureBuildInputType::Instances;
+            buildInput.instances.instanceBuffer = instanceBuffer;
+            buildInput.instances.instanceCount = 1;
+            buildInput.instances.instanceStride = nativeInstanceDescSize;
+            AccelerationStructureBuildDesc buildDesc = {};
+            buildDesc.inputs = &buildInput;
+            buildDesc.inputCount = 1;
+
+            // Query buffer size for acceleration structure build.
+            AccelerationStructureSizes sizes;
+            REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+            BufferDesc scratchBufferDesc;
+            scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+            scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+            scratchBufferDesc.size = sizes.scratchSize;
+            ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+            AccelerationStructureDesc createDesc;
+            createDesc.size = sizes.accelerationStructureSize;
+            REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
+
+            auto commandEncoder = queue->createCommandEncoder();
+            commandEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
+            queue->submit(commandEncoder->finish());
+            queue->waitOnHost();
+        }
+
+        const char* hitgroupNames[] = {"hitgroup"};
+
+        ComPtr<IShaderProgram> rayTracingProgram;
+        REQUIRE_CALL(loadShaderProgram(device, rayTracingProgram.writeRef()));
+
+        HitGroupDesc hitGroups[1];
+        hitGroups[0].hitGroupName = hitgroupNames[0];
+        hitGroups[0].closestHitEntryPoint = "closestHitShader";
+        hitGroups[0].intersectionEntryPoint = "__builtin_intersection__sphere";
+
+        RayTracingPipelineDesc rtpDesc = {};
+        rtpDesc.program = rayTracingProgram;
+        rtpDesc.hitGroupCount = 1;
+        rtpDesc.hitGroups = hitGroups;
+        rtpDesc.maxRayPayloadSize = 64;
+        rtpDesc.maxAttributeSizeInBytes = 8;
+        rtpDesc.maxRecursion = 2;
+        rtpDesc.flags = RayTracingPipelineFlags::EnableSpheres;
+        REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));
+        REQUIRE(raytracingPipeline != nullptr);
+
+        const char* raygenNames[] = {"rayGenShader"};
+        const char* missNames[] = {"missShader"};
+
+        ShaderTableDesc shaderTableDesc = {};
+        shaderTableDesc.program = rayTracingProgram;
+        shaderTableDesc.hitGroupCount = 1;
+        shaderTableDesc.hitGroupNames = hitgroupNames;
+        shaderTableDesc.rayGenShaderCount = 1;
+        shaderTableDesc.rayGenShaderEntryPointNames = raygenNames;
+        shaderTableDesc.missShaderCount = 1;
+        shaderTableDesc.missShaderEntryPointNames = missNames;
+        REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
+    }
+
+    void checkTestResults(span<ExpectedPixel> expectedPixels)
+    {
+        ComPtr<ISlangBlob> resultBlob;
+        SubresourceLayout layout;
+        REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &layout));
+#if 1 // for debugging only
+        writeImage("test-ray-tracing-sphere.hdr", resultBlob, width, height, layout.rowPitch, layout.colPitch);
+#endif
+
+        for (const auto& ep : expectedPixels)
+        {
+            uint32_t x = ep.pos[0];
+            uint32_t y = ep.pos[1];
+            const float* color = reinterpret_cast<const float*>(
+                static_cast<const uint8_t*>(resultBlob->getBufferPointer()) + y * layout.rowPitch + x * layout.colPitch
+            );
+            CAPTURE(x);
+            CAPTURE(y);
+            CHECK_EQ(color[0], ep.color[0]);
+            CHECK_EQ(color[1], ep.color[1]);
+            CHECK_EQ(color[2], ep.color[2]);
+            CHECK_EQ(color[3], ep.color[3]);
+        }
+    }
+
+    void renderFrame()
+    {
+        auto commandEncoder = queue->createCommandEncoder();
+
+        auto passEncoder = commandEncoder->beginRayTracingPass();
+        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
+        auto cursor = ShaderCursor(rootObject);
+        uint32_t dims[2] = {width, height};
+        cursor["dims"].setData(dims, sizeof(dims));
+        cursor["resultTexture"].setBinding(resultTexture);
+        cursor["sceneBVH"].setBinding(TLAS);
+        passEncoder->dispatchRays(0, width, height, 1);
+        passEncoder->end();
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+
+    void run()
+    {
+        createRequiredResources();
+        renderFrame();
+
+        ExpectedPixel expectedPixels[] = {
+            EXPECTED_PIXEL(32, 32, 1.f, 0.f, 0.f, 1.f), // Sphere 1
+            EXPECTED_PIXEL(96, 32, 0.f, 1.f, 0.f, 1.f), // Sphere 2
+            EXPECTED_PIXEL(64, 96, 0.f, 0.f, 1.f, 1.f), // Sphere 3
+
+            // Corners should all be misses
+            EXPECTED_PIXEL(0, 0, 1.f, 1.0f, 1.0f, 1.0f),     // Miss
+            EXPECTED_PIXEL(127, 0, 1.f, 1.0f, 1.0f, 1.0f),   // Miss
+            EXPECTED_PIXEL(127, 127, 1.f, 1.0f, 1.0f, 1.0f), // Miss
+            EXPECTED_PIXEL(0, 127, 1.f, 1.0f, 1.0f, 1.0f),   // Miss
+        };
+        checkTestResults(expectedPixels);
+    }
+
+};
+
+GPU_TEST_CASE("ray-tracing-sphere-intersection", CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureSpheres))
+        SKIP("acceleration structure spheres not supported");
+
+    RayTracingSphereTest test;
+    test.init(device);
+    test.run();
+}
