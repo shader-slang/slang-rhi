@@ -4,3 +4,6 @@
 [submodule "external/metal-cpp"]
 	path = external/metal-cpp
 	url = https://github.com/bkaradzic/metal-cpp.git
+[submodule "external/optix-dev"]
+	path = external/optix-dev
+	url = https://github.com/NVIDIA/optix-dev.git

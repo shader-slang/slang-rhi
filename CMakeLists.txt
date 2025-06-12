@@ -800,7 +800,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         add_executable(${name} ${source})
         target_compile_features(${name} PRIVATE cxx_std_17)
         target_include_directories(${name} PRIVATE examples/base)
-        target_link_libraries(${name} PRIVATE slang slang-rhi glfw)
+        target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
     endfunction()
 
     add_example(example-surface examples/surface/example-surface.cpp)
