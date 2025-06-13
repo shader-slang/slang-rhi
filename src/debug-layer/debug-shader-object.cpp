@@ -11,22 +11,23 @@ ShaderObjectContainerType DebugShaderObject::getContainerType()
 
 void DebugShaderObject::checkCompleteness()
 {
-    auto layout = baseObject->getElementTypeLayout();
-    for (SlangInt i = 0; i < layout->getBindingRangeCount(); i++)
-    {
-        if (layout->getBindingRangeBindingCount(i) != 0)
-        {
-            if (!m_initializedBindingRanges.count(i))
-            {
-                auto var = layout->getBindingRangeLeafVariable(i);
-                RHI_VALIDATION_ERROR_FORMAT(
-                    "shader parameter '%s' is not initialized in the shader object of type '%s'.",
-                    var->getName(),
-                    m_slangType->getName()
-                );
-            }
-        }
-    }
+    // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
+    // auto layout = baseObject->getElementTypeLayout();
+    // for (SlangInt i = 0; i < layout->getBindingRangeCount(); i++)
+    // {
+    //     if (layout->getBindingRangeBindingCount(i) != 0)
+    //     {
+    //         if (!m_initializedBindingRanges.count(i))
+    //         {
+    //             auto var = layout->getBindingRangeLeafVariable(i);
+    //             RHI_VALIDATION_ERROR_FORMAT(
+    //                 "shader parameter '%s' is not initialized in the shader object of type '%s'.",
+    //                 var->getName(),
+    //                 m_slangType->getName()
+    //             );
+    //         }
+    //     }
+    // }
 }
 
 void DebugShaderObject::checkNotFinalized()
@@ -109,8 +110,9 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
     checkNotFinalized();
     auto objectImpl = getDebugObj(object);
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
-    m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
-    objectImpl->checkCompleteness();
+    // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
+    // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
+    // objectImpl->checkCompleteness();
     return baseObject->setObject(offset, getInnerObj(object));
 }
 
@@ -118,8 +120,9 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& 
 {
     SLANG_RHI_API_FUNC;
     checkNotFinalized();
-    m_bindings[ShaderOffsetKey{offset}] = binding;
-    m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
+    // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
+    // m_bindings[ShaderOffsetKey{offset}] = binding;
+    // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
     return baseObject->setBinding(offset, binding);
 }
 
@@ -191,7 +194,8 @@ void DebugRootShaderObject::reset()
 {
     m_entryPoints.clear();
     m_objects.clear();
-    m_bindings.clear();
+    // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
+    // m_bindings.clear();
     baseObject.setNull();
 }
 
