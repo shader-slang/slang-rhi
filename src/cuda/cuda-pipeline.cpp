@@ -244,7 +244,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         }
         if (hitGroupDesc.intersectionEntryPoint)
         {
-            if( std::strcmp( hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__sphere" ) == 0 )
+            if (std::strcmp(hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__sphere") == 0)
                 optixProgramGroupDesc.hitgroup.moduleIS = builtinISModuleSphere;
             else
             {
