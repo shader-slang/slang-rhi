@@ -1720,6 +1720,7 @@ enum class RayTracingPipelineFlags
     None = 0,
     SkipTriangles = (1 << 0),
     SkipProcedurals = (1 << 1),
+    EnableSpheres = (1 << 2),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 
