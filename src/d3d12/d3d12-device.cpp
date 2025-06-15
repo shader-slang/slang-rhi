@@ -26,7 +26,7 @@ namespace rhi::d3d12 {
 
 static const uint32_t D3D_FEATURE_LEVEL_12_2 = 0xc200;
 
-// List of validation messages that are filtered by default.
+// List of validation messages that are filtered out by default.
 static const D3D12_MESSAGE_ID kFilteredValidationMessages[] = {
     D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
     D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
