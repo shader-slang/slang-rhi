@@ -127,6 +127,9 @@ set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280
 # set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/50021ea0af6d41609a97777ceebbdf1e1d34efe7.zip" CACHE STRING "OptiX URL to fetch") # 8.1.0
 # set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/f60c1e44f18426f426a2ed948f28515b3cf67b8a.zip" CACHE STRING "OptiX URL to fetch") # 8.0.0
 
+# Fetch metal-cpp options
+set(SLANG_RHI_FETCH_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip" CACHE STRING "metal-cpp URL to fetch")
+
 # Fetch Dawn options
 option(SLANG_RHI_FETCH_DAWN "Fetch Dawn" ON)
 set(SLANG_RHI_FETCH_DAWN_VERSION "131.0.6738.0" CACHE STRING "Dawn version to fetch")
@@ -339,6 +342,14 @@ if(EXISTS "${SLANG_RHI_OPTIX_INCLUDE_DIR}/optix.h" AND SLANG_RHI_ENABLE_CUDA)
     set(SLANG_RHI_ENABLE_OPTIX ON)
 else()
     set(SLANG_RHI_ENABLE_OPTIX OFF)
+endif()
+
+# Fetch & setup metal-cpp
+if(SLANG_RHI_ENABLE_METAL)
+    message(STATUS "Fetching metal-cpp ...")
+    FetchPackage(metal-cpp URL ${SLANG_RHI_FETCH_METAL_CPP_URL})
+    add_library(slang-rhi-metal-cpp INTERFACE)
+    target_include_directories(slang-rhi-metal-cpp INTERFACE ${metal-cpp_SOURCE_DIR})
 endif()
 
 # Fetch and setup Google Dawn library (WebGPU implementation)
@@ -639,8 +650,6 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-texture.cpp
         src/metal/metal-util.cpp
     )
-    add_library(slang-rhi-metal-cpp INTERFACE)
-    target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
     target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Metal")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)
 endif()
