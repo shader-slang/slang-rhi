@@ -37,8 +37,7 @@ struct RayTracingSphereTestBase
         slangSession = device->getSlangSession();
 
         ComPtr<slang::IBlob> diagnosticsBlob;
-        slang::IModule* module =
-            slangSession->loadModule("test-ray-tracing-sphere", diagnosticsBlob.writeRef());
+        slang::IModule* module = slangSession->loadModule("test-ray-tracing-sphere", diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
             return SLANG_FAIL;
