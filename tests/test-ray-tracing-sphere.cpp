@@ -38,7 +38,7 @@ struct RayTracingSphereTestBase
 
         ComPtr<slang::IBlob> diagnosticsBlob;
         slang::IModule* module =
-            slangSession->loadModule("test-ray-tracing-sphere-intersection", diagnosticsBlob.writeRef());
+            slangSession->loadModule("test-ray-tracing-sphere", diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
             return SLANG_FAIL;
