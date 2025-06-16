@@ -121,6 +121,9 @@ set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.616.0" CACHE STRING "Agility SDK vers
 option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
 set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/d08488fcc82eef313b0464db37d2955709691e94.zip" CACHE STRING "NVAPI URL to fetch")
 
+# Fetch vulkan headers options
+set(SLANG_RHI_FETCH_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.318.zip" CACHE STRING "Vulkan headers URL to fetch")
+
 # Fetch OptiX options
 option(SLANG_RHI_FETCH_OPTIX "Fetch OptiX" ON)
 set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip" CACHE STRING "OptiX URL to fetch") # 9.0.0
@@ -342,6 +345,14 @@ if(EXISTS "${SLANG_RHI_OPTIX_INCLUDE_DIR}/optix.h" AND SLANG_RHI_ENABLE_CUDA)
     set(SLANG_RHI_ENABLE_OPTIX ON)
 else()
     set(SLANG_RHI_ENABLE_OPTIX OFF)
+endif()
+
+# Fetch & setup vulkan headers
+if(SLANG_RHI_ENABLE_VULKAN)
+    message(STATUS "Fetching vulkan headers ...")
+    FetchPackage(vulkan-headers URL ${SLANG_RHI_FETCH_METAL_CPP_URL})
+    add_library(slang-rhi-vulkan-headers INTERFACE)
+    target_include_directories(slang-rhi-vulkan-headers INTERFACE ${vulkan-headers_SOURCE_DIR}/include)
 endif()
 
 # Fetch & setup metal-cpp
@@ -623,8 +634,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-texture.cpp
         src/vulkan/vk-util.cpp
     )
-    add_library(slang-rhi-vulkan-headers INTERFACE)
-    target_include_directories(slang-rhi-vulkan-headers INTERFACE external/vulkan-headers/include)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
 endif()
 
