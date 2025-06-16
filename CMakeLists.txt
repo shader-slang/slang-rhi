@@ -350,7 +350,7 @@ endif()
 # Fetch & setup vulkan headers
 if(SLANG_RHI_ENABLE_VULKAN)
     message(STATUS "Fetching vulkan headers ...")
-    FetchPackage(vulkan-headers URL ${SLANG_RHI_FETCH_METAL_CPP_URL})
+    FetchPackage(vulkan-headers URL ${SLANG_RHI_FETCH_VULKAN_HEADERS_URL})
     add_library(slang-rhi-vulkan-headers INTERFACE)
     target_include_directories(slang-rhi-vulkan-headers INTERFACE ${vulkan-headers_SOURCE_DIR}/include)
 endif()
