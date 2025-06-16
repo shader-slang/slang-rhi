@@ -121,11 +121,17 @@ set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.616.0" CACHE STRING "Agility SDK vers
 option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
 set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/d08488fcc82eef313b0464db37d2955709691e94.zip" CACHE STRING "NVAPI URL to fetch")
 
+# Fetch vulkan headers options
+set(SLANG_RHI_FETCH_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.318.zip" CACHE STRING "Vulkan headers URL to fetch")
+
 # Fetch OptiX options
 option(SLANG_RHI_FETCH_OPTIX "Fetch OptiX" ON)
 set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip" CACHE STRING "OptiX URL to fetch") # 9.0.0
 # set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/50021ea0af6d41609a97777ceebbdf1e1d34efe7.zip" CACHE STRING "OptiX URL to fetch") # 8.1.0
 # set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/f60c1e44f18426f426a2ed948f28515b3cf67b8a.zip" CACHE STRING "OptiX URL to fetch") # 8.0.0
+
+# Fetch metal-cpp options
+set(SLANG_RHI_FETCH_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip" CACHE STRING "metal-cpp URL to fetch")
 
 # Fetch Dawn options
 option(SLANG_RHI_FETCH_DAWN "Fetch Dawn" ON)
@@ -339,6 +345,22 @@ if(EXISTS "${SLANG_RHI_OPTIX_INCLUDE_DIR}/optix.h" AND SLANG_RHI_ENABLE_CUDA)
     set(SLANG_RHI_ENABLE_OPTIX ON)
 else()
     set(SLANG_RHI_ENABLE_OPTIX OFF)
+endif()
+
+# Fetch & setup vulkan headers
+if(SLANG_RHI_ENABLE_VULKAN)
+    message(STATUS "Fetching vulkan headers ...")
+    FetchPackage(vulkan-headers URL ${SLANG_RHI_FETCH_VULKAN_HEADERS_URL})
+    add_library(slang-rhi-vulkan-headers INTERFACE)
+    target_include_directories(slang-rhi-vulkan-headers INTERFACE ${vulkan-headers_SOURCE_DIR}/include)
+endif()
+
+# Fetch & setup metal-cpp
+if(SLANG_RHI_ENABLE_METAL)
+    message(STATUS "Fetching metal-cpp ...")
+    FetchPackage(metal-cpp URL ${SLANG_RHI_FETCH_METAL_CPP_URL})
+    add_library(slang-rhi-metal-cpp INTERFACE)
+    target_include_directories(slang-rhi-metal-cpp INTERFACE ${metal-cpp_SOURCE_DIR})
 endif()
 
 # Fetch and setup Google Dawn library (WebGPU implementation)
@@ -612,8 +634,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-texture.cpp
         src/vulkan/vk-util.cpp
     )
-    add_library(slang-rhi-vulkan-headers INTERFACE)
-    target_include_directories(slang-rhi-vulkan-headers INTERFACE external/vulkan-headers/include)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
 endif()
 
@@ -639,8 +659,6 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-texture.cpp
         src/metal/metal-util.cpp
     )
-    add_library(slang-rhi-metal-cpp INTERFACE)
-    target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
     target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Metal")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)
 endif()
