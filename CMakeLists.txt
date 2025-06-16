@@ -103,7 +103,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_N
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.10.2" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.10.4" CACHE STRING "Slang version to fetch")
 
 # Fetch WinPixEventRuntime options
 option(SLANG_RHI_FETCH_WINPIX "Fetch WinPixEventRuntime" ON)
@@ -774,6 +774,7 @@ if(SLANG_RHI_BUILD_TESTS)
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
+        tests/test-ray-tracing-sphere.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
