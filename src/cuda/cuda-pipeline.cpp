@@ -119,8 +119,11 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         (desc.maxAttributeSizeInBytes + sizeof(uint32_t) - 1) / sizeof(uint32_t);
     optixPipelineCompileOptions.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;
     optixPipelineCompileOptions.pipelineLaunchParamsVariableName = "SLANG_globalParams";
-    // TODO not sure if removing support for certain types is the same as "skipping" in DXR/Vulkan
+
     optixPipelineCompileOptions.usesPrimitiveTypeFlags = 0;
+    if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
+        optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
+
     optixPipelineCompileOptions.allowOpacityMicromaps = 0;
 
     OptixModuleCompileOptions optixModuleCompileOptions = {};
@@ -197,6 +200,24 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         shaderGroupNameToIndex[module.entryPointName] = optixProgramGroups.size() - 1;
     }
 
+    // If we're using spheres, hit groups may use the builtin sphere intersector.
+    OptixModule builtinISModuleSphere = nullptr;
+    if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
+    {
+        OptixBuiltinISOptions builtinISOptions = {};
+        builtinISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixBuiltinISModuleGet(
+                m_ctx.optixContext,
+                &optixModuleCompileOptions,
+                &optixPipelineCompileOptions,
+                &builtinISOptions,
+                &builtinISModuleSphere
+            ),
+            this
+        );
+    }
+
     // Create program groups for hit groups
     for (uint32_t hitGroupIndex = 0; hitGroupIndex < desc.hitGroupCount; ++hitGroupIndex)
     {
@@ -223,11 +244,17 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         }
         if (hitGroupDesc.intersectionEntryPoint)
         {
-            optixProgramGroupDesc.hitgroup.moduleIS =
-                optixModules[entryPointNameToModuleIndex[hitGroupDesc.intersectionEntryPoint]];
-            entryFunctionNameIS = std::string("__intersection__") + hitGroupDesc.intersectionEntryPoint;
-            optixProgramGroupDesc.hitgroup.entryFunctionNameIS = entryFunctionNameIS.data();
+            if (std::strcmp(hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__sphere") == 0)
+                optixProgramGroupDesc.hitgroup.moduleIS = builtinISModuleSphere;
+            else
+            {
+                optixProgramGroupDesc.hitgroup.moduleIS =
+                    optixModules[entryPointNameToModuleIndex[hitGroupDesc.intersectionEntryPoint]];
+                entryFunctionNameIS = std::string("__intersection__") + hitGroupDesc.intersectionEntryPoint;
+                optixProgramGroupDesc.hitgroup.entryFunctionNameIS = entryFunctionNameIS.data();
+            }
         }
+
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
             optixProgramGroupCreate(
                 m_ctx.optixContext,
