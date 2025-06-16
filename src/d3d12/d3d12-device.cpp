@@ -26,6 +26,13 @@ namespace rhi::d3d12 {
 
 static const uint32_t D3D_FEATURE_LEVEL_12_2 = 0xc200;
 
+// List of validation messages that are filtered out by default.
+static const D3D12_MESSAGE_ID kFilteredValidationMessages[] = {
+    D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+    D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+    D3D12_MESSAGE_ID_FENCE_ZERO_WAIT,
+};
+
 #if SLANG_RHI_NV_AFTERMATH
 const bool DeviceImpl::g_isAftermathEnabled = true;
 #else
@@ -97,6 +104,10 @@ static void validationMessageCallback(
     void* pContext
 )
 {
+    for (size_t i = 0; i < SLANG_COUNT_OF(kFilteredValidationMessages); ++i)
+        if (ID == kFilteredValidationMessages[i])
+            return;
+
     DeviceImpl* device = static_cast<DeviceImpl*>(pContext);
 
     DebugMessageType type = DebugMessageType::Info;
@@ -197,13 +208,9 @@ Result DeviceImpl::_createDevice(
             {
                 infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
             }
-            D3D12_MESSAGE_ID hideMessages[] = {
-                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-                D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
-            };
             D3D12_INFO_QUEUE_FILTER f = {};
-            f.DenyList.NumIDs = (UINT)SLANG_COUNT_OF(hideMessages);
-            f.DenyList.pIDList = hideMessages;
+            f.DenyList.NumIDs = (UINT)SLANG_COUNT_OF(kFilteredValidationMessages);
+            f.DenyList.pIDList = (D3D12_MESSAGE_ID*)kFilteredValidationMessages;
             infoQueue->AddStorageFilterEntries(&f);
 
             // Apparently there is a problem with sm 6.3 with spurious errors, with debug layer
