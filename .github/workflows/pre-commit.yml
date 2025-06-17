@@ -1,0 +1,65 @@
+name: pre-commit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Important to push changes back
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pre-commit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit/
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit install
+
+      - name: Run pre-commit
+        id: run_precommit
+        continue-on-error: true
+        run: pre-commit run --all-files
+
+      - name: Check for modified files
+        id: git_diff
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if this is a fix commit
+        id: is_fix_commit
+        run: |
+          git log -1 --pretty=%B | grep -q "[pre-commit-fix]" && echo "fix=true" >> $GITHUB_OUTPUT || echo "fix=false" >> $GITHUB_OUTPUT
+
+      - name: Commit and push fixes
+        if: steps.git_diff.outputs.has_changes == 'true' && steps.is_fix_commit.outputs.fix == 'false'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Apply pre-commit fixes [pre-commit-fix]"
+          git push
+
+      - name: Fail if pre-commit failed
+        if: steps.run_precommit.outcome != 'success' && steps.git_diff.outputs.has_changes == 'false'
+        run: exit 1
