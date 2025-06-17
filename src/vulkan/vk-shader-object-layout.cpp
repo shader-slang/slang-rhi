@@ -787,6 +787,20 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
     pipelineLayoutCreateInfo.pSetLayouts = m_vkDescriptorSetLayouts.data();
     if (m_allPushConstantRanges.size())
     {
+        uint32_t totalPushConstantSize = 0;
+        for (const auto& range : m_allPushConstantRanges)
+        {
+            totalPushConstantSize = std::max(totalPushConstantSize, range.offset + range.size);
+        }
+        if (totalPushConstantSize > m_device->m_api.m_deviceProperties.limits.maxPushConstantsSize)
+        {
+            m_device->printError(
+                "Total push constant size (%u) exceeds the maximum allowed (%u).",
+                totalPushConstantSize,
+                m_device->m_api.m_deviceProperties.limits.maxPushConstantsSize
+            );
+            return SLANG_FAIL;
+        }
         pipelineLayoutCreateInfo.pushConstantRangeCount = (uint32_t)m_allPushConstantRanges.size();
         pipelineLayoutCreateInfo.pPushConstantRanges = m_allPushConstantRanges.data();
     }
