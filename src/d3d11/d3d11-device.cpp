@@ -301,7 +301,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
     addFeature(Feature::CustomBorderColor);
-    addFeature(Feature::TimestampQuery);
+    if (m_info.timestampFrequency > 0)
+    {
+        addFeature(Feature::TimestampQuery);
+    }
 
     addCapability(Capability::hlsl);
 
