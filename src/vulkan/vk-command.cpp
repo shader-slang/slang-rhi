@@ -44,6 +44,10 @@ public:
     RenderState m_renderState;
     RefPtr<RenderPipelineImpl> m_renderPipeline;
 
+    bool m_preparedRenderStateValid = false;
+    RenderState m_preparedRenderState;
+    BindingDataImpl* m_preparedRenderBindingData = nullptr;
+
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
     RefPtr<ComputePipelineImpl> m_computePipeline;
@@ -113,6 +117,7 @@ public:
 
     void setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint);
 
+    void requireBindingStates(BindingDataImpl* bindingData);
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
@@ -691,14 +696,22 @@ void CommandRecorder::prepareSetRenderState(const commands::SetRenderState& cmd)
 {
     const RenderState& state = cmd.state;
 
-    bool updateVertexBuffers = !arraysEqual(
-        state.vertexBufferCount,
-        m_renderState.vertexBufferCount,
-        state.vertexBuffers,
-        m_renderState.vertexBuffers
-    );
-    bool updateIndexBuffer =
-        state.indexFormat != m_renderState.indexFormat || state.indexBuffer != m_renderState.indexBuffer;
+    bool updateBindings = !m_preparedRenderStateValid || cmd.bindingData != m_preparedRenderBindingData;
+
+    bool updateVertexBuffers = !m_preparedRenderStateValid || !arraysEqual(
+                                                                  state.vertexBufferCount,
+                                                                  m_renderState.vertexBufferCount,
+                                                                  state.vertexBuffers,
+                                                                  m_renderState.vertexBuffers
+                                                              );
+    bool updateIndexBuffer = !m_preparedRenderStateValid || state.indexFormat != m_renderState.indexFormat ||
+                             state.indexBuffer != m_renderState.indexBuffer;
+
+    if (updateBindings)
+    {
+        m_preparedRenderBindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        requireBindingStates(m_preparedRenderBindingData);
+    }
 
     if (updateVertexBuffers)
     {
@@ -717,6 +730,9 @@ void CommandRecorder::prepareSetRenderState(const commands::SetRenderState& cmd)
             requireBufferState(buffer, ResourceState::IndexBuffer);
         }
     }
+
+    m_preparedRenderStateValid = true;
+    m_preparedRenderState = state;
 }
 
 void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
@@ -1002,10 +1018,16 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        requireBindingStates(m_bindingData);
+        commitBarriers();
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_COMPUTE);
     }
 
     m_computeStateValid = true;
+
+    m_renderStateValid = false;
+    m_preparedRenderStateValid = false;
+    m_rayTracingStateValid = false;
 }
 
 void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -1058,6 +1080,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     if (updateBindings)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        requireBindingStates(m_bindingData);
+        commitBarriers();
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
     }
 
@@ -1092,6 +1116,10 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     }
 
     m_rayTracingStateValid = true;
+
+    m_computeStateValid = false;
+    m_renderStateValid = false;
+    m_preparedRenderStateValid = false;
 }
 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
@@ -1268,24 +1296,7 @@ void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 
 void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint)
 {
-    // First, we transition all resources to the required states.
-    for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
-    {
-        const auto& bufferState = bindingData->bufferStates[i];
-        requireBufferState(bufferState.buffer, bufferState.state);
-    }
-    for (uint32_t i = 0; i < bindingData->textureStateCount; ++i)
-    {
-        const auto& textureState = bindingData->textureStates[i];
-        requireTextureState(
-            textureState.textureView->m_texture,
-            textureState.textureView->m_desc.subresourceRange,
-            textureState.state
-        );
-    }
-    commitBarriers();
-
-    // Then we set all push constants.
+    // Set push constants.
     for (uint32_t i = 0; i < bindingData->pushConstantCount; ++i)
     {
         VkPushConstantRange range = bindingData->pushConstantRanges[i];
@@ -1300,7 +1311,7 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPo
         );
     }
 
-    // Finally, we bind all descriptor sets.
+    // Bind descriptor sets.
     if (bindingData->descriptorSetCount)
     {
         m_api.vkCmdBindDescriptorSets(
@@ -1312,6 +1323,24 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPo
             bindingData->descriptorSets,
             0,
             nullptr
+        );
+    }
+}
+
+void CommandRecorder::requireBindingStates(BindingDataImpl* bindingData)
+{
+    for (uint32_t i = 0; i < bindingData->bufferStateCount; ++i)
+    {
+        const auto& bufferState = bindingData->bufferStates[i];
+        requireBufferState(bufferState.buffer, bufferState.state);
+    }
+    for (uint32_t i = 0; i < bindingData->textureStateCount; ++i)
+    {
+        const auto& textureState = bindingData->textureStates[i];
+        requireTextureState(
+            textureState.textureView->m_texture,
+            textureState.textureView->m_desc.subresourceRange,
+            textureState.state
         );
     }
 }
