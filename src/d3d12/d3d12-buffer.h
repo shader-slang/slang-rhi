@@ -51,8 +51,8 @@ public:
         }
     };
 
-    std::unordered_map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_srvs;
-    std::unordered_map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_uavs;
+    ankerl::unordered_dense::map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_srvs;
+    ankerl::unordered_dense::map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_uavs;
 
     D3D12_CPU_DESCRIPTOR_HANDLE getSRV(Format format, uint32_t stride, const BufferRange& range);
     D3D12_CPU_DESCRIPTOR_HANDLE getUAV(
@@ -86,7 +86,7 @@ public:
         }
     };
 
-    std::unordered_map<DescriptorHandleKey, DescriptorHandle, DescriptorHandleKeyHasher> m_descriptorHandles;
+    ankerl::unordered_dense::map<DescriptorHandleKey, DescriptorHandle, DescriptorHandleKeyHasher> m_descriptorHandles;
 };
 
 } // namespace rhi::d3d12

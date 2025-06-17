@@ -17,6 +17,7 @@
 #include "span.h"
 #include "string.h"
 #include "struct-holder.h"
+#include "unordered-dense.h"
 
 namespace rhi {
 

@@ -58,8 +58,8 @@ public:
 
     RefPtr<TextureViewImpl> m_defaultView;
     std::mutex m_mutex;
-    std::unordered_map<ViewKey, CUtexObject, ViewKeyHasher> m_texObjects;
-    std::unordered_map<SubresourceRange, CUsurfObject, SubresourceRangeHasher> m_surfObjects;
+    ankerl::unordered_dense::map<ViewKey, CUtexObject, ViewKeyHasher> m_texObjects;
+    ankerl::unordered_dense::map<SubresourceRange, CUsurfObject, SubresourceRangeHasher> m_surfObjects;
 
     CUtexObject getTexObject(Format format, const SubresourceRange& range);
     CUsurfObject getSurfObject(const SubresourceRange& range);

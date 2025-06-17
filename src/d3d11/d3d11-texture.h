@@ -39,10 +39,10 @@ public:
 
     RefPtr<TextureViewImpl> m_defaultView;
     std::mutex m_mutex;
-    std::unordered_map<ViewKey, ComPtr<ID3D11RenderTargetView>, ViewKeyHasher> m_rtvs;
-    std::unordered_map<ViewKey, ComPtr<ID3D11DepthStencilView>, ViewKeyHasher> m_dsvs;
-    std::unordered_map<ViewKey, ComPtr<ID3D11ShaderResourceView>, ViewKeyHasher> m_srvs;
-    std::unordered_map<ViewKey, ComPtr<ID3D11UnorderedAccessView>, ViewKeyHasher> m_uavs;
+    ankerl::unordered_dense::map<ViewKey, ComPtr<ID3D11RenderTargetView>, ViewKeyHasher> m_rtvs;
+    ankerl::unordered_dense::map<ViewKey, ComPtr<ID3D11DepthStencilView>, ViewKeyHasher> m_dsvs;
+    ankerl::unordered_dense::map<ViewKey, ComPtr<ID3D11ShaderResourceView>, ViewKeyHasher> m_srvs;
+    ankerl::unordered_dense::map<ViewKey, ComPtr<ID3D11UnorderedAccessView>, ViewKeyHasher> m_uavs;
 
     ID3D11RenderTargetView* getRTV(Format format, const SubresourceRange& range);
     ID3D11DepthStencilView* getDSV(Format format, const SubresourceRange& range);

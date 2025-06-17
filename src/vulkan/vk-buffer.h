@@ -77,7 +77,7 @@ public:
     };
 
     std::mutex m_mutex;
-    std::unordered_map<ViewKey, VkBufferView, ViewKeyHasher> m_views;
+    ankerl::unordered_dense::map<ViewKey, VkBufferView, ViewKeyHasher> m_views;
 
     VkBufferView getView(Format format, const BufferRange& range);
 
@@ -105,7 +105,7 @@ public:
         }
     };
 
-    std::unordered_map<DescriptorHandleKey, DescriptorHandle, DescriptorHandleKeyHasher> m_descriptorHandles;
+    ankerl::unordered_dense::map<DescriptorHandleKey, DescriptorHandle, DescriptorHandleKeyHasher> m_descriptorHandles;
 };
 
 } // namespace rhi::vk

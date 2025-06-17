@@ -1367,7 +1367,7 @@ struct AccelerationStructureDesc
     StructType structType = StructType::AccelerationStructureDesc;
     const void* next = nullptr;
 
-    uint64_t size;
+    uint64_t size = 0;
 
     const char* label = nullptr;
 };

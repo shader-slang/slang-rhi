@@ -3,8 +3,6 @@
 #include "wgpu-base.h"
 #include "wgpu-command.h"
 
-#include <unordered_set>
-
 namespace rhi::wgpu {
 
 struct Context
@@ -14,7 +12,7 @@ struct Context
     WGPUAdapter adapter = nullptr;
     WGPUDevice device = nullptr;
     WGPULimits limits = {};
-    std::unordered_set<WGPUFeatureName> features;
+    ankerl::unordered_dense::set<WGPUFeatureName> features;
 
     ~Context();
 };

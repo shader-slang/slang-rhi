@@ -1,8 +1,7 @@
 #pragma once
 
+#include "core/common.h"
 namespace rhi {
-
-#include <unordered_map>
 
 /// Given a mapping function, create a reverse map from To to From.
 /// The mapping function func must be bijective.
@@ -10,9 +9,9 @@ namespace rhi {
 template<typename From, typename To, typename Func>
 auto reverseMap(Func func, From min, From max, From defaultValue = From(0))
 {
-    static std::unordered_map<To, From> reverseMap = [&]()
+    static ankerl::unordered_dense::map<To, From> reverseMap = [&]()
     {
-        std::unordered_map<To, From> map;
+        ankerl::unordered_dense::map<To, From> map;
         for (int i = int(min); i <= int(max); i++)
         {
             map[func(From(i))] = From(i);

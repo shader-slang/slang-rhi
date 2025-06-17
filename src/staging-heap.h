@@ -201,7 +201,7 @@ private:
     Size m_alignment = 1024;
     Size m_pageSize = 16 * 1024 * 1024;
     bool m_keepPagesMapped = true;
-    std::unordered_map<int, RefPtr<Page>> m_pages;
+    ankerl::unordered_dense::map<int, RefPtr<Page>> m_pages;
     MemoryType m_memoryType;
     mutable std::mutex m_mutex;
 

@@ -103,8 +103,8 @@ protected:
         std::size_t operator()(const PipelineKey& k) const { return k.hash; }
     };
 
-    std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
-    std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
+    ankerl::unordered_dense::map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
+    ankerl::unordered_dense::map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
 
 class NullDebugCallback : public IDebugCallback

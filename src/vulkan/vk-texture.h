@@ -54,7 +54,7 @@ public:
 
     RefPtr<TextureViewImpl> m_defaultView;
     std::mutex m_mutex;
-    std::unordered_map<ViewKey, TextureSubresourceView, ViewKeyHasher> m_views;
+    ankerl::unordered_dense::map<ViewKey, TextureSubresourceView, ViewKeyHasher> m_views;
 
     TextureSubresourceView getView(Format format, TextureAspect aspect, const SubresourceRange& range);
 };
