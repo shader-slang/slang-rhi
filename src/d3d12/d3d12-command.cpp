@@ -1018,6 +1018,9 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     }
 
     m_computeStateValid = true;
+
+    m_renderStateValid = false;
+    m_rayTracingStateValid = false;
 }
 
 void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
@@ -1121,6 +1124,9 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     }
 
     m_rayTracingStateValid = true;
+
+    m_renderStateValid = false;
+    m_computeStateValid = false;
 }
 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
