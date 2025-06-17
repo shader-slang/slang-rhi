@@ -1,4 +1,4 @@
-name: pre-commit
+name: checks
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  checks:
+  pre-commit:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
