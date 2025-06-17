@@ -303,7 +303,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     addFeature(Feature::CustomBorderColor);
     if (m_info.timestampFrequency > 0)
     {
-        addFeature(Feature::TimestampQuery);
+            addFeature(Feature::TimestampQuery);
     }
 
     addCapability(Capability::hlsl);
@@ -619,12 +619,14 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
     shaderProgram->init(desc);
-    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
-        this,
-        shaderProgram->linkedProgram,
-        shaderProgram->linkedProgram->getLayout(),
-        shaderProgram->m_rootObjectLayout.writeRef()
-    ));
+    SLANG_RETURN_ON_FAIL(
+        RootShaderObjectLayoutImpl::create(
+            this,
+            shaderProgram->linkedProgram,
+            shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->m_rootObjectLayout.writeRef()
+        )
+    );
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
