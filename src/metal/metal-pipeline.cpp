@@ -98,6 +98,11 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     pd->setRasterSampleCount(desc.multisample.sampleCount);
 
+    if (desc.label)
+    {
+        pd->setLabel(MetalUtil::createString(desc.label).get());
+    }
+
     NS::Error* error;
     NS::SharedPtr<MTL::RenderPipelineState> pipelineState =
         NS::TransferPtr(m_device->newRenderPipelineState(pd.get(), &error));
@@ -188,6 +193,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
     if (!function)
         return SLANG_FAIL;
+
+    // TODO: We should use a ComputePipelineDescriptor to allow setting the label
 
     NS::Error* error;
     NS::SharedPtr<MTL::ComputePipelineState> pipelineState =

@@ -117,6 +117,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     fragment.targets = targets.data();
     pipelineDesc.fragment = &fragment;
 
+    pipelineDesc.label = desc.label;
+
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
@@ -165,6 +167,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipelineDesc.layout = program->m_rootObjectLayout->m_pipelineLayout;
     pipelineDesc.compute.module = computeModule->module;
     pipelineDesc.compute.entryPoint = computeModule->entryPointName.c_str();
+
+    pipelineDesc.label = desc.label;
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;

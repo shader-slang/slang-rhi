@@ -414,6 +414,11 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         SLANG_RETURN_ON_FAIL(result);
     }
 
+    if (desc.label)
+    {
+        pipelineState->SetName(string::to_wstring(desc.label).c_str());
+    }
+
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_inputLayout = inputLayout;
@@ -485,6 +490,11 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         pipelineState.writeRef()
     );
     SLANG_RETURN_ON_FAIL(result);
+
+    if (desc.label)
+    {
+        pipelineState->SetName(string::to_wstring(desc.label).c_str());
+    }
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
@@ -673,6 +683,11 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, 0xffffffff, 0));
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
+
+    if (desc.label)
+    {
+        stateObject->SetName(string::to_wstring(desc.label).c_str());
+    }
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this, desc);
     pipeline->m_program = program;
