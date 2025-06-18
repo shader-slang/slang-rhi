@@ -9,10 +9,7 @@ class ShaderProgramImpl : public ShaderProgram
 public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootShaderObjectLayout;
 
-    ShaderProgramImpl(Device* device)
-        : ShaderProgram(device)
-    {
-    }
+    ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc);
     ~ShaderProgramImpl() {}
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() override;

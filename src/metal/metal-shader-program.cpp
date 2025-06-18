@@ -5,8 +5,8 @@
 
 namespace rhi::metal {
 
-ShaderProgramImpl::ShaderProgramImpl(Device* device)
-    : ShaderProgram(device)
+ShaderProgramImpl::ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc)
+    : ShaderProgram(device, desc)
 {
 }
 

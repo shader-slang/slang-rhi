@@ -212,6 +212,8 @@ struct ShaderProgramDesc
     // If set to 0, then `slangGlobalScope` must contain Slang EntryPoint components.
     // If not 0, then `slangGlobalScope` must not contain any EntryPoint components.
     uint32_t slangEntryPointCount = 0;
+
+    const char* label = nullptr;
 };
 
 class IShaderProgram : public ISlangUnknown
@@ -219,6 +221,7 @@ class IShaderProgram : public ISlangUnknown
     SLANG_COM_INTERFACE(0x19cabd0d, 0xf3e3, 0x4b3d, {0x93, 0x43, 0xea, 0xcc, 0x00, 0x1e, 0xc5, 0xf2});
 
 public:
+    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
 

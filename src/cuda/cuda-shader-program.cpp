@@ -3,6 +3,11 @@
 
 namespace rhi::cuda {
 
+ShaderProgramImpl::ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc)
+    : ShaderProgram(device, desc)
+{
+}
+
 ShaderProgramImpl::~ShaderProgramImpl() {}
 
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)

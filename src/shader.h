@@ -39,6 +39,7 @@ public:
     IShaderProgram* getInterface(const Guid& guid);
 
     ShaderProgramDesc m_desc;
+    StructHolder m_descHolder;
 
     ComPtr<slang::IComponentType> slangGlobalScope;
     std::vector<ComPtr<slang::IComponentType>> slangEntryPoints;
@@ -56,12 +57,15 @@ public:
 
     std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
 
-    ShaderProgram(Device* device)
+    ShaderProgram(Device* device, const ShaderProgramDesc& desc)
         : DeviceChild(device)
+        , m_desc(desc)
     {
+        m_descHolder.holdString(m_desc.label);
+        m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
     }
 
-    void init(const ShaderProgramDesc& desc);
+    Result init();
 
     bool isSpecializable() const { return m_isSpecializable; }
     bool isMeshShaderProgram() const;
@@ -69,6 +73,8 @@ public:
     Result compileShaders(Device* device);
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
+
+    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override { return m_desc; }
 
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override
     {
