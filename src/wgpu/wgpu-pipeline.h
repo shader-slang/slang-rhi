@@ -10,7 +10,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     WGPURenderPipeline m_renderPipeline = nullptr;
 
-    RenderPipelineImpl(Device* device);
+    RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc);
     ~RenderPipelineImpl();
 
     // IRenderPipeline implementation
@@ -23,7 +23,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     WGPUComputePipeline m_computePipeline = nullptr;
 
-    ComputePipelineImpl(Device* device);
+    ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc);
     ~ComputePipelineImpl();
 
     // IComputePipeline implementation

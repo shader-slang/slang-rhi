@@ -7,8 +7,8 @@
 
 namespace rhi::metal {
 
-RenderPipelineImpl::RenderPipelineImpl(Device* device)
-    : RenderPipeline(device)
+RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
+    : RenderPipeline(device, desc)
 {
 }
 
@@ -152,7 +152,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         return SLANG_FAIL;
     }
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
@@ -164,8 +164,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     return SLANG_OK;
 }
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -209,13 +209,18 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     SlangUInt threadGroupSize[3];
     program->linkedProgram->getLayout()->getEntryPointByIndex(0)->getComputeThreadGroupSize(3, threadGroupSize);
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     pipeline->m_threadGroupSize = MTL::Size(threadGroupSize[0], threadGroupSize[1], threadGroupSize[2]);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
+}
+
+RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc)
+    : RayTracingPipeline(device, desc)
+{
 }
 
 Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)

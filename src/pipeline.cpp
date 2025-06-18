@@ -16,15 +16,21 @@ IPipeline* RenderPipeline::getInterface(const Guid& guid)
     return nullptr;
 }
 
+RenderPipeline::RenderPipeline(Device* device, const RenderPipelineDesc& desc)
+    : Pipeline(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdList(m_desc.targets, m_desc.targetCount);
+    m_descHolder.holdString(m_desc.label);
+}
+
 // ----------------------------------------------------------------------------
 // VirtualRenderPipeline
 // ----------------------------------------------------------------------------
 
 VirtualRenderPipeline::VirtualRenderPipeline(Device* device, const RenderPipelineDesc& desc)
-    : RenderPipeline(device)
-    , m_desc(desc)
+    : RenderPipeline(device, desc)
 {
-    m_descHolder.holdList(m_desc.targets, m_desc.targetCount);
     m_program = checked_cast<ShaderProgram*>(desc.program);
     m_inputLayout = checked_cast<InputLayout*>(desc.inputLayout);
 }
@@ -47,13 +53,20 @@ IPipeline* ComputePipeline::getInterface(const Guid& guid)
     return nullptr;
 }
 
+ComputePipeline::ComputePipeline(Device* device, const ComputePipelineDesc& desc)
+    : Pipeline(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+}
+
+
 // ----------------------------------------------------------------------------
 // VirtualComputePipeline
 // ----------------------------------------------------------------------------
 
 VirtualComputePipeline::VirtualComputePipeline(Device* device, const ComputePipelineDesc& desc)
-    : ComputePipeline(device)
-    , m_desc(desc)
+    : ComputePipeline(device, desc)
 {
     m_program = checked_cast<ShaderProgram*>(desc.program);
 }
@@ -76,15 +89,12 @@ IPipeline* RayTracingPipeline::getInterface(const Guid& guid)
     return nullptr;
 }
 
-// ----------------------------------------------------------------------------
-// VirtualRayTracingPipeline
-// ----------------------------------------------------------------------------
-
-VirtualRayTracingPipeline::VirtualRayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc)
-    : RayTracingPipeline(device)
+RayTracingPipeline::RayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc)
+    : Pipeline(device)
+    , m_desc(desc)
 {
-    m_desc = desc;
     m_descHolder.holdList(m_desc.hitGroups, m_desc.hitGroupCount);
+    m_descHolder.holdString(m_desc.label);
     for (uint32_t i = 0; i < m_desc.hitGroupCount; i++)
     {
         HitGroupDesc& hitGroup = const_cast<HitGroupDesc&>(m_desc.hitGroups[i]);
@@ -93,6 +103,15 @@ VirtualRayTracingPipeline::VirtualRayTracingPipeline(Device* device, const RayTr
         m_descHolder.holdString(hitGroup.anyHitEntryPoint);
         m_descHolder.holdString(hitGroup.intersectionEntryPoint);
     }
+}
+
+// ----------------------------------------------------------------------------
+// VirtualRayTracingPipeline
+// ----------------------------------------------------------------------------
+
+VirtualRayTracingPipeline::VirtualRayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc)
+    : RayTracingPipeline(device, desc)
+{
     m_program = checked_cast<ShaderProgram*>(desc.program);
 }
 

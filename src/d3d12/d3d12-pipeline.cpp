@@ -191,8 +191,8 @@ Result createPipelineWithCache(
 }
 
 
-RenderPipelineImpl::RenderPipelineImpl(Device* device)
-    : RenderPipeline(device)
+RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
+    : RenderPipeline(device, desc)
 {
 }
 
@@ -414,7 +414,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         SLANG_RETURN_ON_FAIL(result);
     }
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_inputLayout = inputLayout;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
@@ -424,8 +424,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     return SLANG_OK;
 }
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -486,7 +486,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     );
     SLANG_RETURN_ON_FAIL(result);
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
@@ -494,8 +494,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     return SLANG_OK;
 }
 
-RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device)
-    : RayTracingPipeline(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc)
+    : RayTracingPipeline(device, desc)
 {
 }
 
@@ -674,7 +674,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
-    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
+    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_stateObject = stateObject;
