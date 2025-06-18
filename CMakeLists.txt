@@ -524,6 +524,7 @@ target_sources(slang-rhi PRIVATE
     src/core/sha1.cpp
     src/core/smart-pointer.cpp
     src/core/task-pool.cpp
+    src/core/timer.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp
     src/debug-layer/debug-command-queue.cpp
@@ -790,8 +791,9 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-shared.cpp
-        tests/test-texture-view.cpp
         tests/test-texture-types.cpp
+        tests/test-texture-view.cpp
+        tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
