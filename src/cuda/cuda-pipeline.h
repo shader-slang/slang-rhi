@@ -16,7 +16,7 @@ public:
     size_t m_paramBufferSize = 0;
     size_t m_sharedMemorySize = 0;
 
-    ComputePipelineImpl(Device* device);
+    ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc);
     ~ComputePipelineImpl();
 
     // IComputePipeline implementation
@@ -34,7 +34,7 @@ public:
     std::map<std::string, uint32_t> m_shaderGroupNameToIndex;
     OptixPipeline m_pipeline = nullptr;
 
-    RayTracingPipelineImpl(Device* device);
+    RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc);
     ~RayTracingPipelineImpl();
 
     // IRayTracingPipeline implementation

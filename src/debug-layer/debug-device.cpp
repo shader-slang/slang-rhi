@@ -535,21 +535,45 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRender
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createRenderPipeline(desc, outPipeline);
+    RenderPipelineDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createRenderPipelineLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
+    return baseObject->createRenderPipeline(patchedDesc, outPipeline);
 }
 
 Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createComputePipeline(desc, outPipeline);
+    ComputePipelineDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createComputePipelineLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
+    return baseObject->createComputePipeline(patchedDesc, outPipeline);
 }
 
 Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createRayTracingPipeline(desc, outPipeline);
+    RayTracingPipelineDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createRayTracingPipelineLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
+    return baseObject->createRayTracingPipeline(patchedDesc, outPipeline);
 }
 
 Result DebugDevice::readTexture(

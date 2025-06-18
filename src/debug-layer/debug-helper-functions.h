@@ -161,6 +161,9 @@ std::string createSamplerLabel(const SamplerDesc& desc);
 std::string createAccelerationStructureLabel(const AccelerationStructureDesc& desc);
 std::string createFenceLabel(const FenceDesc& desc);
 std::string createQueryPoolLabel(const QueryPoolDesc& desc);
+std::string createRenderPipelineLabel(const RenderPipelineDesc& desc);
+std::string createComputePipelineLabel(const ComputePipelineDesc& desc);
+std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc);
 
 void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
 

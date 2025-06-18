@@ -325,8 +325,8 @@ Result createPipelineWithCache(
     return SLANG_OK;
 }
 
-RenderPipelineImpl::RenderPipelineImpl(Device* device)
-    : RenderPipeline(device)
+RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
+    : RenderPipeline(device, desc)
 {
 }
 
@@ -549,7 +549,9 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         &vkPipeline
     ));
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
+    _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
+
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
@@ -557,8 +559,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     return SLANG_OK;
 }
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -599,7 +601,9 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         &vkPipeline
     ));
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
+
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
@@ -607,8 +611,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     return SLANG_OK;
 }
 
-RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device)
-    : RayTracingPipeline(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc)
+    : RayTracingPipeline(device, desc)
 {
 }
 
@@ -748,7 +752,9 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         &vkPipeline
     ));
 
-    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
+    _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
+
+    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;

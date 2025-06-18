@@ -4,8 +4,8 @@
 
 namespace rhi::cpu {
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -45,7 +45,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         return SLANG_FAIL;
     }
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = checked_cast<ShaderProgram*>(desc.program);
     pipeline->m_sharedLibrary = sharedLibrary;
     pipeline->m_func = func;

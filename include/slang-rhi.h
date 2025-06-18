@@ -1704,6 +1704,8 @@ struct RenderPipelineDesc
     DepthStencilDesc depthStencil;
     RasterizerDesc rasterizer;
     MultisampleDesc multisample;
+
+    const char* label = nullptr;
 };
 
 struct ComputePipelineDesc
@@ -1713,6 +1715,8 @@ struct ComputePipelineDesc
 
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
+
+    const char* label = nullptr;
 };
 
 enum class RayTracingPipelineFlags
@@ -1744,6 +1748,8 @@ struct RayTracingPipelineDesc
     uint32_t maxRayPayloadSize = 0;
     uint32_t maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
+
+    const char* label = nullptr;
 };
 
 // Specifies the bytes to overwrite into a record in the shader table.
@@ -1798,16 +1804,25 @@ public:
 class IRenderPipeline : public IPipeline
 {
     SLANG_COM_INTERFACE(0xf2eb0472, 0xfa25, 0x44f9, {0xb1, 0x90, 0xdc, 0x3e, 0x29, 0xaa, 0x56, 0x6a});
+
+public:
+    virtual SLANG_NO_THROW const RenderPipelineDesc& SLANG_MCALL getDesc() = 0;
 };
 
 class IComputePipeline : public IPipeline
 {
     SLANG_COM_INTERFACE(0x16eded28, 0xdc04, 0x434d, {0x85, 0xb7, 0xd6, 0xfa, 0xa0, 0x00, 0x5d, 0xf3});
+
+public:
+    virtual SLANG_NO_THROW const ComputePipelineDesc& SLANG_MCALL getDesc() = 0;
 };
 
 class IRayTracingPipeline : public IPipeline
 {
     SLANG_COM_INTERFACE(0x5047f5d7, 0xc6f6, 0x4482, {0xab, 0x49, 0x08, 0x57, 0x1b, 0xcf, 0xe8, 0xda});
+
+public:
+    virtual SLANG_NO_THROW const RayTracingPipelineDesc& SLANG_MCALL getDesc() = 0;
 };
 
 struct ScissorRect

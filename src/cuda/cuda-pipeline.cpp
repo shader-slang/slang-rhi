@@ -5,8 +5,8 @@
 
 namespace rhi::cuda {
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -31,7 +31,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     SLANG_RHI_ASSERT(!program->m_modules.empty());
     const auto& module = program->m_modules[0];
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
 
@@ -77,8 +77,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device)
-    : RayTracingPipeline(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc)
+    : RayTracingPipeline(device, desc)
 {
 }
 
@@ -288,7 +288,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         this
     );
 
-    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
+    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_modules = std::move(optixModules);
