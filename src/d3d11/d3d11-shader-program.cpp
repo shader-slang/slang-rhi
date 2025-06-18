@@ -4,8 +4,8 @@
 
 namespace rhi::d3d11 {
 
-ShaderProgramImpl::ShaderProgramImpl(Device* device)
-    : ShaderProgram(device)
+ShaderProgramImpl::ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc)
+    : ShaderProgram(device, desc)
 {
 }
 

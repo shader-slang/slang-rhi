@@ -95,8 +95,8 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    RefPtr<ShaderProgramImpl> program = new ShaderProgramImpl(this);
-    program->init(desc);
+    RefPtr<ShaderProgramImpl> program = new ShaderProgramImpl(this, desc);
+    program->init();
     auto slangGlobalScope = program->linkedProgram;
     if (slangGlobalScope)
     {

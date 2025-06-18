@@ -4,8 +4,8 @@
 
 namespace rhi::wgpu {
 
-ShaderProgramImpl::ShaderProgramImpl(Device* device)
-    : ShaderProgram(device)
+ShaderProgramImpl::ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc)
+    : ShaderProgram(device, desc)
 {
 }
 
@@ -76,8 +76,8 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
-    shaderProgram->init(desc);
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
+    shaderProgram->init();
     SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
         this,
         shaderProgram->linkedProgram,
