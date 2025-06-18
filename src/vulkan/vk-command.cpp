@@ -1673,7 +1673,7 @@ uint64_t CommandQueueImpl::updateLastFinishedID()
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
-    encoder->init();
+    SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
 }
