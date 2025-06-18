@@ -1520,7 +1520,7 @@ Result DeviceImpl::createShaderProgram(
 )
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
-    shaderProgram->init();
+    SLANG_RETURN_ON_FAIL(shaderProgram->init());
     ComPtr<ID3DBlob> d3dDiagnosticBlob;
     auto rootShaderLayoutResult = RootShaderObjectLayoutImpl::create(
         this,

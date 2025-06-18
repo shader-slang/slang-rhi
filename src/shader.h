@@ -65,7 +65,7 @@ public:
         m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
     }
 
-    void init();
+    Result init();
 
     bool isSpecializable() const { return m_isSpecializable; }
     bool isMeshShaderProgram() const;

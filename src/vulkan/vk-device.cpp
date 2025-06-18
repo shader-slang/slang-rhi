@@ -1737,7 +1737,7 @@ Result DeviceImpl::createShaderProgram(
 )
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
-    shaderProgram->init();
+    SLANG_RETURN_ON_FAIL(shaderProgram->init());
     SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
         this,
         shaderProgram->linkedProgram,

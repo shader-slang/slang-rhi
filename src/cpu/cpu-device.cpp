@@ -96,7 +96,7 @@ Result DeviceImpl::createShaderProgram(
 )
 {
     RefPtr<ShaderProgramImpl> program = new ShaderProgramImpl(this, desc);
-    program->init();
+    SLANG_RETURN_ON_FAIL(program->init());
     auto slangGlobalScope = program->linkedProgram;
     if (slangGlobalScope)
     {
