@@ -74,7 +74,7 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
-    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() { return m_desc; }
+    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override { return m_desc; }
 
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override
     {
