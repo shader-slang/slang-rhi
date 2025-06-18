@@ -194,11 +194,18 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     if (!function)
         return SLANG_FAIL;
 
-    // TODO: We should use a ComputePipelineDescriptor to allow setting the label
+    NS::SharedPtr<MTL::ComputePipelineDescriptor> pd = NS::TransferPtr(MTL::ComputePipelineDescriptor::alloc()->init());
+
+    pd->setComputeFunction(function.get());
+
+    if (desc.label)
+    {
+        pd->setLabel(MetalUtil::createString(desc.label).get());
+    }
 
     NS::Error* error;
     NS::SharedPtr<MTL::ComputePipelineState> pipelineState =
-        NS::TransferPtr(m_device->newComputePipelineState(function.get(), &error));
+        NS::TransferPtr(m_device->newComputePipelineState(pd.get(), MTL::PipelineOptionNone, nullptr, &error));
     if (!pipelineState)
     {
         if (error)
