@@ -24,6 +24,8 @@ ShaderProgram::ShaderProgram(Device* device, const ShaderProgramDesc& desc)
     m_descHolder.holdString(m_desc.label);
     m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
 
+    m_id = device->m_nextShaderProgramID.fetch_add(1);
+
     if (m_device->m_shaderCompilationReporter)
     {
         m_device->m_shaderCompilationReporter->registerProgram(this);

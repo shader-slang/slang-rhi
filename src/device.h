@@ -326,6 +326,7 @@ public:
     SlangContext m_slangContext;
     ShaderCache m_shaderCache;
 
+    std::atomic<uint64_t> m_nextShaderProgramID = 0;
     RefPtr<ShaderCompilationReporter> m_shaderCompilationReporter;
 
     StagingHeap m_uploadHeap;
@@ -337,8 +338,6 @@ public:
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
 
     IDebugCallback* m_debugCallback = nullptr;
-
-    std::atomic<uint64_t> m_nextDeviceChildUID = 0;
 };
 
 } // namespace rhi
