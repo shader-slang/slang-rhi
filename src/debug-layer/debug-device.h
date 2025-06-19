@@ -96,7 +96,7 @@ public:
     getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) override;
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

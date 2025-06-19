@@ -1638,7 +1638,7 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
     if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||
         !m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV)
@@ -1672,7 +1672,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
         }
     }
 
-    return Device::getCooperativeVectorProperties(properties, propertyCount);
+    return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 
 Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)

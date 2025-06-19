@@ -739,10 +739,10 @@ Result DebugDevice::getTextureRowAlignment(Format format, size_t* outAlignment)
     return baseObject->getTextureRowAlignment(format, outAlignment);
 }
 
-Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getCooperativeVectorProperties(properties, propertyCount);
+    return baseObject->getCooperativeVectorProperties(properties, propertiesCount);
 }
 
 Result DebugDevice::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)

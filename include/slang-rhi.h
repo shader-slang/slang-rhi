@@ -2974,7 +2974,7 @@ public:
     };
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) = 0;
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;
