@@ -11,16 +11,6 @@ namespace doctest {
 
 struct CustomReporter : public IReporter
 {
-    struct Options
-    {
-        bool checkDevices = false;
-    };
-    static Options& options()
-    {
-        static Options opts;
-        return opts;
-    }
-
     // caching pointers/references to objects of these types - safe to do
     std::ostream& stream;
     const ContextOptions& opt;
@@ -50,7 +40,7 @@ struct CustomReporter : public IReporter
         stream << Color::None;
         consoleReporter.test_run_start();
 
-        if (options().checkDevices)
+        if (rhi::testing::options().checkDevices)
         {
             checkDevices();
         }
