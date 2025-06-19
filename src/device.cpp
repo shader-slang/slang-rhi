@@ -70,9 +70,23 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
+RefPtr<Pipeline> ShaderCache::getSpecializedPipeline(PipelineKey programKey)
+{
+    auto it = specializedPipelines.find(programKey);
+    if (it != specializedPipelines.end())
+        return it->second;
+    return nullptr;
+}
+
 void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline)
 {
     specializedPipelines[key] = specializedPipeline;
+}
+
+void ShaderCache::free()
+{
+    componentIds = decltype(componentIds)();
+    specializedPipelines = decltype(specializedPipelines)();
 }
 
 // ----------------------------------------------------------------------------

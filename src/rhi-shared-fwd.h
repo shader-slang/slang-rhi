@@ -40,6 +40,6 @@ class VirtualRayTracingPipeline;
 struct SpecializationKey;
 class ShaderProgram;
 
-
 typedef uint32_t ShaderComponentID;
+
 } // namespace rhi
