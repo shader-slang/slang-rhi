@@ -421,152 +421,71 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
     auto& extendedFeatures = m_api.m_extendedFeatures;
 
+#define EXTEND_DESC_CHAIN(head_, desc_)                                                                                \
+    {                                                                                                                  \
+        desc_.pNext = head_.pNext;                                                                                     \
+        head_.pNext = &desc_;                                                                                          \
+    }
+
     // API version check, can't use vkGetPhysicalDeviceProperties2 yet since this device might not
     // support it
     if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_1 && m_api.vkGetPhysicalDeviceProperties2 &&
         m_api.vkGetPhysicalDeviceFeatures2)
     {
         // Get device features
-        VkPhysicalDeviceFeatures2 deviceFeatures2 = {};
-        deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        VkPhysicalDeviceFeatures2 deviceFeatures2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
 
-        // Inline uniform block
-        extendedFeatures.inlineUniformBlockFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.inlineUniformBlockFeatures;
-
-        // Ray query features
-        extendedFeatures.rayQueryFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.rayQueryFeatures;
-
-        // Ray tracing pipeline features
-        extendedFeatures.rayTracingPipelineFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.rayTracingPipelineFeatures;
-
-        // SER features.
-        extendedFeatures.rayTracingInvocationReorderFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.rayTracingInvocationReorderFeatures;
-
-        // Acceleration structure features
-        extendedFeatures.accelerationStructureFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.accelerationStructureFeatures;
-
-        // Variable pointer features.
-        extendedFeatures.variablePointersFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.variablePointersFeatures;
-
-        // Compute shader derivative features.
-        extendedFeatures.computeShaderDerivativeFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.computeShaderDerivativeFeatures;
-
-        // Extended dynamic states
-        extendedFeatures.extendedDynamicStateFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.extendedDynamicStateFeatures;
-
-        // 16-bit storage
-        extendedFeatures.storage16BitFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.storage16BitFeatures;
-
-        // robustness2 features
-        extendedFeatures.robustness2Features.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.robustness2Features;
-
-        // clock features
-        extendedFeatures.clockFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.clockFeatures;
-
-        // Atomic Float
-        // To detect atomic float we need
-        // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkPhysicalDeviceShaderAtomicFloatFeaturesEXT.html
-
-        extendedFeatures.atomicFloatFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.atomicFloatFeatures;
-
-        // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT.html
-        extendedFeatures.atomicFloat2Features.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.atomicFloat2Features;
-
-        // Image Int64 Atomic
-        // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkPhysicalDeviceShaderImageAtomicInt64FeaturesEXT.html
-        extendedFeatures.imageInt64AtomicFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.imageInt64AtomicFeatures;
-
-        // mesh shader features
-        extendedFeatures.meshShaderFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.meshShaderFeatures;
-
-        // multiview features
-        extendedFeatures.multiviewFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.multiviewFeatures;
-
-        // fragment shading rate features
-        extendedFeatures.fragmentShadingRateFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.fragmentShadingRateFeatures;
-
-        // raytracing validation features
-        extendedFeatures.rayTracingValidationFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.rayTracingValidationFeatures;
-
-        // shader draw parameters features
-        extendedFeatures.shaderDrawParametersFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.shaderDrawParametersFeatures;
-
-        // dynamic rendering features
-        extendedFeatures.dynamicRenderingFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingFeatures;
-
-        // custom border color features
-        extendedFeatures.customBorderColorFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.customBorderColorFeatures;
-
-        extendedFeatures.dynamicRenderingLocalReadFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.dynamicRenderingLocalReadFeatures;
-
-        extendedFeatures.formats4444Features.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.formats4444Features;
-
-        extendedFeatures.shaderMaximalReconvergenceFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.shaderMaximalReconvergenceFeatures;
-
-        extendedFeatures.shaderQuadControlFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.shaderQuadControlFeatures;
-
-        extendedFeatures.shaderIntegerDotProductFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.shaderIntegerDotProductFeatures;
-
-        extendedFeatures.cooperativeVectorFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.cooperativeVectorFeatures;
-
-        extendedFeatures.rayTracingLinearSweptSpheresFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.rayTracingLinearSweptSpheresFeatures;
-
-        extendedFeatures.cooperativeMatrix1Features.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.cooperativeMatrix1Features;
-
-        extendedFeatures.descriptorIndexingFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.descriptorIndexingFeatures;
-
-        extendedFeatures.mutableDescriptorTypeFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.mutableDescriptorTypeFeatures;
-
-        extendedFeatures.pipelineBinaryFeatures.pNext = deviceFeatures2.pNext;
-        deviceFeatures2.pNext = &extendedFeatures.pipelineBinaryFeatures;
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.inlineUniformBlockFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPipelineFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayQueryFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPositionFetchFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingInvocationReorderFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.accelerationStructureFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.variablePointersFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.computeShaderDerivativesFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.extendedDynamicStateFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.storage16BitFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.robustness2Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.clockFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.atomicFloatFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.atomicFloat2Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.imageInt64AtomicFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.meshShaderFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.multiviewFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShadingRateFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingValidationFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDrawParametersFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.dynamicRenderingFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.customBorderColorFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.dynamicRenderingLocalReadFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.formats4444Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderMaximalReconvergenceFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderQuadControlFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderIntegerDotProductFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeVectorFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingLinearSweptSpheresFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix1Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.descriptorIndexingFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.mutableDescriptorTypeFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.pipelineBinaryFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderSubgroupRotateFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderReplicatedCompositesFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderBarycentricFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
-            extendedFeatures.vulkan12Features.pNext = deviceFeatures2.pNext;
-            deviceFeatures2.pNext = &extendedFeatures.vulkan12Features;
+            EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan12Features);
         }
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
         {
-            extendedFeatures.vulkan13Features.pNext = deviceFeatures2.pNext;
-            deviceFeatures2.pNext = &extendedFeatures.vulkan13Features;
+            EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan13Features);
         }
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_4)
         {
-            extendedFeatures.vulkan14Features.pNext = deviceFeatures2.pNext;
-            deviceFeatures2.pNext = &extendedFeatures.vulkan14Features;
+            EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan14Features);
         }
 
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
@@ -660,14 +579,21 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.atomicFloatFeatures,
             shaderBufferFloat32Atomics,
             VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::AtomicFloat); }
+            {
+                availableFeatures.push_back(Feature::AtomicFloat);
+                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_add);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.atomicFloat2Features,
             shaderBufferFloat16Atomics,
             VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::AtomicFloat); }
+            {
+                availableFeatures.push_back(Feature::AtomicFloat);
+                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float16_add);
+                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_min_max);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -718,11 +644,31 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 extendedFeatures.rayTracingPipelineFeatures,
                 rayTracingPipeline,
                 VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-                { availableFeatures.push_back(Feature::RayTracing); }
+                {
+                    availableFeatures.push_back(Feature::RayTracing);
+                    availableCapabilities.push_back(Capability::SPV_KHR_ray_tracing);
+                    availableCapabilities.push_back(Capability::spvRayTracingKHR);
+                }
+            );
+
+            SIMPLE_EXTENSION_FEATURE(
+                extendedFeatures.rayTracingPositionFetchFeatures,
+                rayTracingPositionFetch,
+                VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME,
+                {
+                    availableCapabilities.push_back(Capability::SPV_KHR_ray_tracing_position_fetch);
+                    availableCapabilities.push_back(Capability::spvRayTracingPositionFetchKHR);
+                    if (extendedFeatures.rayQueryFeatures.rayQuery)
+                    {
+                        availableCapabilities.push_back(Capability::spvRayQueryPositionFetchKHR);
+                    }
+                }
             );
 
             SIMPLE_EXTENSION_FEATURE(extendedFeatures.rayQueryFeatures, rayQuery, VK_KHR_RAY_QUERY_EXTENSION_NAME, {
                 availableFeatures.push_back(Feature::RayQuery);
+                availableCapabilities.push_back(Capability::SPV_KHR_ray_query);
+                availableCapabilities.push_back(Capability::spvRayQueryKHR);
             });
 
             if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
@@ -761,11 +707,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.clockFeatures,
             shaderDeviceClock,
             VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::RealtimeClock); }
+            {
+                availableFeatures.push_back(Feature::RealtimeClock);
+                availableCapabilities.push_back(Capability::SPV_KHR_shader_clock);
+                availableCapabilities.push_back(Capability::spvShaderClockKHR);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(extendedFeatures.meshShaderFeatures, meshShader, VK_EXT_MESH_SHADER_EXTENSION_NAME, {
             availableFeatures.push_back(Feature::MeshShader);
+            availableCapabilities.push_back(Capability::SPV_EXT_mesh_shader);
+            availableCapabilities.push_back(Capability::spvMeshShadingEXT);
         });
 
         SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {
@@ -783,7 +735,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.rayTracingInvocationReorderFeatures,
             rayTracingInvocationReorder,
             VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::ShaderExecutionReordering); }
+            {
+                availableFeatures.push_back(Feature::ShaderExecutionReordering);
+                availableCapabilities.push_back(Capability::SPV_NV_shader_invocation_reorder);
+                availableCapabilities.push_back(Capability::spvShaderInvocationReorderNV);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -794,10 +750,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         );
 
         SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.computeShaderDerivativeFeatures,
-            computeDerivativeGroupLinear,
-            VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME,
-            {/* "computeDerivativeGroupLinear" */}
+            extendedFeatures.computeShaderDerivativesFeatures,
+            computeDerivativeGroupQuads,
+            VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME,
+            { availableCapabilities.push_back(Capability::SPV_KHR_compute_shader_derivatives); }
         );
 
         // Only enable raytracing validation if both requested and supported
@@ -815,14 +771,20 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.shaderMaximalReconvergenceFeatures,
             shaderMaximalReconvergence,
             VK_KHR_SHADER_MAXIMAL_RECONVERGENCE_EXTENSION_NAME,
-            {/* "shader-maximal-reconvergence" */}
+            {
+                availableCapabilities.push_back(Capability::SPV_KHR_maximal_reconvergence);
+                availableCapabilities.push_back(Capability::spvMaximalReconvergenceKHR);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderQuadControlFeatures,
             shaderQuadControl,
             VK_KHR_SHADER_QUAD_CONTROL_EXTENSION_NAME,
-            {/* "shader-quad-control" */}
+            {
+                availableCapabilities.push_back(Capability::SPV_KHR_quad_control);
+                availableCapabilities.push_back(Capability::spvQuadControlKHR);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -836,14 +798,26 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             extendedFeatures.cooperativeVectorFeatures,
             cooperativeVector,
             VK_NV_COOPERATIVE_VECTOR_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::CooperativeVector); }
+            {
+                availableFeatures.push_back(Feature::CooperativeVector);
+                availableCapabilities.push_back(Capability::SPV_NV_cooperative_vector);
+                availableCapabilities.push_back(Capability::spvCooperativeVectorNV);
+                if (extendedFeatures.cooperativeVectorFeatures.cooperativeVectorTraining)
+                {
+                    availableCapabilities.push_back(Capability::spvCooperativeVectorTrainingNV);
+                }
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.cooperativeMatrix1Features,
             cooperativeMatrix,
             VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME,
-            { availableFeatures.push_back(Feature::CooperativeMatrix); }
+            {
+                availableFeatures.push_back(Feature::CooperativeMatrix);
+                availableCapabilities.push_back(Capability::SPV_KHR_cooperative_matrix);
+                availableCapabilities.push_back(Capability::spvCooperativeMatrixKHR);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -860,6 +834,27 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             {
                 deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
                 availableFeatures.push_back(Feature::PipelineCache);
+            }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderReplicatedCompositesFeatures,
+            shaderReplicatedComposites,
+            VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME,
+            {
+                availableCapabilities.push_back(Capability::SPV_EXT_replicated_composites);
+                availableCapabilities.push_back(Capability::spvReplicatedCompositesEXT);
+            }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.fragmentShaderBarycentricFeatures,
+            fragmentShaderBarycentric,
+            VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME,
+            {
+                availableFeatures.push_back(Feature::Barycentrics);
+                availableCapabilities.push_back(Capability::SPV_KHR_fragment_shader_barycentric);
+                availableCapabilities.push_back(Capability::spvFragmentBarycentricKHR);
             }
         );
 
@@ -935,6 +930,18 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         {
             deviceExtensions.push_back(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
             availableFeatures.push_back(Feature::ConservativeRasterization);
+            availableCapabilities.push_back(Capability::SPV_EXT_fragment_fully_covered);
+            availableCapabilities.push_back(Capability::spvFragmentFullyCoveredEXT);
+        }
+        if (extensionNames.count(VK_EXT_FRAGMENT_SHADER_INTERLOCK_EXTENSION_NAME))
+        {
+            deviceExtensions.push_back(VK_EXT_FRAGMENT_SHADER_INTERLOCK_EXTENSION_NAME);
+            // availableFeatures.push_back(Feature::RasterizerOrderedViews); TODO should this be enabled?
+            availableCapabilities.push_back(Capability::SPV_EXT_fragment_shader_interlock);
+            if (extendedFeatures.fragmentShaderInterlockFeatures.fragmentShaderPixelInterlock)
+            {
+                availableCapabilities.push_back(Capability::spvFragmentShaderPixelInterlockEXT);
+            }
         }
         if (extensionNames.count(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME))
         {
@@ -952,15 +959,15 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         {
             deviceExtensions.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
         }
-        if (extensionNames.count(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME))
-        {
-            deviceExtensions.push_back(VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-            availableFeatures.push_back(Feature::Barycentrics);
-        }
         if (extensionNames.count(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME);
         }
+    }
+
+    if (extendedFeatures.vulkan12Features.descriptorIndexing)
+    {
+        availableCapabilities.push_back(Capability::SPV_EXT_descriptor_indexing);
     }
 
     if (extendedFeatures.vulkan12Features.descriptorIndexing &&
