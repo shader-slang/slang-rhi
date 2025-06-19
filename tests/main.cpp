@@ -34,9 +34,13 @@ int main(int argc, char** argv)
 #endif
 
     // Pass extra command line arguments to the custom reporter.
-    auto& options = doctest::CustomReporter::options();
     for (int i = 1; i < argc; ++i)
     {
+        auto& options = rhi::testing::options();
+        if (strcmp(argv[i], "-verbose") == 0)
+        {
+            options.verbose = true;
+        }
         if (strcmp(argv[i], "-check-devices") == 0)
         {
             options.checkDevices = true;

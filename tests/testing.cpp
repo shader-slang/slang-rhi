@@ -156,15 +156,28 @@ public:
     {
         if (!doctest::is_running_in_test)
             return;
+
+        auto output = [](const char* msg)
+        {
+            if (options().verbose)
+            {
+                MESSAGE(doctest::String(msg));
+            }
+            else
+            {
+                INFO(doctest::String(msg));
+            }
+        };
+
         if (type == DebugMessageType::Info)
         {
-            INFO(doctest::String(message));
+            output(message);
         }
         else if (type == DebugMessageType::Warning)
         {
             if (shouldIgnoreError(type, source, message))
             {
-                INFO(doctest::String(message));
+                output(message);
             }
             else
             {
@@ -175,7 +188,7 @@ public:
         {
             if (shouldIgnoreError(type, source, message))
             {
-                INFO(doctest::String(message));
+                output(message);
             }
             else
             {
