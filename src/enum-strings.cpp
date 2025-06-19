@@ -391,4 +391,42 @@ const char* enumToString(QueryType value)
     return S_INVALID;
 }
 
+const char* enumToString(CooperativeVectorComponentType value)
+{
+    switch (value)
+    {
+    case CooperativeVectorComponentType::Float16:
+        return S_CooperativeVectorComponentType_Float16;
+    case CooperativeVectorComponentType::Float32:
+        return S_CooperativeVectorComponentType_Float32;
+    case CooperativeVectorComponentType::Float64:
+        return S_CooperativeVectorComponentType_Float64;
+    case CooperativeVectorComponentType::Sint8:
+        return S_CooperativeVectorComponentType_Sint8;
+    case CooperativeVectorComponentType::Sint16:
+        return S_CooperativeVectorComponentType_Sint16;
+    case CooperativeVectorComponentType::Sint32:
+        return S_CooperativeVectorComponentType_Sint32;
+    case CooperativeVectorComponentType::Sint64:
+        return S_CooperativeVectorComponentType_Sint64;
+    case CooperativeVectorComponentType::Uint8:
+        return S_CooperativeVectorComponentType_Uint8;
+    case CooperativeVectorComponentType::Uint16:
+        return S_CooperativeVectorComponentType_Uint16;
+    case CooperativeVectorComponentType::Uint32:
+        return S_CooperativeVectorComponentType_Uint32;
+    case CooperativeVectorComponentType::Uint64:
+        return S_CooperativeVectorComponentType_Uint64;
+    case CooperativeVectorComponentType::Sint8Packed:
+        return S_CooperativeVectorComponentType_Sint8Packed;
+    case CooperativeVectorComponentType::Uint8Packed:
+        return S_CooperativeVectorComponentType_Uint8Packed;
+    case CooperativeVectorComponentType::FloatE4M3:
+        return S_CooperativeVectorComponentType_FloatE4M3;
+    case CooperativeVectorComponentType::FloatE5M2:
+        return S_CooperativeVectorComponentType_FloatE5M2;
+    }
+    return S_INVALID;
+}
+
 } // namespace rhi

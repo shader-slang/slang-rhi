@@ -153,6 +153,24 @@
 #define S_QueryType_AccelerationStructureSerializedSize "AccelerationStructureSerializedSize"
 #define S_QueryType_AccelerationStructureCurrentSize "AccelerationStructureCurrentSize"
 
+// CooperativeVectorComponentType
+#define S_CooperativeVectorComponentType_Float16 "Float16"
+#define S_CooperativeVectorComponentType_Float32 "Float32"
+#define S_CooperativeVectorComponentType_Float64 "Float64"
+#define S_CooperativeVectorComponentType_Sint8 "Sint8"
+#define S_CooperativeVectorComponentType_Sint16 "Sint16"
+#define S_CooperativeVectorComponentType_Sint32 "Sint32"
+#define S_CooperativeVectorComponentType_Sint64 "Sint64"
+#define S_CooperativeVectorComponentType_Uint8 "Uint8"
+#define S_CooperativeVectorComponentType_Uint16 "Uint16"
+#define S_CooperativeVectorComponentType_Uint32 "Uint32"
+#define S_CooperativeVectorComponentType_Uint64 "Uint64"
+#define S_CooperativeVectorComponentType_Sint8Packed "Sint8Packed"
+#define S_CooperativeVectorComponentType_Uint8Packed "Uint8Packed"
+#define S_CooperativeVectorComponentType_FloatE4M3 "FloatE4M3"
+#define S_CooperativeVectorComponentType_FloatE5M2 "FloatE5M2"
+
+
 // ----------------------------------------------------------------------------
 // Functions
 // ----------------------------------------------------------------------------
