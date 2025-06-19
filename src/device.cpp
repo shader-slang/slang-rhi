@@ -310,8 +310,8 @@ Result Device::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRa
 
 Result Device::getEntryPointCodeFromShaderCache(
     slang::IComponentType* program,
-    SlangInt entryPointIndex,
-    SlangInt targetIndex,
+    uint32_t entryPointIndex,
+    uint32_t targetIndex,
     slang::IBlob** outCode,
     slang::IBlob** outDiagnostics
 )

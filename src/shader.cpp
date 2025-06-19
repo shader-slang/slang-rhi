@@ -93,7 +93,7 @@ Result ShaderProgram::compileShaders(Device* device)
     // For a fully specialized program, read and store its kernel code in `shaderProgram`.
     auto compileShader = [&](slang::EntryPointReflection* entryPointInfo,
                              slang::IComponentType* entryPointComponent,
-                             SlangInt entryPointIndex)
+                             uint32_t entryPointIndex)
     {
         ComPtr<ISlangBlob> kernelCode;
         ComPtr<ISlangBlob> diagnostics;
@@ -121,9 +121,9 @@ Result ShaderProgram::compileShaders(Device* device)
         // If the user does not explicitly specify entry point components, find them from
         // `linkedEntryPoints`.
         auto programReflection = linkedProgram->getLayout();
-        for (SlangUInt i = 0; i < programReflection->getEntryPointCount(); i++)
+        for (uint32_t i = 0; i < programReflection->getEntryPointCount(); i++)
         {
-            SLANG_RETURN_ON_FAIL(compileShader(programReflection->getEntryPointByIndex(i), linkedProgram, (SlangInt)i));
+            SLANG_RETURN_ON_FAIL(compileShader(programReflection->getEntryPointByIndex(i), linkedProgram, i));
         }
     }
     else
