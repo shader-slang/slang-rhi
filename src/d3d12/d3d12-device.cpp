@@ -1829,7 +1829,7 @@ Result DeviceImpl::createAccelerationStructure(
 #endif
 }
 
-Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
 #if SLANG_RHI_ENABLE_NVAPI
     if (!NVAPIUtil::isAvailable())
@@ -1858,7 +1858,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
         }
     }
 
-    return Device::getCooperativeVectorProperties(properties, propertyCount);
+    return Device::getCooperativeVectorProperties(properties, propertiesCount);
 #else
     return SLANG_E_NOT_AVAILABLE;
 #endif

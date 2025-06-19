@@ -237,7 +237,7 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) override;
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL

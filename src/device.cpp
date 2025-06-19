@@ -786,25 +786,28 @@ Result Device::createSurface(WindowHandle windowHandle, ISurface** outSurface)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
+    if (!propertiesCount)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
     if (m_cooperativeVectorProperties.empty())
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-
-    if (*propertyCount == 0)
+    if (properties)
     {
-        *propertyCount = uint32_t(m_cooperativeVectorProperties.size());
-        return SLANG_OK;
+        uint32_t count = min(*propertiesCount, uint32_t(m_cooperativeVectorProperties.size()));
+        ::memcpy(properties, m_cooperativeVectorProperties.data(), count * sizeof(CooperativeVectorProperties));
+        Result result = count == *propertiesCount ? SLANG_OK : SLANG_E_BUFFER_TOO_SMALL;
+        *propertiesCount = count;
+        return result;
     }
     else
     {
-        uint32_t count = min(*propertyCount, uint32_t(m_cooperativeVectorProperties.size()));
-        ::memcpy(properties, m_cooperativeVectorProperties.data(), count * sizeof(CooperativeVectorProperties));
-        Result result = count == *propertyCount ? SLANG_OK : SLANG_E_BUFFER_TOO_SMALL;
-        *propertyCount = count;
-        return result;
+        *propertiesCount = uint32_t(m_cooperativeVectorProperties.size());
+        return SLANG_OK;
     }
 }
 

@@ -8,12 +8,12 @@ GPU_TEST_CASE("cooperative-vector-properties", D3D12 | Vulkan)
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
-    uint32_t propertyCount = 0;
-    REQUIRE_CALL(device->getCooperativeVectorProperties(nullptr, &propertyCount));
-    std::vector<CooperativeVectorProperties> properties(propertyCount);
-    REQUIRE_CALL(device->getCooperativeVectorProperties(properties.data(), &propertyCount));
+    uint32_t propertiesCount;
+    REQUIRE_CALL(device->getCooperativeVectorProperties(nullptr, &propertiesCount));
+    std::vector<CooperativeVectorProperties> properties(propertiesCount);
+    REQUIRE_CALL(device->getCooperativeVectorProperties(properties.data(), &propertiesCount));
 
-    CHECK(propertyCount > 0);
+    CHECK(propertiesCount > 0);
 }
 
 GPU_TEST_CASE("cooperative-vector-query-size", D3D12 | Vulkan)

@@ -255,12 +255,13 @@ namespace rhi::vk {
 
 #define VK_API_DECLARE_PROC(NAME) PFN_##NAME NAME = nullptr;
 
-struct VulkanExtendedFeatureProperties
+struct VulkanExtendedFeatures
 {
     // 16 bit storage features
     VkPhysicalDevice16BitStorageFeatures storage16BitFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR
     };
+
     // Atomic Float features
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT atomicFloatFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT
@@ -268,43 +269,58 @@ struct VulkanExtendedFeatureProperties
     VkPhysicalDeviceShaderAtomicFloat2FeaturesEXT atomicFloat2Features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_2_FEATURES_EXT
     };
+
     // Image int64 atomic features
     VkPhysicalDeviceShaderImageAtomicInt64FeaturesEXT imageInt64AtomicFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_ATOMIC_INT64_FEATURES_EXT
     };
+
     // Extended dynamic state features
     VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extendedDynamicStateFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT
     };
+
     // Acceleration structure features
     VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
     };
+
     // Ray tracing pipeline features
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingPipelineFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR
     };
+
     // Ray query (inline ray-tracing) features
     VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR};
+
+    // Ray tracing position fetch features
+    VkPhysicalDeviceRayTracingPositionFetchFeaturesKHR rayTracingPositionFetchFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR
+    };
+
     // Inline uniform block features
     VkPhysicalDeviceInlineUniformBlockFeaturesEXT inlineUniformBlockFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT
     };
+
     // Robustness2 features
     VkPhysicalDeviceRobustness2FeaturesEXT robustness2Features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT
     };
 
+    // Ray tracing invocation reorder features
     VkPhysicalDeviceRayTracingInvocationReorderFeaturesNV rayTracingInvocationReorderFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_FEATURES_NV
     };
 
+    // Variable pointers features
     VkPhysicalDeviceVariablePointerFeaturesKHR variablePointersFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTER_FEATURES_KHR
     };
 
-    VkPhysicalDeviceComputeShaderDerivativesFeaturesNV computeShaderDerivativeFeatures = {
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COMPUTE_SHADER_DERIVATIVES_FEATURES_NV
+    // Compute shader derivatives features
+    VkPhysicalDeviceComputeShaderDerivativesFeaturesKHR computeShaderDerivativesFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COMPUTE_SHADER_DERIVATIVES_FEATURES_KHR
     };
 
     // Clock features
@@ -343,14 +359,17 @@ struct VulkanExtendedFeatureProperties
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR
     };
 
+    // Custom border color features
     VkPhysicalDeviceCustomBorderColorFeaturesEXT customBorderColorFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT
     };
 
+    // Dynamic rendering local read features
     VkPhysicalDeviceDynamicRenderingLocalReadFeaturesKHR dynamicRenderingLocalReadFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR
     };
 
+    // 4444 formats features
     VkPhysicalDevice4444FormatsFeaturesEXT formats4444Features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_4444_FORMATS_FEATURES_EXT
     };
@@ -409,6 +428,21 @@ struct VulkanExtendedFeatureProperties
     VkPhysicalDeviceShaderSubgroupRotateFeatures shaderSubgroupRotateFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR
     };
+
+    // Shader replicated composites features
+    VkPhysicalDeviceShaderReplicatedCompositesFeaturesEXT shaderReplicatedCompositesFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_REPLICATED_COMPOSITES_FEATURES_EXT
+    };
+
+    // Fragment shader barycentric features
+    VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR fragmentShaderBarycentricFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR
+    };
+
+    // Fragment shader interlock features
+    VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT fragmentShaderInterlockFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT
+    };
 };
 
 struct VulkanApi
@@ -454,7 +488,7 @@ struct VulkanApi
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties;
     VkPhysicalDeviceFeatures m_deviceFeatures;
     VkPhysicalDeviceMemoryProperties m_deviceMemoryProperties;
-    VulkanExtendedFeatureProperties m_extendedFeatures;
+    VulkanExtendedFeatures m_extendedFeatures;
 };
 
 } // namespace rhi::vk
