@@ -33,6 +33,8 @@ struct SpecializationKey
     };
 };
 
+using ShaderProgramID = uint64_t;
+
 class ShaderProgram : public IShaderProgram, public DeviceChild
 {
 public:
@@ -41,6 +43,8 @@ public:
 
     ShaderProgramDesc m_desc;
     StructHolder m_descHolder;
+
+    ShaderProgramID m_id;
 
     ComPtr<slang::IComponentType> slangGlobalScope;
     std::vector<ComPtr<slang::IComponentType>> slangEntryPoints;

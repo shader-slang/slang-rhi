@@ -6,7 +6,6 @@ namespace rhi {
 DeviceChild::DeviceChild(Device* device)
     : m_device(device)
 {
-    m_uid = device->m_nextDeviceChildUID.fetch_add(1);
 }
 
 void DeviceChild::breakStrongReferenceToDevice()
