@@ -755,6 +755,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME,
             { availableCapabilities.push_back(Capability::SPV_KHR_compute_shader_derivatives); }
         );
+        // Also enable VK_NV_compute_shader_derivatives even if VK_KHR_compute_shader_derivatives is available.
+        // This avoids warnings from the validation layer if the NV specific intrinsics are used.
+        if (extensionNames.count(VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME))
+        {
+            deviceExtensions.push_back(VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME);
+        }
 
         // Only enable raytracing validation if both requested and supported
         if (desc.enableRayTracingValidation && extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
