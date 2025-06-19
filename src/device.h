@@ -77,21 +77,11 @@ public:
     ShaderComponentID getComponentId(std::string_view name);
     ShaderComponentID getComponentId(ComponentKey key);
 
-    RefPtr<Pipeline> getSpecializedPipeline(PipelineKey programKey)
-    {
-        auto it = specializedPipelines.find(programKey);
-        if (it != specializedPipelines.end())
-            return it->second;
-        return nullptr;
-    }
+    RefPtr<Pipeline> getSpecializedPipeline(PipelineKey programKey);
 
     void addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline);
 
-    void free()
-    {
-        componentIds = decltype(componentIds)();
-        specializedPipelines = decltype(specializedPipelines)();
-    }
+    void free();
 
 protected:
     struct ComponentKeyHasher

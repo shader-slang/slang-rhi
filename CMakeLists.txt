@@ -507,6 +507,7 @@ target_sources(slang-rhi PRIVATE
     src/command-list.cpp
     src/cuda-driver-api.cpp
     src/device.cpp
+    src/device-child.cpp
     src/enum-strings.cpp
     src/flag-combiner.cpp
     src/format-conversion.cpp

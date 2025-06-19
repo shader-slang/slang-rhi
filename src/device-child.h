@@ -8,10 +8,7 @@ namespace rhi {
 class DeviceChild : public ComObject
 {
 public:
-    DeviceChild(Device* device)
-        : m_device(device)
-    {
-    }
+    DeviceChild(Device* device);
 
     template<typename T = Device>
     T* getDevice()
@@ -19,9 +16,8 @@ public:
         return static_cast<T*>(m_device.get());
     }
 
-    void breakStrongReferenceToDevice() { m_device.breakStrongReference(); }
-
-    void establishStrongReferenceToDevice() { m_device.establishStrongReference(); }
+    void breakStrongReferenceToDevice();
+    void establishStrongReferenceToDevice();
 
 protected:
     BreakableReference<Device> m_device;
