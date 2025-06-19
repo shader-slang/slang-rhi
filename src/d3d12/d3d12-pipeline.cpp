@@ -529,13 +529,9 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
     ComPtr<ID3D12StateObject> stateObject;
 
-    auto slangGlobalScope = program->linkedProgram;
-    auto programLayout = slangGlobalScope->getLayout();
-
     std::vector<D3D12_STATE_SUBOBJECT> subObjects;
     stable_vector<D3D12_DXIL_LIBRARY_DESC> dxilLibraries;
     stable_vector<D3D12_HIT_GROUP_DESC> hitGroups;
-    stable_vector<ComPtr<ISlangBlob>> codeBlobs;
     stable_vector<D3D12_EXPORT_DESC> exports;
     stable_vector<const wchar_t*> strPtrs;
     ComPtr<ISlangBlob> diagnostics;
@@ -558,33 +554,14 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipelineConfigSubobject.pDesc = &pipelineConfig;
     subObjects.push_back(pipelineConfigSubobject);
 
-    auto compileShader =
-        [&](slang::EntryPointLayout* entryPointInfo, slang::IComponentType* component, SlangInt entryPointIndex)
+    for (const ShaderBinary& shader : program->m_shaders)
     {
-        ComPtr<ISlangBlob> codeBlob;
-        auto compileResult = getEntryPointCodeFromShaderCache(
-            component,
-            entryPointIndex,
-            0,
-            codeBlob.writeRef(),
-            diagnostics.writeRef()
-        );
-        if (diagnostics.get())
-        {
-            handleMessage(
-                compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
-                DebugMessageSource::Slang,
-                (char*)diagnostics->getBufferPointer()
-            );
-        }
-        SLANG_RETURN_ON_FAIL(compileResult);
-        codeBlobs.push_back(codeBlob);
         D3D12_DXIL_LIBRARY_DESC library = {};
-        library.DXILLibrary.BytecodeLength = codeBlob->getBufferSize();
-        library.DXILLibrary.pShaderBytecode = codeBlob->getBufferPointer();
+        library.DXILLibrary.BytecodeLength = shader.code.size();
+        library.DXILLibrary.pShaderBytecode = shader.code.data();
         library.NumExports = 1;
         D3D12_EXPORT_DESC exportDesc = {};
-        exportDesc.Name = getWStr(entryPointInfo->getNameOverride());
+        exportDesc.Name = getWStr(shader.entryPointInfo->getNameOverride());
         exportDesc.ExportToRename = nullptr;
         exportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
         exports.push_back(exportDesc);
@@ -595,24 +572,6 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         dxilLibraries.push_back(library);
         dxilSubObject.pDesc = &dxilLibraries.back();
         subObjects.push_back(dxilSubObject);
-        return SLANG_OK;
-    };
-
-    if (program->linkedEntryPoints.empty())
-    {
-        for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
-        {
-            SLANG_RETURN_ON_FAIL(
-                compileShader(programLayout->getEntryPointByIndex(i), program->linkedProgram, (SlangInt)i)
-            );
-        }
-    }
-    else
-    {
-        for (auto& entryPoint : program->linkedEntryPoints)
-        {
-            SLANG_RETURN_ON_FAIL(compileShader(entryPoint->getLayout()->getEntryPointByIndex(0), entryPoint, 0));
-        }
     }
 
     for (uint32_t i = 0; i < desc.hitGroupCount; i++)

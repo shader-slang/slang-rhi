@@ -26,7 +26,7 @@ Result QueryPoolImpl::init()
     return SLANG_OK;
 }
 
-ID3D11Query* QueryPoolImpl::getQuery(SlangInt index)
+ID3D11Query* QueryPoolImpl::getQuery(uint32_t index)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     if (!m_queries[index])
@@ -46,7 +46,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
     }
     device->m_info.timestampFrequency = disjointData.Frequency;
 
-    for (SlangInt i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         SLANG_RETURN_ON_FAIL(
             device->m_immediateContext->GetData(m_queries[queryIndex + i], data + i, sizeof(uint64_t), 0)
