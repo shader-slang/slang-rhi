@@ -21,6 +21,8 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
@@ -159,6 +161,19 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
     }
 
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Render,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
@@ -191,6 +206,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
@@ -213,6 +230,19 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             nullptr,
             computeShader.writeRef()
         ));
+    }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
     }
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);

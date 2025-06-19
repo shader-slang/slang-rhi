@@ -17,6 +17,19 @@ SpecializationKey::SpecializationKey(const ExtendedShaderObjectTypeList& args)
 // ShaderProgram
 // ----------------------------------------------------------------------------
 
+ShaderProgram::ShaderProgram(Device* device, const ShaderProgramDesc& desc)
+    : DeviceChild(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+    m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
+
+    if (m_device->m_shaderCompilationReporter)
+    {
+        m_device->m_shaderCompilationReporter->registerProgram(this);
+    }
+}
+
 IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderProgram::getTypeGuid())
@@ -98,7 +111,9 @@ Result ShaderProgram::compileShaders(Device* device)
         ComPtr<ISlangBlob> kernelCode;
         ComPtr<ISlangBlob> diagnostics;
         auto compileResult = device->getEntryPointCodeFromShaderCache(
+            this,
             entryPointComponent,
+            entryPointInfo->getNameOverride(),
             entryPointIndex,
             0,
             kernelCode.writeRef(),
@@ -166,6 +181,77 @@ bool ShaderProgram::isMeshShaderProgram() const
                 return true;
     }
     return false;
+}
+
+// ----------------------------------------------------------------------------
+// ShaderCompilationReporter
+// ----------------------------------------------------------------------------
+
+ShaderCompilationReporter::ShaderCompilationReporter(Device* device)
+    : m_device(device)
+{
+}
+
+void ShaderCompilationReporter::registerProgram(ShaderProgram* program)
+{
+    m_device->printInfo("Register shader program %p\n", program);
+}
+
+void ShaderCompilationReporter::reportGetEntryPointCode(
+    ShaderProgram* program,
+    const char* entryPointName,
+    TimePoint startTime,
+    TimePoint endTime,
+    double totalTime,
+    double downstreamTime,
+    bool isCached,
+    size_t cacheSize
+)
+{
+    m_device->printInfo(
+        "Get entry point code for shader program %p - %s took %f ms (slang: %f ms, downstream: %f ms, cached: %s, "
+        "cacheSize: %zd)\n",
+        program,
+        entryPointName,
+        (endTime - startTime) / 1e6,
+        totalTime * 1e3,
+        downstreamTime * 1e3,
+        isCached ? "yes" : "no",
+        cacheSize
+    );
+}
+
+void ShaderCompilationReporter::reportCreatePipeline(
+    ShaderProgram* shaderProgram,
+    PipelineType pipelineType,
+    TimePoint startTime,
+    TimePoint endTime,
+    bool isCached,
+    size_t cacheSize
+)
+{
+    auto getPipelineTypeName = [](PipelineType type) -> const char*
+    {
+        switch (type)
+        {
+        case PipelineType::Render:
+            return "render";
+        case PipelineType::Compute:
+            return "compute";
+        case PipelineType::RayTracing:
+            return "ray-tracing";
+        default:
+            return "-";
+        }
+    };
+    m_device->printInfo(
+        "Create %s pipeline for shader program %p took %f ms (cached: %s, cacheSize: %zd)\n",
+        getPipelineTypeName(pipelineType),
+        shaderProgram,
+        (endTime - startTime) / 1e6,
+        isCached ? "yes" : "no",
+        cacheSize
+    );
 }
 
 } // namespace rhi

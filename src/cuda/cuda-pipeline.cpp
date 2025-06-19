@@ -27,6 +27,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
     const auto& module = program->m_modules[0];
@@ -71,6 +73,19 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     );
     pipeline->m_sharedMemorySize = sharedSizeBytes;
 
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
@@ -107,6 +122,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     {
         return SLANG_E_NOT_AVAILABLE;
     }
+
+    TimePoint startTime = Timer::now();
 
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
@@ -287,6 +304,19 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         ),
         this
     );
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::RayTracing,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this, desc);
     pipeline->m_program = program;
