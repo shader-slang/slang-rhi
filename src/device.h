@@ -11,6 +11,7 @@
 
 #include "rhi-shared-fwd.h"
 
+#include <atomic>
 #include <map>
 #include <unordered_map>
 
@@ -330,6 +331,8 @@ public:
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
 
     IDebugCallback* m_debugCallback = nullptr;
+
+    std::atomic<uint64_t> m_nextDeviceChildUID = 0;
 };
 
 } // namespace rhi
