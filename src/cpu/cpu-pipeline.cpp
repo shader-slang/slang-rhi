@@ -17,6 +17,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     uint32_t targetIndex = 0;
     uint32_t entryPointIndex = 0;
 
@@ -43,6 +45,19 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     if (!func)
     {
         return SLANG_FAIL;
+    }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
     }
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);

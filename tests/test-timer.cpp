@@ -27,9 +27,9 @@ TEST_CASE("timer")
     SUBCASE("now")
     {
         double deltaNS = 10000000.0;
-        Timer::TimePoint t0 = Timer::now();
+        TimePoint t0 = Timer::now();
         highPrecisionSleep(deltaNS / 1000000000.0);
-        Timer::TimePoint t1 = Timer::now();
+        TimePoint t1 = Timer::now();
         CHECK(t1 > t0 + deltaNS * 0.9);
     }
 

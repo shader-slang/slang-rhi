@@ -226,10 +226,15 @@ Result createPipelineWithCache(
     DeviceImpl* device,
     VkPipelineCreateInfo* createInfo,
     VkResult (*createPipelineFunc)(DeviceImpl* device, VkPipelineCreateInfo* createInfo, VkPipeline* outPipeline),
-    VkPipeline* outPipeline
+    VkPipeline* outPipeline,
+    bool& outCached,
+    size_t& outCacheSize
 )
 {
     auto& api = device->m_api;
+
+    outCached = false;
+    outCacheSize = 0;
 
     // Early out if cache is not enabled or the feature is not supported.
     if (!device->m_persistentPipelineCache || !api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries)
@@ -269,6 +274,8 @@ Result createPipelineWithCache(
             if (createPipelineFunc(device, createInfo, &pipeline) == VK_SUCCESS)
             {
                 writeCache = false;
+                outCached = true;
+                outCacheSize = pipelineCacheData->getBufferSize();
             }
             else
             {
@@ -306,6 +313,7 @@ Result createPipelineWithCache(
         if (SLANG_SUCCEEDED(serializePipelineBinaries(device, pipeline, pipelineCacheData.writeRef())))
         {
             device->m_persistentPipelineCache->writeCache(pipelineCacheKey, pipelineCacheData);
+            outCacheSize = pipelineCacheData->getBufferSize();
         }
         else
         {
@@ -349,6 +357,8 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
@@ -538,6 +548,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     createInfo.pDynamicState = &dynamicStateInfo;
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
+    bool cached = false;
+    size_t cacheSize = 0;
     SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkGraphicsPipelineCreateInfo>(
         this,
         &createInfo,
@@ -546,10 +558,25 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             return device->m_api
                 .vkCreateGraphicsPipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
         },
-        &vkPipeline
+        &vkPipeline,
+        cached,
+        cacheSize
     ));
 
     _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Render,
+            startTime,
+            Timer::now(),
+            cached,
+            cacheSize
+        );
+    }
 
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
@@ -583,6 +610,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
@@ -591,6 +620,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     createInfo.layout = program->m_rootShaderObjectLayout->m_pipelineLayout;
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
+    bool cached = false;
+    size_t cacheSize = 0;
     SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkComputePipelineCreateInfo>(
         this,
         &createInfo,
@@ -598,10 +629,25 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             return device->m_api
                 .vkCreateComputePipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
         },
-        &vkPipeline
+        &vkPipeline,
+        cached,
+        cacheSize
     ));
 
     _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            cached,
+            cacheSize
+        );
+    }
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
@@ -651,6 +697,8 @@ inline uint32_t findEntryPointIndexByName(
 
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
@@ -734,6 +782,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     createInfo.basePipelineIndex = 0;
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
+    bool cached = false;
+    size_t cacheSize = 0;
     SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkRayTracingPipelineCreateInfoKHR>(
         this,
         &createInfo,
@@ -749,10 +799,25 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
                 pipeline
             );
         },
-        &vkPipeline
+        &vkPipeline,
+        cached,
+        cacheSize
     ));
 
     _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::RayTracing,
+            startTime,
+            Timer::now(),
+            cached,
+            cacheSize
+        );
+    }
 
     RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this, desc);
     pipeline->m_program = program;

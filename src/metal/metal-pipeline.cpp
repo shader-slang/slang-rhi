@@ -23,6 +23,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 {
     AUTORELEASEPOOL
 
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
     if (!program)
@@ -157,6 +159,19 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         return SLANG_FAIL;
     }
 
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Render,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
     RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
@@ -184,6 +199,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     AUTORELEASEPOOL
+
+    TimePoint startTime = Timer::now();
 
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
@@ -222,6 +239,19 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     // Query thread group size for use during dispatch.
     SlangUInt threadGroupSize[3];
     program->linkedProgram->getLayout()->getEntryPointByIndex(0)->getComputeThreadGroupSize(3, threadGroupSize);
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
 
     RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;

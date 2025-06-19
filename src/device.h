@@ -235,7 +235,9 @@ public:
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
 
     Result getEntryPointCodeFromShaderCache(
-        slang::IComponentType* program,
+        ShaderProgram* program,
+        slang::IComponentType* componentType,
+        const char* entryPointName,
         uint32_t entryPointIndex,
         uint32_t targetIndex,
         slang::IBlob** outCode,
@@ -263,6 +265,7 @@ public:
     }
 
     void printMessage(DebugMessageType type, DebugMessageSource source, const char* message, ...);
+    void printInfo(const char* message, ...);
     void printWarning(const char* message, ...);
     void printError(const char* message, ...);
 
@@ -322,6 +325,9 @@ public:
 
     SlangContext m_slangContext;
     ShaderCache m_shaderCache;
+
+    RefPtr<ShaderCompilationReporter> m_shaderCompilationReporter;
+
     StagingHeap m_uploadHeap;
     StagingHeap m_readbackHeap;
 

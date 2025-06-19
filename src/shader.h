@@ -4,6 +4,7 @@
 
 #include "core/common.h"
 #include "core/short_vector.h"
+#include "core/timer.h"
 
 #include "rhi-shared-fwd.h"
 #include "device-child.h"
@@ -44,11 +45,11 @@ public:
     ComPtr<slang::IComponentType> slangGlobalScope;
     std::vector<ComPtr<slang::IComponentType>> slangEntryPoints;
 
-    // Linked program when linkingStyle is GraphicsCompute, or the original global scope
-    // when linking style is RayTracing.
+    // Linked program when linkingStyle is SingleProgram, or the original global scope
+    // when linking style is SeparateEntryPointCompilation.
     ComPtr<slang::IComponentType> linkedProgram;
 
-    // Linked program for each entry point when linkingStyle is RayTracing.
+    // Linked program for each entry point when linkingStyle is SeparateEntryPointCompilation.
     std::vector<ComPtr<slang::IComponentType>> linkedEntryPoints;
 
     bool m_isSpecializable = false;
@@ -57,13 +58,7 @@ public:
 
     std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
 
-    ShaderProgram(Device* device, const ShaderProgramDesc& desc)
-        : DeviceChild(device)
-        , m_desc(desc)
-    {
-        m_descHolder.holdString(m_desc.label);
-        m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
-    }
+    ShaderProgram(Device* device, const ShaderProgramDesc& desc);
 
     Result init();
 
@@ -99,6 +94,44 @@ private:
         }
         return false;
     }
+};
+
+class ShaderCompilationReporter : public RefObject
+{
+public:
+    enum class PipelineType
+    {
+        Render,
+        Compute,
+        RayTracing
+    };
+
+    ShaderCompilationReporter(Device* device);
+
+    void registerProgram(ShaderProgram* program);
+
+    void reportGetEntryPointCode(
+        ShaderProgram* program,
+        const char* entryPointName,
+        TimePoint startTime,
+        TimePoint endTime,
+        double totalTime,
+        double downstreamTime,
+        bool isCached,
+        size_t cacheSize
+    );
+
+    void reportCreatePipeline(
+        ShaderProgram* program,
+        PipelineType pipelineType,
+        TimePoint startTime,
+        TimePoint endTime,
+        bool isCached,
+        size_t cacheSize
+    );
+
+private:
+    Device* m_device;
 };
 
 } // namespace rhi
