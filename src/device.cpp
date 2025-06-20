@@ -344,7 +344,7 @@ Result Device::getEntryPointCodeFromShaderCache(
         {
             if (m_shaderCompilationReporter)
             {
-                m_shaderCompilationReporter->reportGetEntryPointCode(
+                m_shaderCompilationReporter->reportCompileEntryPoint(
                     program,
                     entryPointName,
                     startTime,
@@ -379,7 +379,7 @@ Result Device::getEntryPointCodeFromShaderCache(
     // Report compilation time.
     if (m_shaderCompilationReporter)
     {
-        m_shaderCompilationReporter->reportGetEntryPointCode(
+        m_shaderCompilationReporter->reportCompileEntryPoint(
             program,
             entryPointName,
             startTime,

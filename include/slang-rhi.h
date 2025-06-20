@@ -181,6 +181,22 @@ enum class AccessFlag
 
 class IPersistentCache;
 
+struct ShaderProgramCompilationReport
+{
+    /// Shader program label.
+    const char* label;
+    /// Total time spent creating the shader program (seconds).
+    double totalTime;
+    /// Total time spent compiling entry points (seconds).
+    double compileTime;
+    /// Total time spent in the slang compiler backend (seconds).
+    double compileSlangTime;
+    /// Total time spent in the downstream compiler (seconds).
+    double compileDownstreamTime;
+    /// Total time spent creating pipelines (seconds).
+    double createPipelineTime;
+};
+
 /// Defines how linking should be performed for a shader program.
 enum class LinkingStyle
 {
@@ -222,6 +238,8 @@ class IShaderProgram : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCompilationReport(ShaderProgramCompilationReport* outReport, ISlangBlob** outDetailsBlob) = 0;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
 

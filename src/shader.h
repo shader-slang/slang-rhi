@@ -73,12 +73,11 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
-    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override { return m_desc; }
-
-    virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override
-    {
-        return linkedProgram->getLayout()->findTypeByName(name);
-    }
+    // IShaderProgram interface
+    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCompilationReport(ShaderProgramCompilationReport* outReport, ISlangBlob** outDetailsBlob) override;
+    virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() = 0;
 
@@ -114,7 +113,7 @@ public:
 
     void registerProgram(ShaderProgram* program);
 
-    void reportGetEntryPointCode(
+    void reportCompileEntryPoint(
         ShaderProgram* program,
         const char* entryPointName,
         TimePoint startTime,
@@ -134,8 +133,47 @@ public:
         size_t cacheSize
     );
 
+    Result getCompilationReport(
+        ShaderProgram* program,
+        ShaderProgramCompilationReport* outReport,
+        ISlangBlob** outDetailsBlob
+    );
+
 private:
+    struct CompileEntryPointReport
+    {
+        std::string entryPointName;
+        TimePoint startTime;
+        TimePoint endTime;
+        double compileTime;
+        double backendTime;
+        double downstreamTime;
+        bool isCached;
+        size_t cacheSize;
+    };
+
+    struct CreatePipelineReport
+    {
+        PipelineType pipelineType;
+        TimePoint startTime;
+        TimePoint endTime;
+        double createTime;
+        bool isCached;
+        size_t cacheSize;
+    };
+
+    struct ProgramReport
+    {
+        std::vector<CompileEntryPointReport> compileEntryPointReports;
+        std::vector<CreatePipelineReport> createPipelineReports;
+    };
+
     Device* m_device;
+
+    bool m_printReports = false;
+    bool m_recordReports = false;
+    std::mutex m_mutex;
+    std::vector<ProgramReport> m_programReports;
 };
 
 } // namespace rhi

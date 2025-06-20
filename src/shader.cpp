@@ -185,6 +185,25 @@ bool ShaderProgram::isMeshShaderProgram() const
     return false;
 }
 
+const ShaderProgramDesc& ShaderProgram::getDesc()
+{
+    return m_desc;
+}
+
+Result ShaderProgram::getCompilationReport(ShaderProgramCompilationReport* outReport, ISlangBlob** outDetailsBlob)
+{
+    if (m_device->m_shaderCompilationReporter)
+    {
+        return m_device->m_shaderCompilationReporter->getCompilationReport(this, outReport, outDetailsBlob);
+    }
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+slang::TypeReflection* ShaderProgram::findTypeByName(const char* name)
+{
+    return linkedProgram->getLayout()->findTypeByName(name);
+}
+
 // ----------------------------------------------------------------------------
 // ShaderCompilationReporter
 // ----------------------------------------------------------------------------
@@ -192,14 +211,24 @@ bool ShaderProgram::isMeshShaderProgram() const
 ShaderCompilationReporter::ShaderCompilationReporter(Device* device)
     : m_device(device)
 {
+    m_printReports = true;
 }
 
 void ShaderCompilationReporter::registerProgram(ShaderProgram* program)
 {
-    m_device->printInfo("Register shader program %p\n", program);
+    if (m_printReports)
+    {
+        m_device->printInfo("Shader program %llu: Registered\n", program->m_id);
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_programReports.resize(max(size_t(program->m_id) + 1, m_programReports.size()));
+    }
 }
 
-void ShaderCompilationReporter::reportGetEntryPointCode(
+void ShaderCompilationReporter::reportCompileEntryPoint(
     ShaderProgram* program,
     const char* entryPointName,
     TimePoint startTime,
@@ -210,21 +239,41 @@ void ShaderCompilationReporter::reportGetEntryPointCode(
     size_t cacheSize
 )
 {
-    m_device->printInfo(
-        "Get entry point code for shader program %p - %s took %f ms (slang: %f ms, downstream: %f ms, cached: %s, "
-        "cacheSize: %zd)\n",
-        program,
-        entryPointName,
-        (endTime - startTime) / 1e6,
-        totalTime * 1e3,
-        downstreamTime * 1e3,
-        isCached ? "yes" : "no",
-        cacheSize
-    );
+    if (m_printReports)
+    {
+        m_device->printInfo(
+            "Shader program %llu: Compiling entry point \"%s\" took %f ms "
+            "(total: %f ms, backend: %f ms, downstream: %f ms, cached: %s, cacheSize: %zd)\n",
+            program->m_id,
+            entryPointName,
+            (endTime - startTime) / 1e6,
+            totalTime * 1e3,
+            (totalTime - downstreamTime) * 1e3,
+            downstreamTime * 1e3,
+            isCached ? "yes" : "no",
+            cacheSize
+        );
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto& programReport = m_programReports[program->m_id];
+        programReport.compileEntryPointReports.push_back({
+            entryPointName,
+            startTime,
+            endTime,
+            totalTime * 1e3, // Convert to milliseconds
+            (totalTime - downstreamTime) * 1e3,
+            downstreamTime * 1e3, // Convert to milliseconds
+            isCached,
+            cacheSize,
+        });
+    }
 }
 
 void ShaderCompilationReporter::reportCreatePipeline(
-    ShaderProgram* shaderProgram,
+    ShaderProgram* program,
     PipelineType pipelineType,
     TimePoint startTime,
     TimePoint endTime,
@@ -246,14 +295,41 @@ void ShaderCompilationReporter::reportCreatePipeline(
             return "-";
         }
     };
-    m_device->printInfo(
-        "Create %s pipeline for shader program %p took %f ms (cached: %s, cacheSize: %zd)\n",
-        getPipelineTypeName(pipelineType),
-        shaderProgram,
-        (endTime - startTime) / 1e6,
-        isCached ? "yes" : "no",
-        cacheSize
-    );
+
+    if (m_printReports)
+    {
+        m_device->printInfo(
+            "Shader program %llu: Creating %s pipeline took %f ms (cached: %s, cacheSize: %zd)\n",
+            program->m_id,
+            getPipelineTypeName(pipelineType),
+            (endTime - startTime) / 1e6,
+            isCached ? "yes" : "no",
+            cacheSize
+        );
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto& programReport = m_programReports[program->m_id];
+        programReport.createPipelineReports.push_back({
+            pipelineType,
+            startTime,
+            endTime,
+            (endTime - startTime) * 1e3, // Convert to milliseconds
+            isCached,
+            cacheSize,
+        });
+    }
+}
+
+Result ShaderCompilationReporter::getCompilationReport(
+    ShaderProgram* program,
+    ShaderProgramCompilationReport* outReport,
+    ISlangBlob** outDetailsBlob
+)
+{
+    return SLANG_OK;
 }
 
 } // namespace rhi
