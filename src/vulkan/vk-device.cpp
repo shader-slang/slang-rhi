@@ -472,6 +472,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderReplicatedCompositesFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderBarycentricFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -646,6 +647,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
                 {
                     availableFeatures.push_back(Feature::RayTracing);
+                    availableCapabilities.push_back(Capability::_raygen);
+                    availableCapabilities.push_back(Capability::_intersection);
+                    availableCapabilities.push_back(Capability::_anyhit);
+                    availableCapabilities.push_back(Capability::_closesthit);
+                    availableCapabilities.push_back(Capability::_callable);
+                    availableCapabilities.push_back(Capability::_miss);
                     availableCapabilities.push_back(Capability::SPV_KHR_ray_tracing);
                     availableCapabilities.push_back(Capability::spvRayTracingKHR);
                 }
@@ -714,11 +721,18 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             }
         );
 
-        SIMPLE_EXTENSION_FEATURE(extendedFeatures.meshShaderFeatures, meshShader, VK_EXT_MESH_SHADER_EXTENSION_NAME, {
+        if (extendedFeatures.meshShaderFeatures.meshShader)
+        {
+            deviceExtensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
             availableFeatures.push_back(Feature::MeshShader);
             availableCapabilities.push_back(Capability::SPV_EXT_mesh_shader);
             availableCapabilities.push_back(Capability::spvMeshShadingEXT);
-        });
+            availableCapabilities.push_back(Capability::_mesh);
+            if (extendedFeatures.meshShaderFeatures.taskShader)
+            {
+                availableCapabilities.push_back(Capability::_amplification);
+            }
+        }
 
         SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {
             availableFeatures.push_back(Feature::MultiView);
@@ -864,6 +878,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             }
         );
 
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderDemoteToHelperInvocationFeatures,
+            shaderDemoteToHelperInvocation,
+            VK_EXT_SHADER_DEMOTE_TO_HELPER_INVOCATION_EXTENSION_NAME,
+            {
+                availableCapabilities.push_back(Capability::SPV_EXT_demote_to_helper_invocation);
+                availableCapabilities.push_back(Capability::spvDemoteToHelperInvocationEXT);
+            }
+        );
+
 #undef SIMPLE_EXTENSION_FEATURE
 
         if (extendedFeatures.vulkan12Features.shaderBufferInt64Atomics)
@@ -992,6 +1016,29 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         extendedFeatures.mutableDescriptorTypeFeatures.mutableDescriptorType)
     {
         availableFeatures.push_back(Feature::Bindless);
+    }
+
+    if (extendedFeatures.vulkan13Features.shaderDemoteToHelperInvocation)
+    {
+        availableCapabilities.push_back(Capability::spvDemoteToHelperInvocation);
+    }
+
+    // Detect SPIRV version
+    availableCapabilities.push_back(Capability::_spirv_1_0);
+    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_1)
+    {
+        availableCapabilities.push_back(Capability::_spirv_1_1);
+        availableCapabilities.push_back(Capability::_spirv_1_2);
+        availableCapabilities.push_back(Capability::_spirv_1_3);
+    }
+    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
+    {
+        availableCapabilities.push_back(Capability::_spirv_1_4);
+        availableCapabilities.push_back(Capability::_spirv_1_5);
+    }
+    if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3)
+    {
+        availableCapabilities.push_back(Capability::_spirv_1_6);
     }
 
     int queueFamilyIndex = m_api.findQueue(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
