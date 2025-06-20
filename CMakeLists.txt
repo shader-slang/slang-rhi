@@ -119,7 +119,7 @@ set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.616.0" CACHE STRING "Agility SDK vers
 
 # Fetch NVAPI options
 option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
-set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/d08488fcc82eef313b0464db37d2955709691e94.zip" CACHE STRING "NVAPI URL to fetch")
+set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/7cb76fce2f52de818b3da497af646af1ec16ce27.zip" CACHE STRING "NVAPI URL to fetch") # R575
 
 # Fetch vulkan headers options
 set(SLANG_RHI_FETCH_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.318.zip" CACHE STRING "Vulkan headers URL to fetch")
