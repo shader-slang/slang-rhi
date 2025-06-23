@@ -199,7 +199,7 @@ void ShaderCompilationReporter::registerProgram(ShaderProgram* program)
     m_device->printInfo("Register shader program %p\n", program);
 }
 
-void ShaderCompilationReporter::reportGetEntryPointCode(
+void ShaderCompilationReporter::reportCompileEntryPoint(
     ShaderProgram* program,
     const char* entryPointName,
     TimePoint startTime,

@@ -114,7 +114,7 @@ public:
 
     void registerProgram(ShaderProgram* program);
 
-    void reportGetEntryPointCode(
+    void reportCompileEntryPoint(
         ShaderProgram* program,
         const char* entryPointName,
         TimePoint startTime,
