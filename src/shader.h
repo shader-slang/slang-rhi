@@ -147,7 +147,6 @@ private:
         double compileTime;
         double compileSlangTime;
         double compileDownstreamTime;
-        ;
         bool isCached;
         size_t cacheSize;
     };
