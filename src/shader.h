@@ -136,6 +136,7 @@ public:
     );
 
     Result getCompilationReport(ShaderProgram* program, CompilationReportType type, ISlangBlob** outReportBlob);
+    Result getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob);
 
 private:
     struct EntryPointReport
@@ -163,7 +164,7 @@ private:
 
     struct ProgramReport
     {
-        bool active = false;
+        bool alive = false;
         std::string label;
         std::vector<EntryPointReport> entryPointReports;
         std::vector<PipelineReport> pipelineReports;
@@ -178,6 +179,8 @@ private:
     std::mutex m_mutex;
     /// Maps ShaderProgramID to ProgramReport.
     std::vector<ProgramReport> m_programReports;
+
+    void writeCompilationReport(CompilationReport& dst, const ProgramReport& src);
 };
 
 } // namespace rhi
