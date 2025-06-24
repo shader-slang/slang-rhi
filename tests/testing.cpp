@@ -157,42 +157,73 @@ public:
         if (!doctest::is_running_in_test)
             return;
 
-        auto output = [](const char* msg)
+        doctest::String msg;
+        switch (type)
+        {
+        case DebugMessageType::Info:
+            msg += "[Info] ";
+            break;
+        case DebugMessageType::Warning:
+            msg += "[Warning] ";
+            break;
+        case DebugMessageType::Error:
+            msg += "[Error] ";
+            break;
+        default:
+            break;
+        }
+        switch (source)
+        {
+        case DebugMessageSource::Layer:
+            msg += "[Layer] ";
+            break;
+        case DebugMessageSource::Driver:
+            msg += "[Driver] ";
+            break;
+        case DebugMessageSource::Slang:
+            msg += "[Slang] ";
+            break;
+        default:
+            break;
+        }
+        msg += message;
+
+        auto output = [](const doctest::String& str)
         {
             if (options().verbose)
             {
-                MESSAGE(doctest::String(msg));
+                MESSAGE(str);
             }
             else
             {
-                INFO(doctest::String(msg));
+                INFO(str);
             }
         };
 
         if (type == DebugMessageType::Info)
         {
-            output(message);
+            output(msg);
         }
         else if (type == DebugMessageType::Warning)
         {
             if (shouldIgnoreError(type, source, message))
             {
-                output(message);
+                output(msg);
             }
             else
             {
-                FAIL(doctest::String(message));
+                FAIL(msg);
             }
         }
         else if (type == DebugMessageType::Error)
         {
             if (shouldIgnoreError(type, source, message))
             {
-                output(message);
+                output(msg);
             }
             else
             {
-                FAIL(doctest::String(message));
+                FAIL(msg);
             }
         }
     }
