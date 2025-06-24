@@ -731,6 +731,12 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
+#if SLANG_RHI_ENABLE_NVAPI
+    if (deviceType == DeviceType::D3D12)
+    {
+        desc.nvapiExtUavSlot = 999;
+    }
+#endif
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
     if (SLANG_FAILED(createResult))
