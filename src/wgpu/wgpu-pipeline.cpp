@@ -123,7 +123,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     WGPURenderPipeline renderPipeline = {};
     renderPipeline = m_ctx.api.wgpuDeviceCreateRenderPipeline(m_ctx.device, &pipelineDesc);
-    if (renderPipeline)
+    if (!renderPipeline)
     {
         return SLANG_FAIL;
     }
