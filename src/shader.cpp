@@ -17,6 +17,29 @@ SpecializationKey::SpecializationKey(const ExtendedShaderObjectTypeList& args)
 // ShaderProgram
 // ----------------------------------------------------------------------------
 
+ShaderProgram::ShaderProgram(Device* device, const ShaderProgramDesc& desc)
+    : DeviceChild(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+    m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
+
+    m_id = device->m_nextShaderProgramID.fetch_add(1);
+
+    if (m_device->m_shaderCompilationReporter)
+    {
+        m_device->m_shaderCompilationReporter->registerProgram(this);
+    }
+}
+
+ShaderProgram::~ShaderProgram()
+{
+    if (m_device->m_shaderCompilationReporter)
+    {
+        m_device->m_shaderCompilationReporter->unregisterProgram(this);
+    }
+}
+
 IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderProgram::getTypeGuid())
@@ -98,7 +121,9 @@ Result ShaderProgram::compileShaders(Device* device)
         ComPtr<ISlangBlob> kernelCode;
         ComPtr<ISlangBlob> diagnostics;
         auto compileResult = device->getEntryPointCodeFromShaderCache(
+            this,
             entryPointComponent,
+            entryPointInfo->getNameOverride(),
             entryPointIndex,
             0,
             kernelCode.writeRef(),
@@ -166,6 +191,236 @@ bool ShaderProgram::isMeshShaderProgram() const
                 return true;
     }
     return false;
+}
+
+const ShaderProgramDesc& ShaderProgram::getDesc()
+{
+    return m_desc;
+}
+
+Result ShaderProgram::getCompilationReport(CompilationReportType type, ISlangBlob** outReportBlob)
+{
+    if (m_device->m_shaderCompilationReporter)
+    {
+        return m_device->m_shaderCompilationReporter->getCompilationReport(this, type, outReportBlob);
+    }
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+slang::TypeReflection* ShaderProgram::findTypeByName(const char* name)
+{
+    return linkedProgram->getLayout()->findTypeByName(name);
+}
+
+// ----------------------------------------------------------------------------
+// ShaderCompilationReporter
+// ----------------------------------------------------------------------------
+
+ShaderCompilationReporter::ShaderCompilationReporter(Device* device)
+    : m_device(device)
+{
+    m_printReports = true;
+    m_recordReports = true;
+}
+
+void ShaderCompilationReporter::registerProgram(ShaderProgram* program)
+{
+    SLANG_RHI_ASSERT(program);
+
+    const char* label = program->m_desc.label ? program->m_desc.label : "unnamed";
+
+    if (m_printReports)
+    {
+        m_device->printInfo("Shader program %llu: Registered (label: \"%s\")", program->m_id, label);
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_programReports.resize(max(size_t(program->m_id) + 1, m_programReports.size()));
+        ProgramReport& programReport = m_programReports[program->m_id];
+        programReport.active = true;
+        programReport.label = label;
+    }
+}
+
+void ShaderCompilationReporter::unregisterProgram(ShaderProgram* program)
+{
+    SLANG_RHI_ASSERT(program);
+
+    if (m_printReports)
+    {
+        m_device->printInfo("Shader program %llu: Unregistered", program->m_id);
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        SLANG_RHI_ASSERT(program->m_id < m_programReports.size());
+        ProgramReport& programReport = m_programReports[program->m_id];
+        programReport.active = false;
+    }
+}
+
+void ShaderCompilationReporter::reportCompileEntryPoint(
+    ShaderProgram* program,
+    const char* entryPointName,
+    TimePoint startTime,
+    TimePoint endTime,
+    double totalTime,
+    double downstreamTime,
+    bool isCached,
+    size_t cacheSize
+)
+{
+    SLANG_RHI_ASSERT(program);
+
+    if (m_printReports)
+    {
+        m_device->printInfo(
+            "Shader program %llu: Creating entry point \"%s\" took %.1f ms "
+            "(compilation: %.1f ms, slang: %.1f ms, downstream: %.1f ms, cached: %s, cacheSize: %zd)",
+            program->m_id,
+            entryPointName,
+            Timer::deltaMS(startTime, endTime),
+            totalTime * 1e3,
+            (totalTime - downstreamTime) * 1e3,
+            downstreamTime * 1e3,
+            isCached ? "yes" : "no",
+            cacheSize
+        );
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        SLANG_RHI_ASSERT(program->m_id < m_programReports.size());
+        ProgramReport& programReport = m_programReports[program->m_id];
+        programReport.entryPointReports.push_back({
+            entryPointName,
+            startTime,
+            endTime,
+            Timer::delta(startTime, endTime),
+            totalTime,
+            totalTime - downstreamTime,
+            downstreamTime,
+            isCached,
+            cacheSize,
+        });
+    }
+}
+
+void ShaderCompilationReporter::reportCreatePipeline(
+    ShaderProgram* program,
+    PipelineType pipelineType,
+    TimePoint startTime,
+    TimePoint endTime,
+    bool isCached,
+    size_t cacheSize
+)
+{
+    SLANG_RHI_ASSERT(program);
+
+    auto getPipelineTypeName = [](PipelineType type) -> const char*
+    {
+        switch (type)
+        {
+        case PipelineType::Render:
+            return "render";
+        case PipelineType::Compute:
+            return "compute";
+        case PipelineType::RayTracing:
+            return "ray-tracing";
+        default:
+            return "-";
+        }
+    };
+
+    if (m_printReports)
+    {
+        m_device->printInfo(
+            "Shader program %llu: Creating %s pipeline took %.1f ms (cached: %s, cacheSize: %zd)",
+            program->m_id,
+            getPipelineTypeName(pipelineType),
+            Timer::deltaMS(startTime, endTime),
+            isCached ? "yes" : "no",
+            cacheSize
+        );
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        SLANG_RHI_ASSERT(program->m_id < m_programReports.size());
+        ProgramReport& programReport = m_programReports[program->m_id];
+        programReport.pipelineReports.push_back({
+            pipelineType,
+            startTime,
+            endTime,
+            Timer::delta(startTime, endTime),
+            isCached,
+            cacheSize,
+        });
+    }
+}
+
+Result ShaderCompilationReporter::getCompilationReport(
+    ShaderProgram* program,
+    CompilationReportType type,
+    ISlangBlob** outReportBlob
+)
+{
+    if (!program || !outReportBlob)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    if (program->m_id >= m_programReports.size())
+    {
+        return SLANG_E_NOT_FOUND;
+    }
+    const ProgramReport& programReport = m_programReports[program->m_id];
+
+    // Compute stats for the report
+    double createTime = 0.0;
+    double compileTime = 0.0;
+    double compileSlangTime = 0.0;
+    double compileDownstreamTime = 0.0;
+    for (const auto& entryPointReport : programReport.entryPointReports)
+    {
+        createTime += entryPointReport.createTime;
+        compileTime += entryPointReport.compileTime;
+        compileSlangTime += entryPointReport.compileSlangTime;
+        compileDownstreamTime += entryPointReport.compileDownstreamTime;
+    }
+    double createPipelineTime = 0.0;
+    for (const auto& pipelineReport : programReport.pipelineReports)
+    {
+        createPipelineTime += pipelineReport.createTime;
+    }
+
+    switch (type)
+    {
+    case CompilationReportType::Struct:
+    {
+        Slang::ComPtr<ISlangBlob> reportBlob = OwnedBlob::create(sizeof(CompilationReport));
+        CompilationReport* report = (CompilationReport*)reportBlob->getBufferPointer();
+        string::copy_safe(report->label, sizeof(report->label), programReport.label.c_str());
+        report->createTime = createTime;
+        report->compileTime = compileTime;
+        report->compileSlangTime = compileSlangTime;
+        report->compileDownstreamTime = compileDownstreamTime;
+        report->createPipelineTime = createPipelineTime;
+        returnComPtr(outReportBlob, reportBlob);
+        return SLANG_OK;
+    }
+    case CompilationReportType::JSON:
+        return SLANG_E_NOT_IMPLEMENTED; // TODO: Implement JSON report generation
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
 }
 
 } // namespace rhi

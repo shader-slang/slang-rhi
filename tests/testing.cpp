@@ -156,30 +156,74 @@ public:
     {
         if (!doctest::is_running_in_test)
             return;
+
+        doctest::String msg;
+        switch (type)
+        {
+        case DebugMessageType::Info:
+            msg += "[Info] ";
+            break;
+        case DebugMessageType::Warning:
+            msg += "[Warning] ";
+            break;
+        case DebugMessageType::Error:
+            msg += "[Error] ";
+            break;
+        default:
+            break;
+        }
+        switch (source)
+        {
+        case DebugMessageSource::Layer:
+            msg += "[Layer] ";
+            break;
+        case DebugMessageSource::Driver:
+            msg += "[Driver] ";
+            break;
+        case DebugMessageSource::Slang:
+            msg += "[Slang] ";
+            break;
+        default:
+            break;
+        }
+        msg += message;
+
+        auto output = [](const doctest::String& str)
+        {
+            if (options().verbose)
+            {
+                MESSAGE(str);
+            }
+            else
+            {
+                INFO(str);
+            }
+        };
+
         if (type == DebugMessageType::Info)
         {
-            INFO(doctest::String(message));
+            output(msg);
         }
         else if (type == DebugMessageType::Warning)
         {
             if (shouldIgnoreError(type, source, message))
             {
-                INFO(doctest::String(message));
+                output(msg);
             }
             else
             {
-                FAIL(doctest::String(message));
+                FAIL(msg);
             }
         }
         else if (type == DebugMessageType::Error)
         {
             if (shouldIgnoreError(type, source, message))
             {
-                INFO(doctest::String(message));
+                output(msg);
             }
             else
             {
-                FAIL(doctest::String(message));
+                FAIL(msg);
             }
         }
     }
@@ -453,6 +497,7 @@ ComPtr<IDevice> createTestingDevice(
             deviceDesc.persistentShaderCache = extraOptions->persistentShaderCache;
         if (extraOptions->persistentPipelineCache)
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
+        deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
     }
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;

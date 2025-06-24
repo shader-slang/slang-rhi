@@ -744,6 +744,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
+        tests/test-compilation-report.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp

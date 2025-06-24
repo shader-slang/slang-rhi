@@ -4,13 +4,13 @@
 
 namespace rhi {
 
+// Time point in nanoseconds.
+using TimePoint = uint64_t;
+
 /// High resolution CPU timer.
 class Timer
 {
 public:
-    // Time point in nanoseconds.
-    using TimePoint = uint64_t;
-
     Timer() { reset(); }
 
     /// Reset the timer.

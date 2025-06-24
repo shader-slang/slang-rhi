@@ -5,6 +5,27 @@
 
 namespace rhi::string {
 
+inline void copy_safe(char* dst, size_t dstSize, const char* src)
+{
+    if (!dst || !src || dstSize == 0)
+    {
+        return;
+    }
+
+    // Copy characters from src to dst until either (dstSize - 1) is exhausted or we hit a null terminator in src.
+    while (dstSize > 1 && *src)
+    {
+        *dst++ = *src++;
+        --dstSize;
+    }
+    // Fill the rest of dst with null characters to ensure null-termination.
+    while (dstSize > 0)
+    {
+        *dst++ = 0;
+        --dstSize;
+    }
+}
+
 inline std::wstring to_wstring(std::string_view str)
 {
     std::wstring wstr;

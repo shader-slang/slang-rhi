@@ -181,6 +181,30 @@ enum class AccessFlag
 
 class IPersistentCache;
 
+enum class CompilationReportType
+{
+    /// Compilation report as a `CompilationReport` struct.
+    Struct,
+    /// Compilation report as a JSON string.
+    JSON,
+};
+
+struct CompilationReport
+{
+    /// Shader program label.
+    char label[128];
+    /// Total time spent creating the shader program (seconds).
+    double createTime;
+    /// Total time spent compiling entry points (seconds).
+    double compileTime;
+    /// Total time spent in the slang compiler backend (seconds).
+    double compileSlangTime;
+    /// Total time spent in the downstream compiler (seconds).
+    double compileDownstreamTime;
+    /// Total time spent creating pipelines (seconds).
+    double createPipelineTime;
+};
+
 /// Defines how linking should be performed for a shader program.
 enum class LinkingStyle
 {
@@ -222,6 +246,8 @@ class IShaderProgram : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCompilationReport(CompilationReportType type, ISlangBlob** outReportBlob) = 0;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
 
@@ -2630,6 +2656,9 @@ struct DeviceDesc
     bool enableRayTracingValidation = false;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
+
+    /// Enable reporting of shader compilation timings.
+    bool enableCompilationReports = false;
 
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;

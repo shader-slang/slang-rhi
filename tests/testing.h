@@ -15,6 +15,18 @@
 
 namespace rhi::testing {
 
+struct Options
+{
+    bool verbose = false;
+    bool checkDevices = false;
+};
+
+inline Options& options()
+{
+    static Options opts;
+    return opts;
+}
+
 /// Get name of running test suite (note: defined in main.cpp).
 std::string getCurrentTestSuiteName();
 
@@ -180,6 +192,7 @@ struct DeviceExtraOptions
     std::vector<const char*> searchPaths;
     IPersistentCache* persistentShaderCache = nullptr;
     IPersistentCache* persistentPipelineCache = nullptr;
+    bool enableCompilationReports = false;
 };
 
 ComPtr<IDevice> createTestingDevice(
