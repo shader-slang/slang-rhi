@@ -193,6 +193,8 @@ struct CompilationReport
 {
     /// Shader program label.
     char label[128];
+    /// Shader program is currently alive.
+    bool alive;
     /// Total time spent creating the shader program (seconds).
     double createTime;
     /// Total time spent compiling entry points (seconds).
@@ -2938,6 +2940,9 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(createRayTracingPipeline(desc, pipeline.writeRef()));
         return pipeline;
     }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob) = 0;
 
     /// Read back texture resource and stores the result in `outData`.
     /// `layout` is the layout to store the data in. It is the caller's responsibility to

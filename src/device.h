@@ -164,6 +164,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(
         slang::ISession* session,
         slang::TypeReflection* type,

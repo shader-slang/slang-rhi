@@ -77,6 +77,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
     readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData)
         override;
     virtual SLANG_NO_THROW Result SLANG_MCALL

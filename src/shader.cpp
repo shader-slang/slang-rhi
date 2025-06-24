@@ -239,7 +239,7 @@ void ShaderCompilationReporter::registerProgram(ShaderProgram* program)
         std::lock_guard<std::mutex> lock(m_mutex);
         m_programReports.resize(max(size_t(program->m_id) + 1, m_programReports.size()));
         ProgramReport& programReport = m_programReports[program->m_id];
-        programReport.active = true;
+        programReport.alive = true;
         programReport.label = label;
     }
 }
@@ -258,7 +258,7 @@ void ShaderCompilationReporter::unregisterProgram(ShaderProgram* program)
         std::lock_guard<std::mutex> lock(m_mutex);
         SLANG_RHI_ASSERT(program->m_id < m_programReports.size());
         ProgramReport& programReport = m_programReports[program->m_id];
-        programReport.active = false;
+        programReport.alive = false;
     }
 }
 
@@ -383,36 +383,12 @@ Result ShaderCompilationReporter::getCompilationReport(
     }
     const ProgramReport& programReport = m_programReports[program->m_id];
 
-    // Compute stats for the report
-    double createTime = 0.0;
-    double compileTime = 0.0;
-    double compileSlangTime = 0.0;
-    double compileDownstreamTime = 0.0;
-    for (const auto& entryPointReport : programReport.entryPointReports)
-    {
-        createTime += entryPointReport.createTime;
-        compileTime += entryPointReport.compileTime;
-        compileSlangTime += entryPointReport.compileSlangTime;
-        compileDownstreamTime += entryPointReport.compileDownstreamTime;
-    }
-    double createPipelineTime = 0.0;
-    for (const auto& pipelineReport : programReport.pipelineReports)
-    {
-        createPipelineTime += pipelineReport.createTime;
-    }
-
     switch (type)
     {
     case CompilationReportType::Struct:
     {
         Slang::ComPtr<ISlangBlob> reportBlob = OwnedBlob::create(sizeof(CompilationReport));
-        CompilationReport* report = (CompilationReport*)reportBlob->getBufferPointer();
-        string::copy_safe(report->label, sizeof(report->label), programReport.label.c_str());
-        report->createTime = createTime;
-        report->compileTime = compileTime;
-        report->compileSlangTime = compileSlangTime;
-        report->compileDownstreamTime = compileDownstreamTime;
-        report->createPipelineTime = createPipelineTime;
+        writeCompilationReport(*(CompilationReport*)reportBlob->getBufferPointer(), programReport);
         returnComPtr(outReportBlob, reportBlob);
         return SLANG_OK;
     }
@@ -421,6 +397,62 @@ Result ShaderCompilationReporter::getCompilationReport(
     default:
         return SLANG_E_INVALID_ARG;
     }
+}
+
+Result ShaderCompilationReporter::getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob)
+{
+    if (!outReportBlob)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    switch (type)
+    {
+    case CompilationReportType::Struct:
+    {
+        Slang::ComPtr<ISlangBlob> reportBlob = OwnedBlob::create(m_programReports.size() * sizeof(CompilationReport));
+        for (size_t i = 0; i < m_programReports.size(); i++)
+        {
+            writeCompilationReport(*(((CompilationReport*)reportBlob->getBufferPointer()) + i), m_programReports[i]);
+        }
+        returnComPtr(outReportBlob, reportBlob);
+        return SLANG_OK;
+    }
+    case CompilationReportType::JSON:
+        return SLANG_E_NOT_IMPLEMENTED; // TODO: Implement JSON report generation
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+}
+
+void ShaderCompilationReporter::writeCompilationReport(CompilationReport& dst, const ProgramReport& src)
+{
+    double createTime = 0.0;
+    double compileTime = 0.0;
+    double compileSlangTime = 0.0;
+    double compileDownstreamTime = 0.0;
+    for (const auto& entryPointReport : src.entryPointReports)
+    {
+        createTime += entryPointReport.createTime;
+        compileTime += entryPointReport.compileTime;
+        compileSlangTime += entryPointReport.compileSlangTime;
+        compileDownstreamTime += entryPointReport.compileDownstreamTime;
+    }
+    double createPipelineTime = 0.0;
+    for (const auto& pipelineReport : src.pipelineReports)
+    {
+        createPipelineTime += pipelineReport.createTime;
+    }
+
+    string::copy_safe(dst.label, sizeof(dst.label), src.label.c_str());
+    dst.alive = src.alive;
+    dst.createTime = createTime;
+    dst.compileTime = compileTime;
+    dst.compileSlangTime = compileSlangTime;
+    dst.compileDownstreamTime = compileDownstreamTime;
+    dst.createPipelineTime = createPipelineTime;
 }
 
 } // namespace rhi
