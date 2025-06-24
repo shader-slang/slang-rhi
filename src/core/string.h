@@ -2,7 +2,6 @@
 
 #include <string>
 #include <string_view>
-
 namespace rhi::string {
 
 inline void copy_safe(char* dst, size_t dstSize, const char* src)

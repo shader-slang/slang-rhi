@@ -100,6 +100,7 @@ private:
     }
 };
 
+class StringBuilder;
 class ShaderCompilationReporter : public RefObject
 {
 public:
@@ -170,6 +171,15 @@ private:
         std::vector<PipelineReport> pipelineReports;
     };
 
+    struct ProgramTotals
+    {
+        double createTime;
+        double compileTime;
+        double compileSlangTime;
+        double compileDownstreamTime;
+        double createPipelineTime;
+    };
+
     Device* m_device;
 
     bool m_printReports = false;
@@ -180,7 +190,9 @@ private:
     /// Maps ShaderProgramID to ProgramReport.
     std::vector<ProgramReport> m_programReports;
 
+    ProgramTotals getProgramTotals(const ProgramReport& report);
     void writeCompilationReport(CompilationReport& dst, const ProgramReport& src);
+    void writeCompilationReportJSON(StringBuilder& dst, const ProgramReport& src, size_t indent = 0);
 };
 
 } // namespace rhi

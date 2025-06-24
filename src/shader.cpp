@@ -1,6 +1,7 @@
 #include "shader.h"
 
 #include "rhi-shared.h"
+#include "core/string-builder.h"
 
 namespace rhi {
 
@@ -393,7 +394,14 @@ Result ShaderCompilationReporter::getCompilationReport(
         return SLANG_OK;
     }
     case CompilationReportType::JSON:
-        return SLANG_E_NOT_IMPLEMENTED; // TODO: Implement JSON report generation
+    {
+        StringBuilder builder;
+        writeCompilationReportJSON(builder, programReport);
+        Slang::ComPtr<ISlangBlob> reportBlob = OwnedBlob::create(builder.getString().size() + 1);
+        memcpy((void*)reportBlob->getBufferPointer(), builder.getString().data(), builder.getString().size() + 1);
+        returnComPtr(outReportBlob, reportBlob);
+        return SLANG_OK;
+    }
     default:
         return SLANG_E_INVALID_ARG;
     }
@@ -421,38 +429,65 @@ Result ShaderCompilationReporter::getCompilationReports(CompilationReportType ty
         return SLANG_OK;
     }
     case CompilationReportType::JSON:
-        return SLANG_E_NOT_IMPLEMENTED; // TODO: Implement JSON report generation
+    {
+        StringBuilder builder;
+        builder << "[\n";
+        for (size_t i = 0; i < m_programReports.size(); i++)
+        {
+            writeCompilationReportJSON(builder, m_programReports[i], 1);
+        }
+        builder << "]\n";
+        Slang::ComPtr<ISlangBlob> reportBlob = OwnedBlob::create(builder.getString().size() + 1);
+        memcpy((void*)reportBlob->getBufferPointer(), builder.getString().data(), builder.getString().size() + 1);
+        returnComPtr(outReportBlob, reportBlob);
+        return SLANG_OK;
+    }
     default:
         return SLANG_E_INVALID_ARG;
     }
 }
 
+ShaderCompilationReporter::ProgramTotals ShaderCompilationReporter::getProgramTotals(const ProgramReport& report)
+{
+    ProgramTotals totals = {};
+    for (const auto& entryPointReport : report.entryPointReports)
+    {
+        totals.createTime += entryPointReport.createTime;
+        totals.compileTime += entryPointReport.compileTime;
+        totals.compileSlangTime += entryPointReport.compileSlangTime;
+        totals.compileDownstreamTime += entryPointReport.compileDownstreamTime;
+    }
+    for (const auto& pipelineReport : report.pipelineReports)
+    {
+        totals.createPipelineTime += pipelineReport.createTime;
+    }
+    return totals;
+}
+
 void ShaderCompilationReporter::writeCompilationReport(CompilationReport& dst, const ProgramReport& src)
 {
-    double createTime = 0.0;
-    double compileTime = 0.0;
-    double compileSlangTime = 0.0;
-    double compileDownstreamTime = 0.0;
-    for (const auto& entryPointReport : src.entryPointReports)
-    {
-        createTime += entryPointReport.createTime;
-        compileTime += entryPointReport.compileTime;
-        compileSlangTime += entryPointReport.compileSlangTime;
-        compileDownstreamTime += entryPointReport.compileDownstreamTime;
-    }
-    double createPipelineTime = 0.0;
-    for (const auto& pipelineReport : src.pipelineReports)
-    {
-        createPipelineTime += pipelineReport.createTime;
-    }
-
+    ProgramTotals totals = getProgramTotals(src);
     string::copy_safe(dst.label, sizeof(dst.label), src.label.c_str());
     dst.alive = src.alive;
-    dst.createTime = createTime;
-    dst.compileTime = compileTime;
-    dst.compileSlangTime = compileSlangTime;
-    dst.compileDownstreamTime = compileDownstreamTime;
-    dst.createPipelineTime = createPipelineTime;
+    dst.createTime = totals.createTime;
+    dst.compileTime = totals.compileTime;
+    dst.compileSlangTime = totals.compileSlangTime;
+    dst.compileDownstreamTime = totals.compileDownstreamTime;
+    dst.createPipelineTime = totals.createPipelineTime;
+}
+
+void ShaderCompilationReporter::writeCompilationReportJSON(StringBuilder& dst, const ProgramReport& src, size_t indent)
+{
+    ProgramTotals totals = getProgramTotals(src);
+    std::string indent1(indent * 4, ' ');
+    std::string indent2(indent * 8, ' ');
+    dst << indent1 << "{\n";
+    dst << indent2 << "\"label\": \"" << "test" << "\",\n";
+    dst << indent2 << "\"alive\": " << (src.alive ? "true" : "false") << ",\n";
+    dst << indent2 << "\"createTime\": " << totals.createTime * 1e3 << ",\n";
+    dst << indent2 << "\"compileTime\": " << totals.compileTime * 1e3 << ",\n";
+    dst << indent2 << "\"compileSlangTime\": " << totals.compileSlangTime * 1e3 << ",\n";
+    dst << indent1 << "},\n";
 }
 
 } // namespace rhi
