@@ -852,51 +852,50 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 {
                     addFeature(Feature::RealtimeClock);
                 }
-                NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
-                if (NvAPI_D3D12_GetRaytracingCaps(
-                        m_device,
-                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_SPHERES,
-                        &spheresCaps,
-                        sizeof(spheresCaps)
-                    ) == NVAPI_OK &&
-                    spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
-                {
-                    addFeature(Feature::AccelerationStructureSpheres);
-                }
-                NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
-                if (NvAPI_D3D12_GetRaytracingCaps(
-                        m_device,
-                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_LINEAR_SWEPT_SPHERES,
-                        &lssCaps,
-                        sizeof(lssCaps)
-                    ) == NVAPI_OK &&
-                    lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
-                {
-                    addFeature(Feature::AccelerationStructureLinearSweptSpheres);
-                }
-                NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
-                if (NvAPI_D3D12_GetRaytracingCaps(
-                        m_device,
-                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_THREAD_REORDERING,
-                        &reorderingCaps,
-                        sizeof(reorderingCaps)
-                    ) == NVAPI_OK &&
-                    reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
-                {
-                    addFeature(Feature::ShaderExecutionReordering);
-                }
+            }
 
-                // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
-                // so we query the number of cooperative vector properties to determine if it is supported.
-                NvU32 propertyCount = 0;
-                if (NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr) ==
-                        NVAPI_OK &&
-                    propertyCount > 0)
-                {
-                    // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
-                    // hardware/driver support.
-                    // addFeature(Feature::CooperativeVector);
-                }
+            NVAPI_D3D12_RAYTRACING_SPHERES_CAPS spheresCaps;
+            if (NvAPI_D3D12_GetRaytracingCaps(
+                    m_device,
+                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_SPHERES,
+                    &spheresCaps,
+                    sizeof(spheresCaps)
+                ) == NVAPI_OK &&
+                spheresCaps == NVAPI_D3D12_RAYTRACING_SPHERES_CAP_STANDARD)
+            {
+                addFeature(Feature::AccelerationStructureSpheres);
+            }
+            NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAPS lssCaps;
+            if (NvAPI_D3D12_GetRaytracingCaps(
+                    m_device,
+                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_LINEAR_SWEPT_SPHERES,
+                    &lssCaps,
+                    sizeof(lssCaps)
+                ) == NVAPI_OK &&
+                lssCaps == NVAPI_D3D12_RAYTRACING_LINEAR_SWEPT_SPHERES_CAP_STANDARD)
+            {
+                addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+            }
+            NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAPS reorderingCaps;
+            if (NvAPI_D3D12_GetRaytracingCaps(
+                    m_device,
+                    NVAPI_D3D12_RAYTRACING_CAPS_TYPE_THREAD_REORDERING,
+                    &reorderingCaps,
+                    sizeof(reorderingCaps)
+                ) == NVAPI_OK &&
+                reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
+            {
+                addFeature(Feature::ShaderExecutionReordering);
+            }
+
+            // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
+            // so we query the number of cooperative vector properties to determine if it is supported.
+            NvU32 propertyCount = 0;
+            if (NvAPI_D3D12_GetPhysicalDeviceCooperativeVectorProperties(m_device, &propertyCount, nullptr) ==
+                    NVAPI_OK &&
+                propertyCount > 0)
+            {
+                addFeature(Feature::CooperativeVector);
             }
         }
 
