@@ -400,10 +400,21 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             addCapability(Capability::_closesthit);
             addCapability(Capability::_callable);
             addCapability(Capability::_miss);
-        }
-        else
-        {
-            printWarning("Failed to initialize OptiX: %s (%s)", optixGetErrorString(result), optixGetErrorName(result));
+
+            // Check for cooperative vector support
+            unsigned int coopVecSupport = 0;
+            if (optixDeviceContextGetProperty(
+                    m_ctx.optixContext,
+                    OPTIX_DEVICE_PROPERTY_COOP_VEC,
+                    &coopVecSupport,
+                    sizeof(coopVecSupport)
+                ) == OPTIX_SUCCESS)
+            {
+                if (coopVecSupport & OPTIX_DEVICE_PROPERTY_COOP_VEC_FLAG_STANDARD)
+                {
+                    addFeature(Feature::CooperativeVector);
+                }
+            }
         }
     }
 #endif
@@ -686,6 +697,51 @@ Result DeviceImpl::createAccelerationStructure(
 #else
     return SLANG_E_NOT_AVAILABLE;
 #endif
+}
+
+Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
+{
+    if (!hasFeature(Feature::CooperativeVector))
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if (m_cooperativeVectorProperties.empty())
+    {
+#define ADD_PROPERTIES(inputType, inputInterpretation, matrixInterpretation, biasInterpretation, resultType)           \
+    m_cooperativeVectorProperties.push_back({                                                                          \
+        CooperativeVectorComponentType::inputType,                                                                     \
+        CooperativeVectorComponentType::inputInterpretation,                                                           \
+        CooperativeVectorComponentType::matrixInterpretation,                                                          \
+        CooperativeVectorComponentType::biasInterpretation,                                                            \
+        CooperativeVectorComponentType::resultType,                                                                    \
+        false /* transpose */                                                                                          \
+    })
+        // OptiX has hardcoded support for these cooperative vector types.
+        ADD_PROPERTIES(Float16, Float16, Float16, Float16, Float16);
+        ADD_PROPERTIES(Float16, FloatE4M3, FloatE4M3, Float16, Float16);
+        ADD_PROPERTIES(Float16, FloatE5M2, FloatE5M2, Float16, Float16);
+#undef ADD_PROPERTIES
+
+        // FLOAT16	UINT8/INT8	UINT8/INT8	UINT32/INT32	UINT32/INT32
+        // FLOAT32	UINT8/INT8	UINT8/INT8	UINT32/INT32	UINT32/INT32
+        // UINT8/INT8	UINT8/INT8	UINT8/INT8	UINT32/INT32	UINT32/INT32
+
+        // inputType inputInterpretation matrixInterpretation biasInterpretation resultType
+        // Sint8     Sint8               Sint8                Sint32             Sint32
+        // Sint32    Sint8               Sint8                Sint32             Sint32
+        // Float32   Sint8               Sint8                Sint32             Sint32
+        // Uint32    Sint8Packed         Sint8                Sint32             Sint32
+        // Uint8     Uint8               Sint8                Sint32             Sint32
+        // Sint32    Uint8               Sint8                Sint32             Sint32
+        // Uint32    Uint8Packed         Sint8                Sint32             Sint32
+        // Uint8     Uint8               Uint8                Sint32             Sint32
+        // Sint32    Uint8               Uint8                Sint32             Sint32
+        // Uint32    Uint8Packed         Uint8                Sint32             Sint32
+        // Sint8     Sint8               Uint8                Sint32             Sint32
+        // Sint32    Sint8               Uint8                Sint32             Sint32
+        // Uint32    Sint8Packed         Uint8                Sint32             Sint32
+    }
+    return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
