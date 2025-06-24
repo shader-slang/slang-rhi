@@ -63,6 +63,7 @@ public:
     std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
 
     ShaderProgram(Device* device, const ShaderProgramDesc& desc);
+    virtual ~ShaderProgram() override;
 
     Result init();
 
@@ -73,12 +74,11 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
-    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override { return m_desc; }
-
-    virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override
-    {
-        return linkedProgram->getLayout()->findTypeByName(name);
-    }
+    // IShaderProgram interface
+    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCompilationReport(CompilationReportType type, ISlangBlob** outReportBlob) override;
+    virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() = 0;
 
@@ -113,6 +113,7 @@ public:
     ShaderCompilationReporter(Device* device);
 
     void registerProgram(ShaderProgram* program);
+    void unregisterProgram(ShaderProgram* program);
 
     void reportCompileEntryPoint(
         ShaderProgram* program,
@@ -134,8 +135,50 @@ public:
         size_t cacheSize
     );
 
+    Result getCompilationReport(ShaderProgram* program, CompilationReportType type, ISlangBlob** outReportBlob);
+
 private:
+    struct EntryPointReport
+    {
+        std::string entryPointName;
+        TimePoint startTime;
+        TimePoint endTime;
+        double createTime;
+        double compileTime;
+        double compileSlangTime;
+        double compileDownstreamTime;
+        ;
+        bool isCached;
+        size_t cacheSize;
+    };
+
+    struct PipelineReport
+    {
+        PipelineType pipelineType;
+        TimePoint startTime;
+        TimePoint endTime;
+        double createTime;
+        bool isCached;
+        size_t cacheSize;
+    };
+
+    struct ProgramReport
+    {
+        bool active = false;
+        std::string label;
+        std::vector<EntryPointReport> entryPointReports;
+        std::vector<PipelineReport> pipelineReports;
+    };
+
     Device* m_device;
+
+    bool m_printReports = false;
+    bool m_recordReports = false;
+
+    /// Mutex to protect access to m_programReports.
+    std::mutex m_mutex;
+    /// Maps ShaderProgramID to ProgramReport.
+    std::vector<ProgramReport> m_programReports;
 };
 
 } // namespace rhi

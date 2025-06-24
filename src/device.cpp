@@ -419,7 +419,10 @@ Result Device::initialize(const DeviceDesc& desc)
 
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
 
-    m_shaderCompilationReporter = new ShaderCompilationReporter(this);
+    if (desc.enableCompilationReports)
+    {
+        m_shaderCompilationReporter = new ShaderCompilationReporter(this);
+    }
 
     m_persistentShaderCache = desc.persistentShaderCache;
     m_persistentPipelineCache = desc.persistentPipelineCache;
