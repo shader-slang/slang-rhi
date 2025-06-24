@@ -192,6 +192,7 @@ struct DeviceExtraOptions
     std::vector<const char*> searchPaths;
     IPersistentCache* persistentShaderCache = nullptr;
     IPersistentCache* persistentPipelineCache = nullptr;
+    bool enableCompilationReports = false;
 };
 
 ComPtr<IDevice> createTestingDevice(

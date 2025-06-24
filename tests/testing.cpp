@@ -497,6 +497,7 @@ ComPtr<IDevice> createTestingDevice(
             deviceDesc.persistentShaderCache = extraOptions->persistentShaderCache;
         if (extraOptions->persistentPipelineCache)
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
+        deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
     }
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
