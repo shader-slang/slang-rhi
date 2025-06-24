@@ -54,7 +54,7 @@ public:
         int getId() const { return m_id; }
 
         // Get device buffer mapped to this page.
-        RefPtr<Buffer> getBuffer() const { return m_buffer; }
+        Buffer* getBuffer() const { return m_buffer.get(); }
 
         // Get total capacity of the page.
         size_t getCapacity() const { return m_totalCapacity; }
@@ -97,7 +97,7 @@ public:
         Size getSize() const { return node->size; }
         Page* getPage() const { return page; }
         int getPageId() const { return page->getId(); }
-        Buffer* getBuffer() const { return page->getBuffer().get(); }
+        Buffer* getBuffer() const { return page->getBuffer(); }
         const MetaData& getMetaData() const { return node->metadata; }
     };
 

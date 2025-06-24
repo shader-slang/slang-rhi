@@ -131,6 +131,20 @@ std::string createQueryPoolLabel(const QueryPoolDesc& desc)
     return string::format("Unnamed query pool (type=%s, count=%u)", enumToString(desc.type), desc.count);
 }
 
+std::string createRenderPipelineLabel(const RenderPipelineDesc& desc)
+{
+    return std::string("Unnamed render pipeline");
+}
+
+std::string createComputePipelineLabel(const ComputePipelineDesc& desc)
+{
+    return std::string("Unnamed compute pipeline");
+}
+
+std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc)
+{
+    return std::string("Unnamed ray tracing pipeline");
+}
 
 void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc)
 {

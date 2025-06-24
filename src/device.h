@@ -11,6 +11,7 @@
 
 #include "rhi-shared-fwd.h"
 
+#include <atomic>
 #include <map>
 #include <unordered_map>
 
@@ -77,21 +78,11 @@ public:
     ShaderComponentID getComponentId(std::string_view name);
     ShaderComponentID getComponentId(ComponentKey key);
 
-    RefPtr<Pipeline> getSpecializedPipeline(PipelineKey programKey)
-    {
-        auto it = specializedPipelines.find(programKey);
-        if (it != specializedPipelines.end())
-            return it->second;
-        return nullptr;
-    }
+    RefPtr<Pipeline> getSpecializedPipeline(PipelineKey programKey);
 
     void addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline);
 
-    void free()
-    {
-        componentIds = decltype(componentIds)();
-        specializedPipelines = decltype(specializedPipelines)();
-    }
+    void free();
 
 protected:
     struct ComponentKeyHasher
@@ -173,6 +164,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL
     createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL
+    getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(
         slang::ISession* session,
         slang::TypeReflection* type,
@@ -237,16 +231,18 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) override;
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
 
     Result getEntryPointCodeFromShaderCache(
-        slang::IComponentType* program,
-        SlangInt entryPointIndex,
-        SlangInt targetIndex,
+        ShaderProgram* program,
+        slang::IComponentType* componentType,
+        const char* entryPointName,
+        uint32_t entryPointIndex,
+        uint32_t targetIndex,
         slang::IBlob** outCode,
         slang::IBlob** outDiagnostics = nullptr
     );
@@ -272,6 +268,7 @@ public:
     }
 
     void printMessage(DebugMessageType type, DebugMessageSource source, const char* message, ...);
+    void printInfo(const char* message, ...);
     void printWarning(const char* message, ...);
     void printError(const char* message, ...);
 
@@ -331,6 +328,10 @@ public:
 
     SlangContext m_slangContext;
     ShaderCache m_shaderCache;
+
+    std::atomic<uint64_t> m_nextShaderProgramID = 0;
+    RefPtr<ShaderCompilationReporter> m_shaderCompilationReporter;
+
     StagingHeap m_uploadHeap;
     StagingHeap m_readbackHeap;
 

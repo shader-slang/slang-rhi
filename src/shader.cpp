@@ -17,6 +17,29 @@ SpecializationKey::SpecializationKey(const ExtendedShaderObjectTypeList& args)
 // ShaderProgram
 // ----------------------------------------------------------------------------
 
+ShaderProgram::ShaderProgram(Device* device, const ShaderProgramDesc& desc)
+    : DeviceChild(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+    m_descHolder.holdList(m_desc.slangEntryPoints, m_desc.slangEntryPointCount);
+
+    m_id = device->m_nextShaderProgramID.fetch_add(1);
+
+    if (m_device->m_shaderCompilationReporter)
+    {
+        m_device->m_shaderCompilationReporter->registerProgram(this);
+    }
+}
+
+ShaderProgram::~ShaderProgram()
+{
+    if (m_device->m_shaderCompilationReporter)
+    {
+        m_device->m_shaderCompilationReporter->unregisterProgram(this);
+    }
+}
+
 IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderProgram::getTypeGuid())
@@ -24,54 +47,58 @@ IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
     return nullptr;
 }
 
-void ShaderProgram::init(const ShaderProgramDesc& desc)
+Result ShaderProgram::init()
 {
-    m_desc = desc;
-
-    slangGlobalScope = desc.slangGlobalScope;
-    for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
+    slangGlobalScope = m_desc.slangGlobalScope;
+    for (uint32_t i = 0; i < m_desc.slangEntryPointCount; i++)
     {
-        slangEntryPoints.push_back(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
+        slangEntryPoints.push_back(ComPtr<slang::IComponentType>(m_desc.slangEntryPoints[i]));
     }
 
-    auto session = desc.slangGlobalScope ? desc.slangGlobalScope->getSession() : nullptr;
-    if (desc.linkingStyle == LinkingStyle::SingleProgram)
+    auto session = m_desc.slangGlobalScope ? m_desc.slangGlobalScope->getSession() : nullptr;
+    if (m_desc.linkingStyle == LinkingStyle::SingleProgram)
     {
         std::vector<slang::IComponentType*> components;
-        if (desc.slangGlobalScope)
+        if (m_desc.slangGlobalScope)
         {
-            components.push_back(desc.slangGlobalScope);
+            components.push_back(m_desc.slangGlobalScope);
         }
-        for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
+        for (uint32_t i = 0; i < m_desc.slangEntryPointCount; i++)
         {
             if (!session)
             {
-                session = desc.slangEntryPoints[i]->getSession();
+                session = m_desc.slangEntryPoints[i]->getSession();
             }
-            components.push_back(desc.slangEntryPoints[i]);
+            components.push_back(m_desc.slangEntryPoints[i]);
         }
-        session->createCompositeComponentType(components.data(), components.size(), linkedProgram.writeRef());
+        SLANG_RETURN_ON_FAIL(
+            session->createCompositeComponentType(components.data(), components.size(), linkedProgram.writeRef())
+        );
     }
     else
     {
-        for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
+        for (uint32_t i = 0; i < m_desc.slangEntryPointCount; i++)
         {
-            if (desc.slangGlobalScope)
+            if (m_desc.slangGlobalScope)
             {
-                slang::IComponentType* entryPointComponents[2] = {desc.slangGlobalScope, desc.slangEntryPoints[i]};
+                slang::IComponentType* entryPointComponents[2] = {m_desc.slangGlobalScope, m_desc.slangEntryPoints[i]};
                 ComPtr<slang::IComponentType> linkedEntryPoint;
-                session->createCompositeComponentType(entryPointComponents, 2, linkedEntryPoint.writeRef());
+                SLANG_RETURN_ON_FAIL(
+                    session->createCompositeComponentType(entryPointComponents, 2, linkedEntryPoint.writeRef())
+                );
                 linkedEntryPoints.push_back(linkedEntryPoint);
             }
             else
             {
-                linkedEntryPoints.push_back(ComPtr<slang::IComponentType>(desc.slangEntryPoints[i]));
+                linkedEntryPoints.push_back(ComPtr<slang::IComponentType>(m_desc.slangEntryPoints[i]));
             }
         }
-        linkedProgram = desc.slangGlobalScope;
+        linkedProgram = m_desc.slangGlobalScope;
     }
 
     m_isSpecializable = _isSpecializable();
+
+    return SLANG_OK;
 }
 
 Result ShaderProgram::compileShaders(Device* device)
@@ -89,12 +116,14 @@ Result ShaderProgram::compileShaders(Device* device)
     // For a fully specialized program, read and store its kernel code in `shaderProgram`.
     auto compileShader = [&](slang::EntryPointReflection* entryPointInfo,
                              slang::IComponentType* entryPointComponent,
-                             SlangInt entryPointIndex)
+                             uint32_t entryPointIndex)
     {
         ComPtr<ISlangBlob> kernelCode;
         ComPtr<ISlangBlob> diagnostics;
         auto compileResult = device->getEntryPointCodeFromShaderCache(
+            this,
             entryPointComponent,
+            entryPointInfo->getNameOverride(),
             entryPointIndex,
             0,
             kernelCode.writeRef(),
@@ -117,9 +146,9 @@ Result ShaderProgram::compileShaders(Device* device)
         // If the user does not explicitly specify entry point components, find them from
         // `linkedEntryPoints`.
         auto programReflection = linkedProgram->getLayout();
-        for (SlangUInt i = 0; i < programReflection->getEntryPointCount(); i++)
+        for (uint32_t i = 0; i < programReflection->getEntryPointCount(); i++)
         {
-            SLANG_RETURN_ON_FAIL(compileShader(programReflection->getEntryPointByIndex(i), linkedProgram, (SlangInt)i));
+            SLANG_RETURN_ON_FAIL(compileShader(programReflection->getEntryPointByIndex(i), linkedProgram, i));
         }
     }
     else
@@ -162,6 +191,268 @@ bool ShaderProgram::isMeshShaderProgram() const
                 return true;
     }
     return false;
+}
+
+const ShaderProgramDesc& ShaderProgram::getDesc()
+{
+    return m_desc;
+}
+
+Result ShaderProgram::getCompilationReport(CompilationReportType type, ISlangBlob** outReportBlob)
+{
+    if (m_device->m_shaderCompilationReporter)
+    {
+        return m_device->m_shaderCompilationReporter->getCompilationReport(this, type, outReportBlob);
+    }
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+slang::TypeReflection* ShaderProgram::findTypeByName(const char* name)
+{
+    return linkedProgram->getLayout()->findTypeByName(name);
+}
+
+// ----------------------------------------------------------------------------
+// ShaderCompilationReporter
+// ----------------------------------------------------------------------------
+
+ShaderCompilationReporter::ShaderCompilationReporter(Device* device)
+    : m_device(device)
+{
+    m_printReports = true;
+    m_recordReports = true;
+}
+
+void ShaderCompilationReporter::registerProgram(ShaderProgram* program)
+{
+    SLANG_RHI_ASSERT(program);
+
+    const char* label = program->m_desc.label ? program->m_desc.label : "unnamed";
+
+    if (m_printReports)
+    {
+        m_device->printInfo("Shader program %llu: Registered (label: \"%s\")", program->m_id, label);
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_programReports.resize(max(size_t(program->m_id) + 1, m_programReports.size()));
+        ProgramReport& programReport = m_programReports[program->m_id];
+        programReport.alive = true;
+        programReport.label = label;
+    }
+}
+
+void ShaderCompilationReporter::unregisterProgram(ShaderProgram* program)
+{
+    SLANG_RHI_ASSERT(program);
+
+    if (m_printReports)
+    {
+        m_device->printInfo("Shader program %llu: Unregistered", program->m_id);
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        SLANG_RHI_ASSERT(program->m_id < m_programReports.size());
+        ProgramReport& programReport = m_programReports[program->m_id];
+        programReport.alive = false;
+    }
+}
+
+void ShaderCompilationReporter::reportCompileEntryPoint(
+    ShaderProgram* program,
+    const char* entryPointName,
+    TimePoint startTime,
+    TimePoint endTime,
+    double totalTime,
+    double downstreamTime,
+    bool isCached,
+    size_t cacheSize
+)
+{
+    SLANG_RHI_ASSERT(program);
+
+    if (m_printReports)
+    {
+        m_device->printInfo(
+            "Shader program %llu: Creating entry point \"%s\" took %.1f ms "
+            "(compilation: %.1f ms, slang: %.1f ms, downstream: %.1f ms, cached: %s, cacheSize: %zd)",
+            program->m_id,
+            entryPointName,
+            Timer::deltaMS(startTime, endTime),
+            totalTime * 1e3,
+            (totalTime - downstreamTime) * 1e3,
+            downstreamTime * 1e3,
+            isCached ? "yes" : "no",
+            cacheSize
+        );
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        SLANG_RHI_ASSERT(program->m_id < m_programReports.size());
+        ProgramReport& programReport = m_programReports[program->m_id];
+        programReport.entryPointReports.push_back({
+            entryPointName,
+            startTime,
+            endTime,
+            Timer::delta(startTime, endTime),
+            totalTime,
+            totalTime - downstreamTime,
+            downstreamTime,
+            isCached,
+            cacheSize,
+        });
+    }
+}
+
+void ShaderCompilationReporter::reportCreatePipeline(
+    ShaderProgram* program,
+    PipelineType pipelineType,
+    TimePoint startTime,
+    TimePoint endTime,
+    bool isCached,
+    size_t cacheSize
+)
+{
+    SLANG_RHI_ASSERT(program);
+
+    auto getPipelineTypeName = [](PipelineType type) -> const char*
+    {
+        switch (type)
+        {
+        case PipelineType::Render:
+            return "render";
+        case PipelineType::Compute:
+            return "compute";
+        case PipelineType::RayTracing:
+            return "ray-tracing";
+        default:
+            return "-";
+        }
+    };
+
+    if (m_printReports)
+    {
+        m_device->printInfo(
+            "Shader program %llu: Creating %s pipeline took %.1f ms (cached: %s, cacheSize: %zd)",
+            program->m_id,
+            getPipelineTypeName(pipelineType),
+            Timer::deltaMS(startTime, endTime),
+            isCached ? "yes" : "no",
+            cacheSize
+        );
+    }
+
+    if (m_recordReports)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        SLANG_RHI_ASSERT(program->m_id < m_programReports.size());
+        ProgramReport& programReport = m_programReports[program->m_id];
+        programReport.pipelineReports.push_back({
+            pipelineType,
+            startTime,
+            endTime,
+            Timer::delta(startTime, endTime),
+            isCached,
+            cacheSize,
+        });
+    }
+}
+
+Result ShaderCompilationReporter::getCompilationReport(
+    ShaderProgram* program,
+    CompilationReportType type,
+    ISlangBlob** outReportBlob
+)
+{
+    if (!program || !outReportBlob)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    if (program->m_id >= m_programReports.size())
+    {
+        return SLANG_E_NOT_FOUND;
+    }
+    const ProgramReport& programReport = m_programReports[program->m_id];
+
+    switch (type)
+    {
+    case CompilationReportType::Struct:
+    {
+        Slang::ComPtr<ISlangBlob> reportBlob = OwnedBlob::create(sizeof(CompilationReport));
+        writeCompilationReport(*(CompilationReport*)reportBlob->getBufferPointer(), programReport);
+        returnComPtr(outReportBlob, reportBlob);
+        return SLANG_OK;
+    }
+    case CompilationReportType::JSON:
+        return SLANG_E_NOT_IMPLEMENTED; // TODO: Implement JSON report generation
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+}
+
+Result ShaderCompilationReporter::getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob)
+{
+    if (!outReportBlob)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    switch (type)
+    {
+    case CompilationReportType::Struct:
+    {
+        Slang::ComPtr<ISlangBlob> reportBlob = OwnedBlob::create(m_programReports.size() * sizeof(CompilationReport));
+        for (size_t i = 0; i < m_programReports.size(); i++)
+        {
+            writeCompilationReport(*(((CompilationReport*)reportBlob->getBufferPointer()) + i), m_programReports[i]);
+        }
+        returnComPtr(outReportBlob, reportBlob);
+        return SLANG_OK;
+    }
+    case CompilationReportType::JSON:
+        return SLANG_E_NOT_IMPLEMENTED; // TODO: Implement JSON report generation
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+}
+
+void ShaderCompilationReporter::writeCompilationReport(CompilationReport& dst, const ProgramReport& src)
+{
+    double createTime = 0.0;
+    double compileTime = 0.0;
+    double compileSlangTime = 0.0;
+    double compileDownstreamTime = 0.0;
+    for (const auto& entryPointReport : src.entryPointReports)
+    {
+        createTime += entryPointReport.createTime;
+        compileTime += entryPointReport.compileTime;
+        compileSlangTime += entryPointReport.compileSlangTime;
+        compileDownstreamTime += entryPointReport.compileDownstreamTime;
+    }
+    double createPipelineTime = 0.0;
+    for (const auto& pipelineReport : src.pipelineReports)
+    {
+        createPipelineTime += pipelineReport.createTime;
+    }
+
+    string::copy_safe(dst.label, sizeof(dst.label), src.label.c_str());
+    dst.alive = src.alive;
+    dst.createTime = createTime;
+    dst.compileTime = compileTime;
+    dst.compileSlangTime = compileSlangTime;
+    dst.compileDownstreamTime = compileDownstreamTime;
+    dst.createPipelineTime = createPipelineTime;
 }
 
 } // namespace rhi

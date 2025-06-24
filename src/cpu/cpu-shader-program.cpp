@@ -3,6 +3,11 @@
 
 namespace rhi::cpu {
 
+ShaderProgramImpl::ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc)
+    : ShaderProgram(device, desc)
+{
+}
+
 ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
 {
     return m_rootShaderObjectLayout;

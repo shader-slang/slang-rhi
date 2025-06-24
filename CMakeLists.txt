@@ -43,6 +43,7 @@ endif()
 # Configuration options
 option(SLANG_RHI_BUILD_SHARED "Build shared library" OFF)
 option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
+option(SLANG_RHI_BUILD_TESTS_WITH_GLFW "Build tests that require GLFW" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
 option(SLANG_RHI_INSTALL "Install library" ON)
@@ -102,7 +103,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_N
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.10.2" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.10.4" CACHE STRING "Slang version to fetch")
 
 # Fetch WinPixEventRuntime options
 option(SLANG_RHI_FETCH_WINPIX "Fetch WinPixEventRuntime" ON)
@@ -114,17 +115,23 @@ set(SLANG_RHI_FETCH_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/
 
 # Fetch Agility SDK options
 option(SLANG_RHI_FETCH_AGILITY_SDK "Fetch Agility SDK" ON)
-set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.615.1" CACHE STRING "Agility SDK version to fetch")
+set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.616.0" CACHE STRING "Agility SDK version to fetch")
 
 # Fetch NVAPI options
 option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
-set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/d08488fcc82eef313b0464db37d2955709691e94.zip" CACHE STRING "NVAPI URL to fetch")
+set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/7cb76fce2f52de818b3da497af646af1ec16ce27.zip" CACHE STRING "NVAPI URL to fetch") # R575
+
+# Fetch vulkan headers options
+set(SLANG_RHI_FETCH_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.318.zip" CACHE STRING "Vulkan headers URL to fetch")
 
 # Fetch OptiX options
 option(SLANG_RHI_FETCH_OPTIX "Fetch OptiX" ON)
 set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip" CACHE STRING "OptiX URL to fetch") # 9.0.0
 # set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/50021ea0af6d41609a97777ceebbdf1e1d34efe7.zip" CACHE STRING "OptiX URL to fetch") # 8.1.0
 # set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/f60c1e44f18426f426a2ed948f28515b3cf67b8a.zip" CACHE STRING "OptiX URL to fetch") # 8.0.0
+
+# Fetch metal-cpp options
+set(SLANG_RHI_FETCH_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip" CACHE STRING "metal-cpp URL to fetch")
 
 # Fetch Dawn options
 option(SLANG_RHI_FETCH_DAWN "Fetch Dawn" ON)
@@ -340,6 +347,22 @@ else()
     set(SLANG_RHI_ENABLE_OPTIX OFF)
 endif()
 
+# Fetch & setup vulkan headers
+if(SLANG_RHI_ENABLE_VULKAN)
+    message(STATUS "Fetching vulkan headers ...")
+    FetchPackage(vulkan-headers URL ${SLANG_RHI_FETCH_VULKAN_HEADERS_URL})
+    add_library(slang-rhi-vulkan-headers INTERFACE)
+    target_include_directories(slang-rhi-vulkan-headers INTERFACE ${vulkan-headers_SOURCE_DIR}/include)
+endif()
+
+# Fetch & setup metal-cpp
+if(SLANG_RHI_ENABLE_METAL)
+    message(STATUS "Fetching metal-cpp ...")
+    FetchPackage(metal-cpp URL ${SLANG_RHI_FETCH_METAL_CPP_URL})
+    add_library(slang-rhi-metal-cpp INTERFACE)
+    target_include_directories(slang-rhi-metal-cpp INTERFACE ${metal-cpp_SOURCE_DIR})
+endif()
+
 # Fetch and setup Google Dawn library (WebGPU implementation)
 if(SLANG_RHI_FETCH_DAWN AND SLANG_RHI_ENABLE_WGPU)
     set(DAWN_VERSION ${SLANG_RHI_FETCH_DAWN_VERSION})
@@ -395,7 +418,7 @@ elseif(SLANG_RHI_ENABLE_WGPU)
 endif()
 
 # Fetch glfw
-if(SLANG_RHI_BUILD_TESTS OR SLANG_RHI_BUILD_EXAMPLES)
+if((SLANG_RHI_BUILD_TESTS AND SLANG_RHI_BUILD_TESTS_WITH_GLFW) OR SLANG_RHI_BUILD_EXAMPLES)
     FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG master)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -484,6 +507,7 @@ target_sources(slang-rhi PRIVATE
     src/command-list.cpp
     src/cuda-driver-api.cpp
     src/device.cpp
+    src/device-child.cpp
     src/enum-strings.cpp
     src/flag-combiner.cpp
     src/format-conversion.cpp
@@ -501,6 +525,7 @@ target_sources(slang-rhi PRIVATE
     src/core/sha1.cpp
     src/core/smart-pointer.cpp
     src/core/task-pool.cpp
+    src/core/timer.cpp
     src/debug-layer/debug-command-buffer.cpp
     src/debug-layer/debug-command-encoder.cpp
     src/debug-layer/debug-command-queue.cpp
@@ -611,8 +636,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-texture.cpp
         src/vulkan/vk-util.cpp
     )
-    add_library(slang-rhi-vulkan-headers INTERFACE)
-    target_include_directories(slang-rhi-vulkan-headers INTERFACE external/vulkan-headers/include)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
 endif()
 
@@ -638,8 +661,6 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-texture.cpp
         src/metal/metal-util.cpp
     )
-    add_library(slang-rhi-metal-cpp INTERFACE)
-    target_include_directories(slang-rhi-metal-cpp INTERFACE external/metal-cpp)
     target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Metal")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)
 endif()
@@ -723,6 +744,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
+        tests/test-compilation-report.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
@@ -755,6 +777,7 @@ if(SLANG_RHI_BUILD_TESTS)
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
+        tests/test-ray-tracing-sphere.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
@@ -770,8 +793,9 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-shared.cpp
-        tests/test-texture-view.cpp
         tests/test-texture-types.cpp
+        tests/test-texture-view.cpp
+        tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
@@ -784,12 +808,13 @@ if(SLANG_RHI_BUILD_TESTS)
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
         SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
+        SLANG_RHI_BUILD_TESTS_WITH_GLFW=$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
-    target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi glfw renderdoc)
+    target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
     endif()
@@ -800,7 +825,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         add_executable(${name} ${source})
         target_compile_features(${name} PRIVATE cxx_std_17)
         target_include_directories(${name} PRIVATE examples/base)
-        target_link_libraries(${name} PRIVATE slang slang-rhi glfw)
+        target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
     endfunction()
 
     add_example(example-surface examples/surface/example-surface.cpp)

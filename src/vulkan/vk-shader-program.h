@@ -9,7 +9,7 @@ namespace rhi::vk {
 class ShaderProgramImpl : public ShaderProgram
 {
 public:
-    ShaderProgramImpl(Device* device);
+    ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc);
     ~ShaderProgramImpl();
 
     RefPtr<RootShaderObjectLayoutImpl> m_rootShaderObjectLayout;

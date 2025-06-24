@@ -12,7 +12,7 @@ public:
     ComPtr<ID3D12PipelineState> m_pipelineState;
     D3D_PRIMITIVE_TOPOLOGY m_primitiveTopology;
 
-    RenderPipelineImpl(Device* device);
+    RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc);
 
     // IRenderPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -24,7 +24,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     ComPtr<ID3D12PipelineState> m_pipelineState;
 
-    ComputePipelineImpl(Device* device);
+    ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc);
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -36,7 +36,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     ComPtr<ID3D12StateObject> m_stateObject;
 
-    RayTracingPipelineImpl(Device* device);
+    RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc);
 
     // IRayTracingPipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

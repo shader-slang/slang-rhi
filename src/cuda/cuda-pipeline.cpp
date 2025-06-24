@@ -5,8 +5,8 @@
 
 namespace rhi::cuda {
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -27,11 +27,13 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
     const auto& module = program->m_modules[0];
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
 
@@ -71,14 +73,27 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     );
     pipeline->m_sharedMemorySize = sharedSizeBytes;
 
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device)
-    : RayTracingPipeline(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc)
+    : RayTracingPipeline(device, desc)
 {
 }
 
@@ -108,6 +123,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         return SLANG_E_NOT_AVAILABLE;
     }
 
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
@@ -119,8 +136,11 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         (desc.maxAttributeSizeInBytes + sizeof(uint32_t) - 1) / sizeof(uint32_t);
     optixPipelineCompileOptions.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;
     optixPipelineCompileOptions.pipelineLaunchParamsVariableName = "SLANG_globalParams";
-    // TODO not sure if removing support for certain types is the same as "skipping" in DXR/Vulkan
+
     optixPipelineCompileOptions.usesPrimitiveTypeFlags = 0;
+    if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
+        optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
+
     optixPipelineCompileOptions.allowOpacityMicromaps = 0;
 
     OptixModuleCompileOptions optixModuleCompileOptions = {};
@@ -197,6 +217,24 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         shaderGroupNameToIndex[module.entryPointName] = optixProgramGroups.size() - 1;
     }
 
+    // If we're using spheres, hit groups may use the builtin sphere intersector.
+    OptixModule builtinISModuleSphere = nullptr;
+    if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
+    {
+        OptixBuiltinISOptions builtinISOptions = {};
+        builtinISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixBuiltinISModuleGet(
+                m_ctx.optixContext,
+                &optixModuleCompileOptions,
+                &optixPipelineCompileOptions,
+                &builtinISOptions,
+                &builtinISModuleSphere
+            ),
+            this
+        );
+    }
+
     // Create program groups for hit groups
     for (uint32_t hitGroupIndex = 0; hitGroupIndex < desc.hitGroupCount; ++hitGroupIndex)
     {
@@ -223,11 +261,17 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         }
         if (hitGroupDesc.intersectionEntryPoint)
         {
-            optixProgramGroupDesc.hitgroup.moduleIS =
-                optixModules[entryPointNameToModuleIndex[hitGroupDesc.intersectionEntryPoint]];
-            entryFunctionNameIS = std::string("__intersection__") + hitGroupDesc.intersectionEntryPoint;
-            optixProgramGroupDesc.hitgroup.entryFunctionNameIS = entryFunctionNameIS.data();
+            if (std::strcmp(hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__sphere") == 0)
+                optixProgramGroupDesc.hitgroup.moduleIS = builtinISModuleSphere;
+            else
+            {
+                optixProgramGroupDesc.hitgroup.moduleIS =
+                    optixModules[entryPointNameToModuleIndex[hitGroupDesc.intersectionEntryPoint]];
+                entryFunctionNameIS = std::string("__intersection__") + hitGroupDesc.intersectionEntryPoint;
+                optixProgramGroupDesc.hitgroup.entryFunctionNameIS = entryFunctionNameIS.data();
+            }
         }
+
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
             optixProgramGroupCreate(
                 m_ctx.optixContext,
@@ -261,7 +305,20 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         this
     );
 
-    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::RayTracing,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_modules = std::move(optixModules);

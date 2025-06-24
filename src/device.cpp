@@ -1,6 +1,7 @@
 #include "device.h"
 
 #include "rhi-shared.h"
+#include "shader.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -70,9 +71,23 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
     return resultId;
 }
 
+RefPtr<Pipeline> ShaderCache::getSpecializedPipeline(PipelineKey programKey)
+{
+    auto it = specializedPipelines.find(programKey);
+    if (it != specializedPipelines.end())
+        return it->second;
+    return nullptr;
+}
+
 void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline)
 {
     specializedPipelines[key] = specializedPipeline;
+}
+
+void ShaderCache::free()
+{
+    componentIds = decltype(componentIds)();
+    specializedPipelines = decltype(specializedPipelines)();
 }
 
 // ----------------------------------------------------------------------------
@@ -87,6 +102,16 @@ void Device::printMessage(DebugMessageType type, DebugMessageSource source, cons
     vsnprintf(buffer, sizeof(buffer), message, args);
     va_end(args);
     handleMessage(type, source, buffer);
+}
+
+void Device::printInfo(const char* message, ...)
+{
+    va_list args;
+    va_start(args, message);
+    char buffer[4096];
+    vsnprintf(buffer, sizeof(buffer), message, args);
+    va_end(args);
+    handleMessage(DebugMessageType::Info, DebugMessageSource::Layer, buffer);
 }
 
 void Device::printWarning(const char* message, ...)
@@ -295,36 +320,78 @@ Result Device::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRa
 }
 
 Result Device::getEntryPointCodeFromShaderCache(
-    slang::IComponentType* program,
-    SlangInt entryPointIndex,
-    SlangInt targetIndex,
+    ShaderProgram* program,
+    slang::IComponentType* componentType,
+    const char* entryPointName,
+    uint32_t entryPointIndex,
+    uint32_t targetIndex,
     slang::IBlob** outCode,
     slang::IBlob** outDiagnostics
 )
 {
-    // Immediately call getEntryPointCode if shader cache is not available.
-    if (!m_persistentShaderCache)
+    TimePoint startTime = Timer::now();
+    ComPtr<ISlangBlob> codeBlob;
+    ComPtr<ISlangBlob> hashBlob;
+
+    if (m_persistentShaderCache)
     {
-        return program->getEntryPointCode(entryPointIndex, targetIndex, outCode, outDiagnostics);
+        // Hash all relevant state for generating the entry point shader code to use as a key
+        // for the shader cache.
+        componentType->getEntryPointHash(entryPointIndex, targetIndex, hashBlob.writeRef());
+
+        // Query the shader cache.
+        if (m_persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef()) == SLANG_OK)
+        {
+            if (m_shaderCompilationReporter)
+            {
+                m_shaderCompilationReporter->reportCompileEntryPoint(
+                    program,
+                    entryPointName,
+                    startTime,
+                    Timer::now(),
+                    0.0,
+                    0.0,
+                    true,
+                    codeBlob->getBufferSize()
+                );
+            }
+
+            returnComPtr(outCode, codeBlob);
+            return SLANG_OK;
+        }
     }
 
-    // Hash all relevant state for generating the entry point shader code to use as a key
-    // for the shader cache.
-    ComPtr<ISlangBlob> hashBlob;
-    program->getEntryPointHash(entryPointIndex, targetIndex, hashBlob.writeRef());
+    // Cached entry not found, generate the code and measure compilation time.
+    double startTotalTime, endTotalTime;
+    double startDownstreamTime, endDownstreamTime;
+    componentType->getSession()->getGlobalSession()->getCompilerElapsedTime(&startTotalTime, &startDownstreamTime);
+    SLANG_RETURN_ON_FAIL(
+        componentType->getEntryPointCode(entryPointIndex, targetIndex, codeBlob.writeRef(), outDiagnostics)
+    );
+    componentType->getSession()->getGlobalSession()->getCompilerElapsedTime(&endTotalTime, &endDownstreamTime);
 
-    // Query the shader cache.
-    ComPtr<ISlangBlob> codeBlob;
-    if (m_persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef()) != SLANG_OK)
+    // Write the generated code to the shader cache if available.
+    if (m_persistentShaderCache)
     {
-        // No cached entry found. Generate the code and add it to the cache.
-        SLANG_RETURN_ON_FAIL(
-            program->getEntryPointCode(entryPointIndex, targetIndex, codeBlob.writeRef(), outDiagnostics)
-        );
         m_persistentShaderCache->writeCache(hashBlob, codeBlob);
     }
 
-    *outCode = codeBlob.detach();
+    // Report compilation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCompileEntryPoint(
+            program,
+            entryPointName,
+            startTime,
+            Timer::now(),
+            endTotalTime - startTotalTime,
+            endDownstreamTime - startDownstreamTime,
+            false,
+            codeBlob->getBufferSize()
+        );
+    }
+
+    returnComPtr(outCode, codeBlob);
     return SLANG_OK;
 }
 
@@ -351,6 +418,11 @@ Result Device::initialize(const DeviceDesc& desc)
     m_formatSupport.fill(FormatSupport::None);
 
     m_debugCallback = desc.debugCallback ? desc.debugCallback : NullDebugCallback::getInstance();
+
+    if (desc.enableCompilationReports)
+    {
+        m_shaderCompilationReporter = new ShaderCompilationReporter(this);
+    }
 
     m_persistentShaderCache = desc.persistentShaderCache;
     m_persistentPipelineCache = desc.persistentPipelineCache;
@@ -605,6 +677,15 @@ Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRay
     }
 }
 
+Result Device::getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob)
+{
+    if (!m_shaderCompilationReporter)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    return m_shaderCompilationReporter->getCompilationReports(type, outReportBlob);
+}
+
 Result Device::createShaderObject(
     slang::ISession* slangSession,
     slang::TypeReflection* type,
@@ -786,25 +867,28 @@ Result Device::createSurface(WindowHandle windowHandle, ISurface** outSurface)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
+    if (!propertiesCount)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
     if (m_cooperativeVectorProperties.empty())
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-
-    if (*propertyCount == 0)
+    if (properties)
     {
-        *propertyCount = uint32_t(m_cooperativeVectorProperties.size());
-        return SLANG_OK;
+        uint32_t count = min(*propertiesCount, uint32_t(m_cooperativeVectorProperties.size()));
+        ::memcpy(properties, m_cooperativeVectorProperties.data(), count * sizeof(CooperativeVectorProperties));
+        Result result = count == *propertiesCount ? SLANG_OK : SLANG_E_BUFFER_TOO_SMALL;
+        *propertiesCount = count;
+        return result;
     }
     else
     {
-        uint32_t count = min(*propertyCount, uint32_t(m_cooperativeVectorProperties.size()));
-        ::memcpy(properties, m_cooperativeVectorProperties.data(), count * sizeof(CooperativeVectorProperties));
-        Result result = count == *propertyCount ? SLANG_OK : SLANG_E_BUFFER_TOO_SMALL;
-        *propertyCount = count;
-        return result;
+        *propertiesCount = uint32_t(m_cooperativeVectorProperties.size());
+        return SLANG_OK;
     }
 }
 

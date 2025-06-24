@@ -26,6 +26,13 @@ namespace rhi::d3d12 {
 
 static const uint32_t D3D_FEATURE_LEVEL_12_2 = 0xc200;
 
+// List of validation messages that are filtered out by default.
+static const D3D12_MESSAGE_ID kFilteredValidationMessages[] = {
+    D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+    D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+    D3D12_MESSAGE_ID_FENCE_ZERO_WAIT,
+};
+
 #if SLANG_RHI_NV_AFTERMATH
 const bool DeviceImpl::g_isAftermathEnabled = true;
 #else
@@ -89,6 +96,38 @@ inline int getShaderModelFromProfileName(const char* name)
     return -1;
 }
 
+static void validationMessageCallback(
+    D3D12_MESSAGE_CATEGORY Category,
+    D3D12_MESSAGE_SEVERITY Severity,
+    D3D12_MESSAGE_ID ID,
+    LPCSTR pDescription,
+    void* pContext
+)
+{
+    for (size_t i = 0; i < SLANG_COUNT_OF(kFilteredValidationMessages); ++i)
+        if (ID == kFilteredValidationMessages[i])
+            return;
+
+    DeviceImpl* device = static_cast<DeviceImpl*>(pContext);
+
+    DebugMessageType type = DebugMessageType::Info;
+    switch (Severity)
+    {
+    case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+    case D3D12_MESSAGE_SEVERITY_ERROR:
+        type = DebugMessageType::Error;
+        break;
+    case D3D12_MESSAGE_SEVERITY_WARNING:
+        type = DebugMessageType::Warning;
+        break;
+    case D3D12_MESSAGE_SEVERITY_INFO:
+    case D3D12_MESSAGE_SEVERITY_MESSAGE:
+        type = DebugMessageType::Info;
+        break;
+    }
+
+    device->m_debugCallback->handleMessage(type, DebugMessageSource::Driver, pDescription);
+}
 
 #if SLANG_RHI_ENABLE_NVAPI
 // Raytracing validation callback
@@ -169,13 +208,9 @@ Result DeviceImpl::_createDevice(
             {
                 infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
             }
-            D3D12_MESSAGE_ID hideMessages[] = {
-                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-                D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
-            };
             D3D12_INFO_QUEUE_FILTER f = {};
-            f.DenyList.NumIDs = (UINT)SLANG_COUNT_OF(hideMessages);
-            f.DenyList.pIDList = hideMessages;
+            f.DenyList.NumIDs = (UINT)SLANG_COUNT_OF(kFilteredValidationMessages);
+            f.DenyList.pIDList = (D3D12_MESSAGE_ID*)kFilteredValidationMessages;
             infoQueue->AddStorageFilterEntries(&f);
 
             // Apparently there is a problem with sm 6.3 with spurious errors, with debug layer
@@ -209,6 +244,19 @@ Result DeviceImpl::_createDevice(
                 infoQueueFilter.DenyList.pIDList = messageIds;
 
                 infoQueue->PushStorageFilter(&infoQueueFilter);
+            }
+        }
+        ComPtr<ID3D12InfoQueue1> infoQueue1;
+        if (SLANG_SUCCEEDED(device->QueryInterface(infoQueue1.writeRef())))
+        {
+            if (!SLANG_SUCCEEDED(infoQueue1->RegisterMessageCallback(
+                    validationMessageCallback,
+                    D3D12_MESSAGE_CALLBACK_FLAG_NONE,
+                    this,
+                    &m_validationMessageCallbackCookie
+                )))
+            {
+                printWarning("Failed to register D3D12 validation message callback.");
             }
         }
     }
@@ -734,6 +782,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 addFeature(Feature::AccelerationStructure);
                 addFeature(Feature::RayTracing);
+                addCapability(Capability::_raygen);
+                addCapability(Capability::_intersection);
+                addCapability(Capability::_anyhit);
+                addCapability(Capability::_closesthit);
+                addCapability(Capability::_callable);
+                addCapability(Capability::_miss);
             }
             // Check ray query support
             if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
@@ -761,6 +815,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             if (options.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
             {
                 addFeature(Feature::MeshShader);
+                addCapability(Capability::_mesh);
+                addCapability(Capability::_amplification);
             }
             // Check sampler feedback support
             if (options.SamplerFeedbackTier >= D3D12_SAMPLER_FEEDBACK_TIER_1_0)
@@ -1471,8 +1527,8 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this);
-    shaderProgram->init(desc);
+    RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(shaderProgram->init());
     ComPtr<ID3DBlob> d3dDiagnosticBlob;
     auto rootShaderLayoutResult = RootShaderObjectLayoutImpl::create(
         this,
@@ -1781,7 +1837,7 @@ Result DeviceImpl::createAccelerationStructure(
 #endif
 }
 
-Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount)
+Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
 #if SLANG_RHI_ENABLE_NVAPI
     if (!NVAPIUtil::isAvailable())
@@ -1810,7 +1866,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
         }
     }
 
-    return Device::getCooperativeVectorProperties(properties, propertyCount);
+    return Device::getCooperativeVectorProperties(properties, propertiesCount);
 #else
     return SLANG_E_NOT_AVAILABLE;
 #endif
@@ -1869,6 +1925,16 @@ DeviceImpl::~DeviceImpl()
     if (m_nullSamplerDescriptor)
     {
         m_cpuSamplerHeap->free(m_nullSamplerDescriptor);
+    }
+
+    if (m_validationMessageCallbackCookie)
+    {
+        ComPtr<ID3D12InfoQueue1> infoQueue1;
+        if (SLANG_SUCCEEDED(m_device->QueryInterface(infoQueue1.writeRef())))
+        {
+            infoQueue1->UnregisterMessageCallback(m_validationMessageCallbackCookie);
+            m_validationMessageCallbackCookie = 0;
+        }
     }
 }
 

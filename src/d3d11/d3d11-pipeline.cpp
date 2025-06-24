@@ -8,8 +8,8 @@
 
 namespace rhi::d3d11 {
 
-RenderPipelineImpl::RenderPipelineImpl(Device* device)
-    : RenderPipeline(device)
+RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
+    : RenderPipeline(device, desc)
 {
 }
 
@@ -21,6 +21,8 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
@@ -159,7 +161,20 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
     }
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Render,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
     pipeline->m_vertexShader = vertexShader;
@@ -178,8 +193,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     return SLANG_OK;
 }
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -191,6 +206,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
@@ -215,7 +232,20 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         ));
     }
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_computeShader = computeShader;
     returnComPtr(outPipeline, pipeline);

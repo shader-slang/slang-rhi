@@ -14,7 +14,7 @@ public:
 
     Result init();
 
-    ID3D11Query* getQuery(SlangInt index);
+    ID3D11Query* getQuery(uint32_t index);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
 };

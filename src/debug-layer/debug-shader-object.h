@@ -83,8 +83,9 @@ public:
         size_t operator()(const ShaderOffsetKey& key) const { return key.getHashCode(); }
     };
     std::unordered_map<ShaderOffsetKey, RefPtr<DebugShaderObject>, ShaderOffsetKeyHasher> m_objects;
-    std::unordered_map<ShaderOffsetKey, Binding, ShaderOffsetKeyHasher> m_bindings;
-    std::set<SlangInt> m_initializedBindingRanges;
+    // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
+    // std::unordered_map<ShaderOffsetKey, Binding, ShaderOffsetKeyHasher> m_bindings;
+    // std::set<SlangInt> m_initializedBindingRanges;
 };
 
 class DebugRootShaderObject : public DebugShaderObject

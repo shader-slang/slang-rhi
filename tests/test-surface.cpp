@@ -1,3 +1,4 @@
+#if SLANG_RHI_BUILD_TESTS_WITH_GLFW
 #include "testing.h"
 
 #if SLANG_WINDOWS_FAMILY
@@ -324,3 +325,4 @@ GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA)
     CHECK(device->hasFeature(Feature::Surface));
     testSurface<NoRenderSurfaceTest>(device);
 }
+#endif // SLANG_RHI_BUILD_TESTS_WITH_GLFW

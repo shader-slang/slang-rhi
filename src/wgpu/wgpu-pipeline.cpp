@@ -7,8 +7,8 @@
 
 namespace rhi::wgpu {
 
-RenderPipelineImpl::RenderPipelineImpl(Device* device)
-    : RenderPipeline(device)
+RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
+    : RenderPipeline(device, desc)
 {
 }
 
@@ -31,6 +31,8 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
@@ -117,20 +119,38 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     fragment.targets = targets.data();
     pipelineDesc.fragment = &fragment;
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
-    pipeline->m_program = program;
-    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
-    pipeline->m_renderPipeline = m_ctx.api.wgpuDeviceCreateRenderPipeline(m_ctx.device, &pipelineDesc);
-    if (!pipeline->m_renderPipeline)
+    pipelineDesc.label = desc.label;
+
+    WGPURenderPipeline renderPipeline = {};
+    renderPipeline = m_ctx.api.wgpuDeviceCreateRenderPipeline(m_ctx.device, &pipelineDesc);
+    if (!renderPipeline)
     {
         return SLANG_FAIL;
     }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Render,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+    pipeline->m_renderPipeline = renderPipeline;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -153,6 +173,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
     ShaderProgramImpl::Module* computeModule = program->findModule(SlangStage::SLANG_STAGE_COMPUTE);
@@ -166,10 +188,32 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipelineDesc.compute.module = computeModule->module;
     pipelineDesc.compute.entryPoint = computeModule->entryPointName.c_str();
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    pipelineDesc.label = desc.label;
+
+    WGPUComputePipeline computePipeline = {};
+    computePipeline = m_ctx.api.wgpuDeviceCreateComputePipeline(m_ctx.device, &pipelineDesc);
+    if (!computePipeline)
+    {
+        return SLANG_FAIL;
+    }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
-    pipeline->m_computePipeline = m_ctx.api.wgpuDeviceCreateComputePipeline(m_ctx.device, &pipelineDesc);
+    pipeline->m_computePipeline = computePipeline;
     if (!pipeline->m_computePipeline)
     {
         return SLANG_FAIL;
