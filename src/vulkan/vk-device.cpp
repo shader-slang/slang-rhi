@@ -721,9 +721,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             }
         );
 
-        if (extendedFeatures.meshShaderFeatures.meshShader)
-        {
-            deviceExtensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
+        SIMPLE_EXTENSION_FEATURE(extendedFeatures.meshShaderFeatures, meshShader, VK_EXT_MESH_SHADER_EXTENSION_NAME, {
             availableFeatures.push_back(Feature::MeshShader);
             availableCapabilities.push_back(Capability::SPV_EXT_mesh_shader);
             availableCapabilities.push_back(Capability::spvMeshShadingEXT);
@@ -732,7 +730,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             {
                 availableCapabilities.push_back(Capability::_amplification);
             }
-        }
+        });
 
         SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {
             availableFeatures.push_back(Feature::MultiView);
