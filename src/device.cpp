@@ -677,13 +677,13 @@ Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRay
     }
 }
 
-Result Device::getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob)
+Result Device::getCompilationReportList(ISlangBlob** outReportListBlob)
 {
     if (!m_shaderCompilationReporter)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    return m_shaderCompilationReporter->getCompilationReports(type, outReportBlob);
+    return m_shaderCompilationReporter->getCompilationReportList(outReportListBlob);
 }
 
 Result Device::createShaderObject(

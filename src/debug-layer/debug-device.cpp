@@ -576,11 +576,11 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
     return baseObject->createRayTracingPipeline(patchedDesc, outPipeline);
 }
 
-Result DebugDevice::getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob)
+Result DebugDevice::getCompilationReportList(ISlangBlob** outReportListBlob)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->getCompilationReports(type, outReportBlob);
+    return baseObject->getCompilationReportList(outReportListBlob);
 }
 
 Result DebugDevice::readTexture(
