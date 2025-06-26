@@ -181,16 +181,41 @@ enum class AccessFlag
 
 class IPersistentCache;
 
-enum class CompilationReportType
-{
-    /// Compilation report as a `CompilationReport` struct.
-    Struct,
-    /// Compilation report as a JSON string.
-    JSON,
-};
-
 struct CompilationReport
 {
+    /// Time point in nanoseconds.
+    typedef uint64_t TimePoint;
+
+    struct EntryPointReport
+    {
+        char name[128];
+        TimePoint startTime;
+        TimePoint endTime;
+        double createTime;
+        double compileTime;
+        double compileSlangTime;
+        double compileDownstreamTime;
+        bool isCached;
+        size_t cacheSize;
+    };
+
+    enum class PipelineType
+    {
+        Render,
+        Compute,
+        RayTracing
+    };
+
+    struct PipelineReport
+    {
+        PipelineType type;
+        TimePoint startTime;
+        TimePoint endTime;
+        double createTime;
+        bool isCached;
+        size_t cacheSize;
+    };
+
     /// Shader program label.
     char label[128];
     /// Shader program is currently alive.
@@ -205,6 +230,22 @@ struct CompilationReport
     double compileDownstreamTime;
     /// Total time spent creating pipelines (seconds).
     double createPipelineTime;
+
+    /// Entry points compilation reports.
+    const EntryPointReport* entryPointReports;
+    /// Number of entry point compilation reports.
+    uint32_t entryPointReportCount;
+
+    /// Pipelines creation reports.
+    const PipelineReport* pipelineReports;
+    /// Number of pipeline creation reports.
+    uint32_t pipelineReportCount;
+};
+
+struct CompilationReportList
+{
+    const CompilationReport* reports;
+    uint32_t reportCount;
 };
 
 /// Defines how linking should be performed for a shader program.
@@ -248,8 +289,7 @@ class IShaderProgram : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCompilationReport(CompilationReportType type, ISlangBlob** outReportBlob) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) = 0;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
 
@@ -2941,8 +2981,7 @@ public:
         return pipeline;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReportList(ISlangBlob** outReportListBlob) = 0;
 
     /// Read back texture resource and stores the result in `outData`.
     /// `layout` is the layout to store the data in. It is the caller's responsibility to

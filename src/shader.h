@@ -76,8 +76,7 @@ public:
 
     // IShaderProgram interface
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCompilationReport(CompilationReportType type, ISlangBlob** outReportBlob) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) override;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() = 0;
@@ -103,12 +102,9 @@ private:
 class ShaderCompilationReporter : public RefObject
 {
 public:
-    enum class PipelineType
-    {
-        Render,
-        Compute,
-        RayTracing
-    };
+    using PipelineType = CompilationReport::PipelineType;
+    using EntryPointReport = CompilationReport::EntryPointReport;
+    using PipelineReport = CompilationReport::PipelineReport;
 
     ShaderCompilationReporter(Device* device);
 
@@ -135,33 +131,10 @@ public:
         size_t cacheSize
     );
 
-    Result getCompilationReport(ShaderProgram* program, CompilationReportType type, ISlangBlob** outReportBlob);
-    Result getCompilationReports(CompilationReportType type, ISlangBlob** outReportBlob);
+    Result getCompilationReport(ShaderProgram* program, ISlangBlob** outReportBlob);
+    Result getCompilationReportList(ISlangBlob** outReportListBlob);
 
 private:
-    struct EntryPointReport
-    {
-        std::string entryPointName;
-        TimePoint startTime;
-        TimePoint endTime;
-        double createTime;
-        double compileTime;
-        double compileSlangTime;
-        double compileDownstreamTime;
-        bool isCached;
-        size_t cacheSize;
-    };
-
-    struct PipelineReport
-    {
-        PipelineType pipelineType;
-        TimePoint startTime;
-        TimePoint endTime;
-        double createTime;
-        bool isCached;
-        size_t cacheSize;
-    };
-
     struct ProgramReport
     {
         bool alive = false;
@@ -180,7 +153,12 @@ private:
     /// Maps ShaderProgramID to ProgramReport.
     std::vector<ProgramReport> m_programReports;
 
-    void writeCompilationReport(CompilationReport& dst, const ProgramReport& src);
+    void writeCompilationReport(
+        CompilationReport* dst,
+        EntryPointReport* dstEntryPoints,
+        PipelineReport* dstPipelines,
+        const ProgramReport& src
+    );
 };
 
 } // namespace rhi
