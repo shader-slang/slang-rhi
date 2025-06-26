@@ -231,7 +231,7 @@ void ShaderCompilationReporter::registerProgram(ShaderProgram* program)
 
     if (m_printReports)
     {
-        m_device->printInfo("Shader program %llu: Registered (label: \"%s\")", program->m_id, label);
+        m_device->printDebug("Shader program %llu: Registered (label: \"%s\")", program->m_id, label);
     }
 
     if (m_recordReports)
@@ -250,7 +250,7 @@ void ShaderCompilationReporter::unregisterProgram(ShaderProgram* program)
 
     if (m_printReports)
     {
-        m_device->printInfo("Shader program %llu: Unregistered", program->m_id);
+        m_device->printDebug("Shader program %llu: Unregistered", program->m_id);
     }
 
     if (m_recordReports)
@@ -277,7 +277,7 @@ void ShaderCompilationReporter::reportCompileEntryPoint(
 
     if (m_printReports)
     {
-        m_device->printInfo(
+        m_device->printDebug(
             "Shader program %llu: Creating entry point \"%s\" took %.1f ms "
             "(compilation: %.1f ms, slang: %.1f ms, downstream: %.1f ms, cached: %s, cacheSize: %zd)",
             program->m_id,
@@ -337,7 +337,7 @@ void ShaderCompilationReporter::reportCreatePipeline(
 
     if (m_printReports)
     {
-        m_device->printInfo(
+        m_device->printDebug(
             "Shader program %llu: Creating %s pipeline took %.1f ms (cached: %s, cacheSize: %zd)",
             program->m_id,
             getPipelineTypeName(pipelineType),
