@@ -99,6 +99,9 @@ public:
     {
         switch (type)
         {
+        case DebugMessageType::Debug:
+            output += "[Debug] ";
+            break;
         case DebugMessageType::Info:
             output += "[Info] ";
             break;
@@ -160,6 +163,9 @@ public:
         doctest::String msg;
         switch (type)
         {
+        case DebugMessageType::Debug:
+            msg += "[Debug] ";
+            break;
         case DebugMessageType::Info:
             msg += "[Info] ";
             break;

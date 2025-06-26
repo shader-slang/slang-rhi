@@ -2562,6 +2562,7 @@ struct DeviceInfo
 
 enum class DebugMessageType
 {
+    Debug,
     Info,
     Warning,
     Error
