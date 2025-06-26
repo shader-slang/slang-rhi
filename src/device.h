@@ -376,6 +376,7 @@ public:
     }
 
     void printMessage(DebugMessageType type, DebugMessageSource source, const char* message, ...);
+    void printDebug(const char* message, ...);
     void printInfo(const char* message, ...);
     void printWarning(const char* message, ...);
     void printError(const char* message, ...);

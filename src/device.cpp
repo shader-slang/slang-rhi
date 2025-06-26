@@ -99,45 +99,40 @@ void ShaderCache::free()
 // Device
 // ----------------------------------------------------------------------------
 
+#define PRINT_IMPL(type, source)                                                                                       \
+    va_list args;                                                                                                      \
+    va_start(args, message);                                                                                           \
+    char buffer[4096];                                                                                                 \
+    vsnprintf(buffer, sizeof(buffer), message, args);                                                                  \
+    va_end(args);                                                                                                      \
+    handleMessage(type, source, buffer);
+
 void Device::printMessage(DebugMessageType type, DebugMessageSource source, const char* message, ...)
 {
-    va_list args;
-    va_start(args, message);
-    char buffer[4096];
-    vsnprintf(buffer, sizeof(buffer), message, args);
-    va_end(args);
-    handleMessage(type, source, buffer);
+    PRINT_IMPL(type, source);
+}
+
+void Device::printDebug(const char* message, ...)
+{
+    PRINT_IMPL(DebugMessageType::Debug, DebugMessageSource::Layer);
 }
 
 void Device::printInfo(const char* message, ...)
 {
-    va_list args;
-    va_start(args, message);
-    char buffer[4096];
-    vsnprintf(buffer, sizeof(buffer), message, args);
-    va_end(args);
-    handleMessage(DebugMessageType::Info, DebugMessageSource::Layer, buffer);
+    PRINT_IMPL(DebugMessageType::Info, DebugMessageSource::Layer);
 }
 
 void Device::printWarning(const char* message, ...)
 {
-    va_list args;
-    va_start(args, message);
-    char buffer[4096];
-    vsnprintf(buffer, sizeof(buffer), message, args);
-    va_end(args);
-    handleMessage(DebugMessageType::Warning, DebugMessageSource::Layer, buffer);
+    PRINT_IMPL(DebugMessageType::Warning, DebugMessageSource::Layer);
 }
 
 void Device::printError(const char* message, ...)
 {
-    va_list args;
-    va_start(args, message);
-    char buffer[4096];
-    vsnprintf(buffer, sizeof(buffer), message, args);
-    va_end(args);
-    handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, buffer);
+    PRINT_IMPL(DebugMessageType::Error, DebugMessageSource::Layer);
 }
+
+#undef PRINT_IMPL
 
 Result Device::createShaderObject(ShaderObjectLayout* layout, ShaderObject** outObject)
 {
