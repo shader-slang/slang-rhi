@@ -154,6 +154,10 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     {
         m_config.format = m_info.preferredFormat;
     }
+    if (m_config.usage == TextureUsage::None)
+    {
+        m_config.usage = m_info.supportedUsage;
+    }
 
     // sRGB formats cannot be used as storage textures.
     TextureUsage usage = m_config.usage;

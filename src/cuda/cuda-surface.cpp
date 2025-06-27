@@ -192,8 +192,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     }
 
     m_info.preferredFormat = preferredFormat;
-    m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::UnorderedAccess |
-                            TextureUsage::CopyDestination;
+    m_info.supportedUsage = TextureUsage::Present | TextureUsage::UnorderedAccess | TextureUsage::CopyDestination;
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();
 
@@ -765,6 +764,10 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     if (m_config.format == Format::Undefined)
     {
         m_config.format = m_info.preferredFormat;
+    }
+    if (m_config.usage == TextureUsage::None)
+    {
+        m_config.usage = m_info.supportedUsage;
     }
 
     m_configured = false;
