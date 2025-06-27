@@ -219,7 +219,20 @@ struct ComputeSurfaceTest : SurfaceTest
 
     Format getSurfaceFormat() override
     {
-        return device->getDeviceType() == DeviceType::CUDA ? Format::RGBA8Unorm : surface->getInfo().preferredFormat;
+        // Choose an non-sRGB format to allow compute shader to write to the surface.
+        const SurfaceInfo& info = surface->getInfo();
+        for (uint32_t i = 0; i < info.formatCount; ++i)
+        {
+            switch (info.formats[i])
+            {
+            case Format::RGBA8Unorm:
+            case Format::BGRA8Unorm:
+                return info.formats[i];
+            default:
+                break;
+            }
+        }
+        return info.preferredFormat;
     }
 
     void initResources() override
@@ -235,7 +248,7 @@ struct ComputeSurfaceTest : SurfaceTest
 
     void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) override
     {
-        bool allowUnorderedAccess = is_set(surface->getInfo().supportedUsage, TextureUsage::UnorderedAccess);
+        bool allowUnorderedAccess = is_set(texture->getDesc().usage, TextureUsage::UnorderedAccess);
 
         if (!allowUnorderedAccess && (!renderTexture || renderTexture->getDesc().size.width != width ||
                                       renderTexture->getDesc().size.height != height))
