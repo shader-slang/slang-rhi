@@ -35,6 +35,11 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     {
         m_config.format = m_info.preferredFormat;
     }
+    if (m_config.usage == TextureUsage::None)
+    {
+        // TODO: Once we have propert support for format support, we can add additional usages depending on the format.
+        m_config.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
+    }
 
     m_metalLayer->setPixelFormat(MetalUtil::translatePixelFormat(m_config.format));
     m_metalLayer->setDrawableSize(CGSize{(float)m_config.width, (float)m_config.height});

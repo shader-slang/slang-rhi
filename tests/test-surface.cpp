@@ -75,9 +75,7 @@ struct SurfaceTest
         queue->waitOnHost();
 
         SurfaceConfig config = {};
-        config.format = surface->getInfo().preferredFormat;
         config.format = getSurfaceFormat();
-        config.usage = surface->getInfo().supportedUsage;
         config.width = width;
         config.height = height;
         config.vsync = false;
