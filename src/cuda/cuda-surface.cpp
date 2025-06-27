@@ -177,10 +177,12 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     for (uint32_t i = 0; i < formatCount; ++i)
     {
         Format format = translateVkFormat(surfaceFormats[i].format);
+        // Skip BGR formats that are not supported by the CUDA backend.
+        if (format == Format::BGRA8Unorm || format == Format::BGRA8UnormSrgb || format == Format::BGRX8Unorm ||
+            format == Format::BGRX8UnormSrgb)
+            continue;
         if (format != Format::Undefined)
             m_supportedFormats.push_back(format);
-        // if (format == Format::BGRA8Unorm)
-        //     preferredFormat = format;
         if (format == Format::RGBA8UnormSrgb)
             preferredFormat = format;
     }

@@ -95,7 +95,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         Format format = translateVkFormat(surfaceFormats[i].format);
         if (format != Format::Undefined)
             m_supportedFormats.push_back(format);
-        if (format == Format::BGRA8UnormSrgb)
+        if (preferredFormat == Format::Undefined &&
+            (format == Format::RGBA8UnormSrgb || format == Format::BGRA8UnormSrgb || format == Format::BGRX8UnormSrgb))
             preferredFormat = format;
     }
     if (preferredFormat == Format::Undefined && !m_supportedFormats.empty())
