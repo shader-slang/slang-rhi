@@ -83,7 +83,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         Format format = translateWGPUFormat(capabilities.formats[i]);
         if (format != Format::Undefined)
             m_supportedFormats.push_back(format);
-        if (format == Format::BGRA8Unorm)
+        if (format == Format::BGRA8UnormSrgb)
             preferredFormat = format;
     }
     if (preferredFormat == Format::Undefined && !m_supportedFormats.empty())
@@ -155,10 +155,17 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         m_config.format = m_info.preferredFormat;
     }
 
+    // sRGB formats cannot be used as storage textures.
+    TextureUsage usage = m_config.usage;
+    if (getFormatInfo(m_config.format).isSrgb)
+    {
+        usage &= ~TextureUsage::UnorderedAccess;
+    }
+
     WGPUSurfaceConfiguration wgpuConfig = {};
     wgpuConfig.device = m_device->m_ctx.device;
     wgpuConfig.format = translateTextureFormat(m_config.format);
-    wgpuConfig.usage = translateTextureUsage(m_config.usage);
+    wgpuConfig.usage = translateTextureUsage(usage);
     // TODO: support more view formats
     wgpuConfig.viewFormatCount = 1;
     wgpuConfig.viewFormats = &wgpuConfig.format;
