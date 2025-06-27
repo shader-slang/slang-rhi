@@ -181,7 +181,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
             m_supportedFormats.push_back(format);
         // if (format == Format::BGRA8Unorm)
         //     preferredFormat = format;
-        if (format == Format::RGBA8Unorm)
+        if (format == Format::RGBA8UnormSrgb)
             preferredFormat = format;
     }
     if (preferredFormat == Format::Undefined && !m_supportedFormats.empty())

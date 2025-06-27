@@ -23,7 +23,7 @@ public:
         m_windowHandle = (HWND)windowHandle.handleValues[0];
         m_swapEffect = swapEffect;
 
-        m_info.preferredFormat = Format::RGBA8Unorm;
+        m_info.preferredFormat = Format::RGBA8UnormSrgb;
         m_info.supportedUsage = TextureUsage::RenderTarget | TextureUsage::CopyDestination | TextureUsage::Present;
         if (allowUnorderedAccess)
         {
