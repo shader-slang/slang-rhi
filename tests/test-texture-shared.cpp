@@ -3,6 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
+#if SLANG_WIN64
 static void setUpAndRunShader(
     IDevice* device,
     ComPtr<ITexture> tex,
@@ -137,7 +138,6 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
     }
 }
 
-#if SLANG_WIN64
 TEST_CASE("texture-shared-cuda")
 {
     if (!isDeviceTypeAvailable(DeviceType::CUDA))
