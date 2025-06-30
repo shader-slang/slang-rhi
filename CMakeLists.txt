@@ -466,10 +466,12 @@ target_compile_options(slang-rhi-warnings INTERFACE
     >
     $<$<CXX_COMPILER_ID:GNU>:
         -Wall -Wextra -Wpedantic
-        -Wshadow=local
+        -Wno-unknown-warning
+        -Wshadow=compatible-local
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
+        -Wno-subobject-linkage
     >
     $<$<CXX_COMPILER_ID:Clang>:
         -Wall -Wextra -Wpedantic

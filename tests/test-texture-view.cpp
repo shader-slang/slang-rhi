@@ -54,6 +54,7 @@ inline std::string getRWTextureType(TextureType type)
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
         FAIL("Unsupported texture type");
+        break;
     default:
         FAIL("Unknown texture type");
     }

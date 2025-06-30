@@ -27,14 +27,14 @@ void testSimple(ITaskPool* pool)
         tasks[i] = pool->submitTask(
             [](void* payload)
             {
-                size_t i = *static_cast<size_t*>(payload);
-                result[i] = i;
+                size_t j = *static_cast<size_t*>(payload);
+                result[j] = j;
             },
             payload,
             [](void* payload)
             {
-                size_t i = *static_cast<size_t*>(payload);
-                deleted[i] = true;
+                size_t j = *static_cast<size_t*>(payload);
+                deleted[j] = true;
                 delete static_cast<size_t*>(payload);
             },
             nullptr,
@@ -78,14 +78,14 @@ void testWaitAll(ITaskPool* pool)
         ITaskPool::TaskHandle task = pool->submitTask(
             [](void* payload)
             {
-                size_t i = *static_cast<size_t*>(payload);
-                result[i] = i;
+                size_t j = *static_cast<size_t*>(payload);
+                result[j] = j;
             },
             payload,
             [](void* payload)
             {
-                size_t i = *static_cast<size_t*>(payload);
-                deleted[i] = true;
+                size_t j = *static_cast<size_t*>(payload);
+                deleted[j] = true;
                 delete static_cast<size_t*>(payload);
             },
             nullptr,
@@ -122,8 +122,8 @@ void testSimpleDependency(ITaskPool* pool)
         tasks[i] = pool->submitTask(
             [](void* payload)
             {
-                size_t i = (size_t)(uintptr_t)payload;
-                result[i] = i;
+                size_t j = (size_t)(uintptr_t)payload;
+                result[j] = j;
                 finished++;
             },
             (void*)i,
