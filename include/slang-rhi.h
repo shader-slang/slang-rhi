@@ -2456,21 +2456,32 @@ public:
 
 struct SurfaceInfo
 {
+    /// The preferred format for the surface.
     Format preferredFormat;
+    /// The supported texture usage for the surface.
+    /// The actual support may be more limited depending on the format.
     TextureUsage supportedUsage;
+    /// The list of supported formats for the surface.
     const Format* formats;
+    /// The number of supported formats for the surface.
     uint32_t formatCount;
 };
 
 struct SurfaceConfig
 {
+    /// Surface format. If left undefined, the preferred format is used.
     Format format = Format::Undefined;
-    TextureUsage usage = TextureUsage::RenderTarget;
+    /// Usage of the surface. If left undefined, the supported usage is used.
+    TextureUsage usage = TextureUsage::None;
     // size_t viewFormatCount;
     // const Format* viewFormats;
+    /// Width of the surface in pixels.
     uint32_t width = 0;
+    /// Height of the surface in pixels.
     uint32_t height = 0;
+    /// Desired number of images in the swap chain.
     uint32_t desiredImageCount = 3;
+    /// Enable/disable vertical synchronization.
     bool vsync = true;
 };
 

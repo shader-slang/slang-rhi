@@ -35,6 +35,11 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     {
         m_config.format = m_info.preferredFormat;
     }
+    if (m_config.usage == TextureUsage::None)
+    {
+        // TODO: Once we have propert support for format support, we can add additional usages depending on the format.
+        m_config.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
+    }
 
     m_metalLayer->setPixelFormat(MetalUtil::translatePixelFormat(m_config.format));
     m_metalLayer->setDrawableSize(CGSize{(float)m_config.width, (float)m_config.height});
@@ -101,7 +106,7 @@ Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurfac
     }
     surface->m_metalLayer->setDevice(m_device.get());
 
-    surface->m_info.preferredFormat = Format::BGRA8Unorm;
+    surface->m_info.preferredFormat = Format::BGRA8UnormSrgb;
     surface->m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::ShaderResource |
                                      TextureUsage::UnorderedAccess | TextureUsage::CopyDestination;
     surface->m_info.formats = kSupportedFormats;
