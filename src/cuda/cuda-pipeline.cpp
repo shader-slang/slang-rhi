@@ -140,6 +140,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     optixPipelineCompileOptions.usesPrimitiveTypeFlags = 0;
     if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
         optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
+    if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
+        optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
 
     optixPipelineCompileOptions.allowOpacityMicromaps = 0;
 
@@ -235,6 +237,24 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         );
     }
 
+    // If we're using linear swept spheres, hit groups may use the builtin linear swept sphere intersector.
+    OptixModule builtinISModuleLinearSweptSpheres = nullptr;
+    if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
+    {
+        OptixBuiltinISOptions builtinISOptions = {};
+        builtinISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixBuiltinISModuleGet(
+                m_ctx.optixContext,
+                &optixModuleCompileOptions,
+                &optixPipelineCompileOptions,
+                &builtinISOptions,
+                &builtinISModuleLinearSweptSpheres
+            ),
+            this
+        );
+    }
+
     // Create program groups for hit groups
     for (uint32_t hitGroupIndex = 0; hitGroupIndex < desc.hitGroupCount; ++hitGroupIndex)
     {
@@ -263,6 +283,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         {
             if (std::strcmp(hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__sphere") == 0)
                 optixProgramGroupDesc.hitgroup.moduleIS = builtinISModuleSphere;
+            else if (std::strcmp(hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__linear_swept_spheres") == 0)
+                optixProgramGroupDesc.hitgroup.moduleIS = builtinISModuleLinearSweptSpheres;
             else
             {
                 optixProgramGroupDesc.hitgroup.moduleIS =
