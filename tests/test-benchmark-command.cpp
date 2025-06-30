@@ -1,6 +1,7 @@
 #include "testing.h"
 
 #include <chrono>
+#include <cinttypes>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -86,7 +87,7 @@ GPU_TEST_CASE("benchmark-command", ALL)
 
     end = std::chrono::high_resolution_clock::now();
     int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    fprintf(stderr, ": Duration: %ld ms)", duration);
+    fprintf(stderr, ": Duration: %" PRIi64 " ms)", duration);
 
     queue->waitOnHost();
 

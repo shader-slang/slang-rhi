@@ -590,6 +590,8 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.enableValidation = true;
     deviceDesc.enableRayTracingValidation = true;
     deviceDesc.debugCallback = &sDebugCallback;
+#else
+    SLANG_UNUSED(sDebugCallback);
 #endif
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
