@@ -283,7 +283,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         {
             if (std::strcmp(hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__sphere") == 0)
                 optixProgramGroupDesc.hitgroup.moduleIS = builtinISModuleSphere;
-            else if (std::strcmp(hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__linear_swept_spheres") == 0)
+            else if (std::strcmp(hitGroupDesc.intersectionEntryPoint, "__builtin_intersection__linear_swept_spheres") ==
+                     0)
                 optixProgramGroupDesc.hitgroup.moduleIS = builtinISModuleLinearSweptSpheres;
             else
             {

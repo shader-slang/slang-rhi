@@ -239,10 +239,9 @@ Result AccelerationStructureBuildDescConverter::convert(
             buildInput.curveArray.indexBuffer = linearSweptSpheres.indexBuffer.getDeviceAddress();
 
             buildInput.curveArray.flag = translateGeometryFlags(linearSweptSpheres.flags);
-
-            }
         }
-        break;
+    }
+    break;
     default:
         return SLANG_E_INVALID_ARG;
     }

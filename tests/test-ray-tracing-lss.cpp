@@ -428,7 +428,6 @@ struct RayTracingLssIntrinsicsTest : public RayTracingLssTestBase
     static constexpr unsigned kIndices[kPrimitiveCount] = {0};
 
 
-
     ComPtr<IBuffer> resultBuffer;
 
     void createResultBuffer()
@@ -486,7 +485,16 @@ struct RayTracingLssIntrinsicsTest : public RayTracingLssTestBase
 
     void run(const char* raygenName, const char* closestHitName)
     {
-        createRequiredResources(kPrimitiveCount, kVertexCount, kPositions, kRadii, kIndices, raygenName, closestHitName, "missNOP");
+        createRequiredResources(
+            kPrimitiveCount,
+            kVertexCount,
+            kPositions,
+            kRadii,
+            kIndices,
+            raygenName,
+            closestHitName,
+            "missNOP"
+        );
         createResultBuffer();
         renderFrame();
         checkTestResults();
