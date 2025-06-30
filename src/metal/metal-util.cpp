@@ -408,16 +408,16 @@ MTL::BlendOperation MetalUtil::translateBlendOperation(BlendOp op)
     }
 }
 
-MTL::ColorWriteMask MetalUtil::translateColorWriteMask(RenderTargetWriteMask::Type mask)
+MTL::ColorWriteMask MetalUtil::translateColorWriteMask(RenderTargetWriteMask mask)
 {
     MTL::ColorWriteMask result = MTL::ColorWriteMaskNone;
-    if (mask & RenderTargetWriteMask::EnableRed)
+    if (is_set(mask, RenderTargetWriteMask::Red))
         result |= MTL::ColorWriteMaskRed;
-    if (mask & RenderTargetWriteMask::EnableGreen)
+    if (is_set(mask, RenderTargetWriteMask::Green))
         result |= MTL::ColorWriteMaskGreen;
-    if (mask & RenderTargetWriteMask::EnableBlue)
+    if (is_set(mask, RenderTargetWriteMask::Blue))
         result |= MTL::ColorWriteMaskBlue;
-    if (mask & RenderTargetWriteMask::EnableAlpha)
+    if (is_set(mask, RenderTargetWriteMask::Alpha))
         result |= MTL::ColorWriteMaskAlpha;
     return result;
 }

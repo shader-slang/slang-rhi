@@ -22,7 +22,6 @@ bool isBlendDisabled(const AspectBlendDesc& desc);
 bool isBlendDisabled(const ColorTargetDesc& desc);
 D3D11_BLEND_OP translateBlendOp(BlendOp op);
 D3D11_BLEND translateBlendFactor(BlendFactor factor);
-D3D11_COLOR_WRITE_ENABLE translateRenderTargetWriteMask(RenderTargetWriteMaskT mask);
 
 } // namespace rhi::d3d11
 

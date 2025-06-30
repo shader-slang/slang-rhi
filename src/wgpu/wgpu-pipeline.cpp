@@ -109,7 +109,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             blend.alpha.dstFactor = translateBlendFactor(targetIn.alpha.dstFactor);
             target.blend = &blend;
         }
-        target.writeMask = targetIn.writeMask;
+        target.writeMask = (WGPUColorWriteMask)targetIn.writeMask;
     }
 
     WGPUFragmentState fragment = {};

@@ -284,7 +284,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                 d3dDesc.DestBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.dstFactor);
                 d3dDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
                 d3dDesc.LogicOpEnable = FALSE;
-                d3dDesc.RenderTargetWriteMask = desc.targets[i].writeMask;
+                d3dDesc.RenderTargetWriteMask = (UINT8)desc.targets[i].writeMask;
                 d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.targets[i].color.srcFactor);
                 d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.srcFactor);
             }
