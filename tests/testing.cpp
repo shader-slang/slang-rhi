@@ -278,7 +278,8 @@ Result loadComputeProgram(
     SLANG_RETURN_ON_FAIL(result);
 
     slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -320,7 +321,8 @@ Result loadComputeProgram(
     SLANG_RETURN_ON_FAIL(result);
 
     slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -334,6 +336,7 @@ Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& out
     auto srcBlob = UnownedBlob::create(source.data(), source.size());
     module =
         slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
         return SLANG_FAIL;
 
@@ -358,9 +361,11 @@ Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& out
         linkedProgram.writeRef(),
         diagnosticsBlob.writeRef()
     );
+    diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -408,7 +413,8 @@ Result loadGraphicsProgram(
     SLANG_RETURN_ON_FAIL(result);
 
     slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -428,6 +434,7 @@ Result loadRenderProgramFromSource(
     auto srcBlob = UnownedBlob::create(source.data(), source.size());
     module =
         slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
         return SLANG_FAIL;
 
@@ -453,9 +460,11 @@ Result loadRenderProgramFromSource(
         linkedProgram.writeRef(),
         diagnosticsBlob.writeRef()
     );
+    diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
