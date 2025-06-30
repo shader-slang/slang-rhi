@@ -265,22 +265,6 @@ D3D11_BLEND translateBlendFactor(BlendFactor factor)
     }
 }
 
-D3D11_COLOR_WRITE_ENABLE translateRenderTargetWriteMask(RenderTargetWriteMaskT mask)
-{
-    UINT result = 0;
-#define CASE(FROM, TO)                                                                                                 \
-    if (mask & RenderTargetWriteMask::Enable##FROM)                                                                    \
-    result |= D3D11_COLOR_WRITE_ENABLE_##TO
-
-    CASE(Red, RED);
-    CASE(Green, GREEN);
-    CASE(Blue, BLUE);
-    CASE(Alpha, ALPHA);
-
-#undef CASE
-    return D3D11_COLOR_WRITE_ENABLE(result);
-}
-
 } // namespace rhi::d3d11
 
 namespace rhi {

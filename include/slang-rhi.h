@@ -1723,19 +1723,16 @@ enum class BlendFactor
     InvSecondarySrcAlpha,
 };
 
-namespace RenderTargetWriteMask {
-typedef uint8_t Type;
-enum
+enum class RenderTargetWriteMask : uint8_t
 {
-    EnableNone = 0,
-    EnableRed = 0x01,
-    EnableGreen = 0x02,
-    EnableBlue = 0x04,
-    EnableAlpha = 0x08,
-    EnableAll = 0x0F,
+    None = 0,
+    Red = 0x01,
+    Green = 0x02,
+    Blue = 0x04,
+    Alpha = 0x08,
+    All = 0x0F,
 };
-}; // namespace RenderTargetWriteMask
-typedef RenderTargetWriteMask::Type RenderTargetWriteMaskT;
+SLANG_RHI_ENUM_CLASS_OPERATORS(RenderTargetWriteMask);
 
 struct AspectBlendDesc
 {
@@ -1751,7 +1748,7 @@ struct ColorTargetDesc
     AspectBlendDesc alpha;
     bool enableBlend = false;
     LogicOp logicOp = LogicOp::NoOp;
-    RenderTargetWriteMaskT writeMask = RenderTargetWriteMask::EnableAll;
+    RenderTargetWriteMask writeMask = RenderTargetWriteMask::All;
 };
 
 struct MultisampleDesc

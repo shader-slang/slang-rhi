@@ -58,7 +58,7 @@ struct MetalUtil
 
     static MTL::BlendFactor translateBlendFactor(BlendFactor factor);
     static MTL::BlendOperation translateBlendOperation(BlendOp op);
-    static MTL::ColorWriteMask translateColorWriteMask(RenderTargetWriteMask::Type mask);
+    static MTL::ColorWriteMask translateColorWriteMask(RenderTargetWriteMask mask);
 
     static MTL::Winding translateWinding(FrontFaceMode mode);
     static MTL::CullMode translateCullMode(CullMode mode);
