@@ -19,8 +19,6 @@ include(DetermineTargetArchitecture)
 include(GNUInstallDirs)
 include(CMakeRC)
 
-find_package(Threads REQUIRED)
-
 # Determine the target architecture we build for.
 # CMAKE_SYSTEM_PROCESSOR is not a reliable way to determine the target architecture.
 determine_target_architecture(SLANG_RHI_ARCHITECTURE)
@@ -821,6 +819,7 @@ if(SLANG_RHI_BUILD_TESTS)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
     endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
     endif()
 endif()
