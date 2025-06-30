@@ -162,9 +162,16 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             createForElementType(m_device, m_session, elementTypeLayout, subObjectLayout.writeRef());
         }
         break;
-        case slang::BindingType::ParameterBlock:
         case slang::BindingType::ConstantBuffer:
-            // On metal, ParameterBlock and ConstantBuffer are represented as a single argument buffer.
+        {
+            // In the case of `ConstantBuffer<X>` or `cbuffer`
+            // we can construct a layout from the element type directly.
+            auto elementTypeLayout = slangLeafTypeLayout->getElementTypeLayout();
+            createForElementType(m_device, m_session, elementTypeLayout, subObjectLayout.writeRef());
+            break;
+        }
+        case slang::BindingType::ParameterBlock:
+            // On metal, ParameterBlock is represented as a single argument buffer.
             // We will let _unwrapParameterGroups to handle the dereference logic.
             createForElementType(m_device, m_session, slangLeafTypeLayout, subObjectLayout.writeRef());
             break;
