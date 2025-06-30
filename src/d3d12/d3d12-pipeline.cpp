@@ -273,7 +273,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             D3D12_BLEND_DESC& blend = psoDesc.BlendState;
             blend.IndependentBlendEnable = FALSE;
             blend.AlphaToCoverageEnable = desc.multisample.alphaToCoverageEnable ? TRUE : FALSE;
-            blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)RenderTargetWriteMask::EnableAll;
+            blend.RenderTarget[0].RenderTargetWriteMask = (UINT8)RenderTargetWriteMask::All;
             for (uint32_t i = 0; i < numRenderTargets; i++)
             {
                 auto& d3dDesc = blend.RenderTarget[i];
