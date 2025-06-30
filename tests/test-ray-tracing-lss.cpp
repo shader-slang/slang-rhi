@@ -286,16 +286,16 @@ struct ExpectedPixel
 // Test that the ray tracing pipeline can perform sphere intersection.
 struct RayTracingLssTest : public RayTracingLssTestBase
 {
-    static constexpr int kSegmentCount = 3;
+    static constexpr int kVertexCount = 3;
     static constexpr int kPrimitiveCount = 2;
 
-    static constexpr float3 kPositions[kSegmentCount] = {
+    static constexpr float3 kPositions[kVertexCount] = {
         {-0.5f, -0.5f, 3.0f},
         {0.0, 0.5f, 3.0f},
         {0.5f, -0.5f, 3.0f},
     };
 
-    static constexpr float kRadii[kSegmentCount] = {0.2f, 0.2f, 0.2f};
+    static constexpr float kRadii[kVertexCount] = {0.2f, 0.2f, 0.2f};
 
     static constexpr unsigned kIndices[kPrimitiveCount] = {0, 1};
 
@@ -323,24 +323,24 @@ struct RayTracingLssTest : public RayTracingLssTestBase
         ComPtr<ISlangBlob> resultBlob;
         SubresourceLayout layout;
         REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &layout));
-#if 1 // for debugging only
+#if 0 // for debugging only
         writeImage("test-ray-tracing-lss-intersection.hdr", resultBlob, width, height, layout.rowPitch, layout.colPitch);
 #endif
 
-        // for (const auto& ep : expectedPixels)
-        // {
-        //     uint32_t x = ep.pos[0];
-        //     uint32_t y = ep.pos[1];
-        //     const float* color = reinterpret_cast<const float*>(
-        //         static_cast<const uint8_t*>(resultBlob->getBufferPointer()) + y * layout.rowPitch + x * layout.colPitch
-        //     );
-        //     CAPTURE(x);
-        //     CAPTURE(y);
-        //     CHECK_EQ(color[0], ep.color[0]);
-        //     CHECK_EQ(color[1], ep.color[1]);
-        //     CHECK_EQ(color[2], ep.color[2]);
-        //     CHECK_EQ(color[3], ep.color[3]);
-        // }
+        for (const auto& ep : expectedPixels)
+        {
+            uint32_t x = ep.pos[0];
+            uint32_t y = ep.pos[1];
+            const float* color = reinterpret_cast<const float*>(
+                static_cast<const uint8_t*>(resultBlob->getBufferPointer()) + y * layout.rowPitch + x * layout.colPitch
+            );
+            CAPTURE(x);
+            CAPTURE(y);
+            CHECK_EQ(color[0], ep.color[0]);
+            CHECK_EQ(color[1], ep.color[1]);
+            CHECK_EQ(color[2], ep.color[2]);
+            CHECK_EQ(color[3], ep.color[3]);
+        }
     }
 
     void renderFrame()
@@ -365,7 +365,7 @@ struct RayTracingLssTest : public RayTracingLssTestBase
     {
         createRequiredResources(
             kPrimitiveCount,
-            kSegmentCount,
+            kVertexCount,
             kPositions,
             kRadii,
             kIndices,
@@ -378,22 +378,23 @@ struct RayTracingLssTest : public RayTracingLssTestBase
         renderFrame();
 
         ExpectedPixel expectedPixels[] = {
-            EXPECTED_PIXEL(32, 32, 1.f, 0.f, 0.f, 1.f), // Sphere 1
-            EXPECTED_PIXEL(96, 32, 0.f, 1.f, 0.f, 1.f), // Sphere 2
-            EXPECTED_PIXEL(64, 96, 0.f, 0.f, 1.f, 1.f), // Sphere 3
+            EXPECTED_PIXEL(32, 32, 1.f, 0.f, 0.f, 1.f), // Segment 1, top left
+            EXPECTED_PIXEL(96, 32, 0.f, 1.f, 0.f, 1.f), // Segment 2, top right
 
             // Corners should all be misses
             EXPECTED_PIXEL(0, 0, 1.f, 1.0f, 1.0f, 1.0f),     // Miss
             EXPECTED_PIXEL(127, 0, 1.f, 1.0f, 1.0f, 1.0f),   // Miss
             EXPECTED_PIXEL(127, 127, 1.f, 1.0f, 1.0f, 1.0f), // Miss
             EXPECTED_PIXEL(0, 127, 1.f, 1.0f, 1.0f, 1.0f),   // Miss
+
+            // Center between segments should be a miss
+            EXPECTED_PIXEL(64, 32, 1.f, 1.0f, 1.0f, 1.0f),
         };
         checkTestResults(expectedPixels);
     }
 };
 
-// GPU_TEST_CASE("ray-tracing-lss-intersection", ALL)
-GPU_TEST_CASE("ray-tracing-lss-intersection", CUDA)
+GPU_TEST_CASE("ray-tracing-lss-intersection", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -405,24 +406,28 @@ GPU_TEST_CASE("ray-tracing-lss-intersection", CUDA)
     test.run();
 }
 
-#if 0
-
 struct TestResult
 {
-    int isSphereHit;
+    int isLssHit;
     int pad[3];
-    float spherePositionAndRadius[4];
+    float lssPositionsAndRadii[8];
 };
 
-struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
+struct RayTracingLssIntrinsicsTest : public RayTracingLssTestBase
 {
-    static constexpr int kSphereCount = 1;
+    static constexpr int kVertexCount = 2;
+    static constexpr int kPrimitiveCount = 1;
 
-    static constexpr float3 kPositions[kSphereCount] = {
-        {0.0f, 0.0f, -3.0f},
+    static constexpr float3 kPositions[kVertexCount] = {
+        {-0.5f, 0.0f, -3.0f},
+        {0.5, 0.0f, -3.0f},
     };
 
-    static constexpr float kRadii[kSphereCount] = {2.0f};
+    static constexpr float kRadii[kVertexCount] = {0.5f, 0.5f};
+
+    static constexpr unsigned kIndices[kPrimitiveCount] = {0};
+
+
 
     ComPtr<IBuffer> resultBuffer;
 
@@ -443,11 +448,24 @@ struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
         REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(TestResult), resultBlob.writeRef()));
 
         const TestResult* result = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
-        CHECK_EQ(result->isSphereHit, 1);
-        CHECK_EQ(result->spherePositionAndRadius[0], 0.0f);
-        CHECK_EQ(result->spherePositionAndRadius[1], 0.0f);
-        CHECK_EQ(result->spherePositionAndRadius[2], -3.0f);
-        CHECK_EQ(result->spherePositionAndRadius[3], 2.0f);
+
+        CHECK_EQ(result->isLssHit, 1);
+
+        // Left endcap position
+        CHECK_EQ(result->lssPositionsAndRadii[0], -0.5f);
+        CHECK_EQ(result->lssPositionsAndRadii[1], 0.0f);
+        CHECK_EQ(result->lssPositionsAndRadii[2], -3.0f);
+
+        // Left endcap radius
+        CHECK_EQ(result->lssPositionsAndRadii[3], 0.5f);
+
+        // Right endcap position
+        CHECK_EQ(result->lssPositionsAndRadii[4], 0.5f);
+        CHECK_EQ(result->lssPositionsAndRadii[5], 0.0f);
+        CHECK_EQ(result->lssPositionsAndRadii[6], -3.0f);
+
+        // Right endcap radius
+        CHECK_EQ(result->lssPositionsAndRadii[7], 0.5f);
     }
 
     void renderFrame()
@@ -468,34 +486,33 @@ struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
 
     void run(const char* raygenName, const char* closestHitName)
     {
-        createRequiredResources(kSphereCount, kPositions, kRadii, raygenName, closestHitName, "missNOP");
+        createRequiredResources(kPrimitiveCount, kVertexCount, kPositions, kRadii, kIndices, raygenName, closestHitName, "missNOP");
         createResultBuffer();
         renderFrame();
         checkTestResults();
     }
 };
 
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
+GPU_TEST_CASE("ray-tracing-lss-intrinsics", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
-    if (!device->hasFeature(Feature::AccelerationStructureSpheres))
-        SKIP("acceleration structure spheres not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
+        SKIP("acceleration structure linear swept spheres not supported");
 
-    RayTracingSphereIntrinsicsTest test;
+    RayTracingLssIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenSphereIntrinsics", "closestHitSphereIntrinsics");
+    test.run("rayGenLssIntrinsics", "closestHitLssIntrinsics");
 }
 
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL)
+GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
-    if (!device->hasFeature(Feature::AccelerationStructureSpheres))
-        SKIP("acceleration structure spheres not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
+        SKIP("acceleration structure linear swept spheres not supported");
 
-    RayTracingSphereIntrinsicsTest test;
+    RayTracingLssIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenSphereIntrinsicsHitObject", "closestHitNOP");
+    test.run("rayGenLssIntrinsicsHitObject", "closestHitNOP");
 }
-#endif

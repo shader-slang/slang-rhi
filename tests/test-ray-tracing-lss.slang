@@ -66,8 +66,8 @@ void closestHitShader(inout RayPayload payload)
 
 struct Result
 {
-    int isSphereHit;
-    float4 spherePositionAndRadius;
+    int isLssHit;
+    float2x4 lssPositionsAndRadii;
 };
 
 [raypayload]
@@ -82,10 +82,8 @@ uniform RWStructuredBuffer<Result> resultBuffer;
 // results of calling the various sphere intrinsics.
 
 [shader("raygeneration")]
-void rayGenSphereIntrinsics()
+void rayGenLssIntrinsics()
 {
-    float3 spherePos = {0.0f, 0.0f, 1.0f};
-
     // Trace the ray.
     RayDesc ray;
     ray.Origin = {0.0f, 0.0f, 0.0f};
@@ -99,20 +97,18 @@ void rayGenSphereIntrinsics()
 }
 
 [shader("closesthit")]
-void closestHitSphereIntrinsics(inout RayPayloadIntrinsics payload)
+void closestHitLssIntrinsics(inout RayPayloadIntrinsics payload)
 {
-    payload.res.isSphereHit = IsSphereHit();
-    payload.res.spherePositionAndRadius = GetSpherePositionAndRadius();
+    payload.res.isLssHit = IsLssHit();
+    payload.res.lssPositionsAndRadii = GetLssPositionsAndRadii();
 }
 
 
 // Hit object sphere intrinsics called from raygen
 
 [shader("raygeneration")]
-void rayGenSphereIntrinsicsHitObject()
+void rayGenLssIntrinsicsHitObject()
 {
-    float3 spherePos = {0.0f, 0.0f, 1.0f};
-
     // Trace the ray.
     RayDesc ray;
     ray.Origin = {0.0f, 0.0f, 0.0f};
@@ -122,6 +118,6 @@ void rayGenSphereIntrinsicsHitObject()
     RayPayload payload = { {} };
     HitObject hit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
 
-    resultBuffer[0].isSphereHit = hit.IsSphereHit();
-    resultBuffer[0].spherePositionAndRadius = hit.GetSpherePositionAndRadius();
+    resultBuffer[0].isLssHit = hit.IsLssHit();
+    resultBuffer[0].lssPositionsAndRadii = hit.GetLssPositionsAndRadii();
 }
