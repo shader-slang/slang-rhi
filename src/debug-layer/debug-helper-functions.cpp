@@ -333,6 +333,14 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
                 }
             }
 
+            if (ctx->deviceType == DeviceType::CUDA)
+            {
+                if (linearSweptSpheres.endCapsMode == LinearSweptSpheresEndCapsMode::None)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires endCapsMode to be Chained.");
+                }
+            }
+
             break;
         }
         default:

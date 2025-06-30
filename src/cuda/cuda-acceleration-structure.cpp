@@ -216,6 +216,10 @@ Result AccelerationStructureBuildDescConverter::convert(
             {
                 return SLANG_E_INVALID_ARG;
             }
+            if (linearSweptSpheres.endCapsMode == LinearSweptSpheresEndCapsMode::None)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
 
             OptixBuildInput& buildInput = buildInputs[i];
             buildInput = {};
@@ -236,10 +240,9 @@ Result AccelerationStructureBuildDescConverter::convert(
 
             buildInput.curveArray.flag = translateGeometryFlags(linearSweptSpheres.flags);
 
-            // TODO: Add support for end caps
+            }
         }
         break;
-    }
     default:
         return SLANG_E_INVALID_ARG;
     }

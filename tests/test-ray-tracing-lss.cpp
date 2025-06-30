@@ -120,6 +120,7 @@ struct RayTracingLssTestBase
             buildInput.linearSweptSpheres.indexFormat = IndexFormat::Uint32;
             buildInput.linearSweptSpheres.indexCount = primitiveCount;
             buildInput.linearSweptSpheres.flags = AccelerationStructureGeometryFlags::Opaque;
+            buildInput.linearSweptSpheres.endCapsMode = LinearSweptSpheresEndCapsMode::Chained;
 
             AccelerationStructureBuildDesc buildDesc = {};
             buildDesc.inputs = &buildInput;
