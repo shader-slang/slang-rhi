@@ -273,7 +273,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             D3D12_BLEND_DESC& blend = psoDesc.BlendState;
             blend.IndependentBlendEnable = FALSE;
             blend.AlphaToCoverageEnable = desc.multisample.alphaToCoverageEnable ? TRUE : FALSE;
-            blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)RenderTargetWriteMask::EnableAll;
+            blend.RenderTarget[0].RenderTargetWriteMask = (UINT8)RenderTargetWriteMask::All;
             for (uint32_t i = 0; i < numRenderTargets; i++)
             {
                 auto& d3dDesc = blend.RenderTarget[i];
@@ -284,7 +284,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                 d3dDesc.DestBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.dstFactor);
                 d3dDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
                 d3dDesc.LogicOpEnable = FALSE;
-                d3dDesc.RenderTargetWriteMask = desc.targets[i].writeMask;
+                d3dDesc.RenderTargetWriteMask = (UINT8)desc.targets[i].writeMask;
                 d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.targets[i].color.srcFactor);
                 d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.srcFactor);
             }

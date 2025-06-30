@@ -460,7 +460,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         vkBlendDesc.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         vkBlendDesc.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         vkBlendDesc.alphaBlendOp = VK_BLEND_OP_ADD;
-        vkBlendDesc.colorWriteMask = (VkColorComponentFlags)RenderTargetWriteMask::EnableAll;
+        vkBlendDesc.colorWriteMask = (VkColorComponentFlags)RenderTargetWriteMask::All;
     }
     else
     {

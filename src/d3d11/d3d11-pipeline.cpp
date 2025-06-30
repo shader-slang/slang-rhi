@@ -152,7 +152,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                 dstTarget.DestBlendAlpha = translateBlendFactor(srcTarget.alpha.dstFactor);
             }
 
-            dstTarget.RenderTargetWriteMask = translateRenderTargetWriteMask(srcTarget.writeMask);
+            dstTarget.RenderTargetWriteMask = (UINT8)srcTarget.writeMask;
         }
 
         dstDesc.IndependentBlendEnable = targetCount > 1;
