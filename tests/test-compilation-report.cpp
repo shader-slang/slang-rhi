@@ -48,7 +48,7 @@ inline void dispatchPipeline(IDevice* device, IComputePipeline* pipeline)
     auto commandEncoder = queue->createCommandEncoder();
 
     auto passEncoder = commandEncoder->beginComputePass();
-    auto rootObject = passEncoder->bindPipeline(pipeline);
+    passEncoder->bindPipeline(pipeline);
     passEncoder->dispatchCompute(1, 1, 1);
     passEncoder->end();
 

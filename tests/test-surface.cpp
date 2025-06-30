@@ -48,13 +48,13 @@ struct SurfaceTest
     virtual void initResources() = 0;
     virtual void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) = 0;
 
-    void init(IDevice* device)
+    void init(IDevice* device_)
     {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
         this->window = glfwCreateWindow(512, 512, "test-surface", nullptr, nullptr);
 
-        this->device = device;
+        this->device = device_;
         this->queue = device->getQueue(QueueType::Graphics);
         REQUIRE(this->queue);
         this->surface = device->createSurface(getWindowHandleFromGLFW(window));
@@ -152,7 +152,7 @@ struct RenderSurfaceTest : SurfaceTest
         REQUIRE(vertexBuffer);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadGraphicsProgram(
             device,
             shaderProgram,
@@ -190,7 +190,7 @@ struct RenderSurfaceTest : SurfaceTest
         renderPass.colorAttachmentCount = 1;
 
         auto passEncoder = commandEncoder->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        passEncoder->bindPipeline(pipeline);
 
         RenderState renderState = {};
         renderState.viewports[0] = Viewport::fromSize(width, height);
@@ -236,7 +236,7 @@ struct ComputeSurfaceTest : SurfaceTest
     void initResources() override
     {
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-surface-compute", "computeMain", slangReflection));
 
         ComputePipelineDesc pipelineDesc = {};

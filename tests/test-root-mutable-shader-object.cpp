@@ -7,7 +7,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("root-mutable-shader-object", WGPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection)
     );
 

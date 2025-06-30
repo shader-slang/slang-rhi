@@ -10,16 +10,12 @@ using namespace rhi::testing;
 struct TestFormats
 {
     ComPtr<IDevice> device;
-    ComPtr<ISampler> sampler;
     ComPtr<IBuffer> resultBuffer;
     std::map<std::string, ComPtr<IComputePipeline>> cachedPipelines;
 
-    void init(IDevice* device)
+    void init(IDevice* device_)
     {
-        this->device = device;
-
-        SamplerDesc samplerDesc;
-        sampler = device->createSampler(samplerDesc);
+        this->device = device_;
 
         BufferDesc bufferDesc = {};
         bufferDesc.size = 64;
@@ -32,8 +28,7 @@ struct TestFormats
 
     bool isFormatSupported(Format format)
     {
-        const FormatInfo& info = getFormatInfo(format);
-        FormatSupport formatSupport;
+        FormatSupport formatSupport = FormatSupport::None;
         REQUIRE_CALL(device->getFormatSupport(format, &formatSupport));
 
         if (!is_set(formatSupport, FormatSupport::Texture))
@@ -64,18 +59,13 @@ struct TestFormats
         return view;
     }
 
-    void testFormat(
-        ComPtr<ITextureView> textureView,
-        ComPtr<IBuffer> buffer,
-        const char* entryPoint,
-        ComPtr<ISampler> sampler = nullptr
-    )
+    void testFormat(ComPtr<ITextureView> textureView, ComPtr<IBuffer> buffer, const char* entryPoint)
     {
         ComPtr<IComputePipeline>& pipeline = cachedPipelines[entryPoint];
         if (!pipeline)
         {
             ComPtr<IShaderProgram> shaderProgram;
-            slang::ProgramLayout* slangReflection;
+            slang::ProgramLayout* slangReflection = nullptr;
             REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-formats", entryPoint, slangReflection));
 
             ComputePipelineDesc pipelineDesc = {};
@@ -94,8 +84,6 @@ struct TestFormats
             ShaderCursor cursor(rootObject->getEntryPoint(0)); // get a cursor the the first entry-point.
             // Bind texture view to the entry point
             cursor["tex"].setBinding(textureView);
-            if (sampler)
-                cursor["sampler"].setBinding(sampler);
             // Bind buffer view to the entry point.
             cursor["buffer"].setBinding(buffer);
             passEncoder->dispatchCompute(1, 1, 1);

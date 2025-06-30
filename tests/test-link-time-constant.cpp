@@ -55,7 +55,7 @@ static Result loadProgram(
 GPU_TEST_CASE("link-time-constant", ALL)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadProgram(
         device,
         shaderProgram,

@@ -6,7 +6,6 @@ using namespace rhi::testing;
 ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t data, ResourceState defaultState)
 {
     uint32_t initialData[] = {data, data, data, data};
-    const int numberCount = SLANG_COUNT_OF(initialData);
     BufferDesc bufferDesc = {};
     bufferDesc.size = sizeof(initialData);
     bufferDesc.format = Format::Undefined;
@@ -32,7 +31,7 @@ GPU_TEST_CASE("nested-parameter-block", ALL)
         SKIP("no support for parameter blocks");
 
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(
         loadComputeProgram(device, shaderProgram, "test-nested-parameter-block", "computeMain", slangReflection)
     );
@@ -129,7 +128,7 @@ GPU_TEST_CASE("nested-parameter-block-2", ALL)
         SKIP("no support for parameter blocks");
 
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(
         loadComputeProgram(device, shaderProgram, "test-nested-parameter-block", "computeMain", slangReflection)
     );

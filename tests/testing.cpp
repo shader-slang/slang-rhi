@@ -831,7 +831,7 @@ slang::IGlobalSession* getSlangGlobalSession()
 {
     static slang::IGlobalSession* slangGlobalSession = []()
     {
-        slang::IGlobalSession* session;
+        slang::IGlobalSession* session = nullptr;
         REQUIRE_CALL(slang::createGlobalSession(&session));
         return session;
     }();

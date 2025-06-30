@@ -25,7 +25,7 @@ struct TestTextureViews
     ComPtr<IDevice> device;
     std::map<std::string, ComPtr<IComputePipeline>> cachedPipelines;
 
-    void init(IDevice* device) { this->device = device; }
+    void init(IDevice* device_) { this->device = device_; }
 
     ComPtr<IBuffer> createResultBuffer(int size)
     {
@@ -108,7 +108,7 @@ struct TestTextureViews
         if (!pipeline)
         {
             ComPtr<IShaderProgram> shaderProgram;
-            slang::ProgramLayout* slangReflection;
+            slang::ProgramLayout* slangReflection = nullptr;
             REQUIRE_CALL(loadComputeProgram(
                 device,
                 shaderProgram,

@@ -123,7 +123,7 @@ struct ShaderCacheTest
     ComPtr<IDevice> device;
     ComPtr<IComputePipeline> computePipeline;
     ComPtr<IRenderPipeline> renderPipeline;
-    ComPtr<IBuffer> buffer;
+    ComPtr<IBuffer> rwBuffer;
 
     std::string computeShaderA = std::string(
         R"(
@@ -219,19 +219,19 @@ struct ShaderCacheTest
         bufferDesc.defaultState = ResourceState::UnorderedAccess;
         bufferDesc.memoryType = MemoryType::DeviceLocal;
 
-        REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, buffer.writeRef()));
+        REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, rwBuffer.writeRef()));
     }
 
     void freeComputeResources()
     {
-        buffer = nullptr;
+        rwBuffer = nullptr;
         computePipeline = nullptr;
     }
 
     void createComputePipeline(const char* moduleName, const char* entryPointName)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, moduleName, entryPointName, slangReflection));
 
         ComputePipelineDesc pipelineDesc = {};
@@ -256,7 +256,7 @@ struct ShaderCacheTest
         auto passEncoder = commandEncoder->beginComputePass();
         auto rootObject = passEncoder->bindPipeline(computePipeline);
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
-        entryPointCursor["buffer"].setBinding(buffer);
+        entryPointCursor["buffer"].setBinding(rwBuffer);
         passEncoder->dispatchCompute(4, 1, 1);
         passEncoder->end();
         queue->submit(commandEncoder->finish());
@@ -266,7 +266,7 @@ struct ShaderCacheTest
     bool checkOutput(const std::vector<float>& expectedOutput)
     {
         ComPtr<ISlangBlob> bufferBlob;
-        device->readBuffer(buffer, 0, 4 * sizeof(float), bufferBlob.writeRef());
+        device->readBuffer(rwBuffer, 0, 4 * sizeof(float), bufferBlob.writeRef());
         REQUIRE(bufferBlob);
         REQUIRE(bufferBlob->getBufferSize() == expectedOutput.size() * sizeof(float));
         return ::memcmp(bufferBlob->getBufferPointer(), expectedOutput.data(), bufferBlob->getBufferSize()) == 0;
@@ -516,7 +516,7 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
 // One shader featuring multiple kinds of shader objects that can be bound.
 struct ShaderCacheTestSpecialization : ShaderCacheTest
 {
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
 
     void createComputePipeline()
     {
@@ -554,7 +554,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         transformer->finalize();
 
         ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
-        entryPointCursor["buffer"].setBinding(buffer);
+        entryPointCursor["buffer"].setBinding(rwBuffer);
         entryPointCursor["transformer"].setObject(transformer);
 
         passEncoder->dispatchCompute(1, 1, 1);
@@ -664,7 +664,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     ComPtr<ITextureView> colorBufferView;
     ComPtr<IInputLayout> inputLayout;
 
-    ComPtr<IBuffer> createVertexBuffer(IDevice* device)
+    ComPtr<IBuffer> createVertexBuffer()
     {
         const Vertex vertices[] = {
             {0, 0, 0.5},
@@ -672,29 +672,29 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
             {0, 1, 0.5},
         };
 
-        BufferDesc vertexBufferDesc;
-        vertexBufferDesc.size = sizeof(vertices);
-        vertexBufferDesc.usage = BufferUsage::VertexBuffer;
-        vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-        ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexBufferDesc, vertices);
-        REQUIRE(vertexBuffer != nullptr);
-        return vertexBuffer;
+        BufferDesc bufferDesc;
+        bufferDesc.size = sizeof(vertices);
+        bufferDesc.usage = BufferUsage::VertexBuffer;
+        bufferDesc.defaultState = ResourceState::VertexBuffer;
+        ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, vertices);
+        REQUIRE(buffer != nullptr);
+        return buffer;
     }
 
-    ComPtr<ITexture> createColorBuffer(IDevice* device)
+    ComPtr<ITexture> createColorBuffer()
     {
-        TextureDesc colorBufferDesc;
-        colorBufferDesc.type = TextureType::Texture2D;
-        colorBufferDesc.size.width = kWidth;
-        colorBufferDesc.size.height = kHeight;
-        colorBufferDesc.size.depth = 1;
-        colorBufferDesc.mipCount = 1;
-        colorBufferDesc.format = format;
-        colorBufferDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
-        colorBufferDesc.defaultState = ResourceState::RenderTarget;
-        ComPtr<ITexture> colorBuffer = device->createTexture(colorBufferDesc, nullptr);
-        REQUIRE(colorBuffer != nullptr);
-        return colorBuffer;
+        TextureDesc textureDesc;
+        textureDesc.type = TextureType::Texture2D;
+        textureDesc.size.width = kWidth;
+        textureDesc.size.height = kHeight;
+        textureDesc.size.depth = 1;
+        textureDesc.mipCount = 1;
+        textureDesc.format = format;
+        textureDesc.usage = TextureUsage::RenderTarget | TextureUsage::CopySource;
+        textureDesc.defaultState = ResourceState::RenderTarget;
+        ComPtr<ITexture> texture = device->createTexture(textureDesc, nullptr);
+        REQUIRE(texture != nullptr);
+        return texture;
     }
 
     void createGraphicsResources()
@@ -715,8 +715,8 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         inputLayout = device->createInputLayout(inputLayoutDesc);
         REQUIRE(inputLayout != nullptr);
 
-        vertexBuffer = createVertexBuffer(device);
-        colorBuffer = createColorBuffer(device);
+        vertexBuffer = createVertexBuffer();
+        colorBuffer = createColorBuffer();
 
         TextureViewDesc colorBufferViewDesc = {};
         colorBufferViewDesc.format = format;
@@ -735,7 +735,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     void createGraphicsPipeline()
     {
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadGraphicsProgram(
             device,
             shaderProgram,
@@ -771,7 +771,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
         renderPass.colorAttachmentCount = 1;
         auto passEncoder = commandEncoder->beginRenderPass(renderPass);
 
-        auto rootObject = passEncoder->bindPipeline(renderPipeline);
+        passEncoder->bindPipeline(renderPipeline);
         RenderState state;
         state.viewports[0] = Viewport::fromSize(kWidth, kHeight);
         state.viewportCount = 1;
@@ -844,8 +844,6 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
             componentTypes.size(),
             composedProgram.writeRef()
         ));
-
-        slang::ProgramLayout* slangReflection = composedProgram->getLayout();
 
         std::vector<slang::IComponentType*> entryPoints;
         entryPoints.push_back(vertexEntryPoint);

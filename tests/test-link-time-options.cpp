@@ -62,7 +62,7 @@ static Result loadProgram(
 GPU_TEST_CASE("link-time-options", D3D12)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadProgram(device, shaderProgram, "test-link-time-options", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};

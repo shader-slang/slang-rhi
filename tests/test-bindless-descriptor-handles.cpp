@@ -11,7 +11,7 @@ GPU_TEST_CASE("bindless-descriptor-handles", D3D12 | Vulkan)
     }
 
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(
         loadComputeProgram(device, shaderProgram, "test-bindless-descriptor-handles", "computeMain", slangReflection)
     );

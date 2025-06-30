@@ -28,10 +28,10 @@ struct RayTracingSphereTestBase
     ComPtr<IAccelerationStructure> TLAS;
     ComPtr<IShaderTable> shaderTable;
 
-    void init(IDevice* device) { this->device = device; }
+    void init(IDevice* device_) { this->device = device_; }
 
     // Load and compile shader code from source.
-    Result loadShaderProgram(IDevice* device, span<const char*> entryPointNames, IShaderProgram** outProgram)
+    Result loadShaderProgram(span<const char*> entryPointNames, IShaderProgram** outProgram)
     {
         ComPtr<slang::ISession> slangSession;
         slangSession = device->getSlangSession();
@@ -224,7 +224,7 @@ struct RayTracingSphereTestBase
         const char* entryPointNames[] = {raygenName, missName, closestHitName};
 
         ComPtr<IShaderProgram> rayTracingProgram;
-        REQUIRE_CALL(loadShaderProgram(device, entryPointNames, rayTracingProgram.writeRef()));
+        REQUIRE_CALL(loadShaderProgram(entryPointNames, rayTracingProgram.writeRef()));
 
         HitGroupDesc hitGroups[1];
         hitGroups[0].hitGroupName = hitgroupNames[0];

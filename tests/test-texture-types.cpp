@@ -27,10 +27,10 @@ struct TextureTest
 
     const void* expectedTextureData;
 
-    void init(IDevice* device, Format format, RefPtr<ValidationTextureFormatBase> validationFormat, TextureType type)
+    void init(IDevice* device_, Format format, RefPtr<ValidationTextureFormatBase> validationFormat_, TextureType type)
     {
-        this->device = device;
-        this->validationFormat = validationFormat;
+        this->device = device_;
+        this->validationFormat = validationFormat_;
 
         this->textureInfo = new TextureInfo();
         this->textureInfo->format = format;
@@ -44,15 +44,15 @@ struct TextureAccessTest : TextureTest
     bool readWrite;
 
     void init(
-        IDevice* device,
+        IDevice* device_,
         Format format,
-        RefPtr<ValidationTextureFormatBase> validationFormat,
+        RefPtr<ValidationTextureFormatBase> validationFormat_,
         TextureType type,
-        bool readWrite
+        bool readWrite_
     )
     {
-        TextureTest::init(device, format, validationFormat, type);
-        this->readWrite = readWrite;
+        TextureTest::init(device_, format, validationFormat_, type);
+        this->readWrite = readWrite_;
     }
 
     std::string getShaderEntryPoint()
@@ -75,6 +75,8 @@ struct TextureAccessTest : TextureTest
         case TextureType::TextureCube:
             name += "Cube";
             break;
+        default:
+            FAIL("Unsupported texture type");
         }
 
         return name;
@@ -114,7 +116,7 @@ struct TextureAccessTest : TextureTest
     void submitShaderWork(const char* entryPoint)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-texture-types", entryPoint, slangReflection));
 
         ComputePipelineDesc pipelineDesc = {};
@@ -332,7 +334,7 @@ struct RenderTargetTests : TextureTest
         REQUIRE(inputLayout != nullptr);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadGraphicsProgram(
             device,
             shaderProgram,

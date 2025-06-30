@@ -67,9 +67,6 @@ GPU_TEST_CASE("benchmark-command", ALL)
                 auto computePass = commandEncoder->beginComputePass();
                 auto shaderObject = computePass->bindPipeline(shader.pipeline);
 
-                uint32_t a = 1;
-                uint32_t b = 2;
-
                 ShaderCursor cursor(shaderObject);
                 ShaderCursor block = cursor["addKernelData"];
                 block["a"].setBinding(bufA);

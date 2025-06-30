@@ -101,7 +101,7 @@ static Result loadProgram(
 GPU_TEST_CASE("link-time-type", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | NoDeviceCache)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadProgram(device, shaderProgram, slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};

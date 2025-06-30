@@ -86,7 +86,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-full", D3D12 | Vulkan | Metal | WGPU |
             queue->waitOnHost();
 
             // Verify buffer contents match texture data
-            void* bufferData_;
+            void* bufferData_ = nullptr;
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
 
@@ -202,7 +202,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-rowalignment", D3D12 | Vulkan | Metal 
             queue->waitOnHost();
 
             // Verify buffer contents match texture data
-            void* bufferData_;
+            void* bufferData_ = nullptr;
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
 
@@ -258,7 +258,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | Metal | WGPU
 
             // Get cpu side data.
             TextureData& data = c->getTextureData();
-            uint64_t totalSize;
+            uint64_t totalSize = 0;
             ComPtr<IBuffer> buffer;
             REQUIRE_CALL(getSizeAndMakeBuffer(c, &totalSize, buffer.writeRef()));
 
@@ -309,7 +309,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset", D3D12 | Vulkan | Metal | WGPU
             queue->waitOnHost();
 
             // Verify buffer contents match texture data
-            void* bufferData_;
+            void* bufferData_ = nullptr;
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
 
@@ -363,7 +363,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | Metal | 
 
             // Get cpu side data.
             TextureData& data = c->getTextureData();
-            uint64_t totalSize;
+            uint64_t totalSize = 0;
             ComPtr<IBuffer> buffer;
             REQUIRE_CALL(getSizeAndMakeBuffer(c, &totalSize, buffer.writeRef()));
 
@@ -418,7 +418,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset", D3D12 | Vulkan | Metal | 
             queue->waitOnHost();
 
             // Verify buffer contents match texture data
-            void* bufferData_;
+            void* bufferData_ = nullptr;
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
 
@@ -471,7 +471,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | Metal |
 
             // Get cpu side data.
             TextureData& data = c->getTextureData();
-            uint64_t totalSize;
+            uint64_t totalSize = 0;
             ComPtr<IBuffer> buffer;
             REQUIRE_CALL(getSizeAndMakeBuffer(c, &totalSize, buffer.writeRef()));
 
@@ -522,7 +522,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-offset-mip1", D3D12 | Vulkan | Metal |
             queue->waitOnHost();
 
             // Verify buffer contents match texture data
-            void* bufferData_;
+            void* bufferData_ = nullptr;
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
 
@@ -577,7 +577,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset-mip1", D3D12 | Vulkan | Met
 
             // Get cpu side data.
             TextureData& data = c->getTextureData();
-            uint64_t totalSize;
+            uint64_t totalSize = 0;
             ComPtr<IBuffer> buffer;
             REQUIRE_CALL(getSizeAndMakeBuffer(c, &totalSize, buffer.writeRef()));
 
@@ -632,7 +632,7 @@ GPU_TEST_CASE("cmd-copy-texture-to-buffer-sizeoffset-mip1", D3D12 | Vulkan | Met
             queue->waitOnHost();
 
             // Verify buffer contents match texture data
-            void* bufferData_;
+            void* bufferData_ = nullptr;
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Read, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
 
