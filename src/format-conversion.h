@@ -207,28 +207,28 @@ template<size_t N>
 inline void packSnorm8(const float in[4], void* out)
 {
     for (size_t i = 0; i < N; ++i)
-        reinterpret_cast<int8_t*>(out)[i] = int8_t(::floor(in[i] * 127.f + 0.5f));
+        reinterpret_cast<int8_t*>(out)[i] = int8_t(::floor(in[i] * 127.f));
 }
 
 template<size_t N>
 inline void unpackSnorm8(const void* in, float out[4])
 {
     for (size_t i = 0; i < N; ++i)
-        out[i] = reinterpret_cast<const int8_t*>(in)[i] / 127.f;
+        out[i] = max(-1.f, reinterpret_cast<const int8_t*>(in)[i] / 127.f);
 }
 
 template<size_t N>
 inline void packSnorm16(const float in[4], void* out)
 {
     for (size_t i = 0; i < N; ++i)
-        reinterpret_cast<int16_t*>(out)[i] = int16_t(::floor(in[i] * 32767.f + 0.5f));
+        reinterpret_cast<int16_t*>(out)[i] = int16_t(::floor(in[i] * 32767.f));
 }
 
 template<size_t N>
 inline void unpackSnorm16(const void* in, float out[4])
 {
     for (size_t i = 0; i < N; ++i)
-        out[i] = reinterpret_cast<const int16_t*>(in)[i] / 32767.f;
+        out[i] = max(-1.f, reinterpret_cast<const int16_t*>(in)[i] / 32767.f);
 }
 
 template<size_t N>

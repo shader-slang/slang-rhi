@@ -1,203 +1,372 @@
-// UnorderedAccess tests create textures with unique values at each pixel and then sets up textureViews on a subrange
-// of the texture. The textureViews are bound to shaders that read values off the subregion and stores them in a
-// buffer. The buffer output is then compared to the expected values for that region to verify that the textureView
-// was created and bound correctly. Tests should not result in API errors etc.
-
-// TODO: Implement RenderTarget tests.
-// RenderTarget tests should clear a render target texture or texture array and all mip levels to some default. Then
-// a specific region should be setup in a textureView such that this region can be cleared to a non default color
-// to verify correctness.
-
-// TODO: Implement additional tests for various TextureType's
-
 #include "testing.h"
-#include "../src/core/string.h"
+#include "texture-test.h"
 #include <map>
-#include <algorithm>
 
 using namespace rhi;
 using namespace rhi::testing;
 
-// Do we need to clean anything up like created resources?
-
-struct TestTextureViews
+inline std::string getTextureType(TextureType type)
 {
-    ComPtr<IDevice> device;
-    std::map<std::string, ComPtr<IComputePipeline>> cachedPipelines;
-
-    void init(IDevice* device) { this->device = device; }
-
-    ComPtr<IBuffer> createResultBuffer(int size)
+    switch (type)
     {
-        BufferDesc bufferDesc = {};
-        bufferDesc.size = size;
-        bufferDesc.format = Format::R32Float;
-        bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource;
-        bufferDesc.defaultState = ResourceState::UnorderedAccess;
-        bufferDesc.memoryType = MemoryType::DeviceLocal;
-
-        ComPtr<IBuffer> resultBuffer = device->createBuffer(bufferDesc);
-        return resultBuffer;
-    }
-
-    ComPtr<ITextureView> createTextureAndTextureView(
-        TextureType textureType,
-        TextureUsage usage,
-        uint32_t mipCount,
-        Extent3D textureSize,
-        SubresourceRange textureViewRange,
-        SubresourceData* data
-    )
-    {
-        TextureDesc texDesc = {};
-        texDesc.type = textureType;
-        texDesc.mipCount = mipCount;
-        texDesc.size = textureSize;
-        texDesc.usage = usage;
-        texDesc.defaultState =
-            usage == TextureUsage::UnorderedAccess ? ResourceState::UnorderedAccess : ResourceState::RenderTarget;
-        texDesc.format = Format::R32Float; // Assuming Format::R32Float until there are test that require something
-                                           // different
-
-        ComPtr<ITexture> texture;
-        REQUIRE_CALL(device->createTexture(texDesc, data, texture.writeRef()));
-
-        ComPtr<ITextureView> view;
-        TextureViewDesc viewDesc = {};
-        viewDesc.format = Format::R32Float;
-        viewDesc.subresourceRange = textureViewRange;
-        REQUIRE_CALL(device->createTextureView(texture, viewDesc, view.writeRef()));
-        return view;
-    }
-
-    void testTextureViewUnorderedAccess(
-        TextureType textureType,
-        uint32_t mipCount,
-        Extent3D textureSize,
-        SubresourceRange textureViewRange,
-        SubresourceData* textureData
-    )
-    {
-        ComPtr<ITextureView> textureView = createTextureAndTextureView(
-            textureType,
-            TextureUsage::UnorderedAccess,
-            mipCount,
-            textureSize,
-            textureViewRange,
-            textureData
-        );
-
-        // Create result buffer
-        Extent3D textureViewSize = {
-            std::max(textureSize.width >> textureViewRange.mip, 1u),
-            std::max(textureSize.height >> textureViewRange.mip, 1u),
-            std::max(textureSize.depth >> textureViewRange.mip, 1u)
-        };
-        // In bytes
-        int dataLength =
-            textureViewSize.width * textureViewSize.height * textureViewSize.depth * sizeof(float); // Assuming
-                                                                                                    // Format::R32Float
-        ComPtr<IBuffer> resultBuffer = createResultBuffer(dataLength);
-
-        // Do setup work ...
-
-        // Use this as a default until we run other tests
-        std::string entryPointName = "testRWTex3DViewFloat";
-
-        ComPtr<IComputePipeline>& pipeline = cachedPipelines[entryPointName.c_str()];
-        if (!pipeline)
-        {
-            ComPtr<IShaderProgram> shaderProgram;
-            slang::ProgramLayout* slangReflection;
-            REQUIRE_CALL(
-                loadComputeProgram(device, shaderProgram, "test-texture-view", entryPointName.c_str(), slangReflection)
-            );
-
-            ComputePipelineDesc pipelineDesc = {};
-            pipelineDesc.program = shaderProgram.get();
-            REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
-        }
-
-        // We have done all the set up work, now it is time to start recording a command buffer for
-        // GPU execution.
-        {
-            auto queue = device->getQueue(QueueType::Graphics);
-            auto commandEncoder = queue->createCommandEncoder();
-
-            auto passEncoder = commandEncoder->beginComputePass();
-            auto rootObject = passEncoder->bindPipeline(pipeline);
-            ShaderCursor cursor(rootObject->getEntryPoint(0)); // get a cursor to the first entry-point.
-            // Bind texture view to the entry point
-            cursor["tex"].setBinding(textureView);
-
-            // Bind buffer view to the entry point.
-            cursor["buffer"].setBinding(resultBuffer);
-
-            // Dispatch compute shader with thread groups matching the dimensions of the textureView
-            // as the basic test shader runs 1x1x1 threads per group for easy texture sampling.
-            passEncoder->dispatchCompute(textureViewSize.width, textureViewSize.height, textureViewSize.depth);
-            passEncoder->end();
-
-            queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
-        }
-
-        // Check results
-
-        // Read back the results.
-        ComPtr<ISlangBlob> bufferData;
-        REQUIRE(!SLANG_FAILED(device->readBuffer(resultBuffer, 0, dataLength, bufferData.writeRef())));
-        REQUIRE_EQ(bufferData->getBufferSize(), dataLength);
-        const float* result = reinterpret_cast<const float*>(bufferData->getBufferPointer());
-        const float* expectedResult = reinterpret_cast<const float*>(textureData[textureViewRange.mip].data);
-
-        // We need to divide data length by sizeof(float) as the compare function
-        // does not compare on bytes.
-        compareResultFuzzy(result, expectedResult, dataLength / sizeof(float));
-    }
-
-    void run()
-    {
-
-
-        // Test a texture view for a 3D RW texture
-        {
-            // Enough space for a 16x16x16 Format::R32Float Texture3D and it's mip levels
-            float texData[4681] = {}; // 16^3 + 8^3 + ... + 1^3
-
-            // Populate it such that every element has a unique value.
-            // That will let us verify correct sampling of sub regions.
-            for (int i = 0; i < 4681; i++)
-            {
-                texData[i] = (float)i;
-            }
-
-            // Our SubresourceData array needs enough elements for each mip level
-            // 16x16x16 -> 8x8x8 -> ... -> 1x1x1
-            SubresourceData subData[5];
-            // SubresourceData expects strides to be in bytes, x4 since we are using Format::R32Float here
-            // Should probably use sizeof
-            subData[0] = {(void*)texData, 16 * 4, 16 * 16 * 4};
-            subData[1] = {(void*)&texData[4096], 8 * 4, 8 * 8 * 4};
-            subData[2] = {(void*)&texData[4608], 4 * 4, 4 * 4 * 4};
-            subData[3] = {(void*)&texData[4672], 2 * 4, 2 * 2 * 4};
-            subData[4] = {(void*)&texData[4680], 1 * 4, 1 * 1 * 4};
-
-            TextureType type = TextureType::Texture3D;
-            // Texture size
-            Extent3D size = {16 /*width*/, 16 /*height*/, 16 /*depth*/};
-            // This subrange/textureView will give a 8x8x8 texture and verifies a fix for issue #220
-            // We use 3 for layer as this was previously used for FirstWSlice and we want
-            // to verify that selecting a subset of depth slices is not currently supported.
-            SubresourceRange range = {3 /*layer*/, 1 /*layerCount*/, 1 /*mip*/, 4 /*mipCount*/};
-            testTextureViewUnorderedAccess(type, 5 /*mipCount*/, size, range, subData);
-        }
+    case TextureType::Texture1D:
+        return "Texture1D";
+    case TextureType::Texture1DArray:
+        return "Texture1DArray";
+    case TextureType::Texture2D:
+        return "Texture2D";
+    case TextureType::Texture2DArray:
+        return "Texture2DArray";
+    case TextureType::Texture2DMS:
+        return "Texture2DMS";
+    case TextureType::Texture2DMSArray:
+        return "Texture2DMSArray";
+    case TextureType::Texture3D:
+        return "Texture3D";
+    case TextureType::TextureCube:
+        return "TextureCube";
+    case TextureType::TextureCubeArray:
+        return "TextureCubeArray";
+    default:
+        FAIL("Unknown texture type");
     }
 };
 
-GPU_TEST_CASE("texture-view-3d", D3D12 | Vulkan | CUDA)
+inline std::string getRWTextureType(TextureType type)
 {
-    TestTextureViews test;
-    test.init(device);
-    test.run();
+    switch (type)
+    {
+    case TextureType::Texture1D:
+        return "RWTexture1D";
+    case TextureType::Texture1DArray:
+        return "RWTexture1DArray";
+    case TextureType::Texture2D:
+        return "RWTexture2D";
+    case TextureType::Texture2DArray:
+        return "RWTexture2DArray";
+    case TextureType::Texture2DMS:
+        return "RWTexture2DMS";
+    case TextureType::Texture2DMSArray:
+        return "RWTexture2DMSArray";
+    case TextureType::Texture3D:
+        return "RWTexture3D";
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        FAIL("Unsupported texture type");
+        return "";
+    default:
+        FAIL("Unknown texture type");
+    }
+};
+
+inline std::string getFormatType(Format format)
+{
+    const FormatInfo& info = getFormatInfo(format);
+
+    std::string type;
+
+    switch (info.kind)
+    {
+    case FormatKind::Integer:
+        type += info.isSigned ? "int" : "uint";
+        break;
+    case FormatKind::Normalized:
+        type += "float";
+        break;
+    case FormatKind::Float:
+        type += "float";
+        break;
+    case FormatKind::DepthStencil:
+        break;
+    }
+
+    if (info.channelCount > 1)
+        type += std::to_string(info.channelCount);
+
+    return type;
+}
+
+inline std::string getFormatAttribute(Format format)
+{
+    const FormatInfo& info = getFormatInfo(format);
+
+    if (info.slangName)
+    {
+        return "[format(\"" + std::string(info.slangName) + "\")] ";
+    }
+    else
+    {
+        return "";
+    }
+}
+
+static const std::vector<Format> kFormats = {
+    // 8-bit / 1-channel formats
+    Format::R8Uint,
+    Format::R8Sint,
+    Format::R8Unorm,
+    Format::R8Snorm,
+    // 8-bit / 2-channel formats
+    Format::RG8Uint,
+    Format::RG8Sint,
+    Format::RG8Unorm,
+    Format::RG8Snorm,
+    // 8-bit / 4-channel formats
+    Format::RGBA8Uint,
+    Format::RGBA8Sint,
+    Format::RGBA8Unorm,
+    Format::RGBA8Snorm,
+    // 16-bit / 1-channel formats
+    Format::R16Uint,
+    Format::R16Sint,
+    Format::R16Unorm,
+    Format::R16Snorm,
+    Format::R16Float,
+    // 16-bit / 2-channel formats
+    Format::RG16Uint,
+    Format::RG16Sint,
+    Format::RG16Unorm,
+    Format::RG16Snorm,
+    Format::RG16Float,
+    // 16-bit / 4-channel formats
+    Format::RGBA16Uint,
+    Format::RGBA16Sint,
+    Format::RGBA16Unorm,
+    Format::RGBA16Snorm,
+    Format::RGBA16Float,
+    // 32-bit / 1-channel formats
+    Format::R32Uint,
+    Format::R32Sint,
+    Format::R32Float,
+    // 32-bit / 2-channel formats
+    Format::RG32Uint,
+    Format::RG32Sint,
+    Format::RG32Float,
+    // 32-bit / 4-channel formats
+    Format::RGBA32Uint,
+    Format::RGBA32Sint,
+    Format::RGBA32Float,
+};
+
+// This test checks texture views for read and read-write access on all basic texture types (1D, 2D, 3D) and formats.
+// It creates a compute shader that copies data from a source texture to a destination texture.
+// The view always targets a single mip-level.
+GPU_TEST_CASE("texture-view-simple", D3D11 | D3D12 | Vulkan | CUDA | Metal)
+{
+    TextureTestOptions options(device);
+    options.addVariants(
+        TTShape::D1 | TTShape::D2 | TTShape::D3,
+        TTArray::Off,     // non-array
+        TTMip::Both,      // with/without mips
+        TTMS::Off,        // without multisampling
+        TTPowerOf2::Both, // test both power-of-2 and non-power-of-2 sizes where possible
+        kFormats
+    );
+
+    struct PipelineKey
+    {
+        TextureType textureType;
+        Format format;
+        bool operator<(const PipelineKey& other) const
+        {
+            return std::tie(textureType, format) < std::tie(other.textureType, other.format);
+        }
+    };
+    std::map<PipelineKey, ComPtr<IComputePipeline>> pipelines;
+    auto getCopyPipeline = [&](TextureType textureType, Format format) -> ComPtr<IComputePipeline>
+    {
+        PipelineKey key = {textureType, format};
+        auto it = pipelines.find(key);
+        if (it != pipelines.end())
+            return it->second;
+
+        std::string source;
+        std::string srcTextureType = getTextureType(textureType) + "<" + getFormatType(format) + ">";
+        std::string dstTextureType =
+            getFormatAttribute(format) + getRWTextureType(textureType) + "<" + getFormatType(format) + ">";
+        source += "[shader(\"compute\")]\n";
+        source += "[numthreads(1,1,1)]\n";
+        source += "void copyTexture(\n";
+        source += "    uint3 tid : SV_DispatchThreadID,\n";
+        source += "    uniform " + srcTextureType + " srcTexture,\n";
+        source += "    uniform " + dstTextureType + " dstTexture)\n";
+        source += "{\n";
+        if (textureType == TextureType::Texture1D || textureType == TextureType::Texture1DArray)
+        {
+            source += "    uint srcDims;\n";
+            source += "    srcTexture.GetDimensions(srcDims);\n";
+            source += "    uint dstDims;\n";
+            source += "    dstTexture.GetDimensions(dstDims);\n";
+            source += "    if (srcDims != dstDims)\n";
+            source += "        return;\n";
+            source += "    if (tid.x >= srcDims)\n";
+            source += "        return;\n";
+            source += "    dstTexture[tid.x] = srcTexture[tid.x];\n";
+        }
+        else if (textureType == TextureType::Texture2D || textureType == TextureType::Texture2DArray)
+        {
+            source += "    uint2 srcDims;\n";
+            source += "    srcTexture.GetDimensions(srcDims.x, srcDims.y);\n";
+            source += "    uint2 dstDims;\n";
+            source += "    dstTexture.GetDimensions(dstDims.x, dstDims.y);\n";
+            source += "    if (any(srcDims != dstDims))\n";
+            source += "        return;\n";
+            source += "    if (any(tid.xy >= dstDims))\n";
+            source += "        return;\n";
+            source += "    dstTexture[tid.xy] = srcTexture[tid.xy];\n";
+        }
+        else if (textureType == TextureType::Texture3D)
+        {
+            source += "    uint3 srcDims;\n";
+            source += "    srcTexture.GetDimensions(srcDims.x, srcDims.y, srcDims.z);\n";
+            source += "    uint3 dstDims;\n";
+            source += "    srcTexture.GetDimensions(dstDims.x, dstDims.y, dstDims.z);\n";
+            source += "    if (any(srcDims != dstDims))\n";
+            source += "        return;\n";
+            source += "    if (any(tid >= dstDims))\n";
+            source += "        return;\n";
+            source += "    dstTexture[tid] = srcTexture[tid];\n";
+        }
+        source += "}\n";
+        // fprintf(stderr, "Shader source:\n%s\n", source.c_str());
+
+        ComPtr<IShaderProgram> shaderProgram;
+        REQUIRE_CALL(loadComputeProgramFromSource(device, shaderProgram, source));
+
+        ComPtr<IComputePipeline> pipeline;
+        ComputePipelineDesc pipelineDesc = {};
+        pipelineDesc.program = shaderProgram;
+        REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+        pipelines[key] = pipeline;
+        return pipeline;
+    };
+
+    runTextureTest(
+        options,
+        [&](TextureTestContext* c)
+        {
+            // TODO: There are many issues in the CUDA backend that prevent this test from passing.
+            // For now, we skip the configs that produce invalid code.
+            // https://github.com/shader-slang/slang/issues/7557
+            if (device->getDeviceType() == DeviceType::CUDA)
+            {
+                const TextureDesc& desc = c->getTextureData().desc;
+                // Error: surf1Dwrite_convert<float>(((<invalid intrinsic>)), (dstTexture_0), ((_S2)) * 1,
+                // SLANG_CUDA_BOUNDARY_MODE);
+                if (desc.type == TextureType::Texture1D)
+                    return;
+                // Error: cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()) failed: a PTX JIT
+                // compilation failed (CUDA_ERROR_INVALID_PTX)
+                if (desc.type == TextureType::Texture3D)
+                    return;
+                // Error: extern inline function "surf2Dwrite_convert(T, cudaSurfaceObject_t, int, int,
+                // cudaSurfaceBoundaryMode) [with T=uint]" was referenced but not defined
+                if (desc.format == Format::R8Uint || desc.format == Format::R16Uint)
+                    return;
+                // Error: extern inline function "surf2Dwrite_convert(T, cudaSurfaceObject_t, int, int,
+                // cudaSurfaceBoundaryMode) [with T=uint2]" was referenced but not defined
+                if (desc.format == Format::RG8Uint || desc.format == Format::RG16Uint)
+                    return;
+                if (desc.format == Format::RGBA8Uint || desc.format == Format::RGBA16Uint)
+                    return;
+                // Error: extern inline function "surf2Dwrite_convert(T, cudaSurfaceObject_t, int, int,
+                // cudaSurfaceBoundaryMode) [with T=int]" was referenced but not defined
+                if (desc.format == Format::R8Sint || desc.format == Format::R16Sint)
+                    return;
+                if (desc.format == Format::RG8Sint || desc.format == Format::RG16Sint)
+                    return;
+                if (desc.format == Format::RGBA8Sint || desc.format == Format::RGBA16Sint)
+                    return;
+            }
+            // TODO: There are many issues in the Metal backend that prevent this test from passing.
+            // For now, we skip the configs that crash slang.
+            // https://github.com/shader-slang/slang/issues/7558
+            if (device->getDeviceType() == DeviceType::Metal)
+            {
+                const TextureDesc& desc = c->getTextureData().desc;
+                // Error: libslang.dylib!Slang::legalizeIRForMetal(Slang::IRModule*, Slang::DiagnosticSink*)
+                if (desc.format == Format::RG8Uint || desc.format == Format::RG8Sint ||
+                    desc.format == Format::RG8Unorm || desc.format == Format::RG8Snorm)
+                    return;
+                if (desc.format == Format::RG16Uint || desc.format == Format::RG16Sint ||
+                    desc.format == Format::RG16Unorm || desc.format == Format::RG16Snorm)
+                    return;
+                if (desc.format == Format::RG16Float)
+                    return;
+                if (desc.format == Format::RG32Uint || desc.format == Format::RG32Sint ||
+                    desc.format == Format::RG32Float)
+                    return;
+            }
+
+            const TextureData& data = c->getTextureData();
+
+            // Enable this to helpfully log all created textures.
+            // fprintf(stderr, "Created texture %s\n", c->getTexture()->getDesc().label);
+
+            // If texture type couldn't be initialized (eg multisampled or multi-aspect)
+            // then don't check it's contents.
+            if (data.initMode == TextureInitMode::None)
+                return;
+
+            ComPtr<ITexture> srcTexture = c->getTexture();
+            TextureDesc dstTextureDesc = srcTexture->getDesc();
+            dstTextureDesc.usage |= TextureUsage::UnorderedAccess;
+            ComPtr<ITexture> dstTexture;
+            REQUIRE_CALL(device->createTexture(dstTextureDesc, nullptr, dstTexture.writeRef()));
+
+            uint32_t layerCount = c->getTextureData().desc.getLayerCount();
+            uint32_t mipCount = c->getTextureData().desc.mipCount;
+
+            for (uint32_t layer = 0; layer < layerCount; ++layer)
+            {
+                for (uint32_t mip = 0; mip < mipCount; ++mip)
+                {
+                    TextureViewDesc srcViewDesc = {};
+                    srcViewDesc.subresourceRange.layer = layer;
+                    srcViewDesc.subresourceRange.layerCount = 1;
+                    srcViewDesc.subresourceRange.mip = mip;
+                    srcViewDesc.subresourceRange.mipCount = 1;
+                    ComPtr<ITextureView> srcView;
+                    REQUIRE_CALL(srcTexture->createView(srcViewDesc, srcView.writeRef()));
+
+                    TextureViewDesc dstViewDesc = {};
+                    dstViewDesc.subresourceRange.layer = layer;
+                    dstViewDesc.subresourceRange.layerCount = 1;
+                    dstViewDesc.subresourceRange.mip = mip;
+                    dstViewDesc.subresourceRange.mipCount = 1;
+                    ComPtr<ITextureView> dstView;
+                    REQUIRE_CALL(dstTexture->createView(dstViewDesc, dstView.writeRef()));
+
+                    ComPtr<IComputePipeline> pipeline = getCopyPipeline(dstTextureDesc.type, dstTextureDesc.format);
+
+                    auto queue = device->getQueue(QueueType::Graphics);
+                    auto commandEncoder = queue->createCommandEncoder();
+
+                    auto passEncoder = commandEncoder->beginComputePass();
+                    auto rootObject = passEncoder->bindPipeline(pipeline);
+                    ShaderCursor cursor(rootObject->getEntryPoint(0));
+                    cursor["srcTexture"].setBinding(srcView);
+                    cursor["dstTexture"].setBinding(dstView);
+                    SubresourceLayout layout;
+                    REQUIRE_CALL(srcTexture->getSubresourceLayout(mip, &layout));
+                    passEncoder->dispatchCompute(layout.size.width, layout.size.height, layout.size.depth);
+                    passEncoder->end();
+
+                    queue->submit(commandEncoder->finish());
+                }
+            }
+
+            // Because signed normalized formats have two binary representations for -1.0,
+            // we need to check the values as converted to floats.
+            const FormatInfo& info = getFormatInfo(dstTextureDesc.format);
+            if (info.kind == FormatKind::Normalized && info.isSigned)
+            {
+                data.checkEqualFloat(dstTexture);
+            }
+            else
+            {
+                data.checkEqual(srcTexture);
+            }
+        }
+    );
 }

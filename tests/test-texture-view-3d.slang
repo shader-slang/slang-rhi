@@ -1,4 +1,4 @@
-// test-texture-view.slang - Shaders used by the unit tests in test-texture-view.cpp
+// test-texture-view-3d.slang - Shaders used by the unit tests in test-texture-view-3d.cpp
 
 // Simple shader to test that a RWTexture3D texture view has been bound correctly. If tex has been
 // bound correctly, only the contents contained within the specified texture view will be copied into
