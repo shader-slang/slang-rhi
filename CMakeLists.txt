@@ -450,7 +450,8 @@ if(APPLE)
 endif()
 
 # Setup compiler warnings
-target_compile_options(slang-rhi PRIVATE
+add_library(slang-rhi-warnings INTERFACE)
+target_compile_options(slang-rhi-warnings INTERFACE
     $<$<CXX_COMPILER_ID:MSVC>:
         /W4 /WX
         /w14062 # enumerator 'identifier' in switch of enum 'enumeration' is not handled
@@ -501,6 +502,7 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-nested-anon-types
     >
 )
+target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings)
 
 target_sources(slang-rhi PRIVATE
     src/command-buffer.cpp
@@ -815,6 +817,7 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
+    target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
