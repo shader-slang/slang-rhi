@@ -109,9 +109,13 @@ struct TestTextureViews
         {
             ComPtr<IShaderProgram> shaderProgram;
             slang::ProgramLayout* slangReflection;
-            REQUIRE_CALL(
-                loadComputeProgram(device, shaderProgram, "test-texture-view", entryPointName.c_str(), slangReflection)
-            );
+            REQUIRE_CALL(loadComputeProgram(
+                device,
+                shaderProgram,
+                "test-texture-view-3d",
+                entryPointName.c_str(),
+                slangReflection
+            ));
 
             ComputePipelineDesc pipelineDesc = {};
             pipelineDesc.program = shaderProgram.get();
