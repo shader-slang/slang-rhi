@@ -76,10 +76,10 @@ struct BaseRayTracingTest
     uint32_t width = 128;
     uint32_t height = 128;
 
-    void init(IDevice* device) { this->device = device; }
+    void init(IDevice* device_) { this->device = device_; }
 
     // Load and compile shader code from source.
-    Result loadShaderProgram(IDevice* device, IShaderProgram** outProgram)
+    Result loadShaderProgram(IShaderProgram** outProgram)
     {
         ComPtr<slang::ISession> slangSession;
         slangSession = device->getSlangSession();
@@ -294,7 +294,7 @@ struct BaseRayTracingTest
         const char* hitgroupNames[] = {"hitgroupA", "hitgroupB"};
 
         ComPtr<IShaderProgram> rayTracingProgram;
-        REQUIRE_CALL(loadShaderProgram(device, rayTracingProgram.writeRef()));
+        REQUIRE_CALL(loadShaderProgram(rayTracingProgram.writeRef()));
         RayTracingPipelineDesc rtpDesc = {};
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = 2;

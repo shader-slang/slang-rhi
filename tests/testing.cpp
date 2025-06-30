@@ -590,6 +590,8 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.enableValidation = true;
     deviceDesc.enableRayTracingValidation = true;
     deviceDesc.debugCallback = &sDebugCallback;
+#else
+    SLANG_UNUSED(sDebugCallback);
 #endif
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
@@ -831,7 +833,7 @@ slang::IGlobalSession* getSlangGlobalSession()
 {
     static slang::IGlobalSession* slangGlobalSession = []()
     {
-        slang::IGlobalSession* session;
+        slang::IGlobalSession* session = nullptr;
         REQUIRE_CALL(slang::createGlobalSession(&session));
         return session;
     }();

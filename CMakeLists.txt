@@ -450,9 +450,10 @@ if(APPLE)
 endif()
 
 # Setup compiler warnings
-target_compile_options(slang-rhi PRIVATE
+add_library(slang-rhi-warnings INTERFACE)
+target_compile_options(slang-rhi-warnings INTERFACE
     $<$<CXX_COMPILER_ID:MSVC>:
-        /W4 /WX
+        /W4
         /w14062 # enumerator 'identifier' in switch of enum 'enumeration' is not handled
         /wd4267 # conversion from 'size_t' to 'type', possible loss of data
         /wd4244 # conversion from 'type1' to 'type2', possible loss of data
@@ -464,14 +465,16 @@ target_compile_options(slang-rhi PRIVATE
         /wd4389 # signed/unsigned mismatch
     >
     $<$<CXX_COMPILER_ID:GNU>:
-        -Wall -Wextra -Wpedantic -Werror
-        -Wshadow=local
+        -Wall -Wextra -Wpedantic
+        -Wno-unknown-warning
+        -Wshadow=compatible-local
         -Wno-unused-parameter
         -Wno-missing-field-initializers
         -Wno-sign-compare
+        -Wno-subobject-linkage
     >
     $<$<CXX_COMPILER_ID:Clang>:
-        -Wall -Wextra -Wpedantic -Werror
+        -Wall -Wextra -Wpedantic
         -Wshadow
         -Wno-unknown-warning-option
         -Wno-unused-parameter
@@ -490,7 +493,7 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-language-extension-token
     >
     $<$<CXX_COMPILER_ID:AppleClang>:
-        -Wall -Wextra -Wpedantic -Werror
+        -Wall -Wextra -Wpedantic
         -Wshadow
         -Wno-unknown-warning-option
         -Wno-unused-parameter
@@ -501,6 +504,14 @@ target_compile_options(slang-rhi PRIVATE
         -Wno-nested-anon-types
     >
 )
+add_library(slang-rhi-warnings-as-errors INTERFACE)
+target_compile_options(slang-rhi-warnings-as-errors INTERFACE
+    $<$<CXX_COMPILER_ID:MSVC>:/WX>
+    $<$<CXX_COMPILER_ID:GNU>:-Werror>
+    $<$<CXX_COMPILER_ID:Clang>:-Werror>
+    $<$<CXX_COMPILER_ID:AppleClang>:-Werror>
+)
+target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
 
 target_sources(slang-rhi PRIVATE
     src/command-buffer.cpp
@@ -815,6 +826,7 @@ if(SLANG_RHI_BUILD_TESTS)
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
+    target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
     if(SLANG_RHI_ENABLE_OPTIX)
         target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)

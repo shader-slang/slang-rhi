@@ -30,6 +30,7 @@ inline std::string getTextureType(TextureType type)
     default:
         FAIL("Unknown texture type");
     }
+    return "";
 };
 
 inline std::string getRWTextureType(TextureType type)
@@ -53,10 +54,11 @@ inline std::string getRWTextureType(TextureType type)
     case TextureType::TextureCube:
     case TextureType::TextureCubeArray:
         FAIL("Unsupported texture type");
-        return "";
+        break;
     default:
         FAIL("Unknown texture type");
     }
+    return "";
 };
 
 inline std::string getFormatType(Format format)

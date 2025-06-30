@@ -9,7 +9,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-null-views", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};

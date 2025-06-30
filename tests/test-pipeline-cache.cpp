@@ -318,7 +318,7 @@ struct PipelineCacheTestRender : PipelineCacheTest
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
         auto passEncoder = commandEncoder->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(renderPipeline);
+        passEncoder->bindPipeline(renderPipeline);
         RenderState renderState = {};
         renderState.viewports[0] = Viewport::fromSize(2, 2);
         renderState.viewportCount = 1;

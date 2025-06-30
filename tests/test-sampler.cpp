@@ -72,13 +72,13 @@ struct SamplerTest
     ComPtr<IBuffer> resultBuffer;
     ComPtr<IComputePipeline> pipeline;
 
-    void init(IDevice* device)
+    void init(IDevice* device_)
     {
-        this->device = device;
+        this->device = device_;
         REQUIRE_CALL(createTestTexture(device, texture.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-sampler", "sampleTexture", slangReflection));
 
         ComputePipelineDesc pipelineDesc = {};

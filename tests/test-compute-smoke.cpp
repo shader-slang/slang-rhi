@@ -6,7 +6,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("compute-smoke", ALL)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-compute-smoke", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};

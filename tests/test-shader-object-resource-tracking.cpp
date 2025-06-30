@@ -6,7 +6,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("shader-object-resource-tracking", ALL & ~CPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadComputeProgram(
         device,
         shaderProgram,

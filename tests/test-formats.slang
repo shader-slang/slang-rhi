@@ -185,38 +185,3 @@ void copyTexFloat1(
     tex.GetDimensions(width, height);
     buffer[sv_dispatchThreadID.x] = tex[uint2(sv_dispatchThreadID.x % width, sv_dispatchThreadID.x / width)];
 }
-
-#if 0
-// Sample from "tex" at texture coordinates (0.5, 0.5) and save the results in "buffer".
-[shader("compute")]
-[numthreads(4,1,1)]
-void sampleTex(
-    uint3 sv_dispatchThreadID : SV_DispatchThreadID,
-    uniform Texture2D<float4> tex,
-    uniform SamplerState sampler,
-    uniform RWStructuredBuffer<float> buffer)
-{
-    float4 result = tex.SampleLevel(sampler, float2(0.5, 0.5), 0);
-    buffer[sv_dispatchThreadID.x * 4] = result.r;
-    buffer[sv_dispatchThreadID.x * 4 + 1] = result.g;
-    buffer[sv_dispatchThreadID.x * 4 + 2] = result.b;
-    buffer[sv_dispatchThreadID.x * 4 + 3] = result.a;
-}
-
-// Sample from "tex" at texture coordinates (0.5, 0.5) and save the resuls in "buffer".
-// This should only be used with textures containing two mip levels.
-[shader("compute")]
-[numthreads(2,1,1)]
-void sampleMips(
-    uint3 sv_dispatchThreadID : SV_DispatchThreadID,
-    uniform Texture2D<float4> tex,
-    uniform SamplerState sampler,
-    uniform RWStructuredBuffer<float> buffer)
-{
-    float4 result = tex.SampleLevel(sampler, float2(0.5, 0.5), float(sv_dispatchThreadID.x));
-    buffer[sv_dispatchThreadID.x * 4] = result.r;
-    buffer[sv_dispatchThreadID.x * 4 + 1] = result.g;
-    buffer[sv_dispatchThreadID.x * 4 + 2] = result.b;
-    buffer[sv_dispatchThreadID.x * 4 + 3] = result.a;
-}
-#endif
