@@ -220,6 +220,10 @@ Result AccelerationStructureBuildDescConverter::convert(
             {
                 return SLANG_E_INVALID_ARG;
             }
+            if (linearSweptSpheres.indexingMode != LinearSweptSpheresIndexingMode::Successive)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
 
             OptixBuildInput& buildInput = buildInputs[i];
             buildInput = {};

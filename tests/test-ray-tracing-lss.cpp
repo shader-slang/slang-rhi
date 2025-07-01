@@ -116,6 +116,7 @@ struct RayTracingLssTestBase
             buildInput.linearSweptSpheres.vertexRadiusBuffers[0] = radiusBuffer;
             buildInput.linearSweptSpheres.vertexRadiusFormat = Format::R32Float;
             buildInput.linearSweptSpheres.vertexRadiusStride = sizeof(float);
+            buildInput.linearSweptSpheres.indexingMode = LinearSweptSpheresIndexingMode::Successive;
             buildInput.linearSweptSpheres.indexBuffer = indexBuffer;
             buildInput.linearSweptSpheres.indexFormat = IndexFormat::Uint32;
             buildInput.linearSweptSpheres.indexCount = primitiveCount;

@@ -3,6 +3,7 @@
 #include "core/string.h"
 
 #include <string>
+#include <winscard.h>
 
 namespace rhi::debug {
 
@@ -290,6 +291,29 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
             const AccelerationStructureBuildInputLinearSweptSpheres& linearSweptSpheres =
                 buildDesc.inputs[i].linearSweptSpheres;
 
+            if (ctx->deviceType == DeviceType::CUDA)
+            {
+                if (linearSweptSpheres.endCapsMode == LinearSweptSpheresEndCapsMode::None)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires endCapsMode to be Chained.");
+                }
+
+                if (linearSweptSpheres.indexingMode != LinearSweptSpheresIndexingMode::Successive)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires indexingMode to be Successive.");
+                }
+
+                if (linearSweptSpheres.indexFormat != IndexFormat::Uint32)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires indexFormat to be Uint32.");
+                }
+
+                if (!linearSweptSpheres.indexBuffer)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires indexBuffer.");
+                }
+            }
+
             switch (linearSweptSpheres.vertexPositionFormat)
             {
             case Format::RGB32Float:
@@ -306,19 +330,24 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
                 RHI_VALIDATION_ERROR("Unsupported vertexRadiusFormat. Valid values are R32Float.");
             }
 
-            if (!linearSweptSpheres.indexBuffer)
+            if (linearSweptSpheres.indexBuffer)
             {
-                RHI_VALIDATION_ERROR("indexBuffer cannot be null.");
-            }
-
-            if (linearSweptSpheres.indexFormat != IndexFormat::Uint32)
-            {
-                RHI_VALIDATION_ERROR("indexFormat must be Uint32.");
-            }
-
-            if (linearSweptSpheres.indexCount != linearSweptSpheres.primitiveCount)
-            {
-                RHI_VALIDATION_ERROR("indexCount must be equal to primitiveCount.");
+                if (linearSweptSpheres.indexingMode == LinearSweptSpheresIndexingMode::List)
+                {
+                    if (linearSweptSpheres.indexCount < linearSweptSpheres.primitiveCount + 1)
+                    {
+                        RHI_VALIDATION_ERROR("indexCount must be >= primitiveCount + 1 when indexingMode is List.");
+                    }
+                }
+                else
+                {
+                    if (linearSweptSpheres.indexCount != linearSweptSpheres.primitiveCount)
+                    {
+                        RHI_VALIDATION_ERROR(
+                            "indexCount must be equal to primitiveCount when indexingMode is Successive."
+                        );
+                    }
+                }
             }
 
             if (linearSweptSpheres.vertexBufferCount < 1)
@@ -330,14 +359,6 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
                 if (!linearSweptSpheres.vertexPositionBuffers[j].buffer)
                 {
                     RHI_VALIDATION_ERROR("vertexBuffers cannot be null.");
-                }
-            }
-
-            if (ctx->deviceType == DeviceType::CUDA)
-            {
-                if (linearSweptSpheres.endCapsMode == LinearSweptSpheresEndCapsMode::None)
-                {
-                    RHI_VALIDATION_ERROR("OptiX requires endCapsMode to be Chained.");
                 }
             }
 
