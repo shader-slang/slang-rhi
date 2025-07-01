@@ -10,7 +10,7 @@ public:
     ComPtr<ISlangSharedLibrary> m_sharedLibrary;
     slang_prelude::ComputeFunc m_func;
 
-    ComputePipelineImpl(Device* device);
+    ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc);
 
     // IComputePipeline implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

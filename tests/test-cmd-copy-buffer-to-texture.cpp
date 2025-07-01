@@ -65,7 +65,7 @@ GPU_TEST_CASE("cmd-copy-buffer-to-texture-full", D3D12 | Vulkan | Metal | WGPU |
             REQUIRE_CALL(getSizeAndMakeBuffer(c, textureData, &totalSize, buffer.writeRef()));
 
             // Map buffer for write, and copy subresources in
-            void* bufferData_;
+            void* bufferData_ = nullptr;
             REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Write, &bufferData_));
             uint8_t* bufferData = (uint8_t*)bufferData_;
             for (uint32_t layer = 0; layer < textureData.desc.getLayerCount(); layer++)

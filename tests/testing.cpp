@@ -144,7 +144,7 @@ public:
             return true;
 
         // Redundant warning about old architectures
-        if (strstr(message, "nvrtc 12.8: nvrtc: warning : Architectures prior to"))
+        if (strstr(message, "nvrtc: warning : Architectures prior to"))
             return true;
 
         return false;
@@ -156,30 +156,74 @@ public:
     {
         if (!doctest::is_running_in_test)
             return;
+
+        doctest::String msg;
+        switch (type)
+        {
+        case DebugMessageType::Info:
+            msg += "[Info] ";
+            break;
+        case DebugMessageType::Warning:
+            msg += "[Warning] ";
+            break;
+        case DebugMessageType::Error:
+            msg += "[Error] ";
+            break;
+        default:
+            break;
+        }
+        switch (source)
+        {
+        case DebugMessageSource::Layer:
+            msg += "[Layer] ";
+            break;
+        case DebugMessageSource::Driver:
+            msg += "[Driver] ";
+            break;
+        case DebugMessageSource::Slang:
+            msg += "[Slang] ";
+            break;
+        default:
+            break;
+        }
+        msg += message;
+
+        auto output = [](const doctest::String& str)
+        {
+            if (options().verbose)
+            {
+                MESSAGE(str);
+            }
+            else
+            {
+                INFO(str);
+            }
+        };
+
         if (type == DebugMessageType::Info)
         {
-            INFO(doctest::String(message));
+            output(msg);
         }
         else if (type == DebugMessageType::Warning)
         {
             if (shouldIgnoreError(type, source, message))
             {
-                INFO(doctest::String(message));
+                output(msg);
             }
             else
             {
-                FAIL(doctest::String(message));
+                FAIL(msg);
             }
         }
         else if (type == DebugMessageType::Error)
         {
             if (shouldIgnoreError(type, source, message))
             {
-                INFO(doctest::String(message));
+                output(msg);
             }
             else
             {
-                FAIL(doctest::String(message));
+                FAIL(msg);
             }
         }
     }
@@ -234,7 +278,8 @@ Result loadComputeProgram(
     SLANG_RETURN_ON_FAIL(result);
 
     slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -276,7 +321,8 @@ Result loadComputeProgram(
     SLANG_RETURN_ON_FAIL(result);
 
     slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -290,6 +336,7 @@ Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& out
     auto srcBlob = UnownedBlob::create(source.data(), source.size());
     module =
         slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
         return SLANG_FAIL;
 
@@ -314,9 +361,11 @@ Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& out
         linkedProgram.writeRef(),
         diagnosticsBlob.writeRef()
     );
+    diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -364,7 +413,8 @@ Result loadGraphicsProgram(
     SLANG_RETURN_ON_FAIL(result);
 
     slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -384,6 +434,7 @@ Result loadRenderProgramFromSource(
     auto srcBlob = UnownedBlob::create(source.data(), source.size());
     module =
         slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
         return SLANG_FAIL;
 
@@ -409,9 +460,11 @@ Result loadRenderProgramFromSource(
         linkedProgram.writeRef(),
         diagnosticsBlob.writeRef()
     );
+    diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    outShaderProgram = device->createShaderProgram(linkedProgram);
+    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
@@ -453,6 +506,7 @@ ComPtr<IDevice> createTestingDevice(
             deviceDesc.persistentShaderCache = extraOptions->persistentShaderCache;
         if (extraOptions->persistentPipelineCache)
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
+        deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
     }
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
@@ -536,6 +590,8 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.enableValidation = true;
     deviceDesc.enableRayTracingValidation = true;
     deviceDesc.debugCallback = &sDebugCallback;
+#else
+    SLANG_UNUSED(sDebugCallback);
 #endif
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
@@ -777,7 +833,7 @@ slang::IGlobalSession* getSlangGlobalSession()
 {
     static slang::IGlobalSession* slangGlobalSession = []()
     {
-        slang::IGlobalSession* session;
+        slang::IGlobalSession* session = nullptr;
         REQUIRE_CALL(slang::createGlobalSession(&session));
         return session;
     }();

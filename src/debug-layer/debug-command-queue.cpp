@@ -34,7 +34,7 @@ Result DebugCommandQueue::submit(const SubmitDesc& desc)
     {
         if (!desc.commandBuffers[i])
         {
-            RHI_VALIDATION_INFO("Command buffer is null.");
+            RHI_VALIDATION_ERROR("Command buffer is null.");
             return SLANG_E_INVALID_ARG;
         }
         innerCommandBuffers.push_back(getInnerObj(desc.commandBuffers[i]));

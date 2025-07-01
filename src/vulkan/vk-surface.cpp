@@ -95,7 +95,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         Format format = translateVkFormat(surfaceFormats[i].format);
         if (format != Format::Undefined)
             m_supportedFormats.push_back(format);
-        if (format == Format::BGRA8Unorm)
+        if (preferredFormat == Format::Undefined &&
+            (format == Format::RGBA8UnormSrgb || format == Format::BGRA8UnormSrgb || format == Format::BGRX8UnormSrgb))
             preferredFormat = format;
     }
     if (preferredFormat == Format::Undefined && !m_supportedFormats.empty())
@@ -280,6 +281,36 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     if (m_config.format == Format::Undefined)
     {
         m_config.format = m_info.preferredFormat;
+    }
+    FormatSupport formatSupport = {};
+    m_device->getFormatSupport(m_config.format, &formatSupport);
+    if (m_config.usage == TextureUsage::None)
+    {
+        m_config.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
+        if (is_set(formatSupport, FormatSupport::ShaderUavStore))
+        {
+            m_config.usage |= TextureUsage::UnorderedAccess;
+        }
+    }
+    else
+    {
+        if (!is_set(formatSupport, FormatSupport::RenderTarget) && is_set(m_config.usage, TextureUsage::RenderTarget))
+        {
+            m_device->printError("Surface format does not support render target usage.");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (!is_set(formatSupport, FormatSupport::CopyDestination) &&
+            is_set(m_config.usage, TextureUsage::CopyDestination))
+        {
+            m_device->printError("Surface format does not support copy destination usage.");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (!is_set(formatSupport, FormatSupport::ShaderUavStore) &&
+            is_set(m_config.usage, TextureUsage::UnorderedAccess))
+        {
+            m_device->printError("Surface format does not support unordered access usage.");
+            return SLANG_E_INVALID_ARG;
+        }
     }
 
     m_configured = false;

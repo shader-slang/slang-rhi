@@ -24,7 +24,7 @@ GPU_TEST_CASE("device-from-handle", D3D12 | Vulkan | CUDA)
     CHECK_CALL(getRHI()->createDevice(newDeviceDesc, newDevice.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadComputeProgram(newDevice, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};

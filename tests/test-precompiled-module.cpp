@@ -96,13 +96,12 @@ static Result precompileProgram(
     // Write loaded modules to files.
     for (SlangInt i = 0; i < slangSession->getLoadedModuleCount(); i++)
     {
-        auto module = slangSession->getLoadedModule(i);
-        auto path = module->getFilePath();
-        if (path)
+        auto loadedModule = slangSession->getLoadedModule(i);
+        if (loadedModule->getFilePath())
         {
-            auto path = (dir / module->getName()).replace_extension(".slang-module");
+            auto path = (dir / loadedModule->getName()).replace_extension(".slang-module");
             ComPtr<ISlangBlob> outBlob;
-            module->serialize(outBlob.writeRef());
+            loadedModule->serialize(outBlob.writeRef());
             writeFile(path.string(), outBlob->getBufferPointer(), outBlob->getBufferSize());
         }
     }
@@ -117,7 +116,7 @@ static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompi
     std::string tempDirStr = tempDir.string();
 
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(precompileProgram(
         device,
         mixed ? "test-precompiled-module-imported" : "test-precompiled-module",
@@ -195,14 +194,14 @@ static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompi
 
 // CUDA: currently fails due to a slang regression
 // https://github.com/shader-slang/slang/issues/7315
-GPU_TEST_CASE("precompiled-module", ALL & ~CUDA)
+GPU_TEST_CASE("precompiled-module", ALL)
 {
     testPrecompiledModuleImpl(device, false, false);
 }
 
 // CUDA: currently fails due to a slang regression
 // https://github.com/shader-slang/slang/issues/7315
-GPU_TEST_CASE("precompiled-module-mixed", ALL & ~CUDA)
+GPU_TEST_CASE("precompiled-module-mixed", ALL)
 {
     testPrecompiledModuleImpl(device, true, false);
 }

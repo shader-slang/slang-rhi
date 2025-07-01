@@ -125,7 +125,7 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
 
     // Precompile a module.
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(precompileProgram(device, memoryFileSystem.get(), "precompiled-module-imported"));
 
     // Next, load the precompiled slang program.

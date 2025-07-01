@@ -39,24 +39,22 @@ public:
     IPipeline* getInterface(const Guid& guid);
 
 public:
-    RenderPipeline(Device* device)
-        : Pipeline(device)
-    {
-    }
+    RenderPipelineDesc m_desc;
+    StructHolder m_descHolder;
+    RefPtr<InputLayout> m_inputLayout;
+
+    RenderPipeline(Device* device, const RenderPipelineDesc& desc);
 
     virtual PipelineType getType() const override { return PipelineType::Render; }
 
     // IPipeline interface
+    virtual SLANG_NO_THROW const RenderPipelineDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
 };
 
 class VirtualRenderPipeline : public RenderPipeline
 {
 public:
-    RenderPipelineDesc m_desc;
-    StructHolder m_descHolder;
-    RefPtr<InputLayout> m_inputLayout;
-
     VirtualRenderPipeline(Device* device, const RenderPipelineDesc& desc);
 
     virtual bool isVirtual() const override { return true; }
@@ -72,22 +70,21 @@ public:
     IPipeline* getInterface(const Guid& guid);
 
 public:
-    ComputePipeline(Device* device)
-        : Pipeline(device)
-    {
-    }
+    ComputePipelineDesc m_desc;
+    StructHolder m_descHolder;
+
+    ComputePipeline(Device* device, const ComputePipelineDesc& desc);
 
     virtual PipelineType getType() const override { return PipelineType::Compute; }
 
     // IPipeline interface
+    virtual SLANG_NO_THROW const ComputePipelineDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
 };
 
 class VirtualComputePipeline : public ComputePipeline
 {
 public:
-    ComputePipelineDesc m_desc;
-
     VirtualComputePipeline(Device* device, const ComputePipelineDesc& desc);
 
     virtual bool isVirtual() const override { return true; }
@@ -103,23 +100,21 @@ public:
     IPipeline* getInterface(const Guid& guid);
 
 public:
-    RayTracingPipeline(Device* device)
-        : Pipeline(device)
-    {
-    }
+    RayTracingPipelineDesc m_desc;
+    StructHolder m_descHolder;
+
+    RayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc);
 
     virtual PipelineType getType() const override { return PipelineType::RayTracing; }
 
     // IPipeline interface
+    virtual SLANG_NO_THROW const RayTracingPipelineDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
 };
 
 class VirtualRayTracingPipeline : public RayTracingPipeline
 {
 public:
-    RayTracingPipelineDesc m_desc;
-    StructHolder m_descHolder;
-
     VirtualRayTracingPipeline(Device* device, const RayTracingPipelineDesc& desc);
 
     virtual bool isVirtual() const override { return true; }

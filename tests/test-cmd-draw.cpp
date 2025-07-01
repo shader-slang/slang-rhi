@@ -108,7 +108,7 @@ public:
     ComPtr<ITexture> colorBuffer;
     ComPtr<ITextureView> colorBufferView;
 
-    void init(IDevice* device) { this->device = device; }
+    void init(IDevice* device_) { this->device = device_; }
 
     void createRequiredResources()
     {
@@ -138,7 +138,7 @@ public:
         colorBuffer = createColorBuffer(device);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(
             loadGraphicsProgram(device, shaderProgram, "test-cmd-draw", "vertexMain", "fragmentMain", slangReflection)
         );
@@ -318,20 +318,20 @@ struct DrawIndirectTest : BaseDrawTest
         IndirectDrawArguments args;
     };
 
-    ComPtr<IBuffer> createIndirectBuffer(IDevice* device)
+    ComPtr<IBuffer> createIndirectBuffer()
     {
         static const IndirectArgData kIndirectData = {
             42.0f,        // padding
             {6, 2, 0, 0}, // args
         };
 
-        BufferDesc indirectBufferDesc;
-        indirectBufferDesc.size = sizeof(IndirectArgData);
-        indirectBufferDesc.usage = BufferUsage::IndirectArgument;
-        indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
-        ComPtr<IBuffer> indirectBuffer = device->createBuffer(indirectBufferDesc, &kIndirectData);
-        REQUIRE(indirectBuffer != nullptr);
-        return indirectBuffer;
+        BufferDesc bufferDesc;
+        bufferDesc.size = sizeof(IndirectArgData);
+        bufferDesc.usage = BufferUsage::IndirectArgument;
+        bufferDesc.defaultState = ResourceState::IndirectArgument;
+        ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, &kIndirectData);
+        REQUIRE(buffer != nullptr);
+        return buffer;
     }
 
     void setUpAndDraw()
@@ -373,7 +373,7 @@ struct DrawIndirectTest : BaseDrawTest
 
     void run()
     {
-        indirectBuffer = createIndirectBuffer(device);
+        indirectBuffer = createIndirectBuffer();
 
         setUpAndDraw();
 
@@ -398,20 +398,20 @@ struct DrawIndexedIndirectTest : BaseDrawTest
         IndirectDrawIndexedArguments args;
     };
 
-    ComPtr<IBuffer> createIndirectBuffer(IDevice* device)
+    ComPtr<IBuffer> createIndirectBuffer()
     {
         static const IndexedIndirectArgData kIndexedIndirectData = {
             42.0f,           // padding
             {6, 2, 0, 0, 0}, // args
         };
 
-        BufferDesc indirectBufferDesc;
-        indirectBufferDesc.size = sizeof(IndexedIndirectArgData);
-        indirectBufferDesc.usage = BufferUsage::IndirectArgument;
-        indirectBufferDesc.defaultState = ResourceState::IndirectArgument;
-        ComPtr<IBuffer> indexBuffer = device->createBuffer(indirectBufferDesc, &kIndexedIndirectData);
-        REQUIRE(indexBuffer != nullptr);
-        return indexBuffer;
+        BufferDesc bufferDesc;
+        bufferDesc.size = sizeof(IndexedIndirectArgData);
+        bufferDesc.usage = BufferUsage::IndirectArgument;
+        bufferDesc.defaultState = ResourceState::IndirectArgument;
+        ComPtr<IBuffer> buffer = device->createBuffer(bufferDesc, &kIndexedIndirectData);
+        REQUIRE(buffer != nullptr);
+        return buffer;
     }
 
     void setUpAndDraw()
@@ -456,7 +456,7 @@ struct DrawIndexedIndirectTest : BaseDrawTest
     void run()
     {
         indexBuffer = createIndexBuffer(device);
-        indirectBuffer = createIndirectBuffer(device);
+        indirectBuffer = createIndirectBuffer();
 
         setUpAndDraw();
 

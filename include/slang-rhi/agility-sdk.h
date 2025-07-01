@@ -1,6 +1,6 @@
 #pragma once
 
-#include <slang-rhi.h>
+#include <slang-rhi-config.h>
 
 // -------------------------------------------------------------------------------------------------
 // D3D12 Agility SDK
@@ -10,7 +10,10 @@
 
 #include <d3d12.h>
 
-#define SLANG_RHI_AGILITY_SDK_VERSION D3D12_SDK_VERSION
+#ifndef SLANG_RHI_AGILITY_SDK_VERSION
+#error "SLANG_RHI_AGILITY_SDK_VERSION is not defined"
+#endif
+
 #define SLANG_RHI_AGILITY_SDK_PATH ".\\D3D12\\"
 
 // To enable the D3D12 Agility SDK, this macro needs to be added to the main source file of the executable.

@@ -177,11 +177,13 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     for (uint32_t i = 0; i < formatCount; ++i)
     {
         Format format = translateVkFormat(surfaceFormats[i].format);
+        // Skip BGR formats that are not supported by the CUDA backend.
+        if (format == Format::BGRA8Unorm || format == Format::BGRA8UnormSrgb || format == Format::BGRX8Unorm ||
+            format == Format::BGRX8UnormSrgb)
+            continue;
         if (format != Format::Undefined)
             m_supportedFormats.push_back(format);
-        // if (format == Format::BGRA8Unorm)
-        //     preferredFormat = format;
-        if (format == Format::RGBA8Unorm)
+        if (format == Format::RGBA8UnormSrgb)
             preferredFormat = format;
     }
     if (preferredFormat == Format::Undefined && !m_supportedFormats.empty())
@@ -190,8 +192,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     }
 
     m_info.preferredFormat = preferredFormat;
-    m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::UnorderedAccess |
-                            TextureUsage::CopyDestination;
+    m_info.supportedUsage = TextureUsage::Present | TextureUsage::UnorderedAccess | TextureUsage::CopyDestination;
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();
 
@@ -763,6 +764,10 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     if (m_config.format == Format::Undefined)
     {
         m_config.format = m_info.preferredFormat;
+    }
+    if (m_config.usage == TextureUsage::None)
+    {
+        m_config.usage = m_info.supportedUsage;
     }
 
     m_configured = false;

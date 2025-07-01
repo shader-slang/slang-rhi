@@ -1262,28 +1262,28 @@ void TextureTestOptions::applyTextureSize(int state, TextureTestVariant variant)
         // Make adjustments for power of 2 sizes. We need to increment dimensions
         // that aren't only 1 pixel wide until they're a non-power of 2 multiple
         // of the block size.
-        for (auto& testTexture : variant.descriptors)
+        for (auto& testDescA : variant.descriptors)
         {
-            const FormatInfo& info = getFormatInfo(testTexture.desc.format);
+            const FormatInfo& info = getFormatInfo(testDescA.desc.format);
             if (!info.supportsNonPowerOf2)
                 return;
 
-            for (auto& testTexture : variant.descriptors)
+            for (auto& testDescB : variant.descriptors)
             {
-                if (testTexture.desc.size.width > 1)
+                if (testDescB.desc.size.width > 1)
                 {
-                    while (math::isPowerOf2(testTexture.desc.size.width))
-                        testTexture.desc.size.width += info.blockWidth;
+                    while (math::isPowerOf2(testDescB.desc.size.width))
+                        testDescB.desc.size.width += info.blockWidth;
                 }
-                if (testTexture.desc.size.height > 1)
+                if (testDescB.desc.size.height > 1)
                 {
-                    while (math::isPowerOf2(testTexture.desc.size.height))
-                        testTexture.desc.size.height += info.blockHeight;
+                    while (math::isPowerOf2(testDescB.desc.size.height))
+                        testDescB.desc.size.height += info.blockHeight;
                 }
-                if (testTexture.desc.size.depth > 1)
+                if (testDescB.desc.size.depth > 1)
                 {
-                    while (math::isPowerOf2(testTexture.desc.size.depth))
-                        testTexture.desc.size.depth++;
+                    while (math::isPowerOf2(testDescB.desc.size.depth))
+                        testDescB.desc.size.depth++;
                 }
             }
         }

@@ -9,6 +9,7 @@ macro(FetchPackage name)
     FetchContent_Declare(
         ${name}
         URL ${FETCH_URL}
+        SOURCE_SUBDIR _does_not_exist_ # avoid adding contained CMakeLists.txt
         HTTP_HEADER "Authorization: token ${SLANG_GITHUB_TOKEN}"
     )
     FetchContent_GetProperties(${name})

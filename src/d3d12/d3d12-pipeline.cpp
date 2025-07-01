@@ -129,9 +129,14 @@ Result createPipelineWithCache(
     DeviceImpl* device,
     PipelineDesc* desc,
     Result (*createPipelineFunc)(DeviceImpl* device, PipelineDesc* desc, PipelineState** outPipeline),
-    PipelineState** outPipeline
+    PipelineState** outPipeline,
+    bool& outCached,
+    size_t& outCacheSize
 )
 {
+    outCached = false;
+    outCacheSize = 0;
+
     // Early out if cache is not enabled.
     if (!device->m_persistentPipelineCache)
     {
@@ -160,6 +165,8 @@ Result createPipelineWithCache(
         if (createPipelineFunc(device, desc, &pipeline) == SLANG_OK)
         {
             writeCache = false;
+            outCached = true;
+            outCacheSize = pipelineCacheData->getBufferSize();
         }
         else
         {
@@ -183,6 +190,7 @@ Result createPipelineWithCache(
         {
             pipelineCacheData = UnownedBlob::create(cachedBlob->GetBufferPointer(), cachedBlob->GetBufferSize());
             device->m_persistentPipelineCache->writeCache(pipelineCacheKey, pipelineCacheData);
+            outCacheSize = pipelineCacheData->getBufferSize();
         }
     }
 
@@ -191,8 +199,8 @@ Result createPipelineWithCache(
 }
 
 
-RenderPipelineImpl::RenderPipelineImpl(Device* device)
-    : RenderPipeline(device)
+RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
+    : RenderPipeline(device, desc)
 {
 }
 
@@ -205,11 +213,15 @@ Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_shaders.empty());
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
 
     ComPtr<ID3D12PipelineState> pipelineState;
+    bool cached = false;
+    size_t cacheSize = 0;
 
     // A helper to fill common fields between graphics and mesh pipeline descs
     const auto fillCommonGraphicsState = [&](auto& psoDesc)
@@ -261,7 +273,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             D3D12_BLEND_DESC& blend = psoDesc.BlendState;
             blend.IndependentBlendEnable = FALSE;
             blend.AlphaToCoverageEnable = desc.multisample.alphaToCoverageEnable ? TRUE : FALSE;
-            blend.RenderTarget[0].RenderTargetWriteMask = (uint8_t)RenderTargetWriteMask::EnableAll;
+            blend.RenderTarget[0].RenderTargetWriteMask = (UINT8)RenderTargetWriteMask::All;
             for (uint32_t i = 0; i < numRenderTargets; i++)
             {
                 auto& d3dDesc = blend.RenderTarget[i];
@@ -272,7 +284,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                 d3dDesc.DestBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.dstFactor);
                 d3dDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
                 d3dDesc.LogicOpEnable = FALSE;
-                d3dDesc.RenderTargetWriteMask = desc.targets[i].writeMask;
+                d3dDesc.RenderTargetWriteMask = (UINT8)desc.targets[i].writeMask;
                 d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.targets[i].color.srcFactor);
                 d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.srcFactor);
             }
@@ -409,12 +421,32 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                     return hr == S_OK ? SLANG_OK : SLANG_FAIL;
                 }
             },
-            pipelineState.writeRef()
+            pipelineState.writeRef(),
+            cached,
+            cacheSize
         );
         SLANG_RETURN_ON_FAIL(result);
     }
 
-    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this);
+    if (desc.label)
+    {
+        pipelineState->SetName(string::to_wstring(desc.label).c_str());
+    }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Render,
+            startTime,
+            Timer::now(),
+            cached,
+            cacheSize
+        );
+    }
+
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_inputLayout = inputLayout;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
@@ -424,8 +456,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     return SLANG_OK;
 }
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -438,6 +470,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_shaders.empty());
 
@@ -449,6 +483,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     computeDesc.CS = {program->m_shaders[0].code.data(), SIZE_T(program->m_shaders[0].code.size())};
 
     ComPtr<ID3D12PipelineState> pipelineState;
+    bool cached = false;
+    size_t cacheSize = 0;
     Result result = createPipelineWithCache<D3D12_COMPUTE_PIPELINE_STATE_DESC, ID3D12PipelineState>(
         this,
         &computeDesc,
@@ -482,11 +518,31 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
                 return hr == S_OK ? SLANG_OK : SLANG_FAIL;
             }
         },
-        pipelineState.writeRef()
+        pipelineState.writeRef(),
+        cached,
+        cacheSize
     );
     SLANG_RETURN_ON_FAIL(result);
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    if (desc.label)
+    {
+        pipelineState->SetName(string::to_wstring(desc.label).c_str());
+    }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            cached,
+            cacheSize
+        );
+    }
+
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
@@ -494,8 +550,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     return SLANG_OK;
 }
 
-RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device)
-    : RayTracingPipeline(device)
+RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc)
+    : RayTracingPipeline(device, desc)
 {
 }
 
@@ -513,19 +569,17 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         return SLANG_E_NOT_AVAILABLE;
     }
 
+    TimePoint startTime = Timer::now();
+
 #if SLANG_RHI_DXR
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_shaders.empty());
 
     ComPtr<ID3D12StateObject> stateObject;
 
-    auto slangGlobalScope = program->linkedProgram;
-    auto programLayout = slangGlobalScope->getLayout();
-
     std::vector<D3D12_STATE_SUBOBJECT> subObjects;
     stable_vector<D3D12_DXIL_LIBRARY_DESC> dxilLibraries;
     stable_vector<D3D12_HIT_GROUP_DESC> hitGroups;
-    stable_vector<ComPtr<ISlangBlob>> codeBlobs;
     stable_vector<D3D12_EXPORT_DESC> exports;
     stable_vector<const wchar_t*> strPtrs;
     ComPtr<ISlangBlob> diagnostics;
@@ -548,33 +602,14 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipelineConfigSubobject.pDesc = &pipelineConfig;
     subObjects.push_back(pipelineConfigSubobject);
 
-    auto compileShader =
-        [&](slang::EntryPointLayout* entryPointInfo, slang::IComponentType* component, SlangInt entryPointIndex)
+    for (const ShaderBinary& shader : program->m_shaders)
     {
-        ComPtr<ISlangBlob> codeBlob;
-        auto compileResult = getEntryPointCodeFromShaderCache(
-            component,
-            entryPointIndex,
-            0,
-            codeBlob.writeRef(),
-            diagnostics.writeRef()
-        );
-        if (diagnostics.get())
-        {
-            handleMessage(
-                compileResult == SLANG_OK ? DebugMessageType::Warning : DebugMessageType::Error,
-                DebugMessageSource::Slang,
-                (char*)diagnostics->getBufferPointer()
-            );
-        }
-        SLANG_RETURN_ON_FAIL(compileResult);
-        codeBlobs.push_back(codeBlob);
         D3D12_DXIL_LIBRARY_DESC library = {};
-        library.DXILLibrary.BytecodeLength = codeBlob->getBufferSize();
-        library.DXILLibrary.pShaderBytecode = codeBlob->getBufferPointer();
+        library.DXILLibrary.BytecodeLength = shader.code.size();
+        library.DXILLibrary.pShaderBytecode = shader.code.data();
         library.NumExports = 1;
         D3D12_EXPORT_DESC exportDesc = {};
-        exportDesc.Name = getWStr(entryPointInfo->getNameOverride());
+        exportDesc.Name = getWStr(shader.entryPointInfo->getNameOverride());
         exportDesc.ExportToRename = nullptr;
         exportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
         exports.push_back(exportDesc);
@@ -585,24 +620,6 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         dxilLibraries.push_back(library);
         dxilSubObject.pDesc = &dxilLibraries.back();
         subObjects.push_back(dxilSubObject);
-        return SLANG_OK;
-    };
-
-    if (program->linkedEntryPoints.empty())
-    {
-        for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
-        {
-            SLANG_RETURN_ON_FAIL(
-                compileShader(programLayout->getEntryPointByIndex(i), program->linkedProgram, (SlangInt)i)
-            );
-        }
-    }
-    else
-    {
-        for (auto& entryPoint : program->linkedEntryPoints)
-        {
-            SLANG_RETURN_ON_FAIL(compileShader(entryPoint->getLayout()->getEntryPointByIndex(0), entryPoint, 0));
-        }
     }
 
     for (uint32_t i = 0; i < desc.hitGroupCount; i++)
@@ -674,7 +691,25 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
-    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this);
+    if (desc.label)
+    {
+        stateObject->SetName(string::to_wstring(desc.label).c_str());
+    }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::RayTracing,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<RayTracingPipelineImpl> pipeline = new RayTracingPipelineImpl(this, desc);
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_stateObject = stateObject;

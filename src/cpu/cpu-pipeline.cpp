@@ -4,8 +4,8 @@
 
 namespace rhi::cpu {
 
-ComputePipelineImpl::ComputePipelineImpl(Device* device)
-    : ComputePipeline(device)
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
 {
 }
 
@@ -17,6 +17,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    TimePoint startTime = Timer::now();
+
     uint32_t targetIndex = 0;
     uint32_t entryPointIndex = 0;
 
@@ -45,7 +47,20 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         return SLANG_FAIL;
     }
 
-    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this);
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
     pipeline->m_program = checked_cast<ShaderProgram*>(desc.program);
     pipeline->m_sharedLibrary = sharedLibrary;
     pipeline->m_func = func;

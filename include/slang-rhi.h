@@ -181,6 +181,73 @@ enum class AccessFlag
 
 class IPersistentCache;
 
+struct CompilationReport
+{
+    /// Time point in nanoseconds.
+    typedef uint64_t TimePoint;
+
+    struct EntryPointReport
+    {
+        char name[128];
+        TimePoint startTime;
+        TimePoint endTime;
+        double createTime;
+        double compileTime;
+        double compileSlangTime;
+        double compileDownstreamTime;
+        bool isCached;
+        size_t cacheSize;
+    };
+
+    enum class PipelineType
+    {
+        Render,
+        Compute,
+        RayTracing
+    };
+
+    struct PipelineReport
+    {
+        PipelineType type;
+        TimePoint startTime;
+        TimePoint endTime;
+        double createTime;
+        bool isCached;
+        size_t cacheSize;
+    };
+
+    /// Shader program label.
+    char label[128];
+    /// Shader program is currently alive.
+    bool alive;
+    /// Total time spent creating the shader program (seconds).
+    double createTime;
+    /// Total time spent compiling entry points (seconds).
+    double compileTime;
+    /// Total time spent in the slang compiler backend (seconds).
+    double compileSlangTime;
+    /// Total time spent in the downstream compiler (seconds).
+    double compileDownstreamTime;
+    /// Total time spent creating pipelines (seconds).
+    double createPipelineTime;
+
+    /// Entry points compilation reports.
+    const EntryPointReport* entryPointReports;
+    /// Number of entry point compilation reports.
+    uint32_t entryPointReportCount;
+
+    /// Pipelines creation reports.
+    const PipelineReport* pipelineReports;
+    /// Number of pipeline creation reports.
+    uint32_t pipelineReportCount;
+};
+
+struct CompilationReportList
+{
+    const CompilationReport* reports;
+    uint32_t reportCount;
+};
+
 /// Defines how linking should be performed for a shader program.
 enum class LinkingStyle
 {
@@ -212,6 +279,8 @@ struct ShaderProgramDesc
     // If set to 0, then `slangGlobalScope` must contain Slang EntryPoint components.
     // If not 0, then `slangGlobalScope` must not contain any EntryPoint components.
     uint32_t slangEntryPointCount = 0;
+
+    const char* label = nullptr;
 };
 
 class IShaderProgram : public ISlangUnknown
@@ -219,6 +288,8 @@ class IShaderProgram : public ISlangUnknown
     SLANG_COM_INTERFACE(0x19cabd0d, 0xf3e3, 0x4b3d, {0x93, 0x43, 0xea, 0xcc, 0x00, 0x1e, 0xc5, 0xf2});
 
 public:
+    virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) = 0;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
 
@@ -1652,19 +1723,16 @@ enum class BlendFactor
     InvSecondarySrcAlpha,
 };
 
-namespace RenderTargetWriteMask {
-typedef uint8_t Type;
-enum
+enum class RenderTargetWriteMask : uint8_t
 {
-    EnableNone = 0,
-    EnableRed = 0x01,
-    EnableGreen = 0x02,
-    EnableBlue = 0x04,
-    EnableAlpha = 0x08,
-    EnableAll = 0x0F,
+    None = 0,
+    Red = 0x01,
+    Green = 0x02,
+    Blue = 0x04,
+    Alpha = 0x08,
+    All = 0x0F,
 };
-}; // namespace RenderTargetWriteMask
-typedef RenderTargetWriteMask::Type RenderTargetWriteMaskT;
+SLANG_RHI_ENUM_CLASS_OPERATORS(RenderTargetWriteMask);
 
 struct AspectBlendDesc
 {
@@ -1680,7 +1748,7 @@ struct ColorTargetDesc
     AspectBlendDesc alpha;
     bool enableBlend = false;
     LogicOp logicOp = LogicOp::NoOp;
-    RenderTargetWriteMaskT writeMask = RenderTargetWriteMask::EnableAll;
+    RenderTargetWriteMask writeMask = RenderTargetWriteMask::All;
 };
 
 struct MultisampleDesc
@@ -1704,6 +1772,8 @@ struct RenderPipelineDesc
     DepthStencilDesc depthStencil;
     RasterizerDesc rasterizer;
     MultisampleDesc multisample;
+
+    const char* label = nullptr;
 };
 
 struct ComputePipelineDesc
@@ -1713,6 +1783,8 @@ struct ComputePipelineDesc
 
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
+
+    const char* label = nullptr;
 };
 
 enum class RayTracingPipelineFlags
@@ -1720,6 +1792,7 @@ enum class RayTracingPipelineFlags
     None = 0,
     SkipTriangles = (1 << 0),
     SkipProcedurals = (1 << 1),
+    EnableSpheres = (1 << 2),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 
@@ -1743,6 +1816,8 @@ struct RayTracingPipelineDesc
     uint32_t maxRayPayloadSize = 0;
     uint32_t maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
+
+    const char* label = nullptr;
 };
 
 // Specifies the bytes to overwrite into a record in the shader table.
@@ -1797,16 +1872,25 @@ public:
 class IRenderPipeline : public IPipeline
 {
     SLANG_COM_INTERFACE(0xf2eb0472, 0xfa25, 0x44f9, {0xb1, 0x90, 0xdc, 0x3e, 0x29, 0xaa, 0x56, 0x6a});
+
+public:
+    virtual SLANG_NO_THROW const RenderPipelineDesc& SLANG_MCALL getDesc() = 0;
 };
 
 class IComputePipeline : public IPipeline
 {
     SLANG_COM_INTERFACE(0x16eded28, 0xdc04, 0x434d, {0x85, 0xb7, 0xd6, 0xfa, 0xa0, 0x00, 0x5d, 0xf3});
+
+public:
+    virtual SLANG_NO_THROW const ComputePipelineDesc& SLANG_MCALL getDesc() = 0;
 };
 
 class IRayTracingPipeline : public IPipeline
 {
     SLANG_COM_INTERFACE(0x5047f5d7, 0xc6f6, 0x4482, {0xab, 0x49, 0x08, 0x57, 0x1b, 0xcf, 0xe8, 0xda});
+
+public:
+    virtual SLANG_NO_THROW const RayTracingPipelineDesc& SLANG_MCALL getDesc() = 0;
 };
 
 struct ScissorRect
@@ -2369,21 +2453,32 @@ public:
 
 struct SurfaceInfo
 {
+    /// The preferred format for the surface.
     Format preferredFormat;
+    /// The supported texture usage for the surface.
+    /// The actual support may be more limited depending on the format.
     TextureUsage supportedUsage;
+    /// The list of supported formats for the surface.
     const Format* formats;
+    /// The number of supported formats for the surface.
     uint32_t formatCount;
 };
 
 struct SurfaceConfig
 {
+    /// Surface format. If left undefined, the preferred format is used.
     Format format = Format::Undefined;
-    TextureUsage usage = TextureUsage::RenderTarget;
+    /// Usage of the surface. If left undefined, the supported usage is used.
+    TextureUsage usage = TextureUsage::None;
     // size_t viewFormatCount;
     // const Format* viewFormats;
+    /// Width of the surface in pixels.
     uint32_t width = 0;
+    /// Height of the surface in pixels.
     uint32_t height = 0;
+    /// Desired number of images in the swap chain.
     uint32_t desiredImageCount = 3;
+    /// Enable/disable vertical synchronization.
     bool vsync = true;
 };
 
@@ -2611,6 +2706,9 @@ struct DeviceDesc
     bool enableRayTracingValidation = false;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
+
+    /// Enable reporting of shader compilation timings.
+    bool enableCompilationReports = false;
 
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;
@@ -2891,6 +2989,8 @@ public:
         return pipeline;
     }
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReportList(ISlangBlob** outReportListBlob) = 0;
+
     /// Read back texture resource and stores the result in `outData`.
     /// `layout` is the layout to store the data in. It is the caller's responsibility to
     /// ensure that the layout is compatible with the texture format and mip level.
@@ -2955,7 +3055,7 @@ public:
     };
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertyCount) = 0;
+    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL
     convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;

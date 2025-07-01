@@ -72,7 +72,7 @@ struct BaseResolveResourceTest
         const SubresourceData* initData;
     };
 
-    void init(IDevice* device) { this->device = device; }
+    void init(IDevice* device_) { this->device = device_; }
 
     void createRequiredResources(TextureInfo msaaTextureInfo, TextureInfo dstTextureInfo, Format format)
     {
@@ -120,7 +120,7 @@ struct BaseResolveResourceTest
         vertexBuffer = createVertexBuffer(device);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadGraphicsProgram(
             device,
             shaderProgram,

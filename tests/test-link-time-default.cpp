@@ -97,14 +97,12 @@ static Result loadProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-// TODO(testing) Error on latest slang 2025.6.1
-/*
-GPU_TEST_CASE("link-time-default",  D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | NoDeviceCache)
+GPU_TEST_CASE("link-time-default", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | NoDeviceCache)
 {
     // Create pipeline without linking a specialization override module, so we should
     // see the default value of `extern Foo`.
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadProgram(device, shaderProgram, slangReflection, false));
 
     ComputePipelineDesc pipelineDesc = {};
@@ -171,4 +169,3 @@ GPU_TEST_CASE("link-time-default",  D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU 
 
     compareComputeResult(device, buffer, makeArray<float>(10.f));
 }
-*/

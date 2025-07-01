@@ -1,6 +1,7 @@
 #include "testing.h"
 
 #include <chrono>
+#include <cinttypes>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -67,9 +68,6 @@ GPU_TEST_CASE("benchmark-command", ALL)
                 auto computePass = commandEncoder->beginComputePass();
                 auto shaderObject = computePass->bindPipeline(shader.pipeline);
 
-                uint32_t a = 1;
-                uint32_t b = 2;
-
                 ShaderCursor cursor(shaderObject);
                 ShaderCursor block = cursor["addKernelData"];
                 block["a"].setBinding(bufA);
@@ -88,8 +86,8 @@ GPU_TEST_CASE("benchmark-command", ALL)
     }
 
     end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    fprintf(stderr, ": Duration: %lld ms)", duration);
+    int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    fprintf(stderr, ": Duration: %" PRIi64 " ms)", duration);
 
     queue->waitOnHost();
 

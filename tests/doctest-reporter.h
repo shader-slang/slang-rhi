@@ -11,16 +11,6 @@ namespace doctest {
 
 struct CustomReporter : public IReporter
 {
-    struct Options
-    {
-        bool checkDevices = false;
-    };
-    static Options& options()
-    {
-        static Options opts;
-        return opts;
-    }
-
     // caching pointers/references to objects of these types - safe to do
     std::ostream& stream;
     const ContextOptions& opt;
@@ -50,7 +40,7 @@ struct CustomReporter : public IReporter
         stream << Color::None;
         consoleReporter.test_run_start();
 
-        if (options().checkDevices)
+        if (rhi::testing::options().checkDevices)
         {
             checkDevices();
         }
@@ -252,7 +242,7 @@ private:
             device->getFeatures(&featureCount, nullptr);
             std::vector<rhi::Feature> features(featureCount);
             device->getFeatures(&featureCount, features.data());
-            printf("Features:     ");
+            printf("Features:\n");
             for (uint32_t i = 0; i < featureCount; i++)
                 printf("%s ", rhi::getRHI()->getFeatureName(features[i]));
             printf("\n");
@@ -262,10 +252,30 @@ private:
             device->getCapabilities(&capabilityCount, nullptr);
             std::vector<rhi::Capability> capabilities(capabilityCount);
             device->getCapabilities(&capabilityCount, capabilities.data());
-            printf("Capabilities: ");
+            printf("Capabilities:\n");
             for (uint32_t i = 0; i < capabilityCount; i++)
                 printf("%s ", rhi::getRHI()->getCapabilityName(capabilities[i]));
             printf("\n");
+        }
+        if (device->hasFeature(rhi::Feature::CooperativeVector))
+        {
+            uint32_t propertiesCount;
+            device->getCooperativeVectorProperties(nullptr, &propertiesCount);
+            std::vector<rhi::CooperativeVectorProperties> properties(propertiesCount);
+            device->getCooperativeVectorProperties(properties.data(), &propertiesCount);
+            printf("Cooperative Vector Properties:\n");
+            printf("inputType inputInterpretation matrixInterpretation biasInterpretation resultType\n");
+            for (const auto& prop : properties)
+            {
+                printf(
+                    "%-9s %-19s %-20s %-18s %-10s\n",
+                    rhi::enumToString(prop.inputType),
+                    rhi::enumToString(prop.inputInterpretation),
+                    rhi::enumToString(prop.matrixInterpretation),
+                    rhi::enumToString(prop.biasInterpretation),
+                    rhi::enumToString(prop.resultType)
+                );
+            }
         }
     }
 };

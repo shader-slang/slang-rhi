@@ -1,3 +1,4 @@
+#if SLANG_RHI_BUILD_TESTS_WITH_GLFW
 #include "testing.h"
 
 #if SLANG_WINDOWS_FAMILY
@@ -47,13 +48,13 @@ struct SurfaceTest
     virtual void initResources() = 0;
     virtual void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) = 0;
 
-    void init(IDevice* device)
+    void init(IDevice* device_)
     {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
         this->window = glfwCreateWindow(512, 512, "test-surface", nullptr, nullptr);
 
-        this->device = device;
+        this->device = device_;
         this->queue = device->getQueue(QueueType::Graphics);
         REQUIRE(this->queue);
         this->surface = device->createSurface(getWindowHandleFromGLFW(window));
@@ -74,9 +75,7 @@ struct SurfaceTest
         queue->waitOnHost();
 
         SurfaceConfig config = {};
-        config.format = surface->getInfo().preferredFormat;
         config.format = getSurfaceFormat();
-        config.usage = surface->getInfo().supportedUsage;
         config.width = width;
         config.height = height;
         config.vsync = false;
@@ -153,7 +152,7 @@ struct RenderSurfaceTest : SurfaceTest
         REQUIRE(vertexBuffer);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadGraphicsProgram(
             device,
             shaderProgram,
@@ -191,7 +190,7 @@ struct RenderSurfaceTest : SurfaceTest
         renderPass.colorAttachmentCount = 1;
 
         auto passEncoder = commandEncoder->beginRenderPass(renderPass);
-        auto rootObject = passEncoder->bindPipeline(pipeline);
+        passEncoder->bindPipeline(pipeline);
 
         RenderState renderState = {};
         renderState.viewports[0] = Viewport::fromSize(width, height);
@@ -218,13 +217,26 @@ struct ComputeSurfaceTest : SurfaceTest
 
     Format getSurfaceFormat() override
     {
-        return device->getDeviceType() == DeviceType::CUDA ? Format::RGBA8Unorm : surface->getInfo().preferredFormat;
+        // Choose an non-sRGB format to allow compute shader to write to the surface.
+        const SurfaceInfo& info = surface->getInfo();
+        for (uint32_t i = 0; i < info.formatCount; ++i)
+        {
+            switch (info.formats[i])
+            {
+            case Format::RGBA8Unorm:
+            case Format::BGRA8Unorm:
+                return info.formats[i];
+            default:
+                break;
+            }
+        }
+        return info.preferredFormat;
     }
 
     void initResources() override
     {
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection;
+        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-surface-compute", "computeMain", slangReflection));
 
         ComputePipelineDesc pipelineDesc = {};
@@ -234,7 +246,7 @@ struct ComputeSurfaceTest : SurfaceTest
 
     void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) override
     {
-        bool allowUnorderedAccess = is_set(surface->getInfo().supportedUsage, TextureUsage::UnorderedAccess);
+        bool allowUnorderedAccess = is_set(texture->getDesc().usage, TextureUsage::UnorderedAccess);
 
         if (!allowUnorderedAccess && (!renderTexture || renderTexture->getDesc().size.width != width ||
                                       renderTexture->getDesc().size.height != height))
@@ -324,3 +336,4 @@ GPU_TEST_CASE("surface-no-render", D3D11 | D3D12 | Vulkan | Metal | CUDA)
     CHECK(device->hasFeature(Feature::Surface));
     testSurface<NoRenderSurfaceTest>(device);
 }
+#endif // SLANG_RHI_BUILD_TESTS_WITH_GLFW

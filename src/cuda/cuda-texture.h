@@ -18,6 +18,8 @@ public:
 
     void* m_cudaExternalMemory = nullptr;
 
+    CUDA_RESOURCE_VIEW_DESC m_baseResourceViewDesc = {};
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 

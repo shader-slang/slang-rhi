@@ -8,7 +8,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("buffer-resource-states", D3D12 | Vulkan)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-dummy", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
@@ -63,7 +63,7 @@ GPU_TEST_CASE("buffer-resource-states", D3D12 | Vulkan)
 GPU_TEST_CASE("texture-resource-states", D3D12 | Vulkan)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection;
+    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-dummy", "computeMain", slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
@@ -76,8 +76,7 @@ GPU_TEST_CASE("texture-resource-states", D3D12 | Vulkan)
     for (uint32_t i = 1; i < (uint32_t)Format::_Count; ++i)
     {
         auto format = (Format)i;
-        const FormatInfo& info = getFormatInfo(format);
-        FormatSupport formatSupport;
+        FormatSupport formatSupport = FormatSupport::None;
         REQUIRE_CALL(device->getFormatSupport(format, &formatSupport));
 
         if (!is_set(formatSupport, FormatSupport::Texture))
