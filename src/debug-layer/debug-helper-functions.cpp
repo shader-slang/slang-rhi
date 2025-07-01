@@ -3,7 +3,6 @@
 #include "core/string.h"
 
 #include <string>
-#include <winscard.h>
 
 namespace rhi::debug {
 
