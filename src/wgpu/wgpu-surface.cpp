@@ -183,11 +183,25 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
-Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+Result SurfaceImpl::unconfigure()
 {
     if (!m_configured)
     {
-        *outTexture = nullptr;
+        return SLANG_OK;
+    }
+
+    m_device->m_ctx.api.wgpuSurfaceUnconfigure(m_surface);
+    m_configured = false;
+
+    return SLANG_OK;
+}
+
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+{
+    *outTexture = nullptr;
+
+    if (!m_configured)
+    {
         return SLANG_FAIL;
     }
 
@@ -195,7 +209,6 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success)
     {
-        *outTexture = nullptr;
         return SLANG_FAIL;
     }
 

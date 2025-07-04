@@ -58,8 +58,18 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return D3DSurface::configure(config);
 }
 
+Result SurfaceImpl::unconfigure()
+{
+    return D3DSurface::unconfigure();
+}
+
 Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
+    if (!m_configured)
+    {
+        *outTexture = nullptr;
+        return SLANG_FAIL;
+    }
     auto result = (int)m_swapChain3->GetCurrentBackBufferIndex();
     WaitForSingleObject(m_frameEvents[result], INFINITE);
     ResetEvent(m_frameEvents[result]);
@@ -69,6 +79,10 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
 Result SurfaceImpl::present()
 {
+    if (!m_configured)
+    {
+        return SLANG_FAIL;
+    }
     m_fence->SetEventOnCompletion(fenceValue, m_frameEvents[m_swapChain3->GetCurrentBackBufferIndex()]);
     SLANG_RETURN_ON_FAIL(D3DSurface::present());
     fenceValue++;

@@ -10,7 +10,7 @@ const SurfaceInfo& DebugSurface::getInfo()
     return baseObject->getInfo();
 }
 
-const SurfaceConfig& DebugSurface::getConfig()
+const SurfaceConfig* DebugSurface::getConfig()
 {
     SLANG_RHI_API_FUNC;
 
@@ -57,6 +57,23 @@ Result DebugSurface::configure(const SurfaceConfig& config)
     {
         m_configured = true;
         m_state = State::Initial;
+    }
+
+    return result;
+}
+
+Result DebugSurface::unconfigure()
+{
+    if (!m_configured)
+    {
+        RHI_VALIDATION_WARNING("Surface is not configured.");
+    }
+
+    Result result = baseObject->unconfigure();
+
+    if (SLANG_SUCCEEDED(result))
+    {
+        m_configured = false;
     }
 
     return result;

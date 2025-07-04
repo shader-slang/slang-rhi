@@ -81,7 +81,6 @@ public:
     uint32_t m_currentFrameIndex = 0;
     short_vector<VkImage> m_swapchainImages;
     uint32_t m_currentSwapchainImageIndex = -1;
-    bool m_configured = false;
 
 public:
     ~SurfaceImpl();
@@ -101,6 +100,7 @@ public:
     void destroySharedTexture(SharedTexture& sharedTexture);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };
@@ -778,8 +778,22 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
+Result SurfaceImpl::unconfigure()
+{
+    if (!m_configured)
+    {
+        return SLANG_OK;
+    }
+
+    m_configured = false;
+    destroySwapchain();
+    return SLANG_OK;
+}
+
 Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
+    *outTexture = nullptr;
+
     if (!m_configured)
     {
         return SLANG_FAIL;
@@ -802,7 +816,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         &m_currentSwapchainImageIndex
     );
 
-    if (result != VK_SUCCESS)
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         return SLANG_FAIL;
     }

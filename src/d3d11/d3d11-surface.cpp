@@ -44,6 +44,11 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return D3DSurface::configure(config);
 }
 
+Result SurfaceImpl::unconfigure()
+{
+    return D3DSurface::unconfigure();
+}
+
 Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurface)
 {
     RefPtr<SurfaceImpl> surface = new SurfaceImpl();

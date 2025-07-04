@@ -23,10 +23,13 @@
 namespace rhi {
 
 namespace example {
+static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
+static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
+static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized);
+static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
 static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height);
 } // namespace example
 
 class DebugPrinter : public IDebugCallback
@@ -65,7 +68,7 @@ public:
     virtual void update() = 0;
     virtual void draw() = 0;
 
-    virtual void onResize(int width, int height);
+    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight);
     virtual void onMousePosition(float x, float y) {}
     virtual void onMouseButton(int button, int action, int mods) {}
     virtual void onScroll(float x, float y) {}
@@ -85,14 +88,22 @@ ExampleBase::~ExampleBase()
     }
 }
 
-void ExampleBase::onResize(int width, int height)
+void ExampleBase::onResize(int width, int height, int framebufferWidth, int framebufferHeight)
 {
     if (surface)
     {
-        SurfaceConfig surfaceConfig;
-        surfaceConfig.width = width;
-        surfaceConfig.height = height;
-        surface->configure(surfaceConfig);
+        device->getQueue(QueueType::Graphics)->waitOnHost();
+        if (framebufferWidth > 0 && framebufferHeight > 0)
+        {
+            SurfaceConfig surfaceConfig;
+            surfaceConfig.width = framebufferWidth;
+            surfaceConfig.height = framebufferHeight;
+            surface->configure(surfaceConfig);
+        }
+        else
+        {
+            surface->unconfigure();
+        }
     }
 }
 
@@ -125,10 +136,13 @@ Result ExampleBase::createWindow(uint32_t width, uint32_t height)
         return SLANG_FAIL;
     }
     glfwSetWindowUserPointer(window, this);
+    glfwSetWindowSizeCallback(window, example::glfwWindowSizeCallback);
+    glfwSetWindowIconifyCallback(window, example::glfwWindowIconifyCallback);
+    glfwSetWindowMaximizeCallback(window, example::glfwWindowMaximizeCallback);
+    glfwSetFramebufferSizeCallback(window, example::glfwFramebufferSizeCallback);
     glfwSetCursorPosCallback(window, example::glfwCursorPosCallback);
     glfwSetMouseButtonCallback(window, example::glfwMouseButtonCallback);
     glfwSetScrollCallback(window, example::glfwScrollCallback);
-    glfwSetFramebufferSizeCallback(window, example::glfwFramebufferSizeCallback);
 
     return SLANG_OK;
 }
@@ -158,7 +172,7 @@ static std::vector<ExampleBase*>& getExamples()
 
 static void layoutWindows()
 {
-    static const int kMargin = 10;
+    static const int kMargin = 100;
 
     int wx, wy, ww, wh;
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -178,6 +192,66 @@ static void layoutWindows()
         glfwSetWindowPos(example->window, x, y);
         x += width;
     }
+}
+
+static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
+{
+    ExampleBase* origin = (ExampleBase*)glfwGetWindowUserPointer(window);
+    for (ExampleBase* example : getExamples())
+    {
+        if (example != origin)
+        {
+            glfwSetWindowSize(example->window, width, height);
+        }
+    }
+}
+
+static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified)
+{
+    ExampleBase* origin = (ExampleBase*)glfwGetWindowUserPointer(window);
+    for (ExampleBase* example : getExamples())
+    {
+        if (example != origin)
+        {
+            if (iconified)
+            {
+                glfwIconifyWindow(example->window);
+            }
+            else
+            {
+                glfwRestoreWindow(example->window);
+            }
+        }
+    }
+}
+
+static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized)
+{
+    ExampleBase* origin = (ExampleBase*)glfwGetWindowUserPointer(window);
+    for (ExampleBase* example : getExamples())
+    {
+        if (example != origin)
+        {
+            if (maximized)
+            {
+                glfwMaximizeWindow(example->window);
+            }
+            else
+            {
+                glfwRestoreWindow(example->window);
+            }
+        }
+    }
+}
+
+static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+    int windowWidth, windowHeight;
+    glfwGetWindowSize(window, &windowWidth, &windowHeight);
+    int framebufferWidth, framebufferHeight;
+    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+    ExampleBase* example = (ExampleBase*)glfwGetWindowUserPointer(window);
+    example->onResize(windowWidth, windowHeight, framebufferWidth, framebufferHeight);
 }
 
 static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos)
@@ -206,32 +280,15 @@ static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffse
     }
 }
 
-static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int height)
-{
-    ExampleBase* origin = (ExampleBase*)glfwGetWindowUserPointer(window);
-    int windowWidth, windowHeight;
-    glfwGetWindowSize(window, &windowWidth, &windowHeight);
-
-    for (ExampleBase* example : getExamples())
-    {
-        if (example != origin)
-        {
-            glfwSetWindowSize(example->window, windowWidth, windowHeight);
-        }
-        example->onResize(width, height);
-    }
-}
-
 template<typename Example>
 static int main(int argc, const char** argv)
 {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    std::vector<DeviceType> deviceTypes = {DeviceType::Default};
+    // std::vector<DeviceType> deviceTypes = {DeviceType::Vulkan};
     // std::vector<DeviceType> deviceTypes = {DeviceType::Vulkan, DeviceType::Metal, DeviceType::WGPU};
-    // std::vector<DeviceType> deviceTypes = {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan,
-    // DeviceType::WGPU};
+    std::vector<DeviceType> deviceTypes = {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan, DeviceType::WGPU};
     for (DeviceType deviceType : deviceTypes)
     {
         Example* example = new Example();

@@ -44,6 +44,9 @@ public:
 
     virtual void draw() override
     {
+        if (!surface->getConfig())
+            return;
+
         ComPtr<ITexture> texture;
         surface->acquireNextImage(texture.writeRef());
         if (!texture)
