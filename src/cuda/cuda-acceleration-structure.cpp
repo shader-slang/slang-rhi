@@ -196,8 +196,56 @@ Result AccelerationStructureBuildDescConverter::convert(
     }
     case AccelerationStructureBuildInputType::LinearSweptSpheres:
     {
-        return SLANG_E_NOT_AVAILABLE;
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputLinearSweptSpheres& linearSweptSpheres =
+                buildDesc.inputs[i].linearSweptSpheres;
+            if (linearSweptSpheres.vertexBufferCount != 1)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            if (linearSweptSpheres.vertexPositionFormat != Format::RGB32Float)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            if (linearSweptSpheres.vertexRadiusFormat != Format::R32Float)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            if (!linearSweptSpheres.indexBuffer)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            if (linearSweptSpheres.endCapsMode == LinearSweptSpheresEndCapsMode::None)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+            if (linearSweptSpheres.indexingMode != LinearSweptSpheresIndexingMode::Successive)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+
+            OptixBuildInput& buildInput = buildInputs[i];
+            buildInput = {};
+            buildInput.type = OPTIX_BUILD_INPUT_TYPE_CURVES;
+            buildInput.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+            buildInput.curveArray.numPrimitives = linearSweptSpheres.primitiveCount;
+
+            pointerList.push_back(linearSweptSpheres.vertexPositionBuffers[0].getDeviceAddress());
+            buildInput.curveArray.numVertices = linearSweptSpheres.vertexCount;
+            buildInput.curveArray.vertexBuffers = &pointerList.back();
+            buildInput.curveArray.vertexStrideInBytes = linearSweptSpheres.vertexPositionStride;
+
+            pointerList.push_back(linearSweptSpheres.vertexRadiusBuffers[0].getDeviceAddress());
+            buildInput.curveArray.widthBuffers = &pointerList.back();
+            buildInput.curveArray.widthStrideInBytes = linearSweptSpheres.vertexRadiusStride;
+
+            buildInput.curveArray.indexBuffer = linearSweptSpheres.indexBuffer.getDeviceAddress();
+
+            buildInput.curveArray.flag = translateGeometryFlags(linearSweptSpheres.flags);
+        }
     }
+    break;
     default:
         return SLANG_E_INVALID_ARG;
     }
