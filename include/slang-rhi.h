@@ -573,6 +573,7 @@ enum class NativeHandleType
     CUmipmappedArray = 0x00050006,
     CUtexObject = 0x00050007,
     CUsurfaceObject = 0x00050008,
+    CUcontext = 0x00050009,
 
     OptixDeviceContext = 0x00060001,
     OptixTraversableHandle = 0x00060002,
@@ -2679,8 +2680,8 @@ struct DeviceDesc
     DeviceType deviceType = DeviceType::Default;
     // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
     // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
-    // VkPhysicalDevice, and the third is the VkDevice. For CUDA, this only contains a single value for the
-    // CUDADevice.
+    // VkPhysicalDevice, and the third is the VkDevice. For CUDA, this contains a handle for the device,
+    // and optionally a handle for the context (if not provided, a context will be created internally).
     DeviceNativeHandles existingDeviceHandles;
     // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
     const AdapterLUID* adapterLUID = nullptr;
