@@ -45,12 +45,25 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     m_metalLayer->setDrawableSize(CGSize{(float)m_config.width, (float)m_config.height});
     m_metalLayer->setFramebufferOnly(m_config.usage == TextureUsage::RenderTarget);
     // m_metalLayer->setDisplaySyncEnabled(config.vsync);
+    m_configured = true;
 
+    return SLANG_OK;
+}
+
+Result SurfaceImpl::unconfigure()
+{
+    m_configured = false;
     return SLANG_OK;
 }
 
 Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
+    *outTexture = nullptr;
+    if (!m_configured)
+    {
+        return SLANG_FAIL;
+    }
+
     m_currentDrawable = NS::RetainPtr(m_metalLayer->nextDrawable());
     if (!m_currentDrawable)
     {

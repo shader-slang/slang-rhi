@@ -34,7 +34,6 @@ public:
 #if SLANG_APPLE_FAMILY
     void* m_metalLayer;
 #endif
-    bool m_configured = false;
 
 public:
     ~SurfaceImpl();
@@ -44,6 +43,7 @@ public:
     void destroySwapchain();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };

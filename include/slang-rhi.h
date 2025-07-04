@@ -2488,8 +2488,9 @@ class ISurface : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() = 0;
-    virtual SLANG_NO_THROW const SurfaceConfig& SLANG_MCALL getConfig() = 0;
+    virtual SLANG_NO_THROW const SurfaceConfig* SLANG_MCALL getConfig() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() = 0;
 

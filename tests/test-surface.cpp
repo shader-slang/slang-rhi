@@ -81,8 +81,9 @@ struct SurfaceTest
         config.vsync = false;
         REQUIRE_CALL(surface->configure(config));
 
-        CHECK(surface->getConfig().width == width);
-        CHECK(surface->getConfig().height == height);
+        CHECK(surface->getConfig());
+        CHECK(surface->getConfig()->width == width);
+        CHECK(surface->getConfig()->height == height);
     }
 
     void run()
@@ -91,7 +92,11 @@ struct SurfaceTest
         glfwGetFramebufferSize(window, &width, &height);
         configureSurface(width, height);
 
-        for (uint32_t i = 0; i < 10; ++i)
+        // Number of frames per test stage.
+        const uint32_t kFrameCount = 10;
+
+        // Render initial frames.
+        for (uint32_t i = 0; i < kFrameCount; ++i)
         {
             glfwPollEvents();
             ComPtr<ITexture> texture = surface->acquireNextImage();
@@ -106,7 +111,33 @@ struct SurfaceTest
         glfwGetFramebufferSize(window, &width, &height);
         configureSurface(width, height);
 
-        for (uint32_t i = 0; i < 10; ++i)
+        // Render resized frames.
+        for (uint32_t i = 0; i < kFrameCount; ++i)
+        {
+            glfwPollEvents();
+            ComPtr<ITexture> texture = surface->acquireNextImage();
+            CHECK(texture->getDesc().size.width == width);
+            CHECK(texture->getDesc().size.height == height);
+            renderFrame(texture, width, height, i);
+            surface->present();
+        }
+
+        // Minimize window & unconfigure surface.
+        glfwIconifyWindow(window);
+        queue->waitOnHost();
+        REQUIRE_CALL(surface->unconfigure());
+        for (uint32_t i = 0; i < kFrameCount; ++i)
+        {
+            glfwPollEvents();
+        }
+
+        // Restore window.
+        glfwRestoreWindow(window);
+        glfwGetFramebufferSize(window, &width, &height);
+        configureSurface(width, height);
+
+        // Render frames after restoring.
+        for (uint32_t i = 0; i < kFrameCount; ++i)
         {
             glfwPollEvents();
             ComPtr<ITexture> texture = surface->acquireNextImage();

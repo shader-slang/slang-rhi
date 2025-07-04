@@ -321,19 +321,29 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
+Result SurfaceImpl::unconfigure()
+{
+    if (!m_configured)
+    {
+        return SLANG_OK;
+    }
+
+    m_configured = false;
+    destroySwapchain();
+
+    return SLANG_OK;
+}
+
 Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
-    auto& api = m_device->m_api;
+    *outTexture = nullptr;
 
     if (!m_configured)
     {
         return SLANG_FAIL;
     }
 
-    if (m_textures.empty())
-    {
-        return -1;
-    }
+    auto& api = m_device->m_api;
 
     FrameData& frameData = m_frameData[m_currentFrameIndex];
     SLANG_VK_RETURN_ON_FAIL(api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
@@ -349,11 +359,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         (uint32_t*)&m_currentTextureIndex
     );
 
-    if (result != VK_SUCCESS
-#if SLANG_APPLE_FAMILY
-        && result != VK_SUBOPTIMAL_KHR
-#endif
-    )
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         return SLANG_FAIL;
     }

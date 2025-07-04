@@ -122,11 +122,27 @@ public:
         destroySwapchain();
         SLANG_RETURN_ON_FAIL(createSwapchain());
         m_configured = true;
+
+        return SLANG_OK;
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override
+    {
+        if (!m_configured)
+        {
+            return SLANG_OK;
+        }
+
+        m_configured = false;
+        destroySwapchain();
+
         return SLANG_OK;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override
     {
+        *outTexture = nullptr;
+
         if (!m_configured)
         {
             return SLANG_FAIL;
@@ -165,7 +181,6 @@ public:
     DXGI_SWAP_EFFECT m_swapEffect;
     ComPtr<IDXGISwapChain2> m_swapChain;
     short_vector<RefPtr<Texture>> m_textures;
-    bool m_configured = false;
 };
 
 } // namespace rhi
