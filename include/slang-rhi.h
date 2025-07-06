@@ -2403,16 +2403,25 @@ enum class QueueType
     Graphics,
 };
 
+// The NULL CUDA stream is valid (it refers to the default stream), so we
+// use this constant to indicate the absence of one.
+void* const kInvalidCUDAStream = reinterpret_cast<void* const>(~uintptr_t{0});
+
 struct SubmitDesc
 {
-    ICommandBuffer** commandBuffers;
-    uint32_t commandBufferCount;
-    IFence** waitFences;
-    const uint64_t* waitFenceValues;
-    uint32_t waitFenceCount;
-    IFence** signalFences;
-    const uint64_t* signalFenceValues;
-    uint32_t signalFenceCount;
+    ICommandBuffer** commandBuffers = nullptr;
+    uint32_t commandBufferCount = 0;
+    IFence** waitFences = nullptr;
+    const uint64_t* waitFenceValues = nullptr;
+    uint32_t waitFenceCount = 0;
+    IFence** signalFences = nullptr;
+    const uint64_t* signalFenceValues = nullptr;
+    uint32_t signalFenceCount = 0;
+
+    // The CUDA stream to use for the submission. Ignored on none-CUDA backends.
+    // If set to `kInvalidCUDAStream`, the CUDA stream associated with the device
+    // queue is used, which in the default case the default (NULL) stream.
+    void* cudaStream = kInvalidCUDAStream;
 };
 
 class ICommandQueue : public ISlangUnknown

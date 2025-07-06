@@ -16,7 +16,7 @@ class CommandExecutor
 {
 public:
     DeviceImpl* m_device;
-    CUstream m_stream;
+    CUstream m_activeStream;
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
@@ -34,7 +34,7 @@ public:
 
     CommandExecutor(DeviceImpl* device, CUstream stream)
         : m_device(device)
-        , m_stream(stream)
+        , m_activeStream(stream)
     {
     }
 
@@ -87,7 +87,7 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
     m_device->handleMessage(DebugMessageType::Warning, DebugMessageSource::Layer, cmd " command not implemented");
 
     // Upload constant buffer data
-    commandBuffer->m_constantBufferPool.upload(m_stream);
+    commandBuffer->m_constantBufferPool.upload(m_activeStream);
 
     const CommandList& commandList = commandBuffer->m_commandList;
     auto command = commandList.getCommands();
@@ -297,13 +297,13 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
     m_device->m_clearEngine
-        .clearTextureFloat(m_stream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
+        .clearTextureFloat(m_activeStream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
 }
 
 void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
     m_device->m_clearEngine
-        .clearTextureUint(m_stream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
+        .clearTextureUint(m_activeStream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
 }
 
 void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
@@ -453,7 +453,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         {
             SLANG_RHI_ASSERT(globalParamsSymbolSize == bindingData->globalParamsSize);
             SLANG_CUDA_ASSERT_ON_FAIL(
-                cuMemcpyAsync(globalParamsSymbol, bindingData->globalParams, globalParamsSymbolSize, m_stream)
+                cuMemcpyAsync(globalParamsSymbol, bindingData->globalParams, globalParamsSymbolSize, m_activeStream)
             );
         }
     }
@@ -482,7 +482,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         computePipeline->m_threadGroupSize[1],
         computePipeline->m_threadGroupSize[2],
         computePipeline->m_sharedMemorySize,
-        m_stream,
+        m_activeStream,
         nullptr,
         extraOptions
     ));
@@ -541,7 +541,7 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 
     SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
         m_rayTracingPipeline->m_pipeline,
-        m_stream,
+        m_activeStream,
         bindingData->globalParams,
         bindingData->globalParamsSize,
         &sbt,
@@ -580,7 +580,7 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
     SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelBuild(
         m_device->m_ctx.optixContext,
-        m_stream,
+        m_activeStream,
         &converter.buildOptions,
         converter.buildInputs.data(),
         converter.buildInputs.size(),
@@ -619,7 +619,7 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
 
                 optixAccelRelocate(
                     m_commandBuffer->m_device->m_ctx.optixContext,
-                    m_stream,
+                    m_activeStream,
                     &relocInfo,
                     &relocInput,
                     1,
@@ -633,7 +633,7 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
     case AccelerationStructureCopyMode::Compact:
         SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelCompact(
             m_device->m_ctx.optixContext,
-            m_stream,
+            m_activeStream,
             src->m_handle,
             dst->m_buffer,
             dst->m_desc.size,
@@ -699,7 +699,7 @@ void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
-    SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(queryPool->m_events[cmd.queryIndex], m_stream));
+    SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(queryPool->m_events[cmd.queryIndex], m_activeStream));
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -712,13 +712,25 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_stream, 0));
+    // On CUDA, treat the graphics stream as the default stream, identified
+    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
+    // they will be equivalent to secondary, none-default streams in cuda.
+    if(type == QueueType::Graphics) {
+        m_defaultStream = nullptr;
+    }
+    else {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_defaultStream, 0));
+    }
+    m_activeStream = (CUstream)kInvalidCUDAStream;
 }
 
 CommandQueueImpl::~CommandQueueImpl()
 {
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
+    SLANG_RHI_ASSERT(m_activeStream == (CUstream)kInvalidCUDAStream);
+    if(m_defaultStream) {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_defaultStream));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_defaultStream));
+    }
 }
 
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
@@ -732,6 +744,12 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // Select either the queue's default stream or the stream
+    // specified in the descriptor,and switch to it for the scope
+    // of this submission.
+    CUstream requestedStream = desc.cudaStream == kInvalidCUDAStream ? m_defaultStream : (CUstream)desc.cudaStream;
+    StreamScope select_stream(this, requestedStream);
 
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
@@ -748,7 +766,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Execute command buffers.
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(getDevice<DeviceImpl>(), m_stream);
+        CommandExecutor executor(getDevice<DeviceImpl>(), m_activeStream);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
 
@@ -758,7 +776,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
     }
 
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
+    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_activeStream));
 
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
         checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->reset();
@@ -770,7 +788,7 @@ Result CommandQueueImpl::waitOnHost()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_defaultStream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
     return SLANG_OK;
 }
@@ -778,7 +796,7 @@ Result CommandQueueImpl::waitOnHost()
 Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::CUstream;
-    outHandle->value = (uint64_t)m_stream;
+    outHandle->value = (uint64_t)m_defaultStream;
     return SLANG_OK;
 }
 
