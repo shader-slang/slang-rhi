@@ -751,6 +751,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless-descriptor-handles.cpp
+        tests/test-bind-pointers.cpp
         tests/test-blob.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
@@ -770,6 +771,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
+        tests/test-cuda-external-devices.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
         tests/test-fence.cpp
