@@ -161,7 +161,7 @@ GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal | CUDA)
     case DeviceType::CUDA:
     {
         CHECK_EQ(handle.type, NativeHandleType::CUstream);
-        CHECK_NE(handle.value, 0);
+        //CHECK_NE(handle.value, 0); (Null is valid - it's the default stream)
         break;
     }
     default:

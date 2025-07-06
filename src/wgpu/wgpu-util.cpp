@@ -419,6 +419,7 @@ WGPUPrimitiveTopology translatePrimitiveTopology(PrimitiveTopology topology)
         return WGPUPrimitiveTopology_TriangleStrip;
     case PrimitiveTopology::PatchList:
         SLANG_RHI_ASSERT_FAILURE("Patch tlist opology not supported.");
+        return WGPUPrimitiveTopology_Undefined;
     default:
         return WGPUPrimitiveTopology_Undefined;
     }
