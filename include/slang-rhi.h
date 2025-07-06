@@ -2405,7 +2405,7 @@ enum class QueueType
 
 // The NULL CUDA stream is valid (it refers to the default stream), so we
 // use this constant to indicate the absence of one.
-void* const kInvalidCUDAStream = reinterpret_cast<void* const>(~uintptr_t{0});
+void* const kInvalidCUDAStream = reinterpret_cast<void*>(~uintptr_t{0});
 
 struct SubmitDesc
 {
@@ -2689,8 +2689,9 @@ struct DeviceDesc
     DeviceType deviceType = DeviceType::Default;
     // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
     // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
-    // VkPhysicalDevice, and the third is the VkDevice. For CUDA, this contains a handle for the device,
-    // and optionally a handle for the context (if not provided, a context will be created internally).
+    // VkPhysicalDevice, and the third is the VkDevice.
+    // For CUDA, this contains a handle for the device and/or a handle for the context. If context is provided,
+    // device is ignored (and retreived from context). If only device is provided, a context is created for it.
     DeviceNativeHandles existingDeviceHandles;
     // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
     const AdapterLUID* adapterLUID = nullptr;
