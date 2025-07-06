@@ -1,11 +1,13 @@
 #include "testing.h"
+
+#if SLANG_RHI_ENABLE_CUDA
+
 #include <random>
 #include "../src/core/span.h"
 #include "../src/cuda/cuda-device.h"
 #include "../src/cuda/cuda-helper-functions.h"
 #include "../src/cuda/cuda-api.h"
 #include "debug-layer/debug-device.h"
-
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -154,3 +156,4 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
     // Clean up!
     cuStreamDestroy(stream);
 }
+#endif
