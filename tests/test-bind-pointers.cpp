@@ -5,7 +5,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-// TODO Add Metal when slang bug fixed
+// TODO Add Metal when slang bug https://github.com/shader-slang/slang/issues/7623 fixed
 GPU_TEST_CASE("bind-pointers", Vulkan | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
