@@ -1,4 +1,4 @@
-// compute-trivial.slang - Simple shader that takes a buffer and increments all elements by 1.
+// Simple shader that copies a buffer referred to by src ptr to dst ptr
 
 uniform uint32_t* src;
 uniform uint32_t* dst;
