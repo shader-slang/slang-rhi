@@ -9,7 +9,7 @@ public:
     ~ScopedDisableAsset();
 };
 
-[[noreturn]] void handleAssert(const char* message, const char* file, int line);
+void handleAssert(const char* message, const char* file, int line);
 
 } // namespace rhi
 
