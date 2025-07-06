@@ -9,7 +9,6 @@ namespace rhi::cuda {
 class CommandQueueImpl : public CommandQueue
 {
 public:
-
     // Helper to switch to a stream and be sure we switch back on
     // leaving scope, even if we had to bail out due to errors.
     struct StreamScope
@@ -22,10 +21,7 @@ public:
             m_queue->m_activeStream = stream;
         }
 
-        ~StreamScope()
-        {
-            m_queue->m_activeStream = (CUstream)kInvalidCUDAStream;
-        }
+        ~StreamScope() { m_queue->m_activeStream = (CUstream)kInvalidCUDAStream; }
     };
 
     CUstream m_defaultStream;

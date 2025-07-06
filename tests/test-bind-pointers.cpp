@@ -22,7 +22,7 @@ GPU_TEST_CASE("bind-pointers", Vulkan | CUDA | Metal)
     std::vector<uint8_t> data;
     std::mt19937 rng(124112);
     std::uniform_int_distribution<int> dist(0, 255);
-    data.resize(numberCount*4);
+    data.resize(numberCount * 4);
     for (auto& byte : data)
         byte = (uint8_t)dist(rng);
 
@@ -57,7 +57,7 @@ GPU_TEST_CASE("bind-pointers", Vulkan | CUDA | Metal)
         shaderCursor["src"].setData(src->getDeviceAddress());
         shaderCursor["dst"].setData(dst->getDeviceAddress());
 
-        passEncoder->dispatchCompute(numberCount/32,1,1);
+        passEncoder->dispatchCompute(numberCount / 32, 1, 1);
         passEncoder->end();
 
         queue->submit(commandEncoder->finish());

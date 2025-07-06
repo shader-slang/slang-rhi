@@ -296,14 +296,22 @@ void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    m_device->m_clearEngine
-        .clearTextureFloat(m_activeStream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
+    m_device->m_clearEngine.clearTextureFloat(
+        m_activeStream,
+        checked_cast<TextureImpl*>(cmd.texture),
+        cmd.subresourceRange,
+        cmd.clearValue
+    );
 }
 
 void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
-    m_device->m_clearEngine
-        .clearTextureUint(m_activeStream, checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.clearValue);
+    m_device->m_clearEngine.clearTextureUint(
+        m_activeStream,
+        checked_cast<TextureImpl*>(cmd.texture),
+        cmd.subresourceRange,
+        cmd.clearValue
+    );
 }
 
 void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
@@ -715,10 +723,12 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     // On CUDA, treat the graphics stream as the default stream, identified
     // by a NULL ptr. When we support async compute queues on d3d/vulkan,
     // they will be equivalent to secondary, none-default streams in cuda.
-    if(type == QueueType::Graphics) {
+    if (type == QueueType::Graphics)
+    {
         m_defaultStream = nullptr;
     }
-    else {
+    else
+    {
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_defaultStream, 0));
     }
     m_activeStream = (CUstream)kInvalidCUDAStream;
@@ -727,7 +737,8 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 CommandQueueImpl::~CommandQueueImpl()
 {
     SLANG_RHI_ASSERT(m_activeStream == (CUstream)kInvalidCUDAStream);
-    if(m_defaultStream) {
+    if (m_defaultStream)
+    {
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_defaultStream));
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_defaultStream));
     }

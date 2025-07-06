@@ -51,7 +51,7 @@ void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool exp
 
     // Create source buffer
     ComPtr<IBuffer> src;
-    REQUIRE_CALL(device->createBuffer(bufferDesc,data.data(), src.writeRef()));
+    REQUIRE_CALL(device->createBuffer(bufferDesc, data.data(), src.writeRef()));
 
     // Create dest buffer initialized to zeros
     std::vector<uint8_t> zeros;
@@ -101,7 +101,7 @@ void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool exp
 
     if (!expect_fail_to_copy)
         compareComputeResult(device, dst, span<uint8_t>(data));
-    else 
+    else
         compareComputeResult(device, dst, span<uint8_t>(zeros));
 }
 

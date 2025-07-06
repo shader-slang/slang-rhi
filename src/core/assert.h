@@ -11,7 +11,7 @@ public:
 
 [[noreturn]] void handleAssert(const char* message, const char* file, int line);
 
-}
+} // namespace rhi
 
 #define SLANG_RHI_DISABLE_ASSERT_SCOPE() ::rhi::ScopedDisableAsset __disable_assert;
 

@@ -12,7 +12,8 @@ ScopedDisableAsset::ScopedDisableAsset()
     gDisableAssert++;
 }
 
-ScopedDisableAsset::~ScopedDisableAsset() {
+ScopedDisableAsset::~ScopedDisableAsset()
+{
     gDisableAssert--;
 }
 

@@ -194,7 +194,6 @@ struct DeviceExtraOptions
     IPersistentCache* persistentPipelineCache = nullptr;
     bool enableCompilationReports = false;
     DeviceNativeHandles existingDeviceHandles;
-
 };
 
 ComPtr<IDevice> createTestingDevice(
