@@ -760,7 +760,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // specified in the descriptor,and switch to it for the scope
     // of this submission.
     CUstream requestedStream = desc.cudaStream == kInvalidCUDAStream ? m_defaultStream : (CUstream)desc.cudaStream;
-    StreamScope select_stream(this, requestedStream);
+    StreamScope selectStream(this, requestedStream);
 
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
