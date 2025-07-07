@@ -737,11 +737,50 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 CommandQueueImpl::~CommandQueueImpl()
 {
     SLANG_RHI_ASSERT(m_activeStream == (CUstream)kInvalidCUDAStream);
+
+    // Block on all events completing
+    for (const auto& commandBuffer : m_commandBuffersInFlight)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(commandBuffer->m_completionEvent));
+    }
+
+    // Retire finished command buffers, which should be all of them
+    retireCommandBuffers();
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
+
+    // Sync/destroy the stream
     if (m_defaultStream)
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_defaultStream));
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_defaultStream));
     }
+}
+
+Result CommandQueueImpl::retireCommandBuffers()
+{
+    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
+    m_commandBuffersInFlight.clear();
+
+    for (const auto& commandBuffer : commandBuffers)
+    {
+        CUresult result = cuEventQuery(commandBuffer->m_completionEvent);
+        if (result == CUDA_SUCCESS)
+        {
+            // Event is complete.
+            // We aren't recycling, so all we have to do is destroy the event
+            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(commandBuffer->m_completionEvent));
+        }
+        else if (result == CUDA_ERROR_NOT_READY)
+        {
+            // Not ready means event hasn't been triggered yet, so it's still in-flight.
+            m_commandBuffersInFlight.push_back(commandBuffer);
+        }
+        else
+        {
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, m_device);
+        }
+    }
+    return SLANG_OK;
 }
 
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
@@ -755,6 +794,9 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // Check if we need to retire command buffers that have completed.
+    retireCommandBuffers();
 
     // Select either the queue's default stream or the stream
     // specified in the descriptor,and switch to it for the scope
@@ -777,8 +819,15 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Execute command buffers.
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
+        // Get/execute the buffer.
+        CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         CommandExecutor executor(getDevice<DeviceImpl>(), m_activeStream);
-        SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
+        SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
+
+        // Only record command buffer if executor succeeds and we correctly add it to the active stream
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, 0));
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, m_activeStream));
+        m_commandBuffersInFlight.push_back(commandBuffer);
     }
 
     // Signal fences.
@@ -786,8 +835,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
     }
-
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_activeStream));
 
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
         checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->reset();
@@ -801,6 +848,13 @@ Result CommandQueueImpl::waitOnHost()
 
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_defaultStream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
+
+    // Retire command buffers that have completed.
+    retireCommandBuffers();
+
+    // If there's any left, it represents a bug in slang-rhi
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
+
     return SLANG_OK;
 }
 

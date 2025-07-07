@@ -4,3 +4,5 @@ build/
 external/optix
 
 .vs/
+
+*.nsys-rep
