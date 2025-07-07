@@ -712,13 +712,26 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_stream, 0));
+    // On CUDA, treat the graphics stream as the default stream, identified
+    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
+    // they will be equivalent to secondary, none-default streams in cuda.
+    if (type == QueueType::Graphics)
+    {
+        m_stream = nullptr;
+    }
+    else
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_stream, 0));
+    }
 }
 
 CommandQueueImpl::~CommandQueueImpl()
 {
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
+    if (m_stream)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
+    }
 }
 
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
@@ -732,6 +745,11 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // Select either the queue's default stream or the stream
+    // specified in the descriptor,and switch to it for the scope
+    // of this submission.
+    CUstream requestedStream = desc.cudaStream == kInvalidCUDAStream ? m_stream : (CUstream)desc.cudaStream;
 
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
@@ -748,7 +766,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Execute command buffers.
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(getDevice<DeviceImpl>(), m_stream);
+        CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
 
@@ -758,7 +776,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
     }
 
-    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
+    SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(requestedStream));
 
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
         checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->reset();

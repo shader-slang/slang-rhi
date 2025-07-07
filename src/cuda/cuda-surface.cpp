@@ -841,6 +841,9 @@ Result SurfaceImpl::present()
     VkImage swapchainImage = m_swapchainImages[m_currentSwapchainImageIndex];
     VkImage sharedImage = frameData.sharedTexture.vulkanImage;
 
+    // On classic graphics devices surface presentation would syncronize with the graphics queue. This
+    // is emulated in CUDA by treating the default (NULL) CUDA stream as the graphics queue.
+
     // Signal semaphore on CUDA stream.
     // This would be the preferred way, but leads to Vulkan validation errors because
     // the validation layer cannot se the signal sent from the CUDA stream.
@@ -852,7 +855,8 @@ Result SurfaceImpl::present()
     }
 #endif
 
-    // Synchronize the CUDA stream and manually signal semaphore on Vulkan (avoid validation errors above).
+    // As the semaphore approach doesn't currently work, call cuStreamSynchronize, which blocks
+    // the host until the default CUDA stream is completely drained.
 #if 1
     {
         cuStreamSynchronize(m_deviceImpl->m_queue->m_stream);

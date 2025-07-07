@@ -29,6 +29,7 @@ public:
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
+    bool m_ownsContext = false;
 
 public:
     using Device::readBuffer;

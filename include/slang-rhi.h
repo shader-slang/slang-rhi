@@ -573,6 +573,7 @@ enum class NativeHandleType
     CUmipmappedArray = 0x00050006,
     CUtexObject = 0x00050007,
     CUsurfaceObject = 0x00050008,
+    CUcontext = 0x00050009,
 
     OptixDeviceContext = 0x00060001,
     OptixTraversableHandle = 0x00060002,
@@ -2402,16 +2403,25 @@ enum class QueueType
     Graphics,
 };
 
+// The NULL CUDA stream is valid (it refers to the default stream), so we
+// use this constant to indicate the absence of one.
+void* const kInvalidCUDAStream = reinterpret_cast<void*>(~uintptr_t{0});
+
 struct SubmitDesc
 {
-    ICommandBuffer** commandBuffers;
-    uint32_t commandBufferCount;
-    IFence** waitFences;
-    const uint64_t* waitFenceValues;
-    uint32_t waitFenceCount;
-    IFence** signalFences;
-    const uint64_t* signalFenceValues;
-    uint32_t signalFenceCount;
+    ICommandBuffer** commandBuffers = nullptr;
+    uint32_t commandBufferCount = 0;
+    IFence** waitFences = nullptr;
+    const uint64_t* waitFenceValues = nullptr;
+    uint32_t waitFenceCount = 0;
+    IFence** signalFences = nullptr;
+    const uint64_t* signalFenceValues = nullptr;
+    uint32_t signalFenceCount = 0;
+
+    // The CUDA stream to use for the submission. Ignored on non-CUDA backends.
+    // If set to `kInvalidCUDAStream`, the CUDA stream associated with the device
+    // queue is used, which in the default case the default (NULL) stream.
+    void* cudaStream = kInvalidCUDAStream;
 };
 
 class ICommandQueue : public ISlangUnknown
@@ -2679,8 +2689,9 @@ struct DeviceDesc
     DeviceType deviceType = DeviceType::Default;
     // The device's handles (if they exist) and their associated API. For D3D12, this contains a single
     // NativeHandle for the ID3D12Device. For Vulkan, the first NativeHandle is the VkInstance, the second is the
-    // VkPhysicalDevice, and the third is the VkDevice. For CUDA, this only contains a single value for the
-    // CUDADevice.
+    // VkPhysicalDevice, and the third is the VkDevice.
+    // For CUDA, this contains a handle for the device and/or a handle for the context. If context is provided,
+    // device is ignored (and retreived from context). If only device is provided, a context is created for it.
     DeviceNativeHandles existingDeviceHandles;
     // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
     const AdapterLUID* adapterLUID = nullptr;
