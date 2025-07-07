@@ -2418,7 +2418,7 @@ struct SubmitDesc
     const uint64_t* signalFenceValues = nullptr;
     uint32_t signalFenceCount = 0;
 
-    // The CUDA stream to use for the submission. Ignored on none-CUDA backends.
+    // The CUDA stream to use for the submission. Ignored on non-CUDA backends.
     // If set to `kInvalidCUDAStream`, the CUDA stream associated with the device
     // queue is used, which in the default case the default (NULL) stream.
     void* cudaStream = kInvalidCUDAStream;

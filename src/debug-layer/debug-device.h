@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include "debug-base.h"
