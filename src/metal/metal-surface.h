@@ -16,6 +16,7 @@ public:
     ~SurfaceImpl();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };

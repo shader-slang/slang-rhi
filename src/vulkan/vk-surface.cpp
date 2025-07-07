@@ -197,14 +197,14 @@ Result SurfaceImpl::createSwapchain()
     for (uint32_t i = 0; i < swapchainImageCount; i++)
     {
         TextureDesc textureDesc = {};
-        textureDesc.usage = m_config.usage;
         textureDesc.type = TextureType::Texture2D;
-        textureDesc.arrayLength = 1;
-        textureDesc.format = m_config.format;
         textureDesc.size.width = m_config.width;
         textureDesc.size.height = m_config.height;
         textureDesc.size.depth = 1;
+        textureDesc.arrayLength = 1;
         textureDesc.mipCount = 1;
+        textureDesc.format = m_config.format;
+        textureDesc.usage = m_config.usage;
         textureDesc.defaultState = ResourceState::Present;
         RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
         texture->m_image = swapchainImages[i];
@@ -321,19 +321,29 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
+Result SurfaceImpl::unconfigure()
+{
+    if (!m_configured)
+    {
+        return SLANG_OK;
+    }
+
+    m_configured = false;
+    destroySwapchain();
+
+    return SLANG_OK;
+}
+
 Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
-    auto& api = m_device->m_api;
+    *outTexture = nullptr;
 
     if (!m_configured)
     {
         return SLANG_FAIL;
     }
 
-    if (m_textures.empty())
-    {
-        return -1;
-    }
+    auto& api = m_device->m_api;
 
     FrameData& frameData = m_frameData[m_currentFrameIndex];
     SLANG_VK_RETURN_ON_FAIL(api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
@@ -349,11 +359,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         (uint32_t*)&m_currentTextureIndex
     );
 
-    if (result != VK_SUCCESS
-#if SLANG_APPLE_FAMILY
-        && result != VK_SUBOPTIMAL_KHR
-#endif
-    )
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         return SLANG_FAIL;
     }

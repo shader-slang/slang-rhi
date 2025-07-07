@@ -3,6 +3,7 @@
 #include "cuda-base.h"
 #include "cuda-helper-functions.h"
 #include "cuda-clear-engine.h"
+#include "cuda-dual-page-allocator.h"
 
 namespace rhi::cuda {
 
@@ -29,6 +30,8 @@ public:
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
+    bool m_ownsContext = false;
+    DualPageAllocator m_dualPageAllocator;
 
 public:
     using Device::readBuffer;

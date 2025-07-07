@@ -148,6 +148,7 @@ DeviceImpl::~DeviceImpl()
         m_uploadHeap.release();
         m_readbackHeap.release();
         m_clearEngine.release();
+        m_dualPageAllocator.reset();
 
         m_queue.setNull();
 
@@ -159,7 +160,7 @@ DeviceImpl::~DeviceImpl()
 #endif
     }
 
-    if (m_ctx.context)
+    if (m_ownsContext && m_ctx.context)
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuCtxDestroy(m_ctx.context));
     }
@@ -185,28 +186,56 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_RETURN_ON_FAIL(_initCuda());
 
-    int selectedDeviceIndex = -1;
-    if (desc.adapterLUID)
+    for (const auto& handle : desc.existingDeviceHandles.handles)
     {
-        int deviceCount = -1;
-        SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetCount(&deviceCount));
-        for (int deviceIndex = 0; deviceIndex < deviceCount; ++deviceIndex)
+        if (handle.type == NativeHandleType::CUdevice)
         {
-            if (cuda::getAdapterLUID(deviceIndex) == *desc.adapterLUID)
-            {
-                selectedDeviceIndex = deviceIndex;
-                break;
-            }
+            m_ctx.device = (CUdevice)handle.value;
         }
+        else if (handle.type == NativeHandleType::CUcontext)
+        {
+            m_ctx.context = (CUcontext)handle.value;
+        }
+    }
+
+    if (m_ctx.context)
+    {
+        // User provided context. Get the device from it to be sure it matches.
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxGetDevice(&m_ctx.device), this);
+    }
+    else if (m_ctx.device >= 0)
+    {
+        // User provided device. Create a context for it.
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), this);
+        m_ownsContext = true;
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&selectedDeviceIndex));
+        // User provided no external handles, so we need to create a device and context.
+        int selectedDeviceIndex = -1;
+        if (desc.adapterLUID)
+        {
+            int deviceCount = -1;
+            SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetCount(&deviceCount));
+            for (int deviceIndex = 0; deviceIndex < deviceCount; ++deviceIndex)
+            {
+                if (cuda::getAdapterLUID(deviceIndex) == *desc.adapterLUID)
+                {
+                    selectedDeviceIndex = deviceIndex;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&selectedDeviceIndex));
+        }
+
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, selectedDeviceIndex), this);
+
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), this);
+        m_ownsContext = true;
     }
-
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, selectedDeviceIndex), this);
-
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), this);
 
     SLANG_CUDA_CTX_SCOPE(this);
 
@@ -372,6 +401,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
+
+    SLANG_RETURN_ON_FAIL(m_dualPageAllocator.init(this));
 
     return SLANG_OK;
 }

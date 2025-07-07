@@ -297,7 +297,10 @@ public:
 
 public:
     virtual SLANG_NO_THROW const SurfaceInfo& SLANG_MCALL getInfo() override { return m_info; }
-    virtual SLANG_NO_THROW const SurfaceConfig& SLANG_MCALL getConfig() override { return m_config; }
+    virtual SLANG_NO_THROW const SurfaceConfig* SLANG_MCALL getConfig() override
+    {
+        return m_configured ? &m_config : nullptr;
+    }
 
 public:
     void setInfo(const SurfaceInfo& info);
@@ -307,6 +310,7 @@ public:
     StructHolder m_infoHolder;
     SurfaceConfig m_config;
     StructHolder m_configHolder;
+    bool m_configured = false;
 };
 
 struct DebugCallbackAdapter

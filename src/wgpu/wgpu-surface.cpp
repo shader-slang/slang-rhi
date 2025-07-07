@@ -183,11 +183,25 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
-Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+Result SurfaceImpl::unconfigure()
 {
     if (!m_configured)
     {
-        *outTexture = nullptr;
+        return SLANG_OK;
+    }
+
+    m_device->m_ctx.api.wgpuSurfaceUnconfigure(m_surface);
+    m_configured = false;
+
+    return SLANG_OK;
+}
+
+Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
+{
+    *outTexture = nullptr;
+
+    if (!m_configured)
+    {
         return SLANG_FAIL;
     }
 
@@ -195,21 +209,19 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success)
     {
-        *outTexture = nullptr;
         return SLANG_FAIL;
     }
 
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
-    textureDesc.memoryType = MemoryType::DeviceLocal;
-    textureDesc.usage = m_config.usage;
-    textureDesc.defaultState = ResourceState::Present;
     textureDesc.size.width = m_config.width;
     textureDesc.size.height = m_config.height;
     textureDesc.size.depth = 1;
     textureDesc.arrayLength = 1;
     textureDesc.mipCount = 1;
     textureDesc.format = m_config.format;
+    textureDesc.usage = m_config.usage;
+    textureDesc.defaultState = ResourceState::Present;
 
     RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
     texture->m_texture = surfaceTexture.texture;

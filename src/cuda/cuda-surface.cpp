@@ -81,7 +81,6 @@ public:
     uint32_t m_currentFrameIndex = 0;
     short_vector<VkImage> m_swapchainImages;
     uint32_t m_currentSwapchainImageIndex = -1;
-    bool m_configured = false;
 
 public:
     ~SurfaceImpl();
@@ -101,6 +100,7 @@ public:
     void destroySharedTexture(SharedTexture& sharedTexture);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL acquireNextImage(ITexture** outTexture) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };
@@ -712,16 +712,14 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     // Create CUDA texture.
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
-    textureDesc.memoryType = MemoryType::DeviceLocal;
-    textureDesc.usage =
-        TextureUsage::RenderTarget | TextureUsage::CopyDestination | TextureUsage::Present | TextureUsage::Shared;
-    textureDesc.defaultState = ResourceState::RenderTarget;
     textureDesc.size.width = m_config.width;
     textureDesc.size.height = m_config.height;
-    textureDesc.size.depth = 0;
+    textureDesc.size.depth = 1;
     textureDesc.arrayLength = 1;
     textureDesc.mipCount = 1;
     textureDesc.format = m_config.format;
+    textureDesc.usage = m_config.usage;
+    textureDesc.defaultState = ResourceState::Present;
     SLANG_RETURN_ON_FAIL(m_deviceImpl->createTextureFromSharedHandle(
         sharedTexture.sharedHandle,
         textureDesc,
@@ -778,8 +776,22 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     return SLANG_OK;
 }
 
+Result SurfaceImpl::unconfigure()
+{
+    if (!m_configured)
+    {
+        return SLANG_OK;
+    }
+
+    m_configured = false;
+    destroySwapchain();
+    return SLANG_OK;
+}
+
 Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
+    *outTexture = nullptr;
+
     if (!m_configured)
     {
         return SLANG_FAIL;
@@ -802,7 +814,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         &m_currentSwapchainImageIndex
     );
 
-    if (result != VK_SUCCESS)
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         return SLANG_FAIL;
     }
@@ -827,6 +839,9 @@ Result SurfaceImpl::present()
     VkImage swapchainImage = m_swapchainImages[m_currentSwapchainImageIndex];
     VkImage sharedImage = frameData.sharedTexture.vulkanImage;
 
+    // On classic graphics devices surface presentation would syncronize with the graphics queue. This
+    // is emulated in CUDA by treating the default (NULL) CUDA stream as the graphics queue.
+
     // Signal semaphore on CUDA stream.
     // This would be the preferred way, but leads to Vulkan validation errors because
     // the validation layer cannot se the signal sent from the CUDA stream.
@@ -838,7 +853,8 @@ Result SurfaceImpl::present()
     }
 #endif
 
-    // Synchronize the CUDA stream and manually signal semaphore on Vulkan (avoid validation errors above).
+    // As the semaphore approach doesn't currently work, call cuStreamSynchronize, which blocks
+    // the host until the default CUDA stream is completely drained.
 #if 1
     {
         cuStreamSynchronize(m_deviceImpl->m_queue->m_stream);

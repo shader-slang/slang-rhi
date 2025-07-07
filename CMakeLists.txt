@@ -115,7 +115,7 @@ set(SLANG_RHI_FETCH_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/
 
 # Fetch Agility SDK options
 option(SLANG_RHI_FETCH_AGILITY_SDK "Fetch Agility SDK" ON)
-set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.616.0" CACHE STRING "Agility SDK version to fetch")
+set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.616.1" CACHE STRING "Agility SDK version to fetch")
 
 # Fetch NVAPI options
 option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
@@ -688,6 +688,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-fence.cpp
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-nvrtc.cpp
+        src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
         src/cuda/cuda-shader-object-layout.cpp
@@ -751,6 +752,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless-descriptor-handles.cpp
+        tests/test-bind-pointers.cpp
         tests/test-blob.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
@@ -770,6 +772,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
+        tests/test-cuda-external-devices.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
         tests/test-fence.cpp
@@ -836,6 +839,11 @@ if(SLANG_RHI_BUILD_TESTS)
         find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
     endif()
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/$<CONFIG>/nsystests.bat INPUT ${CMAKE_CURRENT_SOURCE_DIR}/tools/nsystests.bat.ln)
+    endif()
+
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
