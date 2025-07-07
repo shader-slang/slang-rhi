@@ -1,0 +1,1 @@
+nsys profile --trace=cuda,nvtx %~dp0\slang-rhi-tests.exe %*

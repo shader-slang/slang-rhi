@@ -838,6 +838,11 @@ if(SLANG_RHI_BUILD_TESTS)
         find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
     endif()
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/$<CONFIG>/nsystests.bat INPUT ${CMAKE_CURRENT_SOURCE_DIR}/tools/nsystests.bat.ln)
+    endif()
+
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
