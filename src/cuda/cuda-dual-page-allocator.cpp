@@ -57,11 +57,10 @@ Result DualPageAllocator::allocate(size_t minSize, DualPageAllocator::Handle** h
 
 Result DualPageAllocator::allocate(size_t minSize, DualPageAllocator::Page& outPage)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
     if (minSize == 0)
     {
         outPage = {};
-        return SLANG_OK;
+        return SLANG_E_INVALID_ARG;
     }
 
     size_t idx = nextPowerOf2(minSize);
@@ -69,6 +68,8 @@ Result DualPageAllocator::allocate(size_t minSize, DualPageAllocator::Page& outP
     {
         return SLANG_E_OUT_OF_MEMORY;
     }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     // Get existing or create new page.
     if (m_freePages[idx].empty())
@@ -102,12 +103,12 @@ Result DualPageAllocator::allocate(size_t minSize, DualPageAllocator::Page& outP
 
 Result DualPageAllocator::free(Page page)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
     if (page.hostData == nullptr && page.deviceData == 0)
     {
-        // Nothing to free
-        return SLANG_OK;
+        return SLANG_E_INVALID_ARG;
     }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     SLANG_RHI_ASSERT(m_totalAllocated > 0);
     m_totalAllocated -= page.size;
