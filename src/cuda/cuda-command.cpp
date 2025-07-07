@@ -727,6 +727,17 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 
 CommandQueueImpl::~CommandQueueImpl()
 {
+    // Block on all events completing
+    for (const auto& commandBuffer : m_commandBuffersInFlight)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(commandBuffer->m_completionEvent));
+    }
+
+    // Retire finished command buffers, which should be all of them
+    retireCommandBuffers();
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
+
+    // Sync/destroy the stream
     if (m_stream)
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
@@ -766,8 +777,15 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Execute command buffers.
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
+        // Get/execute the buffer.
+        CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
-        SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
+        SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
+
+        // Only record command buffer if executor succeeds and we correctly add it to the active stream
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, 0));
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, requestedStream));
+        m_commandBuffersInFlight.push_back(commandBuffer);
     }
 
     // Signal fences.
