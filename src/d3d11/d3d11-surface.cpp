@@ -20,11 +20,11 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
     m_swapChain->GetBuffer(0, IID_PPV_ARGS(d3dResource.writeRef()));
     TextureDesc textureDesc = {};
     textureDesc.type = TextureType::Texture2D;
-    textureDesc.arrayLength = 1;
-    textureDesc.mipCount = 1;
     textureDesc.size.width = m_config.width;
     textureDesc.size.height = m_config.height;
     textureDesc.size.depth = 1;
+    textureDesc.arrayLength = 1;
+    textureDesc.mipCount = 1;
     textureDesc.format = m_config.format;
     textureDesc.usage = m_config.usage;
     textureDesc.defaultState = ResourceState::Present;

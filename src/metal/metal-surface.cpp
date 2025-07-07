@@ -71,14 +71,14 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     }
 
     TextureDesc textureDesc = {};
-    textureDesc.usage = m_config.usage;
     textureDesc.type = TextureType::Texture2D;
-    textureDesc.arrayLength = 1;
-    textureDesc.format = m_config.format;
     textureDesc.size.width = m_config.width;
     textureDesc.size.height = m_config.height;
     textureDesc.size.depth = 1;
+    textureDesc.arrayLength = 1;
     textureDesc.mipCount = 1;
+    textureDesc.format = m_config.format;
+    textureDesc.usage = m_config.usage;
     textureDesc.defaultState = ResourceState::Present;
     RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
     texture->m_texture = NS::RetainPtr(m_currentDrawable->texture());
