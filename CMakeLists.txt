@@ -688,7 +688,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-fence.cpp
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-nvrtc.cpp
-        "src/cuda/cuda-submit-page-allocator.cpp"
+        src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
         src/cuda/cuda-shader-object-layout.cpp

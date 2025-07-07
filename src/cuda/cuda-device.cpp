@@ -148,6 +148,7 @@ DeviceImpl::~DeviceImpl()
         m_uploadHeap.release();
         m_readbackHeap.release();
         m_clearEngine.release();
+        m_dualPageAllocator.reset();
 
         m_queue.setNull();
 
@@ -399,6 +400,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_queue->setInternalReferenceCount(1);
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
+
+    SLANG_RETURN_ON_FAIL(m_dualPageAllocator.init(this));
 
     return SLANG_OK;
 }

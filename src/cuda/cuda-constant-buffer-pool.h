@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cuda-base.h"
+#include "cuda-dual-page-allocator.h"
 
 #include <vector>
 
@@ -15,8 +16,6 @@ public:
         CUdeviceptr deviceData;
     };
 
-    ~ConstantBufferPool();
-
     void init(DeviceImpl* device);
     void upload(CUstream stream);
     void reset();
@@ -29,9 +28,7 @@ private:
 
     struct Page
     {
-        uint8_t* hostData = nullptr;
-        CUdeviceptr deviceData = 0;
-        size_t size = 0;
+        RefPtr<DualPageAllocator::Handle> handle;
         size_t usedSize = 0;
     };
 
@@ -44,7 +41,6 @@ private:
     size_t m_currentOffset = 0;
 
     Result createPage(size_t size, Page& outPage);
-    void destroyPage(Page& page);
 };
 
 } // namespace rhi::cuda

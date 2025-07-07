@@ -727,8 +727,6 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 
 CommandQueueImpl::~CommandQueueImpl()
 {
-    SLANG_RHI_ASSERT(m_activeStream == (CUstream)kInvalidCUDAStream);
-
     // Block on all events completing
     for (const auto& commandBuffer : m_commandBuffersInFlight)
     {
@@ -811,12 +809,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         // Get/execute the buffer.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
-        CommandExecutor executor(getDevice<DeviceImpl>(), m_stream);
+        CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
         // Only record command buffer if executor succeeds and we correctly add it to the active stream
         SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, 0));
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, m_stream));
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, requestedStream));
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 
