@@ -11,8 +11,11 @@ class CommandQueueImpl : public CommandQueue
 public:
     CUstream m_stream;
 
+    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
+
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
+    Result retireCommandBuffers();
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
@@ -42,6 +45,7 @@ class CommandBufferImpl : public CommandBuffer
 public:
     BindingCache m_bindingCache;
     ConstantBufferPool m_constantBufferPool;
+    CUevent m_completionEvent = nullptr;
 
     CommandBufferImpl(Device* device);
     virtual ~CommandBufferImpl() = default;

@@ -688,6 +688,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-fence.cpp
         src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-nvrtc.cpp
+        src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
         src/cuda/cuda-shader-object-layout.cpp
@@ -837,6 +838,11 @@ if(SLANG_RHI_BUILD_TESTS)
         find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
     endif()
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/$<CONFIG>/nsystests.bat INPUT ${CMAKE_CURRENT_SOURCE_DIR}/tools/nsystests.bat.ln)
+    endif()
+
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
