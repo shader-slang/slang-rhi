@@ -289,7 +289,80 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
         {
             const AccelerationStructureBuildInputLinearSweptSpheres& linearSweptSpheres =
                 buildDesc.inputs[i].linearSweptSpheres;
-            SLANG_UNUSED(linearSweptSpheres);
+
+            if (ctx->deviceType == DeviceType::CUDA)
+            {
+                if (linearSweptSpheres.endCapsMode == LinearSweptSpheresEndCapsMode::None)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires endCapsMode to be Chained.");
+                }
+
+                if (linearSweptSpheres.indexingMode != LinearSweptSpheresIndexingMode::Successive)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires indexingMode to be Successive.");
+                }
+
+                if (linearSweptSpheres.indexFormat != IndexFormat::Uint32)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires indexFormat to be Uint32.");
+                }
+
+                if (!linearSweptSpheres.indexBuffer)
+                {
+                    RHI_VALIDATION_ERROR("OptiX requires indexBuffer.");
+                }
+            }
+
+            switch (linearSweptSpheres.vertexPositionFormat)
+            {
+            case Format::RGB32Float:
+                break;
+            default:
+                RHI_VALIDATION_ERROR("Unsupported vertexPositionFormat. Valid values are RGB32Float.");
+            }
+
+            switch (linearSweptSpheres.vertexRadiusFormat)
+            {
+            case Format::R32Float:
+                break;
+            default:
+                RHI_VALIDATION_ERROR("Unsupported vertexRadiusFormat. Valid values are R32Float.");
+            }
+
+            if (linearSweptSpheres.indexBuffer)
+            {
+                if (linearSweptSpheres.indexingMode == LinearSweptSpheresIndexingMode::List)
+                {
+                    if (linearSweptSpheres.indexCount < linearSweptSpheres.primitiveCount * 2)
+                    {
+                        RHI_VALIDATION_ERROR("indexCount must be >= primitiveCount * 2 when indexingMode is List.");
+                    }
+                }
+                else if (linearSweptSpheres.indexingMode == LinearSweptSpheresIndexingMode::Successive)
+                {
+                    if (linearSweptSpheres.indexCount < linearSweptSpheres.primitiveCount)
+                    {
+                        RHI_VALIDATION_ERROR("indexCount must be >= primitiveCount when indexingMode is Successive.");
+                    }
+                }
+                else
+                {
+                    RHI_VALIDATION_ERROR("Invalid indexingMode.");
+                }
+            }
+
+            if (linearSweptSpheres.vertexBufferCount < 1)
+            {
+                RHI_VALIDATION_ERROR("vertexBufferCount cannot be <= 1.");
+            }
+            for (uint32_t j = 0; j < linearSweptSpheres.vertexBufferCount; ++j)
+            {
+                if (!linearSweptSpheres.vertexPositionBuffers[j].buffer)
+                {
+                    RHI_VALIDATION_ERROR("vertexBuffers cannot be null.");
+                }
+            }
+
             break;
         }
         default:
