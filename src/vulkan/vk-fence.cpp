@@ -61,7 +61,8 @@ Result FenceImpl::init()
         timelineCreateInfo.pNext = &exportSemaphoreCreateInfo;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkCreateSemaphore(device->m_api.m_device, &createInfo, nullptr, &m_semaphore)
+    SLANG_VK_RETURN_ON_FAIL(
+        device->m_api.vkCreateSemaphore(device->m_api.m_device, &createInfo, nullptr, &m_semaphore)
     );
 
     device->_labelObject((uint64_t)m_semaphore, VK_OBJECT_TYPE_SEMAPHORE, m_desc.label);
@@ -80,7 +81,8 @@ Result FenceImpl::setCurrentValue(uint64_t value)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     uint64_t currentValue = 0;
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetSemaphoreCounterValue(device->m_api.m_device, m_semaphore, &currentValue)
+    SLANG_VK_RETURN_ON_FAIL(
+        device->m_api.vkGetSemaphoreCounterValue(device->m_api.m_device, m_semaphore, &currentValue)
     );
     if (currentValue < value)
     {

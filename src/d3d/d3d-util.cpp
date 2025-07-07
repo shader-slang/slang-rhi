@@ -649,9 +649,9 @@ Result D3DUtil::reportLiveObjects()
         HMODULE debugModule = LoadLibraryA("dxgidebug.dll");
         if (debugModule != INVALID_HANDLE_VALUE)
         {
-            auto fun =
-                reinterpret_cast<decltype(&DXGIGetDebugInterface)>(GetProcAddress(debugModule, "DXGIGetDebugInterface")
-                );
+            auto fun = reinterpret_cast<decltype(&DXGIGetDebugInterface)>(
+                GetProcAddress(debugModule, "DXGIGetDebugInterface")
+            );
             if (fun)
             {
                 fun(__uuidof(IDXGIDebug), (void**)&dxgiDebug);

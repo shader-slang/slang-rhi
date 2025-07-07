@@ -144,9 +144,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         WGPURequestDeviceStatus status = WGPURequestDeviceStatus_Unknown;
         WGPURequestDeviceCallbackInfo2 callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback =
-            [](WGPURequestDeviceStatus status_, WGPUDevice device, const char* message, void* userdata1, void* userdata2
-            )
+        callbackInfo.callback = [](WGPURequestDeviceStatus status_,
+                                   WGPUDevice device,
+                                   const char* message,
+                                   void* userdata1,
+                                   void* userdata2)
         {
             *(WGPURequestDeviceStatus*)userdata1 = status_;
             *(WGPUDevice*)userdata2 = device;

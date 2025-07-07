@@ -154,10 +154,10 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
 
             WGPUBindGroupLayoutEntry entry = {};
             entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
-            entry.binding =
-                offset.binding +
-                (uint32_t
-                )typeLayout->getDescriptorSetDescriptorRangeIndexOffset(slangDescriptorSetIndex, descriptorRangeIndex);
+            entry.binding = offset.binding + (uint32_t)typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
+                                                 slangDescriptorSetIndex,
+                                                 descriptorRangeIndex
+                                             );
 
             slang::TypeReflection* leafType = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex)->getType();
 

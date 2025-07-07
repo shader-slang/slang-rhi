@@ -124,8 +124,10 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
         ITexture* texture,
@@ -135,8 +137,12 @@ public:
         void* outData
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, size_t offset, size_t size, void* outData)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        size_t offset,
+        size_t size,
+        void* outData
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,

@@ -405,12 +405,14 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         );
         if (attachment.loadOp == LoadOp::Clear)
         {
-            colorAttachment->setClearColor(MTL::ClearColor(
-                attachment.clearValue[0],
-                attachment.clearValue[1],
-                attachment.clearValue[2],
-                attachment.clearValue[3]
-            ));
+            colorAttachment->setClearColor(
+                MTL::ClearColor(
+                    attachment.clearValue[0],
+                    attachment.clearValue[1],
+                    attachment.clearValue[2],
+                    attachment.clearValue[3]
+                )
+            );
         }
         colorAttachment->setTexture(view->m_textureView.get());
         colorAttachment->setResolveTexture(

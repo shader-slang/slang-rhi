@@ -41,8 +41,10 @@ public:
         ITextureView** outView
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) override;
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
@@ -92,8 +94,12 @@ public:
     ) override;
 #endif
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        Offset offset,
+        Size size,
+        void* outData
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,

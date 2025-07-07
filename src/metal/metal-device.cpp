@@ -239,10 +239,12 @@ NS::Array* DeviceImpl::getAccelerationStructureArray()
 {
     if (m_accelerationStructures.dirty)
     {
-        m_accelerationStructures.array = NS::TransferPtr(NS::Array::alloc()->init(
-            (const NS::Object* const*)m_accelerationStructures.list.data(),
-            m_accelerationStructures.list.size()
-        ));
+        m_accelerationStructures.array = NS::TransferPtr(
+            NS::Array::alloc()->init(
+                (const NS::Object* const*)m_accelerationStructures.list.data(),
+                m_accelerationStructures.list.size()
+            )
+        );
         m_accelerationStructures.dirty = false;
     }
     return m_accelerationStructures.array.get();
@@ -308,12 +310,14 @@ Result DeviceImpl::createShaderProgram(
 
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
-        this,
-        shaderProgram->linkedProgram,
-        shaderProgram->linkedProgram->getLayout(),
-        shaderProgram->m_rootObjectLayout.writeRef()
-    ));
+    SLANG_RETURN_ON_FAIL(
+        RootShaderObjectLayoutImpl::create(
+            this,
+            shaderProgram->linkedProgram,
+            shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->m_rootObjectLayout.writeRef()
+        )
+    );
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }

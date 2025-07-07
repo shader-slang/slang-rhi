@@ -26,8 +26,10 @@ public:
     std::vector<Module> m_modules;
     std::vector<VkPipelineShaderStageCreateInfo> m_stageCreateInfos;
 
-    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
-        override;
+    virtual Result createShaderModule(
+        slang::EntryPointReflection* entryPointInfo,
+        ComPtr<ISlangBlob> kernelCode
+    ) override;
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 };

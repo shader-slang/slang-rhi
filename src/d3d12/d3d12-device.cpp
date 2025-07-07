@@ -488,39 +488,47 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Initialize descriptor heaps.
     {
-        SLANG_RETURN_ON_FAIL(CPUDescriptorHeap::create(
-            m_device,
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            16 * 1024,
-            m_cpuCbvSrvUavHeap.writeRef()
-        ));
+        SLANG_RETURN_ON_FAIL(
+            CPUDescriptorHeap::create(
+                m_device,
+                D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                16 * 1024,
+                m_cpuCbvSrvUavHeap.writeRef()
+            )
+        );
         SLANG_RETURN_ON_FAIL(
             CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 4 * 1024, m_cpuRtvHeap.writeRef())
         );
         SLANG_RETURN_ON_FAIL(
             CPUDescriptorHeap::create(m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 4 * 1024, m_cpuDsvHeap.writeRef())
         );
-        SLANG_RETURN_ON_FAIL(CPUDescriptorHeap::create(
-            m_device,
-            D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-            4 * 1024,
-            m_cpuSamplerHeap.writeRef()
-        ));
+        SLANG_RETURN_ON_FAIL(
+            CPUDescriptorHeap::create(
+                m_device,
+                D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+                4 * 1024,
+                m_cpuSamplerHeap.writeRef()
+            )
+        );
 
-        SLANG_RETURN_ON_FAIL(GPUDescriptorHeap::create(
-            m_device,
-            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            1000000,
-            16 * 1024,
-            m_gpuCbvSrvUavHeap.writeRef()
-        ));
-        SLANG_RETURN_ON_FAIL(GPUDescriptorHeap::create(
-            m_device,
-            D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
-            2048,
-            2048,
-            m_gpuSamplerHeap.writeRef()
-        ));
+        SLANG_RETURN_ON_FAIL(
+            GPUDescriptorHeap::create(
+                m_device,
+                D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                1000000,
+                16 * 1024,
+                m_gpuCbvSrvUavHeap.writeRef()
+            )
+        );
+        SLANG_RETURN_ON_FAIL(
+            GPUDescriptorHeap::create(
+                m_device,
+                D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+                2048,
+                2048,
+                m_gpuSamplerHeap.writeRef()
+            )
+        );
     }
 
     // Allocate a D3D12 "command signature" object that matches the behavior
@@ -1222,8 +1230,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             clearValue.DepthStencil.Stencil = desc.optimalClearValue->depthStencil.stencil;
             clearValuePtr = &clearValue;
         }
-        if ((resourceDesc.Flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
-            ) == 0)
+        if ((resourceDesc.Flags &
+             (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)) == 0)
         {
             clearValuePtr = nullptr;
         }
@@ -1788,7 +1796,8 @@ Result DeviceImpl::getAccelerationStructureSizes(
         params.version = NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS_VER;
         params.pDesc = &converter.desc;
         params.pInfo = &prebuildInfo;
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_GetRaytracingAccelerationStructurePrebuildInfoEx(m_device5, &params)
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(
+            NvAPI_D3D12_GetRaytracingAccelerationStructurePrebuildInfoEx(m_device5, &params)
         );
     }
     else

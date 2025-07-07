@@ -122,8 +122,9 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     }
 
     // Create depth stencil state
-    auto createStencilDesc = [](const DepthStencilOpDesc& desc, uint32_t readMask, uint32_t writeMask
-                             ) -> NS::SharedPtr<MTL::StencilDescriptor>
+    auto createStencilDesc = [](const DepthStencilOpDesc& desc,
+                                uint32_t readMask,
+                                uint32_t writeMask) -> NS::SharedPtr<MTL::StencilDescriptor>
     {
         NS::SharedPtr<MTL::StencilDescriptor> stencilDesc = NS::TransferPtr(MTL::StencilDescriptor::alloc()->init());
         stencilDesc->setStencilCompareFunction(MetalUtil::translateCompareFunction(desc.stencilFunc));

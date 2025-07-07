@@ -139,8 +139,10 @@ public:
         ITextureView** outView
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) override;
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
@@ -176,8 +178,10 @@ public:
         IRayTracingPipeline** outPipeline
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outState)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(
+        const QueryPoolDesc& desc,
+        IQueryPool** outState
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
 
@@ -189,8 +193,12 @@ public:
         uint64_t timeout
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        Offset offset,
+        Size size,
+        void* outData
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 

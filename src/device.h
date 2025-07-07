@@ -135,8 +135,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCapabilities(
+        uint32_t* outCapabilityCount,
+        Capability* outCapabilities
+    ) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
@@ -169,8 +171,10 @@ public:
         IBuffer** outBuffer
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createRenderPipeline(
         const RenderPipelineDesc& desc,
@@ -199,8 +203,10 @@ public:
         IShaderObject** outObject
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRootShaderObject(
+        IShaderProgram* program,
+        IShaderObject** outObject
+    ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
@@ -218,8 +224,10 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
-    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(
+        const ShaderTableDesc& desc,
+        IShaderTable** outTable
+    ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;

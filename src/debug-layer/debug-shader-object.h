@@ -47,8 +47,11 @@ public:
     virtual SLANG_NO_THROW ShaderObjectContainerType SLANG_MCALL getContainerType() override;
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** entryPoint) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, size_t size)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setData(
+        const ShaderOffset& offset,
+        const void* data,
+        size_t size
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) override;

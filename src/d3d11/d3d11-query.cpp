@@ -38,9 +38,9 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
-    while (S_OK != device->m_immediateContext
-                       ->GetData(device->m_disjointQuery, &disjointData, sizeof(D3D11_QUERY_DATA_TIMESTAMP_DISJOINT), 0)
-    )
+    while (S_OK !=
+           device->m_immediateContext
+               ->GetData(device->m_disjointQuery, &disjointData, sizeof(D3D11_QUERY_DATA_TIMESTAMP_DISJOINT), 0))
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

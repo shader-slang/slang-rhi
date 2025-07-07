@@ -37,8 +37,10 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
@@ -77,8 +79,12 @@ public:
         void* outData
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        Offset offset,
+        Size size,
+        void* outData
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
 

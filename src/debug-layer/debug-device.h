@@ -18,8 +18,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCapabilities(
+        uint32_t* outCapabilityCount,
+        Capability* outCapabilities
+    ) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
@@ -73,8 +75,10 @@ public:
         IAccelerationStructure** outAccelerationStructure
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(
         slang::ISession* session,
@@ -86,8 +90,10 @@ public:
         slang::TypeLayoutReflection* typeLayout,
         IShaderObject** outObject
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRootShaderObject(
+        IShaderProgram* program,
+        IShaderObject** outObject
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
@@ -120,8 +126,12 @@ public:
         ISlangBlob** outBlob,
         SubresourceLayout* outLayout
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        Offset offset,
+        Size size,
+        void* outData
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
         IBuffer* buffer,
         Offset offset,
@@ -152,8 +162,10 @@ public:
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(
+        const ShaderTableDesc& desc,
+        IShaderTable** outTable
+    ) override;
 
 private:
     DebugContext m_ctx;
