@@ -7,12 +7,12 @@ namespace rhi {
 
 thread_local int gDisableAssert;
 
-ScopedDisableAsset::ScopedDisableAsset()
+ScopedDisableAssert::ScopedDisableAssert()
 {
     gDisableAssert++;
 }
 
-ScopedDisableAsset::~ScopedDisableAsset()
+ScopedDisableAssert::~ScopedDisableAssert()
 {
     gDisableAssert--;
 }

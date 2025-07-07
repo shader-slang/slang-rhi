@@ -2,18 +2,18 @@
 
 namespace rhi {
 
-class ScopedDisableAsset
+class ScopedDisableAssert
 {
 public:
-    ScopedDisableAsset();
-    ~ScopedDisableAsset();
+    ScopedDisableAssert();
+    ~ScopedDisableAssert();
 };
 
 void handleAssert(const char* message, const char* file, int line);
 
 } // namespace rhi
 
-#define SLANG_RHI_DISABLE_ASSERT_SCOPE() ::rhi::ScopedDisableAsset __disable_assert;
+#define SLANG_RHI_DISABLE_ASSERT_SCOPE() ::rhi::ScopedDisableAssert disable_assert__;
 
 #define SLANG_RHI_ASSERT_FAILURE(what)                                                                                 \
     {                                                                                                                  \

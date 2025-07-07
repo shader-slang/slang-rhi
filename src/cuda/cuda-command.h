@@ -9,23 +9,8 @@ namespace rhi::cuda {
 class CommandQueueImpl : public CommandQueue
 {
 public:
-    // Helper to switch to a stream and be sure we switch back on
-    // leaving scope, even if we had to bail out due to errors.
-    struct StreamScope
-    {
-        CommandQueueImpl* m_queue;
+    CUstream m_stream;
 
-        StreamScope(CommandQueueImpl* queue, CUstream stream)
-            : m_queue(queue)
-        {
-            m_queue->m_activeStream = stream;
-        }
-
-        ~StreamScope() { m_queue->m_activeStream = (CUstream)kInvalidCUDAStream; }
-    };
-
-    CUstream m_defaultStream;
-    CUstream m_activeStream;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
     CommandQueueImpl(Device* device, QueueType type);

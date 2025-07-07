@@ -851,7 +851,7 @@ Result SurfaceImpl::present()
     {
         CUDA_EXTERNAL_SEMAPHORE_SIGNAL_PARAMS signalParams = {};
         signalParams.params.fence.value = ++frameData.signalValue;
-        cuSignalExternalSemaphoresAsync(&frameData.cudaSemaphore, &signalParams, 1, nullptr);
+        cuSignalExternalSemaphoresAsync(&frameData.cudaSemaphore, &signalParams, 1, m_deviceImpl->m_queue->m_stream);
     }
 #endif
 
@@ -859,7 +859,7 @@ Result SurfaceImpl::present()
     // the host until the default CUDA stream is completely drained.
 #if 1
     {
-        cuStreamSynchronize(nullptr);
+        cuStreamSynchronize(m_deviceImpl->m_queue->m_stream);
         VkSemaphoreSignalInfo signalInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO};
         signalInfo.semaphore = frameData.sharedSemaphore;
         signalInfo.value = ++frameData.signalValue;
