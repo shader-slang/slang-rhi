@@ -501,13 +501,74 @@ Result DeviceImpl::createTextureFromSharedHandle(
         return SLANG_E_INVALID_ARG;
     }
 
-    CUDA_ARRAY3D_DESCRIPTOR arrayDesc;
-    arrayDesc.Depth = desc.size.depth;
-    arrayDesc.Height = desc.size.height;
-    arrayDesc.Width = desc.size.width;
+    CUDA_RESOURCE_VIEW_DESC resourceViewDesc = {};
+    resourceViewDesc.format = mapping.resourceViewFormat;
+
+    CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
     arrayDesc.Format = mapping.arrayFormat;
     arrayDesc.NumChannels = mapping.channelCount;
     arrayDesc.Flags = 0; // TODO: Flags? CUDA_ARRAY_LAYERED/SURFACE_LDST/CUBEMAP/TEXTURE_GATHER
+
+    switch (desc.type)
+    {
+    case TextureType::Texture1D:
+        arrayDesc.Width = desc.size.width;
+        resourceViewDesc.width = desc.size.width;
+        break;
+    case TextureType::Texture1DArray:
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Depth = desc.arrayLength;
+        arrayDesc.Flags |= CUDA_ARRAY3D_LAYERED;
+        resourceViewDesc.width = desc.size.width;
+        resourceViewDesc.depth = desc.arrayLength;
+        break;
+    case TextureType::Texture2D:
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        resourceViewDesc.width = desc.size.width;
+        resourceViewDesc.height = desc.size.height;
+        break;
+    case TextureType::Texture2DArray:
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        arrayDesc.Depth = desc.arrayLength;
+        arrayDesc.Flags |= CUDA_ARRAY3D_LAYERED;
+        resourceViewDesc.width = desc.size.width;
+        resourceViewDesc.height = desc.size.height;
+        resourceViewDesc.depth = desc.arrayLength;
+        break;
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        return SLANG_E_NOT_AVAILABLE;
+    case TextureType::Texture3D:
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        arrayDesc.Depth = desc.size.depth;
+        resourceViewDesc.width = desc.size.width;
+        resourceViewDesc.height = desc.size.height;
+        resourceViewDesc.depth = desc.size.depth;
+        break;
+    case TextureType::TextureCube:
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        arrayDesc.Depth = 6;
+        arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
+        resourceViewDesc.width = desc.size.width;
+        resourceViewDesc.height = desc.size.height;
+        resourceViewDesc.depth = 6;
+        break;
+    case TextureType::TextureCubeArray:
+        arrayDesc.Width = desc.size.width;
+        arrayDesc.Height = desc.size.height;
+        arrayDesc.Depth = desc.arrayLength * 6;
+        arrayDesc.Flags |= CUDA_ARRAY3D_CUBEMAP;
+        resourceViewDesc.width = desc.size.width;
+        resourceViewDesc.height = desc.size.height;
+        resourceViewDesc.depth = desc.arrayLength * 6;
+        break;
+    }
+
+    texture->m_baseResourceViewDesc = resourceViewDesc;
 
     CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC externalMemoryMipDesc;
     memset(&externalMemoryMipDesc, 0, sizeof(externalMemoryMipDesc));

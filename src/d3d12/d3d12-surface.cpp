@@ -28,14 +28,14 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
         ComPtr<ID3D12Resource> d3dResource;
         m_swapChain->GetBuffer(i, IID_PPV_ARGS(d3dResource.writeRef()));
         TextureDesc textureDesc = {};
-        textureDesc.usage = m_config.usage;
         textureDesc.type = TextureType::Texture2D;
-        textureDesc.arrayLength = 1;
-        textureDesc.format = m_config.format;
         textureDesc.size.width = m_config.width;
         textureDesc.size.height = m_config.height;
         textureDesc.size.depth = 1;
+        textureDesc.arrayLength = 1;
         textureDesc.mipCount = 1;
+        textureDesc.format = m_config.format;
+        textureDesc.usage = m_config.usage;
         textureDesc.defaultState = ResourceState::Present;
         RefPtr<TextureImpl> texture = new TextureImpl(m_device, textureDesc);
         texture->m_resource.setResource(d3dResource.get());
