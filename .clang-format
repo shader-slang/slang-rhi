@@ -44,11 +44,11 @@ CommentPragmas: '^\\.+'
 PenaltyBreakComment: 0
 
 AlwaysBreakAfterDefinitionReturnType: None
-# BreakAfterReturnType: Automatic
-PenaltyReturnTypeOnItsOwnLine: 1000000000
 AlwaysBreakBeforeMultilineStrings: true
 
 IndentAccessModifiers: false
 AccessModifierOffset: -4
 
 QualifierAlignment: Left
+
+StatementAttributeLikeMacros: [SLANG_NO_THROW, SLANG_MCALL]
