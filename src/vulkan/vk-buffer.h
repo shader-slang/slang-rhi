@@ -53,9 +53,12 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getDescriptorHandle(DescriptorHandleAccess access, Format format, BufferRange range, DescriptorHandle* outHandle)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
+        DescriptorHandleAccess access,
+        Format format,
+        BufferRange range,
+        DescriptorHandle* outHandle
+    ) override;
 
     struct ViewKey
     {

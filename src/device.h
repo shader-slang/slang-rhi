@@ -101,8 +101,11 @@ protected:
 class NullDebugCallback : public IDebugCallback
 {
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
+        DebugMessageType type,
+        DebugMessageSource source,
+        const char* message
+    ) override
     {
         SLANG_UNUSED(type);
         SLANG_UNUSED(source);
@@ -132,8 +135,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
+        override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
@@ -141,28 +144,46 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override;
     IDevice* getInterface(const Guid& guid);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
+        NativeHandle handle,
+        const TextureDesc& desc,
+        ITexture** outTexture
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromSharedHandle(NativeHandle handle, const TextureDesc& desc, const Size size, ITexture** outTexture)
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
+        NativeHandle handle,
+        const TextureDesc& desc,
+        const Size size,
+        ITexture** outTexture
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
+        IBuffer** outBuffer
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
+        IBuffer** outBuffer
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
         override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRenderPipeline(
+        const RenderPipelineDesc& desc,
+        IRenderPipeline** outPipeline
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipeline(
+        const ComputePipelineDesc& desc,
+        IComputePipeline** outPipeline
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRayTracingPipeline(
+        const RayTracingPipelineDesc& desc,
+        IRayTracingPipeline** outPipeline
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReportList(ISlangBlob** outReportListBlob) override;
 
@@ -173,11 +194,13 @@ public:
         IShaderObject** outObject
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::TypeLayoutReflection* typeLayout,
+        IShaderObject** outObject
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
+        override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
@@ -195,32 +218,51 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
+        override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFences(uint32_t fenceCount, IFence** fences, const uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForFences(
+        uint32_t fenceCount,
+        IFence** fences,
+        const uint64_t* fenceValues,
+        bool waitForAll,
+        uint64_t timeout
+    ) override;
 
     // Default implementation uses encoder.copyTextureToBuffer to copy to the read-back heap
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mip,
+        const SubresourceLayout& layout,
+        void* outData
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, ISlangBlob** outBlob, SubresourceLayout* outLayout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mip,
+        ISlangBlob** outBlob,
+        SubresourceLayout* outLayout
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        Offset offset,
+        Size size,
+        ISlangBlob** outBlob
+    ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
+        const TextureDesc& desc,
+        Size* outSize,
+        Size* outAlignment
+    ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
@@ -229,12 +271,16 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
+        CooperativeVectorProperties* properties,
+        uint32_t* propertiesCount
+    ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
+        const ConvertCooperativeVectorMatrixDesc* descs,
+        uint32_t descCount
+    ) override;
 
     Result getEntryPointCodeFromShaderCache(
         ShaderProgram* program,

@@ -1039,8 +1039,10 @@ class ITexture : public IResource
 public:
     virtual SLANG_NO_THROW const TextureDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createView(const TextureViewDesc& desc, ITextureView** outTextureView) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createView(
+        const TextureViewDesc& desc,
+        ITextureView** outTextureView
+    ) = 0;
 
     inline ComPtr<ITextureView> createView(const TextureViewDesc& desc)
     {
@@ -1060,8 +1062,11 @@ public:
 
     /// Get layout of a subresource with given packing. If rowAlignment is kDefaultAlignment, uses the platform's
     /// minimal texture row alignment for buffer upload/download.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mip, size_t rowAlignment, SubresourceLayout* outLayout) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSubresourceLayout(
+        uint32_t mip,
+        size_t rowAlignment,
+        SubresourceLayout* outLayout
+    ) = 0;
 
     /// Helper to get layout of a subresource with platform's minimal texture row alignment.
     inline Result getSubresourceLayout(uint32_t mip, SubresourceLayout* outLayout)
@@ -1077,8 +1082,10 @@ class ITextureView : public IResource
 public:
     virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
+        DescriptorHandleAccess access,
+        DescriptorHandle* outHandle
+    ) = 0;
 };
 
 enum class ComparisonFunc : uint8_t
@@ -1579,14 +1586,19 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setDescriptorHandle(
+        const ShaderOffset& offset,
+        const DescriptorHandle& handle
+    ) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
     /// of interface-typed shader parameters.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, uint32_t count) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(
+        const ShaderOffset& offset,
+        const slang::SpecializationArg* args,
+        uint32_t count
+    ) = 0;
 
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() = 0;
 
@@ -2207,10 +2219,16 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    drawIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer = {}) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    drawIndexedIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer = {}) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
+        uint32_t maxDrawCount,
+        BufferOffsetPair argBuffer,
+        BufferOffsetPair countBuffer = {}
+    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
+        uint32_t maxDrawCount,
+        BufferOffsetPair argBuffer,
+        BufferOffsetPair countBuffer = {}
+    ) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) = 0;
 };
 
@@ -2231,13 +2249,22 @@ class IRayTracingPassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x4fe41081, 0x819c, 0x4fdc, {0x80, 0x78, 0x40, 0x31, 0x9c, 0x01, 0xff, 0xad});
 
 public:
-    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL
-    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable) = 0;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable, IShaderObject* rootObject) = 0;
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(
+        IRayTracingPipeline* pipeline,
+        IShaderTable* shaderTable
+    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
+        IRayTracingPipeline* pipeline,
+        IShaderTable* shaderTable,
+        IShaderObject* rootObject
+    ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchRays(
+        uint32_t rayGenShaderIndex,
+        uint32_t width,
+        uint32_t height,
+        uint32_t depth
+    ) = 0;
 };
 
 class ICommandEncoder : public ISlangUnknown
@@ -2249,8 +2276,13 @@ public:
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() = 0;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(
+        IBuffer* dst,
+        Offset dstOffset,
+        IBuffer* src,
+        Offset srcOffset,
+        Size size
+    ) = 0;
 
     /// Copies texture from src to dst. If dstSubresource and srcSubresource has mipCount = 0
     /// and layerCount = 0, the entire resource is being copied and dstOffset, srcOffset and extent
@@ -2301,21 +2333,34 @@ public:
         uint32_t subresourceDataCount
     ) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL uploadBufferData(
+        IBuffer* dst,
+        Offset offset,
+        Size size,
+        const void* data
+    ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range = kEntireBuffer) = 0;
 
     inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size) { clearBuffer(buffer, {offset, size}); }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureFloat(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        float clearValue[4]
+    ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureUint(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        uint32_t clearValue[4]
+    ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    clearTextureSint(ITexture* texture, SubresourceRange subresourceRange, int32_t clearValue[4]) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureSint(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        int32_t clearValue[4]
+    ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureDepthStencil(
         ITexture* texture,
@@ -2326,8 +2371,13 @@ public:
         uint8_t stencilValue
     ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    resolveQuery(IQueryPool* queryPool, uint32_t index, uint32_t count, IBuffer* buffer, uint64_t offset) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL resolveQuery(
+        IQueryPool* queryPool,
+        uint32_t index,
+        uint32_t count,
+        IBuffer* buffer,
+        uint64_t offset
+    ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,
@@ -2351,19 +2401,28 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL serializeAccelerationStructure(
+        BufferOffsetPair dst,
+        IAccelerationStructure* src
+    ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
+        IAccelerationStructure* dst,
+        BufferOffsetPair src
+    ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
+        const ConvertCooperativeVectorMatrixDesc* descs,
+        uint32_t descCount
+    ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL setTextureState(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        ResourceState state
+    ) = 0;
 
     inline void setTextureState(ITexture* texture, ResourceState state)
     {
@@ -2635,8 +2694,11 @@ enum class DebugMessageSource
 class IDebugCallback
 {
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
+        DebugMessageType type,
+        DebugMessageSource source,
+        const char* message
+    ) = 0;
 };
 
 struct SlangDesc
@@ -2748,8 +2810,10 @@ public:
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(const char* feature) = 0;
 
     /// Returns a list of capabilities supported by the device.
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCapabilities(
+        uint32_t* outCapabilityCount,
+        Capability* outCapabilities
+    ) = 0;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) = 0;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) = 0;
 
@@ -2778,8 +2842,11 @@ public:
     ///
     ///     effectiveElementCount = (isArray ? arrayElementCount : 1) * (isCube ? 6 : 1);
     ///
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
+        const TextureDesc& desc,
+        const SubresourceData* initData,
+        ITexture** outTexture
+    ) = 0;
 
     /// Create a texture resource. initData holds the initialize data to set the contents of the texture when
     /// constructed.
@@ -2793,8 +2860,11 @@ public:
         return texture;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
+        NativeHandle handle,
+        const TextureDesc& desc,
+        ITexture** outTexture
+    ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         NativeHandle handle,
@@ -2804,8 +2874,11 @@ public:
     ) = 0;
 
     /// Create a buffer resource
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
+        const BufferDesc& desc,
+        const void* initData,
+        IBuffer** outBuffer
+    ) = 0;
 
     inline SLANG_NO_THROW ComPtr<IBuffer> createBuffer(const BufferDesc& desc, const void* initData = nullptr)
     {
@@ -2814,11 +2887,17 @@ public:
         return buffer;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
+        IBuffer** outBuffer
+    ) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
+        IBuffer** outBuffer
+    ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) = 0;
@@ -2832,8 +2911,11 @@ public:
         return sampler;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureView(
+        ITexture* texture,
+        const TextureViewDesc& desc,
+        ITextureView** outView
+    ) = 0;
 
     inline ComPtr<ITextureView> createTextureView(ITexture* texture, const TextureViewDesc& desc)
     {
@@ -2851,8 +2933,10 @@ public:
         return surface;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) = 0;
 
     inline ComPtr<IInputLayout> createInputLayout(const InputLayoutDesc& desc)
     {
@@ -2923,11 +3007,15 @@ public:
         return object;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::TypeLayoutReflection* typeLayout,
+        IShaderObject** outObject
+    ) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRootShaderObject(IShaderProgram* program, IShaderObject** outObject) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRootShaderObject(
+        IShaderProgram* program,
+        IShaderObject** outObject
+    ) = 0;
 
     inline ComPtr<IShaderObject> createRootShaderObject(IShaderProgram* program)
     {
@@ -2943,8 +3031,10 @@ public:
         return object;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(
+        const ShaderTableDesc& desc,
+        IShaderTable** outTable
+    ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
@@ -2972,8 +3062,10 @@ public:
         return createShaderProgram(desc, outDiagnosticBlob);
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRenderPipeline(
+        const RenderPipelineDesc& desc,
+        IRenderPipeline** outPipeline
+    ) = 0;
 
     inline ComPtr<IRenderPipeline> createRenderPipeline(const RenderPipelineDesc& desc)
     {
@@ -2982,8 +3074,10 @@ public:
         return pipeline;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipeline(
+        const ComputePipelineDesc& desc,
+        IComputePipeline** outPipeline
+    ) = 0;
 
     inline ComPtr<IComputePipeline> createComputePipeline(const ComputePipelineDesc& desc)
     {
@@ -2992,8 +3086,10 @@ public:
         return pipeline;
     }
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRayTracingPipeline(
+        const RayTracingPipelineDesc& desc,
+        IRayTracingPipeline** outPipeline
+    ) = 0;
 
     inline ComPtr<IRayTracingPipeline> createRayTracingPipeline(const RayTracingPipelineDesc& desc)
     {
@@ -3009,8 +3105,13 @@ public:
     /// ensure that the layout is compatible with the texture format and mip level.
     /// This can be achieved by using `getTextureLayout()` to get the layout for the texture.
     /// The `outData` pointer must be large enough to hold the data (i.e. `layout.sizeInBytes`).
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mip,
+        const SubresourceLayout& layout,
+        void* outData
+    ) = 0;
 
     /// Read back texture resource and stores the result in `outBlob`.
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
@@ -3023,13 +3124,19 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, Offset offset, Size size, ISlangBlob** outBlob) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        Offset offset,
+        Size size,
+        ISlangBlob** outBlob
+    ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getAccelerationStructureSizes(const AccelerationStructureBuildDesc& desc, AccelerationStructureSizes* outSizes) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
+        const AccelerationStructureBuildDesc& desc,
+        AccelerationStructureSizes* outSizes
+    ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
@@ -3055,8 +3162,11 @@ public:
         uint64_t timeout
     ) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
+        const TextureDesc& desc,
+        Size* outSize,
+        Size* outAlignment
+    ) = 0;
 
     /// Get row alignment for a given texture format.
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) = 0;
@@ -3067,11 +3177,15 @@ public:
         return getTextureRowAlignment(Format::Undefined, outAlignment);
     };
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
+        CooperativeVectorProperties* properties,
+        uint32_t* propertiesCount
+    ) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
+        const ConvertCooperativeVectorMatrixDesc* descs,
+        uint32_t descCount
+    ) = 0;
 };
 
 class ITaskPool : public ISlangUnknown

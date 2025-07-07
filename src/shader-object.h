@@ -264,10 +264,15 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, uint32_t count) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setDescriptorHandle(
+        const ShaderOffset& offset,
+        const DescriptorHandle& handle
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(
+        const ShaderOffset& offset,
+        const slang::SpecializationArg* args,
+        uint32_t count
+    ) override;
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override;
     virtual SLANG_NO_THROW Size SLANG_MCALL getSize() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setConstantBufferOverride(IBuffer* outBuffer) override;

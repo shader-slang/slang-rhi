@@ -87,9 +87,12 @@ public:
     virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getDescriptorHandle(DescriptorHandleAccess access, Format format, BufferRange range, DescriptorHandle* outHandle)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
+        DescriptorHandleAccess access,
+        Format format,
+        BufferRange range,
+        DescriptorHandle* outHandle
+    ) override;
 
 public:
     BufferDesc m_desc;
@@ -147,11 +150,14 @@ public:
     virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createView(const TextureViewDesc& desc, ITextureView** outTextureView) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createView(const TextureViewDesc& desc, ITextureView** outTextureView)
+        override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getSubresourceLayout(uint32_t mip, size_t rowAlignment, SubresourceLayout* outLayout) override
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSubresourceLayout(
+        uint32_t mip,
+        size_t rowAlignment,
+        SubresourceLayout* outLayout
+    ) override
     {
         return getSubresourceRegionLayout(mip, {0, 0, 0}, Extent3D::kWholeTexture, rowAlignment, outLayout);
     }

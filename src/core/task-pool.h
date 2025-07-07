@@ -12,9 +12,13 @@ public:
     ITaskPool* getInterface(const Guid& guid);
 
 public:
-    virtual SLANG_NO_THROW TaskHandle SLANG_MCALL
-    submitTask(void (*func)(void*), void* payload, void (*payloadDeleter)(void*), TaskHandle* deps, size_t depsCount)
-        override;
+    virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
+        void (*func)(void*),
+        void* payload,
+        void (*payloadDeleter)(void*),
+        TaskHandle* deps,
+        size_t depsCount
+    ) override;
 
     virtual SLANG_NO_THROW void* SLANG_MCALL getTaskPayload(TaskHandle task) override;
 

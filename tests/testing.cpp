@@ -94,8 +94,11 @@ public:
 
     void clear() { output.clear(); }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
+        DebugMessageType type,
+        DebugMessageSource source,
+        const char* message
+    ) override
     {
         switch (type)
         {
@@ -151,8 +154,11 @@ public:
     }
 
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
+        DebugMessageType type,
+        DebugMessageSource source,
+        const char* message
+    ) override
     {
         if (!doctest::is_running_in_test)
             return;
