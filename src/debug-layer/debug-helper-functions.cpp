@@ -333,19 +333,23 @@ void validateAccelerationStructureBuildDesc(DebugContext* ctx, const Acceleratio
             {
                 if (linearSweptSpheres.indexingMode == LinearSweptSpheresIndexingMode::List)
                 {
-                    if (linearSweptSpheres.indexCount < linearSweptSpheres.primitiveCount + 1)
+                    if (linearSweptSpheres.indexCount < linearSweptSpheres.primitiveCount * 2)
                     {
                         RHI_VALIDATION_ERROR("indexCount must be >= primitiveCount + 1 when indexingMode is List.");
                     }
                 }
-                else
+                else if (linearSweptSpheres.indexingMode == LinearSweptSpheresIndexingMode::Successive)
                 {
-                    if (linearSweptSpheres.indexCount != linearSweptSpheres.primitiveCount)
+                    if (linearSweptSpheres.indexCount < linearSweptSpheres.primitiveCount)
                     {
                         RHI_VALIDATION_ERROR(
                             "indexCount must be equal to primitiveCount when indexingMode is Successive."
                         );
                     }
+                }
+                else
+                {
+                    RHI_VALIDATION_ERROR("Invalid indexingMode.");
                 }
             }
 
