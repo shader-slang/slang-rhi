@@ -619,7 +619,7 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
 
                 optixAccelRelocate(
                     m_commandBuffer->m_device->m_ctx.optixContext,
-                    m_activeStream,
+                    m_stream,
                     &relocInfo,
                     &relocInput,
                     1,
