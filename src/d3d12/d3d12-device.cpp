@@ -1356,7 +1356,14 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     D3D12_FILTER dxFilter;
     if (desc.maxAnisotropy > 1)
     {
-        dxFilter = D3D12_ENCODE_ANISOTROPIC_FILTER(dxReduction);
+        if (desc.mipFilter == TextureFilteringMode::Linear)
+        {
+            dxFilter = D3D12_ENCODE_ANISOTROPIC_FILTER(dxReduction);
+        }
+        else
+        {
+            dxFilter = D3D12_ENCODE_MIN_MAG_ANISOTROPIC_MIP_POINT_FILTER(dxReduction);
+        }
     }
     else
     {
