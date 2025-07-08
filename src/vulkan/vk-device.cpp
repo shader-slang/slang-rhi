@@ -471,6 +471,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderSubgroupRotateFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderReplicatedCompositesFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderBarycentricFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vertexAttributeRobustnessFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
 
@@ -616,6 +617,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             customBorderColors,
             VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME,
             { availableFeatures.push_back(Feature::CustomBorderColor); }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.vertexAttributeRobustnessFeatures,
+            vertexAttributeRobustness,
+            VK_EXT_VERTEX_ATTRIBUTE_ROBUSTNESS_EXTENSION_NAME,
+            {/* Enable vertex attribute robustness to avoid validation errors */}
         );
 
         if (extendedFeatures.vulkan14Features.shaderSubgroupRotate &&
