@@ -357,6 +357,11 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         RHI_VALIDATION_ERROR("Invalid comparison func");
         return SLANG_E_INVALID_ARG;
     }
+    if (desc.maxAnisotropy > 1 &&
+        (desc.minFilter == TextureFilteringMode::Point || desc.minFilter == TextureFilteringMode::Point))
+    {
+        RHI_VALIDATION_WARNING("maxAnisotropy > 1 can only be set when neither min and mag filter is Point");
+    }
 
     if (desc.addressU == TextureAddressingMode::ClampToBorder ||
         desc.addressV == TextureAddressingMode::ClampToBorder || desc.addressW == TextureAddressingMode::ClampToBorder)
