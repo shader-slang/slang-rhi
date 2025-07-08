@@ -146,7 +146,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.hinstance = ::GetModuleHandle(nullptr);
         surfaceCreateInfo.hwnd = (HWND)windowHandle.handleValues[0];
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateWin32SurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
+        SLANG_VK_RETURN_ON_FAIL(
+            m_api.vkCreateWin32SurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
         );
         break;
     }
@@ -157,7 +158,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
         surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateXlibSurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
+        SLANG_VK_RETURN_ON_FAIL(
+            m_api.vkCreateXlibSurfaceKHR(m_api.m_instance, &surfaceCreateInfo, nullptr, &m_surface)
         );
         break;
     }
@@ -634,7 +636,8 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
+    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {
+        VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
     };
     VkExternalMemoryHandleTypeFlags extMemoryHandleType =
 #if SLANG_WINDOWS_FAMILY

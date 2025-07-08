@@ -113,7 +113,8 @@ Result BindingDataBuilder::bindAsRoot(
     rootOffset.rootParam += specializedLayout->m_rootSignatureRootParameterCount;
 
     DescriptorSet descriptorSet;
-    SLANG_RETURN_ON_FAIL(allocateDescriptorSets(shaderObject, /* inout */ rootOffset, specializedLayout, descriptorSet)
+    SLANG_RETURN_ON_FAIL(
+        allocateDescriptorSets(shaderObject, /* inout */ rootOffset, specializedLayout, descriptorSet)
     );
 
     SLANG_RETURN_ON_FAIL(
@@ -237,7 +238,8 @@ Result BindingDataBuilder::bindAsParameterBlock(
     // Next we bind the object into that descriptor set as if it were being used
     // as a `ConstantBuffer<X>`.
     //
-    SLANG_RETURN_ON_FAIL(bindAsConstantBuffer(shaderObject, descriptorSet, subOffset, rootParamIndex, specializedLayout)
+    SLANG_RETURN_ON_FAIL(
+        bindAsConstantBuffer(shaderObject, descriptorSet, subOffset, rootParamIndex, specializedLayout)
     );
 
     return SLANG_OK;

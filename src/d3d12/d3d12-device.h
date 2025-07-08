@@ -100,17 +100,32 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getTextureAllocationInfo(const TextureDesc& desc, Size* outSize, Size* outAlignment) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
+        const TextureDesc& desc,
+        Size* outSize,
+        Size* outAlignment
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
+        const TextureDesc& desc,
+        const SubresourceData* initData,
+        ITexture** outTexture
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
+        NativeHandle handle,
+        const TextureDesc& desc,
+        ITexture** outTexture
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
+        const BufferDesc& desc,
+        const void* initData,
+        IBuffer** outBuffer
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
+        IBuffer** outBuffer
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
 
@@ -118,11 +133,16 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureView(
+        ITexture* texture,
+        const TextureViewDesc& desc,
+        ITextureView** outView
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) override;
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
@@ -136,31 +156,49 @@ public:
         ShaderObjectLayout** outLayout
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(
+        const ShaderTableDesc& desc,
+        IShaderTable** outShaderTable
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
         ISlangBlob** outDiagnostics
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRenderPipeline2(
+        const RenderPipelineDesc& desc,
+        IRenderPipeline** outPipeline
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipeline2(
+        const ComputePipelineDesc& desc,
+        IComputePipeline** outPipeline
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRayTracingPipeline2(
+        const RayTracingPipelineDesc& desc,
+        IRayTracingPipeline** outPipeline
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createQueryPool(const QueryPoolDesc& desc, IQueryPool** outState) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(
+        const QueryPoolDesc& desc,
+        IQueryPool** outState
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    waitForFences(uint32_t fenceCount, IFence** fences, const uint64_t* fenceValues, bool waitForAll, uint64_t timeout)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL waitForFences(
+        uint32_t fenceCount,
+        IFence** fences,
+        const uint64_t* fenceValues,
+        bool waitForAll,
+        uint64_t timeout
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        Offset offset,
+        Size size,
+        void* outData
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
@@ -175,11 +213,15 @@ public:
         IAccelerationStructure** outAccelerationStructure
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
+        CooperativeVectorProperties* properties,
+        uint32_t* propertiesCount
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
+        const ConvertCooperativeVectorMatrixDesc* descs,
+        uint32_t descCount
+    ) override;
 
 public:
     static void* loadProc(SharedLibraryHandle module, const char* name);

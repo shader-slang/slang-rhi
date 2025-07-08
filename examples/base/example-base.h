@@ -35,8 +35,11 @@ static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffse
 class DebugPrinter : public IDebugCallback
 {
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    handleMessage(DebugMessageType type, DebugMessageSource source, const char* message) override
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
+        DebugMessageType type,
+        DebugMessageSource source,
+        const char* message
+    ) override
     {
         static const char* kTypeStrings[] = {"INFO", "WARN", "ERROR"};
         static const char* kSourceStrings[] = {"Layer", "Driver", "Slang"};

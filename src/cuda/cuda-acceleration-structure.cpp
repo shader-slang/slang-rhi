@@ -279,7 +279,8 @@ unsigned int AccelerationStructureBuildDescConverter::translateBuildFlags(Accele
     return result;
 }
 
-unsigned int AccelerationStructureBuildDescConverter::translateGeometryFlags(AccelerationStructureGeometryFlags flags
+unsigned int AccelerationStructureBuildDescConverter::translateGeometryFlags(
+    AccelerationStructureGeometryFlags flags
 ) const
 {
     unsigned int result = 0;

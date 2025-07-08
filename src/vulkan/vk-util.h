@@ -130,9 +130,11 @@ struct VulkanUtil
 
     static VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type);
     static CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type);
-    static VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout
+    static VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(
+        CooperativeVectorMatrixLayout layout
     );
-    static CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout
+    static CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(
+        VkCooperativeVectorMatrixLayoutNV layout
     );
     static VkConvertCooperativeVectorMatrixInfoNV translateConvertCooperativeVectorMatrixDesc(
         const ConvertCooperativeVectorMatrixDesc& desc

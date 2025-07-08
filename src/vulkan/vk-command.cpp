@@ -1884,7 +1884,8 @@ Result CommandBufferImpl::init()
     allocInfo.commandPool = m_commandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkAllocateCommandBuffers(device->m_api.m_device, &allocInfo, &m_commandBuffer)
+    SLANG_VK_RETURN_ON_FAIL(
+        device->m_api.vkAllocateCommandBuffers(device->m_api.m_device, &allocInfo, &m_commandBuffer)
     );
 
     return SLANG_OK;

@@ -324,7 +324,8 @@ struct VulkanExtendedFeatures
     };
 
     // Clock features
-    VkPhysicalDeviceShaderClockFeaturesKHR clockFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR
+    VkPhysicalDeviceShaderClockFeaturesKHR clockFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR
     };
 
     // Mesh shader features

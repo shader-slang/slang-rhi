@@ -325,7 +325,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         std::vector<VkPhysicalDevice> physicalDevices;
         physicalDevices.resize(numPhysicalDevices);
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data())
+        SLANG_VK_RETURN_ON_FAIL(
+            m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data())
         );
 
         // Use first physical device by default.
@@ -1796,12 +1797,14 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
-        this,
-        shaderProgram->linkedProgram,
-        shaderProgram->linkedProgram->getLayout(),
-        shaderProgram->m_rootShaderObjectLayout.writeRef()
-    ));
+    SLANG_RETURN_ON_FAIL(
+        RootShaderObjectLayoutImpl::create(
+            this,
+            shaderProgram->linkedProgram,
+            shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->m_rootShaderObjectLayout.writeRef()
+        )
+    );
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }

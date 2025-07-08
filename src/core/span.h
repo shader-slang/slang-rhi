@@ -456,8 +456,10 @@ public:
         return {data() + (size() - count), count};
     }
 
-    TCB_SPAN_CONSTEXPR11 span<element_type, dynamic_extent> subspan(size_type offset, size_type count = dynamic_extent)
-        const
+    TCB_SPAN_CONSTEXPR11 span<element_type, dynamic_extent> subspan(
+        size_type offset,
+        size_type count = dynamic_extent
+    ) const
     {
         TCB_SPAN_EXPECT(offset <= size() && (count == dynamic_extent || offset + count <= size()));
         return {data() + offset, count == dynamic_extent ? size() - offset : count};

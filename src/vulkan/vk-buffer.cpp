@@ -202,7 +202,8 @@ Result BufferImpl::getDescriptorHandle(
         return SLANG_OK;
     }
 
-    SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle)
+    SLANG_RETURN_FALSE_ON_FAIL(
+        device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle)
     );
     *outHandle = handle;
     return SLANG_OK;

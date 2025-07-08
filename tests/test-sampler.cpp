@@ -122,7 +122,8 @@ struct SamplerTest
         queue->waitOnHost();
 
         ComPtr<ISlangBlob> resultData;
-        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, testRecords.size() * sizeof(TestOutput), resultData.writeRef())
+        REQUIRE_CALL(
+            device->readBuffer(resultBuffer, 0, testRecords.size() * sizeof(TestOutput), resultData.writeRef())
         );
         const TestOutput* output = (const TestOutput*)resultData->getBufferPointer();
         for (size_t i = 0; i < testRecords.size(); i++)

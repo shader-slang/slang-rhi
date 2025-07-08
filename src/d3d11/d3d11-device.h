@@ -16,20 +16,31 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
+        const TextureDesc& desc,
+        const SubresourceData* initData,
+        ITexture** outTexture
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureView(
+        ITexture* texture,
+        const TextureViewDesc& desc,
+        ITextureView** outView
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
+        const BufferDesc& desc,
+        const void* initData,
+        IBuffer** outBuffer
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
+        const InputLayoutDesc& desc,
+        IInputLayout** outLayout
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
@@ -51,17 +62,29 @@ public:
         ISlangBlob** outDiagnosticBlob
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createRenderPipeline2(
+        const RenderPipelineDesc& desc,
+        IRenderPipeline** outPipeline
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createComputePipeline2(
+        const ComputePipelineDesc& desc,
+        IComputePipeline** outPipeline
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readTexture(ITexture* texture, uint32_t layer, uint32_t mip, const SubresourceLayout& layout, void* outData)
-        override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
+        ITexture* texture,
+        uint32_t layer,
+        uint32_t mip,
+        const SubresourceLayout& layout,
+        void* outData
+    ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
+        IBuffer* buffer,
+        Offset offset,
+        Size size,
+        void* outData
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
 

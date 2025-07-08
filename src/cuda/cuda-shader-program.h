@@ -21,8 +21,10 @@ public:
     ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc);
     ~ShaderProgramImpl();
 
-    virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
-        override;
+    virtual Result createShaderModule(
+        slang::EntryPointReflection* entryPointInfo,
+        ComPtr<ISlangBlob> kernelCode
+    ) override;
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 };

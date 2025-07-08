@@ -8,7 +8,8 @@ GPU_TEST_CASE("root-mutable-shader-object", WGPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection)
+    REQUIRE_CALL(
+        loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection)
     );
 
     ComputePipelineDesc pipelineDesc = {};
@@ -37,7 +38,8 @@ GPU_TEST_CASE("root-mutable-shader-object", WGPU)
 
     slang::TypeReflection* addTransformerType = slangReflection->findTypeByName("AddTransformer");
     ComPtr<IShaderObject> transformer;
-    REQUIRE_CALL(device->createShaderObject(addTransformerType, ShaderObjectContainerType::None, transformer.writeRef())
+    REQUIRE_CALL(
+        device->createShaderObject(addTransformerType, ShaderObjectContainerType::None, transformer.writeRef())
     );
     entryPointCursor["transformer"].setObject(transformer);
 

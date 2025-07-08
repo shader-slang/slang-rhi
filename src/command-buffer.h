@@ -74,10 +74,16 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) override;
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    drawIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    drawIndexedIndirect(uint32_t maxDrawCount, BufferOffsetPair argBuffer, BufferOffsetPair countBuffer) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
+        uint32_t maxDrawCount,
+        BufferOffsetPair argBuffer,
+        BufferOffsetPair countBuffer
+    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
+        uint32_t maxDrawCount,
+        BufferOffsetPair argBuffer,
+        BufferOffsetPair countBuffer
+    ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) override;
 
     // IPassEncoder implementation
@@ -109,8 +115,10 @@ public:
 
     // IComputePassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
+        IComputePipeline* pipeline,
+        IShaderObject* rootObject
+    ) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) override;
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(BufferOffsetPair argBuffer) override;
 
@@ -143,12 +151,21 @@ public:
     void writeRayTracingState();
 
     // IRayTracingPassEncoder implementation
-    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL
-    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable, IShaderObject* rootObject) override;
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    dispatchRays(uint32_t rayGenShaderIndex, uint32_t width, uint32_t height, uint32_t depth) override;
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(
+        IRayTracingPipeline* pipeline,
+        IShaderTable* shaderTable
+    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
+        IRayTracingPipeline* pipeline,
+        IShaderTable* shaderTable,
+        IShaderObject* rootObject
+    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchRays(
+        uint32_t rayGenShaderIndex,
+        uint32_t width,
+        uint32_t height,
+        uint32_t depth
+    ) override;
 
     // IPassEncoder implementation
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
@@ -198,8 +215,13 @@ public:
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() override;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(
+        IBuffer* dst,
+        Offset dstOffset,
+        IBuffer* src,
+        Offset srcOffset,
+        Size size
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyTexture(
         ITexture* dst,
@@ -245,19 +267,32 @@ public:
         uint32_t subresourceDataCount
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL
-    uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL uploadBufferData(
+        IBuffer* dst,
+        Offset offset,
+        Size size,
+        const void* data
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearBuffer(IBuffer* buffer, BufferRange range) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureFloat(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        float clearValue[4]
+    ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureUint(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        uint32_t clearValue[4]
+    ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    clearTextureSint(ITexture* texture, SubresourceRange subresourceRange, int32_t clearValue[4]) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL clearTextureSint(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        int32_t clearValue[4]
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureDepthStencil(
         ITexture* texture,
@@ -268,8 +303,13 @@ public:
         uint8_t stencilValue
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    resolveQuery(IQueryPool* queryPool, uint32_t index, uint32_t count, IBuffer* buffer, uint64_t offset) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL resolveQuery(
+        IQueryPool* queryPool,
+        uint32_t index,
+        uint32_t count,
+        IBuffer* buffer,
+        uint64_t offset
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildAccelerationStructure(
         const AccelerationStructureBuildDesc& desc,
@@ -293,19 +333,28 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL serializeAccelerationStructure(
+        BufferOffsetPair dst,
+        IAccelerationStructure* src
+    ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
+        IAccelerationStructure* dst,
+        BufferOffsetPair src
+    ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
+        const ConvertCooperativeVectorMatrixDesc* descs,
+        uint32_t descCount
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL
-    setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL setTextureState(
+        ITexture* texture,
+        SubresourceRange subresourceRange,
+        ResourceState state
+    ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;

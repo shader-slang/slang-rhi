@@ -390,8 +390,9 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         Result result = createPipelineWithCache<D3D12_GRAPHICS_PIPELINE_STATE_DESC, ID3D12PipelineState>(
             this,
             &graphicsDesc,
-            [](DeviceImpl* device, D3D12_GRAPHICS_PIPELINE_STATE_DESC* desc, ID3D12PipelineState** outPipeline
-            ) -> Result
+            [](DeviceImpl* device,
+               D3D12_GRAPHICS_PIPELINE_STATE_DESC* desc,
+               ID3D12PipelineState** outPipeline) -> Result
             {
 #if SLANG_RHI_ENABLE_NVAPI
                 if (device->m_nvapiShaderExtension)

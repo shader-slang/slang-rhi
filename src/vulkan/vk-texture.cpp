@@ -268,7 +268,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
-    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
+    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {
+        VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
     };
     VkExternalMemoryHandleTypeFlags extMemoryHandleType =
 #if SLANG_WINDOWS_FAMILY
