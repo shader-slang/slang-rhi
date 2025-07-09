@@ -7,6 +7,7 @@
 #include "cuda-acceleration-structure.h"
 #include "cuda-shader-table.h"
 #include "cuda-shader-object.h"
+#include "cuda-fence.h"
 #include "../command-list.h"
 #include "../strings.h"
 
@@ -119,10 +120,11 @@ void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     BufferImpl* src = checked_cast<BufferImpl*>(cmd.src);
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy(
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
         (CUdeviceptr)((uint8_t*)dst->m_cudaMemory + cmd.dstOffset),
         (CUdeviceptr)((uint8_t*)src->m_cudaMemory + cmd.srcOffset),
-        cmd.size
+        cmd.size,
+        m_stream
     ));
 }
 
@@ -212,7 +214,7 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
             copyParam.Height = heightInBlocks(formatInfo, adjustedExtent.height);
             copyParam.Depth = adjustedExtent.depth;
 
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3DAsync(&copyParam, m_stream));
         }
     }
 }
@@ -285,13 +287,15 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     copyParam.Height = heightInBlocks(formatInfo, adjustedExtent.height);
     copyParam.Depth = adjustedExtent.depth;
 
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3DAsync(&copyParam, m_stream));
 }
 
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemsetD32((CUdeviceptr)buffer->m_cudaMemory + cmd.range.offset, 0, cmd.range.size / 4));
+    SLANG_CUDA_ASSERT_ON_FAIL(
+        cuMemsetD32Async((CUdeviceptr)buffer->m_cudaMemory + cmd.range.offset, 0, cmd.range.size / 4, m_stream)
+    );
 }
 
 void CommandExecutor::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
@@ -349,6 +353,7 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
             copyParam.Height = heightInBlocks(formatInfo, srLayout->size.height);
             copyParam.Depth = srLayout->size.depth;
             SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3D(&copyParam));
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpy3DAsync(&copyParam, m_stream));
 
             bufferOffset += srLayout->sizeInBytes;
             srLayout++;
@@ -795,13 +800,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
-        // TODO: wait for fence
-        uint64_t fenceValue;
-        SLANG_RETURN_ON_FAIL(desc.waitFences[i]->getCurrentValue(&fenceValue));
-        if (fenceValue < desc.waitFenceValues[i])
-        {
-            return SLANG_FAIL;
-        }
+        FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
+        SLANG_RETURN_ON_FAIL(fence->waitOnStream(desc.waitFenceValues[i], requestedStream));
     }
 
     // Execute command buffers.
@@ -821,11 +821,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Signal fences.
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
-        SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
+        FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
+        fence->signalFromStream(desc.signalFenceValues[i], requestedStream);
     }
-
-    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
-        checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->reset();
 
     return SLANG_OK;
 }

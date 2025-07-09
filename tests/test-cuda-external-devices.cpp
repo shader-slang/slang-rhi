@@ -12,7 +12,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-rhi::cuda::DeviceImpl* getCUDADevice(IDevice* device)
+static rhi::cuda::DeviceImpl* getCUDADevice(IDevice* device)
 {
     if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
         return (rhi::cuda::DeviceImpl*)debugDevice->baseObject.get();
