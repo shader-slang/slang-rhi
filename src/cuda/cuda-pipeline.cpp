@@ -12,6 +12,8 @@ ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDe
 
 ComputePipelineImpl::~ComputePipelineImpl()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     if (m_module)
         SLANG_CUDA_ASSERT_ON_FAIL(cuModuleUnload(m_module));
 }
@@ -99,6 +101,8 @@ RayTracingPipelineImpl::RayTracingPipelineImpl(Device* device, const RayTracingP
 
 RayTracingPipelineImpl::~RayTracingPipelineImpl()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     if (m_pipeline)
         SLANG_OPTIX_ASSERT_ON_FAIL(optixPipelineDestroy(m_pipeline));
     for (OptixProgramGroup programGroup : m_programGroups)
