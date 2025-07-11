@@ -22,6 +22,7 @@ rhi::cuda::DeviceImpl* getCUDADevice(IDevice* device)
 
 void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool expect_fail_to_copy)
 {
+    SLANG_CUDA_CTX_SCOPE(device);
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-pointer-copy", "computeMain", slangReflection));
@@ -111,18 +112,28 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
 {
     using namespace rhi::cuda;
 
-    // Create a 2nd external device
+    // Get cuda implementations of the main test device
+    auto cuda_device_1 = getCUDADevice(device);
+
+    // Explicitly create a 2nd context, and pop it off the stack so it doesn't become the current context.
+    CUcontext tmp_context;
+    cuCtxCreate(&tmp_context, 0, cuda_device_1->m_ctx.device);
+    CUcontext orig;
+    cuCtxPopCurrent(&orig);
+
+    // Create a 2nd external device using the new context.
     GpuTestContext ctx2;
     ctx2.slangGlobalSession = getSlangGlobalSession();
-    ComPtr<IDevice> device2 = createTestingDevice(&ctx2, DeviceType::CUDA, false);
+    DeviceExtraOptions opts;
+    opts.existingDeviceHandles.handles[0].type = NativeHandleType::CUcontext;
+    opts.existingDeviceHandles.handles[0].value = reinterpret_cast<uint64_t>(tmp_context);
+    ComPtr<IDevice> device2 = createTestingDevice(&ctx2, DeviceType::CUDA, false, &opts);
 
     // Get cuda implementations of both devices
-    auto cuda_device_1 = getCUDADevice(device);
     auto cuda_device_2 = getCUDADevice(device2.get());
 
     // Create a 3rd device that shares context with the 1st
     GpuTestContext ctx3;
-    DeviceExtraOptions opts;
     opts.existingDeviceHandles.handles[0].type = NativeHandleType::CUcontext;
     opts.existingDeviceHandles.handles[0].value = reinterpret_cast<uint64_t>(cuda_device_1->m_ctx.context);
     ctx3.slangGlobalSession = getSlangGlobalSession();
@@ -153,7 +164,15 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
     // which should succeed as they're sharing the context.
     runPointerCopyTest(cuda_device_3, stream, false);
 
-    // Clean up!
+    // Clear our refs so devices get cleaned up if need be
+    cuda_device_1 = nullptr;
+    cuda_device_2 = nullptr;
+    cuda_device_3 = nullptr;
+    device2.setNull();
+    device3.setNull();
+
+    // Clean up cuda!
     cuStreamDestroy(stream);
+    cuCtxDestroy(tmp_context);
 }
 #endif

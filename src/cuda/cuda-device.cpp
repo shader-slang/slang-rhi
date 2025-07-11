@@ -201,6 +201,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     if (m_ctx.context)
     {
         // User provided context. Get the device from it to be sure it matches.
+        SLANG_CUDA_CTX_SCOPE(this);
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxGetDevice(&m_ctx.device), this);
     }
     else if (m_ctx.device >= 0)

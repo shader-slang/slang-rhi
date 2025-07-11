@@ -712,6 +712,8 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     // On CUDA, treat the graphics stream as the default stream, identified
     // by a NULL ptr. When we support async compute queues on d3d/vulkan,
     // they will be equivalent to secondary, none-default streams in cuda.
@@ -727,6 +729,8 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 
 CommandQueueImpl::~CommandQueueImpl()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     // Block on all events completing
     for (const auto& commandBuffer : m_commandBuffersInFlight)
     {
@@ -774,6 +778,8 @@ Result CommandQueueImpl::retireCommandBuffers()
 
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
@@ -862,6 +868,8 @@ CommandEncoderImpl::CommandEncoderImpl(Device* device)
 
 Result CommandEncoderImpl::init()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     m_commandBuffer = new CommandBufferImpl(m_device);
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
@@ -869,6 +877,8 @@ Result CommandEncoderImpl::init()
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
     BindingDataBuilder builder;
     builder.m_device = getDevice<DeviceImpl>();
@@ -906,11 +916,13 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 CommandBufferImpl::CommandBufferImpl(Device* device)
     : CommandBuffer(device)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     m_constantBufferPool.init(checked_cast<DeviceImpl*>(device));
 }
 
 Result CommandBufferImpl::reset()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     m_bindingCache.reset();
     m_constantBufferPool.reset();
     return CommandBuffer::reset();
