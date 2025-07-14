@@ -358,6 +358,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             addFeature(Feature::AccelerationStructureSpheres);
             addFeature(Feature::AccelerationStructureLinearSweptSpheres);
             addFeature(Feature::RayTracing);
+            addFeature(Feature::ShaderExecutionReordering);
             addCapability(Capability::_raygen);
             addCapability(Capability::_intersection);
             addCapability(Capability::_anyhit);
