@@ -162,7 +162,7 @@ DeviceImpl::~DeviceImpl()
 
     if (m_ownsContext && m_ctx.context)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuCtxDestroy(m_ctx.context));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuDevicePrimaryCtxRelease(m_ctx.device));
     }
 }
 
@@ -201,12 +201,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     if (m_ctx.context)
     {
         // User provided context. Get the device from it to be sure it matches.
+        SLANG_CUDA_CTX_SCOPE(this);
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxGetDevice(&m_ctx.device), this);
     }
     else if (m_ctx.device >= 0)
     {
         // User provided device. Create a context for it.
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), this);
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDevicePrimaryCtxRetain(&m_ctx.context, m_ctx.device), this);
         m_ownsContext = true;
     }
     else
@@ -233,7 +234,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, selectedDeviceIndex), this);
 
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxCreate(&m_ctx.context, 0, m_ctx.device), this);
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDevicePrimaryCtxRetain(&m_ctx.context, m_ctx.device), this);
         m_ownsContext = true;
     }
 
