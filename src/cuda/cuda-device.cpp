@@ -197,7 +197,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             m_ctx.context = (CUcontext)handle.value;
         }
-        else if( handle.type == NativeHandleType::OptixDeviceContext)
+        else if (handle.type == NativeHandleType::OptixDeviceContext)
         {
 #if SLANG_RHI_ENABLE_OPTIX
             m_ctx.optixContext = (OptixDeviceContext)handle.value;
@@ -318,7 +318,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         OptixResult result = optixInit();
         if (result == OPTIX_SUCCESS)
         {
-            if(!m_ctx.optixContext)
+            if (!m_ctx.optixContext)
             {
                 static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* userData)
                 {
@@ -357,7 +357,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 options.logCallbackLevel = 4;
                 options.logCallbackData = this;
                 options.validationMode = desc.enableRayTracingValidation ? OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL
-                                                                        : OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
+                                                                         : OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
 
 
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
