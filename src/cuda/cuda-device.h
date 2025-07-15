@@ -31,6 +31,7 @@ public:
     RefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
+    bool m_ownsOptixContext = false;
     DualPageAllocator m_dualPageAllocator;
 
 public:
