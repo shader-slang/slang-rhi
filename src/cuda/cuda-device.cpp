@@ -153,7 +153,7 @@ DeviceImpl::~DeviceImpl()
         m_queue.setNull();
 
 #if SLANG_RHI_ENABLE_OPTIX
-        if (m_ctx.optixContext)
+        if (m_ownsOptixContext && m_ctx.optixContext)
         {
             optixDeviceContextDestroy(m_ctx.optixContext);
         }
@@ -176,7 +176,8 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 #else
     outHandles->handles[1] = {};
 #endif
-    outHandles->handles[2] = {};
+    outHandles->handles[2].type = NativeHandleType::CUcontext;
+    outHandles->handles[2].value = (uint64_t)m_ctx.context;
     return SLANG_OK;
 }
 
@@ -195,6 +196,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         else if (handle.type == NativeHandleType::CUcontext)
         {
             m_ctx.context = (CUcontext)handle.value;
+        }
+        else if( handle.type == NativeHandleType::OptixDeviceContext)
+        {
+#if SLANG_RHI_ENABLE_OPTIX
+            m_ctx.optixContext = (OptixDeviceContext)handle.value;
+#endif
         }
     }
 
@@ -311,49 +318,54 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         OptixResult result = optixInit();
         if (result == OPTIX_SUCCESS)
         {
-            static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* userData)
+            if(!m_ctx.optixContext)
             {
-                DeviceImpl* device = static_cast<DeviceImpl*>(userData);
-                DebugMessageType type;
-                switch (level)
+                static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* userData)
                 {
-                case 1: // fatal
-                    type = DebugMessageType::Error;
-                    break;
-                case 2: // error
-                    type = DebugMessageType::Error;
-                    break;
-                case 3: // warning
-                    type = DebugMessageType::Warning;
-                    break;
-                case 4: // print
-                    type = DebugMessageType::Info;
-                    break;
-                default:
-                    return;
-                }
+                    DeviceImpl* device = static_cast<DeviceImpl*>(userData);
+                    DebugMessageType type;
+                    switch (level)
+                    {
+                    case 1: // fatal
+                        type = DebugMessageType::Error;
+                        break;
+                    case 2: // error
+                        type = DebugMessageType::Error;
+                        break;
+                    case 3: // warning
+                        type = DebugMessageType::Warning;
+                        break;
+                    case 4: // print
+                        type = DebugMessageType::Info;
+                        break;
+                    default:
+                        return;
+                    }
 
-                char msg[4096];
-                int msgSize = snprintf(msg, sizeof(msg), "[%s]: %s", tag, message);
-                if (msgSize < 0)
-                    return;
-                else if (msgSize >= int(sizeof(msg)))
-                    msg[sizeof(msg) - 1] = 0;
+                    char msg[4096];
+                    int msgSize = snprintf(msg, sizeof(msg), "[%s]: %s", tag, message);
+                    if (msgSize < 0)
+                        return;
+                    else if (msgSize >= int(sizeof(msg)))
+                        msg[sizeof(msg) - 1] = 0;
 
-                device->handleMessage(type, DebugMessageSource::Driver, msg);
-            };
+                    device->handleMessage(type, DebugMessageSource::Driver, msg);
+                };
 
-            OptixDeviceContextOptions options = {};
-            options.logCallbackFunction = logCallback;
-            options.logCallbackLevel = 4;
-            options.logCallbackData = this;
-            options.validationMode = desc.enableRayTracingValidation ? OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL
-                                                                     : OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
+                OptixDeviceContextOptions options = {};
+                options.logCallbackFunction = logCallback;
+                options.logCallbackLevel = 4;
+                options.logCallbackData = this;
+                options.validationMode = desc.enableRayTracingValidation ? OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL
+                                                                        : OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
 
-            SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext),
-                this
-            );
+
+                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                    optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext),
+                    this
+                );
+                m_ownsOptixContext = true;
+            }
 
             addFeature(Feature::AccelerationStructure);
             addFeature(Feature::AccelerationStructureSpheres);
