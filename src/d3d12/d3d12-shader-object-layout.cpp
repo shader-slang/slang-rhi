@@ -972,6 +972,7 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
     // If NVAPI is enabled, we need to add a "fake" UAV descriptor range to the root signature.
     if (device->m_nvapiShaderExtension)
     {
+        rootDescriptorSetIndex = builder.addDescriptorSet();
         builder.addDescriptorRange(
             rootDescriptorSetIndex,
             D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
