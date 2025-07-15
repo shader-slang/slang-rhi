@@ -336,7 +336,7 @@ struct RayTracingReorderTest
             EXPECTED_PIXEL(127, 127, 1.f, 1.f, 1.f, 1.f), // Miss
             EXPECTED_PIXEL(0, 127, 1.f, 1.f, 1.f, 1.f),   // Miss
         };
- 
+
         for (const auto& ep : expectedPixels)
         {
             uint32_t x = ep.pos[0];
@@ -378,10 +378,9 @@ struct RayTracingReorderTest
         renderFrame();
         checkTestResults();
     }
-
 };
 
-GPU_TEST_CASE("ray-tracing-reorder-hint", CUDA)
+GPU_TEST_CASE("ray-tracing-reorder-hint", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -393,7 +392,7 @@ GPU_TEST_CASE("ray-tracing-reorder-hint", CUDA)
     test.run("rayGenShaderReorderHint");
 }
 
-GPU_TEST_CASE("ray-tracing-reorder-hit-obj", CUDA)
+GPU_TEST_CASE("ray-tracing-reorder-hit-obj", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -405,7 +404,7 @@ GPU_TEST_CASE("ray-tracing-reorder-hit-obj", CUDA)
     test.run("rayGenShaderReorderHitObj");
 }
 
-GPU_TEST_CASE("ray-tracing-reorder-hit-obj-and-hint", CUDA)
+GPU_TEST_CASE("ray-tracing-reorder-hit-obj-and-hint", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");

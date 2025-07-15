@@ -382,7 +382,8 @@ public:
             UINT registerIndex,
             UINT spaceIndex,
             UINT count,
-            bool isRootParameter
+            bool isRootParameter,
+            bool isVolatile = false
         );
         /// Add one descriptor range as specified in Slang reflection information to the layout.
         ///
