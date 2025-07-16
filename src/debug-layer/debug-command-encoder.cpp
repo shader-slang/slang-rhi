@@ -756,6 +756,14 @@ void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange su
     baseObject->setTextureState(texture, subresourceRange, state);
 }
 
+void DebugCommandEncoder::globalBarrier()
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    baseObject->globalBarrier();
+}
+
 void DebugCommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_API_FUNC;
