@@ -528,8 +528,7 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
     UINT registerIndex,
     UINT spaceIndex,
     UINT count,
-    bool isRootParameter,
-    bool isVolatile
+    bool isRootParameter
 )
 {
     if (isRootParameter)
@@ -566,10 +565,6 @@ Result RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addDescriptorRange(
     range.BaseShaderRegister = registerIndex;
     range.RegisterSpace = spaceIndex;
     range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-    if (isVolatile)
-    {
-        range.Flags |= D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
-    }
 
     if (range.RangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER)
     {
@@ -967,23 +962,6 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
         auto entryPoint = layout->getEntryPointByIndex(i);
         builder.addAsValue(entryPoint->getVarLayout(), rootDescriptorSetIndex);
     }
-
-#if SLANG_RHI_ENABLE_NVAPI
-    // If NVAPI is enabled, we need to add a "fake" UAV descriptor range to the root signature.
-    if (device->m_nvapiShaderExtension)
-    {
-        rootDescriptorSetIndex = builder.addDescriptorSet();
-        builder.addDescriptorRange(
-            rootDescriptorSetIndex,
-            D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
-            device->m_nvapiShaderExtension.uavSlot,
-            device->m_nvapiShaderExtension.registerSpace,
-            1,
-            false, // Not a root parameter, add to descriptor table
-            true
-        );
-    }
-#endif
 
     // This is hacky, before calling build(), m_rootParameters contains only the root parameters.
     rootLayout->m_rootSignatureRootParameterCount = builder.m_rootParameters.size();

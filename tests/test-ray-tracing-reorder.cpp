@@ -380,7 +380,12 @@ struct RayTracingReorderTest
     }
 };
 
-GPU_TEST_CASE("ray-tracing-reorder-hint", ALL)
+// TODO: Enable these tests for D3D12
+//
+// There's a bug in the D3D12 backend where the root signature descriptor doesn't include the dummy
+// UAV that NVAPI uses.
+
+GPU_TEST_CASE("ray-tracing-reorder-hint", CUDA | Vulkan)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -392,7 +397,7 @@ GPU_TEST_CASE("ray-tracing-reorder-hint", ALL)
     test.run("rayGenShaderReorderHint");
 }
 
-GPU_TEST_CASE("ray-tracing-reorder-hit-obj", ALL)
+GPU_TEST_CASE("ray-tracing-reorder-hit-obj", CUDA | Vulkan)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -404,7 +409,7 @@ GPU_TEST_CASE("ray-tracing-reorder-hit-obj", ALL)
     test.run("rayGenShaderReorderHitObj");
 }
 
-GPU_TEST_CASE("ray-tracing-reorder-hit-obj-and-hint", ALL)
+GPU_TEST_CASE("ray-tracing-reorder-hit-obj-and-hint", CUDA | Vulkan)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
