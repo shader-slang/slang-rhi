@@ -1383,7 +1383,7 @@ void CommandRecorder::requireTextureState(TextureImpl* texture, SubresourceRange
 
 void CommandRecorder::commitBarriers()
 {
-    if (gDebugDisableStateTracking)
+    if (detail::gDebugDisableStateTracking)
         return;
 
     short_vector<VkBufferMemoryBarrier, 16> bufferBarriers;

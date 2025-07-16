@@ -1407,7 +1407,7 @@ void CommandRecorder::requireTextureState(TextureImpl* texture, SubresourceRange
 
 void CommandRecorder::commitBarriers()
 {
-    if (gDebugDisableStateTracking)
+    if (detail::gDebugDisableStateTracking)
         return;
 
     short_vector<D3D12_RESOURCE_BARRIER, 16> barriers;

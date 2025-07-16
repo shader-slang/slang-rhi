@@ -131,9 +131,9 @@ GPU_TEST_CASE("buffer-no-barrier-race-condition", ALL)
         }
 
         // Disable state tracking for the submit
-        gDebugDisableStateTracking = true;
+        detail::gDebugDisableStateTracking = true;
         queue->submit(commandEncoder->finish());
-        gDebugDisableStateTracking = false;
+        detail::gDebugDisableStateTracking = false;
         queue->waitOnHost();
     }
 
@@ -193,9 +193,9 @@ GPU_TEST_CASE("buffer-global-barrier", D3D12 | Vulkan)
         }
 
         // Disable state tracking for the submit
-        gDebugDisableStateTracking = true;
+        detail::gDebugDisableStateTracking = true;
         queue->submit(commandEncoder->finish());
-        gDebugDisableStateTracking = false;
+        detail::gDebugDisableStateTracking = false;
         queue->waitOnHost();
     }
 
