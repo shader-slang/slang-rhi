@@ -1247,10 +1247,14 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 {
+    // On vulkan the global barrier is a memory barrier that:
+    // - captures all stages both before and after the barrier
+    // - ensures that all reads after the barrier see all writes before the barrier
+
     VkMemoryBarrier memoryBarrier = {};
     memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
 
     m_api.vkCmdPipelineBarrier(
         m_cmdBuffer,
