@@ -8,6 +8,9 @@
 
 namespace rhi {
 
+// Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
+bool gDebugDisableStateTracking = false;
+
 // ----------------------------------------------------------------------------
 // ShaderCache
 // ----------------------------------------------------------------------------

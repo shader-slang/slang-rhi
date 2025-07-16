@@ -44,6 +44,7 @@
     x(ConvertCooperativeVectorMatrix) \
     x(SetBufferState) \
     x(SetTextureState) \
+    x(GlobalBarrier) \
     x(PushDebugGroup) \
     x(PopDebugGroup) \
     x(InsertDebugMarker) \
@@ -304,6 +305,9 @@ struct SetTextureState
     ResourceState state;
 };
 
+struct GlobalBarrier
+{};
+
 struct PushDebugGroup
 {
     const char* name;
@@ -422,6 +426,7 @@ public:
     void write(commands::ConvertCooperativeVectorMatrix&& cmd);
     void write(commands::SetBufferState&& cmd);
     void write(commands::SetTextureState&& cmd);
+    void write(commands::GlobalBarrier&& cmd);
     void write(commands::PushDebugGroup&& cmd);
     void write(commands::PopDebugGroup&& cmd);
     void write(commands::InsertDebugMarker&& cmd);

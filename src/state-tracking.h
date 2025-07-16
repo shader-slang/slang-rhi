@@ -7,6 +7,8 @@
 
 namespace rhi {
 
+extern bool gDebugDisableStateTracking;
+
 struct BufferState
 {
     ResourceState state = ResourceState::Undefined;

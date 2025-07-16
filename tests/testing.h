@@ -98,27 +98,62 @@ Result loadRenderProgramFromSource(
 );
 
 template<typename T>
-void compareResult(const T* result, const T* expectedResult, size_t count)
+void compareResult(const T* result, const T* expectedResult, size_t count, bool expectFailure = false)
 {
-    for (size_t i = 0; i < count; i++)
+    if (expectFailure)
     {
-        CAPTURE(i);
-        CHECK_EQ(result[i], expectedResult[i]);
+        size_t mismatchCount = 0;
+        for (size_t i = 0; i < count; i++)
+        {
+            if (result[i] != expectedResult[i])
+            {
+                mismatchCount++;
+            }
+        }
+        CHECK_GT(mismatchCount, 0);
+    }
+    else
+    {
+        for (size_t i = 0; i < count; i++)
+        {
+            CAPTURE(i);
+            CHECK_EQ(result[i], expectedResult[i]);
+        }
     }
 }
 
-inline void compareResultFuzzy(const float* result, const float* expectedResult, size_t count)
+inline void compareResultFuzzy(
+    const float* result,
+    const float* expectedResult,
+    size_t count,
+    bool expectFailure = false
+)
 {
-    for (size_t i = 0; i < count; ++i)
+    if (expectFailure)
     {
-        CAPTURE(i);
-        CHECK_LE(result[i], expectedResult[i] + 0.01f);
-        CHECK_GE(result[i], expectedResult[i] - 0.01f);
+        size_t mismatchCount = 0;
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (result[i] > expectedResult[i] + 0.01f || result[i] < expectedResult[i] - 0.01f)
+            {
+                mismatchCount++;
+            }
+        }
+        CHECK_GT(mismatchCount, 0);
+    }
+    else
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            CAPTURE(i);
+            CHECK_LE(result[i], expectedResult[i] + 0.01f);
+            CHECK_GE(result[i], expectedResult[i] - 0.01f);
+        }
     }
 }
 
 template<typename T>
-void compareComputeResult(IDevice* device, IBuffer* buffer, span<T> expectedResult)
+void compareComputeResult(IDevice* device, IBuffer* buffer, span<T> expectedResult, bool expectFailure = false)
 {
     size_t bufferSize = expectedResult.size() * sizeof(T);
     // Read back the results.
@@ -128,19 +163,31 @@ void compareComputeResult(IDevice* device, IBuffer* buffer, span<T> expectedResu
     const T* result = reinterpret_cast<const T*>(bufferData->getBufferPointer());
 
     if constexpr (std::is_same<T, float>::value)
-        compareResultFuzzy(result, expectedResult.data(), expectedResult.size());
+        compareResultFuzzy(result, expectedResult.data(), expectedResult.size(), expectFailure);
     else
-        compareResult<T>(result, expectedResult.data(), expectedResult.size());
+        compareResult<T>(result, expectedResult.data(), expectedResult.size(), expectFailure);
 }
 
 template<typename T, size_t Count>
-void compareComputeResult(IDevice* device, IBuffer* buffer, std::array<T, Count> expectedResult)
+void compareComputeResult(
+    IDevice* device,
+    IBuffer* buffer,
+    std::array<T, Count> expectedResult,
+    bool expectFailure = false
+)
 {
-    compareComputeResult(device, buffer, span<T>(expectedResult.data(), Count));
+    compareComputeResult(device, buffer, span<T>(expectedResult.data(), Count), expectFailure);
 }
 
 template<typename T>
-void compareComputeResult(IDevice* device, ITexture* texture, uint32_t layer, uint32_t mip, span<T> expectedResult)
+void compareComputeResult(
+    IDevice* device,
+    ITexture* texture,
+    uint32_t layer,
+    uint32_t mip,
+    span<T> expectedResult,
+    bool expectFailure = false
+)
 {
     size_t bufferSize = expectedResult.size() * sizeof(T);
     // Read back the results.
@@ -170,9 +217,9 @@ void compareComputeResult(IDevice* device, ITexture* texture, uint32_t layer, ui
     const T* result = reinterpret_cast<const T*>(textureData->getBufferPointer());
 
     if constexpr (std::is_same<T, float>::value)
-        compareResultFuzzy(result, expectedResult.data(), expectedResult.size());
+        compareResultFuzzy(result, expectedResult.data(), expectedResult.size(), expectFailure);
     else
-        compareResult<T>(result, expectedResult.data(), expectedResult.size());
+        compareResult<T>(result, expectedResult.data(), expectedResult.size(), expectFailure);
 }
 
 template<typename T, size_t Count>
@@ -181,10 +228,11 @@ void compareComputeResult(
     ITexture* texture,
     uint32_t layer,
     uint32_t mip,
-    std::array<T, Count> expectedResult
+    std::array<T, Count> expectedResult,
+    bool expectFailure = false
 )
 {
-    compareComputeResult(device, texture, layer, mip, span<T>(expectedResult.data(), Count));
+    compareComputeResult(device, texture, layer, mip, span<T>(expectedResult.data(), Count), expectFailure);
 }
 
 struct DeviceExtraOptions

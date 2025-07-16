@@ -104,6 +104,7 @@ public:
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
+    void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -1271,6 +1272,17 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
 }
 
+void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
+{
+    // Global barrier on D3D12 is implemented with a UAV barrier pointing at null resource.
+    // https://learn.microsoft.com/en-us/windows/win32/direct3d12/using-resource-barriers-to-synchronize-resource-states-in-direct3d-12
+    // TODO: Look at using D3D12 advanced barriers when available, currently only experimental in agility sdk though.
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    barrier.UAV.pResource = nullptr;
+    m_cmdList->ResourceBarrier(1, &barrier);
+}
+
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     auto beginEvent = m_device->m_BeginEventOnCommandList;
@@ -1395,6 +1407,9 @@ void CommandRecorder::requireTextureState(TextureImpl* texture, SubresourceRange
 
 void CommandRecorder::commitBarriers()
 {
+    if (gDebugDisableStateTracking)
+        return;
+
     short_vector<D3D12_RESOURCE_BARRIER, 16> barriers;
 
     for (const auto& bufferBarrier : m_stateTracking.getBufferBarriers())
