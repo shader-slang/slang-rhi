@@ -356,6 +356,8 @@ public:
         ResourceState state
     ) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;

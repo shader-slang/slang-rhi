@@ -2424,6 +2424,8 @@ public:
         ResourceState state
     ) = 0;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() = 0;
+
     inline void setTextureState(ITexture* texture, ResourceState state)
     {
         setTextureState(texture, kEntireTexture, state);

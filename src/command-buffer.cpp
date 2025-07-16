@@ -817,6 +817,13 @@ void CommandEncoder::setTextureState(ITexture* texture, SubresourceRange subreso
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::globalBarrier()
+{
+    commands::GlobalBarrier cmd;
+    m_commandList->write(std::move(cmd));
+}
+
+
 void CommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     commands::PushDebugGroup cmd;

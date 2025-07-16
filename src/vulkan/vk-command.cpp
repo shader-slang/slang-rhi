@@ -107,6 +107,7 @@ public:
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
+    void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -1244,6 +1245,31 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
 }
 
+void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
+{
+    // On vulkan the global barrier is a memory barrier that:
+    // - captures all stages both before and after the barrier
+    // - ensures that all reads after the barrier see all writes before the barrier
+
+    VkMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+
+    m_api.vkCmdPipelineBarrier(
+        m_cmdBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VkDependencyFlags(0),
+        1,
+        &memoryBarrier,
+        0,
+        nullptr,
+        0,
+        nullptr
+    );
+}
+
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     if (!m_api.vkCmdBeginDebugUtilsLabelEXT)
@@ -1357,6 +1383,9 @@ void CommandRecorder::requireTextureState(TextureImpl* texture, SubresourceRange
 
 void CommandRecorder::commitBarriers()
 {
+    if (detail::gDebugDisableStateTracking)
+        return;
+
     short_vector<VkBufferMemoryBarrier, 16> bufferBarriers;
     short_vector<VkImageMemoryBarrier, 16> imageBarriers;
 
