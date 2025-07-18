@@ -280,25 +280,6 @@ GPU_TEST_CASE("texture-view-simple", D3D11 | D3D12 | Vulkan | CUDA | Metal)
                 if (desc.format == Format::RGBA8Sint || desc.format == Format::RGBA16Sint)
                     return;
             }
-            // TODO: There are many issues in the Metal backend that prevent this test from passing.
-            // For now, we skip the configs that crash slang.
-            // https://github.com/shader-slang/slang/issues/7558
-            if (device->getDeviceType() == DeviceType::Metal)
-            {
-                const TextureDesc& desc = c->getTextureData().desc;
-                // Error: libslang.dylib!Slang::legalizeIRForMetal(Slang::IRModule*, Slang::DiagnosticSink*)
-                if (desc.format == Format::RG8Uint || desc.format == Format::RG8Sint ||
-                    desc.format == Format::RG8Unorm || desc.format == Format::RG8Snorm)
-                    return;
-                if (desc.format == Format::RG16Uint || desc.format == Format::RG16Sint ||
-                    desc.format == Format::RG16Unorm || desc.format == Format::RG16Snorm)
-                    return;
-                if (desc.format == Format::RG16Float)
-                    return;
-                if (desc.format == Format::RG32Uint || desc.format == Format::RG32Sint ||
-                    desc.format == Format::RG32Float)
-                    return;
-            }
 
             const TextureData& data = c->getTextureData();
 
