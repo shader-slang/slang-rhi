@@ -18,6 +18,9 @@ on:
       - "LICENSE"
       - "**.md"
       - .github/workflows/ci-gcp.yml
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
