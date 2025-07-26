@@ -475,6 +475,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vertexAttributeRobustnessFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vertexAttributeRobustnessFeatures);
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -893,6 +894,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::SPV_EXT_demote_to_helper_invocation);
                 availableCapabilities.push_back(Capability::spvDemoteToHelperInvocationEXT);
             }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.vertexAttributeRobustnessFeatures,
+            vertexAttributeRobustness,
+            VK_EXT_VERTEX_ATTRIBUTE_ROBUSTNESS_EXTENSION_NAME,
+            {/* vertex attribute robustness */}
         );
 
 #undef SIMPLE_EXTENSION_FEATURE
