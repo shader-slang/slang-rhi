@@ -691,6 +691,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
+        src/cuda/cuda-sampler.cpp
         src/cuda/cuda-shader-object-layout.cpp
         src/cuda/cuda-shader-object.cpp
         src/cuda/cuda-shader-program.cpp

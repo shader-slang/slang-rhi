@@ -16,6 +16,7 @@ namespace rhi::cuda {
 class BufferImpl;
 class TextureImpl;
 class TextureViewImpl;
+class SamplerImpl;
 class ShaderObjectLayoutImpl;
 class RootShaderObjectLayoutImpl;
 class ShaderProgramImpl;
