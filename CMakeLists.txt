@@ -524,7 +524,6 @@ if(SLANG_RHI_ENABLE_CPU)
         src/cpu/cpu-command.cpp
         src/cpu/cpu-device.cpp
         src/cpu/cpu-fence.cpp
-        src/cpu/cpu-helper-functions.cpp
         src/cpu/cpu-pipeline.cpp
         src/cpu/cpu-query.cpp
         src/cpu/cpu-shader-object-layout.cpp
