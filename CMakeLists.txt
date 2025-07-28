@@ -670,7 +670,6 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-constant-buffer-pool.cpp
         src/wgpu/wgpu-device.cpp
         src/wgpu/wgpu-fence.cpp
-        src/wgpu/wgpu-helper-functions.cpp
         src/wgpu/wgpu-input-layout.cpp
         src/wgpu/wgpu-pipeline.cpp
         src/wgpu/wgpu-query.cpp
@@ -680,7 +679,7 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-shader-program.cpp
         src/wgpu/wgpu-surface.cpp
         src/wgpu/wgpu-texture.cpp
-        src/wgpu/wgpu-util.cpp
+        src/wgpu/wgpu-utils.cpp
     )
 endif()
 

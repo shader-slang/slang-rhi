@@ -1,4 +1,4 @@
-#include "wgpu-util.h"
+#include "wgpu-utils.h"
 
 #include "core/assert.h"
 
