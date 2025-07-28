@@ -2,7 +2,7 @@
 #include "metal-device.h"
 #include "metal-shader-object-layout.h"
 #include "metal-shader-program.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 #include "metal-input-layout.h"
 
 namespace rhi::metal {
@@ -35,7 +35,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     for (const ShaderProgramImpl::Module& module : program->m_modules)
     {
-        auto functionName = MetalUtil::createString(module.entryPointName.data());
+        auto functionName = createString(module.entryPointName.data());
         NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
         if (!function)
             return SLANG_FAIL;
@@ -63,7 +63,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         vertexDescriptor = inputLayout->createVertexDescriptor(vertexBufferOffset);
         pd->setVertexDescriptor(vertexDescriptor.get());
     }
-    pd->setInputPrimitiveTopology(MetalUtil::translatePrimitiveTopologyClass(desc.primitiveTopology));
+    pd->setInputPrimitiveTopology(translatePrimitiveTopologyClass(desc.primitiveTopology));
 
     pd->setAlphaToCoverageEnabled(desc.multisample.alphaToCoverageEnable);
     // pd->setAlphaToOneEnabled(); // Currently not supported by rhi
@@ -73,28 +73,28 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     {
         const ColorTargetDesc& targetState = desc.targets[i];
         MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = pd->colorAttachments()->object(i);
-        colorAttachment->setPixelFormat(MetalUtil::translatePixelFormat(targetState.format));
+        colorAttachment->setPixelFormat(translatePixelFormat(targetState.format));
 
         colorAttachment->setBlendingEnabled(targetState.enableBlend);
-        colorAttachment->setSourceRGBBlendFactor(MetalUtil::translateBlendFactor(targetState.color.srcFactor));
-        colorAttachment->setDestinationRGBBlendFactor(MetalUtil::translateBlendFactor(targetState.color.dstFactor));
-        colorAttachment->setRgbBlendOperation(MetalUtil::translateBlendOperation(targetState.color.op));
-        colorAttachment->setSourceAlphaBlendFactor(MetalUtil::translateBlendFactor(targetState.alpha.srcFactor));
-        colorAttachment->setDestinationAlphaBlendFactor(MetalUtil::translateBlendFactor(targetState.alpha.dstFactor));
-        colorAttachment->setAlphaBlendOperation(MetalUtil::translateBlendOperation(targetState.alpha.op));
-        colorAttachment->setWriteMask(MetalUtil::translateColorWriteMask(targetState.writeMask));
+        colorAttachment->setSourceRGBBlendFactor(translateBlendFactor(targetState.color.srcFactor));
+        colorAttachment->setDestinationRGBBlendFactor(translateBlendFactor(targetState.color.dstFactor));
+        colorAttachment->setRgbBlendOperation(translateBlendOperation(targetState.color.op));
+        colorAttachment->setSourceAlphaBlendFactor(translateBlendFactor(targetState.alpha.srcFactor));
+        colorAttachment->setDestinationAlphaBlendFactor(translateBlendFactor(targetState.alpha.dstFactor));
+        colorAttachment->setAlphaBlendOperation(translateBlendOperation(targetState.alpha.op));
+        colorAttachment->setWriteMask(translateColorWriteMask(targetState.writeMask));
     }
     if (desc.depthStencil.format != Format::Undefined)
     {
         const DepthStencilDesc& depthStencil = desc.depthStencil;
-        MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(depthStencil.format);
-        if (MetalUtil::isDepthFormat(pixelFormat))
+        MTL::PixelFormat pixelFormat = translatePixelFormat(depthStencil.format);
+        if (isDepthFormat(pixelFormat))
         {
-            pd->setDepthAttachmentPixelFormat(MetalUtil::translatePixelFormat(depthStencil.format));
+            pd->setDepthAttachmentPixelFormat(translatePixelFormat(depthStencil.format));
         }
-        if (MetalUtil::isStencilFormat(pixelFormat))
+        if (isStencilFormat(pixelFormat))
         {
-            pd->setStencilAttachmentPixelFormat(MetalUtil::translatePixelFormat(depthStencil.format));
+            pd->setStencilAttachmentPixelFormat(translatePixelFormat(depthStencil.format));
         }
     }
 
@@ -102,7 +102,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     if (desc.label)
     {
-        pd->setLabel(MetalUtil::createString(desc.label).get());
+        pd->setLabel(createString(desc.label).get());
     }
 
     NS::Error* error;
@@ -127,10 +127,10 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
                                 uint32_t writeMask) -> NS::SharedPtr<MTL::StencilDescriptor>
     {
         NS::SharedPtr<MTL::StencilDescriptor> stencilDesc = NS::TransferPtr(MTL::StencilDescriptor::alloc()->init());
-        stencilDesc->setStencilCompareFunction(MetalUtil::translateCompareFunction(desc.stencilFunc));
-        stencilDesc->setStencilFailureOperation(MetalUtil::translateStencilOperation(desc.stencilFailOp));
-        stencilDesc->setDepthFailureOperation(MetalUtil::translateStencilOperation(desc.stencilDepthFailOp));
-        stencilDesc->setDepthStencilPassOperation(MetalUtil::translateStencilOperation(desc.stencilPassOp));
+        stencilDesc->setStencilCompareFunction(translateCompareFunction(desc.stencilFunc));
+        stencilDesc->setStencilFailureOperation(translateStencilOperation(desc.stencilFailOp));
+        stencilDesc->setDepthFailureOperation(translateStencilOperation(desc.stencilDepthFailOp));
+        stencilDesc->setDepthStencilPassOperation(translateStencilOperation(desc.stencilPassOp));
         stencilDesc->setReadMask(readMask);
         stencilDesc->setWriteMask(writeMask);
         return stencilDesc;
@@ -141,7 +141,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         NS::TransferPtr(MTL::DepthStencilDescriptor::alloc()->init());
     if (depthStencil.depthTestEnable)
     {
-        depthStencilDesc->setDepthCompareFunction(MetalUtil::translateCompareFunction(depthStencil.depthFunc));
+        depthStencilDesc->setDepthCompareFunction(translateCompareFunction(depthStencil.depthFunc));
     }
     depthStencilDesc->setDepthWriteEnabled(depthStencil.depthWriteEnable);
     if (depthStencil.stencilEnable)
@@ -178,7 +178,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
     pipeline->m_depthStencilState = depthStencilState;
-    pipeline->m_primitiveType = MetalUtil::translatePrimitiveType(desc.primitiveTopology);
+    pipeline->m_primitiveType = translatePrimitiveType(desc.primitiveTopology);
     pipeline->m_rasterizerDesc = desc.rasterizer;
     pipeline->m_vertexBufferOffset = vertexBufferOffset;
     returnComPtr(outPipeline, pipeline);
@@ -207,7 +207,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
     const ShaderProgramImpl::Module& module = program->m_modules[0];
-    auto functionName = MetalUtil::createString(module.entryPointName.data());
+    auto functionName = createString(module.entryPointName.data());
     NS::SharedPtr<MTL::Function> function = NS::TransferPtr(module.library->newFunction(functionName.get()));
     if (!function)
         return SLANG_FAIL;
@@ -218,7 +218,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
 
     if (desc.label)
     {
-        pd->setLabel(MetalUtil::createString(desc.label).get());
+        pd->setLabel(createString(desc.label).get());
     }
 
     NS::Error* error;

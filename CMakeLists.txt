@@ -620,7 +620,6 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-command.cpp
         src/metal/metal-device.cpp
         src/metal/metal-fence.cpp
-        src/metal/metal-helper-functions.cpp
         src/metal/metal-input-layout.cpp
         src/metal/metal-pipeline.cpp
         src/metal/metal-query.cpp
@@ -631,7 +630,7 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-shader-table.cpp
         src/metal/metal-surface.cpp
         src/metal/metal-texture.cpp
-        src/metal/metal-util.cpp
+        src/metal/metal-utils.cpp
     )
     target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Metal")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)

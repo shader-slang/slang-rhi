@@ -1,7 +1,7 @@
 #include "metal-acceleration-structure.h"
 #include "metal-device.h"
 #include "metal-buffer.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 
 namespace rhi::metal {
 
@@ -135,7 +135,7 @@ Result AccelerationStructureBuildDescConverter::convert(
                 checked_cast<BufferImpl*>(triangles.vertexBuffers[0].buffer)->m_buffer.get()
             );
             triangleDescriptor->setVertexBufferOffset(triangles.vertexBuffers[0].offset);
-            triangleDescriptor->setVertexFormat(MetalUtil::translateAttributeFormat(triangles.vertexFormat));
+            triangleDescriptor->setVertexFormat(translateAttributeFormat(triangles.vertexFormat));
             triangleDescriptor->setVertexStride(triangles.vertexStride);
 
             if (triangles.indexBuffer)

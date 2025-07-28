@@ -1,8 +1,8 @@
-#include "metal-util.h"
+#include "metal-utils.h"
 
 namespace rhi::metal {
 
-const MetalUtil::FormatMapping& MetalUtil::getFormatMapping(Format format)
+const FormatMapping& getFormatMapping(Format format)
 {
     static const FormatMapping mappings[] = {
         // clang-format off
@@ -102,13 +102,12 @@ const MetalUtil::FormatMapping& MetalUtil::getFormatMapping(Format format)
     return mappings[int(format)];
 }
 
-
-MTL::PixelFormat MetalUtil::translatePixelFormat(Format format)
+MTL::PixelFormat translatePixelFormat(Format format)
 {
     return getFormatMapping(format).pixelFormat;
 }
 
-MTL::VertexFormat MetalUtil::translateVertexFormat(Format format)
+MTL::VertexFormat translateVertexFormat(Format format)
 {
     return getFormatMapping(format).vertexFormat;
     // Unsupported vertex formats:
@@ -124,7 +123,7 @@ MTL::VertexFormat MetalUtil::translateVertexFormat(Format format)
     // - VertexFormatInt1010102Normalized
 }
 
-MTL::AttributeFormat MetalUtil::translateAttributeFormat(Format format)
+MTL::AttributeFormat translateAttributeFormat(Format format)
 {
     return getFormatMapping(format).attributeFormat;
     // Unsupported attribute formats:
@@ -140,7 +139,7 @@ MTL::AttributeFormat MetalUtil::translateAttributeFormat(Format format)
     // - AttributeFormatInt1010102Normalized
 }
 
-bool MetalUtil::isDepthFormat(MTL::PixelFormat format)
+bool isDepthFormat(MTL::PixelFormat format)
 {
     switch (format)
     {
@@ -154,7 +153,7 @@ bool MetalUtil::isDepthFormat(MTL::PixelFormat format)
     }
 }
 
-bool MetalUtil::isStencilFormat(MTL::PixelFormat format)
+bool isStencilFormat(MTL::PixelFormat format)
 {
     switch (format)
     {
@@ -169,7 +168,7 @@ bool MetalUtil::isStencilFormat(MTL::PixelFormat format)
     }
 }
 
-MTL::TextureType MetalUtil::translateTextureType(TextureType type)
+MTL::TextureType translateTextureType(TextureType type)
 {
     switch (type)
     {
@@ -196,7 +195,7 @@ MTL::TextureType MetalUtil::translateTextureType(TextureType type)
     }
 }
 
-MTL::SamplerMinMagFilter MetalUtil::translateSamplerMinMagFilter(TextureFilteringMode mode)
+MTL::SamplerMinMagFilter translateSamplerMinMagFilter(TextureFilteringMode mode)
 {
     switch (mode)
     {
@@ -209,7 +208,7 @@ MTL::SamplerMinMagFilter MetalUtil::translateSamplerMinMagFilter(TextureFilterin
     }
 }
 
-MTL::SamplerMipFilter MetalUtil::translateSamplerMipFilter(TextureFilteringMode mode)
+MTL::SamplerMipFilter translateSamplerMipFilter(TextureFilteringMode mode)
 {
     switch (mode)
     {
@@ -222,7 +221,7 @@ MTL::SamplerMipFilter MetalUtil::translateSamplerMipFilter(TextureFilteringMode 
     }
 }
 
-MTL::SamplerAddressMode MetalUtil::translateSamplerAddressMode(TextureAddressingMode mode)
+MTL::SamplerAddressMode translateSamplerAddressMode(TextureAddressingMode mode)
 {
     switch (mode)
     {
@@ -241,7 +240,7 @@ MTL::SamplerAddressMode MetalUtil::translateSamplerAddressMode(TextureAddressing
     }
 }
 
-MTL::CompareFunction MetalUtil::translateCompareFunction(ComparisonFunc func)
+MTL::CompareFunction translateCompareFunction(ComparisonFunc func)
 {
     switch (func)
     {
@@ -266,7 +265,7 @@ MTL::CompareFunction MetalUtil::translateCompareFunction(ComparisonFunc func)
     }
 }
 
-MTL::StencilOperation MetalUtil::translateStencilOperation(StencilOp op)
+MTL::StencilOperation translateStencilOperation(StencilOp op)
 {
     switch (op)
     {
@@ -291,7 +290,7 @@ MTL::StencilOperation MetalUtil::translateStencilOperation(StencilOp op)
     }
 }
 
-MTL::VertexStepFunction MetalUtil::translateVertexStepFunction(InputSlotClass slotClass)
+MTL::VertexStepFunction translateVertexStepFunction(InputSlotClass slotClass)
 {
     switch (slotClass)
     {
@@ -304,7 +303,7 @@ MTL::VertexStepFunction MetalUtil::translateVertexStepFunction(InputSlotClass sl
     }
 }
 
-MTL::PrimitiveType MetalUtil::translatePrimitiveType(PrimitiveTopology topology)
+MTL::PrimitiveType translatePrimitiveType(PrimitiveTopology topology)
 {
     switch (topology)
     {
@@ -324,7 +323,7 @@ MTL::PrimitiveType MetalUtil::translatePrimitiveType(PrimitiveTopology topology)
     }
 }
 
-MTL::PrimitiveTopologyClass MetalUtil::translatePrimitiveTopologyClass(PrimitiveTopology topology)
+MTL::PrimitiveTopologyClass translatePrimitiveTopologyClass(PrimitiveTopology topology)
 {
     switch (topology)
     {
@@ -342,7 +341,7 @@ MTL::PrimitiveTopologyClass MetalUtil::translatePrimitiveTopologyClass(Primitive
     }
 }
 
-MTL::BlendFactor MetalUtil::translateBlendFactor(BlendFactor factor)
+MTL::BlendFactor translateBlendFactor(BlendFactor factor)
 {
     switch (factor)
     {
@@ -385,7 +384,7 @@ MTL::BlendFactor MetalUtil::translateBlendFactor(BlendFactor factor)
     }
 }
 
-MTL::BlendOperation MetalUtil::translateBlendOperation(BlendOp op)
+MTL::BlendOperation translateBlendOperation(BlendOp op)
 {
     switch (op)
     {
@@ -404,7 +403,7 @@ MTL::BlendOperation MetalUtil::translateBlendOperation(BlendOp op)
     }
 }
 
-MTL::ColorWriteMask MetalUtil::translateColorWriteMask(RenderTargetWriteMask mask)
+MTL::ColorWriteMask translateColorWriteMask(RenderTargetWriteMask mask)
 {
     MTL::ColorWriteMask result = MTL::ColorWriteMaskNone;
     if (is_set(mask, RenderTargetWriteMask::Red))
@@ -418,7 +417,7 @@ MTL::ColorWriteMask MetalUtil::translateColorWriteMask(RenderTargetWriteMask mas
     return result;
 }
 
-MTL::Winding MetalUtil::translateWinding(FrontFaceMode mode)
+MTL::Winding translateWinding(FrontFaceMode mode)
 {
     switch (mode)
     {
@@ -431,7 +430,7 @@ MTL::Winding MetalUtil::translateWinding(FrontFaceMode mode)
     }
 }
 
-MTL::CullMode MetalUtil::translateCullMode(CullMode mode)
+MTL::CullMode translateCullMode(CullMode mode)
 {
     switch (mode)
     {
@@ -446,7 +445,7 @@ MTL::CullMode MetalUtil::translateCullMode(CullMode mode)
     }
 }
 
-MTL::TriangleFillMode MetalUtil::translateTriangleFillMode(FillMode mode)
+MTL::TriangleFillMode translateTriangleFillMode(FillMode mode)
 {
     switch (mode)
     {
@@ -459,7 +458,7 @@ MTL::TriangleFillMode MetalUtil::translateTriangleFillMode(FillMode mode)
     }
 }
 
-MTL::LoadAction MetalUtil::translateLoadOp(LoadOp loadOp)
+MTL::LoadAction translateLoadOp(LoadOp loadOp)
 {
     switch (loadOp)
     {
@@ -474,7 +473,7 @@ MTL::LoadAction MetalUtil::translateLoadOp(LoadOp loadOp)
     }
 }
 
-MTL::StoreAction MetalUtil::translateStoreOp(StoreOp storeOp, bool resolve)
+MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve)
 {
     switch (storeOp)
     {

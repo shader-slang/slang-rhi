@@ -1,6 +1,6 @@
 #include "metal-texture.h"
 #include "metal-device.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 
 namespace rhi::metal {
 
@@ -67,7 +67,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         return SLANG_E_NOT_AVAILABLE;
     }
 
-    const MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
+    const MTL::PixelFormat pixelFormat = translatePixelFormat(desc.format);
     if (pixelFormat == MTL::PixelFormat::PixelFormatInvalid)
     {
         SLANG_RHI_ASSERT_FAILURE("Unsupported texture format");
@@ -91,7 +91,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         break;
     }
 
-    textureDesc->setTextureType(MetalUtil::translateTextureType(desc.type));
+    textureDesc->setTextureType(translateTextureType(desc.type));
     textureDesc->setWidth(desc.size.width);
     textureDesc->setHeight(desc.size.height);
     textureDesc->setDepth(desc.size.depth);
@@ -140,7 +140,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (desc.label)
     {
-        textureImpl->m_texture->setLabel(MetalUtil::createString(desc.label).get());
+        textureImpl->m_texture->setLabel(createString(desc.label).get());
     }
 
     if (initData)
@@ -215,7 +215,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     }
 
     MTL::PixelFormat pixelFormat =
-        desc.format == Format::Undefined ? textureImpl->m_pixelFormat : MetalUtil::translatePixelFormat(desc.format);
+        desc.format == Format::Undefined ? textureImpl->m_pixelFormat : translatePixelFormat(desc.format);
     NS::Range sliceRange(sr.layer, sr.layerCount);
     NS::Range levelRange(sr.mip, sr.mipCount);
 
