@@ -2,6 +2,7 @@
 #include "cuda-device.h"
 #include "cuda-shader-program.h"
 #include "cuda-shader-object-layout.h"
+#include "cuda-utils.h"
 
 namespace rhi::cuda {
 

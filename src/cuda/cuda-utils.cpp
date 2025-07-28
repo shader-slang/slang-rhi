@@ -1,4 +1,4 @@
-#include "cuda-helper-functions.h"
+#include "cuda-utils.h"
 #include "cuda-device.h"
 
 namespace rhi::cuda {
@@ -32,15 +32,20 @@ CUcontext getCurrentContext()
 {
     return g_contextStackDepth.load() > 0 ? g_currentContext : nullptr;
 }
+
+void checkCurrentContext()
+{
+    CUcontext currentContext = nullptr;
+    cuCtxGetCurrent(&currentContext);
+    CUcontext expectedContext = getCurrentContext();
+    if (expectedContext && expectedContext != currentContext)
+    {
+        __debugbreak();
+    }
+}
 #endif
 
-void _reportCUDAError(
-    CUresult result,
-    const char* call,
-    const char* file,
-    int line,
-    DebugCallbackAdapter debug_callback
-)
+void reportCUDAError(CUresult result, const char* call, const char* file, int line, DebugCallbackAdapter debug_callback)
 {
     if (!debug_callback)
         return;
@@ -51,10 +56,11 @@ void _reportCUDAError(
     cuGetErrorName(result, &errorName);
     char buf[4096];
     snprintf(buf, sizeof(buf), "%s failed: %s (%s)\nAt %s:%d\n", call, errorString, errorName, file, line);
+    buf[sizeof(buf) - 1] = 0; // Ensure null termination
     debug_callback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
 }
 
-void _reportCUDAAssert(CUresult result, const char* call, const char* file, int line)
+void reportCUDAAssert(CUresult result, const char* call, const char* file, int line)
 {
     const char* errorString = nullptr;
     const char* errorName = nullptr;
@@ -65,7 +71,7 @@ void _reportCUDAAssert(CUresult result, const char* call, const char* file, int 
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-void _reportOptixError(
+void reportOptixError(
     OptixResult result,
     const char* call,
     const char* file,
@@ -87,10 +93,11 @@ void _reportOptixError(
         file,
         line
     );
+    buf[sizeof(buf) - 1] = 0; // Ensure null termination
     debug_callback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
 }
 
-void _reportOptixAssert(OptixResult result, const char* call, const char* file, int line)
+void reportOptixAssert(OptixResult result, const char* call, const char* file, int line)
 {
     std::fprintf(
         stderr,
@@ -121,44 +128,4 @@ AdapterLUID getAdapterLUID(int deviceIndex)
     return luid;
 }
 
-Result SLANG_MCALL getAdapters(std::vector<AdapterInfo>& outAdapters)
-{
-    if (!rhiCudaDriverApiInit())
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_CUDA_RETURN_ON_FAIL(cuInit(0));
-    int deviceCount;
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
-    for (int deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++)
-    {
-        CUdevice device;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, deviceIndex));
-
-        AdapterInfo info = {};
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
-        info.luid = getAdapterLUID(deviceIndex);
-        outAdapters.push_back(info);
-    }
-
-    return SLANG_OK;
-}
-
 } // namespace rhi::cuda
-
-namespace rhi {
-
-Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
-{
-    return cuda::getAdapters(outAdapters);
-}
-
-Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<cuda::DeviceImpl> result = new cuda::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-} // namespace rhi

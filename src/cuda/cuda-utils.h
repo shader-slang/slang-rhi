@@ -4,7 +4,7 @@
 
 /// Enable CUDA context check.
 /// This is useful for debugging to ensure that the CUDA context is set correctly when calling CUDA APIs.
-#define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 0
+#define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 1
 
 namespace rhi::cuda {
 
@@ -16,33 +16,25 @@ public:
     ~ContextScope();
 };
 
-#define SLANG_CUDA_CTX_SCOPE(device) rhi::cuda::ContextScope _context_scope(device)
+#define SLANG_CUDA_CTX_SCOPE(device) ::rhi::cuda::ContextScope _context_scope(device)
 
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
 CUcontext getCurrentContext();
+void checkCurrentContext();
 #endif
 
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-inline void SLANG_RHI_CHECK_CUDA_CTX()
-{
-    CUcontext currentContext = nullptr;
-    cuCtxGetCurrent(&currentContext);
-    CUcontext expectedContext = getCurrentContext();
-    if (expectedContext && expectedContext != currentContext)
-    {
-        __debugbreak();
-    }
-}
+#define SLANG_RHI_CHECK_CUDA_CTX() ::rhi::cuda::checkCurrentContext()
 #else
 #define SLANG_RHI_CHECK_CUDA_CTX()
 #endif
 
-inline bool _isError(CUresult result)
+inline bool isCUDAError(CUresult result)
 {
     return result != 0;
 }
 
-void _reportCUDAError(
+void reportCUDAError(
     CUresult result,
     const char* call,
     const char* file,
@@ -50,13 +42,13 @@ void _reportCUDAError(
     DebugCallbackAdapter debug_callback
 );
 
-void _reportCUDAAssert(CUresult result, const char* call, const char* file, int line);
+void reportCUDAAssert(CUresult result, const char* call, const char* file, int line);
 
 #define SLANG_CUDA_RETURN_ON_FAIL(x)                                                                                   \
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
         auto _res = x;                                                                                                 \
-        if (_isError(_res))                                                                                            \
+        if (::rhi::cuda::isCUDAError(_res))                                                                            \
         {                                                                                                              \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
@@ -66,9 +58,9 @@ void _reportCUDAAssert(CUresult result, const char* call, const char* file, int 
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
         auto _res = x;                                                                                                 \
-        if (_isError(_res))                                                                                            \
+        if (::rhi::cuda::isCUDAError(_res))                                                                            \
         {                                                                                                              \
-            _reportCUDAError(_res, #x, __FILE__, __LINE__, debug_callback);                                            \
+            ::rhi::cuda::reportCUDAError(_res, #x, __FILE__, __LINE__, debug_callback);                                \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
     }
@@ -77,21 +69,21 @@ void _reportCUDAAssert(CUresult result, const char* call, const char* file, int 
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
         auto _res = x;                                                                                                 \
-        if (_isError(_res))                                                                                            \
+        if (::rhi::cuda::isCUDAError(_res))                                                                            \
         {                                                                                                              \
-            _reportCUDAAssert(_res, #x, __FILE__, __LINE__);                                                           \
+            ::rhi::cuda::reportCUDAAssert(_res, #x, __FILE__, __LINE__);                                               \
             SLANG_RHI_ASSERT_FAILURE("CUDA call failed");                                                              \
         }                                                                                                              \
     }
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-inline bool _isError(OptixResult result)
+inline bool isOptixError(OptixResult result)
 {
     return result != OPTIX_SUCCESS;
 }
 
-void _reportOptixError(
+void reportOptixError(
     OptixResult result,
     const char* call,
     const char* file,
@@ -99,12 +91,12 @@ void _reportOptixError(
     DebugCallbackAdapter debug_callback
 );
 
-void _reportOptixAssert(OptixResult result, const char* call, const char* file, int line);
+void reportOptixAssert(OptixResult result, const char* call, const char* file, int line);
 
 #define SLANG_OPTIX_RETURN_ON_FAIL(x)                                                                                  \
     {                                                                                                                  \
         auto _res = x;                                                                                                 \
-        if (_isError(_res))                                                                                            \
+        if (::rhi::cuda::isOptixError(_res))                                                                           \
         {                                                                                                              \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
@@ -113,9 +105,9 @@ void _reportOptixAssert(OptixResult result, const char* call, const char* file, 
 #define SLANG_OPTIX_RETURN_ON_FAIL_REPORT(x, debug_callback)                                                           \
     {                                                                                                                  \
         auto _res = x;                                                                                                 \
-        if (_isError(_res))                                                                                            \
+        if (::rhi::cuda::isOptixError(_res))                                                                           \
         {                                                                                                              \
-            _reportOptixError(_res, #x, __FILE__, __LINE__, debug_callback);                                           \
+            ::rhi::cuda::reportOptixError(_res, #x, __FILE__, __LINE__, debug_callback);                               \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
     }
@@ -123,25 +115,15 @@ void _reportOptixAssert(OptixResult result, const char* call, const char* file, 
 #define SLANG_OPTIX_ASSERT_ON_FAIL(x)                                                                                  \
     {                                                                                                                  \
         auto _res = x;                                                                                                 \
-        if (_isError(_res))                                                                                            \
+        if (::rhi::cuda::isOptixError(_res))                                                                           \
         {                                                                                                              \
-            _reportOptixAssert(_res, #x, __FILE__, __LINE__);                                                          \
+            ::rhi::cuda::reportOptixAssert(_res, #x, __FILE__, __LINE__);                                              \
             SLANG_RHI_ASSERT_FAILURE("OptiX call failed");                                                             \
         }                                                                                                              \
     }
-
-void _optixLogCallback(unsigned int level, const char* tag, const char* message, void* userData);
 
 #endif // SLANG_RHI_ENABLE_OPTIX
 
 AdapterLUID getAdapterLUID(int deviceIndex);
 
 } // namespace rhi::cuda
-
-namespace rhi {
-
-Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
-
-Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

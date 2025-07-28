@@ -4,6 +4,7 @@
 #include "cuda-device.h"
 #include "cuda-texture.h"
 #include "cuda-command.h"
+#include "cuda-utils.h"
 
 #include "vulkan/vk-api.h"
 #include "vulkan/vk-util.h"

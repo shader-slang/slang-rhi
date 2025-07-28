@@ -1,5 +1,6 @@
 #include "cuda-acceleration-structure.h"
 #include "cuda-device.h"
+#include "cuda-utils.h"
 
 #if SLANG_RHI_ENABLE_OPTIX
 

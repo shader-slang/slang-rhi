@@ -648,7 +648,6 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp
         src/cuda/cuda-fence.cpp
-        src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-nvrtc.cpp
         src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
@@ -660,6 +659,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-shader-table.cpp
         src/cuda/cuda-surface.cpp
         src/cuda/cuda-texture.cpp
+        src/cuda/cuda-utils.cpp
     )
 endif()
 

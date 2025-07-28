@@ -10,6 +10,7 @@
 #include "cuda-texture.h"
 #include "cuda-acceleration-structure.h"
 #include "cuda-shader-table.h"
+#include "cuda-utils.h"
 
 namespace rhi::cuda {
 
@@ -228,7 +229,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetCount(&deviceCount));
             for (int deviceIndex = 0; deviceIndex < deviceCount; ++deviceIndex)
             {
-                if (cuda::getAdapterLUID(deviceIndex) == *desc.adapterLUID)
+                if (getAdapterLUID(deviceIndex) == *desc.adapterLUID)
                 {
                     selectedDeviceIndex = deviceIndex;
                     break;
@@ -256,7 +257,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetName(deviceName, sizeof(deviceName), m_ctx.device));
         m_adapterName = deviceName;
         m_info.adapterName = m_adapterName.data();
-        m_info.adapterLUID = cuda::getAdapterLUID(m_ctx.device);
+        m_info.adapterLUID = getAdapterLUID(m_ctx.device);
         m_info.timestampFrequency = 1000000;
     }
 
@@ -659,3 +660,38 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 }
 
 } // namespace rhi::cuda
+
+namespace rhi {
+
+Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
+{
+    if (!rhiCudaDriverApiInit())
+    {
+        return SLANG_FAIL;
+    }
+    SLANG_CUDA_RETURN_ON_FAIL(cuInit(0));
+    int deviceCount;
+    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
+    for (int deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++)
+    {
+        CUdevice device;
+        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, deviceIndex));
+
+        AdapterInfo info = {};
+        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
+        info.luid = cuda::getAdapterLUID(deviceIndex);
+        outAdapters.push_back(info);
+    }
+
+    return SLANG_OK;
+}
+
+Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice)
+{
+    RefPtr<cuda::DeviceImpl> result = new cuda::DeviceImpl();
+    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
+    returnComPtr(outDevice, result);
+    return SLANG_OK;
+}
+
+} // namespace rhi

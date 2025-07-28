@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "cuda-helper-functions.h"
 #include "cuda-clear-engine.h"
 #include "cuda-dual-page-allocator.h"
 
@@ -171,3 +170,10 @@ public:
 };
 
 } // namespace rhi::cuda
+
+namespace rhi {
+
+Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
+Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
+
+} // namespace rhi

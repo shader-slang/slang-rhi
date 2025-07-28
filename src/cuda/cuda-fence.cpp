@@ -1,5 +1,6 @@
 #include "cuda-fence.h"
 #include "cuda-device.h"
+#include "cuda-utils.h"
 
 #include <thread>
 #include <chrono>
