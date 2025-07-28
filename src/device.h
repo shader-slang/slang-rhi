@@ -17,6 +17,11 @@
 
 namespace rhi {
 
+namespace testing {
+// Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
+extern bool gDebugDisableStateTracking;
+} // namespace testing
+
 struct ComponentKey
 {
     std::string typeName;
