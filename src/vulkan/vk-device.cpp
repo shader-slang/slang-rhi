@@ -4,7 +4,6 @@
 #include "vk-texture.h"
 #include "vk-command.h"
 #include "vk-fence.h"
-#include "vk-helper-functions.h"
 #include "vk-query.h"
 #include "vk-sampler.h"
 #include "vk-shader-object-layout.h"
@@ -13,6 +12,7 @@
 #include "vk-shader-table.h"
 #include "vk-input-layout.h"
 #include "vk-acceleration-structure.h"
+#include "vk-utils.h"
 
 #include "core/common.h"
 #include "core/short_vector.h"
@@ -1279,7 +1279,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #define UPDATE_FLAGS(vkFlags, vkMask, formatSupportFlags)                                                              \
     formatSupport |= (vkFlags & vkMask) ? formatSupportFlags : FormatSupport::None;
 
-        VkFormat vkFormat = VulkanUtil::getVkFormat(format);
+        VkFormat vkFormat = getVkFormat(format);
 
         VkFormatProperties2 props2 = {VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2};
         m_api.vkGetPhysicalDeviceFormatProperties2(m_api.m_physicalDevice, vkFormat, &props2);
@@ -1622,7 +1622,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 {
     TextureDesc desc = fixupTextureDesc(desc_);
 
-    const VkFormat format = VulkanUtil::getVkFormat(desc.format);
+    const VkFormat format = getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
     {
         SLANG_RHI_ASSERT_FAILURE("Unhandled image format");
@@ -1727,13 +1727,11 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
         for (const auto& vkProps : vkProperties)
         {
             CooperativeVectorProperties props;
-            props.inputType = VulkanUtil::translateCooperativeVectorComponentType(vkProps.inputType);
-            props.inputInterpretation =
-                VulkanUtil::translateCooperativeVectorComponentType(vkProps.inputInterpretation);
-            props.matrixInterpretation =
-                VulkanUtil::translateCooperativeVectorComponentType(vkProps.matrixInterpretation);
-            props.biasInterpretation = VulkanUtil::translateCooperativeVectorComponentType(vkProps.biasInterpretation);
-            props.resultType = VulkanUtil::translateCooperativeVectorComponentType(vkProps.resultType);
+            props.inputType = translateCooperativeVectorComponentType(vkProps.inputType);
+            props.inputInterpretation = translateCooperativeVectorComponentType(vkProps.inputInterpretation);
+            props.matrixInterpretation = translateCooperativeVectorComponentType(vkProps.matrixInterpretation);
+            props.biasInterpretation = translateCooperativeVectorComponentType(vkProps.biasInterpretation);
+            props.resultType = translateCooperativeVectorComponentType(vkProps.resultType);
             props.transpose = vkProps.transpose;
             m_cooperativeVectorProperties.push_back(props);
         }
@@ -1750,7 +1748,7 @@ Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVector
 
     for (uint32_t i = 0; i < descCount; ++i)
     {
-        VkConvertCooperativeVectorMatrixInfoNV info = VulkanUtil::translateConvertCooperativeVectorMatrixDesc(descs[i]);
+        VkConvertCooperativeVectorMatrixInfoNV info = translateConvertCooperativeVectorMatrixDesc(descs[i]);
         SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
     }
 
@@ -1784,7 +1782,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
         dstDesc.location = i;
         dstDesc.binding = srcDesc.bufferSlotIndex;
-        dstDesc.format = VulkanUtil::getVkFormat(srcDesc.format);
+        dstDesc.format = getVkFormat(srcDesc.format);
         if (dstDesc.format == VK_FORMAT_UNDEFINED)
         {
             return SLANG_FAIL;
@@ -1873,3 +1871,76 @@ Result DeviceImpl::waitForFences(
 }
 
 } // namespace rhi::vk
+
+namespace rhi {
+
+Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
+{
+    for (int forceSoftware = 0; forceSoftware <= 1; forceSoftware++)
+    {
+        vk::VulkanModule module;
+        if (module.init(forceSoftware != 0) != SLANG_OK)
+            continue;
+        vk::VulkanApi api;
+        if (api.initGlobalProcs(module) != SLANG_OK)
+            continue;
+
+        VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+        const char* instanceExtensions[] = {
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+#if SLANG_APPLE_FAMILY
+            VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+#endif
+        };
+        instanceCreateInfo.enabledExtensionCount = SLANG_COUNT_OF(instanceExtensions);
+        instanceCreateInfo.ppEnabledExtensionNames = &instanceExtensions[0];
+#if SLANG_APPLE_FAMILY
+        instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+        VkInstance instance;
+        SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
+
+        // This will fail due to not loading any extensions.
+        api.initInstanceProcs(instance);
+
+        // Make sure required functions for enumerating physical devices were loaded.
+        if (api.vkEnumeratePhysicalDevices || api.vkGetPhysicalDeviceProperties)
+        {
+            uint32_t numPhysicalDevices = 0;
+            SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
+
+            std::vector<VkPhysicalDevice> physicalDevices;
+            physicalDevices.resize(numPhysicalDevices);
+            SLANG_VK_RETURN_ON_FAIL(
+                api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data())
+            );
+
+            for (const auto& physicalDevice : physicalDevices)
+            {
+                VkPhysicalDeviceProperties props;
+                api.vkGetPhysicalDeviceProperties(physicalDevice, &props);
+                AdapterInfo info = {};
+                memcpy(info.name, props.deviceName, min(strlen(props.deviceName), sizeof(AdapterInfo::name) - 1));
+                info.vendorID = props.vendorID;
+                info.deviceID = props.deviceID;
+                info.luid = vk::getAdapterLUID(api, physicalDevice);
+                outAdapters.push_back(info);
+            }
+        }
+
+        api.vkDestroyInstance(instance, nullptr);
+        module.destroy();
+    }
+
+    return SLANG_OK;
+}
+
+Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outRenderer)
+{
+    RefPtr<vk::DeviceImpl> result = new vk::DeviceImpl();
+    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
+    returnComPtr(outRenderer, result);
+    return SLANG_OK;
+}
+
+} // namespace rhi

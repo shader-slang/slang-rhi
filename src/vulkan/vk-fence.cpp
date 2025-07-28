@@ -1,6 +1,6 @@
 #include "vk-fence.h"
 #include "vk-device.h"
-#include "vk-util.h"
+#include "vk-utils.h"
 
 namespace rhi::vk {
 

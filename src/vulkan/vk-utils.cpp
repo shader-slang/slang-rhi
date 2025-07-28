@@ -1,10 +1,15 @@
-#include "vk-util.h"
+#include "vk-utils.h"
 
 #include "core/common.h"
 
 namespace rhi::vk {
 
-VkFormat VulkanUtil::getVkFormat(Format format)
+void reportVulkanError(VkResult res)
+{
+    SLANG_RHI_ASSERT_FAILURE("Vulkan returned a failure");
+}
+
+VkFormat getVkFormat(Format format)
 {
     switch (format)
     {
@@ -169,7 +174,349 @@ VkFormat VulkanUtil::getVkFormat(Format format)
     }
 }
 
-VkImageAspectFlags VulkanUtil::getAspectMask(TextureAspect aspect, VkFormat format)
+VkAttachmentLoadOp translateLoadOp(LoadOp loadOp)
+{
+    switch (loadOp)
+    {
+    case LoadOp::Clear:
+        return VK_ATTACHMENT_LOAD_OP_CLEAR;
+    case LoadOp::Load:
+        return VK_ATTACHMENT_LOAD_OP_LOAD;
+    default:
+        return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    }
+}
+
+VkAttachmentStoreOp translateStoreOp(StoreOp storeOp)
+{
+    switch (storeOp)
+    {
+    case StoreOp::Store:
+        return VK_ATTACHMENT_STORE_OP_STORE;
+    default:
+        return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    }
+}
+
+VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags flags)
+{
+    VkPipelineCreateFlags vkFlags = 0;
+    if (is_set(flags, RayTracingPipelineFlags::SkipTriangles))
+        vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR;
+    if (is_set(flags, RayTracingPipelineFlags::SkipProcedurals))
+        vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR;
+
+    return vkFlags;
+}
+
+VkImageLayout translateImageLayout(ResourceState state)
+{
+    switch (state)
+    {
+    case ResourceState::Undefined:
+        return VK_IMAGE_LAYOUT_UNDEFINED;
+    case ResourceState::General:
+        return VK_IMAGE_LAYOUT_GENERAL;
+    case ResourceState::UnorderedAccess:
+        return VK_IMAGE_LAYOUT_GENERAL;
+    case ResourceState::RenderTarget:
+        return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    case ResourceState::DepthRead:
+        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    case ResourceState::DepthWrite:
+        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    case ResourceState::ShaderResource:
+        return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    case ResourceState::ResolveDestination:
+    case ResourceState::CopyDestination:
+        return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    case ResourceState::ResolveSource:
+    case ResourceState::CopySource:
+        return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    case ResourceState::Present:
+        return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported");
+        return VK_IMAGE_LAYOUT_UNDEFINED;
+    }
+}
+
+VkAccessFlagBits calcAccessFlags(ResourceState state)
+{
+    switch (state)
+    {
+    case ResourceState::Undefined:
+    case ResourceState::Present:
+        return VkAccessFlagBits(0);
+    case ResourceState::VertexBuffer:
+        return VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+    case ResourceState::ConstantBuffer:
+        return VK_ACCESS_UNIFORM_READ_BIT;
+    case ResourceState::IndexBuffer:
+        return VK_ACCESS_INDEX_READ_BIT;
+    case ResourceState::RenderTarget:
+        return VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
+    case ResourceState::ShaderResource:
+        return VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+    case ResourceState::UnorderedAccess:
+        return VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
+    case ResourceState::DepthRead:
+        return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    case ResourceState::DepthWrite:
+        return VkAccessFlagBits(
+            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+        );
+    case ResourceState::IndirectArgument:
+        return VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+    case ResourceState::ResolveDestination:
+    case ResourceState::CopyDestination:
+        return VK_ACCESS_TRANSFER_WRITE_BIT;
+    case ResourceState::ResolveSource:
+    case ResourceState::CopySource:
+        return VK_ACCESS_TRANSFER_READ_BIT;
+    case ResourceState::AccelerationStructure:
+        return VkAccessFlagBits(
+            VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR
+        );
+    case ResourceState::AccelerationStructureBuildInput:
+        return VkAccessFlagBits(VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR);
+    case ResourceState::General:
+        return VkAccessFlagBits(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported");
+        return VkAccessFlagBits(0);
+    }
+}
+
+VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
+{
+    switch (state)
+    {
+    case ResourceState::Undefined:
+        SLANG_RHI_ASSERT(src);
+        return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    case ResourceState::VertexBuffer:
+    case ResourceState::IndexBuffer:
+        return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+    case ResourceState::ConstantBuffer:
+    case ResourceState::UnorderedAccess:
+        return VkPipelineStageFlagBits(
+            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+            VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR
+        );
+    case ResourceState::ShaderResource:
+        return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    case ResourceState::RenderTarget:
+        return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    case ResourceState::DepthRead:
+    case ResourceState::DepthWrite:
+        return VkPipelineStageFlagBits(
+            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+        );
+    case ResourceState::IndirectArgument:
+        return VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+    case ResourceState::CopySource:
+    case ResourceState::CopyDestination:
+    case ResourceState::ResolveSource:
+    case ResourceState::ResolveDestination:
+        return VK_PIPELINE_STAGE_TRANSFER_BIT;
+    case ResourceState::Present:
+        return src ? VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_ALL_COMMANDS_BIT)
+                   : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    case ResourceState::General:
+        return VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    case ResourceState::AccelerationStructure:
+        return VkPipelineStageFlagBits(
+            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
+            VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR | VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR
+        );
+    case ResourceState::AccelerationStructureBuildInput:
+        return VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR);
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported");
+        return VkPipelineStageFlagBits(0);
+    }
+}
+
+VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access)
+{
+    VkAccessFlags result = 0;
+    if ((uint32_t)access & (uint32_t)AccessFlag::Read)
+        result |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_SHADER_READ_BIT;
+    if ((uint32_t)access & (uint32_t)AccessFlag::Write)
+        result |= VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+    return result;
+}
+
+VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage)
+{
+    int flags = 0;
+    if (is_set(usage, BufferUsage::VertexBuffer))
+        flags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::IndexBuffer))
+        flags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::ConstantBuffer))
+        flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::ShaderResource))
+        flags |= (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    if (is_set(usage, BufferUsage::UnorderedAccess))
+        flags |= (VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    if (is_set(usage, BufferUsage::IndirectArgument))
+        flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+    if (is_set(usage, BufferUsage::CopySource))
+        flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, BufferUsage::CopyDestination))
+        flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (is_set(usage, BufferUsage::AccelerationStructure))
+        flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+    if (is_set(usage, BufferUsage::AccelerationStructureBuildInput))
+        flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    if (is_set(usage, BufferUsage::ShaderTable))
+        flags |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
+    return VkBufferUsageFlagBits(flags);
+}
+
+VkImageUsageFlagBits _calcImageUsageFlags(ResourceState state)
+{
+    switch (state)
+    {
+    case ResourceState::RenderTarget:
+        return VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    case ResourceState::DepthWrite:
+        return VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    case ResourceState::DepthRead:
+        return VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    case ResourceState::ShaderResource:
+        return VK_IMAGE_USAGE_SAMPLED_BIT;
+    case ResourceState::UnorderedAccess:
+        return VK_IMAGE_USAGE_STORAGE_BIT;
+    case ResourceState::CopySource:
+        return VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    case ResourceState::CopyDestination:
+        return VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    case ResourceState::ResolveSource:
+        return VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    case ResourceState::ResolveDestination:
+        return VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    case ResourceState::Present:
+        return VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    case ResourceState::Undefined:
+    case ResourceState::General:
+        return (VkImageUsageFlagBits)0;
+    default:
+    {
+        SLANG_RHI_ASSERT_FAILURE("Unsupported");
+        return VkImageUsageFlagBits(0);
+    }
+    }
+}
+
+VkImageUsageFlagBits _calcImageUsageFlags(TextureUsage usage)
+{
+    int flags = 0;
+    if (is_set(usage, TextureUsage::ShaderResource))
+        flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (is_set(usage, TextureUsage::UnorderedAccess))
+        flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+    if (is_set(usage, TextureUsage::RenderTarget))
+        flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (is_set(usage, TextureUsage::DepthStencil))
+        flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    if (is_set(usage, TextureUsage::Present))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::CopySource))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::CopyDestination))
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    if (is_set(usage, TextureUsage::ResolveSource))
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (is_set(usage, TextureUsage::ResolveDestination))
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    return VkImageUsageFlagBits(flags);
+}
+
+VkImageUsageFlags _calcImageUsageFlags(TextureUsage usage, MemoryType memoryType, const void* initData)
+{
+    VkImageUsageFlags flags = _calcImageUsageFlags(usage);
+
+    if (memoryType == MemoryType::Upload || initData)
+    {
+        flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    }
+
+    return flags;
+}
+
+VkAccessFlags calcAccessFlagsFromImageLayout(VkImageLayout layout)
+{
+    switch (layout)
+    {
+    case VK_IMAGE_LAYOUT_UNDEFINED:
+    case VK_IMAGE_LAYOUT_GENERAL:
+    case VK_IMAGE_LAYOUT_PREINITIALIZED:
+    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+        return (VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        return (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+        return (VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+        return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        return VK_ACCESS_SHADER_READ_BIT;
+    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        return VK_ACCESS_TRANSFER_READ_BIT;
+    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        return VK_ACCESS_TRANSFER_WRITE_BIT;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported VkImageLayout");
+        return (VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
+    }
+}
+
+VkPipelineStageFlags calcPipelineStageFlagsFromImageLayout(VkImageLayout layout)
+{
+    switch (layout)
+    {
+    case VK_IMAGE_LAYOUT_UNDEFINED:
+    case VK_IMAGE_LAYOUT_PREINITIALIZED:
+    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+    case VK_IMAGE_LAYOUT_GENERAL:
+        return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        return (VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        return VK_PIPELINE_STAGE_TRANSFER_BIT;
+    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        return VK_PIPELINE_STAGE_TRANSFER_BIT;
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+        return (VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported VkImageLayout");
+        return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    }
+}
+
+VkImageAspectFlags getAspectMaskFromFormat(VkFormat format, TextureAspect aspect)
 {
     switch (aspect)
     {
@@ -194,17 +541,34 @@ VkImageAspectFlags VulkanUtil::getAspectMask(TextureAspect aspect, VkFormat form
     case TextureAspect::StencilOnly:
         return VK_IMAGE_ASPECT_STENCIL_BIT;
     default:
-        SLANG_RHI_UNREACHABLE("getAspectMask");
-        return 0;
+        return VK_IMAGE_ASPECT_COLOR_BIT;
     }
 }
 
-Result VulkanUtil::toResult(VkResult res)
+AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicalDevice)
 {
-    return (res == VK_SUCCESS) ? SLANG_OK : SLANG_FAIL;
+    AdapterLUID luid = {};
+
+    VkPhysicalDeviceIDPropertiesKHR idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR};
+    VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    props.pNext = &idProps;
+    SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceFeatures2);
+    api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
+    if (idProps.deviceLUIDValid)
+    {
+        SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= VK_LUID_SIZE);
+        memcpy(&luid, idProps.deviceLUID, VK_LUID_SIZE);
+    }
+    else
+    {
+        SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= VK_UUID_SIZE);
+        memcpy(&luid, idProps.deviceUUID, VK_UUID_SIZE);
+    }
+
+    return luid;
 }
 
-VkShaderStageFlags VulkanUtil::getShaderStage(SlangStage stage)
+VkShaderStageFlags translateShaderStage(SlangStage stage)
 {
     switch (stage)
     {
@@ -242,7 +606,7 @@ VkShaderStageFlags VulkanUtil::getShaderStage(SlangStage stage)
     }
 }
 
-VkImageLayout VulkanUtil::getImageLayoutFromState(ResourceState state)
+VkImageLayout getImageLayoutFromState(ResourceState state)
 {
     switch (state)
     {
@@ -273,7 +637,7 @@ VkImageLayout VulkanUtil::getImageLayoutFromState(ResourceState state)
     return VkImageLayout();
 }
 
-VkSampleCountFlagBits VulkanUtil::translateSampleCount(uint32_t sampleCount)
+VkSampleCountFlagBits translateSampleCount(uint32_t sampleCount)
 {
     switch (sampleCount)
     {
@@ -297,7 +661,7 @@ VkSampleCountFlagBits VulkanUtil::translateSampleCount(uint32_t sampleCount)
     }
 }
 
-VkCullModeFlags VulkanUtil::translateCullMode(CullMode cullMode)
+VkCullModeFlags translateCullMode(CullMode cullMode)
 {
     switch (cullMode)
     {
@@ -313,7 +677,7 @@ VkCullModeFlags VulkanUtil::translateCullMode(CullMode cullMode)
     }
 }
 
-VkFrontFace VulkanUtil::translateFrontFaceMode(FrontFaceMode frontFaceMode)
+VkFrontFace translateFrontFaceMode(FrontFaceMode frontFaceMode)
 {
     switch (frontFaceMode)
     {
@@ -327,7 +691,7 @@ VkFrontFace VulkanUtil::translateFrontFaceMode(FrontFaceMode frontFaceMode)
     }
 }
 
-VkPolygonMode VulkanUtil::translateFillMode(FillMode fillMode)
+VkPolygonMode translateFillMode(FillMode fillMode)
 {
     switch (fillMode)
     {
@@ -341,7 +705,7 @@ VkPolygonMode VulkanUtil::translateFillMode(FillMode fillMode)
     }
 }
 
-VkBlendFactor VulkanUtil::translateBlendFactor(BlendFactor blendFactor)
+VkBlendFactor translateBlendFactor(BlendFactor blendFactor)
 {
     switch (blendFactor)
     {
@@ -386,7 +750,7 @@ VkBlendFactor VulkanUtil::translateBlendFactor(BlendFactor blendFactor)
     }
 }
 
-VkBlendOp VulkanUtil::translateBlendOp(BlendOp op)
+VkBlendOp translateBlendOp(BlendOp op)
 {
     switch (op)
     {
@@ -406,7 +770,7 @@ VkBlendOp VulkanUtil::translateBlendOp(BlendOp op)
     }
 }
 
-VkPrimitiveTopology VulkanUtil::translatePrimitiveListTopology(PrimitiveTopology topology)
+VkPrimitiveTopology translatePrimitiveListTopology(PrimitiveTopology topology)
 {
     switch (topology)
     {
@@ -428,7 +792,7 @@ VkPrimitiveTopology VulkanUtil::translatePrimitiveListTopology(PrimitiveTopology
     }
 }
 
-VkStencilOp VulkanUtil::translateStencilOp(StencilOp op)
+VkStencilOp translateStencilOp(StencilOp op)
 {
     switch (op)
     {
@@ -453,88 +817,78 @@ VkStencilOp VulkanUtil::translateStencilOp(StencilOp op)
     }
 }
 
-VkFilter VulkanUtil::translateFilterMode(TextureFilteringMode mode)
+VkFilter translateFilterMode(TextureFilteringMode mode)
 {
     switch (mode)
     {
+    case TextureFilteringMode::Point:
+        return VK_FILTER_NEAREST;
+    case TextureFilteringMode::Linear:
+        return VK_FILTER_LINEAR;
     default:
         return VkFilter(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureFilteringMode::SRC:                                                                                    \
-        return VK_FILTER_##DST
-
-        CASE(Point, NEAREST);
-        CASE(Linear, LINEAR);
-
-#undef CASE
     }
 }
 
-VkSamplerMipmapMode VulkanUtil::translateMipFilterMode(TextureFilteringMode mode)
+VkSamplerMipmapMode translateMipFilterMode(TextureFilteringMode mode)
 {
     switch (mode)
     {
+    case TextureFilteringMode::Point:
+        return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    case TextureFilteringMode::Linear:
+        return VK_SAMPLER_MIPMAP_MODE_LINEAR;
     default:
         return VkSamplerMipmapMode(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureFilteringMode::SRC:                                                                                    \
-        return VK_SAMPLER_MIPMAP_MODE_##DST
-
-        CASE(Point, NEAREST);
-        CASE(Linear, LINEAR);
-
-#undef CASE
     }
 }
 
-VkSamplerAddressMode VulkanUtil::translateAddressingMode(TextureAddressingMode mode)
+VkSamplerAddressMode translateAddressingMode(TextureAddressingMode mode)
 {
     switch (mode)
     {
+    case TextureAddressingMode::Wrap:
+        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    case TextureAddressingMode::ClampToEdge:
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    case TextureAddressingMode::ClampToBorder:
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    case TextureAddressingMode::MirrorRepeat:
+        return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    case TextureAddressingMode::MirrorOnce:
+        return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
     default:
         return VkSamplerAddressMode(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureAddressingMode::SRC:                                                                                   \
-        return VK_SAMPLER_ADDRESS_MODE_##DST
-
-        CASE(Wrap, REPEAT);
-        CASE(ClampToEdge, CLAMP_TO_EDGE);
-        CASE(ClampToBorder, CLAMP_TO_BORDER);
-        CASE(MirrorRepeat, MIRRORED_REPEAT);
-        CASE(MirrorOnce, MIRROR_CLAMP_TO_EDGE);
-
-#undef CASE
     }
 }
 
-VkCompareOp VulkanUtil::translateComparisonFunc(ComparisonFunc func)
+VkCompareOp translateComparisonFunc(ComparisonFunc func)
 {
     switch (func)
     {
+    case ComparisonFunc::Never:
+        return VK_COMPARE_OP_NEVER;
+    case ComparisonFunc::Less:
+        return VK_COMPARE_OP_LESS;
+    case ComparisonFunc::Equal:
+        return VK_COMPARE_OP_EQUAL;
+    case ComparisonFunc::LessEqual:
+        return VK_COMPARE_OP_LESS_OR_EQUAL;
+    case ComparisonFunc::Greater:
+        return VK_COMPARE_OP_GREATER;
+    case ComparisonFunc::NotEqual:
+        return VK_COMPARE_OP_NOT_EQUAL;
+    case ComparisonFunc::GreaterEqual:
+        return VK_COMPARE_OP_GREATER_OR_EQUAL;
+    case ComparisonFunc::Always:
+        return VK_COMPARE_OP_ALWAYS;
     default:
         // TODO: need to report failures
         return VK_COMPARE_OP_ALWAYS;
-
-#define CASE(FROM, TO)                                                                                                 \
-    case ComparisonFunc::FROM:                                                                                         \
-        return VK_COMPARE_OP_##TO
-
-        CASE(Never, NEVER);
-        CASE(Less, LESS);
-        CASE(Equal, EQUAL);
-        CASE(LessEqual, LESS_OR_EQUAL);
-        CASE(Greater, GREATER);
-        CASE(NotEqual, NOT_EQUAL);
-        CASE(GreaterEqual, GREATER_OR_EQUAL);
-        CASE(Always, ALWAYS);
-#undef CASE
     }
 }
 
-VkStencilOpState VulkanUtil::translateStencilState(DepthStencilOpDesc desc)
+VkStencilOpState translateStencilState(DepthStencilOpDesc desc)
 {
     VkStencilOpState rs;
     rs.compareMask = 0xFF;
@@ -547,7 +901,7 @@ VkStencilOpState VulkanUtil::translateStencilState(DepthStencilOpDesc desc)
     return rs;
 }
 
-VkSamplerReductionMode VulkanUtil::translateReductionOp(TextureReductionOp op)
+VkSamplerReductionMode translateReductionOp(TextureReductionOp op)
 {
     switch (op)
     {
@@ -560,7 +914,7 @@ VkSamplerReductionMode VulkanUtil::translateReductionOp(TextureReductionOp op)
     }
 }
 
-VkComponentTypeKHR VulkanUtil::translateCooperativeVectorComponentType(CooperativeVectorComponentType type)
+VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type)
 {
     switch (type)
     {
@@ -599,7 +953,7 @@ VkComponentTypeKHR VulkanUtil::translateCooperativeVectorComponentType(Cooperati
     }
 }
 
-CooperativeVectorComponentType VulkanUtil::translateCooperativeVectorComponentType(VkComponentTypeKHR type)
+CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type)
 {
     switch (type)
     {
@@ -638,9 +992,7 @@ CooperativeVectorComponentType VulkanUtil::translateCooperativeVectorComponentTy
     }
 }
 
-VkCooperativeVectorMatrixLayoutNV VulkanUtil::translateCooperativeVectorMatrixLayout(
-    CooperativeVectorMatrixLayout layout
-)
+VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout)
 {
     switch (layout)
     {
@@ -657,9 +1009,7 @@ VkCooperativeVectorMatrixLayoutNV VulkanUtil::translateCooperativeVectorMatrixLa
     }
 }
 
-CooperativeVectorMatrixLayout VulkanUtil::translateCooperativeVectorMatrixLayout(
-    VkCooperativeVectorMatrixLayoutNV layout
-)
+CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout)
 {
     switch (layout)
     {
@@ -676,7 +1026,7 @@ CooperativeVectorMatrixLayout VulkanUtil::translateCooperativeVectorMatrixLayout
     }
 }
 
-VkConvertCooperativeVectorMatrixInfoNV VulkanUtil::translateConvertCooperativeVectorMatrixDesc(
+VkConvertCooperativeVectorMatrixInfoNV translateConvertCooperativeVectorMatrixDesc(
     const ConvertCooperativeVectorMatrixDesc& desc
 )
 {
@@ -685,82 +1035,15 @@ VkConvertCooperativeVectorMatrixInfoNV VulkanUtil::translateConvertCooperativeVe
     info.srcData.deviceAddress = desc.srcData.deviceAddress;
     info.pDstSize = desc.dstSize;
     info.dstData.deviceAddress = desc.dstData.deviceAddress;
-    info.srcComponentType = VulkanUtil::translateCooperativeVectorComponentType(desc.srcComponentType);
-    info.dstComponentType = VulkanUtil::translateCooperativeVectorComponentType(desc.dstComponentType);
+    info.srcComponentType = translateCooperativeVectorComponentType(desc.srcComponentType);
+    info.dstComponentType = translateCooperativeVectorComponentType(desc.dstComponentType);
     info.numRows = desc.rowCount;
     info.numColumns = desc.colCount;
-    info.srcLayout = VulkanUtil::translateCooperativeVectorMatrixLayout(desc.srcLayout);
+    info.srcLayout = translateCooperativeVectorMatrixLayout(desc.srcLayout);
     info.srcStride = desc.srcStride;
-    info.dstLayout = VulkanUtil::translateCooperativeVectorMatrixLayout(desc.dstLayout);
+    info.dstLayout = translateCooperativeVectorMatrixLayout(desc.dstLayout);
     info.dstStride = desc.dstStride;
     return info;
-}
-
-Result VulkanUtil::handleFail(VkResult res)
-{
-    if (res != VK_SUCCESS)
-    {
-        SLANG_RHI_ASSERT_FAILURE("Vulkan returned a failure");
-    }
-    return toResult(res);
-}
-
-void VulkanUtil::checkFail(VkResult res)
-{
-    SLANG_RHI_ASSERT(res != VK_SUCCESS);
-    SLANG_RHI_ASSERT_FAILURE("Vulkan check failed");
-}
-
-VkPrimitiveTopology VulkanUtil::getVkPrimitiveTopology(PrimitiveTopology topology)
-{
-    switch (topology)
-    {
-    case PrimitiveTopology::LineList:
-        return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    case PrimitiveTopology::LineStrip:
-        return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-    case PrimitiveTopology::TriangleList:
-        return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    case PrimitiveTopology::TriangleStrip:
-        return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-    case PrimitiveTopology::PointList:
-        return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-    default:
-        break;
-    }
-    SLANG_RHI_ASSERT_FAILURE("Unknown topology");
-    return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
-}
-
-VkImageLayout VulkanUtil::mapResourceStateToLayout(ResourceState state)
-{
-    switch (state)
-    {
-    case ResourceState::Undefined:
-        return VK_IMAGE_LAYOUT_UNDEFINED;
-    case ResourceState::ShaderResource:
-        return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    case ResourceState::UnorderedAccess:
-        return VK_IMAGE_LAYOUT_GENERAL;
-    case ResourceState::RenderTarget:
-        return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    case ResourceState::DepthRead:
-        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    case ResourceState::DepthWrite:
-        return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    case ResourceState::Present:
-        return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    case ResourceState::CopySource:
-        return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    case ResourceState::CopyDestination:
-        return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    case ResourceState::ResolveSource:
-        return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    case ResourceState::ResolveDestination:
-        return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    default:
-        return VK_IMAGE_LAYOUT_UNDEFINED;
-    }
 }
 
 } // namespace rhi::vk

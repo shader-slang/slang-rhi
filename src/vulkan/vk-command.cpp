@@ -7,8 +7,7 @@
 #include "vk-acceleration-structure.h"
 #include "vk-shader-table.h"
 #include "vk-pipeline.h"
-#include "vk-util.h"
-#include "vk-helper-functions.h"
+#include "vk-utils.h"
 #include "vk-shader-object.h"
 #include "vk-shader-object-layout.h"
 #include "../command-list.h"
@@ -273,12 +272,12 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             VkImageLayout dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 
             VkImageCopy region = {};
-            region.srcSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
+            region.srcSubresource.aspectMask = getAspectMaskFromFormat(src->m_vkformat);
             region.srcSubresource.baseArrayLayer = srcSubresource.layer + layer;
             region.srcSubresource.mipLevel = srcMip;
             region.srcSubresource.layerCount = 1;
             region.srcOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
-            region.dstSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, dst->m_vkformat);
+            region.dstSubresource.aspectMask = getAspectMaskFromFormat(dst->m_vkformat);
             region.dstSubresource.baseArrayLayer = dstSubresource.layer + layer;
             region.dstSubresource.mipLevel = dstMip;
             region.dstSubresource.layerCount = 1;
@@ -346,7 +345,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     region.bufferOffset = dstOffset;
     region.bufferRowLength = rowLengthInTexels;
     region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VulkanUtil::getAspectMask(TextureAspect::All, src->m_vkformat);
+    region.imageSubresource.aspectMask = getAspectMaskFromFormat(src->m_vkformat);
     region.imageSubresource.mipLevel = srcMip;
     region.imageSubresource.baseArrayLayer = srcLayer;
     region.imageSubresource.layerCount = 1;
@@ -645,7 +644,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         renderArea.extent.height = min(renderArea.extent.height, height);
 
         // Create attachment info
-        if (VulkanUtil::isDepthFormat(view->m_texture->m_vkformat))
+        if (isDepthFormat(view->m_texture->m_vkformat))
         {
             hasDepthAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
@@ -655,7 +654,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             depthAttachmentInfo.storeOp = translateStoreOp(dsa.depthStoreOp);
             depthAttachmentInfo.clearValue.depthStencil.depth = dsa.depthClearValue;
         }
-        if (VulkanUtil::isStencilFormat(view->m_texture->m_vkformat))
+        if (isStencilFormat(view->m_texture->m_vkformat))
         {
             hasStencilAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
@@ -1230,7 +1229,7 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
     short_vector<VkConvertCooperativeVectorMatrixInfoNV> infos;
     for (uint32_t i = 0; i < cmd.descCount; ++i)
     {
-        infos.push_back(VulkanUtil::translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
+        infos.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
     }
     m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
 }
@@ -1490,7 +1489,7 @@ void CommandRecorder::commitBarriers()
             texture->m_isSwapchainInitialState = false;
         }
         barrier.newLayout = translateImageLayout(textureBarrier.stateAfter);
-        barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(VulkanUtil::getVkFormat(texture->m_desc.format));
+        barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(getVkFormat(texture->m_desc.format));
         barrier.subresourceRange.baseArrayLayer = textureBarrier.entireTexture ? 0 : textureBarrier.layer;
         barrier.subresourceRange.baseMipLevel = textureBarrier.entireTexture ? 0 : textureBarrier.mip;
         barrier.subresourceRange.layerCount = textureBarrier.entireTexture ? VK_REMAINING_ARRAY_LAYERS : 1;

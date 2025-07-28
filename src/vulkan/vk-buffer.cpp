@@ -1,7 +1,6 @@
 #include "vk-buffer.h"
 #include "vk-device.h"
-#include "vk-util.h"
-#include "vk-helper-functions.h"
+#include "vk-utils.h"
 
 #if SLANG_WINDOWS_FAMILY
 #include <dxgi1_2.h>
@@ -220,7 +219,7 @@ VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
         return view;
 
     VkBufferViewCreateInfo info = {VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO};
-    info.format = VulkanUtil::getVkFormat(format);
+    info.format = getVkFormat(format);
     info.buffer = m_buffer.m_buffer;
     info.offset = range.offset;
     info.range = range.size;

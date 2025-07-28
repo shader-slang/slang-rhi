@@ -596,7 +596,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
-        src/vulkan/vk-helper-functions.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
@@ -606,7 +605,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-shader-table.cpp
         src/vulkan/vk-surface.cpp
         src/vulkan/vk-texture.cpp
-        src/vulkan/vk-util.cpp
+        src/vulkan/vk-utils.cpp
     )
     target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
 endif()

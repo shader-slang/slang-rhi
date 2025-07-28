@@ -1,8 +1,11 @@
 #include "vk-texture.h"
 #include "vk-device.h"
 #include "vk-buffer.h"
-#include "vk-util.h"
-#include "vk-helper-functions.h"
+#include "vk-utils.h"
+
+#if SLANG_WINDOWS_FAMILY
+#include <dxgi1_4.h>
+#endif
 
 #if !SLANG_WINDOWS_FAMILY
 #include <unistd.h>
@@ -126,7 +129,7 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.flags = 0;
-    createInfo.format = VulkanUtil::getVkFormat(format);
+    createInfo.format = getVkFormat(format);
     createInfo.image = m_image;
     createInfo.components = VkComponentMapping{
         VK_COMPONENT_SWIZZLE_R,
@@ -204,7 +207,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 {
     TextureDesc desc = fixupTextureDesc(desc_);
 
-    const VkFormat format = VulkanUtil::getVkFormat(desc.format);
+    const VkFormat format = getVkFormat(desc.format);
     if (format == VK_FORMAT_UNDEFINED)
     {
         SLANG_RHI_ASSERT_FAILURE("Unhandled image format");
@@ -325,7 +328,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
     // Transition to default layout
-    auto defaultLayout = VulkanUtil::getImageLayoutFromState(desc.defaultState);
+    auto defaultLayout = getImageLayoutFromState(desc.defaultState);
     if (defaultLayout != VK_IMAGE_LAYOUT_UNDEFINED)
     {
         _transitionImageLayout(texture->m_image, format, texture->m_desc, VK_IMAGE_LAYOUT_UNDEFINED, defaultLayout);

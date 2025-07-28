@@ -4,7 +4,7 @@
 #include "vk-texture.h"
 #include "vk-sampler.h"
 #include "vk-acceleration-structure.h"
-#include "vk-helper-functions.h"
+#include "vk-utils.h"
 
 #include "core/static_vector.h"
 
