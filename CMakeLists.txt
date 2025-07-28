@@ -569,7 +569,6 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-descriptor-heap.cpp
         src/d3d12/d3d12-device.cpp
         src/d3d12/d3d12-fence.cpp
-        src/d3d12/d3d12-helper-functions.cpp
         src/d3d12/d3d12-pipeline.cpp
         src/d3d12/d3d12-posix-synchapi.cpp
         src/d3d12/d3d12-query.cpp
@@ -581,6 +580,7 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-shader-table.cpp
         src/d3d12/d3d12-surface.cpp
         src/d3d12/d3d12-texture.cpp
+        src/d3d12/d3d12-utils.cpp
     )
 endif()
 

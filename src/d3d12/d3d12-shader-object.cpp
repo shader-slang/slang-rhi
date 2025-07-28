@@ -2,7 +2,7 @@
 #include "d3d12-buffer.h"
 #include "d3d12-texture.h"
 #include "d3d12-device.h"
-#include "d3d12-helper-functions.h"
+#include "d3d12-utils.h"
 #include "d3d12-sampler.h"
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-acceleration-structure.h"

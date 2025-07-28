@@ -1,4 +1,4 @@
-#include "d3d12-helper-functions.h"
+#include "d3d12-utils.h"
 #include "d3d12-device.h"
 #include "d3d12-buffer.h"
 #include "d3d12-query.h"
@@ -60,23 +60,6 @@ D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type)
         return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
     }
     return D3D12_RESOURCE_DIMENSION_UNKNOWN;
-}
-
-DXGI_FORMAT getTypelessFormatFromDepthFormat(Format format)
-{
-    switch (format)
-    {
-    case Format::D16Unorm:
-        return DXGI_FORMAT_R16_TYPELESS;
-    case Format::D32Float:
-        return DXGI_FORMAT_R32_TYPELESS;
-    case Format::D32FloatS8Uint:
-        return DXGI_FORMAT_R32G8X24_TYPELESS;
-    // case Format::D24_UNORM_S8_UINT:
-    //     return DXGI_FORMAT_R24G8_TYPELESS;
-    default:
-        return D3DUtil::getMapFormat(format);
-    }
 }
 
 bool isTypelessDepthFormat(DXGI_FORMAT format)
@@ -547,53 +530,3 @@ NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC translateConvertCooperativeVectorMa
 #endif // SLANG_RHI_ENABLE_NVAPI
 
 } // namespace rhi::d3d12
-
-namespace rhi {
-
-Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
-{
-    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(D3DUtil::findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
-
-    outAdapters.clear();
-    for (const auto& dxgiAdapter : dxgiAdapters)
-    {
-        DXGI_ADAPTER_DESC desc;
-        dxgiAdapter->GetDesc(&desc);
-        AdapterInfo info = {};
-        auto name = string::from_wstring(desc.Description);
-        memcpy(info.name, name.data(), min(name.length(), sizeof(AdapterInfo::name) - 1));
-        info.vendorID = desc.VendorId;
-        info.deviceID = desc.DeviceId;
-        info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);
-        outAdapters.push_back(info);
-    }
-    return SLANG_OK;
-}
-
-Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<d3d12::DeviceImpl> result = new d3d12::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-void SLANG_MCALL enableD3D12DebugLayerIfAvailable()
-{
-    SharedLibraryHandle d3dModule;
-#if SLANG_WINDOWS_FAMILY
-    const char* libName = "d3d12";
-#else
-    const char* libName = "libvkd3d-proton-d3d12.so";
-#endif
-    if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
-        return;
-    PFN_D3D12_GET_DEBUG_INTERFACE d3d12GetDebugInterface =
-        (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
-    ComPtr<ID3D12Debug> dxDebug;
-    if (d3d12GetDebugInterface && SLANG_SUCCEEDED(d3d12GetDebugInterface(IID_PPV_ARGS(dxDebug.writeRef()))))
-        dxDebug->EnableDebugLayer();
-}
-
-} // namespace rhi

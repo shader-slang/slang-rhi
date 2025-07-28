@@ -10,7 +10,7 @@
 #include "d3d12-fence.h"
 #include "d3d12-query.h"
 #include "d3d12-input-layout.h"
-#include "d3d12-helper-functions.h"
+#include "d3d12-utils.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 #include "../format-conversion.h"
