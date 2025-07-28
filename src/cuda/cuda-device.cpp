@@ -3,6 +3,7 @@
 #include "cuda-buffer.h"
 #include "cuda-pipeline.h"
 #include "cuda-query.h"
+#include "cuda-sampler.h"
 #include "cuda-shader-object-layout.h"
 #include "cuda-shader-object.h"
 #include "cuda-shader-program.h"
@@ -525,8 +526,8 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 
 Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
-    SLANG_UNUSED(desc);
-    *outSampler = nullptr;
+    RefPtr<SamplerImpl> samplerImpl = new SamplerImpl(this, desc);
+    returnComPtr(outSampler, samplerImpl);
     return SLANG_OK;
 }
 
