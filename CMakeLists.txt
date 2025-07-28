@@ -127,8 +127,6 @@ set(SLANG_RHI_FETCH_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-H
 # Fetch OptiX options
 option(SLANG_RHI_FETCH_OPTIX "Fetch OptiX" ON)
 set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip" CACHE STRING "OptiX URL to fetch") # 9.0.0
-# set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/50021ea0af6d41609a97777ceebbdf1e1d34efe7.zip" CACHE STRING "OptiX URL to fetch") # 8.1.0
-# set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/f60c1e44f18426f426a2ed948f28515b3cf67b8a.zip" CACHE STRING "OptiX URL to fetch") # 8.0.0
 
 # Fetch metal-cpp options
 set(SLANG_RHI_FETCH_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip" CACHE STRING "metal-cpp URL to fetch")
