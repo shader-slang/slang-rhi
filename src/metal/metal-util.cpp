@@ -1,8 +1,4 @@
 #include "metal-util.h"
-#include "core/common.h"
-
-#include <stdio.h>
-#include <stdlib.h>
 
 namespace rhi::metal {
 

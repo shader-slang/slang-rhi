@@ -1,8 +1,5 @@
 #include "vk-device-queue.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
 namespace rhi::vk {
 
 VulkanDeviceQueue::~VulkanDeviceQueue()

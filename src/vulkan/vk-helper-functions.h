@@ -7,14 +7,6 @@
 
 #include <vector>
 
-#ifdef _MSC_VER
-#include <stddef.h>
-#pragma warning(disable : 4996)
-#if (_MSC_VER < 1900)
-#define snprintf sprintf_s
-#endif
-#endif
-
 #if SLANG_WINDOWS_FAMILY
 #include <dxgi1_2.h>
 #endif
