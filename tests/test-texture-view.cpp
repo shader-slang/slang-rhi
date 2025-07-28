@@ -247,56 +247,12 @@ GPU_TEST_CASE("texture-view-simple", D3D11 | D3D12 | Vulkan | CUDA | Metal)
         options,
         [&](TextureTestContext* c)
         {
-            // TODO: There are many issues in the CUDA backend that prevent this test from passing.
-            // For now, we skip the configs that produce invalid code.
-            // https://github.com/shader-slang/slang/issues/7557
             if (device->getDeviceType() == DeviceType::CUDA)
             {
                 const TextureDesc& desc = c->getTextureData().desc;
                 // Error: surf1Dwrite_convert<float>(((<invalid intrinsic>)), (dstTexture_0), ((_S2)) * 1,
                 // SLANG_CUDA_BOUNDARY_MODE);
                 if (desc.type == TextureType::Texture1D)
-                    return;
-                // Error: cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()) failed: a PTX JIT
-                // compilation failed (CUDA_ERROR_INVALID_PTX)
-                if (desc.type == TextureType::Texture3D)
-                    return;
-                // Error: extern inline function "surf2Dwrite_convert(T, cudaSurfaceObject_t, int, int,
-                // cudaSurfaceBoundaryMode) [with T=uint]" was referenced but not defined
-                if (desc.format == Format::R8Uint || desc.format == Format::R16Uint)
-                    return;
-                // Error: extern inline function "surf2Dwrite_convert(T, cudaSurfaceObject_t, int, int,
-                // cudaSurfaceBoundaryMode) [with T=uint2]" was referenced but not defined
-                if (desc.format == Format::RG8Uint || desc.format == Format::RG16Uint)
-                    return;
-                if (desc.format == Format::RGBA8Uint || desc.format == Format::RGBA16Uint)
-                    return;
-                // Error: extern inline function "surf2Dwrite_convert(T, cudaSurfaceObject_t, int, int,
-                // cudaSurfaceBoundaryMode) [with T=int]" was referenced but not defined
-                if (desc.format == Format::R8Sint || desc.format == Format::R16Sint)
-                    return;
-                if (desc.format == Format::RG8Sint || desc.format == Format::RG16Sint)
-                    return;
-                if (desc.format == Format::RGBA8Sint || desc.format == Format::RGBA16Sint)
-                    return;
-            }
-            // TODO: There are many issues in the Metal backend that prevent this test from passing.
-            // For now, we skip the configs that crash slang.
-            // https://github.com/shader-slang/slang/issues/7558
-            if (device->getDeviceType() == DeviceType::Metal)
-            {
-                const TextureDesc& desc = c->getTextureData().desc;
-                // Error: libslang.dylib!Slang::legalizeIRForMetal(Slang::IRModule*, Slang::DiagnosticSink*)
-                if (desc.format == Format::RG8Uint || desc.format == Format::RG8Sint ||
-                    desc.format == Format::RG8Unorm || desc.format == Format::RG8Snorm)
-                    return;
-                if (desc.format == Format::RG16Uint || desc.format == Format::RG16Sint ||
-                    desc.format == Format::RG16Unorm || desc.format == Format::RG16Snorm)
-                    return;
-                if (desc.format == Format::RG16Float)
-                    return;
-                if (desc.format == Format::RG32Uint || desc.format == Format::RG32Sint ||
-                    desc.format == Format::RG32Float)
                     return;
             }
 
