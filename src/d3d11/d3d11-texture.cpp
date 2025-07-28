@@ -1,6 +1,6 @@
 #include "d3d11-texture.h"
 #include "d3d11-device.h"
-#include "d3d11-helper-functions.h"
+#include "d3d11-utils.h"
 
 namespace rhi::d3d11 {
 

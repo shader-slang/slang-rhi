@@ -546,7 +546,6 @@ if(SLANG_RHI_ENABLE_D3D11)
         src/d3d11/d3d11-command.cpp
         src/d3d11/d3d11-constant-buffer-pool.cpp
         src/d3d11/d3d11-device.cpp
-        src/d3d11/d3d11-helper-functions.cpp
         src/d3d11/d3d11-input-layout.cpp
         src/d3d11/d3d11-pipeline.cpp
         src/d3d11/d3d11-query.cpp
@@ -556,6 +555,7 @@ if(SLANG_RHI_ENABLE_D3D11)
         src/d3d11/d3d11-shader-program.cpp
         src/d3d11/d3d11-surface.cpp
         src/d3d11/d3d11-texture.cpp
+        src/d3d11/d3d11-utils.cpp
     )
 endif()
 

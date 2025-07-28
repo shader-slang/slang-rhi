@@ -6,7 +6,7 @@
 #include "d3d11-pipeline.h"
 #include "d3d11-shader-program.h"
 #include "d3d11-input-layout.h"
-#include "d3d11-helper-functions.h"
+#include "d3d11-utils.h"
 #include "d3d11-shader-object.h"
 #include "../command-list.h"
 #include "../strings.h"
