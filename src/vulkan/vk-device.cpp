@@ -325,8 +325,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
         std::vector<VkPhysicalDevice> physicalDevices;
         physicalDevices.resize(numPhysicalDevices);
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data())
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data())
         );
 
         // Use first physical device by default.
@@ -1361,7 +1360,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(
         m_slangContext
-            .initialize(desc.slang, SLANG_SPIRV, "sm_6_0", std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}})
+            .initialize(desc.slang, SLANG_SPIRV, nullptr, std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}})
     );
 
     // Create default sampler.
@@ -1805,14 +1804,12 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    SLANG_RETURN_ON_FAIL(
-        RootShaderObjectLayoutImpl::create(
-            this,
-            shaderProgram->linkedProgram,
-            shaderProgram->linkedProgram->getLayout(),
-            shaderProgram->m_rootShaderObjectLayout.writeRef()
-        )
-    );
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
+        this,
+        shaderProgram->linkedProgram,
+        shaderProgram->linkedProgram->getLayout(),
+        shaderProgram->m_rootShaderObjectLayout.writeRef()
+    ));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
