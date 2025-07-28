@@ -633,7 +633,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
         src/vulkan/vk-helper-functions.cpp
-        src/vulkan/vk-module.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
