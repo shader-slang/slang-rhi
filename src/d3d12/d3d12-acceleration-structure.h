@@ -4,8 +4,6 @@
 
 namespace rhi::d3d12 {
 
-#if SLANG_RHI_DXR
-
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
@@ -51,7 +49,5 @@ private:
     NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE translateEndCapsMode(LinearSweptSpheresEndCapsMode mode);
 };
 #endif // SLANG_RHI_ENABLE_NVAPI
-
-#endif // SLANG_RHI_DXR
 
 } // namespace rhi::d3d12

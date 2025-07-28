@@ -8,19 +8,9 @@
 #include <slang-com-ptr.h>
 #include <slang-rhi.h>
 
-#include <d3d12.h>
 #include <d3dcommon.h>
 #include <dxgi.h>
 #include <dxgiformat.h>
-
-#if defined(__ID3D12Device5_FWD_DEFINED__) && defined(__ID3D12GraphicsCommandList4_FWD_DEFINED__)
-#define SLANG_RHI_DXR 1
-#else
-#define SLANG_RHI_DXR 0
-typedef ISlangUnknown ID3D12Device5;
-typedef ISlangUnknown ID3D12GraphicsCommandList4;
-
-#endif
 
 namespace rhi {
 
@@ -29,12 +19,6 @@ class D3DUtil
 public:
     /// Get primitive topology as D3D primitive topology
     static D3D_PRIMITIVE_TOPOLOGY getPrimitiveTopology(PrimitiveTopology prim);
-
-    static D3D12_PRIMITIVE_TOPOLOGY_TYPE getPrimitiveTopologyType(PrimitiveTopology topology);
-
-    static D3D12_COMPARISON_FUNC getComparisonFunc(ComparisonFunc func);
-
-    static D3D12_DEPTH_STENCILOP_DESC translateStencilOpDesc(DepthStencilOpDesc desc);
 
     /// Compile HLSL code to DXBC
     static Result compileHLSLShader(
@@ -90,16 +74,6 @@ public:
 
     static uint32_t getPlaneSliceCount(DXGI_FORMAT format);
 
-    static D3D12_INPUT_CLASSIFICATION getInputSlotClass(InputSlotClass slotClass);
-
-    static D3D12_FILL_MODE getFillMode(FillMode mode);
-
-    static D3D12_CULL_MODE getCullMode(CullMode mode);
-
-    static D3D12_BLEND_OP getBlendOp(BlendOp op);
-
-    static D3D12_BLEND getBlendFactor(BlendFactor factor);
-
     static uint32_t getSubresourceIndex(
         uint32_t mipIndex,
         uint32_t arrayIndex,
@@ -109,8 +83,6 @@ public:
     );
 
     static uint32_t getSubresourceMip(uint32_t subresourceIndex, uint32_t mipCount);
-
-    static D3D12_RESOURCE_STATES getResourceState(ResourceState state);
 
     static Result reportLiveObjects();
 

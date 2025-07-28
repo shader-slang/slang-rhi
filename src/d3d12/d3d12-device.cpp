@@ -463,10 +463,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Set the device
     m_device = m_deviceInfo.m_device;
-#if SLANG_RHI_DXR
     m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
     m_device5 = m_deviceInfo.m_device5.get();
-#endif
 
     // Disable noisy debug layer messages.
     if (isDebugLayersEnabled())
@@ -909,7 +907,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
 
         // Enable ray tracing validation if requested
-#if SLANG_RHI_DXR
         if (desc.enableRayTracingValidation)
         {
             if (NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE) ==
@@ -923,7 +920,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 ));
             }
         }
-#endif // SLANG_RHI_DXR
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
@@ -1204,7 +1200,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     texture->m_format = resourceDesc.Format;
     texture->m_isTypeless = isTypeless;
-    texture->m_defaultState = D3DUtil::getResourceState(desc.defaultState);
+    texture->m_defaultState = translateResourceState(desc.defaultState);
 
     // Create the target resource
     {
@@ -1304,7 +1300,7 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
     texture->m_format = isTypeless ? D3DUtil::getFormatMapping(desc.format).typelessFormat
                                    : D3DUtil::getFormatMapping(desc.format).rtvFormat;
     texture->m_isTypeless = isTypeless;
-    texture->m_defaultState = D3DUtil::getResourceState(desc.defaultState);
+    texture->m_defaultState = translateResourceState(desc.defaultState);
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;
@@ -1460,7 +1456,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
         dstElement.Format = D3DUtil::getVertexFormat(srcElement.format);
         dstElement.InputSlot = (UINT)srcElement.bufferSlotIndex;
         dstElement.AlignedByteOffset = (UINT)srcElement.offset;
-        dstElement.InputSlotClass = D3DUtil::getInputSlotClass(srcStream.slotClass);
+        dstElement.InputSlotClass = translateInputSlotClass(srcStream.slotClass);
         dstElement.InstanceDataStepRate = (UINT)srcStream.instanceDataStepRate;
     }
 
@@ -1636,7 +1632,7 @@ void DeviceImpl::endImmediateCommandList()
 
 void DeviceImpl::flushValidationMessages()
 {
-#if SLANG_RHI_ENABLE_NVAPI && SLANG_RHI_DXR
+#if SLANG_RHI_ENABLE_NVAPI
     if (m_raytracingValidationHandle)
     {
         SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_FlushRaytracingValidationMessages(m_device5));
@@ -1828,7 +1824,6 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
-#if SLANG_RHI_DXR
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     BufferDesc bufferDesc = {};
     bufferDesc.size = desc.size;
@@ -1847,10 +1842,6 @@ Result DeviceImpl::createAccelerationStructure(
     m_device->CreateShaderResourceView(nullptr, &srvDesc, result->m_descriptor.cpuHandle);
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
-#else
-    *outAccelerationStructure = nullptr;
-    return SLANG_FAIL;
-#endif
 }
 
 Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)

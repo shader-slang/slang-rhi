@@ -17,10 +17,27 @@ D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type);
 
 bool isTypelessDepthFormat(DXGI_FORMAT format);
 
+D3D12_PRIMITIVE_TOPOLOGY_TYPE translatePrimitiveTopologyType(PrimitiveTopology topology);
+
 D3D12_FILTER_TYPE translateFilterMode(TextureFilteringMode mode);
 D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op);
 D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode);
 D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
+
+D3D12_STENCIL_OP translateStencilOp(StencilOp op);
+D3D12_DEPTH_STENCILOP_DESC translateStencilOpDesc(DepthStencilOpDesc desc);
+
+D3D12_INPUT_CLASSIFICATION translateInputSlotClass(InputSlotClass slotClass);
+
+D3D12_FILL_MODE translateFillMode(FillMode mode);
+
+D3D12_CULL_MODE translateCullMode(CullMode mode);
+
+D3D12_BLEND_OP translateBlendOp(BlendOp op);
+
+D3D12_BLEND translateBlendFactor(BlendFactor factor);
+
+D3D12_RESOURCE_STATES translateResourceState(ResourceState state);
 
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless);
 void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);

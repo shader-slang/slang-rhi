@@ -1,11 +1,12 @@
 #include "d3d12-buffer.h"
 #include "d3d12-device.h"
+#include "d3d12-utils.h"
 
 namespace rhi::d3d12 {
 
 BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
     : Buffer(device, desc)
-    , m_defaultState(D3DUtil::getResourceState(desc.defaultState))
+    , m_defaultState(translateResourceState(desc.defaultState))
 {
 }
 

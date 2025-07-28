@@ -81,9 +81,7 @@ public:
 
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;
-#if SLANG_RHI_DXR
     void* m_raytracingValidationHandle = nullptr;
-#endif
 #endif
 
     // Command signatures required for indirect draws. These indicate the format of the indirect

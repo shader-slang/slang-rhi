@@ -4,6 +4,7 @@
 #include "d3d12-shader-program.h"
 #include "d3d12-shader-object-layout.h"
 #include "d3d12-input-layout.h"
+#include "d3d12-utils.h"
 
 #include "core/stable_vector.h"
 #include "core/string.h"
@@ -228,7 +229,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     {
         psoDesc.pRootSignature = program->m_rootObjectLayout->m_rootSignature;
 
-        psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveTopologyType(desc.primitiveTopology);
+        psoDesc.PrimitiveTopologyType = translatePrimitiveTopologyType(desc.primitiveTopology);
 
         uint32_t numRenderTargets = desc.targetCount;
 
@@ -254,8 +255,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
         {
             auto& rs = psoDesc.RasterizerState;
-            rs.FillMode = D3DUtil::getFillMode(desc.rasterizer.fillMode);
-            rs.CullMode = D3DUtil::getCullMode(desc.rasterizer.cullMode);
+            rs.FillMode = translateFillMode(desc.rasterizer.fillMode);
+            rs.CullMode = translateCullMode(desc.rasterizer.cullMode);
             rs.FrontCounterClockwise = desc.rasterizer.frontFace == FrontFaceMode::CounterClockwise ? TRUE : FALSE;
             rs.DepthBias = desc.rasterizer.depthBias;
             rs.DepthBiasClamp = desc.rasterizer.depthBiasClamp;
@@ -278,15 +279,15 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             {
                 auto& d3dDesc = blend.RenderTarget[i];
                 d3dDesc.BlendEnable = desc.targets[i].enableBlend ? TRUE : FALSE;
-                d3dDesc.BlendOp = D3DUtil::getBlendOp(desc.targets[i].color.op);
-                d3dDesc.BlendOpAlpha = D3DUtil::getBlendOp(desc.targets[i].alpha.op);
-                d3dDesc.DestBlend = D3DUtil::getBlendFactor(desc.targets[i].color.dstFactor);
-                d3dDesc.DestBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.dstFactor);
+                d3dDesc.BlendOp = translateBlendOp(desc.targets[i].color.op);
+                d3dDesc.BlendOpAlpha = translateBlendOp(desc.targets[i].alpha.op);
+                d3dDesc.DestBlend = translateBlendFactor(desc.targets[i].color.dstFactor);
+                d3dDesc.DestBlendAlpha = translateBlendFactor(desc.targets[i].alpha.dstFactor);
                 d3dDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
                 d3dDesc.LogicOpEnable = FALSE;
                 d3dDesc.RenderTargetWriteMask = (UINT8)desc.targets[i].writeMask;
-                d3dDesc.SrcBlend = D3DUtil::getBlendFactor(desc.targets[i].color.srcFactor);
-                d3dDesc.SrcBlendAlpha = D3DUtil::getBlendFactor(desc.targets[i].alpha.srcFactor);
+                d3dDesc.SrcBlend = translateBlendFactor(desc.targets[i].color.srcFactor);
+                d3dDesc.SrcBlendAlpha = translateBlendFactor(desc.targets[i].alpha.srcFactor);
             }
             auto equalBlendState = [](const ColorTargetDesc& a, const ColorTargetDesc& b)
             {
@@ -315,15 +316,15 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             ds.DepthEnable = desc.depthStencil.depthTestEnable;
             ds.DepthWriteMask =
                 desc.depthStencil.depthWriteEnable ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
-            ds.DepthFunc = D3DUtil::getComparisonFunc(desc.depthStencil.depthFunc);
+            ds.DepthFunc = translateComparisonFunc(desc.depthStencil.depthFunc);
             ds.StencilEnable = desc.depthStencil.stencilEnable;
             ds.StencilReadMask = (UINT8)desc.depthStencil.stencilReadMask;
             ds.StencilWriteMask = (UINT8)desc.depthStencil.stencilWriteMask;
-            ds.FrontFace = D3DUtil::translateStencilOpDesc(desc.depthStencil.frontFace);
-            ds.BackFace = D3DUtil::translateStencilOpDesc(desc.depthStencil.backFace);
+            ds.FrontFace = translateStencilOpDesc(desc.depthStencil.frontFace);
+            ds.BackFace = translateStencilOpDesc(desc.depthStencil.backFace);
         }
 
-        psoDesc.PrimitiveTopologyType = D3DUtil::getPrimitiveTopologyType(desc.primitiveTopology);
+        psoDesc.PrimitiveTopologyType = translatePrimitiveTopologyType(desc.primitiveTopology);
     };
 
     if (program->isMeshShaderProgram())
@@ -572,7 +573,6 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
     TimePoint startTime = Timer::now();
 
-#if SLANG_RHI_DXR
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_shaders.empty());
 
@@ -716,9 +716,6 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipeline->m_stateObject = stateObject;
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
-#else
-    return SLANG_E_NOT_AVAILABLE;
-#endif
 }
 
 } // namespace rhi::d3d12

@@ -1428,8 +1428,8 @@ void CommandRecorder::commitBarriers()
         {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition.pResource = buffer->m_resource;
-            barrier.Transition.StateBefore = D3DUtil::getResourceState(bufferBarrier.stateBefore);
-            barrier.Transition.StateAfter = D3DUtil::getResourceState(bufferBarrier.stateAfter);
+            barrier.Transition.StateBefore = translateResourceState(bufferBarrier.stateBefore);
+            barrier.Transition.StateAfter = translateResourceState(bufferBarrier.stateAfter);
             barrier.Transition.Subresource = 0;
             if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
             {
@@ -1457,8 +1457,8 @@ void CommandRecorder::commitBarriers()
             {
                 barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
                 barrier.Transition.pResource = texture->m_resource;
-                barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
-                barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
+                barrier.Transition.StateBefore = translateResourceState(textureBarrier.stateBefore);
+                barrier.Transition.StateAfter = translateResourceState(textureBarrier.stateAfter);
                 barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
                 if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
                 {
@@ -1475,8 +1475,8 @@ void CommandRecorder::commitBarriers()
             uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition.pResource = texture->m_resource;
-            barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
-            barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
+            barrier.Transition.StateBefore = translateResourceState(textureBarrier.stateBefore);
+            barrier.Transition.StateAfter = translateResourceState(textureBarrier.stateAfter);
             if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
             {
                 continue;

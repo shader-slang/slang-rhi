@@ -76,6 +76,25 @@ bool isTypelessDepthFormat(DXGI_FORMAT format)
     }
 }
 
+D3D12_PRIMITIVE_TOPOLOGY_TYPE translatePrimitiveTopologyType(PrimitiveTopology topology)
+{
+    switch (topology)
+    {
+    case PrimitiveTopology::PointList:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+    case PrimitiveTopology::LineList:
+    case PrimitiveTopology::LineStrip:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+    case PrimitiveTopology::TriangleList:
+    case PrimitiveTopology::TriangleStrip:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    case PrimitiveTopology::PatchList:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
+    default:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED;
+    }
+}
+
 D3D12_FILTER_TYPE translateFilterMode(TextureFilteringMode mode)
 {
     switch (mode)
@@ -139,23 +158,213 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
 {
     switch (func)
     {
-    default:
-        // TODO: need to report failures
+    case ComparisonFunc::Never:
+        return D3D12_COMPARISON_FUNC_NEVER;
+    case ComparisonFunc::Less:
+        return D3D12_COMPARISON_FUNC_LESS;
+    case ComparisonFunc::Equal:
+        return D3D12_COMPARISON_FUNC_EQUAL;
+    case ComparisonFunc::LessEqual:
+        return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    case ComparisonFunc::Greater:
+        return D3D12_COMPARISON_FUNC_GREATER;
+    case ComparisonFunc::NotEqual:
+        return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+    case ComparisonFunc::GreaterEqual:
+        return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+    case ComparisonFunc::Always:
         return D3D12_COMPARISON_FUNC_ALWAYS;
+    default:
+        return D3D12_COMPARISON_FUNC_NEVER;
+    }
+}
 
-#define CASE(FROM, TO)                                                                                                 \
-    case ComparisonFunc::FROM:                                                                                         \
-        return D3D12_COMPARISON_FUNC_##TO
+D3D12_STENCIL_OP translateStencilOp(StencilOp op)
+{
+    switch (op)
+    {
+    case StencilOp::Keep:
+        return D3D12_STENCIL_OP_KEEP;
+    case StencilOp::Zero:
+        return D3D12_STENCIL_OP_ZERO;
+    case StencilOp::Replace:
+        return D3D12_STENCIL_OP_REPLACE;
+    case StencilOp::IncrementSaturate:
+        return D3D12_STENCIL_OP_INCR_SAT;
+    case StencilOp::DecrementSaturate:
+        return D3D12_STENCIL_OP_DECR_SAT;
+    case StencilOp::Invert:
+        return D3D12_STENCIL_OP_INVERT;
+    case StencilOp::IncrementWrap:
+        return D3D12_STENCIL_OP_INCR;
+    case StencilOp::DecrementWrap:
+        return D3D12_STENCIL_OP_DECR;
+    default:
+        return D3D12_STENCIL_OP_KEEP;
+    }
+}
 
-        CASE(Never, NEVER);
-        CASE(Less, LESS);
-        CASE(Equal, EQUAL);
-        CASE(LessEqual, LESS_EQUAL);
-        CASE(Greater, GREATER);
-        CASE(NotEqual, NOT_EQUAL);
-        CASE(GreaterEqual, GREATER_EQUAL);
-        CASE(Always, ALWAYS);
-#undef CASE
+D3D12_DEPTH_STENCILOP_DESC translateStencilOpDesc(DepthStencilOpDesc desc)
+{
+    D3D12_DEPTH_STENCILOP_DESC rs;
+    rs.StencilDepthFailOp = translateStencilOp(desc.stencilDepthFailOp);
+    rs.StencilFailOp = translateStencilOp(desc.stencilFailOp);
+    rs.StencilFunc = translateComparisonFunc(desc.stencilFunc);
+    rs.StencilPassOp = translateStencilOp(desc.stencilPassOp);
+    return rs;
+}
+
+D3D12_INPUT_CLASSIFICATION translateInputSlotClass(InputSlotClass slotClass)
+{
+    switch (slotClass)
+    {
+    case InputSlotClass::PerVertex:
+        return D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+    case InputSlotClass::PerInstance:
+        return D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unknown input slot class.");
+        return D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+    }
+}
+
+D3D12_FILL_MODE translateFillMode(FillMode mode)
+{
+    switch (mode)
+    {
+    case FillMode::Solid:
+        return D3D12_FILL_MODE_SOLID;
+    case FillMode::Wireframe:
+        return D3D12_FILL_MODE_WIREFRAME;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unknown fill mode.");
+        return D3D12_FILL_MODE_SOLID;
+    }
+}
+
+D3D12_CULL_MODE translateCullMode(CullMode mode)
+{
+    switch (mode)
+    {
+    case CullMode::None:
+        return D3D12_CULL_MODE_NONE;
+    case CullMode::Front:
+        return D3D12_CULL_MODE_FRONT;
+    case CullMode::Back:
+        return D3D12_CULL_MODE_BACK;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unknown cull mode.");
+        return D3D12_CULL_MODE_NONE;
+    }
+}
+
+D3D12_BLEND_OP translateBlendOp(BlendOp op)
+{
+    switch (op)
+    {
+    case BlendOp::Add:
+        return D3D12_BLEND_OP_ADD;
+    case BlendOp::Subtract:
+        return D3D12_BLEND_OP_SUBTRACT;
+    case BlendOp::ReverseSubtract:
+        return D3D12_BLEND_OP_REV_SUBTRACT;
+    case BlendOp::Min:
+        return D3D12_BLEND_OP_MIN;
+    case BlendOp::Max:
+        return D3D12_BLEND_OP_MAX;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unknown blend op.");
+        return D3D12_BLEND_OP_ADD;
+    }
+}
+
+D3D12_BLEND translateBlendFactor(BlendFactor factor)
+{
+    switch (factor)
+    {
+    case BlendFactor::Zero:
+        return D3D12_BLEND_ZERO;
+    case BlendFactor::One:
+        return D3D12_BLEND_ONE;
+    case BlendFactor::SrcColor:
+        return D3D12_BLEND_SRC_COLOR;
+    case BlendFactor::InvSrcColor:
+        return D3D12_BLEND_INV_SRC_COLOR;
+    case BlendFactor::SrcAlpha:
+        return D3D12_BLEND_SRC_ALPHA;
+    case BlendFactor::InvSrcAlpha:
+        return D3D12_BLEND_INV_SRC_ALPHA;
+    case BlendFactor::DestAlpha:
+        return D3D12_BLEND_DEST_ALPHA;
+    case BlendFactor::InvDestAlpha:
+        return D3D12_BLEND_INV_DEST_ALPHA;
+    case BlendFactor::DestColor:
+        return D3D12_BLEND_DEST_COLOR;
+    case BlendFactor::InvDestColor:
+        return D3D12_BLEND_INV_DEST_COLOR;
+    case BlendFactor::SrcAlphaSaturate:
+        return D3D12_BLEND_SRC_ALPHA_SAT;
+    case BlendFactor::BlendColor:
+        return D3D12_BLEND_BLEND_FACTOR;
+    case BlendFactor::InvBlendColor:
+        return D3D12_BLEND_INV_BLEND_FACTOR;
+    case BlendFactor::SecondarySrcColor:
+        return D3D12_BLEND_SRC1_COLOR;
+    case BlendFactor::InvSecondarySrcColor:
+        return D3D12_BLEND_INV_SRC1_COLOR;
+    case BlendFactor::SecondarySrcAlpha:
+        return D3D12_BLEND_SRC1_ALPHA;
+    case BlendFactor::InvSecondarySrcAlpha:
+        return D3D12_BLEND_INV_SRC1_ALPHA;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unknown blend factor.");
+        return D3D12_BLEND_ZERO;
+    }
+}
+
+D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
+{
+    switch (state)
+    {
+    case ResourceState::Undefined:
+        return D3D12_RESOURCE_STATE_COMMON;
+    case ResourceState::General:
+        return D3D12_RESOURCE_STATE_COMMON;
+    case ResourceState::VertexBuffer:
+        return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    case ResourceState::IndexBuffer:
+        return D3D12_RESOURCE_STATE_INDEX_BUFFER;
+    case ResourceState::ConstantBuffer:
+        return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    case ResourceState::StreamOutput:
+        return D3D12_RESOURCE_STATE_STREAM_OUT;
+    case ResourceState::ShaderResource:
+    case ResourceState::AccelerationStructureBuildInput:
+        return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    case ResourceState::UnorderedAccess:
+        return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    case ResourceState::RenderTarget:
+        return D3D12_RESOURCE_STATE_RENDER_TARGET;
+    case ResourceState::DepthRead:
+        return D3D12_RESOURCE_STATE_DEPTH_READ;
+    case ResourceState::DepthWrite:;
+        return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    case ResourceState::Present:
+        return D3D12_RESOURCE_STATE_PRESENT;
+    case ResourceState::IndirectArgument:
+        return D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+    case ResourceState::CopySource:
+        return D3D12_RESOURCE_STATE_COPY_SOURCE;
+    case ResourceState::CopyDestination:
+        return D3D12_RESOURCE_STATE_COPY_DEST;
+    case ResourceState::ResolveSource:
+        return D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+    case ResourceState::ResolveDestination:
+        return D3D12_RESOURCE_STATE_RESOLVE_DEST;
+    case ResourceState::AccelerationStructure:
+        return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+    default:
+        return D3D12_RESOURCE_STATE_COMMON;
     }
 }
 

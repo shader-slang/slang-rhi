@@ -4,8 +4,6 @@
 
 namespace rhi::d3d12 {
 
-#if SLANG_RHI_DXR
-
 AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc)
     : AccelerationStructure(device, desc)
 {
@@ -502,7 +500,5 @@ NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE AccelerationStructureBuildDescConverterNV
 }
 
 #endif // SLANG_RHI_ENABLE_NVAPI
-
-#endif // SLANG_RHI_DXR
 
 } // namespace rhi::d3d12
