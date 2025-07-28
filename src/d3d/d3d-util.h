@@ -13,8 +13,6 @@
 #include <dxgi.h>
 #include <dxgiformat.h>
 
-#include <stdint.h>
-
 #if defined(__ID3D12Device5_FWD_DEFINED__) && defined(__ID3D12GraphicsCommandList4_FWD_DEFINED__)
 #define SLANG_RHI_DXR 1
 #else

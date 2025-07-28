@@ -7,7 +7,7 @@
 #include "assert.h"
 
 #ifdef DEBUG_VERBOSE
-#include <stdio.h>
+#include <cstdio>
 #endif
 
 #ifdef _MSC_VER

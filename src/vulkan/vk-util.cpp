@@ -2,9 +2,6 @@
 
 #include "core/common.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
 namespace rhi::vk {
 
 VkFormat VulkanUtil::getVkFormat(Format format)
