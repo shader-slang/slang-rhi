@@ -8,8 +8,6 @@ SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
 {
 }
 
-SamplerImpl::~SamplerImpl()
-{
-}
+SamplerImpl::~SamplerImpl() {}
 
 } // namespace rhi::cuda
