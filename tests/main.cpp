@@ -6,6 +6,9 @@
 
 #include "doctest-reporter.h"
 
+void dumpHandleCount(const char* msg);
+
+
 // Due to current issues in slang we don't enable Agility SDK yet
 SLANG_RHI_EXPORT_AGILITY_SDK
 
@@ -27,6 +30,7 @@ std::string getCurrentTestCaseName()
 
 int main(int argc, char** argv)
 {
+    dumpHandleCount("main begin");
     rhi::testing::cleanupTestTempDirectories();
 
 #if SLANG_RHI_DEBUG
@@ -86,6 +90,8 @@ int main(int argc, char** argv)
         return 1;
     }
 #endif
+
+    dumpHandleCount("main end");
 
     return result;
 }
