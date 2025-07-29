@@ -8,6 +8,8 @@ DeviceChild::DeviceChild(Device* device)
 {
 }
 
+DeviceChild::~DeviceChild() {}
+
 void DeviceChild::breakStrongReferenceToDevice()
 {
     m_device.breakStrongReference();
