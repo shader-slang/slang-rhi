@@ -3,7 +3,7 @@
 #include "vk-utils.h"
 
 #if SLANG_WINDOWS_FAMILY
-#include <dxgi1_2.h>
+#include <dxgi1_4.h>
 #endif
 
 #if !SLANG_WINDOWS_FAMILY

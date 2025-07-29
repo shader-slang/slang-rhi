@@ -1,12 +1,16 @@
 #pragma once
 
-#include "cuda-base.h"
+#include "../rhi-shared.h"
+
+#include "cuda-api.h"
 
 /// Enable CUDA context check.
 /// This is useful for debugging to ensure that the CUDA context is set correctly when calling CUDA APIs.
 #define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 1
 
 namespace rhi::cuda {
+
+class DeviceImpl;
 
 /// Helper class to push/pop CUDA context on the stack.
 class ContextScope

@@ -1,11 +1,13 @@
 #pragma once
 
-#include "d3d12-base.h"
+#include <slang-rhi.h>
+
+#include "d3d12-api.h"
+
+#include "../d3d/d3d-utils.h"
+#include "../nvapi/nvapi-include.h"
 
 #include "core/common.h"
-#include "core/short_vector.h"
-
-#include <vector>
 
 namespace rhi::d3d12 {
 

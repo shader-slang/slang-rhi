@@ -10,7 +10,6 @@
 
 #include <d3dcommon.h>
 #include <dxgi.h>
-#include <dxgiformat.h>
 
 namespace rhi {
 

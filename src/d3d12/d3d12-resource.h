@@ -1,21 +1,9 @@
 #pragma once
 
+#include "d3d12-api.h"
 #include "../d3d/d3d-utils.h"
 
 #include <slang-com-ptr.h>
-
-#pragma push_macro("WIN32_LEAN_AND_MEAN")
-#pragma push_macro("NOMINMAX")
-#undef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#undef NOMINMAX
-#define NOMINMAX
-#include <windows.h>
-#pragma pop_macro("NOMINMAX")
-#pragma pop_macro("WIN32_LEAN_AND_MEAN")
-
-#include <d3d12.h>
-#include <dxgi1_4.h>
 
 namespace rhi {
 

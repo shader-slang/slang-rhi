@@ -1,6 +1,10 @@
 #pragma once
 
-#include "d3d11-base.h"
+#include <slang-rhi.h>
+
+#include "d3d11-api.h"
+
+#include "../d3d/d3d-utils.h"
 
 namespace rhi::d3d11 {
 

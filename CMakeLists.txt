@@ -690,6 +690,7 @@ target_compile_definitions(slang-rhi
     SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
     $<$<CXX_COMPILER_ID:MSVC>:_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+    $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
 target_compile_features(slang-rhi PRIVATE cxx_std_17)
@@ -786,6 +787,7 @@ if(SLANG_RHI_BUILD_TESTS)
         SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
         SLANG_RHI_BUILD_TESTS_WITH_GLFW=$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+        $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
