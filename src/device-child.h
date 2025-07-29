@@ -9,6 +9,7 @@ class DeviceChild : public ComObject
 {
 public:
     DeviceChild(Device* device);
+    virtual ~DeviceChild();
 
     template<typename T = Device>
     T* getDevice()

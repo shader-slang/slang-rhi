@@ -1,6 +1,6 @@
 #include "vk-sampler.h"
 #include "vk-device.h"
-#include "vk-util.h"
+#include "vk-utils.h"
 
 namespace rhi::vk {
 
@@ -42,12 +42,12 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     VkSamplerCreateInfo samplerInfo = {VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
 
-    samplerInfo.magFilter = VulkanUtil::translateFilterMode(desc.magFilter);
-    samplerInfo.minFilter = VulkanUtil::translateFilterMode(desc.minFilter);
+    samplerInfo.magFilter = translateFilterMode(desc.magFilter);
+    samplerInfo.minFilter = translateFilterMode(desc.minFilter);
 
-    samplerInfo.addressModeU = VulkanUtil::translateAddressingMode(desc.addressU);
-    samplerInfo.addressModeV = VulkanUtil::translateAddressingMode(desc.addressV);
-    samplerInfo.addressModeW = VulkanUtil::translateAddressingMode(desc.addressW);
+    samplerInfo.addressModeU = translateAddressingMode(desc.addressU);
+    samplerInfo.addressModeV = translateAddressingMode(desc.addressV);
+    samplerInfo.addressModeW = translateAddressingMode(desc.addressW);
 
     samplerInfo.anisotropyEnable = desc.maxAnisotropy > 1;
     samplerInfo.maxAnisotropy = (float)desc.maxAnisotropy;
@@ -102,13 +102,13 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 
     samplerInfo.unnormalizedCoordinates = VK_FALSE;
     samplerInfo.compareEnable = desc.reductionOp == TextureReductionOp::Comparison;
-    samplerInfo.compareOp = VulkanUtil::translateComparisonFunc(desc.comparisonFunc);
-    samplerInfo.mipmapMode = VulkanUtil::translateMipFilterMode(desc.mipFilter);
+    samplerInfo.compareOp = translateComparisonFunc(desc.comparisonFunc);
+    samplerInfo.mipmapMode = translateMipFilterMode(desc.mipFilter);
     samplerInfo.minLod = max(0.0f, desc.minLOD);
     samplerInfo.maxLod = clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
 
     VkSamplerReductionModeCreateInfo reductionInfo = {VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO};
-    reductionInfo.reductionMode = VulkanUtil::translateReductionOp(desc.reductionOp);
+    reductionInfo.reductionMode = translateReductionOp(desc.reductionOp);
     reductionInfo.pNext = samplerInfo.pNext;
     samplerInfo.pNext = &reductionInfo;
 

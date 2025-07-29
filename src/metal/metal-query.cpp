@@ -1,6 +1,6 @@
 #include "metal-query.h"
 #include "metal-device.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 
 namespace rhi::metal {
 
@@ -54,7 +54,7 @@ Result QueryPoolImpl::init()
     counterSampleBufferDesc->setCounterSet(counterSet);
     if (m_desc.label)
     {
-        counterSampleBufferDesc->setLabel(MetalUtil::createString(m_desc.label).get());
+        counterSampleBufferDesc->setLabel(createString(m_desc.label).get());
     }
 
     NS::Error* error;

@@ -1,7 +1,7 @@
 #include "metal-surface.h"
 #include "metal-device.h"
 #include "metal-texture.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 #include "../cocoa-util.h"
 
 namespace rhi::metal {
@@ -41,7 +41,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         m_config.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
     }
 
-    m_metalLayer->setPixelFormat(MetalUtil::translatePixelFormat(m_config.format));
+    m_metalLayer->setPixelFormat(translatePixelFormat(m_config.format));
     m_metalLayer->setDrawableSize(CGSize{(float)m_config.width, (float)m_config.height});
     m_metalLayer->setFramebufferOnly(m_config.usage == TextureUsage::RenderTarget);
     // m_metalLayer->setDisplaySyncEnabled(config.vsync);

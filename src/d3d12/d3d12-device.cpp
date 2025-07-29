@@ -1,7 +1,7 @@
 #include "d3d12-device.h"
 #include "d3d12-buffer.h"
 #include "d3d12-fence.h"
-#include "d3d12-helper-functions.h"
+#include "d3d12-utils.h"
 #include "d3d12-pipeline.h"
 #include "d3d12-query.h"
 #include "d3d12-sampler.h"
@@ -174,10 +174,10 @@ Result DeviceImpl::_createDevice(
     outDeviceInfo.clear();
 
     ComPtr<IDXGIFactory> dxgiFactory;
-    SLANG_RETURN_ON_FAIL(D3DUtil::createFactory(deviceCheckFlags, dxgiFactory));
+    SLANG_RETURN_ON_FAIL(createDXGIFactory(deviceCheckFlags, dxgiFactory));
 
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(D3DUtil::findAdapters(deviceCheckFlags, adapterLUID, dxgiFactory, dxgiAdapters));
+    SLANG_RETURN_ON_FAIL(findAdapters(deviceCheckFlags, adapterLUID, dxgiFactory, dxgiAdapters));
 
     ComPtr<ID3D12Device> device;
     ComPtr<IDXGIAdapter> adapter;
@@ -309,7 +309,7 @@ Result DeviceImpl::_createDevice(
     outDeviceInfo.m_device = device;
     outDeviceInfo.m_dxgiFactory = dxgiFactory;
     outDeviceInfo.m_adapter = adapter;
-    outDeviceInfo.m_isWarp = D3DUtil::isWarp(dxgiFactory, adapter);
+    outDeviceInfo.m_isWarp = isWarpAdapter(dxgiFactory, adapter);
     const UINT kMicrosoftVendorId = 5140;
     outDeviceInfo.m_isSoftware = outDeviceInfo.m_isWarp ||
                                  ((outDeviceInfo.m_desc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0) ||
@@ -463,10 +463,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Set the device
     m_device = m_deviceInfo.m_device;
-#if SLANG_RHI_DXR
     m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
     m_device5 = m_deviceInfo.m_device5.get();
-#endif
 
     // Disable noisy debug layer messages.
     if (isDebugLayersEnabled())
@@ -599,7 +597,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
         m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
-        m_info.adapterLUID = D3DUtil::getAdapterLUID(m_deviceInfo.m_adapter);
+        m_info.adapterLUID = getAdapterLUID(m_deviceInfo.m_adapter);
     }
     else
     {
@@ -909,7 +907,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
 
         // Enable ray tracing validation if requested
-#if SLANG_RHI_DXR
         if (desc.enableRayTracingValidation)
         {
             if (NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE) ==
@@ -923,7 +920,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 ));
             }
         }
-#endif // SLANG_RHI_DXR
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
@@ -931,7 +927,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
     {
         Format format = Format(formatIndex);
-        const D3DUtil::FormatMapping& formatMapping = D3DUtil::getFormatMapping(format);
+        const FormatMapping& formatMapping = getFormatMapping(format);
         FormatSupport formatSupport = FormatSupport::None;
 
 #define UPDATE_FLAGS(d3dFlags, formatSupportFlags)                                                                     \
@@ -1204,7 +1200,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     texture->m_format = resourceDesc.Format;
     texture->m_isTypeless = isTypeless;
-    texture->m_defaultState = D3DUtil::getResourceState(desc.defaultState);
+    texture->m_defaultState = translateResourceState(desc.defaultState);
 
     // Create the target resource
     {
@@ -1301,10 +1297,10 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
         isTypeless = true;
     }
 
-    texture->m_format = isTypeless ? D3DUtil::getFormatMapping(desc.format).typelessFormat
-                                   : D3DUtil::getFormatMapping(desc.format).rtvFormat;
+    texture->m_format =
+        isTypeless ? getFormatMapping(desc.format).typelessFormat : getFormatMapping(desc.format).rtvFormat;
     texture->m_isTypeless = isTypeless;
-    texture->m_defaultState = D3DUtil::getResourceState(desc.defaultState);
+    texture->m_defaultState = translateResourceState(desc.defaultState);
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;
@@ -1457,10 +1453,10 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
         dstElement.SemanticName = semanticName;
         dstElement.SemanticIndex = (UINT)srcElement.semanticIndex;
-        dstElement.Format = D3DUtil::getVertexFormat(srcElement.format);
+        dstElement.Format = getVertexFormat(srcElement.format);
         dstElement.InputSlot = (UINT)srcElement.bufferSlotIndex;
         dstElement.AlignedByteOffset = (UINT)srcElement.offset;
-        dstElement.InputSlotClass = D3DUtil::getInputSlotClass(srcStream.slotClass);
+        dstElement.InputSlotClass = translateInputSlotClass(srcStream.slotClass);
         dstElement.InstanceDataStepRate = (UINT)srcStream.instanceDataStepRate;
     }
 
@@ -1636,7 +1632,7 @@ void DeviceImpl::endImmediateCommandList()
 
 void DeviceImpl::flushValidationMessages()
 {
-#if SLANG_RHI_ENABLE_NVAPI && SLANG_RHI_DXR
+#if SLANG_RHI_ENABLE_NVAPI
     if (m_raytracingValidationHandle)
     {
         SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_FlushRaytracingValidationMessages(m_device5));
@@ -1828,7 +1824,6 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
-#if SLANG_RHI_DXR
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     BufferDesc bufferDesc = {};
     bufferDesc.size = desc.size;
@@ -1847,10 +1842,6 @@ Result DeviceImpl::createAccelerationStructure(
     m_device->CreateShaderResourceView(nullptr, &srvDesc, result->m_descriptor.cpuHandle);
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
-#else
-    *outAccelerationStructure = nullptr;
-    return SLANG_FAIL;
-#endif
 }
 
 Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
@@ -1955,3 +1946,53 @@ DeviceImpl::~DeviceImpl()
 }
 
 } // namespace rhi::d3d12
+
+namespace rhi {
+
+Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
+{
+    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
+    SLANG_RETURN_ON_FAIL(findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
+
+    outAdapters.clear();
+    for (const auto& dxgiAdapter : dxgiAdapters)
+    {
+        DXGI_ADAPTER_DESC desc;
+        dxgiAdapter->GetDesc(&desc);
+        AdapterInfo info = {};
+        auto name = string::from_wstring(desc.Description);
+        memcpy(info.name, name.data(), min(name.length(), sizeof(AdapterInfo::name) - 1));
+        info.vendorID = desc.VendorId;
+        info.deviceID = desc.DeviceId;
+        info.luid = getAdapterLUID(dxgiAdapter);
+        outAdapters.push_back(info);
+    }
+    return SLANG_OK;
+}
+
+Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
+{
+    RefPtr<d3d12::DeviceImpl> result = new d3d12::DeviceImpl();
+    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
+    returnComPtr(outDevice, result);
+    return SLANG_OK;
+}
+
+void SLANG_MCALL enableD3D12DebugLayerIfAvailable()
+{
+    SharedLibraryHandle d3dModule;
+#if SLANG_WINDOWS_FAMILY
+    const char* libName = "d3d12";
+#else
+    const char* libName = "libvkd3d-proton-d3d12.so";
+#endif
+    if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
+        return;
+    PFN_D3D12_GET_DEBUG_INTERFACE d3d12GetDebugInterface =
+        (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
+    ComPtr<ID3D12Debug> dxDebug;
+    if (d3d12GetDebugInterface && SLANG_SUCCEEDED(d3d12GetDebugInterface(IID_PPV_ARGS(dxDebug.writeRef()))))
+        dxDebug->EnableDebugLayer();
+}
+
+} // namespace rhi

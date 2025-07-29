@@ -4,7 +4,7 @@
 #include "wgpu-texture.h"
 #include "wgpu-pipeline.h"
 #include "wgpu-shader-object.h"
-#include "wgpu-util.h"
+#include "wgpu-utils.h"
 
 #include "../strings.h"
 

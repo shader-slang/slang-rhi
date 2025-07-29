@@ -4,8 +4,6 @@
 
 namespace rhi::d3d12 {
 
-#if SLANG_RHI_DXR
-
 AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc)
     : AccelerationStructure(device, desc)
 {
@@ -126,12 +124,12 @@ Result AccelerationStructureBuildDescConverter::convert(
             geomDesc.Triangles.VertexBuffer.StartAddress = triangles.vertexBuffers[0].getDeviceAddress();
             geomDesc.Triangles.VertexBuffer.StrideInBytes = triangles.vertexStride;
             geomDesc.Triangles.VertexCount = triangles.vertexCount;
-            geomDesc.Triangles.VertexFormat = D3DUtil::getVertexFormat(triangles.vertexFormat);
+            geomDesc.Triangles.VertexFormat = getVertexFormat(triangles.vertexFormat);
             if (triangles.indexBuffer)
             {
                 geomDesc.Triangles.IndexBuffer = triangles.indexBuffer.getDeviceAddress();
                 geomDesc.Triangles.IndexCount = triangles.indexCount;
-                geomDesc.Triangles.IndexFormat = D3DUtil::getIndexFormat(triangles.indexFormat);
+                geomDesc.Triangles.IndexFormat = getIndexFormat(triangles.indexFormat);
             }
             else
             {
@@ -290,12 +288,12 @@ Result AccelerationStructureBuildDescConverterNVAPI::convert(
             geomDesc.triangles.VertexBuffer.StartAddress = triangles.vertexBuffers[0].getDeviceAddress();
             geomDesc.triangles.VertexBuffer.StrideInBytes = triangles.vertexStride;
             geomDesc.triangles.VertexCount = triangles.vertexCount;
-            geomDesc.triangles.VertexFormat = D3DUtil::getVertexFormat(triangles.vertexFormat);
+            geomDesc.triangles.VertexFormat = getVertexFormat(triangles.vertexFormat);
             if (triangles.indexBuffer)
             {
                 geomDesc.triangles.IndexBuffer = triangles.indexBuffer.getDeviceAddress();
                 geomDesc.triangles.IndexCount = triangles.indexCount;
-                geomDesc.triangles.IndexFormat = D3DUtil::getIndexFormat(triangles.indexFormat);
+                geomDesc.triangles.IndexFormat = getIndexFormat(triangles.indexFormat);
             }
             else
             {
@@ -352,16 +350,16 @@ Result AccelerationStructureBuildDescConverterNVAPI::convert(
             geomDesc.spheres.vertexCount = spheres.vertexCount;
             geomDesc.spheres.vertexPositionBuffer.StartAddress = spheres.vertexPositionBuffers[0].getDeviceAddress();
             geomDesc.spheres.vertexPositionBuffer.StrideInBytes = spheres.vertexPositionStride;
-            geomDesc.spheres.vertexPositionFormat = D3DUtil::getVertexFormat(spheres.vertexPositionFormat);
+            geomDesc.spheres.vertexPositionFormat = getVertexFormat(spheres.vertexPositionFormat);
             geomDesc.spheres.vertexRadiusBuffer.StartAddress = spheres.vertexRadiusBuffers[0].getDeviceAddress();
             geomDesc.spheres.vertexRadiusBuffer.StrideInBytes = spheres.vertexRadiusStride;
-            geomDesc.spheres.vertexRadiusFormat = D3DUtil::getVertexFormat(spheres.vertexRadiusFormat);
+            geomDesc.spheres.vertexRadiusFormat = getVertexFormat(spheres.vertexRadiusFormat);
             if (spheres.indexBuffer)
             {
                 geomDesc.spheres.indexCount = spheres.indexCount;
                 geomDesc.spheres.indexBuffer.StartAddress = spheres.indexBuffer.getDeviceAddress();
                 geomDesc.spheres.indexBuffer.StrideInBytes = spheres.indexFormat == IndexFormat::Uint32 ? 4 : 2;
-                geomDesc.spheres.indexFormat = D3DUtil::getIndexFormat(spheres.indexFormat);
+                geomDesc.spheres.indexFormat = getIndexFormat(spheres.indexFormat);
             }
             else
             {
@@ -393,16 +391,16 @@ Result AccelerationStructureBuildDescConverterNVAPI::convert(
             geomDesc.lss.vertexCount = lss.vertexCount;
             geomDesc.lss.vertexPositionBuffer.StartAddress = lss.vertexPositionBuffers[0].getDeviceAddress();
             geomDesc.lss.vertexPositionBuffer.StrideInBytes = lss.vertexPositionStride;
-            geomDesc.lss.vertexPositionFormat = D3DUtil::getVertexFormat(lss.vertexPositionFormat);
+            geomDesc.lss.vertexPositionFormat = getVertexFormat(lss.vertexPositionFormat);
             geomDesc.lss.vertexRadiusBuffer.StartAddress = lss.vertexRadiusBuffers[0].getDeviceAddress();
             geomDesc.lss.vertexRadiusBuffer.StrideInBytes = lss.vertexRadiusStride;
-            geomDesc.lss.vertexRadiusFormat = D3DUtil::getVertexFormat(lss.vertexRadiusFormat);
+            geomDesc.lss.vertexRadiusFormat = getVertexFormat(lss.vertexRadiusFormat);
             if (lss.indexBuffer)
             {
                 geomDesc.lss.indexCount = lss.indexCount;
                 geomDesc.lss.indexBuffer.StartAddress = lss.indexBuffer.getDeviceAddress();
                 geomDesc.lss.indexBuffer.StrideInBytes = lss.indexFormat == IndexFormat::Uint32 ? 4 : 2;
-                geomDesc.lss.indexFormat = D3DUtil::getIndexFormat(lss.indexFormat);
+                geomDesc.lss.indexFormat = getIndexFormat(lss.indexFormat);
             }
             else
             {
@@ -502,7 +500,5 @@ NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE AccelerationStructureBuildDescConverterNV
 }
 
 #endif // SLANG_RHI_ENABLE_NVAPI
-
-#endif // SLANG_RHI_DXR
 
 } // namespace rhi::d3d12

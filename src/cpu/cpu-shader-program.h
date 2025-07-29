@@ -10,7 +10,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootShaderObjectLayout;
 
     ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc);
-    ~ShaderProgramImpl() {}
+    ~ShaderProgramImpl();
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() override;
 };

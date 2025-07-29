@@ -4,7 +4,7 @@
 #include "wgpu-shader-program.h"
 #include "wgpu-shader-object.h"
 #include "wgpu-shader-object-layout.h"
-#include "wgpu-util.h"
+#include "wgpu-utils.h"
 
 #include "core/common.h"
 #include "core/deferred.h"
@@ -550,3 +550,21 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
 }
 
 } // namespace rhi::wgpu
+
+namespace rhi {
+
+Result SLANG_MCALL getWGPUAdapters(std::vector<AdapterInfo>& outAdapters)
+{
+    // TODO: implement
+    return SLANG_OK;
+}
+
+Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outRenderer)
+{
+    RefPtr<wgpu::DeviceImpl> result = new wgpu::DeviceImpl();
+    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
+    returnComPtr(outRenderer, result);
+    return SLANG_OK;
+}
+
+} // namespace rhi

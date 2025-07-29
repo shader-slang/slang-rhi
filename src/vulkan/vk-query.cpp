@@ -1,6 +1,6 @@
 #include "vk-query.h"
 #include "vk-device.h"
-#include "vk-util.h"
+#include "vk-utils.h"
 
 namespace rhi::vk {
 

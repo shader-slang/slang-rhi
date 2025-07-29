@@ -1,6 +1,6 @@
 #include "d3d11-texture.h"
 #include "d3d11-device.h"
-#include "d3d11-helper-functions.h"
+#include "d3d11-utils.h"
 
 namespace rhi::d3d11 {
 
@@ -39,7 +39,7 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
         return rtv;
 
     D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.Format = D3DUtil::getFormatMapping(m_desc.format).rtvFormat;
+    rtvDesc.Format = getFormatMapping(m_desc.format).rtvFormat;
     switch (m_desc.type)
     {
     case TextureType::Texture1D:
@@ -100,7 +100,7 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
         return dsv;
 
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.Format = D3DUtil::getFormatMapping(m_desc.format).rtvFormat;
+    dsvDesc.Format = getFormatMapping(m_desc.format).rtvFormat;
     switch (m_desc.type)
     {
     case TextureType::Texture1D:
@@ -156,7 +156,7 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
         return srv;
 
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(m_desc.format).srvFormat : m_format;
+    srvDesc.Format = m_isTypeless ? getFormatMapping(m_desc.format).srvFormat : m_format;
     switch (m_desc.type)
     {
     case TextureType::Texture1D:
@@ -229,7 +229,7 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
         return uav;
 
     D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-    uavDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(m_desc.format).srvFormat : m_format;
+    uavDesc.Format = m_isTypeless ? getFormatMapping(m_desc.format).srvFormat : m_format;
     switch (m_desc.type)
     {
     case TextureType::Texture1D:
@@ -286,8 +286,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     {
         isTypeless = true;
     }
-    const DXGI_FORMAT format = isTypeless ? D3DUtil::getFormatMapping(desc.format).typelessFormat
-                                          : D3DUtil::getFormatMapping(desc.format).rtvFormat;
+    const DXGI_FORMAT format =
+        isTypeless ? getFormatMapping(desc.format).typelessFormat : getFormatMapping(desc.format).rtvFormat;
     if (format == DXGI_FORMAT_UNKNOWN)
     {
         return SLANG_FAIL;

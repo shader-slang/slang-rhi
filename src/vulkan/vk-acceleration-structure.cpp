@@ -1,7 +1,7 @@
 #include "vk-acceleration-structure.h"
 #include "vk-device.h"
 #include "vk-buffer.h"
-#include "vk-util.h"
+#include "vk-utils.h"
 
 namespace rhi::vk {
 
@@ -130,7 +130,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
             geometry.flags = translateGeometryFlags(triangles.flags);
             geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
-            geometry.geometry.triangles.vertexFormat = VulkanUtil::getVkFormat(triangles.vertexFormat);
+            geometry.geometry.triangles.vertexFormat = getVkFormat(triangles.vertexFormat);
             geometry.geometry.triangles.vertexData.deviceAddress = triangles.vertexBuffers[0].getDeviceAddress();
             geometry.geometry.triangles.vertexStride = triangles.vertexStride;
             geometry.geometry.triangles.maxVertex = triangles.vertexCount - 1;
@@ -193,10 +193,10 @@ Result AccelerationStructureBuildDescConverter::convert(
             VkAccelerationStructureGeometrySpheresDataNV& spheresData = spheresDatas[i];
             spheresData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_SPHERES_DATA_NV;
 
-            spheresData.vertexFormat = VulkanUtil::getVkFormat(spheres.vertexPositionFormat);
+            spheresData.vertexFormat = getVkFormat(spheres.vertexPositionFormat);
             spheresData.vertexData.deviceAddress = spheres.vertexPositionBuffers[0].getDeviceAddress();
             spheresData.vertexStride = spheres.vertexPositionStride;
-            spheresData.radiusFormat = VulkanUtil::getVkFormat(spheres.vertexRadiusFormat);
+            spheresData.radiusFormat = getVkFormat(spheres.vertexRadiusFormat);
             spheresData.radiusData.deviceAddress = spheres.vertexRadiusBuffers[0].getDeviceAddress();
             spheresData.radiusStride = spheres.vertexRadiusStride;
             if (spheres.indexBuffer)
@@ -239,10 +239,10 @@ Result AccelerationStructureBuildDescConverter::convert(
             VkAccelerationStructureGeometryLinearSweptSpheresDataNV& lssData = linearSweptSpheresDatas[i];
             lssData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_SPHERES_DATA_NV;
 
-            lssData.vertexFormat = VulkanUtil::getVkFormat(lss.vertexPositionFormat);
+            lssData.vertexFormat = getVkFormat(lss.vertexPositionFormat);
             lssData.vertexData.deviceAddress = lss.vertexPositionBuffers[0].getDeviceAddress();
             lssData.vertexStride = lss.vertexPositionStride;
-            lssData.radiusFormat = VulkanUtil::getVkFormat(lss.vertexRadiusFormat);
+            lssData.radiusFormat = getVkFormat(lss.vertexRadiusFormat);
             lssData.radiusData.deviceAddress = lss.vertexRadiusBuffers[0].getDeviceAddress();
             lssData.radiusStride = lss.vertexRadiusStride;
             if (lss.indexBuffer)

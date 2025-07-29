@@ -524,7 +524,6 @@ if(SLANG_RHI_ENABLE_CPU)
         src/cpu/cpu-command.cpp
         src/cpu/cpu-device.cpp
         src/cpu/cpu-fence.cpp
-        src/cpu/cpu-helper-functions.cpp
         src/cpu/cpu-pipeline.cpp
         src/cpu/cpu-query.cpp
         src/cpu/cpu-shader-object-layout.cpp
@@ -536,7 +535,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_HAS_D3D12)
     target_sources(slang-rhi PRIVATE
-        src/d3d/d3d-util.cpp
+        src/d3d/d3d-utils.cpp
         src/nvapi/nvapi-util.cpp
     )
 endif()
@@ -547,7 +546,6 @@ if(SLANG_RHI_ENABLE_D3D11)
         src/d3d11/d3d11-command.cpp
         src/d3d11/d3d11-constant-buffer-pool.cpp
         src/d3d11/d3d11-device.cpp
-        src/d3d11/d3d11-helper-functions.cpp
         src/d3d11/d3d11-input-layout.cpp
         src/d3d11/d3d11-pipeline.cpp
         src/d3d11/d3d11-query.cpp
@@ -557,6 +555,7 @@ if(SLANG_RHI_ENABLE_D3D11)
         src/d3d11/d3d11-shader-program.cpp
         src/d3d11/d3d11-surface.cpp
         src/d3d11/d3d11-texture.cpp
+        src/d3d11/d3d11-utils.cpp
     )
 endif()
 
@@ -570,7 +569,6 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-descriptor-heap.cpp
         src/d3d12/d3d12-device.cpp
         src/d3d12/d3d12-fence.cpp
-        src/d3d12/d3d12-helper-functions.cpp
         src/d3d12/d3d12-pipeline.cpp
         src/d3d12/d3d12-posix-synchapi.cpp
         src/d3d12/d3d12-query.cpp
@@ -582,6 +580,7 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-shader-table.cpp
         src/d3d12/d3d12-surface.cpp
         src/d3d12/d3d12-texture.cpp
+        src/d3d12/d3d12-utils.cpp
     )
 endif()
 
@@ -597,7 +596,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
-        src/vulkan/vk-helper-functions.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
@@ -607,7 +605,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-shader-table.cpp
         src/vulkan/vk-surface.cpp
         src/vulkan/vk-texture.cpp
-        src/vulkan/vk-util.cpp
+        src/vulkan/vk-utils.cpp
     )
     target_link_libraries(slang-rhi PRIVATE slang-rhi-vulkan-headers)
 endif()
@@ -621,7 +619,6 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-command.cpp
         src/metal/metal-device.cpp
         src/metal/metal-fence.cpp
-        src/metal/metal-helper-functions.cpp
         src/metal/metal-input-layout.cpp
         src/metal/metal-pipeline.cpp
         src/metal/metal-query.cpp
@@ -632,7 +629,7 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-shader-table.cpp
         src/metal/metal-surface.cpp
         src/metal/metal-texture.cpp
-        src/metal/metal-util.cpp
+        src/metal/metal-utils.cpp
     )
     target_link_libraries(slang-rhi-metal-cpp INTERFACE "-framework Metal")
     target_link_libraries(slang-rhi PRIVATE slang-rhi-metal-cpp)
@@ -648,7 +645,6 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp
         src/cuda/cuda-fence.cpp
-        src/cuda/cuda-helper-functions.cpp
         src/cuda/cuda-nvrtc.cpp
         src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
@@ -660,6 +656,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-shader-table.cpp
         src/cuda/cuda-surface.cpp
         src/cuda/cuda-texture.cpp
+        src/cuda/cuda-utils.cpp
     )
 endif()
 
@@ -671,7 +668,6 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-constant-buffer-pool.cpp
         src/wgpu/wgpu-device.cpp
         src/wgpu/wgpu-fence.cpp
-        src/wgpu/wgpu-helper-functions.cpp
         src/wgpu/wgpu-input-layout.cpp
         src/wgpu/wgpu-pipeline.cpp
         src/wgpu/wgpu-query.cpp
@@ -681,7 +677,7 @@ if(SLANG_RHI_ENABLE_WGPU)
         src/wgpu/wgpu-shader-program.cpp
         src/wgpu/wgpu-surface.cpp
         src/wgpu/wgpu-texture.cpp
-        src/wgpu/wgpu-util.cpp
+        src/wgpu/wgpu-utils.cpp
     )
 endif()
 
@@ -694,6 +690,7 @@ target_compile_definitions(slang-rhi
     SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
     $<$<CXX_COMPILER_ID:MSVC>:_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+    $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
 target_compile_features(slang-rhi PRIVATE cxx_std_17)
@@ -790,6 +787,7 @@ if(SLANG_RHI_BUILD_TESTS)
         SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
         SLANG_RHI_BUILD_TESTS_WITH_GLFW=$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+        $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
     target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)

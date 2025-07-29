@@ -1,6 +1,6 @@
 #include "cuda-clear-engine.h"
 #include "cuda-texture.h"
-#include "cuda-helper-functions.h"
+#include "cuda-utils.h"
 #include "cuda-nvrtc.h"
 
 #include "format-conversion.h"

@@ -1,4 +1,4 @@
-#include "wgpu-util.h"
+#include "wgpu-utils.h"
 
 #include "core/assert.h"
 
@@ -313,9 +313,9 @@ WGPUTextureViewDimension translateTextureViewDimension(TextureType type)
         return WGPUTextureViewDimension_CubeArray;
     case TextureType::Texture3D:
         return WGPUTextureViewDimension_3D;
-    default:
-        return WGPUTextureViewDimension_Undefined;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureType value");
+    return WGPUTextureViewDimension_Undefined;
 }
 
 WGPUTextureAspect translateTextureAspect(TextureAspect aspect)
@@ -328,9 +328,9 @@ WGPUTextureAspect translateTextureAspect(TextureAspect aspect)
         return WGPUTextureAspect_DepthOnly;
     case TextureAspect::StencilOnly:
         return WGPUTextureAspect_StencilOnly;
-    default:
-        return WGPUTextureAspect_All;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureAspect value");
+    return WGPUTextureAspect_Undefined;
 }
 
 WGPUAddressMode translateAddressMode(TextureAddressingMode mode)
@@ -342,14 +342,14 @@ WGPUAddressMode translateAddressMode(TextureAddressingMode mode)
     case TextureAddressingMode::ClampToEdge:
         return WGPUAddressMode_ClampToEdge;
     case TextureAddressingMode::ClampToBorder:
-        return WGPUAddressMode_ClampToEdge; // TODO not supported (warn in validation)
+        return WGPUAddressMode_Undefined; // not supported (warn in validation)
     case TextureAddressingMode::MirrorRepeat:
         return WGPUAddressMode_MirrorRepeat;
     case TextureAddressingMode::MirrorOnce:
-        return WGPUAddressMode_MirrorRepeat; // TODO not supported (warn in validation)
-    default:
-        return WGPUAddressMode_Repeat;
+        return WGPUAddressMode_Undefined; // not supported (warn in validation)
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureAddressingMode value");
+    return WGPUAddressMode_Repeat;
 }
 
 WGPUFilterMode translateFilterMode(TextureFilteringMode mode)
@@ -360,9 +360,9 @@ WGPUFilterMode translateFilterMode(TextureFilteringMode mode)
         return WGPUFilterMode_Nearest;
     case TextureFilteringMode::Linear:
         return WGPUFilterMode_Linear;
-    default:
-        return WGPUFilterMode_Nearest;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return WGPUFilterMode_Undefined;
 }
 
 WGPUMipmapFilterMode translateMipmapFilterMode(TextureFilteringMode mode)
@@ -373,9 +373,9 @@ WGPUMipmapFilterMode translateMipmapFilterMode(TextureFilteringMode mode)
         return WGPUMipmapFilterMode_Nearest;
     case TextureFilteringMode::Linear:
         return WGPUMipmapFilterMode_Linear;
-    default:
-        return WGPUMipmapFilterMode_Nearest;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return WGPUMipmapFilterMode_Undefined;
 }
 
 WGPUCompareFunction translateCompareFunction(ComparisonFunc func)
@@ -398,9 +398,9 @@ WGPUCompareFunction translateCompareFunction(ComparisonFunc func)
         return WGPUCompareFunction_GreaterEqual;
     case ComparisonFunc::Always:
         return WGPUCompareFunction_Always;
-    default:
-        return WGPUCompareFunction_Never;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid ComparisonFunc value");
+    return WGPUCompareFunction_Undefined;
 }
 
 WGPUPrimitiveTopology translatePrimitiveTopology(PrimitiveTopology topology)
@@ -418,11 +418,10 @@ WGPUPrimitiveTopology translatePrimitiveTopology(PrimitiveTopology topology)
     case PrimitiveTopology::TriangleStrip:
         return WGPUPrimitiveTopology_TriangleStrip;
     case PrimitiveTopology::PatchList:
-        SLANG_RHI_ASSERT_FAILURE("Patch tlist opology not supported.");
-        return WGPUPrimitiveTopology_Undefined;
-    default:
-        return WGPUPrimitiveTopology_Undefined;
+        return WGPUPrimitiveTopology_Undefined; // not supported (warn in validation)
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid PrimitiveTopology value");
+    return WGPUPrimitiveTopology_Undefined;
 }
 
 WGPUFrontFace translateFrontFace(FrontFaceMode mode)
@@ -433,9 +432,9 @@ WGPUFrontFace translateFrontFace(FrontFaceMode mode)
         return WGPUFrontFace_CCW;
     case FrontFaceMode::Clockwise:
         return WGPUFrontFace_CW;
-    default:
-        return WGPUFrontFace_Undefined;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid FrontFaceMode value");
+    return WGPUFrontFace_Undefined;
 }
 
 WGPUCullMode translateCullMode(CullMode mode)
@@ -448,9 +447,9 @@ WGPUCullMode translateCullMode(CullMode mode)
         return WGPUCullMode_Front;
     case CullMode::Back:
         return WGPUCullMode_Back;
-    default:
-        return WGPUCullMode_Undefined;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CullMode value");
+    return WGPUCullMode_Undefined;
 }
 
 WGPUStencilOperation translateStencilOp(StencilOp op)
@@ -473,9 +472,9 @@ WGPUStencilOperation translateStencilOp(StencilOp op)
         return WGPUStencilOperation_IncrementWrap;
     case StencilOp::DecrementWrap:
         return WGPUStencilOperation_DecrementWrap;
-    default:
-        return WGPUStencilOperation_Undefined;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StencilOp value");
+    return WGPUStencilOperation_Undefined;
 }
 
 WGPUBlendFactor translateBlendFactor(BlendFactor factor)
@@ -516,9 +515,9 @@ WGPUBlendFactor translateBlendFactor(BlendFactor factor)
         return WGPUBlendFactor_Src1Alpha;
     case BlendFactor::InvSecondarySrcAlpha:
         return WGPUBlendFactor_OneMinusSrc1Alpha;
-    default:
-        return WGPUBlendFactor_Undefined;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendFactor value");
+    return WGPUBlendFactor_Undefined;
 }
 
 WGPUBlendOperation translateBlendOperation(BlendOp op)
@@ -535,9 +534,9 @@ WGPUBlendOperation translateBlendOperation(BlendOp op)
         return WGPUBlendOperation_Min;
     case BlendOp::Max:
         return WGPUBlendOperation_Max;
-    default:
-        return WGPUBlendOperation_Undefined;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendOp value");
+    return WGPUBlendOperation_Undefined;
 }
 
 WGPULoadOp translateLoadOp(LoadOp op)
@@ -550,9 +549,9 @@ WGPULoadOp translateLoadOp(LoadOp op)
         return WGPULoadOp_Clear;
     case LoadOp::DontCare:
         return WGPULoadOp_Undefined;
-    default:
-        return WGPULoadOp_Undefined;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid LoadOp value");
+    return WGPULoadOp_Undefined;
 }
 
 WGPUStoreOp translateStoreOp(StoreOp op)
@@ -563,9 +562,9 @@ WGPUStoreOp translateStoreOp(StoreOp op)
         return WGPUStoreOp_Store;
     case StoreOp::DontCare:
         return WGPUStoreOp_Undefined;
-    default:
-        return WGPUStoreOp_Undefined;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StoreOp value");
+    return WGPUStoreOp_Undefined;
 }
 
 } // namespace rhi::wgpu

@@ -1,5 +1,5 @@
 #include "vk-descriptor-allocator.h"
-#include "vk-util.h"
+#include "vk-utils.h"
 
 #include "core/static_vector.h"
 

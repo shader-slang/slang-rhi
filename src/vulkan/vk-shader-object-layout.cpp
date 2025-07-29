@@ -1,7 +1,7 @@
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
 #include "vk-bindless-descriptor-set.h"
-#include "vk-util.h"
+#include "vk-utils.h"
 
 namespace rhi::vk {
 
@@ -668,7 +668,7 @@ void EntryPointLayout::Builder::addEntryPointParams(slang::EntryPointLayout* ent
 {
     m_slangEntryPointLayout = entryPointLayout;
     setElementTypeLayout(entryPointLayout->getTypeLayout());
-    m_shaderStageFlag = VulkanUtil::getShaderStage(entryPointLayout->getStage());
+    m_shaderStageFlag = translateShaderStage(entryPointLayout->getStage());
 
     // Note: we do not bother adding any descriptor sets/ranges here,
     // because the descriptor ranges of an entry point will simply

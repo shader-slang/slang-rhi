@@ -1,7 +1,7 @@
 #include "wgpu-surface.h"
 #include "wgpu-device.h"
 #include "wgpu-texture.h"
-#include "wgpu-util.h"
+#include "wgpu-utils.h"
 
 #include "../core/reverse-map.h"
 #if SLANG_APPLE_FAMILY

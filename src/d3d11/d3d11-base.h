@@ -1,29 +1,12 @@
 #pragma once
 
 #include "../rhi-shared.h"
-#include "../d3d/d3d-surface.h"
-#include "../d3d/d3d-util.h"
-#include "../flag-combiner.h"
-
-#include "core/common.h"
-
-#include <slang-com-ptr.h>
-
-#pragma push_macro("WIN32_LEAN_AND_MEAN")
-#pragma push_macro("NOMINMAX")
-#undef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#undef NOMINMAX
-#define NOMINMAX
-#include <windows.h>
-#pragma pop_macro("NOMINMAX")
-#pragma pop_macro("WIN32_LEAN_AND_MEAN")
-
-#include <d3d11_2.h>
-#include <d3dcompiler.h>
+#include "d3d11-api.h"
 
 // Must be included after d3d11 headers.
 #include "../nvapi/nvapi-util.h"
+
+#include "core/common.h"
 
 namespace rhi::d3d11 {
 

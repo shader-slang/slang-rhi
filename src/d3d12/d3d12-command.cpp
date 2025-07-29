@@ -10,7 +10,7 @@
 #include "d3d12-fence.h"
 #include "d3d12-query.h"
 #include "d3d12-input-layout.h"
-#include "d3d12-helper-functions.h"
+#include "d3d12-utils.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 #include "../format-conversion.h"
@@ -229,8 +229,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
     Extent3D srcTextureSize = src->m_desc.size;
 
-    uint32_t planeCount = D3DUtil::getPlaneSliceCount(dst->m_format);
-    SLANG_RHI_ASSERT(planeCount == D3DUtil::getPlaneSliceCount(src->m_format));
+    uint32_t planeCount = getPlaneSliceCount(dst->m_format);
+    SLANG_RHI_ASSERT(planeCount == getPlaneSliceCount(src->m_format));
     SLANG_RHI_ASSERT(planeCount > 0);
 
     for (uint32_t planeIndex = 0; planeIndex < planeCount; planeIndex++)
@@ -273,7 +273,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
                 dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
                 dstRegion.pResource = dst->m_resource.getResource();
-                dstRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
+                dstRegion.SubresourceIndex = getSubresourceIndex(
                     dstMip,
                     dstSubresource.layer + layer,
                     planeIndex,
@@ -284,7 +284,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
                 srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
                 srcRegion.pResource = src->m_resource.getResource();
-                srcRegion.SubresourceIndex = D3DUtil::getSubresourceIndex(
+                srcRegion.SubresourceIndex = getSubresourceIndex(
                     srcMip,
                     srcSubresource.layer + layer,
                     planeIndex,
@@ -366,7 +366,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
     srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
     srcRegion.SubresourceIndex =
-        D3DUtil::getSubresourceIndex(srcMip, srcLayer, 0, src->m_desc.mipCount, src->m_desc.arrayLength);
+        getSubresourceIndex(srcMip, srcLayer, 0, src->m_desc.mipCount, src->m_desc.arrayLength);
     srcRegion.pResource = src->m_resource.getResource();
 
     // Setup the destination resource.
@@ -551,7 +551,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             dstRegion.pResource = dst->m_resource.getResource();
 
             dstRegion.SubresourceIndex =
-                D3DUtil::getSubresourceIndex(mip, layer, 0, dst->m_desc.mipCount, dst->m_desc.arrayLength);
+                getSubresourceIndex(mip, layer, 0, dst->m_desc.mipCount, dst->m_desc.arrayLength);
 
             D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
             srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
@@ -849,7 +849,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             D3D12_INDEX_BUFFER_VIEW indexBufferView;
             indexBufferView.BufferLocation = buffer->m_resource.getResource()->GetGPUVirtualAddress() + offset;
             indexBufferView.SizeInBytes = UINT(buffer->m_desc.size - offset);
-            indexBufferView.Format = D3DUtil::getIndexFormat(state.indexFormat);
+            indexBufferView.Format = getIndexFormat(state.indexFormat);
             m_cmdList->IASetIndexBuffer(&indexBufferView);
         }
         else
@@ -1428,8 +1428,8 @@ void CommandRecorder::commitBarriers()
         {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition.pResource = buffer->m_resource;
-            barrier.Transition.StateBefore = D3DUtil::getResourceState(bufferBarrier.stateBefore);
-            barrier.Transition.StateAfter = D3DUtil::getResourceState(bufferBarrier.stateAfter);
+            barrier.Transition.StateBefore = translateResourceState(bufferBarrier.stateBefore);
+            barrier.Transition.StateAfter = translateResourceState(bufferBarrier.stateAfter);
             barrier.Transition.Subresource = 0;
             if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
             {
@@ -1457,8 +1457,8 @@ void CommandRecorder::commitBarriers()
             {
                 barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
                 barrier.Transition.pResource = texture->m_resource;
-                barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
-                barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
+                barrier.Transition.StateBefore = translateResourceState(textureBarrier.stateBefore);
+                barrier.Transition.StateAfter = translateResourceState(textureBarrier.stateAfter);
                 barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
                 if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
                 {
@@ -1471,25 +1471,20 @@ void CommandRecorder::commitBarriers()
         {
             uint32_t mipCount = texture->m_desc.mipCount;
             uint32_t layerCount = texture->m_desc.getLayerCount();
-            DXGI_FORMAT d3dFormat = D3DUtil::getMapFormat(texture->m_desc.format);
-            uint32_t planeCount = D3DUtil::getPlaneSliceCount(d3dFormat);
+            DXGI_FORMAT d3dFormat = getMapFormat(texture->m_desc.format);
+            uint32_t planeCount = getPlaneSliceCount(d3dFormat);
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition.pResource = texture->m_resource;
-            barrier.Transition.StateBefore = D3DUtil::getResourceState(textureBarrier.stateBefore);
-            barrier.Transition.StateAfter = D3DUtil::getResourceState(textureBarrier.stateAfter);
+            barrier.Transition.StateBefore = translateResourceState(textureBarrier.stateBefore);
+            barrier.Transition.StateAfter = translateResourceState(textureBarrier.stateAfter);
             if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
             {
                 continue;
             }
             for (uint32_t planeIndex = 0; planeIndex < planeCount; ++planeIndex)
             {
-                barrier.Transition.Subresource = D3DUtil::getSubresourceIndex(
-                    textureBarrier.mip,
-                    textureBarrier.layer,
-                    planeIndex,
-                    mipCount,
-                    layerCount
-                );
+                barrier.Transition.Subresource =
+                    getSubresourceIndex(textureBarrier.mip, textureBarrier.layer, planeIndex, mipCount, layerCount);
                 barriers.push_back(barrier);
             }
         }

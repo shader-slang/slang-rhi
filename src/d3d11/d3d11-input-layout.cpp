@@ -1,5 +1,6 @@
 #include "d3d11-input-layout.h"
 #include "d3d11-device.h"
+#include "d3d11-utils.h"
 
 namespace rhi::d3d11 {
 
@@ -21,7 +22,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
         inputElements[i].SemanticName = inputElement.semanticName;
         inputElements[i].SemanticIndex = (UINT)inputElement.semanticIndex;
-        inputElements[i].Format = D3DUtil::getVertexFormat(inputElement.format);
+        inputElements[i].Format = getVertexFormat(inputElement.format);
         inputElements[i].InputSlot = (UINT)vertexStreamIndex;
         inputElements[i].AlignedByteOffset = (UINT)inputElement.offset;
         inputElements[i].InputSlotClass = (vertexStream.slotClass == InputSlotClass::PerInstance)
@@ -68,7 +69,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     hlslPos += snprintf(hlslPos, hlslEnd - hlslPos, "\n) : SV_Position { return 0; }");
 
     ComPtr<ID3DBlob> vertexShaderBlob;
-    SLANG_RETURN_ON_FAIL(D3DUtil::compileHLSLShader("inputLayout", hlslBuffer, "main", "vs_5_0", vertexShaderBlob));
+    SLANG_RETURN_ON_FAIL(compileHLSLShader("inputLayout", hlslBuffer, "main", "vs_5_0", vertexShaderBlob));
 
     ComPtr<ID3D11InputLayout> inputLayout;
     SLANG_RETURN_ON_FAIL(m_device->CreateInputLayout(

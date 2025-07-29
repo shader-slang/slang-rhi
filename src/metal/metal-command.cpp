@@ -7,8 +7,7 @@
 #include "metal-pipeline.h"
 #include "metal-acceleration-structure.h"
 #include "metal-shader-object.h"
-#include "metal-helper-functions.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 #include "../strings.h"
 
 namespace rhi::metal {
@@ -272,7 +271,7 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
         NS::TransferPtr(MTL::RenderPassDescriptor::alloc()->init());
 
     // Setup depth stencil attachment
-    if (MetalUtil::isDepthFormat(texture->m_pixelFormat) && cmd.clearDepth)
+    if (isDepthFormat(texture->m_pixelFormat) && cmd.clearDepth)
     {
         MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = renderPassDesc->depthAttachment();
         depthAttachment->setLoadAction(MTL::LoadActionClear);
@@ -280,7 +279,7 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
         depthAttachment->setClearDepth(cmd.depthValue);
         depthAttachment->setTexture(texture->m_texture.get());
     }
-    if (MetalUtil::isStencilFormat(texture->m_pixelFormat) && cmd.clearStencil)
+    if (isStencilFormat(texture->m_pixelFormat) && cmd.clearStencil)
     {
         MTL::RenderPassStencilAttachmentDescriptor* stencilAttachment = renderPassDesc->stencilAttachment();
         stencilAttachment->setLoadAction(MTL::LoadActionClear);
@@ -298,12 +297,12 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
             uint32_t mip = cmd.subresourceRange.mip + mipOffset;
 
             // Set the level and slice for this iteration
-            if (MetalUtil::isDepthFormat(texture->m_pixelFormat) && cmd.clearDepth)
+            if (isDepthFormat(texture->m_pixelFormat) && cmd.clearDepth)
             {
                 renderPassDesc->depthAttachment()->setLevel(mip);
                 renderPassDesc->depthAttachment()->setSlice(layerIndex);
             }
-            if (MetalUtil::isStencilFormat(texture->m_pixelFormat) && cmd.clearStencil)
+            if (isStencilFormat(texture->m_pixelFormat) && cmd.clearStencil)
             {
                 renderPassDesc->stencilAttachment()->setLevel(mip);
                 renderPassDesc->stencilAttachment()->setSlice(layerIndex);
@@ -400,10 +399,8 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         visitView(view);
 
         MTL::RenderPassColorAttachmentDescriptor* colorAttachment = renderPassDesc->colorAttachments()->object(i);
-        colorAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.loadOp));
-        colorAttachment->setStoreAction(
-            MetalUtil::translateStoreOp(attachment.storeOp, attachment.resolveTarget != nullptr)
-        );
+        colorAttachment->setLoadAction(translateLoadOp(attachment.loadOp));
+        colorAttachment->setStoreAction(translateStoreOp(attachment.storeOp, attachment.resolveTarget != nullptr));
         if (attachment.loadOp == LoadOp::Clear)
         {
             colorAttachment->setClearColor(
@@ -433,12 +430,12 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             return;
         visitView(view);
 
-        MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(view->m_desc.format);
-        if (MetalUtil::isDepthFormat(pixelFormat))
+        MTL::PixelFormat pixelFormat = translatePixelFormat(view->m_desc.format);
+        if (isDepthFormat(pixelFormat))
         {
             MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = renderPassDesc->depthAttachment();
-            depthAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.depthLoadOp));
-            depthAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.depthStoreOp, false));
+            depthAttachment->setLoadAction(translateLoadOp(attachment.depthLoadOp));
+            depthAttachment->setStoreAction(translateStoreOp(attachment.depthStoreOp, false));
             if (attachment.depthLoadOp == LoadOp::Clear)
             {
                 depthAttachment->setClearDepth(attachment.depthClearValue);
@@ -447,11 +444,11 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
             depthAttachment->setLevel(view->m_desc.subresourceRange.mip);
             depthAttachment->setSlice(view->m_desc.subresourceRange.layer);
         }
-        if (MetalUtil::isStencilFormat(pixelFormat))
+        if (isStencilFormat(pixelFormat))
         {
             MTL::RenderPassStencilAttachmentDescriptor* stencilAttachment = renderPassDesc->stencilAttachment();
-            stencilAttachment->setLoadAction(MetalUtil::translateLoadOp(attachment.stencilLoadOp));
-            stencilAttachment->setStoreAction(MetalUtil::translateStoreOp(attachment.stencilStoreOp, false));
+            stencilAttachment->setLoadAction(translateLoadOp(attachment.stencilLoadOp));
+            stencilAttachment->setStoreAction(translateStoreOp(attachment.stencilStoreOp, false));
             if (attachment.stencilLoadOp == LoadOp::Clear)
             {
                 stencilAttachment->setClearStencil(attachment.stencilClearValue);
@@ -606,13 +603,13 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     }
 
     const RasterizerDesc& rasterizer = m_renderPipeline->m_rasterizerDesc;
-    encoder->setFrontFacingWinding(MetalUtil::translateWinding(rasterizer.frontFace));
-    encoder->setCullMode(MetalUtil::translateCullMode(rasterizer.cullMode));
+    encoder->setFrontFacingWinding(translateWinding(rasterizer.frontFace));
+    encoder->setCullMode(translateCullMode(rasterizer.cullMode));
     encoder->setDepthClipMode(
         rasterizer.depthClipEnable ? MTL::DepthClipModeClip : MTL::DepthClipModeClamp
     ); // TODO correct?
     encoder->setDepthBias(rasterizer.depthBias, rasterizer.slopeScaledDepthBias, rasterizer.depthBiasClamp);
-    encoder->setTriangleFillMode(MetalUtil::translateTriangleFillMode(rasterizer.fillMode));
+    encoder->setTriangleFillMode(translateTriangleFillMode(rasterizer.fillMode));
     // encoder->setBlendColor(); // not supported by rhi
     if (m_useDepthStencil)
     {
@@ -853,7 +850,7 @@ void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
-    NS::SharedPtr<NS::String> string = MetalUtil::createString(cmd.name);
+    NS::SharedPtr<NS::String> string = createString(cmd.name);
     m_commandBuffer->pushDebugGroup(string.get());
 }
 
@@ -865,7 +862,7 @@ void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd)
 {
     SLANG_UNUSED(cmd);
-    // NS::SharedPtr<NS::String> string = MetalUtil::createString(cmd.name);
+    // NS::SharedPtr<NS::String> string = createString(cmd.name);
     // m_commandBuffer->insertDebugSignpost(string.get());
 }
 

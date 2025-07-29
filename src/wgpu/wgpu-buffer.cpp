@@ -1,6 +1,6 @@
 #include "wgpu-buffer.h"
 #include "wgpu-device.h"
-#include "wgpu-util.h"
+#include "wgpu-utils.h"
 
 #include "core/deferred.h"
 

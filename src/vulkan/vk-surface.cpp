@@ -2,8 +2,7 @@
 #include "vk-device.h"
 #include "vk-command.h"
 #include "vk-texture.h"
-#include "vk-util.h"
-#include "vk-helper-functions.h"
+#include "vk-utils.h"
 #include "cocoa-util.h"
 
 #include "core/static_vector.h"
@@ -14,8 +13,7 @@
 
 namespace rhi::vk {
 
-static auto translateVkFormat =
-    reverseMap<Format, VkFormat>(VulkanUtil::getVkFormat, Format::Undefined, Format::_Count);
+static auto translateVkFormat = reverseMap<Format, VkFormat>(getVkFormat, Format::Undefined, Format::_Count);
 
 SurfaceImpl::~SurfaceImpl()
 {
@@ -169,7 +167,7 @@ Result SurfaceImpl::createSwapchain()
         return SLANG_FAIL;
     }
 
-    VkFormat format = VulkanUtil::getVkFormat(m_config.format);
+    VkFormat format = getVkFormat(m_config.format);
     VkSwapchainKHR oldSwapchain = VK_NULL_HANDLE;
 
     VkSwapchainCreateInfoKHR swapchainDesc = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
