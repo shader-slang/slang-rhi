@@ -757,7 +757,7 @@ VkBlendFactor translateBlendFactor(BlendFactor blendFactor)
     case BlendFactor::DestColor:
         return VK_BLEND_FACTOR_DST_COLOR;
     case BlendFactor::InvDestColor:
-        return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+        return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
     case BlendFactor::SrcAlphaSaturate:
         return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
     case BlendFactor::BlendColor:
