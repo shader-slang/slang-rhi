@@ -1,7 +1,6 @@
 #include "vk-shader-table.h"
 #include "vk-device.h"
 #include "vk-buffer.h"
-#include "vk-helper-functions.h"
 #include "vk-pipeline.h"
 #include "vk-command.h"
 

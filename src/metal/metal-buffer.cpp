@@ -1,6 +1,6 @@
 #include "metal-buffer.h"
 #include "metal-device.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 
 namespace rhi::metal {
 
@@ -57,7 +57,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     }
 
     if (desc.label)
-        buffer->m_buffer->addDebugMarker(MetalUtil::createString(desc.label).get(), NS::Range(0, desc.size));
+        buffer->m_buffer->addDebugMarker(createString(desc.label).get(), NS::Range(0, desc.size));
 
     if (initData)
     {

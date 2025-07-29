@@ -4,13 +4,17 @@
 #include "cuda-device.h"
 #include "cuda-texture.h"
 #include "cuda-command.h"
+#include "cuda-utils.h"
 
 #include "vulkan/vk-api.h"
-#include "vulkan/vk-util.h"
-#include "vulkan/vk-helper-functions.h"
+#include "vulkan/vk-utils.h"
 
 #include "core/reverse-map.h"
 #include "core/short_vector.h"
+
+#if SLANG_WINDOWS_FAMILY
+#include <dxgi1_4.h>
+#endif
 
 #if !SLANG_WINDOWS_FAMILY
 #include <unistd.h>
@@ -105,8 +109,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };
 
-static auto translateVkFormat =
-    reverseMap<Format, VkFormat>(vk::VulkanUtil::getVkFormat, Format::Undefined, Format::_Count);
+static auto translateVkFormat = reverseMap<Format, VkFormat>(vk::getVkFormat, Format::Undefined, Format::_Count);
 
 SurfaceImpl::~SurfaceImpl()
 {
@@ -444,7 +447,7 @@ Result SurfaceImpl::createSwapchain()
         return SLANG_FAIL;
     }
 
-    VkFormat format = vk::VulkanUtil::getVkFormat(m_config.format);
+    VkFormat format = vk::getVkFormat(m_config.format);
     VkSwapchainKHR oldSwapchain = VK_NULL_HANDLE;
 
     VkSwapchainCreateInfoKHR swapchainDesc = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
@@ -647,7 +650,7 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     imageInfo.extent = VkExtent3D{m_config.width, m_config.height, 1};
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
-    imageInfo.format = vk::VulkanUtil::getVkFormat(m_config.format);
+    imageInfo.format = vk::getVkFormat(m_config.format);
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;

@@ -1,6 +1,10 @@
 #pragma once
 
-#include "d3d11-base.h"
+#include <slang-rhi.h>
+
+#include "d3d11-api.h"
+
+#include "../d3d/d3d-utils.h"
 
 namespace rhi::d3d11 {
 
@@ -24,11 +28,3 @@ D3D11_BLEND_OP translateBlendOp(BlendOp op);
 D3D11_BLEND translateBlendFactor(BlendFactor factor);
 
 } // namespace rhi::d3d11
-
-namespace rhi {
-
-Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
-
-Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

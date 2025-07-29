@@ -5,8 +5,8 @@
 #include <random>
 #include "../src/core/span.h"
 #include "../src/cuda/cuda-device.h"
-#include "../src/cuda/cuda-helper-functions.h"
 #include "../src/cuda/cuda-api.h"
+#include "../src/cuda/cuda-utils.h"
 #include "debug-layer/debug-device.h"
 
 using namespace rhi;

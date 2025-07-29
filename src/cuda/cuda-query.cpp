@@ -1,6 +1,6 @@
 #include "cuda-query.h"
 #include "cuda-device.h"
-#include "cuda-helper-functions.h"
+#include "cuda-utils.h"
 
 namespace rhi::cuda {
 

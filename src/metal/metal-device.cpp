@@ -4,7 +4,7 @@
 #include "metal-buffer.h"
 #include "metal-shader-program.h"
 #include "metal-texture.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 #include "metal-input-layout.h"
 #include "metal-fence.h"
 #include "metal-query.h"
@@ -80,7 +80,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
         d->setDestination(MTL::CaptureDestinationGPUTraceDocument);
         d->setCaptureObject(m_device.get());
-        NS::SharedPtr<NS::String> path = MetalUtil::createString("frame.gputrace");
+        NS::SharedPtr<NS::String> path = createString("frame.gputrace");
         NS::SharedPtr<NS::URL> url = NS::TransferPtr(NS::URL::alloc()->initFileURLWithPath(path.get()));
         d->setOutputURL(url.get());
         NS::Error* errorCode = NS::Error::alloc();
@@ -128,7 +128,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         Format format = Format(formatIndex);
         FormatSupport formatSupport = FormatSupport::None;
-        if (MetalUtil::translatePixelFormat(format) != MTL::PixelFormatInvalid)
+        if (translatePixelFormat(format) != MTL::PixelFormatInvalid)
         {
             // depth/stencil formats?
             formatSupport |= FormatSupport::CopySource;
@@ -146,7 +146,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             formatSupport |= FormatSupport::ShaderAtomic;
             formatSupport |= FormatSupport::Buffer;
         }
-        if (MetalUtil::translateVertexFormat(format) != MTL::VertexFormatInvalid)
+        if (translateVertexFormat(format) != MTL::VertexFormatInvalid)
         {
             formatSupport |= FormatSupport::VertexBuffer;
             formatSupport |= FormatSupport::CopySource;
@@ -258,7 +258,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 
     TextureDesc desc = fixupTextureDesc(desc_);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
-    MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(desc.format);
+    MTL::PixelFormat pixelFormat = translatePixelFormat(desc.format);
     Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;
     Extent3D extent = desc.size;
@@ -294,7 +294,7 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     }
     else
     {
-        MTL::PixelFormat pixelFormat = MetalUtil::translatePixelFormat(format);
+        MTL::PixelFormat pixelFormat = translatePixelFormat(format);
         *outAlignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     }
     return SLANG_OK;
@@ -363,3 +363,47 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 }
 
 } // namespace rhi::metal
+
+namespace rhi {
+
+Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters)
+{
+    AUTORELEASEPOOL
+
+    auto addAdapter = [&](MTL::Device* device)
+    {
+        AdapterInfo info = {};
+        const char* name = device->name()->cString(NS::ASCIIStringEncoding);
+        memcpy(info.name, name, min(strlen(name), sizeof(AdapterInfo::name) - 1));
+        uint64_t registryID = device->registryID();
+        memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
+        outAdapters.push_back(info);
+    };
+
+    NS::Array* devices = MTL::CopyAllDevices();
+    if (devices->count() > 0)
+    {
+        for (int i = 0; i < devices->count(); ++i)
+        {
+            MTL::Device* device = static_cast<MTL::Device*>(devices->object(i));
+            addAdapter(device);
+        }
+    }
+    else
+    {
+        MTL::Device* device = MTL::CreateSystemDefaultDevice();
+        addAdapter(device);
+        device->release();
+    }
+    return SLANG_OK;
+}
+
+Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outRenderer)
+{
+    RefPtr<metal::DeviceImpl> result = new metal::DeviceImpl();
+    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
+    returnComPtr(outRenderer, result);
+    return SLANG_OK;
+}
+
+} // namespace rhi

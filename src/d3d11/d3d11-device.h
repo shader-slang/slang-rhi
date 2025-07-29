@@ -108,3 +108,10 @@ public:
 };
 
 } // namespace rhi::d3d11
+
+namespace rhi {
+
+Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
+Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
+
+} // namespace rhi

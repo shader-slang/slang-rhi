@@ -1,9 +1,9 @@
 #include "vk-pipeline.h"
 #include "vk-device.h"
-#include "vk-helper-functions.h"
 #include "vk-shader-object-layout.h"
 #include "vk-shader-program.h"
 #include "vk-input-layout.h"
+#include "vk-utils.h"
 
 #include "core/static_vector.h"
 #include "core/sha1.h"
@@ -384,7 +384,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     // All other forms of primitive toplogies are specified via dynamic state.
-    inputAssembly.topology = VulkanUtil::translatePrimitiveListTopology(desc.primitiveTopology);
+    inputAssembly.topology = translatePrimitiveListTopology(desc.primitiveTopology);
     inputAssembly.primitiveRestartEnable = VK_FALSE; // TODO: Currently unsupported
 
     VkViewport viewport = {};
@@ -415,9 +415,9 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_TRUE; // TODO: Depth clipping and clamping are different between Vk and D3D12
     rasterizer.rasterizerDiscardEnable = VK_FALSE; // TODO: Currently unsupported
-    rasterizer.polygonMode = VulkanUtil::translateFillMode(rasterizerDesc.fillMode);
-    rasterizer.cullMode = VulkanUtil::translateCullMode(rasterizerDesc.cullMode);
-    rasterizer.frontFace = VulkanUtil::translateFrontFaceMode(rasterizerDesc.frontFace);
+    rasterizer.polygonMode = translateFillMode(rasterizerDesc.fillMode);
+    rasterizer.cullMode = translateCullMode(rasterizerDesc.cullMode);
+    rasterizer.frontFace = translateFrontFaceMode(rasterizerDesc.frontFace);
     rasterizer.depthBiasEnable = (rasterizerDesc.depthBias == 0) ? VK_FALSE : VK_TRUE;
     rasterizer.depthBiasConstantFactor = (float)rasterizerDesc.depthBias;
     rasterizer.depthBiasClamp = rasterizerDesc.depthBiasClamp;
@@ -437,7 +437,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     VkPipelineMultisampleStateCreateInfo multisampling = {};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.rasterizationSamples = (forcedSampleCount == 0) ? VkSampleCountFlagBits(desc.multisample.sampleCount)
-                                                                  : VulkanUtil::translateSampleCount(forcedSampleCount);
+                                                                  : translateSampleCount(forcedSampleCount);
     multisampling.sampleShadingEnable = VK_FALSE; // TODO: Should check if fragment shader needs this
     // TODO: Sample mask is dynamic in D3D12 but PSO state in Vulkan
     multisampling.alphaToCoverageEnable = desc.multisample.alphaToCoverageEnable;
@@ -471,12 +471,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             auto& vkBlendDesc = colorBlendTargets[i];
 
             vkBlendDesc.blendEnable = target.enableBlend;
-            vkBlendDesc.srcColorBlendFactor = VulkanUtil::translateBlendFactor(target.color.srcFactor);
-            vkBlendDesc.dstColorBlendFactor = VulkanUtil::translateBlendFactor(target.color.dstFactor);
-            vkBlendDesc.colorBlendOp = VulkanUtil::translateBlendOp(target.color.op);
-            vkBlendDesc.srcAlphaBlendFactor = VulkanUtil::translateBlendFactor(target.alpha.srcFactor);
-            vkBlendDesc.dstAlphaBlendFactor = VulkanUtil::translateBlendFactor(target.alpha.dstFactor);
-            vkBlendDesc.alphaBlendOp = VulkanUtil::translateBlendOp(target.alpha.op);
+            vkBlendDesc.srcColorBlendFactor = translateBlendFactor(target.color.srcFactor);
+            vkBlendDesc.dstColorBlendFactor = translateBlendFactor(target.color.dstFactor);
+            vkBlendDesc.colorBlendOp = translateBlendOp(target.color.op);
+            vkBlendDesc.srcAlphaBlendFactor = translateBlendFactor(target.alpha.srcFactor);
+            vkBlendDesc.dstAlphaBlendFactor = translateBlendFactor(target.alpha.dstFactor);
+            vkBlendDesc.alphaBlendOp = translateBlendOp(target.alpha.op);
             vkBlendDesc.colorWriteMask = (VkColorComponentFlags)target.writeMask;
         }
     }
@@ -506,14 +506,14 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {};
     depthStencilStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencilStateInfo.depthTestEnable = desc.depthStencil.depthTestEnable ? 1 : 0;
-    depthStencilStateInfo.back = VulkanUtil::translateStencilState(desc.depthStencil.backFace);
-    depthStencilStateInfo.front = VulkanUtil::translateStencilState(desc.depthStencil.frontFace);
+    depthStencilStateInfo.back = translateStencilState(desc.depthStencil.backFace);
+    depthStencilStateInfo.front = translateStencilState(desc.depthStencil.frontFace);
     depthStencilStateInfo.back.compareMask = desc.depthStencil.stencilReadMask;
     depthStencilStateInfo.back.writeMask = desc.depthStencil.stencilWriteMask;
     depthStencilStateInfo.front.compareMask = desc.depthStencil.stencilReadMask;
     depthStencilStateInfo.front.writeMask = desc.depthStencil.stencilWriteMask;
     depthStencilStateInfo.depthBoundsTestEnable = 0; // TODO: Currently unsupported
-    depthStencilStateInfo.depthCompareOp = VulkanUtil::translateComparisonFunc(desc.depthStencil.depthFunc);
+    depthStencilStateInfo.depthCompareOp = translateComparisonFunc(desc.depthStencil.depthFunc);
     depthStencilStateInfo.depthWriteEnable = desc.depthStencil.depthWriteEnable ? 1 : 0;
     depthStencilStateInfo.stencilTestEnable = desc.depthStencil.stencilEnable ? 1 : 0;
 
@@ -521,12 +521,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     short_vector<VkFormat> colorAttachmentFormats;
     for (uint32_t i = 0; i < desc.targetCount; ++i)
     {
-        colorAttachmentFormats.push_back(VulkanUtil::getVkFormat(desc.targets[i].format));
+        colorAttachmentFormats.push_back(getVkFormat(desc.targets[i].format));
     }
     renderingInfo.colorAttachmentCount = colorAttachmentFormats.size();
     renderingInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
-    renderingInfo.depthAttachmentFormat = VulkanUtil::getVkFormat(desc.depthStencil.format);
-    if (VulkanUtil::isStencilFormat(renderingInfo.depthAttachmentFormat))
+    renderingInfo.depthAttachmentFormat = getVkFormat(desc.depthStencil.format);
+    if (isStencilFormat(renderingInfo.depthAttachmentFormat))
     {
         renderingInfo.stencilAttachmentFormat = renderingInfo.depthAttachmentFormat;
     }

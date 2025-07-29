@@ -1,6 +1,7 @@
 #include "cuda-shader-table.h"
 #include "cuda-device.h"
 #include "cuda-pipeline.h"
+#include "cuda-utils.h"
 
 #include <vector>
 

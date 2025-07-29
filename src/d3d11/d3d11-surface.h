@@ -2,6 +2,8 @@
 
 #include "d3d11-base.h"
 
+#include "../d3d/d3d-surface.h"
+
 namespace rhi::d3d11 {
 
 class SurfaceImpl : public D3DSurface

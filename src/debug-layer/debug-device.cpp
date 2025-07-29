@@ -337,6 +337,11 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         RHI_VALIDATION_ERROR("Invalid reduction op");
         return SLANG_E_INVALID_ARG;
     }
+    if (ctx->deviceType == DeviceType::Vulkan && desc.reductionOp == TextureReductionOp::Comparison)
+    {
+        RHI_VALIDATION_ERROR("Vulkan doesn't support TextureReductionOp::Comparison");
+        return SLANG_E_INVALID_ARG;
+    }
     if (desc.addressU > TextureAddressingMode::MirrorOnce)
     {
         RHI_VALIDATION_ERROR("Invalid address U mode");
@@ -350,6 +355,20 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
     if (desc.addressW > TextureAddressingMode::MirrorOnce)
     {
         RHI_VALIDATION_ERROR("Invalid address W mode");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (ctx->deviceType == DeviceType::WGPU && (desc.addressU == TextureAddressingMode::ClampToBorder ||
+                                                desc.addressV == TextureAddressingMode::ClampToBorder ||
+                                                desc.addressW == TextureAddressingMode::ClampToBorder))
+    {
+        RHI_VALIDATION_ERROR("WebGPU doesn't support ClampToBorder mode");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (ctx->deviceType == DeviceType::WGPU &&
+        (desc.addressU == TextureAddressingMode::MirrorOnce || desc.addressV == TextureAddressingMode::MirrorOnce ||
+         desc.addressW == TextureAddressingMode::MirrorOnce))
+    {
+        RHI_VALIDATION_ERROR("WebGPU doesn't support MirrorOnce mode");
         return SLANG_E_INVALID_ARG;
     }
     if (desc.comparisonFunc > ComparisonFunc::Always)
@@ -539,6 +558,17 @@ Result DebugDevice::createShaderProgram(
 Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
+
+    if (ctx->deviceType == DeviceType::WGPU && desc.primitiveTopology == PrimitiveTopology::PatchList)
+    {
+        RHI_VALIDATION_ERROR("WebGPU doesn't support PatchList topology");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (ctx->deviceType == DeviceType::Metal && desc.primitiveTopology == PrimitiveTopology::PatchList)
+    {
+        RHI_VALIDATION_ERROR("Metal doesn't support PatchList topology");
+        return SLANG_E_INVALID_ARG;
+    }
 
     RenderPipelineDesc patchedDesc = desc;
     std::string label;

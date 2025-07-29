@@ -1,6 +1,6 @@
 #include "metal-sampler.h"
 #include "metal-device.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 
 namespace rhi::metal {
 
@@ -15,13 +15,13 @@ Result SamplerImpl::init()
 {
     NS::SharedPtr<MTL::SamplerDescriptor> samplerDesc = NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());
 
-    samplerDesc->setMinFilter(MetalUtil::translateSamplerMinMagFilter(m_desc.minFilter));
-    samplerDesc->setMagFilter(MetalUtil::translateSamplerMinMagFilter(m_desc.magFilter));
-    samplerDesc->setMipFilter(MetalUtil::translateSamplerMipFilter(m_desc.mipFilter));
+    samplerDesc->setMinFilter(translateSamplerMinMagFilter(m_desc.minFilter));
+    samplerDesc->setMagFilter(translateSamplerMinMagFilter(m_desc.magFilter));
+    samplerDesc->setMipFilter(translateSamplerMipFilter(m_desc.mipFilter));
 
-    samplerDesc->setSAddressMode(MetalUtil::translateSamplerAddressMode(m_desc.addressU));
-    samplerDesc->setTAddressMode(MetalUtil::translateSamplerAddressMode(m_desc.addressV));
-    samplerDesc->setRAddressMode(MetalUtil::translateSamplerAddressMode(m_desc.addressW));
+    samplerDesc->setSAddressMode(translateSamplerAddressMode(m_desc.addressU));
+    samplerDesc->setTAddressMode(translateSamplerAddressMode(m_desc.addressV));
+    samplerDesc->setRAddressMode(translateSamplerAddressMode(m_desc.addressW));
 
     samplerDesc->setMaxAnisotropy(clamp(m_desc.maxAnisotropy, 1u, 16u));
 
@@ -57,14 +57,14 @@ Result SamplerImpl::init()
 
     samplerDesc->setNormalizedCoordinates(true);
 
-    samplerDesc->setCompareFunction(MetalUtil::translateCompareFunction(m_desc.comparisonFunc));
+    samplerDesc->setCompareFunction(translateCompareFunction(m_desc.comparisonFunc));
     samplerDesc->setLodMinClamp(clamp(m_desc.minLOD, 0.f, 1000.f));
     samplerDesc->setLodMaxClamp(clamp(m_desc.maxLOD, samplerDesc->lodMinClamp(), 1000.f));
 
     samplerDesc->setSupportArgumentBuffers(true);
     if (m_desc.label)
     {
-        samplerDesc->setLabel(MetalUtil::createString(m_desc.label).get());
+        samplerDesc->setLabel(createString(m_desc.label).get());
     }
 
     // TODO: no support for reduction op

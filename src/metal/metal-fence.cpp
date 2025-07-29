@@ -1,6 +1,6 @@
 #include "metal-fence.h"
 #include "metal-device.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 
 namespace rhi::metal {
 

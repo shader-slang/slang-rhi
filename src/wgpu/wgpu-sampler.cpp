@@ -1,6 +1,6 @@
 #include "wgpu-sampler.h"
 #include "wgpu-device.h"
-#include "wgpu-util.h"
+#include "wgpu-utils.h"
 
 namespace rhi::wgpu {
 

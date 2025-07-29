@@ -200,3 +200,10 @@ public:
 };
 
 } // namespace rhi::vk
+
+namespace rhi {
+
+Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
+Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outRenderer);
+
+} // namespace rhi

@@ -1,5 +1,5 @@
 #include "cuda-shader-object.h"
-#include "cuda-helper-functions.h"
+#include "cuda-utils.h"
 #include "cuda-shader-object-layout.h"
 #include "cuda-device.h"
 #include "cuda-acceleration-structure.h"

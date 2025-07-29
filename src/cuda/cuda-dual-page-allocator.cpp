@@ -1,6 +1,7 @@
 #include "cuda-dual-page-allocator.h"
 #include "cuda-device.h"
 #include "cuda-buffer.h"
+#include "cuda-utils.h"
 
 namespace rhi::cuda {
 

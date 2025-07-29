@@ -3,7 +3,7 @@
 #include "wgpu-input-layout.h"
 #include "wgpu-shader-program.h"
 #include "wgpu-shader-object-layout.h"
-#include "wgpu-util.h"
+#include "wgpu-utils.h"
 
 namespace rhi::wgpu {
 

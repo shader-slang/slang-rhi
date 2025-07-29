@@ -1,17 +1,13 @@
 #pragma once
 
-#include "d3d12-base.h"
+#include <slang-rhi.h>
+
+#include "d3d12-api.h"
+
+#include "../d3d/d3d-utils.h"
+#include "../nvapi/nvapi-include.h"
 
 #include "core/common.h"
-#include "core/short_vector.h"
-
-#include <vector>
-
-#ifndef __ID3D12GraphicsCommandList1_FWD_DEFINED__
-// If can't find a definition of CommandList1, just use an empty definition
-struct ID3D12GraphicsCommandList1
-{};
-#endif
 
 namespace rhi::d3d12 {
 
@@ -21,13 +17,29 @@ D3D12_RESOURCE_FLAGS calcResourceFlags(BufferUsage usage);
 D3D12_RESOURCE_FLAGS calcResourceFlags(TextureUsage usage);
 D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type);
 
-DXGI_FORMAT getTypelessFormatFromDepthFormat(Format format);
 bool isTypelessDepthFormat(DXGI_FORMAT format);
+
+D3D12_PRIMITIVE_TOPOLOGY_TYPE translatePrimitiveTopologyType(PrimitiveTopology topology);
 
 D3D12_FILTER_TYPE translateFilterMode(TextureFilteringMode mode);
 D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op);
 D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode);
 D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func);
+
+D3D12_STENCIL_OP translateStencilOp(StencilOp op);
+D3D12_DEPTH_STENCILOP_DESC translateStencilOpDesc(DepthStencilOpDesc desc);
+
+D3D12_INPUT_CLASSIFICATION translateInputSlotClass(InputSlotClass slotClass);
+
+D3D12_FILL_MODE translateFillMode(FillMode mode);
+
+D3D12_CULL_MODE translateCullMode(CullMode mode);
+
+D3D12_BLEND_OP translateBlendOp(BlendOp op);
+
+D3D12_BLEND translateBlendFactor(BlendFactor factor);
+
+D3D12_RESOURCE_STATES translateResourceState(ResourceState state);
 
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless);
 void initBufferDesc(Size bufferSize, D3D12_RESOURCE_DESC& out);
@@ -57,13 +69,3 @@ NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC translateConvertCooperativeVectorMa
 #endif // SLANG_RHI_ENABLE_NVAPI
 
 } // namespace rhi::d3d12
-
-namespace rhi {
-
-Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
-
-Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
-
-void SLANG_MCALL enableD3D12DebugLayerIfAvailable();
-
-} // namespace rhi

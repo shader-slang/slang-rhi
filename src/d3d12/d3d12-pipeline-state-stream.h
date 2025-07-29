@@ -5,11 +5,9 @@
 // `d3dx12_pipeline_state_stream.h`. Attribution Microsoft.
 //
 
-#include <climits>
-#include <d3d12.h>
-#include <dxgi1_4.h>
+#include "d3d12-api.h"
 
-#include "d3d12-sal-defs.h"
+#include <climits>
 
 struct CD3DX12_DEFAULT
 {};

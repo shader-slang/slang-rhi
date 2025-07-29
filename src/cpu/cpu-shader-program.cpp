@@ -8,6 +8,8 @@ ShaderProgramImpl::ShaderProgramImpl(Device* device, const ShaderProgramDesc& de
 {
 }
 
+ShaderProgramImpl::~ShaderProgramImpl() {}
+
 ShaderObjectLayout* ShaderProgramImpl::getRootShaderObjectLayout()
 {
     return m_rootShaderObjectLayout;

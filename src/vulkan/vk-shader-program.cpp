@@ -1,7 +1,7 @@
 #include "vk-shader-program.h"
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
-#include "vk-util.h"
+#include "vk-utils.h"
 
 namespace rhi::vk {
 
@@ -143,7 +143,7 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     );
 
     stageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-    stageCreateInfo.stage = (VkShaderStageFlagBits)VulkanUtil::getShaderStage(entryPointInfo->getStage());
+    stageCreateInfo.stage = (VkShaderStageFlagBits)translateShaderStage(entryPointInfo->getStage());
     stageCreateInfo.module = module.shaderModule;
     stageCreateInfo.pName = "main";
 

@@ -7,6 +7,7 @@
 #include "cuda-acceleration-structure.h"
 #include "cuda-shader-table.h"
 #include "cuda-shader-object.h"
+#include "cuda-utils.h"
 #include "../command-list.h"
 #include "../strings.h"
 

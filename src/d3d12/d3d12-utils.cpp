@@ -1,4 +1,4 @@
-#include "d3d12-helper-functions.h"
+#include "d3d12-utils.h"
 #include "d3d12-device.h"
 #include "d3d12-buffer.h"
 #include "d3d12-query.h"
@@ -62,23 +62,6 @@ D3D12_RESOURCE_DIMENSION calcResourceDimension(TextureType type)
     return D3D12_RESOURCE_DIMENSION_UNKNOWN;
 }
 
-DXGI_FORMAT getTypelessFormatFromDepthFormat(Format format)
-{
-    switch (format)
-    {
-    case Format::D16Unorm:
-        return DXGI_FORMAT_R16_TYPELESS;
-    case Format::D32Float:
-        return DXGI_FORMAT_R32_TYPELESS;
-    case Format::D32FloatS8Uint:
-        return DXGI_FORMAT_R32G8X24_TYPELESS;
-    // case Format::D24_UNORM_S8_UINT:
-    //     return DXGI_FORMAT_R24G8_TYPELESS;
-    default:
-        return D3DUtil::getMapFormat(format);
-    }
-}
-
 bool isTypelessDepthFormat(DXGI_FORMAT format)
 {
     switch (format)
@@ -93,93 +76,286 @@ bool isTypelessDepthFormat(DXGI_FORMAT format)
     }
 }
 
+D3D12_PRIMITIVE_TOPOLOGY_TYPE translatePrimitiveTopologyType(PrimitiveTopology topology)
+{
+    switch (topology)
+    {
+    case PrimitiveTopology::PointList:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+    case PrimitiveTopology::LineList:
+    case PrimitiveTopology::LineStrip:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+    case PrimitiveTopology::TriangleList:
+    case PrimitiveTopology::TriangleStrip:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    case PrimitiveTopology::PatchList:
+        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid PrimitiveTopology value");
+    return D3D12_PRIMITIVE_TOPOLOGY_TYPE(0);
+}
+
 D3D12_FILTER_TYPE translateFilterMode(TextureFilteringMode mode)
 {
     switch (mode)
     {
-    default:
-        return D3D12_FILTER_TYPE(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureFilteringMode::SRC:                                                                                    \
-        return D3D12_FILTER_TYPE_##DST
-
-        CASE(Point, POINT);
-        CASE(Linear, LINEAR);
-
-#undef CASE
+    case TextureFilteringMode::Point:
+        return D3D12_FILTER_TYPE_POINT;
+    case TextureFilteringMode::Linear:
+        return D3D12_FILTER_TYPE_LINEAR;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return D3D12_FILTER_TYPE(0);
 }
 
 D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op)
 {
     switch (op)
     {
-    default:
-        return D3D12_FILTER_REDUCTION_TYPE(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureReductionOp::SRC:                                                                                      \
-        return D3D12_FILTER_REDUCTION_TYPE_##DST
-
-        CASE(Average, STANDARD);
-        CASE(Comparison, COMPARISON);
-        CASE(Minimum, MINIMUM);
-        CASE(Maximum, MAXIMUM);
-
-#undef CASE
+    case TextureReductionOp::Average:
+        return D3D12_FILTER_REDUCTION_TYPE_STANDARD;
+    case TextureReductionOp::Comparison:
+        return D3D12_FILTER_REDUCTION_TYPE_COMPARISON;
+    case TextureReductionOp::Minimum:
+        return D3D12_FILTER_REDUCTION_TYPE_MINIMUM;
+    case TextureReductionOp::Maximum:
+        return D3D12_FILTER_REDUCTION_TYPE_MAXIMUM;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureReductionOp value");
+    return D3D12_FILTER_REDUCTION_TYPE(0);
 }
 
 D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode)
 {
     switch (mode)
     {
-    default:
-        return D3D12_TEXTURE_ADDRESS_MODE(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureAddressingMode::SRC:                                                                                   \
-        return D3D12_TEXTURE_ADDRESS_MODE_##DST
-
-        CASE(Wrap, WRAP);
-        CASE(ClampToEdge, CLAMP);
-        CASE(ClampToBorder, BORDER);
-        CASE(MirrorRepeat, MIRROR);
-        CASE(MirrorOnce, MIRROR_ONCE);
-
-#undef CASE
+    case TextureAddressingMode::Wrap:
+        return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    case TextureAddressingMode::ClampToEdge:
+        return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    case TextureAddressingMode::ClampToBorder:
+        return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    case TextureAddressingMode::MirrorRepeat:
+        return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+    case TextureAddressingMode::MirrorOnce:
+        return D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureAddressingMode value");
+    return D3D12_TEXTURE_ADDRESS_MODE(0);
 }
 
 D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
 {
     switch (func)
     {
-    default:
-        // TODO: need to report failures
+    case ComparisonFunc::Never:
+        return D3D12_COMPARISON_FUNC_NEVER;
+    case ComparisonFunc::Less:
+        return D3D12_COMPARISON_FUNC_LESS;
+    case ComparisonFunc::Equal:
+        return D3D12_COMPARISON_FUNC_EQUAL;
+    case ComparisonFunc::LessEqual:
+        return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    case ComparisonFunc::Greater:
+        return D3D12_COMPARISON_FUNC_GREATER;
+    case ComparisonFunc::NotEqual:
+        return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+    case ComparisonFunc::GreaterEqual:
+        return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+    case ComparisonFunc::Always:
         return D3D12_COMPARISON_FUNC_ALWAYS;
-
-#define CASE(FROM, TO)                                                                                                 \
-    case ComparisonFunc::FROM:                                                                                         \
-        return D3D12_COMPARISON_FUNC_##TO
-
-        CASE(Never, NEVER);
-        CASE(Less, LESS);
-        CASE(Equal, EQUAL);
-        CASE(LessEqual, LESS_EQUAL);
-        CASE(Greater, GREATER);
-        CASE(NotEqual, NOT_EQUAL);
-        CASE(GreaterEqual, GREATER_EQUAL);
-        CASE(Always, ALWAYS);
-#undef CASE
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid ComparisonFunc value");
+    return D3D12_COMPARISON_FUNC(0);
+}
+
+D3D12_STENCIL_OP translateStencilOp(StencilOp op)
+{
+    switch (op)
+    {
+    case StencilOp::Keep:
+        return D3D12_STENCIL_OP_KEEP;
+    case StencilOp::Zero:
+        return D3D12_STENCIL_OP_ZERO;
+    case StencilOp::Replace:
+        return D3D12_STENCIL_OP_REPLACE;
+    case StencilOp::IncrementSaturate:
+        return D3D12_STENCIL_OP_INCR_SAT;
+    case StencilOp::DecrementSaturate:
+        return D3D12_STENCIL_OP_DECR_SAT;
+    case StencilOp::Invert:
+        return D3D12_STENCIL_OP_INVERT;
+    case StencilOp::IncrementWrap:
+        return D3D12_STENCIL_OP_INCR;
+    case StencilOp::DecrementWrap:
+        return D3D12_STENCIL_OP_DECR;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StencilOp value");
+    return D3D12_STENCIL_OP(0);
+}
+
+D3D12_DEPTH_STENCILOP_DESC translateStencilOpDesc(DepthStencilOpDesc desc)
+{
+    D3D12_DEPTH_STENCILOP_DESC rs;
+    rs.StencilDepthFailOp = translateStencilOp(desc.stencilDepthFailOp);
+    rs.StencilFailOp = translateStencilOp(desc.stencilFailOp);
+    rs.StencilFunc = translateComparisonFunc(desc.stencilFunc);
+    rs.StencilPassOp = translateStencilOp(desc.stencilPassOp);
+    return rs;
+}
+
+D3D12_INPUT_CLASSIFICATION translateInputSlotClass(InputSlotClass slotClass)
+{
+    switch (slotClass)
+    {
+    case InputSlotClass::PerVertex:
+        return D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+    case InputSlotClass::PerInstance:
+        return D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid InputSlotClass value");
+    return D3D12_INPUT_CLASSIFICATION(0);
+}
+
+D3D12_FILL_MODE translateFillMode(FillMode mode)
+{
+    switch (mode)
+    {
+    case FillMode::Solid:
+        return D3D12_FILL_MODE_SOLID;
+    case FillMode::Wireframe:
+        return D3D12_FILL_MODE_WIREFRAME;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid FillMode value");
+    return D3D12_FILL_MODE(0);
+}
+
+D3D12_CULL_MODE translateCullMode(CullMode mode)
+{
+    switch (mode)
+    {
+    case CullMode::None:
+        return D3D12_CULL_MODE_NONE;
+    case CullMode::Front:
+        return D3D12_CULL_MODE_FRONT;
+    case CullMode::Back:
+        return D3D12_CULL_MODE_BACK;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CullMode value");
+    return D3D12_CULL_MODE(0);
+}
+
+D3D12_BLEND_OP translateBlendOp(BlendOp op)
+{
+    switch (op)
+    {
+    case BlendOp::Add:
+        return D3D12_BLEND_OP_ADD;
+    case BlendOp::Subtract:
+        return D3D12_BLEND_OP_SUBTRACT;
+    case BlendOp::ReverseSubtract:
+        return D3D12_BLEND_OP_REV_SUBTRACT;
+    case BlendOp::Min:
+        return D3D12_BLEND_OP_MIN;
+    case BlendOp::Max:
+        return D3D12_BLEND_OP_MAX;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendOp value");
+    return D3D12_BLEND_OP(0);
+}
+
+D3D12_BLEND translateBlendFactor(BlendFactor factor)
+{
+    switch (factor)
+    {
+    case BlendFactor::Zero:
+        return D3D12_BLEND_ZERO;
+    case BlendFactor::One:
+        return D3D12_BLEND_ONE;
+    case BlendFactor::SrcColor:
+        return D3D12_BLEND_SRC_COLOR;
+    case BlendFactor::InvSrcColor:
+        return D3D12_BLEND_INV_SRC_COLOR;
+    case BlendFactor::SrcAlpha:
+        return D3D12_BLEND_SRC_ALPHA;
+    case BlendFactor::InvSrcAlpha:
+        return D3D12_BLEND_INV_SRC_ALPHA;
+    case BlendFactor::DestAlpha:
+        return D3D12_BLEND_DEST_ALPHA;
+    case BlendFactor::InvDestAlpha:
+        return D3D12_BLEND_INV_DEST_ALPHA;
+    case BlendFactor::DestColor:
+        return D3D12_BLEND_DEST_COLOR;
+    case BlendFactor::InvDestColor:
+        return D3D12_BLEND_INV_DEST_COLOR;
+    case BlendFactor::SrcAlphaSaturate:
+        return D3D12_BLEND_SRC_ALPHA_SAT;
+    case BlendFactor::BlendColor:
+        return D3D12_BLEND_BLEND_FACTOR;
+    case BlendFactor::InvBlendColor:
+        return D3D12_BLEND_INV_BLEND_FACTOR;
+    case BlendFactor::SecondarySrcColor:
+        return D3D12_BLEND_SRC1_COLOR;
+    case BlendFactor::InvSecondarySrcColor:
+        return D3D12_BLEND_INV_SRC1_COLOR;
+    case BlendFactor::SecondarySrcAlpha:
+        return D3D12_BLEND_SRC1_ALPHA;
+    case BlendFactor::InvSecondarySrcAlpha:
+        return D3D12_BLEND_INV_SRC1_ALPHA;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendFactor value");
+    return D3D12_BLEND(0);
+}
+
+D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
+{
+    switch (state)
+    {
+    case ResourceState::Undefined:
+        return D3D12_RESOURCE_STATE_COMMON;
+    case ResourceState::General:
+        return D3D12_RESOURCE_STATE_COMMON;
+    case ResourceState::VertexBuffer:
+        return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    case ResourceState::IndexBuffer:
+        return D3D12_RESOURCE_STATE_INDEX_BUFFER;
+    case ResourceState::ConstantBuffer:
+        return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    case ResourceState::StreamOutput:
+        return D3D12_RESOURCE_STATE_STREAM_OUT;
+    case ResourceState::ShaderResource:
+    case ResourceState::AccelerationStructureBuildInput:
+        return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+    case ResourceState::UnorderedAccess:
+        return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    case ResourceState::RenderTarget:
+        return D3D12_RESOURCE_STATE_RENDER_TARGET;
+    case ResourceState::DepthRead:
+        return D3D12_RESOURCE_STATE_DEPTH_READ;
+    case ResourceState::DepthWrite:;
+        return D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    case ResourceState::Present:
+        return D3D12_RESOURCE_STATE_PRESENT;
+    case ResourceState::IndirectArgument:
+        return D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT;
+    case ResourceState::CopySource:
+        return D3D12_RESOURCE_STATE_COPY_SOURCE;
+    case ResourceState::CopyDestination:
+        return D3D12_RESOURCE_STATE_COPY_DEST;
+    case ResourceState::ResolveSource:
+        return D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+    case ResourceState::ResolveDestination:
+        return D3D12_RESOURCE_STATE_RESOLVE_DEST;
+    case ResourceState::AccelerationStructure:
+        return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+    }
+    return D3D12_RESOURCE_STATE_COMMON;
 }
 
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless)
 {
-    const DXGI_FORMAT pixelFormat = isTypeless ? D3DUtil::getFormatMapping(textureDesc.format).typelessFormat
-                                               : D3DUtil::getFormatMapping(textureDesc.format).rtvFormat;
+    const DXGI_FORMAT pixelFormat = isTypeless ? getFormatMapping(textureDesc.format).typelessFormat
+                                               : getFormatMapping(textureDesc.format).rtvFormat;
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
     {
         return SLANG_FAIL;
@@ -442,9 +618,9 @@ NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE translateCooperativeVectorComponentType(
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E4M3;
     case CooperativeVectorComponentType::FloatE5M2:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E5M2;
-    default:
-        return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CooperativeVectorComponentType value");
+    return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE(0);
 }
 
 CooperativeVectorComponentType translateCooperativeVectorComponentType(NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE type)
@@ -482,6 +658,7 @@ CooperativeVectorComponentType translateCooperativeVectorComponentType(NVAPI_COO
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E5M2:
         return CooperativeVectorComponentType::FloatE5M2;
     default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE value");
         return CooperativeVectorComponentType(0);
     }
 }
@@ -498,9 +675,9 @@ NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT translateCooperativeVectorMatrixLayout(Co
         return NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL;
     case CooperativeVectorMatrixLayout::TrainingOptimal:
         return NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL;
-    default:
-        return NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CooperativeVectorMatrixLayout value");
+    return NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT(0);
 }
 
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT layout)
@@ -516,6 +693,7 @@ CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(NVAPI_COOPE
     case NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL:
         return CooperativeVectorMatrixLayout::TrainingOptimal;
     default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT value");
         return CooperativeVectorMatrixLayout(0);
     }
 }
@@ -547,53 +725,3 @@ NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC translateConvertCooperativeVectorMa
 #endif // SLANG_RHI_ENABLE_NVAPI
 
 } // namespace rhi::d3d12
-
-namespace rhi {
-
-Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
-{
-    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(D3DUtil::findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
-
-    outAdapters.clear();
-    for (const auto& dxgiAdapter : dxgiAdapters)
-    {
-        DXGI_ADAPTER_DESC desc;
-        dxgiAdapter->GetDesc(&desc);
-        AdapterInfo info = {};
-        auto name = string::from_wstring(desc.Description);
-        memcpy(info.name, name.data(), min(name.length(), sizeof(AdapterInfo::name) - 1));
-        info.vendorID = desc.VendorId;
-        info.deviceID = desc.DeviceId;
-        info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);
-        outAdapters.push_back(info);
-    }
-    return SLANG_OK;
-}
-
-Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<d3d12::DeviceImpl> result = new d3d12::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-void SLANG_MCALL enableD3D12DebugLayerIfAvailable()
-{
-    SharedLibraryHandle d3dModule;
-#if SLANG_WINDOWS_FAMILY
-    const char* libName = "d3d12";
-#else
-    const char* libName = "libvkd3d-proton-d3d12.so";
-#endif
-    if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
-        return;
-    PFN_D3D12_GET_DEBUG_INTERFACE d3d12GetDebugInterface =
-        (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
-    ComPtr<ID3D12Debug> dxDebug;
-    if (d3d12GetDebugInterface && SLANG_SUCCEEDED(d3d12GetDebugInterface(IID_PPV_ARGS(dxDebug.writeRef()))))
-        dxDebug->EnableDebugLayer();
-}
-
-} // namespace rhi

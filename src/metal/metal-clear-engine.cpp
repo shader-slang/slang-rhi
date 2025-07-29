@@ -1,7 +1,6 @@
 #include "metal-clear-engine.h"
 #include "metal-texture.h"
-#include "metal-helper-functions.h"
-#include "metal-util.h"
+#include "metal-utils.h"
 
 #include "format-conversion.h"
 
@@ -15,7 +14,7 @@ Result ClearEngine::initialize(MTL::Device* device)
     auto fs = cmrc::resources::get_filesystem();
     auto shader = fs.open("src/metal/shaders/clear-texture.metal");
 
-    auto source = MetalUtil::createStringView((void*)shader.begin(), shader.size());
+    auto source = createStringView((void*)shader.begin(), shader.size());
 
     NS::Error* error = nullptr;
     m_library = NS::TransferPtr(device->newLibrary(source.get(), nullptr, &error));
@@ -50,7 +49,7 @@ Result ClearEngine::initialize(MTL::Device* device)
             SLANG_RHI_ASSERT(type < SLANG_COUNT_OF(typeNames));
             char name[128];
             snprintf(name, sizeof(name), "clear_%s_%s", textureTypeNames[textureType], typeNames[type]);
-            auto functionName = MetalUtil::createString(name);
+            auto functionName = createString(name);
             NS::SharedPtr<MTL::Function> function = NS::TransferPtr(m_library->newFunction(functionName.get()));
             if (!function)
             {

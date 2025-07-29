@@ -1,5 +1,7 @@
 #pragma once
 
+#include <slang-rhi.h>
+
 #include "wgpu-api.h"
 
 namespace rhi::wgpu {
