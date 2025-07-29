@@ -101,7 +101,7 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
         return allocation.cpuHandle;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
-    viewDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(format).srvFormat : m_format;
+    viewDesc.Format = m_isTypeless ? getFormatMapping(format).srvFormat : m_format;
     viewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
     switch (type)
@@ -122,7 +122,7 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         viewDesc.Texture2D.MostDetailedMip = range.mip;
         viewDesc.Texture2D.MipLevels = range.mipCount;
-        viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
+        viewDesc.Texture2D.PlaneSlice = getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DArray:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -130,7 +130,7 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
         viewDesc.Texture2DArray.MipLevels = range.mipCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
-        viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
+        viewDesc.Texture2DArray.PlaneSlice = getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DMS:
         viewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
@@ -180,7 +180,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         return allocation.cpuHandle;
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
-    viewDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(format).srvFormat : m_format;
+    viewDesc.Format = m_isTypeless ? getFormatMapping(format).srvFormat : m_format;
     switch (type)
     {
     case TextureType::Texture1D:
@@ -196,7 +196,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
     case TextureType::Texture2D:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
         viewDesc.Texture2D.MipSlice = range.mip;
-        viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
+        viewDesc.Texture2D.PlaneSlice = getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DArray:
     case TextureType::TextureCube:
@@ -205,7 +205,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
         viewDesc.Texture2DArray.MipSlice = range.mip;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
-        viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
+        viewDesc.Texture2DArray.PlaneSlice = getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DMS:
         viewDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DMS;
@@ -247,7 +247,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
         return allocation.cpuHandle;
 
     D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
-    viewDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(format).rtvFormat : m_format;
+    viewDesc.Format = m_isTypeless ? getFormatMapping(format).rtvFormat : m_format;
     switch (type)
     {
     case TextureType::Texture1D:
@@ -263,7 +263,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
     case TextureType::Texture2D:
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
         viewDesc.Texture2D.MipSlice = range.mip;
-        viewDesc.Texture2D.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
+        viewDesc.Texture2D.PlaneSlice = getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DArray:
     case TextureType::TextureCube:
@@ -272,7 +272,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
         viewDesc.Texture2DArray.MipSlice = range.mip;
         viewDesc.Texture2DArray.ArraySize = range.layerCount;
         viewDesc.Texture2DArray.FirstArraySlice = range.layer;
-        viewDesc.Texture2DArray.PlaneSlice = D3DUtil::getPlaneSlice(viewDesc.Format, aspect);
+        viewDesc.Texture2DArray.PlaneSlice = getPlaneSlice(viewDesc.Format, aspect);
         break;
     case TextureType::Texture2DMS:
         viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
@@ -314,7 +314,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
         return allocation.cpuHandle;
 
     D3D12_DEPTH_STENCIL_VIEW_DESC viewDesc = {};
-    viewDesc.Format = m_isTypeless ? D3DUtil::getFormatMapping(format).rtvFormat : m_format;
+    viewDesc.Format = m_isTypeless ? getFormatMapping(format).rtvFormat : m_format;
     switch (type)
     {
     case TextureType::Texture1D:

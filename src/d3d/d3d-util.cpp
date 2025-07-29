@@ -20,27 +20,7 @@
 
 namespace rhi {
 
-D3D_PRIMITIVE_TOPOLOGY D3DUtil::getPrimitiveTopology(PrimitiveTopology topology)
-{
-    switch (topology)
-    {
-    case PrimitiveTopology::PointList:
-        return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-    case PrimitiveTopology::LineList:
-        return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
-    case PrimitiveTopology::LineStrip:
-        return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-    case PrimitiveTopology::TriangleList:
-        return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-    case PrimitiveTopology::TriangleStrip:
-        return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-    default:
-        break;
-    }
-    return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
-}
-
-const D3DUtil::FormatMapping& D3DUtil::getFormatMapping(Format format)
+const FormatMapping& getFormatMapping(Format format)
 {
     static const FormatMapping mappings[] = {
         // clang-format off
@@ -139,17 +119,17 @@ const D3DUtil::FormatMapping& D3DUtil::getFormatMapping(Format format)
     return mappings[int(format)];
 }
 
-DXGI_FORMAT D3DUtil::getMapFormat(Format format)
+DXGI_FORMAT getMapFormat(Format format)
 {
     return getFormatMapping(format).rtvFormat;
 }
 
-DXGI_FORMAT D3DUtil::getVertexFormat(Format format)
+DXGI_FORMAT getVertexFormat(Format format)
 {
     return getFormatMapping(format).srvFormat;
 }
 
-DXGI_FORMAT D3DUtil::getIndexFormat(IndexFormat indexFormat)
+DXGI_FORMAT getIndexFormat(IndexFormat indexFormat)
 {
     switch (indexFormat)
     {
@@ -162,11 +142,32 @@ DXGI_FORMAT D3DUtil::getIndexFormat(IndexFormat indexFormat)
     }
 }
 
+D3D_PRIMITIVE_TOPOLOGY translatePrimitiveTopology(PrimitiveTopology topology)
+{
+    switch (topology)
+    {
+    case PrimitiveTopology::PointList:
+        return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+    case PrimitiveTopology::LineList:
+        return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+    case PrimitiveTopology::LineStrip:
+        return D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+    case PrimitiveTopology::TriangleList:
+        return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    case PrimitiveTopology::TriangleStrip:
+        return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+    default:
+        break;
+    }
+    return D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
+}
+
+
 // Note: this subroutine is now only used by D3D11 for generating bytecode to go into input layouts.
 //
 // TODO: we can probably remove that code completely by switching to a PSO-like model across all APIs.
 //
-Result D3DUtil::compileHLSLShader(
+Result compileHLSLShader(
     const char* sourcePath,
     const char* source,
     const char* entryPointName,
@@ -258,7 +259,7 @@ Result D3DUtil::compileHLSLShader(
 #endif // SLANG_ENABLE_DXBC_SUPPORT
 }
 
-SharedLibraryHandle D3DUtil::getDxgiModule()
+SharedLibraryHandle getDXGIModule()
 {
 #if SLANG_WINDOWS_FAMILY
     const char* const libName = "dxgi";
@@ -279,9 +280,9 @@ SharedLibraryHandle D3DUtil::getDxgiModule()
     return s_dxgiModule;
 }
 
-Result D3DUtil::createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory)
+Result createDXGIFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory)
 {
-    auto dxgiModule = getDxgiModule();
+    auto dxgiModule = getDXGIModule();
     if (!dxgiModule)
     {
         return SLANG_FAIL;
@@ -320,18 +321,77 @@ Result D3DUtil::createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outF
     }
 }
 
-Result D3DUtil::findAdapters(
+Result findAdapters(
+    DeviceCheckFlags flags,
+    const AdapterLUID* adapterLUID,
+    IDXGIFactory* dxgiFactory,
+    std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters
+)
+{
+    outDxgiAdapters.clear();
+
+    ComPtr<IDXGIAdapter> warpAdapter;
+    if ((flags & DeviceCheckFlag::UseHardwareDevice) == 0)
+    {
+        ComPtr<IDXGIFactory4> dxgiFactory4;
+        if (SLANG_SUCCEEDED(dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory4.writeRef()))))
+        {
+            dxgiFactory4->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.writeRef()));
+            if (!adapterLUID || getAdapterLUID(warpAdapter) == *adapterLUID)
+            {
+                outDxgiAdapters.push_back(warpAdapter);
+            }
+        }
+    }
+
+    for (UINT adapterIndex = 0; true; adapterIndex++)
+    {
+        ComPtr<IDXGIAdapter> dxgiAdapter;
+        if (dxgiFactory->EnumAdapters(adapterIndex, dxgiAdapter.writeRef()) == DXGI_ERROR_NOT_FOUND)
+            break;
+
+        // Skip if warp (as we will have already added it)
+        if (dxgiAdapter == warpAdapter)
+        {
+            continue;
+        }
+        if (adapterLUID && getAdapterLUID(dxgiAdapter) != *adapterLUID)
+        {
+            continue;
+        }
+
+        // Get if it's software
+        UINT deviceFlags = 0;
+        ComPtr<IDXGIAdapter1> dxgiAdapter1;
+        if (SLANG_SUCCEEDED(dxgiAdapter->QueryInterface(IID_PPV_ARGS(dxgiAdapter1.writeRef()))))
+        {
+            DXGI_ADAPTER_DESC1 desc;
+            dxgiAdapter1->GetDesc1(&desc);
+            deviceFlags = desc.Flags;
+        }
+
+        // If the right type then add it
+        if ((deviceFlags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && (flags & DeviceCheckFlag::UseHardwareDevice) != 0)
+        {
+            outDxgiAdapters.push_back(dxgiAdapter);
+        }
+    }
+
+    return SLANG_OK;
+}
+
+Result findAdapters(
     DeviceCheckFlags flags,
     const AdapterLUID* adapterLUID,
     std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters
 )
 {
     ComPtr<IDXGIFactory> factory;
-    SLANG_RETURN_ON_FAIL(createFactory(flags, factory));
+    SLANG_RETURN_ON_FAIL(createDXGIFactory(flags, factory));
     return findAdapters(flags, adapterLUID, factory, outDxgiAdapters);
 }
 
-AdapterLUID D3DUtil::getAdapterLUID(IDXGIAdapter* dxgiAdapter)
+AdapterLUID getAdapterLUID(IDXGIAdapter* dxgiAdapter)
 {
     DXGI_ADAPTER_DESC desc;
     dxgiAdapter->GetDesc(&desc);
@@ -341,7 +401,7 @@ AdapterLUID D3DUtil::getAdapterLUID(IDXGIAdapter* dxgiAdapter)
     return luid;
 }
 
-bool D3DUtil::isWarp(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
+bool isWarpAdapter(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
 {
     ComPtr<IDXGIFactory4> dxgiFactory4;
     if (SLANG_SUCCEEDED(dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory4.writeRef()))))
@@ -355,7 +415,7 @@ bool D3DUtil::isWarp(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
     return false;
 }
 
-uint32_t D3DUtil::getPlaneSliceCount(DXGI_FORMAT format)
+uint32_t getPlaneSliceCount(DXGI_FORMAT format)
 {
     switch (format)
     {
@@ -367,7 +427,7 @@ uint32_t D3DUtil::getPlaneSliceCount(DXGI_FORMAT format)
     }
 }
 
-uint32_t D3DUtil::getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect)
+uint32_t getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect)
 {
     switch (aspect)
     {
@@ -389,7 +449,7 @@ uint32_t D3DUtil::getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect)
     }
 }
 
-uint32_t D3DUtil::getSubresourceIndex(
+uint32_t getSubresourceIndex(
     uint32_t mipIndex,
     uint32_t arrayIndex,
     uint32_t planeIndex,
@@ -400,12 +460,7 @@ uint32_t D3DUtil::getSubresourceIndex(
     return mipIndex + arrayIndex * mipCount + planeIndex * mipCount * layerCount;
 }
 
-uint32_t D3DUtil::getSubresourceMip(uint32_t subresourceIndex, uint32_t mipCount)
-{
-    return subresourceIndex % mipCount;
-}
-
-Result D3DUtil::reportLiveObjects()
+Result reportLiveObjects()
 {
     static IDXGIDebug* dxgiDebug = nullptr;
 
@@ -438,10 +493,10 @@ Result D3DUtil::reportLiveObjects()
 
 Result SLANG_MCALL reportD3DLiveObjects()
 {
-    return D3DUtil::reportLiveObjects();
+    return reportLiveObjects();
 }
 
-Result D3DUtil::waitForCrashDumpCompletion(HRESULT res)
+Result waitForCrashDumpCompletion(HRESULT res)
 {
     // If it's not a device remove/reset then theres nothing to wait for
     if (!(res == DXGI_ERROR_DEVICE_REMOVED || res == DXGI_ERROR_DEVICE_RESET))
@@ -488,65 +543,6 @@ Result D3DUtil::waitForCrashDumpCompletion(HRESULT res)
         }
     }
 #endif
-
-    return SLANG_OK;
-}
-
-Result D3DUtil::findAdapters(
-    DeviceCheckFlags flags,
-    const AdapterLUID* adapterLUID,
-    IDXGIFactory* dxgiFactory,
-    std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters
-)
-{
-    outDxgiAdapters.clear();
-
-    ComPtr<IDXGIAdapter> warpAdapter;
-    if ((flags & DeviceCheckFlag::UseHardwareDevice) == 0)
-    {
-        ComPtr<IDXGIFactory4> dxgiFactory4;
-        if (SLANG_SUCCEEDED(dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory4.writeRef()))))
-        {
-            dxgiFactory4->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.writeRef()));
-            if (!adapterLUID || D3DUtil::getAdapterLUID(warpAdapter) == *adapterLUID)
-            {
-                outDxgiAdapters.push_back(warpAdapter);
-            }
-        }
-    }
-
-    for (UINT adapterIndex = 0; true; adapterIndex++)
-    {
-        ComPtr<IDXGIAdapter> dxgiAdapter;
-        if (dxgiFactory->EnumAdapters(adapterIndex, dxgiAdapter.writeRef()) == DXGI_ERROR_NOT_FOUND)
-            break;
-
-        // Skip if warp (as we will have already added it)
-        if (dxgiAdapter == warpAdapter)
-        {
-            continue;
-        }
-        if (adapterLUID && D3DUtil::getAdapterLUID(dxgiAdapter) != *adapterLUID)
-        {
-            continue;
-        }
-
-        // Get if it's software
-        UINT deviceFlags = 0;
-        ComPtr<IDXGIAdapter1> dxgiAdapter1;
-        if (SLANG_SUCCEEDED(dxgiAdapter->QueryInterface(IID_PPV_ARGS(dxgiAdapter1.writeRef()))))
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            dxgiAdapter1->GetDesc1(&desc);
-            deviceFlags = desc.Flags;
-        }
-
-        // If the right type then add it
-        if ((deviceFlags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && (flags & DeviceCheckFlag::UseHardwareDevice) != 0)
-        {
-            outDxgiAdapters.push_back(dxgiAdapter);
-        }
-    }
 
     return SLANG_OK;
 }

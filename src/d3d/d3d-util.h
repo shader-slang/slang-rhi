@@ -14,81 +14,74 @@
 
 namespace rhi {
 
-class D3DUtil
+struct FormatMapping
 {
-public:
-    /// Get primitive topology as D3D primitive topology
-    static D3D_PRIMITIVE_TOPOLOGY getPrimitiveTopology(PrimitiveTopology prim);
-
-    /// Compile HLSL code to DXBC
-    static Result compileHLSLShader(
-        const char* sourcePath,
-        const char* source,
-        const char* entryPointName,
-        const char* dxProfileName,
-        ComPtr<ID3DBlob>& shaderBlobOut
-    );
-
-    struct FormatMapping
-    {
-        Format format;
-        DXGI_FORMAT typelessFormat;
-        DXGI_FORMAT srvFormat;
-        DXGI_FORMAT rtvFormat;
-    };
-
-    static const FormatMapping& getFormatMapping(Format format);
-
-    /// Given a slang pixel format returns the equivalent DXGI_ pixel format. If the format is not known, will return
-    /// DXGI_FORMAT_UNKNOWN
-    static DXGI_FORMAT getMapFormat(Format format);
-
-    static DXGI_FORMAT getVertexFormat(Format format);
-    static DXGI_FORMAT getIndexFormat(IndexFormat indexFormat);
-
-    static Result createFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory);
-
-    /// Get the dxgiModule
-    static SharedLibraryHandle getDxgiModule();
-
-    /// Find adapters
-    static Result findAdapters(
-        DeviceCheckFlags flags,
-        const AdapterLUID* adapterLUID,
-        IDXGIFactory* dxgiFactory,
-        std::vector<ComPtr<IDXGIAdapter>>& dxgiAdapters
-    );
-    /// Find adapters
-    static Result findAdapters(
-        DeviceCheckFlags flags,
-        const AdapterLUID* adapterLUID,
-        std::vector<ComPtr<IDXGIAdapter>>& dxgiAdapters
-    );
-
-    static AdapterLUID getAdapterLUID(IDXGIAdapter* dxgiAdapter);
-
-    /// True if the adapter is warp
-    static bool isWarp(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapter);
-
-    static uint32_t getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect);
-
-    static uint32_t getPlaneSliceCount(DXGI_FORMAT format);
-
-    static uint32_t getSubresourceIndex(
-        uint32_t mipIndex,
-        uint32_t arrayIndex,
-        uint32_t planeIndex,
-        uint32_t mipCount,
-        uint32_t layoutCount
-    );
-
-    static uint32_t getSubresourceMip(uint32_t subresourceIndex, uint32_t mipCount);
-
-    static Result reportLiveObjects();
-
-    /// Call after a DXGI_ERROR_DEVICE_REMOVED/DXGI_ERROR_DEVICE_RESET on present, to wait for
-    /// dumping to complete. Will return SLANG_OK if wait happened successfully
-    static Result waitForCrashDumpCompletion(HRESULT res);
+    Format format;
+    DXGI_FORMAT typelessFormat;
+    DXGI_FORMAT srvFormat;
+    DXGI_FORMAT rtvFormat;
 };
+
+const FormatMapping& getFormatMapping(Format format);
+
+/// Given a slang pixel format returns the equivalent DXGI_ pixel format. If the format is not known, will return
+/// DXGI_FORMAT_UNKNOWN
+DXGI_FORMAT getMapFormat(Format format);
+
+DXGI_FORMAT getVertexFormat(Format format);
+DXGI_FORMAT getIndexFormat(IndexFormat indexFormat);
+
+/// Get primitive topology as D3D primitive topology
+D3D_PRIMITIVE_TOPOLOGY translatePrimitiveTopology(PrimitiveTopology prim);
+
+/// Compile HLSL code to DXBC
+Result compileHLSLShader(
+    const char* sourcePath,
+    const char* source,
+    const char* entryPointName,
+    const char* dxProfileName,
+    ComPtr<ID3DBlob>& shaderBlobOut
+);
+
+SharedLibraryHandle getDXGIModule();
+Result createDXGIFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory);
+
+/// Find adapters
+Result findAdapters(
+    DeviceCheckFlags flags,
+    const AdapterLUID* adapterLUID,
+    IDXGIFactory* dxgiFactory,
+    std::vector<ComPtr<IDXGIAdapter>>& dxgiAdapters
+);
+
+/// Find adapters
+Result findAdapters(
+    DeviceCheckFlags flags,
+    const AdapterLUID* adapterLUID,
+    std::vector<ComPtr<IDXGIAdapter>>& dxgiAdapters
+);
+
+AdapterLUID getAdapterLUID(IDXGIAdapter* dxgiAdapter);
+
+/// True if the adapter is warp
+bool isWarpAdapter(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapter);
+
+uint32_t getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect);
+
+uint32_t getPlaneSliceCount(DXGI_FORMAT format);
+
+uint32_t getSubresourceIndex(
+    uint32_t mipIndex,
+    uint32_t arrayIndex,
+    uint32_t planeIndex,
+    uint32_t mipCount,
+    uint32_t layoutCount
+);
+
+Result reportLiveObjects();
+
+/// Call after a DXGI_ERROR_DEVICE_REMOVED/DXGI_ERROR_DEVICE_RESET on present, to wait for
+/// dumping to complete. Will return SLANG_OK if wait happened successfully
+Result waitForCrashDumpCompletion(HRESULT res);
 
 } // namespace rhi

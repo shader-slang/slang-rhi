@@ -48,7 +48,7 @@ public:
         swapChainDesc.BufferCount = m_config.desiredImageCount;
         swapChainDesc.BufferDesc.Width = m_config.width;
         swapChainDesc.BufferDesc.Height = m_config.height;
-        swapChainDesc.BufferDesc.Format = D3DUtil::getMapFormat(srgbToLinearFormat(m_config.format));
+        swapChainDesc.BufferDesc.Format = getMapFormat(srgbToLinearFormat(m_config.format));
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         if (is_set(m_info.supportedUsage, TextureUsage::UnorderedAccess))
             swapChainDesc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
@@ -167,7 +167,7 @@ public:
         // We may want to wait for crash dump completion for some kinds of debugging scenarios
         if (res == DXGI_ERROR_DEVICE_REMOVED || res == DXGI_ERROR_DEVICE_RESET)
         {
-            D3DUtil::waitForCrashDumpCompletion(res);
+            waitForCrashDumpCompletion(res);
         }
 
         return SLANG_FAILED(res) ? SLANG_FAIL : SLANG_OK;

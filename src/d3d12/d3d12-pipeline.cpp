@@ -236,7 +236,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         {
             if (desc.depthStencil.format != Format::Undefined)
             {
-                psoDesc.DSVFormat = D3DUtil::getFormatMapping(desc.depthStencil.format).rtvFormat;
+                psoDesc.DSVFormat = getFormatMapping(desc.depthStencil.format).rtvFormat;
             }
             else
             {
@@ -245,7 +245,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             psoDesc.NumRenderTargets = numRenderTargets;
             for (uint32_t i = 0; i < numRenderTargets; i++)
             {
-                psoDesc.RTVFormats[i] = D3DUtil::getFormatMapping(desc.targets[i].format).rtvFormat;
+                psoDesc.RTVFormats[i] = getFormatMapping(desc.targets[i].format).rtvFormat;
             }
 
             psoDesc.SampleDesc.Count = desc.multisample.sampleCount;
@@ -453,7 +453,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipeline->m_inputLayout = inputLayout;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_pipelineState = pipelineState;
-    pipeline->m_primitiveTopology = D3DUtil::getPrimitiveTopology(desc.primitiveTopology);
+    pipeline->m_primitiveTopology = translatePrimitiveTopology(desc.primitiveTopology);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }

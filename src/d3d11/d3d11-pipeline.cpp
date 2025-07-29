@@ -183,7 +183,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipeline->m_rasterizerState = rasterizerState;
     pipeline->m_blendState = blendState;
     pipeline->m_rtvCount = desc.targetCount;
-    pipeline->m_primitiveTopology = D3DUtil::getPrimitiveTopology(desc.primitiveTopology);
+    pipeline->m_primitiveTopology = translatePrimitiveTopology(desc.primitiveTopology);
     pipeline->m_blendColor[0] = 0;
     pipeline->m_blendColor[1] = 0;
     pipeline->m_blendColor[2] = 0;

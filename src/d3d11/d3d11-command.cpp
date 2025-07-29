@@ -180,8 +180,8 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
 
     Extent3D srcTextureSize = src->m_desc.size;
 
-    uint32_t planeCount = D3DUtil::getPlaneSliceCount(dst->m_format);
-    SLANG_RHI_ASSERT(planeCount == D3DUtil::getPlaneSliceCount(src->m_format));
+    uint32_t planeCount = getPlaneSliceCount(dst->m_format);
+    SLANG_RHI_ASSERT(planeCount == getPlaneSliceCount(src->m_format));
     SLANG_RHI_ASSERT(planeCount > 0);
 
     for (uint32_t planeIndex = 0; planeIndex < planeCount; planeIndex++)
@@ -220,14 +220,14 @@ void CommandExecutor::cmdCopyTexture(const commands::CopyTexture& cmd)
                 SLANG_RHI_ASSERT(srcOffset.z + adjustedExtent.depth <= srcMipSize.depth);
                 SLANG_RHI_ASSERT(srcMip < src->m_desc.mipCount);
 
-                UINT dstSubresourceIndex = D3DUtil::getSubresourceIndex(
+                UINT dstSubresourceIndex = getSubresourceIndex(
                     dstMip,
                     dstSubresource.layer + layer,
                     planeIndex,
                     dst->m_desc.mipCount,
                     dst->m_desc.getLayerCount()
                 );
-                UINT srcSubresourceIndex = D3DUtil::getSubresourceIndex(
+                UINT srcSubresourceIndex = getSubresourceIndex(
                     srcMip,
                     srcSubresource.layer + layer,
                     planeIndex,
@@ -599,7 +599,7 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
         {
             m_immediateContext->IASetIndexBuffer(
                 checked_cast<BufferImpl*>(state.indexBuffer.buffer)->m_buffer,
-                D3DUtil::getIndexFormat(state.indexFormat),
+                getIndexFormat(state.indexFormat),
                 (UINT)state.indexBuffer.offset
             );
         }

@@ -103,14 +103,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             const auto deviceCheckFlags = combiner.getCombination(i);
             isHardwareDevice = (deviceCheckFlags & DeviceCheckFlag::UseHardwareDevice) != 0;
-            D3DUtil::createFactory(deviceCheckFlags, m_dxgiFactory);
+            createDXGIFactory(deviceCheckFlags, m_dxgiFactory);
 
             // If we have an adapter set on the desc, look it up.
             ComPtr<IDXGIAdapter> adapter;
             if (desc.adapterLUID)
             {
                 std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-                D3DUtil::findAdapters(deviceCheckFlags, desc.adapterLUID, m_dxgiFactory, dxgiAdapters);
+                findAdapters(deviceCheckFlags, desc.adapterLUID, m_dxgiFactory, dxgiAdapters);
                 if (dxgiAdapters.empty())
                 {
                     continue;
@@ -205,7 +205,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         dxgiAdapter->GetDesc(&adapterDesc);
         m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
-        m_info.adapterLUID = D3DUtil::getAdapterLUID(dxgiAdapter);
+        m_info.adapterLUID = getAdapterLUID(dxgiAdapter);
     }
 
     // Query timestamp frequency
@@ -357,7 +357,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
     {
         Format format = Format(formatIndex);
-        const D3DUtil::FormatMapping& formatMapping = D3DUtil::getFormatMapping(format);
+        const FormatMapping& formatMapping = getFormatMapping(format);
         FormatSupport formatSupport = FormatSupport::None;
 
 #define UPDATE_FLAGS(d3dFlags, formatSupportFlags)                                                                     \
@@ -659,7 +659,7 @@ namespace rhi {
 Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters)
 {
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(D3DUtil::findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
+    SLANG_RETURN_ON_FAIL(findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
 
     outAdapters.clear();
     for (const auto& dxgiAdapter : dxgiAdapters)
@@ -671,7 +671,7 @@ Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters)
         memcpy(info.name, name.data(), min(name.size(), sizeof(AdapterInfo::name) - 1));
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
-        info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);
+        info.luid = getAdapterLUID(dxgiAdapter);
         outAdapters.push_back(info);
     }
     return SLANG_OK;

@@ -28,7 +28,7 @@ ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& r
 
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-    srvDesc.Format = D3DUtil::getFormatMapping(format).srvFormat;
+    srvDesc.Format = getFormatMapping(format).srvFormat;
 
     if (m_desc.elementSize)
     {
@@ -73,7 +73,7 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
 
     D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-    uavDesc.Format = D3DUtil::getFormatMapping(format).srvFormat;
+    uavDesc.Format = getFormatMapping(format).srvFormat;
 
     if (m_desc.elementSize)
     {

@@ -370,8 +370,8 @@ D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
 
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless)
 {
-    const DXGI_FORMAT pixelFormat = isTypeless ? D3DUtil::getFormatMapping(textureDesc.format).typelessFormat
-                                               : D3DUtil::getFormatMapping(textureDesc.format).rtvFormat;
+    const DXGI_FORMAT pixelFormat = isTypeless ? getFormatMapping(textureDesc.format).typelessFormat
+                                               : getFormatMapping(textureDesc.format).rtvFormat;
     if (pixelFormat == DXGI_FORMAT_UNKNOWN)
     {
         return SLANG_FAIL;

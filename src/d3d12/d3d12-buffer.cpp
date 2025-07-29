@@ -121,7 +121,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, c
 
     D3D12_SHADER_RESOURCE_VIEW_DESC viewDesc = {};
     viewDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    viewDesc.Format = D3DUtil::getFormatMapping(format).srvFormat;
+    viewDesc.Format = getFormatMapping(format).srvFormat;
     viewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     if (stride)
     {
@@ -166,7 +166,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC viewDesc = {};
     viewDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-    viewDesc.Format = D3DUtil::getFormatMapping(format).srvFormat;
+    viewDesc.Format = getFormatMapping(format).srvFormat;
     if (stride)
     {
         viewDesc.Buffer.FirstElement = range.offset / stride;

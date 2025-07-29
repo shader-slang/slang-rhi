@@ -174,10 +174,10 @@ Result DeviceImpl::_createDevice(
     outDeviceInfo.clear();
 
     ComPtr<IDXGIFactory> dxgiFactory;
-    SLANG_RETURN_ON_FAIL(D3DUtil::createFactory(deviceCheckFlags, dxgiFactory));
+    SLANG_RETURN_ON_FAIL(createDXGIFactory(deviceCheckFlags, dxgiFactory));
 
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(D3DUtil::findAdapters(deviceCheckFlags, adapterLUID, dxgiFactory, dxgiAdapters));
+    SLANG_RETURN_ON_FAIL(findAdapters(deviceCheckFlags, adapterLUID, dxgiFactory, dxgiAdapters));
 
     ComPtr<ID3D12Device> device;
     ComPtr<IDXGIAdapter> adapter;
@@ -309,7 +309,7 @@ Result DeviceImpl::_createDevice(
     outDeviceInfo.m_device = device;
     outDeviceInfo.m_dxgiFactory = dxgiFactory;
     outDeviceInfo.m_adapter = adapter;
-    outDeviceInfo.m_isWarp = D3DUtil::isWarp(dxgiFactory, adapter);
+    outDeviceInfo.m_isWarp = isWarpAdapter(dxgiFactory, adapter);
     const UINT kMicrosoftVendorId = 5140;
     outDeviceInfo.m_isSoftware = outDeviceInfo.m_isWarp ||
                                  ((outDeviceInfo.m_desc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0) ||
@@ -597,7 +597,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
         m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
-        m_info.adapterLUID = D3DUtil::getAdapterLUID(m_deviceInfo.m_adapter);
+        m_info.adapterLUID = getAdapterLUID(m_deviceInfo.m_adapter);
     }
     else
     {
@@ -927,7 +927,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
     {
         Format format = Format(formatIndex);
-        const D3DUtil::FormatMapping& formatMapping = D3DUtil::getFormatMapping(format);
+        const FormatMapping& formatMapping = getFormatMapping(format);
         FormatSupport formatSupport = FormatSupport::None;
 
 #define UPDATE_FLAGS(d3dFlags, formatSupportFlags)                                                                     \
@@ -1297,8 +1297,8 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
         isTypeless = true;
     }
 
-    texture->m_format = isTypeless ? D3DUtil::getFormatMapping(desc.format).typelessFormat
-                                   : D3DUtil::getFormatMapping(desc.format).rtvFormat;
+    texture->m_format =
+        isTypeless ? getFormatMapping(desc.format).typelessFormat : getFormatMapping(desc.format).rtvFormat;
     texture->m_isTypeless = isTypeless;
     texture->m_defaultState = translateResourceState(desc.defaultState);
 
@@ -1453,7 +1453,7 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
 
         dstElement.SemanticName = semanticName;
         dstElement.SemanticIndex = (UINT)srcElement.semanticIndex;
-        dstElement.Format = D3DUtil::getVertexFormat(srcElement.format);
+        dstElement.Format = getVertexFormat(srcElement.format);
         dstElement.InputSlot = (UINT)srcElement.bufferSlotIndex;
         dstElement.AlignedByteOffset = (UINT)srcElement.offset;
         dstElement.InputSlotClass = translateInputSlotClass(srcStream.slotClass);
@@ -1952,7 +1952,7 @@ namespace rhi {
 Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
 {
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(D3DUtil::findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
+    SLANG_RETURN_ON_FAIL(findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
 
     outAdapters.clear();
     for (const auto& dxgiAdapter : dxgiAdapters)
@@ -1964,7 +1964,7 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
         memcpy(info.name, name.data(), min(name.length(), sizeof(AdapterInfo::name) - 1));
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
-        info.luid = D3DUtil::getAdapterLUID(dxgiAdapter);
+        info.luid = getAdapterLUID(dxgiAdapter);
         outAdapters.push_back(info);
     }
     return SLANG_OK;
