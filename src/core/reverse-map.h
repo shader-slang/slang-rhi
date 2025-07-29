@@ -1,8 +1,8 @@
 #pragma once
 
-namespace rhi {
-
 #include <unordered_map>
+
+namespace rhi {
 
 /// Given a mapping function, create a reverse map from To to From.
 /// The mapping function func must be bijective.
