@@ -1,8 +1,7 @@
-#include "d3d-util.h"
+#include "d3d-utils.h"
 
 #include "core/common.h"
 
-#include <d3d12.h>
 #include <dxgi1_4.h>
 #include <dxgidebug.h>
 #if SLANG_ENABLE_DXBC_SUPPORT

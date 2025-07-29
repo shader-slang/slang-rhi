@@ -3,7 +3,7 @@
 #include <slang-rhi.h>
 
 #include "../rhi-shared.h"
-#include "d3d-util.h"
+#include "d3d-utils.h"
 #include "core/common.h"
 #include "core/short_vector.h"
 

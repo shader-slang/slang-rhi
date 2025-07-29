@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../d3d/d3d-util.h"
+#include "../d3d/d3d-utils.h"
 
 #include <slang-com-ptr.h>
 

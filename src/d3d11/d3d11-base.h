@@ -2,7 +2,6 @@
 
 #include "../rhi-shared.h"
 #include "../d3d/d3d-surface.h"
-#include "../d3d/d3d-util.h"
 #include "../flag-combiner.h"
 
 #include "core/common.h"

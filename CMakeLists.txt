@@ -535,7 +535,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_D3D11 OR SLANG_RHI_HAS_D3D12)
     target_sources(slang-rhi PRIVATE
-        src/d3d/d3d-util.cpp
+        src/d3d/d3d-utils.cpp
         src/nvapi/nvapi-util.cpp
     )
 endif()
