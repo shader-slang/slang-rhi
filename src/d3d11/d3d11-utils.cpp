@@ -58,10 +58,9 @@ UINT _calcResourceAccessFlags(MemoryType memType)
         return D3D11_CPU_ACCESS_READ;
     case MemoryType::Upload:
         return D3D11_CPU_ACCESS_WRITE;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Invalid flags");
-        return 0;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid MemoryType value");
+    return 0;
 }
 
 D3D11_FILTER_TYPE translateFilterMode(TextureFilteringMode mode)
@@ -72,9 +71,9 @@ D3D11_FILTER_TYPE translateFilterMode(TextureFilteringMode mode)
         return D3D11_FILTER_TYPE_POINT;
     case TextureFilteringMode::Linear:
         return D3D11_FILTER_TYPE_LINEAR;
-    default:
-        return D3D11_FILTER_TYPE(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return D3D11_FILTER_TYPE(0);
 }
 
 D3D11_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op)
@@ -89,9 +88,9 @@ D3D11_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op)
         return D3D11_FILTER_REDUCTION_TYPE_MINIMUM;
     case TextureReductionOp::Maximum:
         return D3D11_FILTER_REDUCTION_TYPE_MAXIMUM;
-    default:
-        return D3D11_FILTER_REDUCTION_TYPE(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureReductionOp value");
+    return D3D11_FILTER_REDUCTION_TYPE(0);
 }
 
 D3D11_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode)
@@ -108,9 +107,9 @@ D3D11_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode)
         return D3D11_TEXTURE_ADDRESS_MIRROR;
     case TextureAddressingMode::MirrorOnce:
         return D3D11_TEXTURE_ADDRESS_MIRROR_ONCE;
-    default:
-        return D3D11_TEXTURE_ADDRESS_MODE(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureAddressingMode value");
+    return D3D11_TEXTURE_ADDRESS_MODE(0);
 }
 
 D3D11_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
@@ -133,10 +132,9 @@ D3D11_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
         return D3D11_COMPARISON_GREATER_EQUAL;
     case ComparisonFunc::Always:
         return D3D11_COMPARISON_ALWAYS;
-    default:
-        // TODO: need to report failures
-        return D3D11_COMPARISON_ALWAYS;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid ComparisonFunc value");
+    return D3D11_COMPARISON_FUNC(0);
 }
 
 D3D11_STENCIL_OP translateStencilOp(StencilOp op)
@@ -159,10 +157,9 @@ D3D11_STENCIL_OP translateStencilOp(StencilOp op)
         return D3D11_STENCIL_OP_INCR;
     case StencilOp::DecrementWrap:
         return D3D11_STENCIL_OP_DECR;
-    default:
-        // TODO: need to report failures
-        return D3D11_STENCIL_OP_KEEP;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StencilOp value");
+    return D3D11_STENCIL_OP(0);
 }
 
 D3D11_FILL_MODE translateFillMode(FillMode mode)
@@ -173,10 +170,9 @@ D3D11_FILL_MODE translateFillMode(FillMode mode)
         return D3D11_FILL_SOLID;
     case FillMode::Wireframe:
         return D3D11_FILL_WIREFRAME;
-    default:
-        // TODO: need to report failures
-        return D3D11_FILL_SOLID;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid FillMode value");
+    return D3D11_FILL_MODE(0);
 }
 
 D3D11_CULL_MODE translateCullMode(CullMode mode)
@@ -189,10 +185,9 @@ D3D11_CULL_MODE translateCullMode(CullMode mode)
         return D3D11_CULL_BACK;
     case CullMode::Front:
         return D3D11_CULL_FRONT;
-    default:
-        // TODO: need to report failures
-        return D3D11_CULL_NONE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CullMode value");
+    return D3D11_CULL_MODE(0);
 }
 
 bool isBlendDisabled(const AspectBlendDesc& desc)
@@ -219,10 +214,9 @@ D3D11_BLEND_OP translateBlendOp(BlendOp op)
         return D3D11_BLEND_OP_MIN;
     case BlendOp::Max:
         return D3D11_BLEND_OP_MAX;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unimplemented");
-        return D3D11_BLEND_OP_ADD;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendOp value");
+    return D3D11_BLEND_OP(0);
 }
 
 D3D11_BLEND translateBlendFactor(BlendFactor factor)
@@ -263,10 +257,9 @@ D3D11_BLEND translateBlendFactor(BlendFactor factor)
         return D3D11_BLEND_SRC1_ALPHA;
     case BlendFactor::InvSecondarySrcAlpha:
         return D3D11_BLEND_INV_SRC1_ALPHA;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unimplemented");
-        return D3D11_BLEND_ONE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendFactor value");
+    return D3D11_BLEND(0);
 }
 
 } // namespace rhi::d3d11

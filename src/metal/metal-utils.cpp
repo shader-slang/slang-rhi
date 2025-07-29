@@ -190,9 +190,9 @@ MTL::TextureType translateTextureType(TextureType type)
         return MTL::TextureTypeCube;
     case TextureType::TextureCubeArray:
         return MTL::TextureTypeCubeArray;
-    default:
-        return MTL::TextureType(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureType value");
+    return MTL::TextureType(0);
 }
 
 MTL::SamplerMinMagFilter translateSamplerMinMagFilter(TextureFilteringMode mode)
@@ -203,9 +203,9 @@ MTL::SamplerMinMagFilter translateSamplerMinMagFilter(TextureFilteringMode mode)
         return MTL::SamplerMinMagFilterNearest;
     case TextureFilteringMode::Linear:
         return MTL::SamplerMinMagFilterLinear;
-    default:
-        return MTL::SamplerMinMagFilter(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return MTL::SamplerMinMagFilter(0);
 }
 
 MTL::SamplerMipFilter translateSamplerMipFilter(TextureFilteringMode mode)
@@ -216,9 +216,9 @@ MTL::SamplerMipFilter translateSamplerMipFilter(TextureFilteringMode mode)
         return MTL::SamplerMipFilterNearest;
     case TextureFilteringMode::Linear:
         return MTL::SamplerMipFilterLinear;
-    default:
-        return MTL::SamplerMipFilter(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return MTL::SamplerMipFilter(0);
 }
 
 MTL::SamplerAddressMode translateSamplerAddressMode(TextureAddressingMode mode)
@@ -235,9 +235,9 @@ MTL::SamplerAddressMode translateSamplerAddressMode(TextureAddressingMode mode)
         return MTL::SamplerAddressModeMirrorRepeat;
     case TextureAddressingMode::MirrorOnce:
         return MTL::SamplerAddressModeMirrorClampToEdge;
-    default:
-        return MTL::SamplerAddressMode(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureAddressingMode value");
+    return MTL::SamplerAddressMode(0);
 }
 
 MTL::CompareFunction translateCompareFunction(ComparisonFunc func)
@@ -260,9 +260,9 @@ MTL::CompareFunction translateCompareFunction(ComparisonFunc func)
         return MTL::CompareFunctionGreaterEqual;
     case ComparisonFunc::Always:
         return MTL::CompareFunctionAlways;
-    default:
-        return MTL::CompareFunction(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid ComparisonFunc value");
+    return MTL::CompareFunction(0);
 }
 
 MTL::StencilOperation translateStencilOperation(StencilOp op)
@@ -285,9 +285,9 @@ MTL::StencilOperation translateStencilOperation(StencilOp op)
         return MTL::StencilOperationIncrementWrap;
     case StencilOp::DecrementWrap:
         return MTL::StencilOperationDecrementWrap;
-    default:
-        return MTL::StencilOperation(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StencilOp value");
+    return MTL::StencilOperation(0);
 }
 
 MTL::VertexStepFunction translateVertexStepFunction(InputSlotClass slotClass)
@@ -298,9 +298,9 @@ MTL::VertexStepFunction translateVertexStepFunction(InputSlotClass slotClass)
         return MTL::VertexStepFunctionPerVertex;
     case InputSlotClass::PerInstance:
         return MTL::VertexStepFunctionPerInstance;
-    default:
-        return MTL::VertexStepFunctionPerVertex;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid InputSlotClass value");
+    return MTL::VertexStepFunction(0);
 }
 
 MTL::PrimitiveType translatePrimitiveType(PrimitiveTopology topology)
@@ -318,9 +318,10 @@ MTL::PrimitiveType translatePrimitiveType(PrimitiveTopology topology)
     case PrimitiveTopology::TriangleStrip:
         return MTL::PrimitiveTypeTriangleStrip;
     case PrimitiveTopology::PatchList:
-    default:
         return MTL::PrimitiveType(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid PrimitiveTopology value");
+    return MTL::PrimitiveType(0);
 }
 
 MTL::PrimitiveTopologyClass translatePrimitiveTopologyClass(PrimitiveTopology topology)
@@ -336,9 +337,10 @@ MTL::PrimitiveTopologyClass translatePrimitiveTopologyClass(PrimitiveTopology to
     case PrimitiveTopology::TriangleStrip:
         return MTL::PrimitiveTopologyClassTriangle;
     case PrimitiveTopology::PatchList:
-    default:
         return MTL::PrimitiveTopologyClass(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid PrimitiveTopology value");
+    return MTL::PrimitiveTopologyClass(0);
 }
 
 MTL::BlendFactor translateBlendFactor(BlendFactor factor)
@@ -379,9 +381,9 @@ MTL::BlendFactor translateBlendFactor(BlendFactor factor)
         return MTL::BlendFactorSource1Alpha;
     case BlendFactor::InvSecondarySrcAlpha:
         return MTL::BlendFactorOneMinusSource1Alpha;
-    default:
-        return MTL::BlendFactor(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendFactor value");
+    return MTL::BlendFactor(0);
 }
 
 MTL::BlendOperation translateBlendOperation(BlendOp op)
@@ -398,9 +400,9 @@ MTL::BlendOperation translateBlendOperation(BlendOp op)
         return MTL::BlendOperationMin;
     case BlendOp::Max:
         return MTL::BlendOperationMax;
-    default:
-        return MTL::BlendOperation(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendOp value");
+    return MTL::BlendOperation(0);
 }
 
 MTL::ColorWriteMask translateColorWriteMask(RenderTargetWriteMask mask)
@@ -425,9 +427,9 @@ MTL::Winding translateWinding(FrontFaceMode mode)
         return MTL::WindingCounterClockwise;
     case FrontFaceMode::Clockwise:
         return MTL::WindingClockwise;
-    default:
-        return MTL::Winding(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid FrontFaceMode value");
+    return MTL::Winding(0);
 }
 
 MTL::CullMode translateCullMode(CullMode mode)
@@ -440,9 +442,9 @@ MTL::CullMode translateCullMode(CullMode mode)
         return MTL::CullModeFront;
     case CullMode::Back:
         return MTL::CullModeBack;
-    default:
-        return MTL::CullMode(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CullMode value");
+    return MTL::CullMode(0);
 }
 
 MTL::TriangleFillMode translateTriangleFillMode(FillMode mode)
@@ -453,9 +455,9 @@ MTL::TriangleFillMode translateTriangleFillMode(FillMode mode)
         return MTL::TriangleFillModeFill;
     case FillMode::Wireframe:
         return MTL::TriangleFillModeLines;
-    default:
-        return MTL::TriangleFillMode(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid FillMode value");
+    return MTL::TriangleFillMode(0);
 }
 
 MTL::LoadAction translateLoadOp(LoadOp loadOp)
@@ -468,9 +470,9 @@ MTL::LoadAction translateLoadOp(LoadOp loadOp)
         return MTL::LoadActionClear;
     case LoadOp::DontCare:
         return MTL::LoadActionDontCare;
-    default:
-        return MTL::LoadAction(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid LoadOp value");
+    return MTL::LoadAction(0);
 }
 
 MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve)
@@ -481,9 +483,9 @@ MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve)
         return resolve ? MTL::StoreActionStoreAndMultisampleResolve : MTL::StoreActionStore;
     case StoreOp::DontCare:
         return resolve ? MTL::StoreActionMultisampleResolve : MTL::StoreActionDontCare;
-    default:
-        return MTL::StoreAction(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StoreOp value");
+    return MTL::StoreAction(0);
 }
 
 } // namespace rhi::metal

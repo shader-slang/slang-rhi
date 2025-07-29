@@ -90,9 +90,9 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE translatePrimitiveTopologyType(PrimitiveTopology t
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     case PrimitiveTopology::PatchList:
         return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-    default:
-        return D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid PrimitiveTopology value");
+    return D3D12_PRIMITIVE_TOPOLOGY_TYPE(0);
 }
 
 D3D12_FILTER_TYPE translateFilterMode(TextureFilteringMode mode)
@@ -103,9 +103,9 @@ D3D12_FILTER_TYPE translateFilterMode(TextureFilteringMode mode)
         return D3D12_FILTER_TYPE_POINT;
     case TextureFilteringMode::Linear:
         return D3D12_FILTER_TYPE_LINEAR;
-    default:
-        return D3D12_FILTER_TYPE(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return D3D12_FILTER_TYPE(0);
 }
 
 D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op)
@@ -120,9 +120,9 @@ D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op)
         return D3D12_FILTER_REDUCTION_TYPE_MINIMUM;
     case TextureReductionOp::Maximum:
         return D3D12_FILTER_REDUCTION_TYPE_MAXIMUM;
-    default:
-        return D3D12_FILTER_REDUCTION_TYPE(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureReductionOp value");
+    return D3D12_FILTER_REDUCTION_TYPE(0);
 }
 
 D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode)
@@ -139,9 +139,9 @@ D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode)
         return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
     case TextureAddressingMode::MirrorOnce:
         return D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
-    default:
-        return D3D12_TEXTURE_ADDRESS_MODE(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureAddressingMode value");
+    return D3D12_TEXTURE_ADDRESS_MODE(0);
 }
 
 D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
@@ -164,9 +164,9 @@ D3D12_COMPARISON_FUNC translateComparisonFunc(ComparisonFunc func)
         return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
     case ComparisonFunc::Always:
         return D3D12_COMPARISON_FUNC_ALWAYS;
-    default:
-        return D3D12_COMPARISON_FUNC_NEVER;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid ComparisonFunc value");
+    return D3D12_COMPARISON_FUNC(0);
 }
 
 D3D12_STENCIL_OP translateStencilOp(StencilOp op)
@@ -189,9 +189,9 @@ D3D12_STENCIL_OP translateStencilOp(StencilOp op)
         return D3D12_STENCIL_OP_INCR;
     case StencilOp::DecrementWrap:
         return D3D12_STENCIL_OP_DECR;
-    default:
-        return D3D12_STENCIL_OP_KEEP;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StencilOp value");
+    return D3D12_STENCIL_OP(0);
 }
 
 D3D12_DEPTH_STENCILOP_DESC translateStencilOpDesc(DepthStencilOpDesc desc)
@@ -212,10 +212,9 @@ D3D12_INPUT_CLASSIFICATION translateInputSlotClass(InputSlotClass slotClass)
         return D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
     case InputSlotClass::PerInstance:
         return D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown input slot class.");
-        return D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid InputSlotClass value");
+    return D3D12_INPUT_CLASSIFICATION(0);
 }
 
 D3D12_FILL_MODE translateFillMode(FillMode mode)
@@ -226,10 +225,9 @@ D3D12_FILL_MODE translateFillMode(FillMode mode)
         return D3D12_FILL_MODE_SOLID;
     case FillMode::Wireframe:
         return D3D12_FILL_MODE_WIREFRAME;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown fill mode.");
-        return D3D12_FILL_MODE_SOLID;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid FillMode value");
+    return D3D12_FILL_MODE(0);
 }
 
 D3D12_CULL_MODE translateCullMode(CullMode mode)
@@ -242,10 +240,9 @@ D3D12_CULL_MODE translateCullMode(CullMode mode)
         return D3D12_CULL_MODE_FRONT;
     case CullMode::Back:
         return D3D12_CULL_MODE_BACK;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown cull mode.");
-        return D3D12_CULL_MODE_NONE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CullMode value");
+    return D3D12_CULL_MODE(0);
 }
 
 D3D12_BLEND_OP translateBlendOp(BlendOp op)
@@ -262,10 +259,9 @@ D3D12_BLEND_OP translateBlendOp(BlendOp op)
         return D3D12_BLEND_OP_MIN;
     case BlendOp::Max:
         return D3D12_BLEND_OP_MAX;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown blend op.");
-        return D3D12_BLEND_OP_ADD;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendOp value");
+    return D3D12_BLEND_OP(0);
 }
 
 D3D12_BLEND translateBlendFactor(BlendFactor factor)
@@ -306,10 +302,9 @@ D3D12_BLEND translateBlendFactor(BlendFactor factor)
         return D3D12_BLEND_SRC1_ALPHA;
     case BlendFactor::InvSecondarySrcAlpha:
         return D3D12_BLEND_INV_SRC1_ALPHA;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown blend factor.");
-        return D3D12_BLEND_ZERO;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendFactor value");
+    return D3D12_BLEND(0);
 }
 
 D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
@@ -353,9 +348,8 @@ D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
         return D3D12_RESOURCE_STATE_RESOLVE_DEST;
     case ResourceState::AccelerationStructure:
         return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
-    default:
-        return D3D12_RESOURCE_STATE_COMMON;
     }
+    return D3D12_RESOURCE_STATE_COMMON;
 }
 
 Result initTextureDesc(D3D12_RESOURCE_DESC& resourceDesc, const TextureDesc& textureDesc, bool isTypeless)
@@ -624,9 +618,9 @@ NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE translateCooperativeVectorComponentType(
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E4M3;
     case CooperativeVectorComponentType::FloatE5M2:
         return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E5M2;
-    default:
-        return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CooperativeVectorComponentType value");
+    return NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE(0);
 }
 
 CooperativeVectorComponentType translateCooperativeVectorComponentType(NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE type)
@@ -664,6 +658,7 @@ CooperativeVectorComponentType translateCooperativeVectorComponentType(NVAPI_COO
     case NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE_FLOAT_E5M2:
         return CooperativeVectorComponentType::FloatE5M2;
     default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported NVAPI_COOPERATIVE_VECTOR_COMPONENT_TYPE value");
         return CooperativeVectorComponentType(0);
     }
 }
@@ -680,9 +675,9 @@ NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT translateCooperativeVectorMatrixLayout(Co
         return NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL;
     case CooperativeVectorMatrixLayout::TrainingOptimal:
         return NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL;
-    default:
-        return NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CooperativeVectorMatrixLayout value");
+    return NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT(0);
 }
 
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT layout)
@@ -698,6 +693,7 @@ CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(NVAPI_COOPE
     case NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL:
         return CooperativeVectorMatrixLayout::TrainingOptimal;
     default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported NVAPI_COOPERATIVE_VECTOR_MATRIX_LAYOUT value");
         return CooperativeVectorMatrixLayout(0);
     }
 }

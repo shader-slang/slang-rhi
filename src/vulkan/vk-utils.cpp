@@ -182,9 +182,11 @@ VkAttachmentLoadOp translateLoadOp(LoadOp loadOp)
         return VK_ATTACHMENT_LOAD_OP_CLEAR;
     case LoadOp::Load:
         return VK_ATTACHMENT_LOAD_OP_LOAD;
-    default:
+    case LoadOp::DontCare:
         return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid LoadOp value");
+    return VkAttachmentLoadOp(0);
 }
 
 VkAttachmentStoreOp translateStoreOp(StoreOp storeOp)
@@ -193,9 +195,11 @@ VkAttachmentStoreOp translateStoreOp(StoreOp storeOp)
     {
     case StoreOp::Store:
         return VK_ATTACHMENT_STORE_OP_STORE;
-    default:
+    case StoreOp::DontCare:
         return VK_ATTACHMENT_STORE_OP_DONT_CARE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StoreOp value");
+    return VkAttachmentStoreOp(0);
 }
 
 VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags flags)
@@ -540,9 +544,9 @@ VkImageAspectFlags getAspectMaskFromFormat(VkFormat format, TextureAspect aspect
         return VK_IMAGE_ASPECT_DEPTH_BIT;
     case TextureAspect::StencilOnly:
         return VK_IMAGE_ASPECT_STENCIL_BIT;
-    default:
-        return VK_IMAGE_ASPECT_COLOR_BIT;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureAspect value");
+    return VkImageAspectFlags(0);
 }
 
 AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicalDevice)
@@ -637,6 +641,34 @@ VkImageLayout getImageLayoutFromState(ResourceState state)
     return VkImageLayout();
 }
 
+bool isDepthFormat(VkFormat format)
+{
+    switch (format)
+    {
+    case VK_FORMAT_D16_UNORM:
+    case VK_FORMAT_D24_UNORM_S8_UINT:
+    case VK_FORMAT_X8_D24_UNORM_PACK32:
+    case VK_FORMAT_D32_SFLOAT:
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool isStencilFormat(VkFormat format)
+{
+    switch (format)
+    {
+    case VK_FORMAT_S8_UINT:
+    case VK_FORMAT_D24_UNORM_S8_UINT:
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        return true;
+    default:
+        return false;
+    }
+}
+
 VkSampleCountFlagBits translateSampleCount(uint32_t sampleCount)
 {
     switch (sampleCount)
@@ -671,10 +703,9 @@ VkCullModeFlags translateCullMode(CullMode cullMode)
         return VK_CULL_MODE_FRONT_BIT;
     case CullMode::Back:
         return VK_CULL_MODE_BACK_BIT;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unsupported cull mode");
-        return VK_CULL_MODE_NONE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CullMode value");
+    return VkCullModeFlags(0);
 }
 
 VkFrontFace translateFrontFaceMode(FrontFaceMode frontFaceMode)
@@ -685,10 +716,9 @@ VkFrontFace translateFrontFaceMode(FrontFaceMode frontFaceMode)
         return VK_FRONT_FACE_COUNTER_CLOCKWISE;
     case FrontFaceMode::Clockwise:
         return VK_FRONT_FACE_CLOCKWISE;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unsupported front face mode");
-        return VK_FRONT_FACE_CLOCKWISE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid FrontFaceMode value");
+    return VkFrontFace(0);
 }
 
 VkPolygonMode translateFillMode(FillMode fillMode)
@@ -699,10 +729,9 @@ VkPolygonMode translateFillMode(FillMode fillMode)
         return VK_POLYGON_MODE_FILL;
     case FillMode::Wireframe:
         return VK_POLYGON_MODE_LINE;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unsupported fill mode");
-        return VK_POLYGON_MODE_FILL;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid FillMode value");
+    return VkPolygonMode(0);
 }
 
 VkBlendFactor translateBlendFactor(BlendFactor blendFactor)
@@ -743,11 +772,9 @@ VkBlendFactor translateBlendFactor(BlendFactor blendFactor)
         return VK_BLEND_FACTOR_SRC1_ALPHA;
     case BlendFactor::InvSecondarySrcAlpha:
         return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
-
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unsupported blend factor");
-        return VK_BLEND_FACTOR_ONE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendFactor value");
+    return VkBlendFactor(0);
 }
 
 VkBlendOp translateBlendOp(BlendOp op)
@@ -764,10 +791,9 @@ VkBlendOp translateBlendOp(BlendOp op)
         return VK_BLEND_OP_MIN;
     case BlendOp::Max:
         return VK_BLEND_OP_MAX;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unsupported blend op");
-        return VK_BLEND_OP_ADD;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid BlendOp value");
+    return VkBlendOp(0);
 }
 
 VkPrimitiveTopology translatePrimitiveListTopology(PrimitiveTopology topology)
@@ -786,10 +812,9 @@ VkPrimitiveTopology translatePrimitiveListTopology(PrimitiveTopology topology)
         return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
     case PrimitiveTopology::PatchList:
         return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-    default:
-        SLANG_RHI_ASSERT_FAILURE("Unknown topology type.");
-        return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid PrimitiveTopology value");
+    return VkPrimitiveTopology(0);
 }
 
 VkStencilOp translateStencilOp(StencilOp op)
@@ -812,9 +837,9 @@ VkStencilOp translateStencilOp(StencilOp op)
         return VK_STENCIL_OP_REPLACE;
     case StencilOp::Zero:
         return VK_STENCIL_OP_ZERO;
-    default:
-        return VK_STENCIL_OP_KEEP;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid StencilOp value");
+    return VkStencilOp(0);
 }
 
 VkFilter translateFilterMode(TextureFilteringMode mode)
@@ -825,9 +850,9 @@ VkFilter translateFilterMode(TextureFilteringMode mode)
         return VK_FILTER_NEAREST;
     case TextureFilteringMode::Linear:
         return VK_FILTER_LINEAR;
-    default:
-        return VkFilter(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return VkFilter(0);
 }
 
 VkSamplerMipmapMode translateMipFilterMode(TextureFilteringMode mode)
@@ -838,9 +863,9 @@ VkSamplerMipmapMode translateMipFilterMode(TextureFilteringMode mode)
         return VK_SAMPLER_MIPMAP_MODE_NEAREST;
     case TextureFilteringMode::Linear:
         return VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    default:
-        return VkSamplerMipmapMode(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureFilteringMode value");
+    return VkSamplerMipmapMode(0);
 }
 
 VkSamplerAddressMode translateAddressingMode(TextureAddressingMode mode)
@@ -857,9 +882,9 @@ VkSamplerAddressMode translateAddressingMode(TextureAddressingMode mode)
         return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
     case TextureAddressingMode::MirrorOnce:
         return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
-    default:
-        return VkSamplerAddressMode(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureAddressingMode value");
+    return VkSamplerAddressMode(0);
 }
 
 VkCompareOp translateComparisonFunc(ComparisonFunc func)
@@ -882,10 +907,9 @@ VkCompareOp translateComparisonFunc(ComparisonFunc func)
         return VK_COMPARE_OP_GREATER_OR_EQUAL;
     case ComparisonFunc::Always:
         return VK_COMPARE_OP_ALWAYS;
-    default:
-        // TODO: need to report failures
-        return VK_COMPARE_OP_ALWAYS;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid ComparisonFunc value");
+    return VkCompareOp(0);
 }
 
 VkStencilOpState translateStencilState(DepthStencilOpDesc desc)
@@ -905,13 +929,17 @@ VkSamplerReductionMode translateReductionOp(TextureReductionOp op)
 {
     switch (op)
     {
+    case TextureReductionOp::Average:
+        return VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+    case TextureReductionOp::Comparison:
+        return VkSamplerReductionMode(0); // not supported (warn in validation)
     case TextureReductionOp::Minimum:
         return VK_SAMPLER_REDUCTION_MODE_MIN;
     case TextureReductionOp::Maximum:
         return VK_SAMPLER_REDUCTION_MODE_MAX;
-    default:
-        return VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid TextureReductionOp value");
+    return VkSamplerReductionMode(0);
 }
 
 VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type)
@@ -948,9 +976,9 @@ VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComp
         return VK_COMPONENT_TYPE_FLOAT_E4M3_NV;
     case CooperativeVectorComponentType::FloatE5M2:
         return VK_COMPONENT_TYPE_FLOAT_E5M2_NV;
-    default:
-        return VkComponentTypeKHR(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CooperativeVectorComponentType value");
+    return VkComponentTypeKHR(0);
 }
 
 CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type)
@@ -988,6 +1016,7 @@ CooperativeVectorComponentType translateCooperativeVectorComponentType(VkCompone
     case VK_COMPONENT_TYPE_FLOAT_E5M2_NV:
         return CooperativeVectorComponentType::FloatE5M2;
     default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported VkComponentTypeKHR value");
         return CooperativeVectorComponentType(0);
     }
 }
@@ -1004,9 +1033,9 @@ VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(Coopera
         return VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL_NV;
     case CooperativeVectorMatrixLayout::TrainingOptimal:
         return VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV;
-    default:
-        return VkCooperativeVectorMatrixLayoutNV(0);
     }
+    SLANG_RHI_ASSERT_FAILURE("Invalid CooperativeVectorMatrixLayout value");
+    return VkCooperativeVectorMatrixLayoutNV(0);
 }
 
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout)
@@ -1022,6 +1051,7 @@ CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperati
     case VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV:
         return CooperativeVectorMatrixLayout::TrainingOptimal;
     default:
+        SLANG_RHI_ASSERT_FAILURE("Unsupported VkCooperativeVectorMatrixLayoutNV value");
         return CooperativeVectorMatrixLayout(0);
     }
 }
