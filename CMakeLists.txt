@@ -86,7 +86,7 @@ if(SLANG_RHI_HAS_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
 endif()
 
 set(SLANG_RHI_HAS_NVAPI OFF)
-if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64") AND WIN32)
+if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
     set(SLANG_RHI_HAS_NVAPI ON)
 endif()
 
@@ -94,46 +94,82 @@ endif()
 option(SLANG_RHI_ENABLE_CPU "Enable CPU backend" ON)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D11 "Enable D3D11 backend" ON "SLANG_RHI_HAS_D3D11" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D12 "Enable D3D12 backend" ON "SLANG_RHI_HAS_D3D12" OFF)
+cmake_dependent_option(SLANG_RHI_ENABLE_AGILITY_SDK "Enable Agility SDK" ON "SLANG_RHI_HAS_AGILITY_SDK" OFF)
+cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI support" ON "SLANG_RHI_HAS_NVAPI" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG_RHI_HAS_VULKAN" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
+cmake_dependent_option(SLANG_RHI_ENABLE_OPTIX "Enable OptiX support" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
-cmake_dependent_option(SLANG_RHI_ENABLE_AGILITY_SDK "Enable Agility SDK" ON "SLANG_RHI_HAS_AGILITY_SDK" OFF)
-cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI" ON "SLANG_RHI_HAS_NVAPI" OFF)
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
 set(SLANG_RHI_FETCH_SLANG_VERSION "2025.13" CACHE STRING "Slang version to fetch")
 
-# Fetch WinPixEventRuntime options
-option(SLANG_RHI_FETCH_WINPIX "Fetch WinPixEventRuntime" ON)
-set(SLANG_RHI_FETCH_WINPIX_URL "https://www.nuget.org/api/v2/package/WinPixEventRuntime/1.0.240308001" CACHE STRING "WinPixEventRuntime URL to fetch")
+# slang-rhi depends on a few external libraries.
+# These dependencies are fetched automatically if needed, using the URLs defined below.
+# We don't use cache variables for the URLs to always fetch the required versions when switching branches or updating the repository.
+# If you want to override the URLs, you can set the variables in the parent CMakeLists.txt before including this file
+# or use cmake command line options like -DSLANG_RHI_DXC_URL=<url> populate cache variables to override the default URLs.
 
-# Fetch dxc options
-option(SLANG_RHI_FETCH_DXC "Fetch dxc (DirectX Shader Compiler)" ON)
-set(SLANG_RHI_FETCH_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip" CACHE STRING "DXC URL to fetch")
+# DirectXShaderCompiler
+if(NOT DEFINED SLANG_RHI_DXC_URL)
+    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
+endif()
 
-# Fetch Agility SDK options
-option(SLANG_RHI_FETCH_AGILITY_SDK "Fetch Agility SDK" ON)
-set(SLANG_RHI_FETCH_AGILITY_SDK_VERSION "1.616.1" CACHE STRING "Agility SDK version to fetch")
+# WinPixEventRuntime
+if(NOT DEFINED SLANG_RHI_WINPIX_URL)
+    set(SLANG_RHI_WINPIX_URL "https://www.nuget.org/api/v2/package/WinPixEventRuntime/1.0.240308001")
+endif()
 
-# Fetch NVAPI options
-option(SLANG_RHI_FETCH_NVAPI "Fetch NVAPI" ON)
-set(SLANG_RHI_FETCH_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/7cb76fce2f52de818b3da497af646af1ec16ce27.zip" CACHE STRING "NVAPI URL to fetch") # R575
+# Agility SDK
+if(NOT DEFINED SLANG_RHI_AGILITY_SDK_URL)
+    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.616.1")
+endif()
+# If using a preview version of Agility SDK, set this to D3D12_PREVIEW_SDK_VERSION
+if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)
+    set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_SDK_VERSION")
+endif()
 
-# Fetch vulkan headers options
-set(SLANG_RHI_FETCH_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.318.zip" CACHE STRING "Vulkan headers URL to fetch")
+# NVAPI
+if(NOT DEFINED SLANG_RHI_NVAPI_URL)
+    set(SLANG_RHI_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/7cb76fce2f52de818b3da497af646af1ec16ce27.zip") # R575
+endif()
 
-# Fetch OptiX options
-option(SLANG_RHI_FETCH_OPTIX "Fetch OptiX" ON)
-set(SLANG_RHI_FETCH_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip" CACHE STRING "OptiX URL to fetch") # 9.0.0
+# OptiX headers
+if(NOT DEFINED SLANG_RHI_OPTIX_URL)
+    set(SLANG_RHI_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip") # 9.0.0
+endif()
 
-# Fetch metal-cpp options
-set(SLANG_RHI_FETCH_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip" CACHE STRING "metal-cpp URL to fetch")
+# Vulkan headers
+if(NOT DEFINED SLANG_RHI_VULKAN_HEADERS_URL)
+    set(SLANG_RHI_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.318.zip")
+endif()
 
-# Fetch Dawn options
-option(SLANG_RHI_FETCH_DAWN "Fetch Dawn" ON)
-set(SLANG_RHI_FETCH_DAWN_VERSION "131.0.6738.0" CACHE STRING "Dawn version to fetch")
+# Metal C++ headers
+if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
+    set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip")
+endif()
+
+# Dawn WebGPU
+if(NOT DEFINED SLANG_RHI_DAWN_URL)
+    set(DAWN_VERSION "131.0.6738.0")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        set(DAWN_OS "windows")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(DAWN_OS "linux")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set(DAWN_OS "macos")
+    endif()
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+        set(DAWN_ARCH "x86_64")
+    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+        set(DAWN_ARCH "aarch64")
+    else()
+        message(FATAL_ERROR "Unsupported processor architecture")
+    endif()
+    set(SLANG_RHI_DAWN_URL "https://github.com/shader-slang/webgpu-dawn-binaries/releases/download/v${DAWN_VERSION}/webgpu-dawn-${DAWN_VERSION}-${DAWN_OS}-${DAWN_ARCH}.zip")
+endif()
 
 
 if(SLANG_RHI_BUILD_SHARED)
@@ -251,10 +287,10 @@ if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
     target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
 endif()
 
-# Fetch dxc
-if(SLANG_RHI_FETCH_DXC AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+# Fetch & setup DirectXShaderCompiler
+if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     message(STATUS "Fetching DirectXShaderCompiler ...")
-    FetchPackage(dxc URL ${SLANG_RHI_FETCH_DXC_URL})
+    FetchPackage(dxc URL ${SLANG_RHI_DXC_URL})
     if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
         copy_file(${dxc_SOURCE_DIR}/bin/x64/dxcompiler.dll .)
         copy_file(${dxc_SOURCE_DIR}/bin/x64/dxil.dll .)
@@ -264,10 +300,10 @@ if(SLANG_RHI_FETCH_DXC AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUA
     endif()
 endif()
 
-# Fetch WinPixEventRuntime
-if(SLANG_RHI_FETCH_WINPIX AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+# Fetch & setup WinPixEventRuntime
+if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     message(STATUS "Fetching WinPixEventRuntime ...")
-    FetchPackage(winpix URL ${SLANG_RHI_FETCH_WINPIX_URL})
+    FetchPackage(winpix URL ${SLANG_RHI_WINPIX_URL})
     if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
         copy_file(${winpix_SOURCE_DIR}/bin/x64/WinPixEventRuntime.dll .)
     elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
@@ -275,144 +311,73 @@ if(SLANG_RHI_FETCH_WINPIX AND SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STRE
     endif()
 endif()
 
-# Fetch Agility SDK
-if(SLANG_RHI_FETCH_AGILITY_SDK AND SLANG_RHI_ENABLE_AGILITY_SDK)
-    set(AGILITY_SDK_VERSION ${SLANG_RHI_FETCH_AGILITY_SDK_VERSION})
-    message(STATUS "Fetching Agility SDK ${AGILITY_SDK_VERSION} ...")
-    FetchPackage(agility_sdk URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/${AGILITY_SDK_VERSION}")
-    set(SLANG_RHI_AGILITY_SDK_DIR ${agility_sdk_SOURCE_DIR})
-endif()
-
-# Setup Agility SDK
-set(SLANG_RHI_AGILITY_SDK_DIR ${SLANG_RHI_AGILITY_SDK_DIR} CACHE STRING "Agility SDK directory")
-unset(SLANG_RHI_AGILITY_SDK_DIR)
-if (EXISTS "${SLANG_RHI_AGILITY_SDK_DIR}" AND SLANG_RHI_ENABLE_AGILITY_SDK)
+# Fetch & setup Agility SDK
+if(SLANG_RHI_ENABLE_AGILITY_SDK AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
+    message(STATUS "Fetching Agility SDK ...")
+    FetchPackage(agility_sdk URL ${SLANG_RHI_AGILITY_SDK_URL})
     if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
-        copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/x64/D3D12Core.dll D3D12)
-        copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/x64/d3d12SDKLayers.dll D3D12)
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/x64/D3D12Core.dll D3D12)
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/x64/d3d12SDKLayers.dll D3D12)
     elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
-        copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/arm64/D3D12Core.dll D3D12)
-        copy_file(${SLANG_RHI_AGILITY_SDK_DIR}/build/native/bin/arm64/d3d12SDKLayers.dll D3D12)
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/arm64/D3D12Core.dll D3D12)
+        copy_file(${agility_sdk_SOURCE_DIR}/build/native/bin/arm64/d3d12SDKLayers.dll D3D12)
     endif()
     add_library(slang-rhi-agility-sdk INTERFACE)
-    target_include_directories(slang-rhi-agility-sdk INTERFACE ${SLANG_RHI_AGILITY_SDK_DIR}/build/native/include)
+    target_include_directories(slang-rhi-agility-sdk INTERFACE ${agility_sdk_SOURCE_DIR}/build/native/include)
     target_link_libraries(slang-rhi PUBLIC slang-rhi-agility-sdk)
-elseif(SLANG_RHI_ENABLE_AGILITY_SDK)
-    message(FATAL_ERROR "Agility SDK not found! Either enable SLANG_RHI_FETCH_AGILITY_SDK or set SLANG_RHI_AGILITY_SDK_DIR to the Agility SDK directory.")
 endif()
 
-# Allow override of D3D12_SDK_VERSION (can be set in parent CMakeLists.txt)
-if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)
-    set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_SDK_VERSION" CACHE STRING "Agility SDK version number")
-endif()
-
-# Fetch NVAPI
-if(SLANG_RHI_FETCH_NVAPI AND SLANG_RHI_ENABLE_NVAPI)
+# Fetch & setup NVAPI
+if(SLANG_RHI_ENABLE_NVAPI)
     message(STATUS "Fetching NVAPI ...")
-    FetchPackage(nvapi URL ${SLANG_RHI_FETCH_NVAPI_URL})
-    set(SLANG_RHI_NVAPI_DIR ${nvapi_SOURCE_DIR})
-endif()
-
-# Setup NVAPI
-set(SLANG_RHI_NVAPI_DIR ${SLANG_RHI_NVAPI_DIR} CACHE STRING "NVAPI directory")
-unset(SLANG_RHI_NVAPI_DIR)
-if(EXISTS "${SLANG_RHI_NVAPI_DIR}" AND SLANG_RHI_ENABLE_NVAPI)
+    FetchPackage(nvapi URL ${SLANG_RHI_NVAPI_URL})
     add_library(slang-rhi-nvapi INTERFACE)
-    target_include_directories(slang-rhi-nvapi INTERFACE ${SLANG_RHI_NVAPI_DIR})
-    target_link_libraries(slang-rhi-nvapi INTERFACE ${SLANG_RHI_NVAPI_DIR}/amd64/nvapi64.lib)
+    target_include_directories(slang-rhi-nvapi INTERFACE ${nvapi_SOURCE_DIR})
+    target_link_libraries(slang-rhi-nvapi INTERFACE ${nvapi_SOURCE_DIR}/amd64/nvapi64.lib)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-nvapi)
-    set(SLANG_RHI_NVAPI_INCLUDE_DIR ${SLANG_RHI_NVAPI_DIR})
-elseif(SLANG_RHI_ENABLE_NVAPI)
-    message(FATAL_ERROR "NVAPI not found! Either enable SLANG_RHI_FETCH_NVAPI or set SLANG_RHI_NVAPI_DIR to the NVAPI directory.")
+    set(SLANG_RHI_NVAPI_INCLUDE_DIR ${nvapi_SOURCE_DIR})
 endif()
 
-# Fetch OptiX
-if(SLANG_RHI_FETCH_OPTIX AND SLANG_RHI_ENABLE_CUDA)
+# Fetch & setup OptiX headers
+if(SLANG_RHI_ENABLE_OPTIX)
     message(STATUS "Fetching OptiX headers ...")
-    FetchPackage(optix URL ${SLANG_RHI_FETCH_OPTIX_URL})
+    FetchPackage(optix URL ${SLANG_RHI_OPTIX_URL})
     set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR}/include)
-endif()
-
-# Setup OptiX
-set(SLANG_RHI_OPTIX_INCLUDE_DIR ${SLANG_RHI_OPTIX_INCLUDE_DIR} CACHE STRING "OptiX include directory")
-unset(SLANG_RHI_OPTIX_INCLUDE_DIR)
-if(EXISTS "${SLANG_RHI_OPTIX_INCLUDE_DIR}/optix.h" AND SLANG_RHI_ENABLE_CUDA)
     add_library(slang-rhi-optix INTERFACE)
     target_include_directories(slang-rhi-optix INTERFACE ${SLANG_RHI_OPTIX_INCLUDE_DIR})
     target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
-    set(SLANG_RHI_ENABLE_OPTIX ON)
-else()
-    set(SLANG_RHI_ENABLE_OPTIX OFF)
 endif()
 
-# Fetch & setup vulkan headers
+# Fetch & setup Vulkan headers
 if(SLANG_RHI_ENABLE_VULKAN)
-    message(STATUS "Fetching vulkan headers ...")
-    FetchPackage(vulkan-headers URL ${SLANG_RHI_FETCH_VULKAN_HEADERS_URL})
+    message(STATUS "Fetching Vulkan headers ...")
+    FetchPackage(vulkan_headers URL ${SLANG_RHI_VULKAN_HEADERS_URL})
     add_library(slang-rhi-vulkan-headers INTERFACE)
-    target_include_directories(slang-rhi-vulkan-headers INTERFACE ${vulkan-headers_SOURCE_DIR}/include)
+    target_include_directories(slang-rhi-vulkan-headers INTERFACE ${vulkan_headers_SOURCE_DIR}/include)
 endif()
 
-# Fetch & setup metal-cpp
+# Fetch & setup Metal C++ headers
 if(SLANG_RHI_ENABLE_METAL)
-    message(STATUS "Fetching metal-cpp ...")
-    FetchPackage(metal-cpp URL ${SLANG_RHI_FETCH_METAL_CPP_URL})
+    message(STATUS "Fetching Metal C++ headers ...")
+    FetchPackage(metal_cpp URL ${SLANG_RHI_METAL_CPP_URL})
     add_library(slang-rhi-metal-cpp INTERFACE)
-    target_include_directories(slang-rhi-metal-cpp INTERFACE ${metal-cpp_SOURCE_DIR})
+    target_include_directories(slang-rhi-metal-cpp INTERFACE ${metal_cpp_SOURCE_DIR})
 endif()
 
-# Fetch and setup Google Dawn library (WebGPU implementation)
-if(SLANG_RHI_FETCH_DAWN AND SLANG_RHI_ENABLE_WGPU)
-    set(DAWN_VERSION ${SLANG_RHI_FETCH_DAWN_VERSION})
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        set(DAWN_OS "windows")
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        set(DAWN_OS "linux")
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        set(DAWN_OS "macos")
-    endif()
-
-    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
-        set(DAWN_ARCH "x86_64")
-    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
-        set(DAWN_ARCH "aarch64")
-    else()
-        message(FATAL_ERROR "Unsupported processor architecture")
-    endif()
-
-    set(DAWN_URL "https://github.com/shader-slang/webgpu-dawn-binaries/releases/download/v${DAWN_VERSION}/webgpu-dawn-${DAWN_VERSION}-${DAWN_OS}-${DAWN_ARCH}.zip")
-    message(STATUS "Fetching Dawn ${DAWN_VERSION} ...")
-    FetchPackage(dawn URL ${DAWN_URL})
-    set(SLANG_RHI_DAWN_DIR ${dawn_SOURCE_DIR})
-endif()
-
-# Setup Dawn
-set(SLANG_RHI_DAWN_DIR ${SLANG_RHI_DAWN_DIR} CACHE STRING "Dawn directory")
-unset(SLANG_RHI_DAWN_DIR)
-if(EXISTS "${SLANG_RHI_DAWN_DIR}" AND SLANG_RHI_ENABLE_WGPU)
-    set(SLANG_RHI_DAWN_INCLUDE_DIR ${SLANG_RHI_DAWN_DIR}/include CACHE STRING "Dawn include directory")
-    set(SLANG_RHI_DAWN_LIB_DIR ${SLANG_RHI_DAWN_DIR}/lib CACHE STRING "Dawn lib directory")
-    set(SLANG_RHI_DAWN_BIN_DIR ${SLANG_RHI_DAWN_DIR}/bin CACHE STRING "Dawn bin directory")
-    # Use the variables from the cache.
-    unset(SLANG_RHI_DAWN_INCLUDE_DIR)
-    unset(SLANG_RHI_DAWN_LIB_DIR)
-    unset(SLANG_RHI_DAWN_BIN_DIR)
-
+# Fetch & setup Dawn WebGPU
+if(SLANG_RHI_ENABLE_WGPU)
+    message(STATUS "Fetching Dawn WebGPU ...")
+    FetchPackage(dawn URL ${SLANG_RHI_DAWN_URL})
     add_library(slang-rhi-dawn INTERFACE)
-    target_include_directories(slang-rhi-dawn INTERFACE ${SLANG_RHI_DAWN_INCLUDE_DIR})
-
+    target_include_directories(slang-rhi-dawn INTERFACE ${dawn_SOURCE_DIR}/include)
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        copy_file(${SLANG_RHI_DAWN_BIN_DIR}/dawn.dll .)
+        copy_file(${dawn_SOURCE_DIR}/bin/dawn.dll .)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        copy_file(${SLANG_RHI_DAWN_LIB_DIR}64/libdawn.so .)
+        copy_file(${dawn_SOURCE_DIR}/lib64/libdawn.so .)
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        copy_file(${SLANG_RHI_DAWN_LIB_DIR}/libdawn.dylib .)
+        copy_file(${dawn_SOURCE_DIR}/lib/libdawn.dylib .)
     endif()
-
     target_link_libraries(slang-rhi PRIVATE slang-rhi-dawn)
-elseif(SLANG_RHI_ENABLE_WGPU)
-    message(FATAL_ERROR "Dawn not found! Either enable SLANG_RHI_FETCH_DAWN or set SLANG_RHI_DAWN_DIR to the Dawn directory.")
 endif()
 
 # Fetch glfw
