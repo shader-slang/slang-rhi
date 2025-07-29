@@ -3,6 +3,7 @@
 #include <slang-rhi.h>
 
 #include "slang-context.h"
+#include "shader-object.h"
 
 #include "core/common.h"
 #include "core/arena-allocator.h"

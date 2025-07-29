@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace rhi {
 
 class DeviceChild;
