@@ -99,17 +99,12 @@ D3D12_FILTER_TYPE translateFilterMode(TextureFilteringMode mode)
 {
     switch (mode)
     {
+    case TextureFilteringMode::Point:
+        return D3D12_FILTER_TYPE_POINT;
+    case TextureFilteringMode::Linear:
+        return D3D12_FILTER_TYPE_LINEAR;
     default:
         return D3D12_FILTER_TYPE(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureFilteringMode::SRC:                                                                                    \
-        return D3D12_FILTER_TYPE_##DST
-
-        CASE(Point, POINT);
-        CASE(Linear, LINEAR);
-
-#undef CASE
     }
 }
 
@@ -117,19 +112,16 @@ D3D12_FILTER_REDUCTION_TYPE translateFilterReduction(TextureReductionOp op)
 {
     switch (op)
     {
+    case TextureReductionOp::Average:
+        return D3D12_FILTER_REDUCTION_TYPE_STANDARD;
+    case TextureReductionOp::Comparison:
+        return D3D12_FILTER_REDUCTION_TYPE_COMPARISON;
+    case TextureReductionOp::Minimum:
+        return D3D12_FILTER_REDUCTION_TYPE_MINIMUM;
+    case TextureReductionOp::Maximum:
+        return D3D12_FILTER_REDUCTION_TYPE_MAXIMUM;
     default:
         return D3D12_FILTER_REDUCTION_TYPE(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureReductionOp::SRC:                                                                                      \
-        return D3D12_FILTER_REDUCTION_TYPE_##DST
-
-        CASE(Average, STANDARD);
-        CASE(Comparison, COMPARISON);
-        CASE(Minimum, MINIMUM);
-        CASE(Maximum, MAXIMUM);
-
-#undef CASE
     }
 }
 
@@ -137,20 +129,18 @@ D3D12_TEXTURE_ADDRESS_MODE translateAddressingMode(TextureAddressingMode mode)
 {
     switch (mode)
     {
+    case TextureAddressingMode::Wrap:
+        return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    case TextureAddressingMode::ClampToEdge:
+        return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    case TextureAddressingMode::ClampToBorder:
+        return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    case TextureAddressingMode::MirrorRepeat:
+        return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+    case TextureAddressingMode::MirrorOnce:
+        return D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
     default:
         return D3D12_TEXTURE_ADDRESS_MODE(0);
-
-#define CASE(SRC, DST)                                                                                                 \
-    case TextureAddressingMode::SRC:                                                                                   \
-        return D3D12_TEXTURE_ADDRESS_MODE_##DST
-
-        CASE(Wrap, WRAP);
-        CASE(ClampToEdge, CLAMP);
-        CASE(ClampToBorder, BORDER);
-        CASE(MirrorRepeat, MIRROR);
-        CASE(MirrorOnce, MIRROR_ONCE);
-
-#undef CASE
     }
 }
 
