@@ -6,7 +6,7 @@
 
 /// Enable CUDA context check.
 /// This is useful for debugging to ensure that the CUDA context is set correctly when calling CUDA APIs.
-#define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 1
+#define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 0
 
 namespace rhi::cuda {
 
