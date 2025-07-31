@@ -337,11 +337,6 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         RHI_VALIDATION_ERROR("Invalid reduction op");
         return SLANG_E_INVALID_ARG;
     }
-    if (ctx->deviceType == DeviceType::Vulkan && desc.reductionOp == TextureReductionOp::Comparison)
-    {
-        RHI_VALIDATION_ERROR("Vulkan doesn't support TextureReductionOp::Comparison");
-        return SLANG_E_INVALID_ARG;
-    }
     if (desc.addressU > TextureAddressingMode::MirrorOnce)
     {
         RHI_VALIDATION_ERROR("Invalid address U mode");

@@ -932,7 +932,7 @@ VkSamplerReductionMode translateReductionOp(TextureReductionOp op)
     case TextureReductionOp::Average:
         return VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
     case TextureReductionOp::Comparison:
-        return VkSamplerReductionMode(0); // not supported (warn in validation)
+        return VkSamplerReductionMode(0); // set through compareEnable
     case TextureReductionOp::Minimum:
         return VK_SAMPLER_REDUCTION_MODE_MIN;
     case TextureReductionOp::Maximum:
