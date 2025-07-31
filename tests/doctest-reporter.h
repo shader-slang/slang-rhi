@@ -18,7 +18,8 @@
 
 #pragma comment(lib, "ntdll.lib")
 
-typedef struct _SYSTEM_HANDLE {
+typedef struct _SYSTEM_HANDLE
+{
     ULONG ProcessId;
     BYTE ObjectTypeNumber;
     BYTE Flags;
@@ -26,64 +27,92 @@ typedef struct _SYSTEM_HANDLE {
     PVOID Object;
     ACCESS_MASK GrantedAccess;
 } SYSTEM_HANDLE, *PSYSTEM_HANDLE;
-typedef struct _SYSTEM_HANDLE_INFORMATION {
+typedef struct _SYSTEM_HANDLE_INFORMATION
+{
     ULONG HandleCount;
     SYSTEM_HANDLE Handles[1];
-} SYSTEM_HANDLE_INFORMATION, * PSYSTEM_HANDLE_INFORMATION;
+} SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
 
 SYSTEM_INFORMATION_CLASS SystemInformationClass = SYSTEM_INFORMATION_CLASS(16); // SystemHandleInformation
 
-std::wstring GetHandleType(HANDLE handle) {
+std::wstring GetHandleType(HANDLE handle)
+{
     BYTE buffer[1024];
     ULONG retLen = 0;
     NTSTATUS status = NtQueryObject(handle, ObjectTypeInformation, buffer, sizeof(buffer), &retLen);
-    if (NT_SUCCESS(status)) {
+    if (NT_SUCCESS(status))
+    {
         UNICODE_STRING* typeName = (UNICODE_STRING*)buffer;
         return std::wstring(typeName->Buffer, typeName->Length / sizeof(WCHAR));
     }
     return L"";
 }
 
-void EnumerateHandles() {
+struct HandleInfo
+{
+    HANDLE handle;
+    std::wstring type;
+    std::wstring path;
+};
+
+std::vector<HandleInfo> EnumerateHandles()
+{
+    std::vector<HandleInfo> infos;
+
     ULONG len = 0x10000;
     std::vector<BYTE> buffer(len);
     ULONG returnLen = 0;
 
     NTSTATUS status = NtQuerySystemInformation(SystemInformationClass, buffer.data(), len, &returnLen);
-    if (status == STATUS_INFO_LENGTH_MISMATCH) {
+    if (status == STATUS_INFO_LENGTH_MISMATCH)
+    {
         buffer.resize(returnLen);
         status = NtQuerySystemInformation(SystemInformationClass, buffer.data(), returnLen, &returnLen);
     }
 
-    if (!NT_SUCCESS(status)) {
+    if (!NT_SUCCESS(status))
+    {
         std::cerr << "NtQuerySystemInformation failed: " << std::hex << status << "\n";
-        return;
+        return {};
     }
 
     auto* handleInfo = reinterpret_cast<PSYSTEM_HANDLE_INFORMATION>(buffer.data());
     DWORD myPid = GetCurrentProcessId();
 
-    for (ULONG i = 0; i < handleInfo->HandleCount; ++i) {
+    for (ULONG i = 0; i < handleInfo->HandleCount; ++i)
+    {
         const SYSTEM_HANDLE& sh = handleInfo->Handles[i];
-        if (sh.ProcessId != myPid) continue;
+        if (sh.ProcessId != myPid)
+            continue;
+
 
         HANDLE dup = nullptr;
         HANDLE hProc = GetCurrentProcess();
-        if (!DuplicateHandle(hProc, (HANDLE)(uintptr_t)sh.Handle, hProc, &dup, 0, FALSE, DUPLICATE_SAME_ACCESS)) continue;
+        if (!DuplicateHandle(hProc, (HANDLE)(uintptr_t)sh.Handle, hProc, &dup, 0, FALSE, DUPLICATE_SAME_ACCESS))
+            continue;
 
-        std::wstring type = GetHandleType(dup);
-        std::wcout << L"[Type] " << type;
+        HandleInfo info;
+        info.handle = (HANDLE)(uintptr_t)sh.Handle;
+        info.type = GetHandleType(dup);
+        // std::wcout << L"[Type] " << info.type;
 
-        if (type == L"File") {
+        if (info.type == L"File")
+        {
             WCHAR path[MAX_PATH];
-            if (GetFinalPathNameByHandleW(dup, path, MAX_PATH, 0)) {
-                std::wcout << L" [Path] " << path;
+            if (GetFinalPathNameByHandleW(dup, path, MAX_PATH, 0))
+            {
+                info.path = path;
+                // std::wcout << L" [Path] " << info.path;
             }
         }
 
-        std::wcout << std::endl;
+        // std::wcout << std::endl;
         CloseHandle(dup);
+
+        infos.push_back(info);
     }
+
+    return infos;
 }
 
 void dumpHandleCount(const char* msg)
@@ -91,7 +120,27 @@ void dumpHandleCount(const char* msg)
     DWORD handleCount = 0;
     GetProcessHandleCount(GetCurrentProcess(), &handleCount);
     printf("%s: handle count = %lu\n", msg, handleCount);
-    EnumerateHandles();
+
+#if 1
+    static std::map<HANDLE, HandleInfo> prevHandles;
+    static std::map<HANDLE, HandleInfo> currentHandles;
+    auto handles = EnumerateHandles();
+    currentHandles.clear();
+    for (const auto& info : handles)
+    {
+        if (prevHandles.find(info.handle) == prevHandles.end())
+        {
+            // New handle
+            printf("new handle: %p, type: %ls\n", info.handle, info.type.c_str());
+            if (info.path.size() > 0)
+            {
+                printf("  path: %ls\n", info.path.c_str());
+            }
+        }
+        currentHandles[info.handle] = info;
+    }
+    prevHandles = currentHandles;
+#endif
 }
 
 namespace doctest {
@@ -125,7 +174,6 @@ struct CustomReporter : public IReporter
 
     void test_run_start() override
     {
-        dumpHandleCount("test_run_start");
         LOCK();
         stream << Color::None;
         consoleReporter.test_run_start();
@@ -146,7 +194,7 @@ struct CustomReporter : public IReporter
 
     void test_case_start(const TestCaseData& in) override
     {
-        dumpHandleCount("test_run_end");
+        dumpHandleCount("test_case_start");
         LOCK();
         ensure_newline();
         consoleReporter.test_case_start(in);

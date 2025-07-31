@@ -366,6 +366,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext),
                     this
                 );
+                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(optixDeviceContextSetCacheEnabled(m_ctx.optixContext, false), this);
                 m_ownsOptixContext = true;
             }
 

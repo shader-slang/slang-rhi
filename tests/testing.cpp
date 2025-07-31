@@ -481,6 +481,7 @@ ComPtr<IDevice> createTestingDevice(
     const DeviceExtraOptions* extraOptions
 )
 {
+    useCachedDevice = false;
     // Extra options can only be used when not using cached device.
     if (useCachedDevice)
     {
