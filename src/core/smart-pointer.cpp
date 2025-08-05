@@ -1,5 +1,7 @@
 #include "smart-pointer.h"
 
+#include <cstdio>
+
 namespace rhi {
 
 #if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
