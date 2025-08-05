@@ -12,7 +12,7 @@ void RefObjectTracker::reportLiveObjects()
         printf("Found %zu live RHI objects!\n", objects.size());
         for (auto obj : objects)
         {
-            printf("Live object: %p\n", obj);
+            printf("Live object: %p\n", static_cast<void *>(obj));
         }
     }
 }
