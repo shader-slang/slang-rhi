@@ -58,7 +58,7 @@ jobs:
       # Complete Claude execution with authentication, setup, and execution
       - name: Run Claude Code
         id: claude
-        uses: szihs/slang/.github/actions/claude-code-runner@master
+        uses: shader-slang/slang/.github/actions/claude-code-runner@master
         with:
           # Authentication (these secrets must be configured in your repository)
           llmgw-id: ${{ secrets.LLMGW_ID }}
