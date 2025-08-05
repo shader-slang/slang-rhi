@@ -7,7 +7,7 @@
 #include <atomic>
 #include <type_traits>
 
-#define SLANG_RHI_ENABLE_REF_OBJECT_TRACKING 0
+#define SLANG_RHI_ENABLE_REF_OBJECT_TRACKING 1
 
 #if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
 #include <mutex>
@@ -30,6 +30,8 @@ struct RefObjectTracker
         std::lock_guard<std::mutex> lock(mutex);
         objects.erase(obj);
     }
+
+    void reportLiveObjects();
 
     static RefObjectTracker& instance()
     {
