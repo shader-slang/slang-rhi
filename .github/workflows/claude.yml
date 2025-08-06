@@ -1,0 +1,124 @@
+name: ClaudeCode - Slang-RHI Assistant
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+  id-token: write
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  claude:
+    name: Claude Code Assistant
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude')))
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    # Cancel previous runs on new pushes
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: true
+
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      # Setup MSVC.
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # Setup CMake/Ninja.
+      - name: Setup CMake/Ninja
+        uses: lukka/get-cmake@latest
+
+      # Complete Claude execution with authentication, setup, and execution
+      - name: Run Claude Code
+        id: claude
+        uses: shader-slang/slang/.github/actions/claude-code-runner@master
+        with:
+          # Authentication (these secrets must be configured in your repository)
+          llmgw-id: ${{ secrets.LLMGW_ID }}
+          llmgw-secret: ${{ secrets.LLMGW_SECRET }}
+          llmgw-token-url: ${{ secrets.LLMGW_TOKEN_URL }}
+          github-token-fallback: ${{ secrets.GITHUB_TOKEN }}
+
+          # Repository-specific setup for Slang-RHI
+          setup-commands: |
+            set -euo pipefail
+            echo "🏗️ Setting up Slang-RHI environment..."
+
+            # Cleanup submodules
+            git submodule foreach --recursive git clean -ffdx
+            git submodule foreach --recursive git reset --hard
+
+            # Setup Linux dependencies (matches ci.yml Setup Linux step)
+            sudo apt update && sudo apt install -y xorg-dev
+
+            # Slang-RHI build sequence (matches ci.yml exact order)
+            cmake --preset default --fresh
+            cmake --build build --config Debug
+
+            # Quick validation (matches ci.yml unit test pattern without requiring GPU)
+            echo "🧪 Running basic validation..."
+            if [ -f "./build/Debug/slang-rhi-tests" ]; then
+              ./build/Debug/slang-rhi-tests -check-devices || echo "✅ Test executable built successfully"
+            fi
+
+            echo "✅ Slang-RHI environment setup completed"
+
+          # Custom instructions for Slang-RHI
+          custom-instructions: |
+            # Slang-RHI Build System Information:
+            - OS: Ubuntu Linux
+            - Project is pre-built and ready for development tasks
+
+            ### **IMPORTANT: Deep Repository Knowledge & Debugging**
+            **Repository Knowledge Tool**: Use `mcp__deepwiki__ask_question` with repoName "shader-slang/slang-rhi" OR "shader-slang/slang" for architectural insights and implementation patterns for respective codes.
+
+            **Implementation Guidelines:**
+            - Use git history (`git log -S "keyword"`) to find related features but don't spend excessive time
+            - Use deepwiki for expert insights and architectural patterns
+            - Think carefully about the user's request before implementing
+          # MCP configuration for deepwiki
+          mcp-config: |
+            {
+              "mcpServers": {
+                "deepwiki": {
+                  "type": "sse",
+                  "url": "https://mcp.deepwiki.com/sse"
+                }
+              }
+            }
+
+          # Advanced configuration (using repository variables/secrets)
+          model: ${{ vars.ANTHROPIC_MODEL }}
+          aws-region: ${{ vars.AWS_REGION }}
+          bedrock-base-url: ${{ vars.ANTHROPIC_BEDROCK_BASE_URL }}
+          small-fast-model: ${{ vars.ANTHROPIC_SMALL_FAST_MODEL }}
+
+          # Additional tools for deepwiki (Slang-RHI specific)
+          allowed-tools: "Bash,View,GlobTool,GrepTool,BatchTool,Write,mcp__deepwiki__ask_question"
