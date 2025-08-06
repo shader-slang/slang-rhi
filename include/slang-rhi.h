@@ -3292,7 +3292,7 @@ public:
     }
 
     /// Reports current set of live objects.
-    /// Currently this just calls D3D's ReportLiveObjects.
+    /// Lists all live RHI objects as well as D3D's live objects (using ReportLiveObjects).
     virtual SLANG_NO_THROW Result SLANG_MCALL reportLiveObjects() = 0;
 
     /// Set the global task pool for the RHI.
