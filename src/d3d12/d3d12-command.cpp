@@ -753,10 +753,14 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
                 const TextureDesc& srcDesc = srcView->m_texture->m_desc;
                 const TextureDesc& dstDesc = dstView->m_texture->m_desc;
 
-                uint32_t srcMipCount = srcRange.mipCount == kAllMips ? srcDesc.mipLevelCount - srcRange.mip : srcRange.mipCount;
-                uint32_t dstMipCount = dstRange.mipCount == kAllMips ? dstDesc.mipLevelCount - dstRange.mip : dstRange.mipCount;
-                uint32_t srcLayerCount = srcRange.layerCount == kAllLayers ? srcDesc.arraySize - srcRange.layer : srcRange.layerCount;
-                uint32_t dstLayerCount = dstRange.layerCount == kAllLayers ? dstDesc.arraySize - dstRange.layer : dstRange.layerCount;
+                uint32_t srcMipCount =
+                    srcRange.mipCount == kAllMips ? srcDesc.mipLevelCount - srcRange.mip : srcRange.mipCount;
+                uint32_t dstMipCount =
+                    dstRange.mipCount == kAllMips ? dstDesc.mipLevelCount - dstRange.mip : dstRange.mipCount;
+                uint32_t srcLayerCount =
+                    srcRange.layerCount == kAllLayers ? srcDesc.arraySize - srcRange.layer : srcRange.layerCount;
+                uint32_t dstLayerCount =
+                    dstRange.layerCount == kAllLayers ? dstDesc.arraySize - dstRange.layer : dstRange.layerCount;
 
                 // Ensure both views have matching subresource counts
                 uint32_t mipCount = std::min(srcMipCount, dstMipCount);

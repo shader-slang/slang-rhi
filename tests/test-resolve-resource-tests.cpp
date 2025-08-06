@@ -309,7 +309,7 @@ struct ResolveResourceSubrange : BaseResolveResourceTest
         colorAttachment.clearValue[1] = 1.0f;
         colorAttachment.clearValue[2] = 0.0f;
         colorAttachment.clearValue[3] = 1.0f;
-        
+
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
@@ -339,7 +339,7 @@ struct ResolveResourceSubrange : BaseResolveResourceTest
         SubresourceLayout layer0Layout;
         REQUIRE_CALL(device->readTexture(dstTexture, 0, 0, layer0Blob.writeRef(), &layer0Layout));
         auto layer0Result = (float*)layer0Blob->getBufferPointer();
-        
+
         // Check a pixel in layer 0 - should be black (0,0,0,1)
         auto layer0Pixel = layer0Result + 128 * 4 + 128 * layer0Layout.rowPitch / sizeof(float);
         CHECK(abs(layer0Pixel[0] - 0.0f) < 0.01f); // Red
@@ -351,7 +351,7 @@ struct ResolveResourceSubrange : BaseResolveResourceTest
         SubresourceLayout layer1Layout;
         REQUIRE_CALL(device->readTexture(dstTexture, 1, 0, layer1Blob.writeRef(), &layer1Layout));
         auto layer1Result = (float*)layer1Blob->getBufferPointer();
-        
+
         // Check a pixel in layer 1 - should have triangle colors
         auto layer1Pixel = layer1Result + 64 * 4 + 64 * layer1Layout.rowPitch / sizeof(float);
         CHECK(abs(layer1Pixel[0] - 0.5f) < 0.01f); // Red component should be around 0.5
