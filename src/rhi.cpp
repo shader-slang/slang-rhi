@@ -391,6 +391,9 @@ Result RHI::createBlob(const void* data, size_t size, ISlangBlob** outBlob)
 
 Result RHI::reportLiveObjects()
 {
+#if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
+    RefObjectTracker::instance().reportLiveObjects();
+#endif
 #if SLANG_RHI_ENABLE_D3D11 | SLANG_RHI_ENABLE_D3D12
     SLANG_RETURN_ON_FAIL(reportD3DLiveObjects());
 #endif

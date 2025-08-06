@@ -31,6 +31,8 @@ struct RefObjectTracker
         objects.erase(obj);
     }
 
+    void reportLiveObjects();
+
     static RefObjectTracker& instance()
     {
         static RefObjectTracker tracker;

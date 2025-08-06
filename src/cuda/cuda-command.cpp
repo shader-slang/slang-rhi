@@ -459,10 +459,9 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
             );
         }
     }
-    //
+
     // The argument data for the entry-point parameters are already
     // stored in host memory, as expected by cuLaunchKernel.
-    //
     SLANG_RHI_ASSERT(entryPointData.size >= computePipeline->m_paramBufferSize);
     void* extraOptions[] = {
         CU_LAUNCH_PARAM_BUFFER_POINTER,
@@ -472,9 +471,15 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         CU_LAUNCH_PARAM_END,
     };
 
-    // Once we have all the necessary data extracted and/or
-    // set up, we can launch the kernel and see what happens.
-    //
+    // This a big hammer! There are various scenarios where we have to synchronize the stream
+    // between kernel launches. One example is accessing texture memory: writes to texture memory (CUDA surface)
+    // are not guaranteed to be visible to the next launch reading from it (CUDA texture) without synchronization.
+    // We need to investigate if finer grained synchronization makes sense here. But this requires
+    // tracking texture states similarly to how it is done in D3D12/Vulkan.
+    // Note: This *does not* block the host unless the context is set to blocking mode.
+    cuStreamSynchronize(m_stream);
+
+    // Once we have all the necessary data extracted and/or set up, we can launch the kernel.
     SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernel(
         computePipeline->m_function,
         cmd.x,
@@ -540,6 +545,9 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 
     OptixShaderBindingTable sbt = m_shaderTableInstance->sbt;
     sbt.raygenRecord += cmd.rayGenShaderIndex * m_shaderTableInstance->raygenRecordSize;
+
+    // This is a big hammer! See notes in `cmdDispatchCompute`.
+    cuStreamSynchronize(m_stream);
 
     SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
         m_rayTracingPipeline->m_pipeline,
