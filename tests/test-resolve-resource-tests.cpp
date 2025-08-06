@@ -267,3 +267,101 @@ GPU_TEST_CASE("resolve-resource-simple", D3D11 | D3D12 | Vulkan | Metal)
     test.init(device);
     test.run();
 }
+
+struct ResolveResourceSubrange : BaseResolveResourceTest
+{
+    void run()
+    {
+        // Test resolving to a specific subresource (array layer 1 instead of 0)
+        Extent3D extent = {};
+        extent.width = kWidth;
+        extent.height = kHeight;
+        extent.depth = 1;
+
+        TextureInfo msaaTextureInfo = {extent, 1, 2, nullptr}; // 2 array layers
+        TextureInfo dstTextureInfo = {extent, 1, 2, nullptr};  // 2 array layers
+
+        createRequiredResources(msaaTextureInfo, dstTextureInfo, kFormat);
+
+        // Create texture views for specific array layers (layer 1)
+        TextureViewDesc msaaViewDesc = {};
+        msaaViewDesc.format = kFormat;
+        msaaViewDesc.subresourceRange = {1, 1, 0, 1}; // layer 1, mip 0
+        ComPtr<ITextureView> msaaSubView;
+        REQUIRE_CALL(device->createTextureView(msaaTexture, msaaViewDesc, msaaSubView.writeRef()));
+
+        TextureViewDesc dstViewDesc = {};
+        dstViewDesc.format = kFormat;
+        dstViewDesc.subresourceRange = {1, 1, 0, 1}; // layer 1, mip 0
+        ComPtr<ITextureView> dstSubView;
+        REQUIRE_CALL(device->createTextureView(dstTexture, dstViewDesc, dstSubView.writeRef()));
+
+        // Render and resolve to layer 1
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+
+        RenderPassColorAttachment colorAttachment;
+        colorAttachment.view = msaaSubView;
+        colorAttachment.resolveTarget = dstSubView;
+        colorAttachment.loadOp = LoadOp::Clear;
+        colorAttachment.storeOp = StoreOp::Store;
+        colorAttachment.clearValue[0] = 0.0f;
+        colorAttachment.clearValue[1] = 1.0f;
+        colorAttachment.clearValue[2] = 0.0f;
+        colorAttachment.clearValue[3] = 1.0f;
+        
+        RenderPassDesc renderPass;
+        renderPass.colorAttachments = &colorAttachment;
+        renderPass.colorAttachmentCount = 1;
+        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
+
+        passEncoder->bindPipeline(pipeline);
+
+        RenderState state;
+        state.viewports[0] = Viewport::fromSize(extent.width, extent.height);
+        state.viewportCount = 1;
+        state.scissorRects[0] = ScissorRect::fromSize(extent.width, extent.height);
+        state.scissorRectCount = 1;
+        state.vertexBuffers[0] = vertexBuffer;
+        state.vertexBufferCount = 1;
+        passEncoder->setRenderState(state);
+
+        DrawArguments args;
+        args.vertexCount = kVertexCount;
+        passEncoder->draw(args);
+        passEncoder->end();
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+
+        // Verify that layer 0 is still clear (should be black)
+        ComPtr<ISlangBlob> layer0Blob;
+        SubresourceLayout layer0Layout;
+        REQUIRE_CALL(device->readTexture(dstTexture, 0, 0, layer0Blob.writeRef(), &layer0Layout));
+        auto layer0Result = (float*)layer0Blob->getBufferPointer();
+        
+        // Check a pixel in layer 0 - should be black (0,0,0,1)
+        auto layer0Pixel = layer0Result + 128 * 4 + 128 * layer0Layout.rowPitch / sizeof(float);
+        CHECK(abs(layer0Pixel[0] - 0.0f) < 0.01f); // Red
+        CHECK(abs(layer0Pixel[1] - 0.0f) < 0.01f); // Green
+        CHECK(abs(layer0Pixel[2] - 0.0f) < 0.01f); // Blue
+
+        // Verify that layer 1 has rendered content
+        ComPtr<ISlangBlob> layer1Blob;
+        SubresourceLayout layer1Layout;
+        REQUIRE_CALL(device->readTexture(dstTexture, 1, 0, layer1Blob.writeRef(), &layer1Layout));
+        auto layer1Result = (float*)layer1Blob->getBufferPointer();
+        
+        // Check a pixel in layer 1 - should have triangle colors
+        auto layer1Pixel = layer1Result + 64 * 4 + 64 * layer1Layout.rowPitch / sizeof(float);
+        CHECK(abs(layer1Pixel[0] - 0.5f) < 0.01f); // Red component should be around 0.5
+        CHECK(abs(layer1Pixel[1] - 0.5f) < 0.01f); // Green component should be around 0.5
+    }
+};
+
+GPU_TEST_CASE("resolve-resource-subrange", D3D12 | Vulkan)
+{
+    ResolveResourceSubrange test;
+    test.init(device);
+    test.run();
+}
