@@ -549,7 +549,7 @@ Result DeviceImpl::readTexture(
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
-    cuStreamSynchronize(m_queue->m_stream);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_queue->m_stream), this);
 
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 
@@ -581,7 +581,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, void*
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
-    cuStreamSynchronize(m_queue->m_stream);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_queue->m_stream), this);
 
     auto bufferImpl = checked_cast<BufferImpl*>(buffer);
     if (offset + size > bufferImpl->m_desc.size)
