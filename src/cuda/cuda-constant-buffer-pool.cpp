@@ -55,7 +55,7 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
         page.usedSize = size;
         outAllocation.hostData = page.handle->getHostPtr();
         outAllocation.deviceData = page.handle->getDevicePtr();
-        return SLANG_FAIL;
+        return SLANG_OK;
     }
 
     if (m_currentPage == -1 || m_currentOffset + size > kPageSize)
