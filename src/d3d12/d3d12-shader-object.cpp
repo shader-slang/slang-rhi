@@ -121,6 +121,29 @@ Result BindingDataBuilder::bindAsRoot(
         bindAsConstantBuffer(shaderObject, descriptorSet, rootOffset, rootParamIndex, specializedLayout)
     );
 
+#if SLANG_RHI_ENABLE_NVAPI
+    // Bind a null UAV descriptor for the NVAPI shader extension slot if enabled
+    // This must be done at the root level since the NVAPI range is added to the root signature
+    if (m_device->m_nvapiShaderExtension && descriptorSet.resources.count > 0)
+    {
+        ID3D12Device* d3dDevice = m_device->m_device;
+
+        // The NVAPI UAV descriptor should be at the very last position in the descriptor table
+        // since we added the NVAPI UAV range last during root signature creation
+        uint32_t nvapiDescriptorIndex = descriptorSet.resources.count - 1;
+
+        D3D12_CPU_DESCRIPTOR_HANDLE nullUavDescriptor =
+            m_device->getNullDescriptor(slang::BindingType::MutableRawBuffer, SLANG_STRUCTURED_BUFFER);
+
+        d3dDevice->CopyDescriptorsSimple(
+            1,
+            descriptorSet.resources.getCpuHandle(nvapiDescriptorIndex),
+            nullUavDescriptor,
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+        );
+    }
+#endif
+
     size_t entryPointCount = specializedLayout->m_entryPoints.size();
     for (size_t i = 0; i < entryPointCount; ++i)
     {
@@ -162,7 +185,15 @@ Result BindingDataBuilder::allocateDescriptorSets(
     //
     auto& rootParamIndex = ioOffset.rootParam;
 
-    if (uint32_t descriptorCount = specializedLayout->getTotalResourceDescriptorCount())
+    uint32_t descriptorCount = specializedLayout->getTotalResourceDescriptorCount();
+#if SLANG_RHI_ENABLE_NVAPI
+    // Add one extra descriptor for NVAPI UAV slot if enabled
+    if (m_device->m_nvapiShaderExtension)
+    {
+        descriptorCount += 1;
+    }
+#endif
+    if (descriptorCount > 0)
     {
         auto allocation = m_cbvSrvUavArena->allocate(descriptorCount);
         if (!allocation.isValid())
@@ -174,9 +205,9 @@ Result BindingDataBuilder::allocateDescriptorSets(
             createRootDescriptorTable(rootParamIndex, allocation.firstGpuHandle);
         outDescriptorSet.resources = allocation;
     }
-    if (auto descriptorCount = specializedLayout->getTotalSamplerDescriptorCount())
+    if (auto samplerDescriptorCount = specializedLayout->getTotalSamplerDescriptorCount())
     {
-        auto allocation = m_samplerArena->allocate(descriptorCount);
+        auto allocation = m_samplerArena->allocate(samplerDescriptorCount);
         if (!allocation.isValid())
         {
             return SLANG_E_OUT_OF_MEMORY;

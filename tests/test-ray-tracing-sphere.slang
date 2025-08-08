@@ -54,7 +54,7 @@ void missShader(inout RayPayload payload)
 }
 
 [shader("closesthit")]
-void closestHitShader(inout RayPayload payload)
+void closestHitShader(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     uint primitiveIndex = PrimitiveIndex();
     float4 color = float4(0, 0, 0, 1);
@@ -99,7 +99,7 @@ void rayGenSphereIntrinsics()
 }
 
 [shader("closesthit")]
-void closestHitSphereIntrinsics(inout RayPayloadIntrinsics payload)
+void closestHitSphereIntrinsics(inout RayPayloadIntrinsics payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     payload.res.isSphereHit = IsSphereHit();
     payload.res.spherePositionAndRadius = GetSpherePositionAndRadius();

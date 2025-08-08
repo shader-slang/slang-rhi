@@ -676,6 +676,22 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             m_nvapiShaderExtension.uavSlot,
             m_nvapiShaderExtension.registerSpace
         ));
+
+        if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres) ||
+            is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
+        {
+            NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
+            params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
+
+            if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
+                params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_LSS_SUPPORT;
+            if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
+                params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_SPHERE_SUPPORT;
+
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL(
+                NvAPI_D3D12_SetCreatePipelineStateOptions((ID3D12Device5*)m_device, &params)
+            );
+        }
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
@@ -689,6 +705,17 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     if (m_nvapiShaderExtension)
     {
         SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, 0xffffffff, 0));
+
+        // LSS support is global and has a perf impact on all pipelines, so we should disable it.
+        if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
+        {
+            NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
+            params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
+
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL(
+                NvAPI_D3D12_SetCreatePipelineStateOptions((ID3D12Device5*)m_device, &params)
+            );
+        }
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
