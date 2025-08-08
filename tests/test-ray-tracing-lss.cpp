@@ -410,6 +410,12 @@ GPU_TEST_CASE("ray-tracing-lss-intersection", ALL & ~(D3D12 | Vulkan))
 struct TestResult
 {
     int isLssHit;
+    float lssPositionsAndRadii[8];
+};
+
+struct TestResultCudaAligned
+{
+    int isLssHit;
     int pad[3];
     float lssPositionsAndRadii[8];
 };
@@ -433,21 +439,25 @@ struct RayTracingLssIntrinsicsTest : public RayTracingLssTestBase
 
     void createResultBuffer()
     {
+        const size_t resultSize =
+            device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
+
         BufferDesc resultBufferDesc = {};
-        resultBufferDesc.size = sizeof(TestResult);
-        resultBufferDesc.elementSize = sizeof(TestResult);
+        resultBufferDesc.size = resultSize;
+        resultBufferDesc.elementSize = resultSize;
         resultBufferDesc.memoryType = MemoryType::DeviceLocal;
         resultBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
         resultBuffer = device->createBuffer(resultBufferDesc);
         REQUIRE(resultBuffer != nullptr);
     }
 
+    template<typename T>
     void checkTestResults()
     {
         ComPtr<ISlangBlob> resultBlob;
-        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(TestResult), resultBlob.writeRef()));
+        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(T), resultBlob.writeRef()));
 
-        const TestResult* result = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
+        const T* result = reinterpret_cast<const T*>(resultBlob->getBufferPointer());
 
         CHECK_EQ(result->isLssHit, 1);
 
@@ -466,6 +476,14 @@ struct RayTracingLssIntrinsicsTest : public RayTracingLssTestBase
 
         // Right endcap radius
         CHECK_EQ(result->lssPositionsAndRadii[7], 0.5f);
+    }
+
+    void checkTestResults()
+    {
+        if (device->getDeviceType() == DeviceType::CUDA)
+            checkTestResults<TestResultCudaAligned>();
+        else
+            checkTestResults<TestResult>();
     }
 
     void renderFrame()

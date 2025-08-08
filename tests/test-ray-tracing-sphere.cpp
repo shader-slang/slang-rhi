@@ -379,6 +379,12 @@ GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL & ~(D3D12 | Vulkan))
 struct TestResult
 {
     int isSphereHit;
+    float spherePositionAndRadius[4];
+};
+
+struct TestResultCudaAligned
+{
+    int isSphereHit;
     int pad[3];
     float spherePositionAndRadius[4];
 };
@@ -397,26 +403,38 @@ struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
 
     void createResultBuffer()
     {
+        const size_t resultSize =
+            device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
+
         BufferDesc resultBufferDesc = {};
-        resultBufferDesc.size = sizeof(TestResult);
-        resultBufferDesc.elementSize = sizeof(TestResult);
+        resultBufferDesc.size = resultSize;
+        resultBufferDesc.elementSize = resultSize;
         resultBufferDesc.memoryType = MemoryType::DeviceLocal;
         resultBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
         resultBuffer = device->createBuffer(resultBufferDesc);
         REQUIRE(resultBuffer != nullptr);
     }
 
+    template<typename T>
     void checkTestResults()
     {
         ComPtr<ISlangBlob> resultBlob;
-        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(TestResult), resultBlob.writeRef()));
+        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(T), resultBlob.writeRef()));
 
-        const TestResult* result = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
+        const T* result = reinterpret_cast<const T*>(resultBlob->getBufferPointer());
         CHECK_EQ(result->isSphereHit, 1);
         CHECK_EQ(result->spherePositionAndRadius[0], 0.0f);
         CHECK_EQ(result->spherePositionAndRadius[1], 0.0f);
         CHECK_EQ(result->spherePositionAndRadius[2], -3.0f);
         CHECK_EQ(result->spherePositionAndRadius[3], 2.0f);
+    }
+
+    void checkTestResults()
+    {
+        if (device->getDeviceType() == DeviceType::CUDA)
+            checkTestResults<TestResultCudaAligned>();
+        else
+            checkTestResults<TestResult>();
     }
 
     void renderFrame()
