@@ -386,7 +386,7 @@ Result AccelerationStructureBuildDescConverterNVAPI::convert(
                 return SLANG_E_INVALID_ARG;
             }
             NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX& geomDesc = geomDescs[i];
-            geomDesc.type = NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_SPHERES_EX;
+            geomDesc.type = NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_LSS_EX;
             geomDesc.flags = translateGeometryFlags(lss.flags);
             geomDesc.lss.vertexCount = lss.vertexCount;
             geomDesc.lss.vertexPositionBuffer.StartAddress = lss.vertexPositionBuffers[0].getDeviceAddress();
