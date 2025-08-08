@@ -245,7 +245,10 @@ struct RayTracingLssTestBase
         HitGroupDesc hitGroups[1];
         hitGroups[0].hitGroupName = hitgroupNames[0];
         hitGroups[0].closestHitEntryPoint = closestHitName;
-        hitGroups[0].intersectionEntryPoint = "__builtin_intersection__linear_swept_spheres";
+
+        // We must specify an explicit intersection shader for all non-triangle geometry in OptiX.
+        if (device->getDeviceType() == DeviceType::CUDA)
+            hitGroups[0].intersectionEntryPoint = "__builtin_intersection__linear_swept_spheres";
 
         RayTracingPipelineDesc rtpDesc = {};
         rtpDesc.program = rayTracingProgram;
