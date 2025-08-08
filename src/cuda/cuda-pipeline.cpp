@@ -4,6 +4,10 @@
 #include "cuda-shader-object-layout.h"
 #include "cuda-utils.h"
 
+// Enable using cuModuleLoadDataEx for loading CUDA modules.
+// This allows us to get logs for module loading.
+#define SLANG_RHI_CUDA_DEBUG_MODULE_LOAD 0
+
 namespace rhi::cuda {
 
 ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
@@ -40,7 +44,49 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
 
+#if SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
+    // Setup buffers for info and error logs.
+    size_t infoLogSize = 16 * 1024;
+    size_t errorLogSize = 16 * 1024;
+    int logVerbose = 1;
+    auto infoLog = std::make_unique<uint8_t[]>(infoLogSize);
+    auto errorLog = std::make_unique<uint8_t[]>(errorLogSize);
+
+    CUjit_option options[] = {
+        CU_JIT_INFO_LOG_BUFFER,
+        CU_JIT_INFO_LOG_BUFFER_SIZE_BYTES,
+        CU_JIT_ERROR_LOG_BUFFER,
+        CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES,
+        CU_JIT_LOG_VERBOSE,
+    };
+    void* optionValues[] = {
+        infoLog.get(),
+        (void*)(uintptr_t)infoLogSize,
+        errorLog.get(),
+        (void*)(uintptr_t)errorLogSize,
+        (void*)(uintptr_t)logVerbose,
+    };
+    CUresult result = cuModuleLoadDataEx(
+        &pipeline->m_module,
+        module.code->getBufferPointer(),
+        SLANG_COUNT_OF(options),
+        options,
+        optionValues
+    );
+    infoLogSize = *(unsigned int*)(&optionValues[1]);
+    errorLogSize = *(unsigned int*)(&optionValues[3]);
+    if (infoLogSize > 0)
+    {
+        printInfo("Info log from cuModuleLoadDataEx:\n%s", infoLog.get());
+    }
+    if (errorLogSize > 0)
+    {
+        printError("Error log from cuModuleLoadDataEx:\n%s", errorLog.get());
+    }
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
+#else  // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()), this);
+#endif // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
     pipeline->m_kernelName = module.entryPointName;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(
         cuModuleGetFunction(&pipeline->m_function, pipeline->m_module, pipeline->m_kernelName.data()),
