@@ -43,6 +43,7 @@ VkFormat getVkFormat(Format format);
 VkAttachmentLoadOp translateLoadOp(LoadOp loadOp);
 VkAttachmentStoreOp translateStoreOp(StoreOp storeOp);
 VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags flags);
+VkPipelineCreateFlags2 translateRayTracingPipelineFlags2(RayTracingPipelineFlags flags);
 
 VkImageLayout translateImageLayout(ResourceState state);
 
