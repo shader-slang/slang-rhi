@@ -963,6 +963,21 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
         builder.addAsValue(entryPoint->getVarLayout(), rootDescriptorSetIndex);
     }
 
+#if SLANG_RHI_ENABLE_NVAPI
+    // Add NVAPI shader extension UAV slot if enabled
+    if (device->m_nvapiShaderExtension)
+    {
+        builder.addDescriptorRange(
+            rootDescriptorSetIndex,
+            D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+            device->m_nvapiShaderExtension.uavSlot,
+            device->m_nvapiShaderExtension.registerSpace,
+            1,
+            false
+        );
+    }
+#endif
+
     // This is hacky, before calling build(), m_rootParameters contains only the root parameters.
     rootLayout->m_rootSignatureRootParameterCount = builder.m_rootParameters.size();
     auto& rootSignatureDesc = builder.build();
