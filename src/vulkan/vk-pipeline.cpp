@@ -707,9 +707,13 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
+    VkPipelineCreateFlags2CreateInfoKHR createFlags2Info = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR};
+    createFlags2Info.pNext = nullptr;
+    createFlags2Info.flags = translateRayTracingPipelineFlags2(desc.flags);
+
     VkRayTracingPipelineCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
-    createInfo.pNext = nullptr;
-    createInfo.flags = translateRayTracingPipelineFlags(desc.flags);
+    createInfo.pNext = &createFlags2Info;
+    createInfo.flags = 0; // Unused; the extended flags are in the pNext chain.
 
     createInfo.stageCount = (uint32_t)program->m_stageCreateInfos.size();
     createInfo.pStages = program->m_stageCreateInfos.data();
