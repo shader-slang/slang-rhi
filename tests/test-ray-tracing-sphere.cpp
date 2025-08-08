@@ -477,7 +477,8 @@ GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
     test.run("rayGenSphereIntrinsics", "closestHitSphereIntrinsics");
 }
 
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL)
+// Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/8128
+GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", CUDA | Vulkan)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
