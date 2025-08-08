@@ -367,7 +367,7 @@ struct RayTracingSphereIntersectionTest : public RayTracingSphereTestBase
     }
 };
 
-GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL & ~(D3D12 | Vulkan))
+GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -465,7 +465,7 @@ struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
     }
 };
 
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL & ~(D3D12 | Vulkan))
+GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -477,7 +477,8 @@ GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL & ~(D3D12 | Vulkan))
     test.run("rayGenSphereIntrinsics", "closestHitSphereIntrinsics");
 }
 
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL & ~(D3D12 | Vulkan))
+// Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/8128
+GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL & ~D3D12)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
