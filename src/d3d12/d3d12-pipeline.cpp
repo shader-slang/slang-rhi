@@ -688,6 +688,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
                 params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_SPHERE_SUPPORT;
 
+            // TODO: This sets global state!
+            // Need to revisit if createRayTracingPipeline2 can get called from multiple threads.
             SLANG_RHI_NVAPI_RETURN_ON_FAIL(
                 NvAPI_D3D12_SetCreatePipelineStateOptions((ID3D12Device5*)m_device, &params)
             );
