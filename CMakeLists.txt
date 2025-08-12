@@ -746,6 +746,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-nested-parameter-block.cpp
         tests/test-null-views.cpp
         tests/test-nvrtc.cpp
+        tests/test-nvapi.cpp
         tests/test-offset-allocator.cpp
         tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
