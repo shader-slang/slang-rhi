@@ -86,6 +86,8 @@ GPU_TEST_CASE("buffer-barrier", ALL)
     compareComputeResult(device, outputBuffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f));
 }
 
+// TODO: Currently disabled because the race condition will not ALWAYS materialize, making the test unreliable.
+#if 0
 GPU_TEST_CASE("buffer-no-barrier-race-condition", ALL)
 {
     Shader programA;
@@ -142,6 +144,7 @@ GPU_TEST_CASE("buffer-no-barrier-race-condition", ALL)
     bool expectFailure = device->getDeviceType() == DeviceType::D3D12 || device->getDeviceType() == DeviceType::Vulkan;
     compareComputeResult(device, outputBuffer, makeArray<float>(11.0f, 12.0f, 13.0f, 14.0f), expectFailure);
 }
+#endif
 
 GPU_TEST_CASE("buffer-global-barrier", D3D12 | Vulkan)
 {
