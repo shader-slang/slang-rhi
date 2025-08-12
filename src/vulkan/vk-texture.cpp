@@ -114,11 +114,16 @@ TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
 {
 }
 
-TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect, const SubresourceRange& range)
+TextureSubresourceView TextureImpl::getView(
+    Format format,
+    TextureAspect aspect,
+    const SubresourceRange& range,
+    bool isRenderTarget
+)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    ViewKey key = {format, aspect, range};
+    ViewKey key = {format, aspect, range, isRenderTarget};
 
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -154,7 +159,8 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
         break;
     case TextureType::Texture3D:
-        createInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+        // 3D textures are bound as 2D arrays when used as render targets.
+        createInfo.viewType = isRenderTarget ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_3D;
         break;
     case TextureType::TextureCube:
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
@@ -170,6 +176,12 @@ TextureSubresourceView TextureImpl::getView(Format format, TextureAspect aspect,
     createInfo.subresourceRange.baseMipLevel = range.mip;
     createInfo.subresourceRange.layerCount = range.layerCount;
     createInfo.subresourceRange.levelCount = range.mipCount;
+
+    if (isRenderTarget && m_desc.type == TextureType::Texture3D)
+    {
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount = m_desc.size.depth;
+    }
 
     VkResult result = device->m_api.vkCreateImageView(device->m_api.m_device, &createInfo, nullptr, &view.imageView);
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
@@ -200,7 +212,12 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
 
 TextureSubresourceView TextureViewImpl::getView()
 {
-    return m_texture->getView(m_desc.format, m_desc.aspect, m_desc.subresourceRange);
+    return m_texture->getView(m_desc.format, m_desc.aspect, m_desc.subresourceRange, false);
+}
+
+TextureSubresourceView TextureViewImpl::getRenderTargetView()
+{
+    return m_texture->getView(m_desc.format, m_desc.aspect, m_desc.subresourceRange, true);
 }
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
@@ -241,6 +258,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     {
         imageInfo.imageType = VK_IMAGE_TYPE_3D;
         imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, desc.size.depth};
+        // When using 3D textures as render targets, we need to be able to create 2d array views.
+        if (is_set(desc.usage, TextureUsage::RenderTarget))
+        {
+            imageInfo.flags = VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
+        }
         break;
     }
     case TextureType::TextureCube:

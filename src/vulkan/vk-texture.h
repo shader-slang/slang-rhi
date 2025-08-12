@@ -31,9 +31,11 @@ public:
         Format format;
         TextureAspect aspect;
         SubresourceRange range;
+        bool isRenderTarget;
         bool operator==(const ViewKey& other) const
         {
-            return format == other.format && aspect == other.aspect && range == other.range;
+            return format == other.format && aspect == other.aspect && range == other.range &&
+                   isRenderTarget == other.isRenderTarget;
         }
     };
 
@@ -56,7 +58,12 @@ public:
     std::mutex m_mutex;
     std::unordered_map<ViewKey, TextureSubresourceView, ViewKeyHasher> m_views;
 
-    TextureSubresourceView getView(Format format, TextureAspect aspect, const SubresourceRange& range);
+    TextureSubresourceView getView(
+        Format format,
+        TextureAspect aspect,
+        const SubresourceRange& range,
+        bool isRenderTarget
+    );
 };
 
 class TextureViewImpl : public TextureView
@@ -79,6 +86,7 @@ public:
     ) override;
 
     TextureSubresourceView getView();
+    TextureSubresourceView getRenderTargetView();
 };
 
 } // namespace rhi::vk
