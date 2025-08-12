@@ -1,6 +1,6 @@
 // This shader implicitly includes the NVAPI header (through the use of getRealtimeClock()).
-// This leads to reflection data not containing the NVAPI UAV.
-// slang-rhi will automatically detect this and assign a null-descriptor.
+// This leads to reflection data not containing "g_NvidiaExt".
+// slang-rhi will automatically detect this and add an extra descriptor range to the root descriptor set and assigns a null-descriptor on binding.
 
 [shader("compute")]
 [numthreads(1, 1, 1)]

@@ -255,7 +255,7 @@ public:
     // - Implicit use happens when a shader doesn't manually include the NVAPI header, but uses
     //   a standard library call that is implemented using an NVAPI shader intrinsic.
     //   In that case the program reflection data does not contain "g_NvidiaExt" and slang-rhi creates
-    //   the resource implicitly by adding an implicit descriptor range to the root descriptor set
+    //   the resource implicitly by adding an extra descriptor range to the root descriptor set
     //   and then assigns a null-descriptor when binding it.
     bool m_hasImplicitDescriptorRangeForNVAPI = false;
 #endif

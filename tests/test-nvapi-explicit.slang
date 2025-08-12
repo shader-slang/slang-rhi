@@ -1,5 +1,5 @@
 // This shader explicitly includes the NVAPI header.
-// This leads to reflection data containing the NVAPI UAV which automatically gets assigned a null-descriptor when binding a shader object.
+// This leads to reflection data containing "g_NvidiaExt" which automatically gets assigned a null-descriptor when binding a root shader object.
 
 #pragma warning(disable: 15205)
 #pragma warning(disable: 30081)
