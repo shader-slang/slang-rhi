@@ -3,25 +3,6 @@
 
 namespace rhi::d3d12 {
 
-#if SLANG_RHI_ENABLE_NVAPI
-// Returns true if program globals contain a "g_NvidiaExt" resource.
-// This is the case if the NVAPI header is explicitly included in a shader.
-inline bool find_gNvidiaExt(slang::ProgramLayout* programLayout)
-{
-    slang::TypeLayoutReflection* globalsLayout = programLayout->getGlobalParamsTypeLayout();
-    for (uint32_t i = 0; i < globalsLayout->getFieldCount(); ++i)
-    {
-        slang::VariableLayoutReflection* field = globalsLayout->getFieldByIndex(i);
-        const char* name = field->getName();
-        if (name && strcmp(name, "g_NvidiaExt") == 0)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-#endif
-
 inline bool isBindingRangeRootParameter(
     SlangSession* globalSession,
     const char* rootParameterAttributeName,
@@ -983,20 +964,33 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
     }
 
 #if SLANG_RHI_ENABLE_NVAPI
-    // Create an extra descriptor range when NVAPI is enabled but the shader does not
-    // explicitly include the NVAPI header.
-    if (device->m_nvapiShaderExtension && !find_gNvidiaExt(layout))
+    // Create extra descriptor range for NVAPI UAV slot if a range does not yet exist.
+    // This happens when the shader does not explicitly include the NVAPI header.
+    if (device->m_nvapiShaderExtension)
     {
-        builder.addDescriptorRange(
-            rootDescriptorSetIndex,
-            D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
-            device->m_nvapiShaderExtension.uavSlot,
-            device->m_nvapiShaderExtension.registerSpace,
-            1,
-            false
-        );
-        rootLayout->m_totalCounts.resource += 1;
-        rootLayout->m_hasImplicitDescriptorRangeForNVAPI = true;
+        const DescriptorSetLayout& rootDescriptorSetLayout = builder.m_descriptorSets[rootDescriptorSetIndex];
+        bool foundRange = false;
+        for (const auto& range : rootDescriptorSetLayout.m_resourceRanges)
+        {
+            if (range.BaseShaderRegister == device->m_nvapiShaderExtension.uavSlot &&
+                range.RegisterSpace == device->m_nvapiShaderExtension.registerSpace)
+            {
+                foundRange = true;
+            }
+        }
+        if (!foundRange)
+        {
+            builder.addDescriptorRange(
+                rootDescriptorSetIndex,
+                D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+                device->m_nvapiShaderExtension.uavSlot,
+                device->m_nvapiShaderExtension.registerSpace,
+                1,
+                false
+            );
+            rootLayout->m_totalCounts.resource += 1;
+            rootLayout->m_hasImplicitDescriptorRangeForNVAPI = true;
+        }
     }
 #endif
 
