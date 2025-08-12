@@ -696,13 +696,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::spvRayQueryKHR);
             });
 
-            if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
-                extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
+            if ((extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
+                 extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres) &&
+                extensionNames.count(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME))
             {
-                if (extensionNames.count(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME))
-                {
-                    deviceExtensions.push_back(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME);
-                }
+                extendedFeatures.rayTracingLinearSweptSpheresFeatures.pNext = (void*)deviceCreateInfo.pNext;
+                deviceCreateInfo.pNext = &extendedFeatures.rayTracingLinearSweptSpheresFeatures;
+                deviceExtensions.push_back(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME);
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres)
                 {
                     availableFeatures.push_back(Feature::AccelerationStructureSpheres);
