@@ -3,6 +3,25 @@
 
 namespace rhi::d3d12 {
 
+#if SLANG_RHI_ENABLE_NVAPI
+// Returns true if program globals contain a "g_NvidiaExt" resource.
+// This is the case if the NVAPI header is explicitly included in a shader.
+inline bool find_gNvidiaExt(slang::ProgramLayout* programLayout)
+{
+    slang::TypeLayoutReflection* globalsLayout = programLayout->getGlobalParamsTypeLayout();
+    for (uint32_t i = 0; i < globalsLayout->getFieldCount(); ++i)
+    {
+        slang::VariableLayoutReflection* field = globalsLayout->getFieldByIndex(i);
+        const char* name = field->getName();
+        if (name && strcmp(name, "g_NvidiaExt") == 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+#endif
+
 inline bool isBindingRangeRootParameter(
     SlangSession* globalSession,
     const char* rootParameterAttributeName,
@@ -962,6 +981,24 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
         auto entryPoint = layout->getEntryPointByIndex(i);
         builder.addAsValue(entryPoint->getVarLayout(), rootDescriptorSetIndex);
     }
+
+#if SLANG_RHI_ENABLE_NVAPI
+    // Create an extra descriptor range when NVAPI is enabled but the shader does not
+    // explicitly include the NVAPI header.
+    if (device->m_nvapiShaderExtension && !find_gNvidiaExt(layout))
+    {
+        builder.addDescriptorRange(
+            rootDescriptorSetIndex,
+            D3D12_DESCRIPTOR_RANGE_TYPE_UAV,
+            device->m_nvapiShaderExtension.uavSlot,
+            device->m_nvapiShaderExtension.registerSpace,
+            1,
+            false
+        );
+        rootLayout->m_totalCounts.resource += 1;
+        rootLayout->m_hasImplicitDescriptorRangeForNVAPI = true;
+    }
+#endif
 
     // This is hacky, before calling build(), m_rootParameters contains only the root parameters.
     rootLayout->m_rootSignatureRootParameterCount = builder.m_rootParameters.size();
