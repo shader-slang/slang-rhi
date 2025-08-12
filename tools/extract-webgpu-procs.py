@@ -1,17 +1,19 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
-BEGIN_MARKER = "#if !defined(WGPU_SKIP_PROCS)\n"
-END_MARKER = "#endif  // !defined(WGPU_SKIP_PROCS)\n"
+BEGIN_MARKER = "#if !defined(WEBGPU_SKIP_PROCS)\n"
+END_MARKER = "#endif  // !defined(WEBGPU_SKIP_PROCS)\n"
 
-RE_PROC = re.compile(r"\(*WGPUProc(\S+)\)")
+RE_PROC = re.compile(r"\(*WebGPUProc(\S+)\)")
 
-header = open(Path(__file__).parent / "../build/_deps/dawn-src/include/dawn/webgpu.h", "r").read()
+header = open(
+    Path(__file__).parent / "../build/_deps/dawn-src/include/dawn/webgpu.h", "r"
+).read()
 
 begin = header.find(BEGIN_MARKER) + len(BEGIN_MARKER)
 end = header.find(END_MARKER)
 lines = header[begin:end].splitlines()
-output = "#define SLANG_RHI_WGPU_PROCS(x) \\\n"
+output = "#define SLANG_RHI_WEBGPU_PROCS(x) \\\n"
 
 for line in lines:
     line = line.strip()

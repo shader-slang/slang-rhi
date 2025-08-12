@@ -341,13 +341,13 @@ void testSurface(IDevice* device)
     glfwTerminate();
 }
 
-GPU_TEST_CASE("surface-render", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("surface-render", D3D11 | D3D12 | Vulkan | Metal | WebGPU)
 {
     CHECK(device->hasFeature(Feature::Surface));
     testSurface<RenderSurfaceTest>(device);
 }
 
-// skip WGPU: RWTexture binding fails
+// skip WebGPU: RWTexture binding fails
 GPU_TEST_CASE("surface-compute", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
     if (device->getDeviceType() == DeviceType::CUDA && SLANG_RHI_ENABLE_VULKAN == 0)

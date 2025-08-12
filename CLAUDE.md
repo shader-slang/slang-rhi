@@ -53,7 +53,7 @@ Tests are built when `SLANG_RHI_BUILD_TESTS` is ON (default for the master proje
   - `d3d11/`, `d3d12/`: Direct3D backends
   - `vulkan/`: Vulkan backend
   - `metal/`: Metal backend (macOS/iOS)
-  - `wgpu/`: WebGPU backend
+  - `webgpu/`: WebGPU backend
   - `debug-layer/`: Debug validation layer
 
 ### Key Concepts

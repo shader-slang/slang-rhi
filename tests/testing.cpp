@@ -693,8 +693,8 @@ inline const char* deviceTypeToString(DeviceType deviceType)
         return "cpu";
     case DeviceType::CUDA:
         return "cuda";
-    case DeviceType::WGPU:
-        return "wgpu";
+    case DeviceType::WebGPU:
+        return "webgpu";
     default:
         return "unknown";
     }

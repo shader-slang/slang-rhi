@@ -292,7 +292,7 @@ auto makeArray(Args... args)
         rhi::DeviceType::Metal,                                                                                        \
         rhi::DeviceType::CPU,                                                                                          \
         rhi::DeviceType::CUDA,                                                                                         \
-        rhi::DeviceType::WGPU,                                                                                         \
+        rhi::DeviceType::WebGPU,                                                                                         \
     }
 
 using GpuTestFunc = void (*)(GpuTestContext*, DeviceType);
@@ -309,8 +309,8 @@ enum TestFlags
     Metal = (1 << (int)DeviceType::Metal),
     CPU = (1 << (int)DeviceType::CPU),
     CUDA = (1 << (int)DeviceType::CUDA),
-    WGPU = (1 << (int)DeviceType::WGPU),
-    ALL = D3D11 | D3D12 | Vulkan | Metal | CPU | CUDA | WGPU,
+    WebGPU = (1 << (int)DeviceType::WebGPU),
+    ALL = D3D11 | D3D12 | Vulkan | Metal | CPU | CUDA | WebGPU,
 
     // Additional flags
     NoDeviceCache = (1 << 10)

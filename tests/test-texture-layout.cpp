@@ -73,8 +73,8 @@ GPU_TEST_CASE("texture-layout-1d-nomip", ALL_TEX)
     testTextureLayout(device, texture, 0, 0, {{256, 1, 1}, 4, 1024, 1024, 1024});
 }
 
-// Checks layout adheres to the known 256B alignment of D3D12 and WGPU
-GPU_TEST_CASE("texture-layout-1d-nomip-alignment", D3D12 | WGPU)
+// Checks layout adheres to the known 256B alignment of D3D12 and WebGPU
+GPU_TEST_CASE("texture-layout-1d-nomip-alignment", D3D12 | WebGPU)
 {
 
     TextureDesc desc;
@@ -92,7 +92,7 @@ GPU_TEST_CASE("texture-layout-1d-nomip-alignment", D3D12 | WGPU)
 }
 
 // Metal doesn't support 1D textures with mip maps.
-GPU_TEST_CASE("texture-layout-1d-mips", ALL_TEX & ~WGPU & ~Metal)
+GPU_TEST_CASE("texture-layout-1d-mips", ALL_TEX & ~WebGPU & ~Metal)
 {
 
     TextureDesc desc;
@@ -127,8 +127,8 @@ GPU_TEST_CASE("texture-layout-1d-region", ALL_TEX)
     testTextureLayout2(device, texture, 0, 0, {16, 0, 0}, {64, 1, 1}, {{64, 1, 1}, 4, 256, 256, 256});
 }
 
-// Restrict to D3D12/WGPU as alignment needs accounting for
-GPU_TEST_CASE("texture-layout-1d-region-rts", D3D12 | WGPU)
+// Restrict to D3D12/WebGPU as alignment needs accounting for
+GPU_TEST_CASE("texture-layout-1d-region-rts", D3D12 | WebGPU)
 {
 
     TextureDesc desc;
@@ -153,7 +153,7 @@ GPU_TEST_CASE("texture-layout-1d-region-rts", D3D12 | WGPU)
     );
 }
 
-GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA & ~WGPU)
+GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA & ~WebGPU)
 {
 
     TextureDesc desc;
@@ -172,7 +172,7 @@ GPU_TEST_CASE("texture-layout-1darray-nomip", ALL_TEX & ~CUDA & ~WGPU)
 }
 
 // Metal doesn't support 1D textures with mip maps.
-GPU_TEST_CASE("texture-layout-1darray-mips", ALL_TEX & ~CUDA & ~WGPU & ~Metal)
+GPU_TEST_CASE("texture-layout-1darray-mips", ALL_TEX & ~CUDA & ~WebGPU & ~Metal)
 {
 
     TextureDesc desc;

@@ -558,7 +558,7 @@ void DebugCommandEncoder::clearTextureDepthStencil(
         break;
     case DeviceType::Metal:
         break;
-    case DeviceType::WGPU:
+    case DeviceType::WebGPU:
         RHI_VALIDATION_ERROR("Not implemented");
         return;
     case DeviceType::CPU:

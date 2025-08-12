@@ -290,8 +290,8 @@ static int main(int argc, const char** argv)
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     // std::vector<DeviceType> deviceTypes = {DeviceType::Vulkan};
-    // std::vector<DeviceType> deviceTypes = {DeviceType::Vulkan, DeviceType::Metal, DeviceType::WGPU};
-    std::vector<DeviceType> deviceTypes = {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan, DeviceType::WGPU};
+    // std::vector<DeviceType> deviceTypes = {DeviceType::Vulkan, DeviceType::Metal, DeviceType::WebGPU};
+    std::vector<DeviceType> deviceTypes = {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan, DeviceType::WebGPU};
     for (DeviceType deviceType : deviceTypes)
     {
         Example* example = new Example();

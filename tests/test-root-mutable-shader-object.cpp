@@ -4,7 +4,7 @@ using namespace rhi;
 using namespace rhi::testing;
 
 // TODO fix for other backends
-GPU_TEST_CASE("root-mutable-shader-object", WGPU)
+GPU_TEST_CASE("root-mutable-shader-object", WebGPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
