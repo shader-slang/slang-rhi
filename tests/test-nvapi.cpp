@@ -20,6 +20,26 @@ TEST_CASE("nvapi-implicit")
         ComPtr<IComputePipeline> pipeline;
         REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
+        uint32_t globalVar = 1000;
+
+        ComPtr<IBuffer> globalBuffer;
+        {
+            uint32_t initialData[] = {2000};
+            BufferDesc desc = {};
+            desc.size = 4;
+            desc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;
+            REQUIRE_CALL(device->createBuffer(desc, initialData, globalBuffer.writeRef()));
+        }
+
+        ComPtr<IBuffer> buffer;
+        {
+            uint32_t initialData[] = {3000};
+            BufferDesc desc = {};
+            desc.size = 4;
+            desc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;
+            REQUIRE_CALL(device->createBuffer(desc, initialData, buffer.writeRef()));
+        }
+
         ComPtr<IBuffer> result;
         {
             BufferDesc desc = {};
@@ -33,8 +53,12 @@ TEST_CASE("nvapi-implicit")
             auto commandEncoder = queue->createCommandEncoder();
             auto passEncoder = commandEncoder->beginComputePass();
             IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
-            ShaderCursor cursor(rootObject->getEntryPoint(0));
-            cursor["result"].setBinding(result);
+            ShaderCursor globalCursor(rootObject);
+            globalCursor["globalVar"].setData(globalVar);
+            globalCursor["globalBuffer"].setBinding(globalBuffer);
+            ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
+            entryPointCursor["buffer"].setBinding(buffer);
+            entryPointCursor["result"].setBinding(result);
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
 
@@ -42,7 +66,7 @@ TEST_CASE("nvapi-implicit")
             queue->waitOnHost();
         }
 
-        compareComputeResult(device, result, std::array{1ul});
+        compareComputeResult(device, result, std::array{1000, 2000, 3000});
     };
 
     runGpuTests(testFunc, {DeviceType::D3D12});
@@ -66,6 +90,26 @@ TEST_CASE("nvapi-explicit")
         ComPtr<IComputePipeline> pipeline;
         REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
 
+        uint32_t globalVar = 1000;
+
+        ComPtr<IBuffer> globalBuffer;
+        {
+            uint32_t initialData[] = {2000};
+            BufferDesc desc = {};
+            desc.size = 4;
+            desc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;
+            REQUIRE_CALL(device->createBuffer(desc, initialData, globalBuffer.writeRef()));
+        }
+
+        ComPtr<IBuffer> buffer;
+        {
+            uint32_t initialData[] = {3000};
+            BufferDesc desc = {};
+            desc.size = 4;
+            desc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;
+            REQUIRE_CALL(device->createBuffer(desc, initialData, buffer.writeRef()));
+        }
+
         ComPtr<IBuffer> result;
         {
             BufferDesc desc = {};
@@ -79,8 +123,12 @@ TEST_CASE("nvapi-explicit")
             auto commandEncoder = queue->createCommandEncoder();
             auto passEncoder = commandEncoder->beginComputePass();
             IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
-            ShaderCursor cursor(rootObject->getEntryPoint(0));
-            cursor["result"].setBinding(result);
+            ShaderCursor globalCursor(rootObject);
+            globalCursor["globalVar"].setData(globalVar);
+            globalCursor["globalBuffer"].setBinding(globalBuffer);
+            ShaderCursor entryPointCursor(rootObject->getEntryPoint(0));
+            entryPointCursor["buffer"].setBinding(buffer);
+            entryPointCursor["result"].setBinding(result);
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
 
@@ -88,7 +136,7 @@ TEST_CASE("nvapi-explicit")
             queue->waitOnHost();
         }
 
-        compareComputeResult(device, result, std::array{1});
+        compareComputeResult(device, result, std::array{1000, 2000, 3000});
     };
 
     runGpuTests(testFunc, {DeviceType::D3D12});
