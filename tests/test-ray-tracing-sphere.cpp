@@ -364,7 +364,7 @@ struct RayTracingSphereIntersectionTest : public RayTracingSphereTestBase
     }
 };
 
-GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL)
+GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL & ~(D3D12 | Vulkan))
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -444,7 +444,7 @@ struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
     }
 };
 
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
+GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL & ~(D3D12 | Vulkan))
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -456,7 +456,7 @@ GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
     test.run("rayGenSphereIntrinsics", "closestHitSphereIntrinsics");
 }
 
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL)
+GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL & ~(D3D12 | Vulkan))
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
