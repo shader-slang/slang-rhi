@@ -367,7 +367,7 @@ SLANG_RHI_COMMANDS(SLANG_RHI_COMMAND_TRAITS_X)
 ///
 /// Depending on the backend, this list can either be executed immediately on submit
 /// (CPU, CUDA, D3D11) or recorded to a backend specific command buffer when finishing
-/// encoding (D3D12, Vulkan, Metal, WGPU).
+/// encoding (D3D12, Vulkan, Metal, WebGPU).
 ///
 /// There are multiple reasons for encoding commands into a host side command list:
 /// - Allow to encode commands in parallel, even if backend doesn't support multi-threading.

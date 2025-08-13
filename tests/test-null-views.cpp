@@ -5,8 +5,8 @@ using namespace rhi::testing;
 
 // skip D3D11: too many UAVs
 // skip CPU: invalid results
-// skip WGPU: null views don't exist, would need to create dummy resources
-GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
+// skip WebGPU: null views don't exist, would need to create dummy resources
+GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WebGPU))
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;

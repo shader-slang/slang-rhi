@@ -478,12 +478,12 @@ void testDraw(IDevice* device)
     test.run();
 }
 
-GPU_TEST_CASE("cmd-draw-instanced", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("cmd-draw-instanced", D3D11 | D3D12 | Vulkan | Metal | WebGPU)
 {
     testDraw<DrawInstancedTest>(device);
 }
 
-GPU_TEST_CASE("cmd-draw-indexed-instanced", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("cmd-draw-indexed-instanced", D3D11 | D3D12 | Vulkan | Metal | WebGPU)
 {
     testDraw<DrawIndexedInstancedTest>(device);
 }

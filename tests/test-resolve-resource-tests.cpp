@@ -260,7 +260,7 @@ struct ResolveResourceSimple : BaseResolveResourceTest
     }
 };
 
-// skip WGPU: rgba32float is not supported for multisampling
+// skip WebGPU: rgba32float is not supported for multisampling
 GPU_TEST_CASE("resolve-resource-simple", D3D11 | D3D12 | Vulkan | Metal)
 {
     ResolveResourceSimple test;

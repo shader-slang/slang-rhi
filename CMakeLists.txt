@@ -63,21 +63,21 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL OFF)
     set(SLANG_RHI_HAS_CUDA ON)
-    set(SLANG_RHI_HAS_WGPU ON)
+    set(SLANG_RHI_HAS_WEBGPU ON)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(SLANG_RHI_HAS_D3D11 OFF)
     set(SLANG_RHI_HAS_D3D12 OFF)
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL OFF)
     set(SLANG_RHI_HAS_CUDA ON)
-    set(SLANG_RHI_HAS_WGPU ON)
+    set(SLANG_RHI_HAS_WEBGPU ON)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(SLANG_RHI_HAS_D3D11 OFF)
     set(SLANG_RHI_HAS_D3D12 OFF)
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL ON)
     set(SLANG_RHI_HAS_CUDA OFF)
-    set(SLANG_RHI_HAS_WGPU ON)
+    set(SLANG_RHI_HAS_WEBGPU ON)
 endif()
 
 set(SLANG_RHI_HAS_AGILITY_SDK OFF)
@@ -100,7 +100,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_OPTIX "Enable OptiX support" ON "SLANG_RHI_HAS_CUDA" OFF)
-cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
+cmake_dependent_option(SLANG_RHI_ENABLE_WEBGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WEBGPU" OFF)
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
@@ -365,7 +365,7 @@ if(SLANG_RHI_ENABLE_METAL)
 endif()
 
 # Fetch & setup Dawn WebGPU
-if(SLANG_RHI_ENABLE_WGPU)
+if(SLANG_RHI_ENABLE_WEBGPU)
     message(STATUS "Fetching Dawn WebGPU ...")
     FetchPackage(dawn URL ${SLANG_RHI_DAWN_URL})
     add_library(slang-rhi-dawn INTERFACE)
@@ -660,24 +660,24 @@ if(SLANG_RHI_ENABLE_CUDA)
     )
 endif()
 
-if(SLANG_RHI_ENABLE_WGPU)
+if(SLANG_RHI_ENABLE_WEBGPU)
     target_sources(slang-rhi PRIVATE
-        src/wgpu/wgpu-api.cpp
-        src/wgpu/wgpu-buffer.cpp
-        src/wgpu/wgpu-command.cpp
-        src/wgpu/wgpu-constant-buffer-pool.cpp
-        src/wgpu/wgpu-device.cpp
-        src/wgpu/wgpu-fence.cpp
-        src/wgpu/wgpu-input-layout.cpp
-        src/wgpu/wgpu-pipeline.cpp
-        src/wgpu/wgpu-query.cpp
-        src/wgpu/wgpu-sampler.cpp
-        src/wgpu/wgpu-shader-object-layout.cpp
-        src/wgpu/wgpu-shader-object.cpp
-        src/wgpu/wgpu-shader-program.cpp
-        src/wgpu/wgpu-surface.cpp
-        src/wgpu/wgpu-texture.cpp
-        src/wgpu/wgpu-utils.cpp
+        src/webgpu/webgpu-api.cpp
+        src/webgpu/webgpu-buffer.cpp
+        src/webgpu/webgpu-command.cpp
+        src/webgpu/webgpu-constant-buffer-pool.cpp
+        src/webgpu/webgpu-device.cpp
+        src/webgpu/webgpu-fence.cpp
+        src/webgpu/webgpu-input-layout.cpp
+        src/webgpu/webgpu-pipeline.cpp
+        src/webgpu/webgpu-query.cpp
+        src/webgpu/webgpu-sampler.cpp
+        src/webgpu/webgpu-shader-object-layout.cpp
+        src/webgpu/webgpu-shader-object.cpp
+        src/webgpu/webgpu-shader-program.cpp
+        src/webgpu/webgpu-surface.cpp
+        src/webgpu/webgpu-texture.cpp
+        src/webgpu/webgpu-utils.cpp
     )
 endif()
 

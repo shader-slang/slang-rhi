@@ -22,11 +22,11 @@ namespace rhi::testing {
 
 bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
 {
-    // WGPU does not support mip levels for 1D textures.
-    if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1D && desc.mipCount != 1)
+    // WebGPU does not support mip levels for 1D textures.
+    if (device->getDeviceType() == DeviceType::WebGPU && desc.type == TextureType::Texture1D && desc.mipCount != 1)
         return false;
-    // WGPU does not support 1D texture arrays.
-    if (device->getDeviceType() == DeviceType::WGPU && desc.type == TextureType::Texture1DArray)
+    // WebGPU does not support 1D texture arrays.
+    if (device->getDeviceType() == DeviceType::WebGPU && desc.type == TextureType::Texture1DArray)
         return false;
     // Metal does not support mip levels for 1D textures (and 1d texture arrays).
     if (device->getDeviceType() == DeviceType::Metal &&
@@ -42,7 +42,7 @@ bool isValidDescriptor(IDevice* device, const TextureDesc& desc)
     if (isMultisamplingType(desc.type) && desc.mipCount > 1)
         return false;
     // Array multisampled textures not supported on WebGPU
-    if (device->getDeviceType() == DeviceType::WGPU && isMultisamplingType(desc.type) && desc.getLayerCount() > 1)
+    if (device->getDeviceType() == DeviceType::WebGPU && isMultisamplingType(desc.type) && desc.getLayerCount() > 1)
         return false;
     // Anything with more than 1 layer won't work properly with CPU textures
     if (device->getDeviceType() == DeviceType::CPU && desc.getLayerCount() > 1)
@@ -1222,7 +1222,7 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
             return;
 
         // WebGPU doesn't support writing into depth textures.
-        if (m_device->getDeviceType() == DeviceType::WGPU && (info.hasDepth || info.hasStencil))
+        if (m_device->getDeviceType() == DeviceType::WebGPU && (info.hasDepth || info.hasStencil))
             return;
 
         // Skip texture types that don't support compression options.

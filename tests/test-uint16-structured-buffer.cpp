@@ -4,7 +4,7 @@ using namespace rhi;
 using namespace rhi::testing;
 
 // skip D3D11: fxc doesn't support uint16_t
-// skip WGPU: crashes
+// skip WebGPU: crashes
 GPU_TEST_CASE("uint16-structured-buffer", D3D12 | Vulkan | Metal | CPU | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
