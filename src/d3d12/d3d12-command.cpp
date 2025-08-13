@@ -775,14 +775,14 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
                         uint32_t srcLayer = srcRange.layer + layerOffset;
                         uint32_t dstLayer = dstRange.layer + layerOffset;
 
-                        uint32_t srcSubresource = D3DUtil::getSubresourceIndex(
+                        uint32_t srcSubresource = getSubresourceIndex(
                             srcMip,
                             srcLayer,
                             0, // planeIndex - assuming single plane for now
                             srcDesc.mipLevelCount,
                             srcDesc.arraySize
                         );
-                        uint32_t dstSubresource = D3DUtil::getSubresourceIndex(
+                        uint32_t dstSubresource = getSubresourceIndex(
                             dstMip,
                             dstLayer,
                             0, // planeIndex - assuming single plane for now
