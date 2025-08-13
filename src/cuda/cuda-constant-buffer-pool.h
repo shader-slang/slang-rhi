@@ -25,6 +25,7 @@ public:
 private:
     static constexpr size_t kAlignment = 64;
     static constexpr size_t kPageSize = 4 * 1024 * 1024;
+    static_assert(kPageSize % kAlignment == 0, "Page size must be a multiple of alignment");
 
     struct Page
     {

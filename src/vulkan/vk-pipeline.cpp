@@ -296,13 +296,33 @@ Result createPipelineWithCache(
     // Create pipeline if not found in cache.
     if (!pipeline)
     {
-        // Enable capturing of pipeline data if we plan to write to the pipeline cache.
+        // To capture the pipeline data, we need to set the VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR flag
+        // in VkPipelineCreateFlags2CreateInfoKHR. In some cases, the passed in createInfo already has a
+        // VkPipelineCreateFlags2CreateInfoKHR in the chain, so we use that, otherwise create a new one on the stack.
         VkPipelineCreateFlags2CreateInfoKHR createFlags = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR};
-        createFlags.flags = VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR;
         if (writeCache)
         {
-            createFlags.pNext = createInfo->pNext;
-            createInfo->pNext = &createFlags;
+            // Check createInfo chain for existing VkPipelineCreateFlags2CreateInfoKHR
+            bool foundExistingCreateFlags = false;
+            VkBaseInStructure* inStruct = (VkBaseInStructure*)createInfo->pNext;
+            while (inStruct)
+            {
+                if (inStruct->sType == VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR)
+                {
+                    ((VkPipelineCreateFlags2CreateInfoKHR*)inStruct)->flags |=
+                        VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR;
+                    foundExistingCreateFlags = true;
+                    break;
+                }
+                inStruct = (VkBaseInStructure*)inStruct->pNext;
+            }
+            // If not found, append VkPipelineCreateFlags2CreateInfoKHR on stack
+            if (!foundExistingCreateFlags)
+            {
+                createFlags.flags = VK_PIPELINE_CREATE_2_CAPTURE_DATA_BIT_KHR;
+                createFlags.pNext = createInfo->pNext;
+                createInfo->pNext = &createFlags;
+            }
         }
         SLANG_VK_RETURN_ON_FAIL(createPipelineFunc(device, createInfo, &pipeline));
     }
@@ -708,8 +728,15 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     SLANG_RHI_ASSERT(!program->m_modules.empty());
 
     VkRayTracingPipelineCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
-    createInfo.pNext = nullptr;
     createInfo.flags = translateRayTracingPipelineFlags(desc.flags);
+
+    VkPipelineCreateFlags2CreateInfoKHR createFlags2Info = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR};
+    createFlags2Info.flags = translateRayTracingPipelineFlags2(desc.flags);
+    if (createFlags2Info.flags != createInfo.flags)
+    {
+        createInfo.flags = 0; // Unused
+        createInfo.pNext = &createFlags2Info;
+    }
 
     createInfo.stageCount = (uint32_t)program->m_stageCreateInfos.size();
     createInfo.pStages = program->m_stageCreateInfos.data();

@@ -471,14 +471,6 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         CU_LAUNCH_PARAM_END,
     };
 
-    // This a big hammer! There are various scenarios where we have to synchronize the stream
-    // between kernel launches. One example is accessing texture memory: writes to texture memory (CUDA surface)
-    // are not guaranteed to be visible to the next launch reading from it (CUDA texture) without synchronization.
-    // We need to investigate if finer grained synchronization makes sense here. But this requires
-    // tracking texture states similarly to how it is done in D3D12/Vulkan.
-    // Note: This *does not* block the host unless the context is set to blocking mode.
-    cuStreamSynchronize(m_stream);
-
     // Once we have all the necessary data extracted and/or set up, we can launch the kernel.
     SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernel(
         computePipeline->m_function,
@@ -545,9 +537,6 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 
     OptixShaderBindingTable sbt = m_shaderTableInstance->sbt;
     sbt.raygenRecord += cmd.rayGenShaderIndex * m_shaderTableInstance->raygenRecordSize;
-
-    // This is a big hammer! See notes in `cmdDispatchCompute`.
-    cuStreamSynchronize(m_stream);
 
     SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
         m_rayTracingPipeline->m_pipeline,
@@ -777,6 +766,8 @@ Result CommandQueueImpl::retireCommandBuffers()
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
             SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(commandBuffer->m_completionEvent));
+            // Reset the command buffer for reuse.
+            commandBuffer->reset();
         }
         else if (result == CUDA_ERROR_NOT_READY)
         {
@@ -834,7 +825,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
         // Only record command buffer if executor succeeds and we correctly add it to the active stream
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, 0));
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, CU_EVENT_DISABLE_TIMING));
         SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, requestedStream));
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
@@ -844,9 +835,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
     }
-
-    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
-        checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->reset();
 
     return SLANG_OK;
 }

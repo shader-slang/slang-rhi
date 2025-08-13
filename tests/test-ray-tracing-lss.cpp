@@ -245,7 +245,10 @@ struct RayTracingLssTestBase
         HitGroupDesc hitGroups[1];
         hitGroups[0].hitGroupName = hitgroupNames[0];
         hitGroups[0].closestHitEntryPoint = closestHitName;
-        hitGroups[0].intersectionEntryPoint = "__builtin_intersection__linear_swept_spheres";
+
+        // We must specify an explicit intersection shader for all non-triangle geometry in OptiX.
+        if (device->getDeviceType() == DeviceType::CUDA)
+            hitGroups[0].intersectionEntryPoint = "__builtin_intersection__linear_swept_spheres";
 
         RayTracingPipelineDesc rtpDesc = {};
         rtpDesc.program = rayTracingProgram;
@@ -410,6 +413,12 @@ GPU_TEST_CASE("ray-tracing-lss-intersection", ALL)
 struct TestResult
 {
     int isLssHit;
+    float lssPositionsAndRadii[8];
+};
+
+struct TestResultCudaAligned
+{
+    int isLssHit;
     int pad[3];
     float lssPositionsAndRadii[8];
 };
@@ -433,21 +442,25 @@ struct RayTracingLssIntrinsicsTest : public RayTracingLssTestBase
 
     void createResultBuffer()
     {
+        const size_t resultSize =
+            device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
+
         BufferDesc resultBufferDesc = {};
-        resultBufferDesc.size = sizeof(TestResult);
-        resultBufferDesc.elementSize = sizeof(TestResult);
+        resultBufferDesc.size = resultSize;
+        resultBufferDesc.elementSize = resultSize;
         resultBufferDesc.memoryType = MemoryType::DeviceLocal;
         resultBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
         resultBuffer = device->createBuffer(resultBufferDesc);
         REQUIRE(resultBuffer != nullptr);
     }
 
+    template<typename T>
     void checkTestResults()
     {
         ComPtr<ISlangBlob> resultBlob;
-        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(TestResult), resultBlob.writeRef()));
+        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(T), resultBlob.writeRef()));
 
-        const TestResult* result = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
+        const T* result = reinterpret_cast<const T*>(resultBlob->getBufferPointer());
 
         CHECK_EQ(result->isLssHit, 1);
 
@@ -466,6 +479,14 @@ struct RayTracingLssIntrinsicsTest : public RayTracingLssTestBase
 
         // Right endcap radius
         CHECK_EQ(result->lssPositionsAndRadii[7], 0.5f);
+    }
+
+    void checkTestResults()
+    {
+        if (device->getDeviceType() == DeviceType::CUDA)
+            checkTestResults<TestResultCudaAligned>();
+        else
+            checkTestResults<TestResult>();
     }
 
     void renderFrame()
@@ -514,7 +535,8 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics", ALL)
     test.run("rayGenLssIntrinsics", "closestHitLssIntrinsics");
 }
 
-GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
+// Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/8128
+GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL & ~D3D12)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");

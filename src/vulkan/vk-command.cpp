@@ -603,12 +603,12 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
         // Create attachment info
         VkRenderingAttachmentInfoKHR attachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
-        attachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
+        attachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getRenderTargetView().imageView;
         attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         if (attachment.resolveTarget)
         {
             attachmentInfo.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-            attachmentInfo.resolveImageView = resolveView->getView().imageView;
+            attachmentInfo.resolveImageView = resolveView->getRenderTargetView().imageView;
             attachmentInfo.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         }
         attachmentInfo.loadOp = translateLoadOp(attachment.loadOp);
@@ -648,7 +648,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         {
             hasDepthAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
-            depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getView().imageView;
+            depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getRenderTargetView().imageView;
             depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachmentInfo.loadOp = translateLoadOp(dsa.depthLoadOp);
             depthAttachmentInfo.storeOp = translateStoreOp(dsa.depthStoreOp);
@@ -658,7 +658,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         {
             hasStencilAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
-            stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getView().imageView;
+            stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getRenderTargetView().imageView;
             stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             stencilAttachmentInfo.loadOp = translateLoadOp(dsa.stencilLoadOp);
             stencilAttachmentInfo.storeOp = translateStoreOp(dsa.stencilStoreOp);

@@ -750,6 +750,45 @@ struct CUmemLocation
 #define CUDA_ARRAY3D_SPARSE 0x40
 #define CUDA_ARRAY3D_DEFERRED_MAPPING 0x80
 
+enum CUjit_option
+{
+    CU_JIT_MAX_REGISTERS = 0,
+    CU_JIT_THREADS_PER_BLOCK = 1,
+    CU_JIT_WALL_TIME = 2,
+    CU_JIT_INFO_LOG_BUFFER = 3,
+    CU_JIT_INFO_LOG_BUFFER_SIZE_BYTES = 4,
+    CU_JIT_ERROR_LOG_BUFFER = 5,
+    CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES = 6,
+    CU_JIT_OPTIMIZATION_LEVEL = 7,
+    CU_JIT_TARGET_FROM_CUCONTEXT = 8,
+    CU_JIT_TARGET = 9,
+    CU_JIT_FALLBACK_STRATEGY = 10,
+    CU_JIT_GENERATE_DEBUG_INFO = 11,
+    CU_JIT_LOG_VERBOSE = 12,
+    CU_JIT_GENERATE_LINE_INFO = 13,
+    CU_JIT_CACHE_MODE = 14,
+    CU_JIT_NEW_SM3X_OPT = 15,
+    CU_JIT_FAST_COMPILE = 16,
+    CU_JIT_GLOBAL_SYMBOL_NAMES = 17,
+    CU_JIT_GLOBAL_SYMBOL_ADDRESSES = 18,
+    CU_JIT_GLOBAL_SYMBOL_COUNT = 19,
+    CU_JIT_LTO = 20,
+    CU_JIT_FTZ = 21,
+    CU_JIT_PREC_DIV = 22,
+    CU_JIT_PREC_SQRT = 23,
+    CU_JIT_FMA = 24,
+    CU_JIT_REFERENCED_KERNEL_NAMES = 25,
+    CU_JIT_REFERENCED_KERNEL_COUNT = 26,
+    CU_JIT_REFERENCED_VARIABLE_NAMES = 27,
+    CU_JIT_REFERENCED_VARIABLE_COUNT = 28,
+    CU_JIT_OPTIMIZE_UNUSED_DEVICE_VARIABLES = 29,
+    CU_JIT_POSITION_INDEPENDENT_CODE = 30,
+    CU_JIT_MIN_CTA_PER_SM = 31,
+    CU_JIT_MAX_THREADS_PER_BLOCK = 32,
+    CU_JIT_OVERRIDE_DIRECTIVE_VALUES = 33,
+};
+
+
 #define CU_DEVICE_CPU ((CUdevice) - 1)
 #define CU_DEVICE_INVALID ((CUdevice) - 2)
 
@@ -836,6 +875,7 @@ CUDA_SYM(CUresult (*cuModuleGetGlobal)(CUdeviceptr*, size_t*, CUmodule, const ch
 CUDA_SYM(CUresult (*cuModuleGetTexRef)(CUtexref*, CUmodule, const char*));
 CUDA_SYM(CUresult (*cuModuleLoad)(CUmodule*, const char*));
 CUDA_SYM(CUresult (*cuModuleLoadData)(CUmodule*, const void*));
+CUDA_SYM(CUresult (*cuModuleLoadDataEx)(CUmodule*, const void*, unsigned int, CUjit_option*, void** optionValues));
 CUDA_SYM(CUresult (*cuModuleUnload)(CUmodule));
 CUDA_SYM(CUresult (*cuFuncGetAttribute)(int*, CUfunction_attribute, CUfunction));
 CUDA_SYM(CUresult (*cuFuncGetParamInfo)(CUfunction, size_t, size_t*, size_t*));

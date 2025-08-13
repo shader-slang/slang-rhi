@@ -136,6 +136,28 @@ Result BindingDataBuilder::bindAsRoot(
         );
     }
 
+#if SLANG_RHI_ENABLE_NVAPI
+    // Bind null-descriptor to implicit descriptor range for the NVAPI UAV descriptor if needed.
+    if (specializedLayout->m_hasImplicitDescriptorRangeForNVAPI)
+    {
+        SLANG_RHI_ASSERT(descriptorSet.resources.count > 0);
+
+        // The NVAPI UAV descriptor should be at the very last position in the descriptor table
+        // since we added the NVAPI UAV range last during root signature creation.
+        uint32_t nvapiDescriptorIndex = descriptorSet.resources.count - 1;
+
+        D3D12_CPU_DESCRIPTOR_HANDLE nullUavDescriptor =
+            m_device->getNullDescriptor(slang::BindingType::MutableRawBuffer, SLANG_STRUCTURED_BUFFER);
+
+        m_device->m_device->CopyDescriptorsSimple(
+            1,
+            descriptorSet.resources.getCpuHandle(nvapiDescriptorIndex),
+            nullUavDescriptor,
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+        );
+    }
+#endif
+
     outBindingData = bindingData;
 
     return SLANG_OK;

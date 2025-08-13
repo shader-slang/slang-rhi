@@ -93,10 +93,19 @@ VkBool32 DeviceImpl::handleDebugMessage(
     {
         return VK_FALSE;
     }
-    // Ignore:  VUID-StandaloneSpirv-None-10684
+    // Ignore: VUID-StandaloneSpirv-None-10684
     // https://vulkan.lunarg.com/doc/view/1.4.313.1/windows/antora/spec/latest/appendices/spirvenv.html#VUID-StandaloneSpirv-None-10684
     // Not quite clear why this is happening, but for now we will ignore it.
     if (pCallbackData->messageIdNumber == -1307510846)
+    {
+        return VK_FALSE;
+    }
+
+    // Ignore: VUID-VkWriteDescriptorSetAccelerationStructureKHR-pAccelerationStructures-03580
+    // https://vulkan.lunarg.com/doc/view/1.4.321.1/windows/antora/spec/latest/chapters/descriptorsets.html#VUID-VkWriteDescriptorSetAccelerationStructureKHR-pAccelerationStructures-03580
+    // Vulkan spec requires the nullDescriptor feature in VK_EXT_robustness2 to allow null-descriptors for acceleration
+    // structures but currently complains even when nullDescriptor is available and enabled.
+    if (pCallbackData->messageIdNumber == -1248876731)
     {
         return VK_FALSE;
     }
@@ -687,13 +696,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::spvRayQueryKHR);
             });
 
-            if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
-                extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
+            if ((extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres ||
+                 extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres) &&
+                extensionNames.count(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME))
             {
-                if (extensionNames.count(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME))
-                {
-                    deviceExtensions.push_back(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME);
-                }
+                extendedFeatures.rayTracingLinearSweptSpheresFeatures.pNext = (void*)deviceCreateInfo.pNext;
+                deviceCreateInfo.pNext = &extendedFeatures.rayTracingLinearSweptSpheresFeatures;
+                deviceExtensions.push_back(VK_NV_RAY_TRACING_LINEAR_SWEPT_SPHERES_EXTENSION_NAME);
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.spheres)
                 {
                     availableFeatures.push_back(Feature::AccelerationStructureSpheres);

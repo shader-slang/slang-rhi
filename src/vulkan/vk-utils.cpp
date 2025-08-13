@@ -213,6 +213,19 @@ VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags f
     return vkFlags;
 }
 
+VkPipelineCreateFlags2 translateRayTracingPipelineFlags2(RayTracingPipelineFlags flags)
+{
+    // The lower bits of the extended flags are the same as the non-extended version, so we can share logic with that.
+    VkPipelineCreateFlags2 vkFlags = translateRayTracingPipelineFlags(flags);
+
+    // Now, handle any flags specific to the extended version.
+    if (is_set(flags, RayTracingPipelineFlags::EnableSpheres) ||
+        is_set(flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
+        vkFlags |= VK_PIPELINE_CREATE_2_RAY_TRACING_ALLOW_SPHERES_AND_LINEAR_SWEPT_SPHERES_BIT_NV;
+
+    return vkFlags;
+}
+
 VkImageLayout translateImageLayout(ResourceState state)
 {
     switch (state)
