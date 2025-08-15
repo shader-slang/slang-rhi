@@ -126,6 +126,10 @@ GPU_TEST_CASE("nested-parameter-block-2", ALL)
 {
     if (!device->hasFeature("parameter-block"))
         SKIP("no support for parameter blocks");
+    // Currently broken on Metal!
+    // https://github.com/shader-slang/slang/issues/8199
+    if (device->getDeviceType() == DeviceType::Metal)
+        SKIP("Fails due to issue in Slang");
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
