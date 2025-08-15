@@ -153,7 +153,8 @@ public:
         }
     }
 
-    uint64_t debugGetReferenceCount() { return referenceCount; }
+    uint64_t getReferenceCount() const { return referenceCount; }
+    uint64_t getInternalReferenceCount() const { return internalReferenceCount; }
 
     virtual void makeExternal() {}
     virtual void makeInternal() {}

@@ -26,11 +26,20 @@ void RefObjectTracker::reportLiveObjects()
         printf("Found %zu live RHI objects!\n", objects.size());
         for (auto obj : objects)
         {
+            uint64_t referenceCount = obj->getReferenceCount();
+            uint64_t internalReferenceCount = obj->getInternalReferenceCount();
 #ifdef RTTI_ENABLED
-            printf("Live object: %p (%s)\n", static_cast<void*>(obj), typeid(*obj).name());
+            const char* typeName = typeid(*obj).name();
 #else
-            printf("Live object: %p\n", static_cast<void*>(obj));
+            const char* typeName = "unknown";
 #endif
+            printf(
+                "Live object: 0x%" PRIXPTR " referenceCount=%llu internalReferenceCount=%llu type=\"%s\"\n",
+                reinterpret_cast<uintptr_t>(obj),
+                referenceCount,
+                internalReferenceCount,
+                typeName
+            );
         }
     }
 }
