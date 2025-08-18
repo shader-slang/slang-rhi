@@ -1,0 +1,230 @@
+#include "webgpu-pipeline.h"
+#include "webgpu-device.h"
+#include "webgpu-input-layout.h"
+#include "webgpu-shader-program.h"
+#include "webgpu-shader-object-layout.h"
+#include "webgpu-utils.h"
+
+namespace rhi::webgpu {
+
+RenderPipelineImpl::RenderPipelineImpl(Device* device, const RenderPipelineDesc& desc)
+    : RenderPipeline(device, desc)
+{
+}
+
+RenderPipelineImpl::~RenderPipelineImpl()
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (m_renderPipeline)
+    {
+        device->m_ctx.api.webgpuRenderPipelineRelease(m_renderPipeline);
+    }
+}
+
+Result RenderPipelineImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::WebGPURenderPipeline;
+    outHandle->value = (uint64_t)m_renderPipeline;
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
+{
+    TimePoint startTime = Timer::now();
+
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
+    InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
+    ShaderProgramImpl::Module* vertexModule = program->findModule(SlangStage::SLANG_STAGE_VERTEX);
+    ShaderProgramImpl::Module* fragmentModule = program->findModule(SlangStage::SLANG_STAGE_FRAGMENT);
+    if (!vertexModule || !fragmentModule)
+    {
+        return SLANG_FAIL;
+    }
+
+    WebGPURenderPipelineDescriptor pipelineDesc = {};
+
+    pipelineDesc.layout = program->m_rootObjectLayout->m_pipelineLayout;
+
+    pipelineDesc.vertex.module = vertexModule->module;
+    pipelineDesc.vertex.entryPoint = vertexModule->entryPointName.c_str();
+    pipelineDesc.vertex.buffers = inputLayout->m_vertexBufferLayouts.data();
+    pipelineDesc.vertex.bufferCount = (uint32_t)inputLayout->m_vertexBufferLayouts.size();
+
+    pipelineDesc.primitive.topology = translatePrimitiveTopology(desc.primitiveTopology);
+    // TODO support strip topologies
+    pipelineDesc.primitive.stripIndexFormat = WebGPUIndexFormat_Undefined;
+    pipelineDesc.primitive.frontFace = translateFrontFace(desc.rasterizer.frontFace);
+    pipelineDesc.primitive.cullMode = translateCullMode(desc.rasterizer.cullMode);
+    pipelineDesc.primitive.unclippedDepth = !desc.rasterizer.depthClipEnable;
+
+    WebGPUDepthStencilState depthStencil = {};
+    if (desc.depthStencil.format != Format::Undefined)
+    {
+        const DepthStencilDesc& depthStencilIn = desc.depthStencil;
+        depthStencil.format = translateTextureFormat(depthStencilIn.format);
+        depthStencil.depthWriteEnabled =
+            depthStencilIn.depthWriteEnable ? WebGPUOptionalBool_True : WebGPUOptionalBool_False;
+        depthStencil.depthCompare = translateCompareFunction(depthStencilIn.depthFunc);
+        if (getFormatInfo(desc.depthStencil.format).hasStencil)
+        {
+            depthStencil.stencilFront.compare = translateCompareFunction(depthStencilIn.frontFace.stencilFunc);
+            depthStencil.stencilFront.failOp = translateStencilOp(depthStencilIn.frontFace.stencilFailOp);
+            depthStencil.stencilFront.depthFailOp = translateStencilOp(depthStencilIn.frontFace.stencilDepthFailOp);
+            depthStencil.stencilFront.passOp = translateStencilOp(depthStencilIn.frontFace.stencilPassOp);
+            depthStencil.stencilBack.compare = translateCompareFunction(depthStencilIn.backFace.stencilFunc);
+            depthStencil.stencilBack.failOp = translateStencilOp(depthStencilIn.backFace.stencilFailOp);
+            depthStencil.stencilBack.depthFailOp = translateStencilOp(depthStencilIn.backFace.stencilDepthFailOp);
+            depthStencil.stencilBack.passOp = translateStencilOp(depthStencilIn.backFace.stencilPassOp);
+            depthStencil.stencilReadMask = depthStencilIn.stencilReadMask;
+            depthStencil.stencilWriteMask = depthStencilIn.stencilWriteMask;
+        }
+        depthStencil.depthBias = desc.rasterizer.depthBias;
+        depthStencil.depthBiasSlopeScale = desc.rasterizer.slopeScaledDepthBias;
+        depthStencil.depthBiasClamp = desc.rasterizer.depthBiasClamp;
+        pipelineDesc.depthStencil = &depthStencil;
+    }
+
+    pipelineDesc.multisample.count = desc.multisample.sampleCount;
+    pipelineDesc.multisample.mask = desc.multisample.sampleMask;
+    pipelineDesc.multisample.alphaToCoverageEnabled = desc.multisample.alphaToCoverageEnable;
+    // desc.multisample.alphaToOneEnable not supported
+
+    short_vector<WebGPUColorTargetState, 8> targets(desc.targetCount, {});
+    short_vector<WebGPUBlendState, 8> blendStates(desc.targetCount, {});
+    for (uint32_t i = 0; i < desc.targetCount; ++i)
+    {
+        const ColorTargetDesc& targetIn = desc.targets[i];
+        WebGPUColorTargetState& target = targets[i];
+        WebGPUBlendState& blend = blendStates[i];
+        target.format = translateTextureFormat(targetIn.format);
+        if (targetIn.enableBlend)
+        {
+            blend.color.operation = translateBlendOperation(targetIn.color.op);
+            blend.color.srcFactor = translateBlendFactor(targetIn.color.srcFactor);
+            blend.color.dstFactor = translateBlendFactor(targetIn.color.dstFactor);
+            blend.alpha.operation = translateBlendOperation(targetIn.alpha.op);
+            blend.alpha.srcFactor = translateBlendFactor(targetIn.alpha.srcFactor);
+            blend.alpha.dstFactor = translateBlendFactor(targetIn.alpha.dstFactor);
+            target.blend = &blend;
+        }
+        target.writeMask = (WebGPUColorWriteMask)targetIn.writeMask;
+    }
+
+    WebGPUFragmentState fragment = {};
+    fragment.module = fragmentModule->module;
+    fragment.entryPoint = fragmentModule->entryPointName.c_str();
+    fragment.targetCount = targets.size();
+    fragment.targets = targets.data();
+    pipelineDesc.fragment = &fragment;
+
+    pipelineDesc.label = desc.label;
+
+    WebGPURenderPipeline renderPipeline = {};
+    renderPipeline = m_ctx.api.webgpuDeviceCreateRenderPipeline(m_ctx.device, &pipelineDesc);
+    if (!renderPipeline)
+    {
+        return SLANG_FAIL;
+    }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Render,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<RenderPipelineImpl> pipeline = new RenderPipelineImpl(this, desc);
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+    pipeline->m_renderPipeline = renderPipeline;
+    returnComPtr(outPipeline, pipeline);
+    return SLANG_OK;
+}
+
+ComputePipelineImpl::ComputePipelineImpl(Device* device, const ComputePipelineDesc& desc)
+    : ComputePipeline(device, desc)
+{
+}
+
+ComputePipelineImpl::~ComputePipelineImpl()
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (m_computePipeline)
+    {
+        device->m_ctx.api.webgpuComputePipelineRelease(m_computePipeline);
+    }
+}
+
+Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::WebGPUComputePipeline;
+    outHandle->value = (uint64_t)m_computePipeline;
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
+{
+    TimePoint startTime = Timer::now();
+
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_modules.empty());
+    ShaderProgramImpl::Module* computeModule = program->findModule(SlangStage::SLANG_STAGE_COMPUTE);
+    if (!computeModule)
+    {
+        return SLANG_FAIL;
+    }
+
+    WebGPUComputePipelineDescriptor pipelineDesc = {};
+    pipelineDesc.layout = program->m_rootObjectLayout->m_pipelineLayout;
+    pipelineDesc.compute.module = computeModule->module;
+    pipelineDesc.compute.entryPoint = computeModule->entryPointName.c_str();
+
+    pipelineDesc.label = desc.label;
+
+    WebGPUComputePipeline computePipeline = {};
+    computePipeline = m_ctx.api.webgpuDeviceCreateComputePipeline(m_ctx.device, &pipelineDesc);
+    if (!computePipeline)
+    {
+        return SLANG_FAIL;
+    }
+
+    // Report the pipeline creation time.
+    if (m_shaderCompilationReporter)
+    {
+        m_shaderCompilationReporter->reportCreatePipeline(
+            program,
+            ShaderCompilationReporter::PipelineType::Compute,
+            startTime,
+            Timer::now(),
+            false,
+            0
+        );
+    }
+
+    RefPtr<ComputePipelineImpl> pipeline = new ComputePipelineImpl(this, desc);
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+    pipeline->m_computePipeline = computePipeline;
+    if (!pipeline->m_computePipeline)
+    {
+        return SLANG_FAIL;
+    }
+    returnComPtr(outPipeline, pipeline);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
+{
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+} // namespace rhi::webgpu

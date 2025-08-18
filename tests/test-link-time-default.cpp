@@ -97,7 +97,7 @@ static Result loadProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-GPU_TEST_CASE("link-time-default", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | NoDeviceCache)
+GPU_TEST_CASE("link-time-default", D3D11 | D3D12 | Vulkan | Metal | CPU | WebGPU | NoDeviceCache)
 {
     // Create pipeline without linking a specialization override module, so we should
     // see the default value of `extern Foo`.

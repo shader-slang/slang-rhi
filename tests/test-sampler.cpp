@@ -151,7 +151,7 @@ static void testSampler(IDevice* device, const SamplerDesc& samplerDesc, span<Te
     test.check(sampler, testRecords);
 }
 
-GPU_TEST_CASE("sampler-filter-point", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("sampler-filter-point", D3D11 | D3D12 | Vulkan | Metal | WebGPU)
 {
     SamplerDesc desc = {};
     desc.minFilter = TextureFilteringMode::Point;
@@ -179,7 +179,7 @@ GPU_TEST_CASE("sampler-filter-point", D3D11 | D3D12 | Vulkan | Metal | WGPU)
     testSampler(device, desc, testRecords);
 }
 
-GPU_TEST_CASE("sampler-filter-linear", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("sampler-filter-linear", D3D11 | D3D12 | Vulkan | Metal | WebGPU)
 {
     SamplerDesc desc = {};
     desc.minFilter = TextureFilteringMode::Linear;

@@ -37,8 +37,8 @@ const char* enumToString(DeviceType value)
         return S_DeviceType_CPU;
     case DeviceType::CUDA:
         return S_DeviceType_CUDA;
-    case DeviceType::WGPU:
-        return S_DeviceType_WGPU;
+    case DeviceType::WebGPU:
+        return S_DeviceType_WebGPU;
     }
     return S_INVALID;
 }

@@ -17,7 +17,7 @@ Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
 Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
 Result SLANG_MCALL createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
-Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result SLANG_MCALL createWebGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
 Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
@@ -176,8 +176,8 @@ const char* RHI::getDeviceTypeName(DeviceType type)
         return "CPU";
     case DeviceType::CUDA:
         return "CUDA";
-    case DeviceType::WGPU:
-        return "WGPU";
+    case DeviceType::WebGPU:
+        return "WebGPU";
     }
     return "invalid";
 }
@@ -198,8 +198,8 @@ bool RHI::isDeviceTypeSupported(DeviceType type)
         return SLANG_RHI_ENABLE_CPU;
     case DeviceType::CUDA:
         return SLANG_RHI_ENABLE_CUDA;
-    case DeviceType::WGPU:
-        return SLANG_RHI_ENABLE_WGPU;
+    case DeviceType::WebGPU:
+        return SLANG_RHI_ENABLE_WEBGPU;
     default:
         return false;
     }
@@ -331,10 +331,10 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
         return createCPUDevice(desc, outDevice);
     }
 #endif
-#if SLANG_RHI_ENABLE_WGPU
-    case DeviceType::WGPU:
+#if SLANG_RHI_ENABLE_WEBGPU
+    case DeviceType::WebGPU:
     {
-        return createWGPUDevice(desc, outDevice);
+        return createWebGPUDevice(desc, outDevice);
     }
 #endif
     default:

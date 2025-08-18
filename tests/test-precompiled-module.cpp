@@ -34,7 +34,7 @@ static slang::TargetDesc getTargetDesc(DeviceType deviceType, slang::IGlobalSess
         targetDesc.format = SLANG_PTX;
         targetDesc.profile = globalSession->findProfile("sm_5_0");
         break;
-    case DeviceType::WGPU:
+    case DeviceType::WebGPU:
         targetDesc.format = SLANG_WGSL;
         targetDesc.profile = globalSession->findProfile("");
         break;

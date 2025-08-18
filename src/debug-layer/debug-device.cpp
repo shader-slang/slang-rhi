@@ -164,12 +164,12 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have mip levels");
             return SLANG_E_INVALID_ARG;
         }
-        if (deviceType == DeviceType::WGPU && desc.sampleCount != 4)
+        if (deviceType == DeviceType::WebGPU && desc.sampleCount != 4)
         {
             RHI_VALIDATION_ERROR("WebGPU only supports sample count of 4");
             return SLANG_E_INVALID_ARG;
         }
-        if (deviceType == DeviceType::WGPU && desc.arrayLength != 1)
+        if (deviceType == DeviceType::WebGPU && desc.arrayLength != 1)
         {
             RHI_VALIDATION_ERROR("WebGPU doesn't support multisampled texture arrays");
             return SLANG_E_INVALID_ARG;
@@ -352,14 +352,14 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         RHI_VALIDATION_ERROR("Invalid address W mode");
         return SLANG_E_INVALID_ARG;
     }
-    if (ctx->deviceType == DeviceType::WGPU && (desc.addressU == TextureAddressingMode::ClampToBorder ||
+    if (ctx->deviceType == DeviceType::WebGPU && (desc.addressU == TextureAddressingMode::ClampToBorder ||
                                                 desc.addressV == TextureAddressingMode::ClampToBorder ||
                                                 desc.addressW == TextureAddressingMode::ClampToBorder))
     {
         RHI_VALIDATION_ERROR("WebGPU doesn't support ClampToBorder mode");
         return SLANG_E_INVALID_ARG;
     }
-    if (ctx->deviceType == DeviceType::WGPU &&
+    if (ctx->deviceType == DeviceType::WebGPU &&
         (desc.addressU == TextureAddressingMode::MirrorOnce || desc.addressV == TextureAddressingMode::MirrorOnce ||
          desc.addressW == TextureAddressingMode::MirrorOnce))
     {
@@ -380,7 +380,7 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
     if (desc.addressU == TextureAddressingMode::ClampToBorder ||
         desc.addressV == TextureAddressingMode::ClampToBorder || desc.addressW == TextureAddressingMode::ClampToBorder)
     {
-        if (ctx->deviceType == DeviceType::WGPU)
+        if (ctx->deviceType == DeviceType::WebGPU)
         {
             RHI_VALIDATION_WARNING("WebGPU doesn't support ClampToBorder addressing mode");
         }
@@ -554,7 +554,7 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRender
 {
     SLANG_RHI_API_FUNC;
 
-    if (ctx->deviceType == DeviceType::WGPU && desc.primitiveTopology == PrimitiveTopology::PatchList)
+    if (ctx->deviceType == DeviceType::WebGPU && desc.primitiveTopology == PrimitiveTopology::PatchList)
     {
         RHI_VALIDATION_ERROR("WebGPU doesn't support PatchList topology");
         return SLANG_E_INVALID_ARG;

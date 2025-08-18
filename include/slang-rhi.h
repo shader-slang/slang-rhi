@@ -97,7 +97,7 @@ enum class DeviceType
     Metal,
     CPU,
     CUDA,
-    WGPU,
+    WebGPU,
 };
 
 // clang-format off
@@ -580,16 +580,16 @@ enum class NativeHandleType
     OptixModule = 0x00060003,
     OptixPipeline = 0x00060004,
 
-    WGPUDevice = 0x00070001,
-    WGPUBuffer = 0x00070002,
-    WGPUTexture = 0x00070003,
-    WGPUSampler = 0x00070004,
-    WGPURenderPipeline = 0x00070005,
-    WGPUComputePipeline = 0x00070006,
-    WGPUQueue = 0x00070007,
-    WGPUCommandBuffer = 0x00070008,
-    WGPUTextureView = 0x00070009,
-    WGPUCommandEncoder = 0x0007000a,
+    WebGPUDevice = 0x00070001,
+    WebGPUBuffer = 0x00070002,
+    WebGPUTexture = 0x00070003,
+    WebGPUSampler = 0x00070004,
+    WebGPURenderPipeline = 0x00070005,
+    WebGPUComputePipeline = 0x00070006,
+    WebGPUQueue = 0x00070007,
+    WebGPUCommandBuffer = 0x00070008,
+    WebGPUTextureView = 0x00070009,
+    WebGPUCommandEncoder = 0x0007000a,
 };
 
 struct NativeHandle
