@@ -755,24 +755,30 @@ CommandQueueImpl::~CommandQueueImpl()
 
 Result CommandQueueImpl::retireCommandBuffers()
 {
-    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
-    m_commandBuffersInFlight.clear();
-
-    for (const auto& commandBuffer : commandBuffers)
+    auto cbIt = m_commandBuffersInFlight.begin();
+    while (cbIt != m_commandBuffersInFlight.end())
     {
+        RefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
+
         CUresult result = cuEventQuery(commandBuffer->m_completionEvent);
         if (result == CUDA_SUCCESS)
         {
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
             SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(commandBuffer->m_completionEvent));
+
             // Reset the command buffer for reuse.
             commandBuffer->reset();
+
+            // Remove the command buffer from the list.
+            cbIt = m_commandBuffersInFlight.erase(cbIt);
         }
         else if (result == CUDA_ERROR_NOT_READY)
         {
             // Not ready means event hasn't been triggered yet, so it's still in-flight.
-            m_commandBuffersInFlight.push_back(commandBuffer);
+            // As command buffers are ordered, this should mean that all subsequent command buffers
+            // are also still in-flight, so we can stop checking.
+            break;
         }
         else
         {
