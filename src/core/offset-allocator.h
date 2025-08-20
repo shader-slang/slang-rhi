@@ -65,6 +65,10 @@ public:
     StorageReport storageReport() const;
     StorageReportFull storageReportFull() const;
 
+    uint32_t getSize() const { return m_size; }
+    uint32_t getMaxAllocs() const { return m_maxAllocs; }
+    uint32_t getFreeStorage() const { return m_freeStorage; }
+
 private:
     uint32_t insertNodeIntoBin(uint32_t size, uint32_t dataOffset);
     void removeNodeFromBin(uint32_t nodeIndex);

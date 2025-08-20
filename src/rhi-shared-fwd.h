@@ -12,6 +12,7 @@ class Texture;
 class QueryPool;
 class InputLayout;
 class ShaderTable;
+class GraphicsHeap;
 
 class CommandBuffer;
 class CommandEncoder;

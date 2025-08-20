@@ -776,6 +776,13 @@ Result Device::waitForFences(
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::createGraphicsHeap(const GraphicsHeapDesc& desc, IGraphicsHeap** outHeap)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outHeap);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Device::readTexture(
     ITexture* texture,
     uint32_t layer,

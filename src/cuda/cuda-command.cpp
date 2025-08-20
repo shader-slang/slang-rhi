@@ -766,6 +766,8 @@ Result CommandQueueImpl::retireCommandBuffers()
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
             SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(commandBuffer->m_completionEvent));
+            m_submitCompleted = commandBuffer->m_submitIndex;
+
             // Reset the command buffer for reuse.
             commandBuffer->reset();
         }
@@ -824,9 +826,13 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
+        // Increment submit count
+        m_submitCount++;
+
         // Only record command buffer if executor succeeds and we correctly add it to the active stream
         SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, CU_EVENT_DISABLE_TIMING));
         SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, requestedStream));
+        commandBuffer->m_submitIndex = m_submitCount;
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 

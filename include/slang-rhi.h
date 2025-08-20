@@ -80,6 +80,7 @@ enum class StructType
     ShaderTableDesc,
     QueryPoolDesc,
     DeviceDesc,
+    GraphicsHeapDesc,
 
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
@@ -2574,6 +2575,45 @@ public:
     }
 };
 
+
+struct GraphicsAllocation
+{
+    Offset offset = 0;
+    Size size = 0;
+    void* pageId = nullptr;
+    uint32_t nodeIndex = 0xffffffff;
+};
+
+struct GraphicsHeapDesc
+{
+    StructType structType = StructType::GraphicsHeapDesc;
+
+    /// Type of memory heap should reside in.
+    MemoryType memoryType = MemoryType::DeviceLocal;
+
+    /// The label for the heap.
+    const char* label = nullptr;
+};
+
+struct GraphicsAllocDesc
+{
+    Size size = 0;
+    Size alignment = 0;
+};
+
+class IGraphicsHeap : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0x1c3b8f2a, 0x4d5e, 0x4b6c, {0x9f, 0x7d, 0x3e, 0x1c, 0x8b, 0x6f, 0x2c, 0x5a});
+
+public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(
+        const GraphicsAllocDesc& desc,
+        GraphicsAllocation* allocation
+    ) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) = 0;
+};
+
 struct AdapterLUID
 {
     uint8_t luid[16];
@@ -3162,6 +3202,12 @@ public:
         const uint64_t* fenceValues,
         bool waitForAll,
         uint64_t timeout
+    ) = 0;
+
+    /// Create a graphics heap
+    virtual SLANG_NO_THROW Result SLANG_MCALL createGraphicsHeap(
+        const GraphicsHeapDesc& desc,
+        IGraphicsHeap** outHeap
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(

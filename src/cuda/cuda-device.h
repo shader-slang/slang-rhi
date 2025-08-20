@@ -164,6 +164,11 @@ public:
         uint64_t timeout
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createGraphicsHeap(
+        const GraphicsHeapDesc& desc,
+        IGraphicsHeap** outHeap
+    ) override;
+
     void customizeShaderObject(ShaderObject* shaderObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
