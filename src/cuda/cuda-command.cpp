@@ -778,7 +778,7 @@ Result CommandQueueImpl::retireCommandBuffers()
             // Not ready means event hasn't been triggered yet, so it's still in-flight.
             // As command buffers are ordered, this should mean that all subsequent command buffers
             // are also still in-flight, so we can stop checking.
-            break;            
+            break;
         }
         else
         {
