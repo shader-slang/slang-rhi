@@ -2,6 +2,19 @@
 
 namespace rhi::metal {
 
+static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(slang::ISession* slangSession, slang::TypeLayoutReflection* elementTypeLayout, slang::TypeLayoutReflection** parameterBlockTypeLayout)
+{
+    if (!*parameterBlockTypeLayout)
+    {
+        *parameterBlockTypeLayout = slangSession->getTypeLayout(
+            elementTypeLayout->getType(),
+            0,
+            slang::LayoutRules::MetalArgumentBufferTier2
+        );
+    }
+    return *parameterBlockTypeLayout;
+}
+
 ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
     : BindingOffset(varLayout)
 {
@@ -30,12 +43,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     // since this layout will format data for an arg-buffer-tier2 if available.
     if (m_containerType == ShaderObjectContainerType::ParameterBlock)
     {
-        m_parameterBlockTypeLayout = m_session->getTypeLayout(
-            m_elementTypeLayout->getType(),
-            0,
-            slang::LayoutRules::MetalArgumentBufferTier2
-        );
-
+        _getParameterBlockTypeLayout(m_session, m_elementTypeLayout, &m_parameterBlockTypeLayout);
         typeLayout = m_parameterBlockTypeLayout;
     }
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();
@@ -238,15 +246,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
 
 slang::TypeLayoutReflection* ShaderObjectLayoutImpl::getParameterBlockTypeLayout()
 {
-    if (!m_parameterBlockTypeLayout)
-    {
-        m_parameterBlockTypeLayout = m_slangSession->getTypeLayout(
-            m_elementTypeLayout->getType(),
-            0,
-            slang::LayoutRules::MetalArgumentBufferTier2
-        );
-    }
-    return m_parameterBlockTypeLayout;
+    return _getParameterBlockTypeLayout(m_slangSession.get(), m_elementTypeLayout, &m_parameterBlockTypeLayout);
 }
 
 Result ShaderObjectLayoutImpl::createForElementType(
