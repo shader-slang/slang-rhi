@@ -43,6 +43,8 @@ public:
         {
         }
 
+        virtual ~Page() {}
+
         virtual DeviceAddress offsetToAddress(Size offset) = 0;
 
         uint32_t m_id;
