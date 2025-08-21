@@ -2,6 +2,14 @@
 
 namespace rhi::metal {
 
+static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(
+    slang::ISession* slangSession,
+    slang::TypeLayoutReflection* elementTypeLayout
+)
+{
+    return slangSession->getTypeLayout(elementTypeLayout->getType(), 0, slang::LayoutRules::MetalArgumentBufferTier2);
+}
+
 ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
     : BindingOffset(varLayout)
 {
@@ -26,6 +34,14 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
 
     m_elementTypeLayout = typeLayout;
 
+    if (m_containerType == ShaderObjectContainerType::ParameterBlock)
+    {
+        m_parameterBlockTypeLayout = _getParameterBlockTypeLayout(m_session, m_elementTypeLayout);
+
+        // If we have a parameter-block, we should be working on the `ParameterBlockTypeLayout`
+        // since this layout will format data for an arg-buffer-tier2 if available.
+        typeLayout = m_parameterBlockTypeLayout;
+    }
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();
     if (m_totalOrdinaryDataSize > 0)
     {
@@ -227,13 +243,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
 slang::TypeLayoutReflection* ShaderObjectLayoutImpl::getParameterBlockTypeLayout()
 {
     if (!m_parameterBlockTypeLayout)
-    {
-        m_parameterBlockTypeLayout = m_slangSession->getTypeLayout(
-            m_elementTypeLayout->getType(),
-            0,
-            slang::LayoutRules::MetalArgumentBufferTier2
-        );
-    }
+        m_parameterBlockTypeLayout = _getParameterBlockTypeLayout(m_slangSession.get(), m_elementTypeLayout);
     return m_parameterBlockTypeLayout;
 }
 
@@ -255,6 +265,7 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
+    m_parameterBlockTypeLayout = builder->m_parameterBlockTypeLayout;
     m_slotCount = builder->m_slotCount;
     m_subObjectCount = builder->m_subObjectCount;
     m_resourceCount = builder->m_resourceCount;
