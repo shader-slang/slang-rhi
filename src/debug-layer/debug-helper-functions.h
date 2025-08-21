@@ -5,7 +5,7 @@
 #include "debug-command-encoder.h"
 #include "debug-device.h"
 #include "debug-fence.h"
-#include "debug-graphics-heap.h"
+#include "debug-heap.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
 #include "debug-surface.h"

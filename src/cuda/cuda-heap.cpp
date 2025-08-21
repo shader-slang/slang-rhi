@@ -1,4 +1,4 @@
-#include "cuda-graphics-heap.h"
+#include "cuda-heap.h"
 #include "cuda-device.h"
 #include "cuda-utils.h"
 #include "cuda-command.h"

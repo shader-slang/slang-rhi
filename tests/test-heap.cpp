@@ -110,7 +110,7 @@ ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t size)
     return buffer;
 }
 
-GPU_TEST_CASE("graphics-heap-create", CUDA)
+GPU_TEST_CASE("heap-create", CUDA)
 {
     HeapDesc desc;
     desc.label = "Test Graphics Heap";
@@ -120,7 +120,7 @@ GPU_TEST_CASE("graphics-heap-create", CUDA)
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 }
 
-GPU_TEST_CASE("graphics-heap-allocate", CUDA)
+GPU_TEST_CASE("heap-allocate", CUDA)
 {
     HeapDesc desc;
     desc.label = "Test Graphics Heap";
@@ -160,7 +160,7 @@ GPU_TEST_CASE("graphics-heap-allocate", CUDA)
     CHECK_EQ(report.numPages, 0);
 }
 
-GPU_TEST_CASE("graphics-heap-submit", CUDA)
+GPU_TEST_CASE("heap-submit", CUDA)
 {
     HeapDesc desc;
     desc.label = "Test Graphics Heap";
@@ -225,7 +225,7 @@ struct AllocationInfo
     uint32_t pattern;
 };
 
-GPU_TEST_CASE("graphics-heap-pointer-stress-test", CUDA)
+GPU_TEST_CASE("heap-pointer-stress-test", CUDA)
 {
     ComputePipelineDesc pipelineDesc = {};
 
