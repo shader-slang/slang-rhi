@@ -736,9 +736,9 @@ CommandQueueImpl::~CommandQueueImpl()
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     // Block on all events completing
-    for (const auto& commandBuffer : m_commandBuffersInFlight)
+    for (const auto& ev : m_submitEvents)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(commandBuffer->m_completionEvent));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
     }
 
     // Retire finished command buffers, which should be all of them
@@ -755,24 +755,68 @@ CommandQueueImpl::~CommandQueueImpl()
 
 Result CommandQueueImpl::retireCommandBuffers()
 {
+    // Run fence logic so m_lastFinishedID is up to date.
+    SLANG_RETURN_ON_FAIL(updateFence());
+
+    // Retire command buffers that're passed the submission ID
     auto cbIt = m_commandBuffersInFlight.begin();
     while (cbIt != m_commandBuffersInFlight.end())
     {
         RefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
+        if (commandBuffer->m_submissionID > m_lastFinishedID)
+            break;
 
-        CUresult result = cuEventQuery(commandBuffer->m_completionEvent);
+        // Reset the command buffer for reuse.
+        commandBuffer->reset();
+        cbIt = m_commandBuffersInFlight.erase(cbIt);
+    }
+
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device);
+    SLANG_RETURN_ON_FAIL(encoder->init());
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
+{
+    // Increment submit count
+    m_lastSubmittedID++;
+
+    // Record submission event so we can detect completion
+    SubmitEvent ev;
+    ev.submitID = m_lastSubmittedID;
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
+    m_submitEvents.push_back(ev);
+
+    if (outId)
+        *outId = m_lastSubmittedID;
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::updateFence()
+{
+    // Iterate the submit events to update the last finished ID
+    auto submitIt = m_submitEvents.begin();
+    while (submitIt != m_submitEvents.end())
+    {
+        CUresult result = cuEventQuery(submitIt->event);
         if (result == CUDA_SUCCESS)
         {
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(commandBuffer->m_completionEvent));
-            m_submitCompleted = commandBuffer->m_submitIndex;
-
-            // Reset the command buffer for reuse.
-            commandBuffer->reset();
+            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
+            m_lastFinishedID = submitIt->submitID;
 
             // Remove the command buffer from the list.
-            cbIt = m_commandBuffersInFlight.erase(cbIt);
+            submitIt = m_submitEvents.erase(submitIt);
         }
         else if (result == CUDA_ERROR_NOT_READY)
         {
@@ -789,15 +833,6 @@ Result CommandQueueImpl::retireCommandBuffers()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
-{
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device);
-    SLANG_RETURN_ON_FAIL(encoder->init());
-    returnComPtr(outEncoder, encoder);
-    return SLANG_OK;
-}
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
@@ -832,12 +867,17 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
         // Increment submit count
-        m_submitCount++;
+        m_lastSubmittedID++;
 
-        // Only record command buffer if executor succeeds and we correctly add it to the active stream
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, CU_EVENT_DISABLE_TIMING));
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, requestedStream));
-        commandBuffer->m_submitIndex = m_submitCount;
+        // Record submission event so we can detect completion
+        SubmitEvent ev;
+        ev.submitID = m_lastSubmittedID;
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, requestedStream));
+        m_submitEvents.push_back(ev);
+
+        // Record the command buffer + corresponding submit ID
+        commandBuffer->m_submissionID = ev.submitID;
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 

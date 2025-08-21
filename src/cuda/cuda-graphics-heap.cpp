@@ -15,7 +15,7 @@ HeapImpl::~HeapImpl() {}
 Result HeapImpl::free(HeapAlloc allocation)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
-    if (deviceImpl->m_queue->m_submitCount == deviceImpl->m_queue->m_submitCompleted)
+    if (deviceImpl->m_queue->m_lastFinishedID == deviceImpl->m_queue->m_lastSubmittedID)
     {
         return retire(allocation);
     }
@@ -23,7 +23,7 @@ Result HeapImpl::free(HeapAlloc allocation)
     {
         PendingFree pendingFree;
         pendingFree.allocation = allocation;
-        pendingFree.submitIndex = deviceImpl->m_queue->m_submitCount;
+        pendingFree.submitIndex = deviceImpl->m_queue->m_lastSubmittedID;
         m_pendingFrees.push_back(pendingFree);
         return SLANG_OK;
     }
@@ -34,7 +34,7 @@ Result HeapImpl::flush()
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     for (auto it = m_pendingFrees.begin(); it != m_pendingFrees.end();)
     {
-        if (it->submitIndex <= deviceImpl->m_queue->m_submitCompleted)
+        if (it->submitIndex <= deviceImpl->m_queue->m_lastFinishedID)
         {
             SLANG_RETURN_ON_FAIL(retire(it->allocation));
             it = m_pendingFrees.erase(it);

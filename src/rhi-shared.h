@@ -65,6 +65,8 @@ public:
         : DeviceChild(device)
     {
     }
+
+    virtual void markForDeletion();
 };
 
 class Buffer : public IBuffer, public Resource

@@ -956,4 +956,10 @@ Result Device::getShaderObjectLayout(
     return SLANG_OK;
 }
 
+void Device::markResourceForDeletion(Resource* resource)
+{
+    delete resource;
+}
+
+
 } // namespace rhi
