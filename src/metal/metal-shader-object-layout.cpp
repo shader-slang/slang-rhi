@@ -2,15 +2,16 @@
 
 namespace rhi::metal {
 
-static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(slang::ISession* slangSession, slang::TypeLayoutReflection* elementTypeLayout, slang::TypeLayoutReflection** parameterBlockTypeLayout)
+static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(
+    slang::ISession* slangSession,
+    slang::TypeLayoutReflection* elementTypeLayout,
+    slang::TypeLayoutReflection** parameterBlockTypeLayout
+)
 {
     if (!*parameterBlockTypeLayout)
     {
-        *parameterBlockTypeLayout = slangSession->getTypeLayout(
-            elementTypeLayout->getType(),
-            0,
-            slang::LayoutRules::MetalArgumentBufferTier2
-        );
+        *parameterBlockTypeLayout =
+            slangSession->getTypeLayout(elementTypeLayout->getType(), 0, slang::LayoutRules::MetalArgumentBufferTier2);
     }
     return *parameterBlockTypeLayout;
 }
@@ -38,7 +39,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     typeLayout = _unwrapParameterGroups(typeLayout, m_containerType);
 
     m_elementTypeLayout = typeLayout;
-    
+
     // If we have a parameter-block, we should be working on the `ParameterBlockTypeLayout`
     // since this layout will format data for an arg-buffer-tier2 if available.
     if (m_containerType == ShaderObjectContainerType::ParameterBlock)
