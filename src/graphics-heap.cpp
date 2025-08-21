@@ -7,7 +7,7 @@
 
 namespace rhi {
 
-Result Heap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation* outAllocation)
+Result Heap::allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation)
 {
     // Bail with invalid alignment
     if (!math::isPowerOf2(desc.alignment) || desc.alignment == 0)
@@ -77,7 +77,7 @@ Result Heap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation* outAllo
     return SLANG_FAIL;
 }
 
-Result Heap::retire(GraphicsAllocation allocation)
+Result Heap::retire(HeapAlloc allocation)
 {
     Page* page = static_cast<Page*>(allocation.pageId);
 

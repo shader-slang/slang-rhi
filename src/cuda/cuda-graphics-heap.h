@@ -12,7 +12,7 @@ class HeapImpl : public Heap
 public:
     struct PendingFree
     {
-        GraphicsAllocation allocation;
+        HeapAlloc allocation;
         uint64_t submitIndex;
     };
 
@@ -30,10 +30,10 @@ public:
         CUdeviceptr m_cudaMemory;
     };
 
-    HeapImpl(Device* device, const GraphicsHeapDesc& desc);
+    HeapImpl(Device* device, const HeapDesc& desc);
     ~HeapImpl();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL flush() override;
 
     virtual Result allocatePage(const PageDesc& desc, Page** outPage) override;

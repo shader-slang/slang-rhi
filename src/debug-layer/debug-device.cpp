@@ -765,10 +765,10 @@ Result DebugDevice::waitForFences(
     return baseObject->waitForFences(fenceCount, innerFences.data(), fenceValues, waitForAll, timeout);
 }
 
-Result DebugDevice::createGraphicsHeap(const GraphicsHeapDesc& desc, IHeap** outHeap)
+Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
 {
     RefPtr<DebugHeap> result = new DebugHeap(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createGraphicsHeap(desc, result->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->createHeap(desc, result->baseObject.writeRef()));
     returnComPtr(outHeap, result);
     return SLANG_OK;
 }

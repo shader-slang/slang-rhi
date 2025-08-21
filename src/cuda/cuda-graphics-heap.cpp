@@ -5,14 +5,14 @@
 
 namespace rhi::cuda {
 
-HeapImpl::HeapImpl(Device* device, const GraphicsHeapDesc& desc)
+HeapImpl::HeapImpl(Device* device, const HeapDesc& desc)
     : Heap(device, desc)
 {
 }
 
 HeapImpl::~HeapImpl() {}
 
-Result HeapImpl::free(GraphicsAllocation allocation)
+Result HeapImpl::free(HeapAlloc allocation)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     if (deviceImpl->m_queue->m_submitCount == deviceImpl->m_queue->m_submitCompleted)
@@ -55,7 +55,14 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     SLANG_CUDA_CTX_SCOPE(deviceImpl);
 
     CUdeviceptr cudaMemory = 0;
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&cudaMemory, desc.size), deviceImpl);
+    if (m_desc.memoryType == MemoryType::DeviceLocal)
+    {
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&cudaMemory, desc.size), deviceImpl);
+    }
+    else
+    {
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost((void**)&cudaMemory, desc.size), deviceImpl);
+    }
 
     *outPage = new PageImpl(this, desc, cudaMemory);
 
@@ -68,13 +75,20 @@ Result HeapImpl::freePage(Page* page_)
     SLANG_CUDA_CTX_SCOPE(deviceImpl);
 
     PageImpl* page = static_cast<PageImpl*>(page_);
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemFree(page->m_cudaMemory), deviceImpl);
+    if (m_desc.memoryType == MemoryType::DeviceLocal)
+    {
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemFree(page->m_cudaMemory), deviceImpl);
+    }
+    else
+    {
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemFreeHost((void*)page->m_cudaMemory), deviceImpl);
+    }
     delete page;
 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createGraphicsHeap(const GraphicsHeapDesc& desc, IHeap** outHeap)
+Result DeviceImpl::createHeap(const HeapDesc& desc, IHeap** outHeap)
 {
     SLANG_CUDA_CTX_SCOPE(this);
 

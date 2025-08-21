@@ -2576,7 +2576,7 @@ public:
 };
 
 
-struct GraphicsAllocation
+struct HeapAlloc
 {
     Offset offset = 0;
     Size size = 0;
@@ -2585,7 +2585,7 @@ struct GraphicsAllocation
     DeviceAddress deviceAddress = 0;
 };
 
-struct GraphicsHeapDesc
+struct HeapDesc
 {
     StructType structType = StructType::GraphicsHeapDesc;
 
@@ -2596,7 +2596,7 @@ struct GraphicsHeapDesc
     const char* label = nullptr;
 };
 
-struct GraphicsAllocDesc
+struct HeapAllocDesc
 {
     Size size = 0;
     Size alignment = 0;
@@ -2616,12 +2616,9 @@ public:
     };
 
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(
-        const GraphicsAllocDesc& desc,
-        GraphicsAllocation* outAllocation
-    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) = 0;
 
@@ -3228,7 +3225,7 @@ public:
     ) = 0;
 
     /// Create a graphics heap
-    virtual SLANG_NO_THROW Result SLANG_MCALL createGraphicsHeap(const GraphicsHeapDesc& desc, IHeap** outHeap) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
         const TextureDesc& desc,

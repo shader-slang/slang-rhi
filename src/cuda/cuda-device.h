@@ -164,10 +164,7 @@ public:
         uint64_t timeout
     ) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createGraphicsHeap(
-        const GraphicsHeapDesc& desc,
-        IHeap** outHeap
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) override;
 
     void customizeShaderObject(ShaderObject* shaderObject) override;
 

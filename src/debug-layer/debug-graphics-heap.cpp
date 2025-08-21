@@ -3,13 +3,13 @@
 
 namespace rhi::debug {
 
-Result DebugHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation* allocation)
+Result DebugHeap::allocate(const HeapAllocDesc& desc, HeapAlloc* allocation)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->allocate(desc, allocation);
 }
 
-Result DebugHeap::free(GraphicsAllocation allocation)
+Result DebugHeap::free(HeapAlloc allocation)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->free(allocation);

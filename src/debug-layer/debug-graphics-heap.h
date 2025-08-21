@@ -14,12 +14,9 @@ public:
     IHeap* getInterface(const Guid& guid);
 
 public:
-    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(
-        const GraphicsAllocDesc& desc,
-        GraphicsAllocation* allocation
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* allocation) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) override;
 

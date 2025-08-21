@@ -112,28 +112,28 @@ ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t size)
 
 GPU_TEST_CASE("graphics-heap-create", CUDA)
 {
-    GraphicsHeapDesc desc;
+    HeapDesc desc;
     desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
-    REQUIRE_CALL(device->createGraphicsHeap(desc, heap.writeRef()));
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 }
 
 GPU_TEST_CASE("graphics-heap-allocate", CUDA)
 {
-    GraphicsHeapDesc desc;
+    HeapDesc desc;
     desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
-    REQUIRE_CALL(device->createGraphicsHeap(desc, heap.writeRef()));
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
-    GraphicsAllocDesc allocDesc;
+    HeapAllocDesc allocDesc;
     allocDesc.size = 1024 * 1024;     // 1 MB
     allocDesc.alignment = 256 * 1024; // 256 KB
 
-    GraphicsAllocation allocation;
+    HeapAlloc allocation;
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
     CHECK_EQ(allocation.size, allocDesc.size);
 
@@ -162,18 +162,18 @@ GPU_TEST_CASE("graphics-heap-allocate", CUDA)
 
 GPU_TEST_CASE("graphics-heap-submit", CUDA)
 {
-    GraphicsHeapDesc desc;
+    HeapDesc desc;
     desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
-    REQUIRE_CALL(device->createGraphicsHeap(desc, heap.writeRef()));
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
-    GraphicsAllocDesc allocDesc;
+    HeapAllocDesc allocDesc;
     allocDesc.size = 1024 * 1024;     // 1 MB
     allocDesc.alignment = 256 * 1024; // 256 KB
 
-    GraphicsAllocation allocation;
+    HeapAlloc allocation;
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
     CHECK_EQ(allocation.size, allocDesc.size);
 
@@ -249,12 +249,12 @@ GPU_TEST_CASE("graphics-heap-pointer-stress-test", CUDA)
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, copyPtrpipeline.writeRef()));
 
 
-    GraphicsHeapDesc desc;
+    HeapDesc desc;
     desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
-    REQUIRE_CALL(device->createGraphicsHeap(desc, heap.writeRef()));
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
     std::vector<AllocationInfo> allocations;
 
@@ -281,8 +281,8 @@ GPU_TEST_CASE("graphics-heap-pointer-stress-test", CUDA)
     // freeing of the temp buffers until the GPU is finished with them.
     for (auto& alloc : allocations)
     {
-        GraphicsAllocation src;
-        GraphicsAllocDesc allocDesc;
+        HeapAlloc src;
+        HeapAllocDesc allocDesc;
         allocDesc.size = alloc.buffer->getDesc().size;
         allocDesc.alignment = 128;
         REQUIRE_CALL(heap->allocate(allocDesc, &src));

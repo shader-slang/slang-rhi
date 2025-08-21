@@ -54,7 +54,7 @@ public:
     };
 
 
-    Heap(Device* device, const GraphicsHeapDesc& desc)
+    Heap(Device* device, const HeapDesc& desc)
         : DeviceChild(device)
     {
         m_desc = desc;
@@ -66,10 +66,7 @@ public:
     // Generally the allocate is common to all platforms, as it's the page allocation
     // that is platform specific. However freeing depends on pipeline state so is
     // platform specific.
-    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(
-        const GraphicsAllocDesc& desc,
-        GraphicsAllocation* outAllocation
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) override;
 
@@ -83,11 +80,11 @@ public:
     virtual Result freePage(Page* page) = 0;
 
     // Device implementation should call this when a freed allocation can be returned to the pool
-    Result retire(GraphicsAllocation allocation);
+    Result retire(HeapAlloc allocation);
 
 
 public:
-    GraphicsHeapDesc m_desc;
+    HeapDesc m_desc;
     uint32_t m_nextPageId = 1;
 
     std::vector<Page*> m_pages;

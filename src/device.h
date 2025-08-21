@@ -247,10 +247,7 @@ public:
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL createGraphicsHeap(
-        const GraphicsHeapDesc& desc,
-        IHeap** outHeap
-    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) override;
 
     // Default implementation uses encoder.copyTextureToBuffer to copy to the read-back heap
     virtual SLANG_NO_THROW Result SLANG_MCALL readTexture(
