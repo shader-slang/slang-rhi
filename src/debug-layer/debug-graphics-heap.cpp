@@ -15,4 +15,22 @@ Result DebugGraphicsHeap::free(GraphicsAllocation allocation)
     return baseObject->free(allocation);
 }
 
+IGraphicsHeap::Report DebugGraphicsHeap::report()
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->report();
+}
+
+Result DebugGraphicsHeap::flush()
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->flush();
+}
+
+Result DebugGraphicsHeap::cleanUp()
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->cleanUp();
+}
+
 } // namespace rhi::debug

@@ -20,6 +20,12 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) override;
+
+    virtual SLANG_NO_THROW Report SLANG_MCALL report() override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL flush() override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL cleanUp() override;
 };
 
 } // namespace rhi::debug

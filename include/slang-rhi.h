@@ -2582,6 +2582,7 @@ struct GraphicsAllocation
     Size size = 0;
     void* pageId = nullptr;
     uint32_t nodeIndex = 0xffffffff;
+    DeviceAddress deviceAddress = 0;
 };
 
 struct GraphicsHeapDesc
@@ -2606,12 +2607,27 @@ class IGraphicsHeap : public ISlangUnknown
     SLANG_COM_INTERFACE(0x1c3b8f2a, 0x4d5e, 0x4b6c, {0x9f, 0x7d, 0x3e, 0x1c, 0x8b, 0x6f, 0x2c, 0x5a});
 
 public:
+    struct Report
+    {
+        uint32_t numPages = 0;
+        uint64_t totalAllocated = 0;
+        uint64_t totalMemUsage = 0;
+        uint64_t numAllocations = 0;
+    };
+
+
     virtual SLANG_NO_THROW Result SLANG_MCALL allocate(
         const GraphicsAllocDesc& desc,
         GraphicsAllocation* allocation
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) = 0;
+
+    virtual SLANG_NO_THROW Report SLANG_MCALL report() = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL flush() = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL cleanUp() = 0;
 };
 
 struct AdapterLUID

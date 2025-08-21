@@ -25,6 +25,8 @@ public:
         {
         }
 
+        DeviceAddress offsetToAddress(Size offset) override { return DeviceAddress(m_cudaMemory + offset); }
+
         CUdeviceptr m_cudaMemory;
     };
 
@@ -32,9 +34,12 @@ public:
     ~GraphicsHeapImpl();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL flush() override;
 
     virtual Result allocatePage(const PageDesc& desc, Page** page) override;
     virtual Result freePage(Page* page) override;
+
+    Result checkPendingFrees();
 
     std::list<PendingFree> m_pendingFrees;
 };

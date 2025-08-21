@@ -42,6 +42,8 @@ public:
         {
         }
 
+        virtual DeviceAddress offsetToAddress(Size offset) = 0;
+
         uint32_t m_id;
         GraphicsHeap* m_heap;
         PageDesc m_desc;
@@ -66,10 +68,12 @@ public:
         GraphicsAllocation* allocation
     ) override;
 
+    virtual SLANG_NO_THROW Report SLANG_MCALL report() override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL cleanUp() override;
+
     Result createPage(const PageDesc& desc, Page** page);
     Result destroyPage(Page* page);
-
-    Result cleanUp();
 
     // Device implementation should provide these
     virtual Result allocatePage(const PageDesc& desc, Page** page) = 0;
@@ -77,6 +81,7 @@ public:
 
     // Device implementation should call this when a freed allocation can be returned to the pool
     Result retire(GraphicsAllocation allocation);
+
 
 public:
     GraphicsHeapDesc m_desc;

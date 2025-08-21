@@ -39,8 +39,8 @@ Result GraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation*
             auto pageAllocation = page->m_allocator.allocate(desc.size / desc.alignment);
             if (pageAllocation)
             {
-                *allocation =
-                    {pageAllocation.offset * page->m_desc.alignment, desc.size, page, pageAllocation.metadata};
+                Size offset = pageAllocation.offset * page->m_desc.alignment;
+                *allocation = {offset, desc.size, page, pageAllocation.metadata, page->offsetToAddress(offset)};
                 return SLANG_OK;
             }
         }
@@ -66,8 +66,8 @@ Result GraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation*
         auto pageAllocation = newPage->m_allocator.allocate(desc.size / desc.alignment);
         if (pageAllocation)
         {
-            *allocation =
-                {pageAllocation.offset * newPage->m_desc.alignment, desc.size, newPage, pageAllocation.metadata};
+            Size offset = pageAllocation.offset * newPage->m_desc.alignment;
+            *allocation = {offset, desc.size, newPage, pageAllocation.metadata, newPage->offsetToAddress(offset)};
             return SLANG_OK;
         }
     }
@@ -123,7 +123,7 @@ Result GraphicsHeap::cleanUp()
         if (page->m_allocator.getFreeStorage() == page->m_allocator.getSize())
         {
             // Free the page and remove it from the list
-            SLANG_RETURN_ON_FAIL(destroyPage(page));
+            SLANG_RETURN_ON_FAIL(freePage(page));
             it = m_pages.erase(it);
         }
         else
@@ -133,6 +133,22 @@ Result GraphicsHeap::cleanUp()
         }
     }
     return SLANG_OK;
+}
+
+IGraphicsHeap::Report GraphicsHeap::report()
+{
+    Report res;
+
+    for (auto& page : m_pages)
+    {
+        res.totalAllocated +=
+            (page->m_allocator.getSize() - page->m_allocator.getFreeStorage()) * page->m_desc.alignment;
+        res.totalMemUsage += page->m_desc.size;
+        res.numAllocations += page->m_allocator.getCurrentAllocs();
+        res.numPages++;
+    }
+
+    return res;
 }
 
 } // namespace rhi

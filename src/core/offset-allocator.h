@@ -68,6 +68,7 @@ public:
     uint32_t getSize() const { return m_size; }
     uint32_t getMaxAllocs() const { return m_maxAllocs; }
     uint32_t getFreeStorage() const { return m_freeStorage; }
+    uint32_t getCurrentAllocs() const { return m_currentAllocs; }
 
 private:
     uint32_t insertNodeIntoBin(uint32_t size, uint32_t dataOffset);
@@ -89,6 +90,7 @@ private:
     uint32_t m_size;
     uint32_t m_maxAllocs;
     uint32_t m_freeStorage;
+    uint32_t m_currentAllocs;
 
     uint32_t m_usedBinsTop;
     uint8_t m_usedBins[NUM_TOP_BINS];

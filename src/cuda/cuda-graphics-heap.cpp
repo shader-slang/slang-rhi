@@ -29,14 +29,14 @@ Result GraphicsHeapImpl::free(GraphicsAllocation allocation)
     }
 }
 
-Result GraphicsHeapImpl::checkPendingFrees()
+Result GraphicsHeapImpl::flush()
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     for (auto it = m_pendingFrees.begin(); it != m_pendingFrees.end();)
     {
         if (it->submitIndex <= deviceImpl->m_queue->m_submitCompleted)
         {
-            retire(it->allocation);
+            SLANG_RETURN_ON_FAIL(retire(it->allocation));
             it = m_pendingFrees.erase(it);
         }
         else
@@ -46,6 +46,7 @@ Result GraphicsHeapImpl::checkPendingFrees()
             break;
         }
     }
+    return SLANG_OK;
 }
 
 Result GraphicsHeapImpl::allocatePage(const PageDesc& desc, Page** page)
