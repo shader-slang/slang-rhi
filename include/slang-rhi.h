@@ -80,6 +80,7 @@ enum class StructType
     ShaderTableDesc,
     QueryPoolDesc,
     DeviceDesc,
+    HeapDesc,
 
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
@@ -2574,6 +2575,65 @@ public:
     }
 };
 
+
+struct HeapAlloc
+{
+    Offset offset = 0;
+    Size size = 0;
+    void* pageId = nullptr;
+    uint32_t nodeIndex = 0xffffffff;
+    DeviceAddress deviceAddress = 0;
+};
+
+struct HeapDesc
+{
+    StructType structType = StructType::HeapDesc;
+
+    /// Type of memory heap should reside in.
+    MemoryType memoryType = MemoryType::DeviceLocal;
+
+    /// The label for the heap.
+    const char* label = nullptr;
+};
+
+struct HeapAllocDesc
+{
+    Size size = 0;
+    Size alignment = 0;
+};
+
+class IHeap : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0x1c3b8f2a, 0x4d5e, 0x4b6c, {0x9f, 0x7d, 0x3e, 0x1c, 0x8b, 0x6f, 0x2c, 0x5a});
+
+public:
+    struct Report
+    {
+        uint32_t numPages = 0;
+        uint64_t totalAllocated = 0;
+        uint64_t totalMemUsage = 0;
+        uint64_t numAllocations = 0;
+    };
+
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) = 0;
+
+    Report report()
+    {
+        Report res;
+        report(&res);
+        return res;
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL flush() = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() = 0;
+};
+
 struct AdapterLUID
 {
     uint8_t luid[16];
@@ -3163,6 +3223,9 @@ public:
         bool waitForAll,
         uint64_t timeout
     ) = 0;
+
+    /// Create a graphics heap
+    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
         const TextureDesc& desc,

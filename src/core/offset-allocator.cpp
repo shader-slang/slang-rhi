@@ -132,6 +132,7 @@ uint32_t findLowestSetBitAfter(uint32_t bitMask, uint32_t startBitIndex)
 OffsetAllocator::OffsetAllocator(uint32_t size, uint32_t maxAllocs)
     : m_size(size)
     , m_maxAllocs(maxAllocs)
+    , m_currentAllocs(0)
     , m_nodes(nullptr)
     , m_freeNodes(nullptr)
 {
@@ -146,6 +147,7 @@ OffsetAllocator::OffsetAllocator(OffsetAllocator&& other)
     : m_size(other.m_size)
     , m_maxAllocs(other.m_maxAllocs)
     , m_freeStorage(other.m_freeStorage)
+    , m_currentAllocs(other.m_currentAllocs)
     , m_usedBinsTop(other.m_usedBinsTop)
     , m_nodes(other.m_nodes)
     , m_freeNodes(other.m_freeNodes)
@@ -165,6 +167,7 @@ void OffsetAllocator::reset()
 {
     m_freeStorage = 0;
     m_usedBinsTop = 0;
+    m_currentAllocs = 0;
     m_freeOffset = m_maxAllocs - 1;
 
     for (uint32_t i = 0; i < NUM_TOP_BINS; i++)
@@ -283,6 +286,9 @@ OffsetAllocator::Allocation OffsetAllocator::allocate(uint32_t size)
         node.neighborNext = newNodeIndex;
     }
 
+    // Track total allocations
+    m_currentAllocs++;
+
     return {node.dataOffset, nodeIndex};
 }
 
@@ -352,6 +358,9 @@ void OffsetAllocator::free(Allocation allocation)
         m_nodes[combinedNodeIndex].neighborPrev = neighborPrev;
         m_nodes[neighborPrev].neighborNext = combinedNodeIndex;
     }
+
+    // Track total allocations
+    m_currentAllocs--;
 }
 
 uint32_t OffsetAllocator::insertNodeIntoBin(uint32_t size, uint32_t dataOffset)

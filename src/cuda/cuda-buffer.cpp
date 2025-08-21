@@ -44,10 +44,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     if (desc.memoryType == MemoryType::DeviceLocal)
     {
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuMemAllocManaged((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size, CU_MEM_ATTACH_GLOBAL),
-            this
-        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size), this);
     }
     else
     {
