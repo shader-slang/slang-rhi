@@ -2,6 +2,9 @@
 
 #include "rhi-shared.h"
 
+#include <algorithm>
+
+
 namespace rhi {
 
 Result GraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation* allocation)

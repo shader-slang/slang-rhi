@@ -9,6 +9,7 @@
 
 #include "rhi-shared-fwd.h"
 
+#include <vector>
 
 namespace rhi {
 
