@@ -372,6 +372,11 @@ public:
     virtual Result createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline);
     virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);
 
+    // Called when ref count of resource hits 0. Default behavior is
+    // to delete it, but platforms can override this to implement
+    // deferred deletion.
+    virtual void markResourceForDeletion(Resource* resource);
+
 protected:
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc);
 

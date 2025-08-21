@@ -124,7 +124,8 @@ public:
         if (count == 1)
         {
             // Last reference, delete the object
-            delete this;
+            // Default behavior immediately calls delete
+            markForDeletion();
         }
         return count - 1;
     }
@@ -158,6 +159,7 @@ public:
 
     virtual void makeExternal() {}
     virtual void makeInternal() {}
+    virtual void markForDeletion() { delete this; }
 
 #if SLANG_RHI_DEBUG
     // Get the number of RefObject instances currently alive.
