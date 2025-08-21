@@ -80,7 +80,7 @@ enum class StructType
     ShaderTableDesc,
     QueryPoolDesc,
     DeviceDesc,
-    GraphicsHeapDesc,
+    HeapDesc,
 
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
