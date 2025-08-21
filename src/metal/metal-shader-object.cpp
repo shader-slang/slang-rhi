@@ -434,8 +434,9 @@ Result BindingDataBuilder::writeArgumentBuffer(
     //
     uint8_t* argumentData = (uint8_t*)argumentBufferImpl->m_buffer->contents();
 
-    // Write all ordinary data now since argument-buffers-tier2 considers everything
-    // to have size in their body. This means (this means that the entire buffer will be filled)
+    // Write all ordinary data early since argument-buffers-tier2 has all members contribute
+    // to the total size of the argument-buffer. This means that if we run this logic later,
+    // we will overwrite the gpu-addresses we add below.
     SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
         argumentBufferTypeLayout,
         shaderObject->getElementTypeLayout(),

@@ -26,12 +26,10 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
 
     m_elementTypeLayout = typeLayout;
 
-    // `typeLayout->getSize()` includes the memory-size of 
-    // gpu-addresses for argument-buffer-tier2 since this 
-    // layout allows storing things in a param-block as a
-    // `uniform` directly.
-    // 
-    // This is important to note since we need to account for 
+    // `typeLayout->getSize()` includes the memory-size of
+    // gpu-addresses for argument-buffer-tier2.
+    //
+    // This is important to note since we need to account for
     // this when writing gpu-addresses to our argument buffer.
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();
     if (m_totalOrdinaryDataSize > 0)

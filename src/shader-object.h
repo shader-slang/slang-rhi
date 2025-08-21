@@ -173,7 +173,8 @@ public:
                 typeLayout = session->getTypeLayout(
                     typeLayout->getElementTypeLayout()->getType(),
                     0,
-                    slang::LayoutRules::MetalArgumentBufferTier2);
+                    slang::LayoutRules::MetalArgumentBufferTier2
+                );
                 // typeLayout = typeLayout->getElementTypeLayout();
                 continue;
             }
