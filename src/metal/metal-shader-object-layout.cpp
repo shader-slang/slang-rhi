@@ -240,7 +240,11 @@ slang::TypeLayoutReflection* ShaderObjectLayoutImpl::getParameterBlockTypeLayout
 {
     if (!m_parameterBlockTypeLayout)
     {
-        m_parameterBlockTypeLayout 
+        m_parameterBlockTypeLayout = m_slangSession->getTypeLayout(
+            m_elementTypeLayout->getType(),
+            0,
+            slang::LayoutRules::MetalArgumentBufferTier2
+        );
     }
     return m_parameterBlockTypeLayout;
 }
