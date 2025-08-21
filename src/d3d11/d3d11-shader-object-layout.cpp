@@ -22,7 +22,7 @@ ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLa
 
 Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutReflection* typeLayout)
 {
-    typeLayout = _unwrapParameterGroups(typeLayout, m_containerType);
+    typeLayout = _unwrapParameterGroups(m_device, typeLayout, m_containerType);
 
     m_elementTypeLayout = typeLayout;
 
