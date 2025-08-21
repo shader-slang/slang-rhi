@@ -177,6 +177,7 @@ protected:
         Device* m_device;
         slang::ISession* m_session;
         slang::TypeLayoutReflection* m_elementTypeLayout;
+        slang::TypeLayoutReflection* m_parameterBlockTypeLayout = nullptr;
 
         std::vector<BindingRangeInfo> m_bindingRanges;
         std::vector<SubObjectRangeInfo> m_subObjectRanges;

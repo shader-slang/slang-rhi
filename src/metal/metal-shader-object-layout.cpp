@@ -29,8 +29,15 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     // If we have a parameter-block, we should be working on the `ParameterBlockTypeLayout`
     // since this layout will format data for an arg-buffer-tier2 if available.
     if (m_containerType == ShaderObjectContainerType::ParameterBlock)
-        typeLayout = getParameterBlockTypeLayout();
+    {
+        m_parameterBlockTypeLayout = m_slangSession->getTypeLayout(
+            m_elementTypeLayout->getType(),
+            0,
+            slang::LayoutRules::MetalArgumentBufferTier2
+        );
 
+        typeLayout = m_parameterBlockTypeLayout;
+    }
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();
     if (m_totalOrdinaryDataSize > 0)
     {
@@ -233,11 +240,7 @@ slang::TypeLayoutReflection* ShaderObjectLayoutImpl::getParameterBlockTypeLayout
 {
     if (!m_parameterBlockTypeLayout)
     {
-        m_parameterBlockTypeLayout = m_slangSession->getTypeLayout(
-            m_elementTypeLayout->getType(),
-            0,
-            slang::LayoutRules::MetalArgumentBufferTier2
-        );
+        m_parameterBlockTypeLayout 
     }
     return m_parameterBlockTypeLayout;
 }
@@ -260,6 +263,7 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
 
+    m_parameterBlockTypeLayout = builder->m_parameterBlockTypeLayout;
     m_slotCount = builder->m_slotCount;
     m_subObjectCount = builder->m_subObjectCount;
     m_resourceCount = builder->m_resourceCount;
