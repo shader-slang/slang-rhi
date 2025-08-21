@@ -4,7 +4,8 @@ namespace rhi::metal {
 
 static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(
     slang::ISession* slangSession,
-    slang::TypeLayoutReflection* elementTypeLayout)
+    slang::TypeLayoutReflection* elementTypeLayout
+)
 {
     return slangSession->getTypeLayout(elementTypeLayout->getType(), 0, slang::LayoutRules::MetalArgumentBufferTier2);
 }
@@ -241,7 +242,7 @@ Result ShaderObjectLayoutImpl::Builder::build(ShaderObjectLayoutImpl** outLayout
 
 slang::TypeLayoutReflection* ShaderObjectLayoutImpl::getParameterBlockTypeLayout()
 {
-    if(!m_parameterBlockTypeLayout)
+    if (!m_parameterBlockTypeLayout)
         m_parameterBlockTypeLayout = _getParameterBlockTypeLayout(m_slangSession.get(), m_elementTypeLayout);
     return m_parameterBlockTypeLayout;
 }
