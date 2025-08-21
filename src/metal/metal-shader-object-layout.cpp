@@ -22,15 +22,15 @@ ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLa
 
 Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutReflection* typeLayout)
 {
-    typeLayout = _unwrapParameterGroups(m_device, typeLayout, m_containerType);
+    typeLayout = _unwrapParameterGroups(typeLayout, m_containerType);
 
     m_elementTypeLayout = typeLayout;
+    
+    // If we have a parameter-block, we should be working on the `ParameterBlockTypeLayout`
+    // since this layout will format data for an arg-buffer-tier2 if available.
+    if (m_containerType == ShaderObjectContainerType::ParameterBlock)
+        typeLayout = getParameterBlockTypeLayout();
 
-    // `typeLayout->getSize()` includes the memory-size of
-    // gpu-addresses for argument-buffer-tier2.
-    //
-    // This is important to note since we need to account for
-    // this when writing gpu-addresses to our argument buffer.
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();
     if (m_totalOrdinaryDataSize > 0)
     {

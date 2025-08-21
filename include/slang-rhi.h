@@ -1590,7 +1590,6 @@ public:
         const ShaderOffset& offset,
         const DescriptorHandle& handle
     ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** session) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type

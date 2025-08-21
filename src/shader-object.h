@@ -132,7 +132,6 @@ public:
     ShaderObjectContainerType getContainerType() { return m_containerType; }
 
     static slang::TypeLayoutReflection* _unwrapParameterGroups(
-        Device* m_device,
         slang::TypeLayoutReflection* typeLayout,
         ShaderObjectContainerType& outContainerType
     )
@@ -163,21 +162,9 @@ public:
                 return typeLayout;
             case slang::TypeReflection::Kind::ConstantBuffer:
             case slang::TypeReflection::Kind::ParameterBlock:
-            {
                 outContainerType = ShaderObjectContainerType::ParameterBlock;
-
-                // Argument buffers can cause a special type-layout. We need to try and
-                // get this layout if possible.
-                ComPtr<slang::ISession> session;
-                m_device->getSlangSession(session.writeRef());
-                typeLayout = session->getTypeLayout(
-                    typeLayout->getElementTypeLayout()->getType(),
-                    0,
-                    slang::LayoutRules::MetalArgumentBufferTier2
-                );
-                // typeLayout = typeLayout->getElementTypeLayout();
+                typeLayout = typeLayout->getElementTypeLayout();
                 continue;
-            }
             default:
                 return typeLayout;
             }
@@ -281,7 +268,6 @@ public:
         const ShaderOffset& offset,
         const DescriptorHandle& handle
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** session) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(
         const ShaderOffset& offset,
         const slang::SpecializationArg* args,

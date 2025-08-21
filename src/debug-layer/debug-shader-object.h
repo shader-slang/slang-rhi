@@ -71,7 +71,6 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finalize() override;
     virtual SLANG_NO_THROW bool SLANG_MCALL isFinalized() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** session) override;
 
 public:
     // Type name of an ordinary shader object.

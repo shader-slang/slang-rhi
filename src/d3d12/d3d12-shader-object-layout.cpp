@@ -77,7 +77,7 @@ Result ShaderObjectLayoutImpl::init(Builder* builder)
 
 Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutReflection* typeLayout)
 {
-    typeLayout = _unwrapParameterGroups(m_device, typeLayout, m_containerType);
+    typeLayout = _unwrapParameterGroups(typeLayout, m_containerType);
     m_elementTypeLayout = typeLayout;
 
     // If the type contains any ordinary data, then we must reserve a buffer

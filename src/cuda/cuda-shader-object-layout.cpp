@@ -8,7 +8,7 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
     slang::TypeLayoutReflection* layout
 )
 {
-    m_elementTypeLayout = _unwrapParameterGroups(m_device, layout, m_containerType);
+    m_elementTypeLayout = _unwrapParameterGroups(layout, m_containerType);
 
     initBase(device, session, m_elementTypeLayout);
 
