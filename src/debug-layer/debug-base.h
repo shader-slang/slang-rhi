@@ -71,7 +71,7 @@ class DebugShaderObject;
 class DebugRootShaderObject;
 class DebugCommandBuffer;
 class DebugCommandEncoder;
-class DebugGraphicsHeap;
+class DebugHeap;
 class DebugRenderPassEncoder;
 class DebugComputePassEncoder;
 class DebugRayTracingPassEncoder;

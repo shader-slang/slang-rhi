@@ -7,7 +7,7 @@
 
 namespace rhi {
 
-Result GraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation* allocation)
+Result Heap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation* outAllocation)
 {
     // Bail with invalid alignment
     if (!math::isPowerOf2(desc.alignment) || desc.alignment == 0)
@@ -15,22 +15,20 @@ Result GraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation*
         return SLANG_E_INVALID_ARG;
     }
 
-    // Bail with invalid size
-    if (desc.size == 0 || desc.size % desc.alignment != 0)
-    {
-        return SLANG_E_INVALID_ARG;
-    }
+    // Round up size
+    Size size = math::calcAligned2(desc.size, desc.alignment);
+
 
     // Select a page size to store the allocation
     uint32_t pageSize = 0;
-    if (desc.size <= 1 * 1024 * 1024)
+    if (size <= 1 * 1024 * 1024)
         pageSize = 8 * 1024 * 1024;
-    else if (desc.size <= 8 * 1024 * 1024)
+    else if (size <= 8 * 1024 * 1024)
         pageSize = 64 * 1024 * 1024;
-    else if (desc.size <= 64 * 1024 * 1024)
+    else if (size <= 64 * 1024 * 1024)
         pageSize = 256 * 1024 * 1024;
     else
-        pageSize = math::calcAligned(desc.size, 256 * 1024 * 1024);
+        pageSize = math::calcAligned(size, 256 * 1024 * 1024);
 
 
     // Find a page of the correct size + alignment with space in
@@ -39,11 +37,11 @@ Result GraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation*
         if (page->m_desc.size == pageSize && page->m_desc.alignment == desc.alignment)
         {
             // Allocate from the page
-            auto pageAllocation = page->m_allocator.allocate(desc.size / desc.alignment);
+            auto pageAllocation = page->m_allocator.allocate(size / desc.alignment);
             if (pageAllocation)
             {
                 Size offset = pageAllocation.offset * page->m_desc.alignment;
-                *allocation = {offset, desc.size, page, pageAllocation.metadata, page->offsetToAddress(offset)};
+                *outAllocation = {offset, size, page, pageAllocation.metadata, page->offsetToAddress(offset)};
                 return SLANG_OK;
             }
         }
@@ -59,18 +57,18 @@ Result GraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation*
     {
         // Out of memory - try cleaning up existing free pages
         // before failing.
-        SLANG_RETURN_ON_FAIL(cleanUp());
+        SLANG_RETURN_ON_FAIL(removeEmptyPages());
         res = createPage(pageDesc, &newPage);
     }
     SLANG_RETURN_ON_FAIL(res);
 
     // Allocate into the new page
     {
-        auto pageAllocation = newPage->m_allocator.allocate(desc.size / desc.alignment);
+        auto pageAllocation = newPage->m_allocator.allocate(size / desc.alignment);
         if (pageAllocation)
         {
             Size offset = pageAllocation.offset * newPage->m_desc.alignment;
-            *allocation = {offset, desc.size, newPage, pageAllocation.metadata, newPage->offsetToAddress(offset)};
+            *outAllocation = {offset, size, newPage, pageAllocation.metadata, newPage->offsetToAddress(offset)};
             return SLANG_OK;
         }
     }
@@ -79,7 +77,7 @@ Result GraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation*
     return SLANG_FAIL;
 }
 
-Result GraphicsHeap::retire(GraphicsAllocation allocation)
+Result Heap::retire(GraphicsAllocation allocation)
 {
     Page* page = static_cast<Page*>(allocation.pageId);
 
@@ -92,19 +90,19 @@ Result GraphicsHeap::retire(GraphicsAllocation allocation)
     return SLANG_OK;
 }
 
-Result GraphicsHeap::createPage(const PageDesc& desc, Page** page)
+Result Heap::createPage(const PageDesc& desc, Page** outPage)
 {
     // Ask platform implementation to allocate the page
-    SLANG_RETURN_ON_FAIL(allocatePage(desc, page))
+    SLANG_RETURN_ON_FAIL(allocatePage(desc, outPage))
 
     // Assign an ID to the page and add to list
-    (*page)->m_id = m_nextPageId++;
-    m_pages.push_back(*page);
+    (*outPage)->m_id = m_nextPageId++;
+    m_pages.push_back(*outPage);
 
     return SLANG_OK;
 }
 
-Result GraphicsHeap::destroyPage(Page* page)
+Result Heap::destroyPage(Page* page)
 {
     // Remove from list
     auto it = std::find(m_pages.begin(), m_pages.end(), page);
@@ -117,7 +115,7 @@ Result GraphicsHeap::destroyPage(Page* page)
     return freePage(page);
 }
 
-Result GraphicsHeap::cleanUp()
+Result Heap::removeEmptyPages()
 {
     // Free all pages that are not in use
     for (auto it = m_pages.begin(); it != m_pages.end();)
@@ -138,11 +136,11 @@ Result GraphicsHeap::cleanUp()
     return SLANG_OK;
 }
 
-IGraphicsHeap::Report GraphicsHeap::report()
+Result Heap::report(IHeap::Report* outReport)
 {
     Report res;
 
-    for (auto& page : m_pages)
+    for (Page* page : m_pages)
     {
         res.totalAllocated +=
             (page->m_allocator.getSize() - page->m_allocator.getFreeStorage()) * page->m_desc.alignment;
@@ -151,7 +149,8 @@ IGraphicsHeap::Report GraphicsHeap::report()
         res.numPages++;
     }
 
-    return res;
+    *outReport = res;
+    return SLANG_OK;
 }
 
 } // namespace rhi

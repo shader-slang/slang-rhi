@@ -3,34 +3,34 @@
 
 namespace rhi::debug {
 
-Result DebugGraphicsHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation* allocation)
+Result DebugHeap::allocate(const GraphicsAllocDesc& desc, GraphicsAllocation* allocation)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->allocate(desc, allocation);
 }
 
-Result DebugGraphicsHeap::free(GraphicsAllocation allocation)
+Result DebugHeap::free(GraphicsAllocation allocation)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->free(allocation);
 }
 
-IGraphicsHeap::Report DebugGraphicsHeap::report()
+Result DebugHeap::report(IHeap::Report* outReport)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->report();
+    return baseObject->report(outReport);
 }
 
-Result DebugGraphicsHeap::flush()
+Result DebugHeap::flush()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->flush();
 }
 
-Result DebugGraphicsHeap::cleanUp()
+Result DebugHeap::removeEmptyPages()
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->cleanUp();
+    return baseObject->removeEmptyPages();
 }
 
 } // namespace rhi::debug

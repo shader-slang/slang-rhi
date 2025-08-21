@@ -4,14 +4,14 @@
 
 namespace rhi::debug {
 
-class DebugGraphicsHeap : public DebugObject<IGraphicsHeap>
+class DebugHeap : public DebugObject<IHeap>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
 
-    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugGraphicsHeap);
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugHeap);
 
-    IGraphicsHeap* getInterface(const Guid& guid);
+    IHeap* getInterface(const Guid& guid);
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL allocate(
@@ -21,11 +21,11 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) override;
 
-    virtual SLANG_NO_THROW Report SLANG_MCALL report() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL flush() override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL cleanUp() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() override;
 };
 
 } // namespace rhi::debug

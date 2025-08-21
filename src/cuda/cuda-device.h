@@ -166,7 +166,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createGraphicsHeap(
         const GraphicsHeapDesc& desc,
-        IGraphicsHeap** outHeap
+        IHeap** outHeap
     ) override;
 
     void customizeShaderObject(ShaderObject* shaderObject) override;

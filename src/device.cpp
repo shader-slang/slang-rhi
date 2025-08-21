@@ -776,7 +776,7 @@ Result Device::waitForFences(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::createGraphicsHeap(const GraphicsHeapDesc& desc, IGraphicsHeap** outHeap)
+Result Device::createGraphicsHeap(const GraphicsHeapDesc& desc, IHeap** outHeap)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outHeap);

@@ -116,7 +116,7 @@ GPU_TEST_CASE("graphics-heap-create", CUDA)
     desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IGraphicsHeap> heap;
+    ComPtr<IHeap> heap;
     REQUIRE_CALL(device->createGraphicsHeap(desc, heap.writeRef()));
 }
 
@@ -126,7 +126,7 @@ GPU_TEST_CASE("graphics-heap-allocate", CUDA)
     desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IGraphicsHeap> heap;
+    ComPtr<IHeap> heap;
     REQUIRE_CALL(device->createGraphicsHeap(desc, heap.writeRef()));
 
     GraphicsAllocDesc allocDesc;
@@ -137,7 +137,7 @@ GPU_TEST_CASE("graphics-heap-allocate", CUDA)
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
     CHECK_EQ(allocation.size, allocDesc.size);
 
-    IGraphicsHeap::Report report = heap->report();
+    IHeap::Report report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size);
     CHECK_EQ(report.numAllocations, 1);
     CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
@@ -151,7 +151,7 @@ GPU_TEST_CASE("graphics-heap-allocate", CUDA)
     CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
     CHECK_EQ(report.numPages, 1);
 
-    REQUIRE_CALL(heap->cleanUp());
+    REQUIRE_CALL(heap->removeEmptyPages());
 
     report = heap->report();
     CHECK_EQ(report.totalAllocated, 0);
@@ -166,7 +166,7 @@ GPU_TEST_CASE("graphics-heap-submit", CUDA)
     desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IGraphicsHeap> heap;
+    ComPtr<IHeap> heap;
     REQUIRE_CALL(device->createGraphicsHeap(desc, heap.writeRef()));
 
     GraphicsAllocDesc allocDesc;
@@ -177,7 +177,7 @@ GPU_TEST_CASE("graphics-heap-submit", CUDA)
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
     CHECK_EQ(allocation.size, allocDesc.size);
 
-    IGraphicsHeap::Report report = heap->report();
+    IHeap::Report report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size);
     CHECK_EQ(report.numAllocations, 1);
     CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
@@ -210,7 +210,7 @@ GPU_TEST_CASE("graphics-heap-submit", CUDA)
     CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
     CHECK_EQ(report.numPages, 1);
 
-    REQUIRE_CALL(heap->cleanUp());
+    REQUIRE_CALL(heap->removeEmptyPages());
 
     report = heap->report();
     CHECK_EQ(report.totalAllocated, 0);
@@ -253,7 +253,7 @@ GPU_TEST_CASE("graphics-heap-pointer-stress-test", CUDA)
     desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
-    ComPtr<IGraphicsHeap> heap;
+    ComPtr<IHeap> heap;
     REQUIRE_CALL(device->createGraphicsHeap(desc, heap.writeRef()));
 
     std::vector<AllocationInfo> allocations;

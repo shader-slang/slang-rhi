@@ -5,14 +5,14 @@
 
 namespace rhi::cuda {
 
-GraphicsHeapImpl::GraphicsHeapImpl(Device* device, const GraphicsHeapDesc& desc)
-    : GraphicsHeap(device, desc)
+HeapImpl::HeapImpl(Device* device, const GraphicsHeapDesc& desc)
+    : Heap(device, desc)
 {
 }
 
-GraphicsHeapImpl::~GraphicsHeapImpl() {}
+HeapImpl::~HeapImpl() {}
 
-Result GraphicsHeapImpl::free(GraphicsAllocation allocation)
+Result HeapImpl::free(GraphicsAllocation allocation)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     if (deviceImpl->m_queue->m_submitCount == deviceImpl->m_queue->m_submitCompleted)
@@ -29,7 +29,7 @@ Result GraphicsHeapImpl::free(GraphicsAllocation allocation)
     }
 }
 
-Result GraphicsHeapImpl::flush()
+Result HeapImpl::flush()
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     for (auto it = m_pendingFrees.begin(); it != m_pendingFrees.end();)
@@ -49,37 +49,36 @@ Result GraphicsHeapImpl::flush()
     return SLANG_OK;
 }
 
-Result GraphicsHeapImpl::allocatePage(const PageDesc& desc, Page** page)
+Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
 {
-
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     SLANG_CUDA_CTX_SCOPE(deviceImpl);
 
     CUdeviceptr cudaMemory = 0;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&cudaMemory, desc.size), deviceImpl);
 
-    *page = new PageImpl(this, desc, cudaMemory);
+    *outPage = new PageImpl(this, desc, cudaMemory);
 
     return SLANG_OK;
 }
 
-Result GraphicsHeapImpl::freePage(Page* page_)
+Result HeapImpl::freePage(Page* page_)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     SLANG_CUDA_CTX_SCOPE(deviceImpl);
 
     PageImpl* page = static_cast<PageImpl*>(page_);
-    cuMemFree(page->m_cudaMemory);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemFree(page->m_cudaMemory), deviceImpl);
     delete page;
 
     return SLANG_OK;
 }
 
-Result DeviceImpl::createGraphicsHeap(const GraphicsHeapDesc& desc, IGraphicsHeap** outHeap)
+Result DeviceImpl::createGraphicsHeap(const GraphicsHeapDesc& desc, IHeap** outHeap)
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
-    RefPtr<GraphicsHeapImpl> fence = new GraphicsHeapImpl(this, desc);
+    RefPtr<HeapImpl> fence = new HeapImpl(this, desc);
     returnComPtr(outHeap, fence);
     return SLANG_OK;
 }

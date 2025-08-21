@@ -7,7 +7,7 @@
 
 namespace rhi::cuda {
 
-class GraphicsHeapImpl : public GraphicsHeap
+class HeapImpl : public Heap
 {
 public:
     struct PendingFree
@@ -16,11 +16,11 @@ public:
         uint64_t submitIndex;
     };
 
-    class PageImpl : public GraphicsHeap::Page
+    class PageImpl : public Heap::Page
     {
     public:
-        PageImpl(GraphicsHeap* heap, const PageDesc& desc, CUdeviceptr cudaMemory)
-            : GraphicsHeap::Page(heap, desc)
+        PageImpl(Heap* heap, const PageDesc& desc, CUdeviceptr cudaMemory)
+            : Heap::Page(heap, desc)
             , m_cudaMemory(cudaMemory)
         {
         }
@@ -30,16 +30,14 @@ public:
         CUdeviceptr m_cudaMemory;
     };
 
-    GraphicsHeapImpl(Device* device, const GraphicsHeapDesc& desc);
-    ~GraphicsHeapImpl();
+    HeapImpl(Device* device, const GraphicsHeapDesc& desc);
+    ~HeapImpl();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL free(GraphicsAllocation allocation) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL flush() override;
 
-    virtual Result allocatePage(const PageDesc& desc, Page** page) override;
+    virtual Result allocatePage(const PageDesc& desc, Page** outPage) override;
     virtual Result freePage(Page* page) override;
-
-    Result checkPendingFrees();
 
     std::list<PendingFree> m_pendingFrees;
 };

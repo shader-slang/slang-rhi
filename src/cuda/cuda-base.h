@@ -29,7 +29,7 @@ class CommandEncoderImpl;
 class CommandQueueImpl;
 class AccelerationStructureImpl;
 class ShaderTableImpl;
-class GraphicsHeapImpl;
+class HeapImpl;
 struct BindingDataImpl;
 struct BindingCache;
 

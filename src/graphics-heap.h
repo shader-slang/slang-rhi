@@ -13,15 +13,15 @@
 
 namespace rhi {
 
-class GraphicsHeap : public IGraphicsHeap, public DeviceChild
+class Heap : public IHeap, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
 
-    IGraphicsHeap* getInterface(const Guid& guid)
+    IHeap* getInterface(const Guid& guid)
     {
-        if (guid == ISlangUnknown::getTypeGuid() || guid == IGraphicsHeap::getTypeGuid())
-            return static_cast<IGraphicsHeap*>(this);
+        if (guid == ISlangUnknown::getTypeGuid() || guid == IHeap::getTypeGuid())
+            return static_cast<IHeap*>(this);
         return nullptr;
     }
 
@@ -35,7 +35,7 @@ public:
     class Page
     {
     public:
-        Page(GraphicsHeap* heap, const PageDesc& desc)
+        Page(Heap* heap, const PageDesc& desc)
             : m_id(0)
             , m_heap(heap)
             , m_desc(desc)
@@ -48,13 +48,13 @@ public:
         virtual DeviceAddress offsetToAddress(Size offset) = 0;
 
         uint32_t m_id;
-        GraphicsHeap* m_heap;
+        Heap* m_heap;
         PageDesc m_desc;
         OffsetAllocator m_allocator;
     };
 
 
-    GraphicsHeap(Device* device, const GraphicsHeapDesc& desc)
+    Heap(Device* device, const GraphicsHeapDesc& desc)
         : DeviceChild(device)
     {
         m_desc = desc;
@@ -68,18 +68,18 @@ public:
     // platform specific.
     virtual SLANG_NO_THROW Result SLANG_MCALL allocate(
         const GraphicsAllocDesc& desc,
-        GraphicsAllocation* allocation
+        GraphicsAllocation* outAllocation
     ) override;
 
-    virtual SLANG_NO_THROW Report SLANG_MCALL report() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL cleanUp() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() override;
 
-    Result createPage(const PageDesc& desc, Page** page);
+    Result createPage(const PageDesc& desc, Page** outPage);
     Result destroyPage(Page* page);
 
     // Device implementation should provide these
-    virtual Result allocatePage(const PageDesc& desc, Page** page) = 0;
+    virtual Result allocatePage(const PageDesc& desc, Page** outPage) = 0;
     virtual Result freePage(Page* page) = 0;
 
     // Device implementation should call this when a freed allocation can be returned to the pool
