@@ -10,6 +10,8 @@ class CommandQueueImpl : public CommandQueue
 {
 public:
     CUstream m_stream;
+    uint64_t m_submitCount = 0;
+    uint64_t m_submitCompleted = 0;
 
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
@@ -46,6 +48,7 @@ public:
     BindingCache m_bindingCache;
     ConstantBufferPool m_constantBufferPool;
     CUevent m_completionEvent = nullptr;
+    uint64_t m_submitIndex = 0;
 
     CommandBufferImpl(Device* device);
     virtual ~CommandBufferImpl() = default;

@@ -148,6 +148,7 @@ public:
         bool waitForAll,
         uint64_t timeout
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
         const TextureDesc& desc,
         size_t* outSize,

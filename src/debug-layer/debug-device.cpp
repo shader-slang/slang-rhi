@@ -1,6 +1,7 @@
 #include "debug-device.h"
 #include "debug-command-queue.h"
 #include "debug-fence.h"
+#include "debug-graphics-heap.h"
 #include "debug-helper-functions.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
@@ -762,6 +763,14 @@ Result DebugDevice::waitForFences(
         innerFences.push_back(getInnerObj(fences[i]));
     }
     return baseObject->waitForFences(fenceCount, innerFences.data(), fenceValues, waitForAll, timeout);
+}
+
+Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
+{
+    RefPtr<DebugHeap> result = new DebugHeap(ctx);
+    SLANG_RETURN_ON_FAIL(baseObject->createHeap(desc, result->baseObject.writeRef()));
+    returnComPtr(outHeap, result);
+    return SLANG_OK;
 }
 
 Result DebugDevice::getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment)
