@@ -30,7 +30,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     // since this layout will format data for an arg-buffer-tier2 if available.
     if (m_containerType == ShaderObjectContainerType::ParameterBlock)
     {
-        m_parameterBlockTypeLayout = m_slangSession->getTypeLayout(
+        m_parameterBlockTypeLayout = m_session->getTypeLayout(
             m_elementTypeLayout->getType(),
             0,
             slang::LayoutRules::MetalArgumentBufferTier2
