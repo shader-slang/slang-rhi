@@ -434,6 +434,15 @@ Result BindingDataBuilder::writeArgumentBuffer(
     //
     uint8_t* argumentData = (uint8_t*)argumentBufferImpl->m_buffer->contents();
 
+    // Write all ordinary data now since argument-buffers-tier2 considers everything
+    // to have size in their body. This means (this means that the entire buffer will be filled)
+    SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
+        argumentBufferTypeLayout,
+        shaderObject->getElementTypeLayout(),
+        (uint8_t*)argumentData,
+        (uint8_t*)shaderObject->m_data.data()
+    ));
+
     for (uint32_t bindingRangeIndex = 0; bindingRangeIndex < specializedLayout->getBindingRangeCount();
          ++bindingRangeIndex)
     {
@@ -559,13 +568,6 @@ Result BindingDataBuilder::writeArgumentBuffer(
             break;
         }
     }
-
-    SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
-        argumentBufferTypeLayout,
-        shaderObject->getElementTypeLayout(),
-        (uint8_t*)argumentData,
-        (uint8_t*)shaderObject->m_data.data()
-    ));
 
     argumentBufferImpl->m_buffer->didModifyRange(NS::Range(0, argumentBufferImpl->m_desc.size));
 

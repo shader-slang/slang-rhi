@@ -334,6 +334,12 @@ Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const Descr
     return SLANG_OK;
 }
 
+Result ShaderObject::getSlangSession(slang::ISession** session)
+{
+    m_device->getSlangSession(session);
+    return SLANG_OK;
+}
+
 Result ShaderObject::setSpecializationArgs(
     const ShaderOffset& offset,
     const slang::SpecializationArg* args,

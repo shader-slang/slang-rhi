@@ -179,6 +179,12 @@ bool DebugShaderObject::isFinalized()
     return baseObject->isFinalized();
 }
 
+Result DebugShaderObject::getSlangSession(slang::ISession** session)
+{
+    baseObject->getSlangSession(session);
+    return SLANG_OK;
+}
+
 Result DebugRootShaderObject::setSpecializationArgs(
     const ShaderOffset& offset,
     const slang::SpecializationArg* args,
