@@ -1,4 +1,4 @@
-#include "debug-graphics-heap.h"
+#include "debug-heap.h"
 #include "debug-helper-functions.h"
 
 namespace rhi::debug {

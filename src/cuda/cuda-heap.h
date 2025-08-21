@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "../graphics-heap.h"
+#include "../heap.h"
 
 #include <mutex>
 

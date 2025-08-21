@@ -1,7 +1,7 @@
 #include "debug-device.h"
 #include "debug-command-queue.h"
 #include "debug-fence.h"
-#include "debug-graphics-heap.h"
+#include "debug-heap.h"
 #include "debug-helper-functions.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
