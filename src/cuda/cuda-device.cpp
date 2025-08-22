@@ -676,31 +676,6 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
-void DeviceImpl::markResourceForDeletion(Resource* resource)
-{
-    if (m_queue->m_lastSubmittedID == m_queue->m_lastFinishedID)
-    {
-        delete resource;
-    }
-    else
-    {
-        resource->m_deleteSubmitID = m_queue->m_lastSubmittedID;
-        m_resourcesToDelete.push_back(resource);
-    }
-}
-
-void DeviceImpl::flushResourcesForDeletion()
-{
-    auto resIt = m_resourcesToDelete.begin();
-
-    while (resIt != m_resourcesToDelete.end())
-    {
-        Resource* resource = *resIt;
-        delete resource;
-        resIt = m_resourcesToDelete.erase(resIt);
-    }
-}
-
 } // namespace rhi::cuda
 
 namespace rhi {

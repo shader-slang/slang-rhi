@@ -65,10 +65,6 @@ public:
         : DeviceChild(device)
     {
     }
-
-    virtual void markForDeletion();
-
-    uint64_t m_deleteSubmitID = 0;
 };
 
 class Buffer : public IBuffer, public Resource

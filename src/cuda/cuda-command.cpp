@@ -758,9 +758,6 @@ Result CommandQueueImpl::retireCommandBuffers()
     // Run fence logic so m_lastFinishedID is up to date.
     SLANG_RETURN_ON_FAIL(updateFence());
 
-    // Tell device to flush any pending deletes
-    getDevice<DeviceImpl>()->flushResourcesForDeletion();
-
     // Retire command buffers that're passed the submission ID
     auto cbIt = m_commandBuffersInFlight.begin();
     while (cbIt != m_commandBuffersInFlight.end())
