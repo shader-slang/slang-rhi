@@ -24,6 +24,8 @@ public:
     Result allocate(size_t size, Allocation& outAllocation);
 
 private:
+    // Note: Page size can be relatively small, as it is allocated from
+    // the global device heap, which eventually handles small allocations.
     static constexpr size_t kAlignment = 64;
     static constexpr size_t kPageSize = 128 * 1024;
     static_assert(kPageSize % kAlignment == 0, "Page size must be a multiple of alignment");
