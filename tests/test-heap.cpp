@@ -130,8 +130,8 @@ GPU_TEST_CASE("heap-allocate", CUDA)
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
     HeapAllocDesc allocDesc;
-    allocDesc.size = 1024 * 1024;     // 1 MB
-    allocDesc.alignment = 256 * 1024; // 256 KB
+    allocDesc.size = 1024 * 1024; // 1 MB
+    allocDesc.alignment = 128;
 
     HeapAlloc allocation;
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
@@ -170,8 +170,8 @@ GPU_TEST_CASE("heap-submit", CUDA)
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
     HeapAllocDesc allocDesc;
-    allocDesc.size = 1024 * 1024;     // 1 MB
-    allocDesc.alignment = 256 * 1024; // 256 KB
+    allocDesc.size = 1024 * 1024; // 1 MB
+    allocDesc.alignment = 128;    // 256 KB
 
     HeapAlloc allocation;
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
