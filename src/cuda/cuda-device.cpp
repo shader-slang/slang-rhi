@@ -153,7 +153,7 @@ DeviceImpl::~DeviceImpl()
         m_clearEngine.release();
 
         m_queue.setNull();
-        m_localMemHeap.setNull();
+        m_deviceMemHeap.setNull();
         m_hostMemHeap.setNull();
 
 #if SLANG_RHI_ENABLE_OPTIX
@@ -432,8 +432,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     heapDesc.memoryType = MemoryType::DeviceLocal;
     heapDesc.label = "Device upload heap";
     SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
-    m_localMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
-    m_localMemHeap->breakStrongReferenceToDevice();
+    m_deviceMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
+    m_deviceMemHeap->breakStrongReferenceToDevice();
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
 

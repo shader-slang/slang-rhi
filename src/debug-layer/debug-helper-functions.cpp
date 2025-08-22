@@ -152,7 +152,6 @@ std::string createHeapLabel(const HeapDesc& desc)
     return string::format("Unnamed heap (memoryType=%s)", enumToString(desc.memoryType));
 }
 
-
 void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc)
 {
     if (buildDesc.inputCount < 1)

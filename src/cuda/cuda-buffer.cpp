@@ -11,28 +11,28 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl()
 {
-    if (m_cudaMemory && !m_cudaExternalMemory)
+    if (m_alloc)
     {
         if (m_desc.memoryType == MemoryType::DeviceLocal)
         {
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree((CUdeviceptr)m_cudaMemory));
+            getDevice<DeviceImpl>()->m_deviceMemHeap->free(m_alloc);
         }
         else
         {
-            SLANG_CUDA_ASSERT_ON_FAIL(cuMemFreeHost(m_cudaMemory));
+            getDevice<DeviceImpl>()->m_hostMemHeap->free(m_alloc);
         }
     }
 }
 
 DeviceAddress BufferImpl::getDeviceAddress()
 {
-    return (DeviceAddress)m_cudaMemory;
+    return reinterpret_cast<DeviceAddress>(m_cudaMemory);
 }
 
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::CUdeviceptr;
-    outHandle->value = (uint64_t)m_cudaMemory;
+    outHandle->value = reinterpret_cast<uint64_t>(m_cudaMemory);
     return SLANG_OK;
 }
 
@@ -42,20 +42,22 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     auto desc = fixupBufferDesc(desc_);
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
+    HeapAllocDesc allocDesc;
+    allocDesc.alignment = 128;
+    allocDesc.size = desc.size;
     if (desc.memoryType == MemoryType::DeviceLocal)
     {
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc((CUdeviceptr*)(&buffer->m_cudaMemory), desc.size), this);
+        SLANG_RETURN_ON_FAIL(m_deviceMemHeap->allocate(allocDesc, &buffer->m_alloc));
     }
     else
     {
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost(&buffer->m_cudaMemory, desc.size), this);
+        SLANG_RETURN_ON_FAIL(m_hostMemHeap->allocate(allocDesc, &buffer->m_alloc));
     }
+    buffer->m_cudaMemory = buffer->m_alloc.getHostPtr();
+
     if (initData)
     {
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuMemcpy((CUdeviceptr)buffer->m_cudaMemory, (CUdeviceptr)initData, desc.size),
-            this
-        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpy(buffer->getDeviceAddress(), (CUdeviceptr)initData, desc.size), this);
     }
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;
@@ -127,7 +129,7 @@ Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    *outData = (void*)bufferImpl->m_cudaMemory;
+    *outData = bufferImpl->m_cudaMemory;
     return SLANG_OK;
 }
 
