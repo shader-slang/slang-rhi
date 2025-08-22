@@ -44,12 +44,12 @@ void ConstantBufferPool::reset()
     m_currentOffset = 0;
     for (auto& page : m_pages)
     {
-        m_device->m_localMemHeap->free(page.deviceMem);
+        m_device->m_deviceMemHeap->free(page.deviceMem);
         m_device->m_hostMemHeap->free(page.hostMem);
     }
     for (auto& page : m_largePages)
     {
-        m_device->m_localMemHeap->free(page.deviceMem);
+        m_device->m_deviceMemHeap->free(page.deviceMem);
         m_device->m_hostMemHeap->free(page.hostMem);
     }
     m_pages.clear();
@@ -68,7 +68,7 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
         HeapAllocDesc desc;
         desc.alignment = kAlignment;
         desc.size = size;
-        SLANG_RETURN_ON_FAIL(m_device->m_localMemHeap->allocate(desc, &page.deviceMem));
+        SLANG_RETURN_ON_FAIL(m_device->m_deviceMemHeap->allocate(desc, &page.deviceMem));
         SLANG_RETURN_ON_FAIL(m_device->m_hostMemHeap->allocate(desc, &page.hostMem));
         return SLANG_OK;
     }
@@ -97,7 +97,7 @@ Result ConstantBufferPool::createPage(size_t size, Page& outPage)
     HeapAllocDesc desc;
     desc.alignment = kAlignment;
     desc.size = size;
-    SLANG_RETURN_ON_FAIL(m_device->m_localMemHeap->allocate(desc, &outPage.deviceMem));
+    SLANG_RETURN_ON_FAIL(m_device->m_deviceMemHeap->allocate(desc, &outPage.deviceMem));
     SLANG_RETURN_ON_FAIL(m_device->m_hostMemHeap->allocate(desc, &outPage.hostMem));
     outPage.usedSize = 0;
     return SLANG_OK;

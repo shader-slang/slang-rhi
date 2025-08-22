@@ -815,13 +815,13 @@ Result CommandQueueImpl::updateFence()
             SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
             m_lastFinishedID = submitIt->submitID;
 
-            // Remove the command buffer from the list.
+            // Remove the event from the list.
             submitIt = m_submitEvents.erase(submitIt);
         }
         else if (result == CUDA_ERROR_NOT_READY)
         {
             // Not ready means event hasn't been triggered yet, so it's still in-flight.
-            // As command buffers are ordered, this should mean that all subsequent command buffers
+            // As command buffers are ordered, this should mean that all subsequent events
             // are also still in-flight, so we can stop checking.
             break;
         }
@@ -866,18 +866,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Increment submit count
-        m_lastSubmittedID++;
-
-        // Record submission event so we can detect completion
-        SubmitEvent ev;
-        ev.submitID = m_lastSubmittedID;
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, requestedStream));
-        m_submitEvents.push_back(ev);
+        // Signal main fence
+        uint64_t submissionID;
+        SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
 
         // Record the command buffer + corresponding submit ID
-        commandBuffer->m_submissionID = ev.submitID;
+        commandBuffer->m_submissionID = submissionID;
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 

@@ -7,8 +7,12 @@
 
 namespace rhi {
 
-Result Heap::allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation)
+Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 {
+    // Allow device implementation to fix up descriptor
+    HeapAllocDesc desc = desc_;
+    SLANG_RETURN_ON_FAIL(fixUpAllocDesc(desc));
+
     // Bail with invalid alignment
     if (!math::isPowerOf2(desc.alignment) || desc.alignment == 0)
     {

@@ -2586,6 +2586,9 @@ struct HeapAlloc
 
     DeviceAddress getDeviceAddress() const { return DeviceAddress(address); }
     void* getHostPtr() const { return reinterpret_cast<void*>(address); }
+
+    bool isValid() const { return address != 0; }
+    operator bool() const { return isValid(); }
 };
 
 struct HeapDesc
