@@ -13,6 +13,7 @@
 #include "../command-list.h"
 #include "../state-tracking.h"
 #include "../strings.h"
+#include "../format-conversion.h"
 
 #include "core/static_vector.h"
 
@@ -418,6 +419,9 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
     requireTextureState(texture, cmd.subresourceRange, ResourceState::CopyDestination);
     commitBarriers();
 
+    uint32_t clearValue[4];
+    truncateBySintFormat(texture->m_desc.format, cmd.clearValue, clearValue);
+
     VkImageSubresourceRange subresourceRange = {};
     subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     subresourceRange.baseMipLevel = cmd.subresourceRange.mip;
@@ -426,7 +430,7 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
     subresourceRange.layerCount = cmd.subresourceRange.layerCount;
 
     VkClearColorValue vkClearColor = {};
-    std::memcpy(vkClearColor.uint32, cmd.clearValue, sizeof(uint32_t) * 4);
+    std::memcpy(vkClearColor.uint32, clearValue, sizeof(uint32_t) * 4);
 
     m_api.vkCmdClearColorImage(
         m_cmdBuffer,

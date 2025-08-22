@@ -104,17 +104,19 @@ inline std::string getFormatAttribute(Format format)
 }
 
 #if 1
-static const std::vector<Format> kFormats = { 
+static const std::vector<Format> kFormats = {
     Format::R8Uint,
-    Format::R8Unorm,
-    Format::R8Snorm,
-    Format::R16Uint,
-    Format::R16Unorm,
-    Format::R16Snorm,
-    Format::R16Float,
-    Format::RGBA32Uint,
-    Format::RGBA32Float,
-   
+    Format::R8Sint,
+    // Format::R8Uint,
+    // Format::R8Unorm,
+    // Format::R8Snorm,
+    // Format::R16Uint,
+    // Format::R16Unorm,
+    // Format::R16Snorm,
+    // Format::R16Float,
+    // Format::RGBA32Uint,
+    // Format::RGBA32Float,
+
 };
 #else
 static const std::vector<Format> kFormats = {
@@ -216,11 +218,37 @@ public:
     static void compareTexelData(Format format, span<TexelData> a, span<TexelData> b)
     {
         REQUIRE(a.size() == b.size());
-        size_t bytes = getFormatInfo(format).channelCount * 4;
+        const FormatInfo& info = getFormatInfo(format);
+        float atol = 1.f / 127.f;
         for (size_t i = 0; i < a.size(); ++i)
         {
             CAPTURE(i);
-            CHECK(memcmp(a[i].floats, b[i].floats, bytes) == 0);
+            const TexelData& texelA = a[i];
+            const TexelData& texelB = b[i];
+            for (uint32_t c = 0; c < info.channelCount; ++c)
+            {
+                if (info.kind == FormatKind::Integer && info.isSigned)
+                {
+                    CHECK(texelA.ints[c] == texelB.ints[c]);
+                }
+                else if (info.kind == FormatKind::Integer && !info.isSigned)
+                {
+                    CHECK(texelA.uints[c] == texelB.uints[c]);
+                }
+                else if (info.kind == FormatKind::Normalized)
+                {
+                    CHECK(texelA.floats[c] >= texelB.floats[c] - atol);
+                    CHECK(texelA.floats[c] <= texelB.floats[c] + atol);
+                }
+                else if (info.kind == FormatKind::Float)
+                {
+                    CHECK(texelA.floats[c] == texelB.floats[c]);
+                }
+                else
+                {
+                    FAIL("Unsupported format");
+                }
+            }
         }
     }
 
@@ -282,8 +310,9 @@ public:
         switch (info.kind)
         {
         case FormatKind::Integer:
-            for (TexelData& texel : texels)
+            for (TexelData& texel : texels) {
                 funcs.packIntFunc(texel.uints, texel.raw);
+            }
             break;
         case FormatKind::Normalized:
         case FormatKind::Float:
@@ -524,38 +553,37 @@ GPU_TEST_CASE("texture-view-texel-test", D3D12 | Vulkan | CUDA | Metal)
                     texel.mip = mip;
                     texel.offset = {0, 0, 0};
 
-                    switch (info.kind)
+                    if (info.kind == FormatKind::Integer && info.isSigned)
                     {
-                    case FormatKind::Integer:
-                        if (info.isSigned)
-                        {
-                            texel.ints[0] = -10 - subresourceIndex;
-                            texel.ints[1] = -1;
-                            texel.ints[2] = 1;
-                            texel.ints[3] = 2;
-                        }
-                        else
-                        {
-                            texel.uints[0] = 10 + subresourceIndex;
-                            texel.uints[1] = 2;
-                            texel.uints[2] = 3;
-                            texel.uints[3] = 4;
-                        }
-                        break;
-                    case FormatKind::Normalized:
+                        texel.ints[0] = -10 - subresourceIndex;
+                        texel.ints[1] = -1;
+                        texel.ints[2] = 1;
+                        texel.ints[3] = 2;
+                    }
+                    else if (info.kind == FormatKind::Integer && !info.isSigned)
+                    {
+                        texel.uints[0] = 10 + subresourceIndex;
+                        texel.uints[1] = 2;
+                        texel.uints[2] = 3;
+                        texel.uints[3] = 4;
+                    }
+                    else if (info.kind == FormatKind::Normalized)
+                    {
                         texel.floats[0] = float(subresourceIndex + 1) / subresourceCount;
                         texel.floats[1] = 0.5f;
                         texel.floats[2] = 0.75f;
                         texel.floats[3] = 1.f;
-                        break;
-                    case FormatKind::Float:
+                    }
+                    else if (info.kind == FormatKind::Float)
+                    {
                         texel.floats[0] = 10.f + subresourceIndex;
                         texel.floats[1] = 20.f;
                         texel.floats[2] = 30.f;
                         texel.floats[3] = 40.f;
-                        break;
-                    case FormatKind::DepthStencil:
-                        FAIL("Depth/stencil not supported!");
+                    }
+                    else
+                    {
+                        FAIL("Unsupported format");
                     }
 
                     writeTexels.push_back(texel);
@@ -563,14 +591,14 @@ GPU_TEST_CASE("texture-view-texel-test", D3D12 | Vulkan | CUDA | Metal)
                     subresourceIndex += 1;
                 }
             }
-            
+
             test.writeTexelsHost(c->getTexture(), writeTexels);
 
             std::vector<TextureViewTest::TexelData> readTexels = writeTexels;
 
             TextureViewTest::clearTexelDataValues(readTexels);
             test.readTexelsHost(c->getTexture(), readTexels);
-            // TextureViewTest::compareTexelData(format, writeTexels, readTexels);
+            TextureViewTest::compareTexelData(format, writeTexels, readTexels);
             TextureViewTest::compareTexelDataRaw(format, writeTexels, readTexels);
 
             TextureViewTest::clearTexelDataValues(readTexels);

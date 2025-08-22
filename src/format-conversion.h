@@ -41,6 +41,34 @@ inline void unpackInt8(const void* in, uint32_t out[4])
 }
 
 template<size_t N>
+inline void packUint8(const uint32_t in[4], void* out)
+{
+    for (size_t i = 0; i < N; ++i)
+        reinterpret_cast<uint8_t*>(out)[i] = in[i] & 0xff;
+}
+
+template<size_t N>
+inline void unpackUint8(const void* in, uint32_t out[4])
+{
+    for (size_t i = 0; i < N; ++i)
+        out[i] = reinterpret_cast<const uint8_t*>(in)[i];
+}
+
+template<size_t N>
+inline void packSint8(const uint32_t in[4], void* out)
+{
+    for (size_t i = 0; i < N; ++i)
+        reinterpret_cast<int8_t*>(out)[i] = static_cast<int32_t>(in[i]) & 0xff;
+}
+
+template<size_t N>
+inline void unpackSint8(const void* in, uint32_t out[4])
+{
+    for (size_t i = 0; i < N; ++i)
+        out[i] = reinterpret_cast<const int8_t*>(in)[i];
+}
+
+template<size_t N>
 inline void packInt16(const uint32_t in[4], void* out)
 {
     for (size_t i = 0; i < N; ++i)
@@ -322,6 +350,9 @@ inline void truncateBySintFormat(Format format, const uint32_t in[4], uint32_t o
 {
     switch (format)
     {
+    case Format::R8Uint:
+    case Format::RG8Uint:
+    case Format::RGBA8Uint:
     case Format::R8Sint:
     case Format::RG8Sint:
     case Format::RGBA8Sint:

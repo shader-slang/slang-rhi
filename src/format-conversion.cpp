@@ -7,18 +7,18 @@ namespace rhi {
 static const FormatConversionFuncs sFuncs[] = {
     {Format::Undefined, nullptr, nullptr, nullptr, nullptr},
 
-    {Format::R8Uint, packInt8<1>, unpackInt8<1>, nullptr, nullptr},
-    {Format::R8Sint, packInt8<1>, unpackInt8<1>, nullptr, nullptr},
+    {Format::R8Uint, packUint8<1>, unpackUint8<1>, nullptr, nullptr},
+    {Format::R8Sint, packSint8<1>, unpackSint8<1>, nullptr, nullptr},
     {Format::R8Unorm, packInt8<1>, unpackInt8<1>, packUnorm8<1>, unpackUnorm8<1>},
     {Format::R8Snorm, packInt8<1>, unpackInt8<1>, packSnorm8<1>, unpackSnorm8<1>},
 
-    {Format::RG8Uint, packInt8<2>, unpackInt8<2>, nullptr, nullptr},
-    {Format::RG8Sint, packInt8<2>, unpackInt8<2>, nullptr, nullptr},
+    {Format::RG8Uint, packUint8<2>, unpackUint8<2>, nullptr, nullptr},
+    {Format::RG8Sint, packSint8<2>, unpackSint8<2>, nullptr, nullptr},
     {Format::RG8Unorm, packInt8<2>, unpackInt8<2>, packUnorm8<2>, unpackUnorm8<2>},
     {Format::RG8Snorm, packInt8<2>, unpackInt8<2>, packSnorm8<2>, unpackSnorm8<2>},
 
-    {Format::RGBA8Uint, packInt8<4>, unpackInt8<4>, nullptr, nullptr},
-    {Format::RGBA8Sint, packInt8<4>, unpackInt8<4>, nullptr, nullptr},
+    {Format::RGBA8Uint, packUint8<4>, unpackUint8<4>, nullptr, nullptr},
+    {Format::RGBA8Sint, packSint8<4>, unpackSint8<4>, nullptr, nullptr},
     {Format::RGBA8Unorm, packInt8<4>, unpackInt8<4>, packUnorm8<4>, unpackUnorm8<4>},
     {Format::RGBA8UnormSrgb, packInt8<4>, unpackInt8<4>, nullptr, nullptr},
     {Format::RGBA8Snorm, packInt8<4>, unpackInt8<4>, packSnorm8<4>, unpackSnorm8<4>},
