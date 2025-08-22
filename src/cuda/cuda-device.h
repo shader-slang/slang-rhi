@@ -31,7 +31,9 @@ public:
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
     bool m_ownsOptixContext = false;
-    DualPageAllocator m_dualPageAllocator;
+    std::list<Resource*> m_resourcesToDelete;
+    RefPtr<HeapImpl> m_localMemHeap;
+    RefPtr<HeapImpl> m_hostMemHeap;
 
 public:
     using Device::readBuffer;
@@ -169,6 +171,10 @@ public:
     void customizeShaderObject(ShaderObject* shaderObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
+
+    virtual void markResourceForDeletion(Resource* resource) override;
+
+    void flushResourcesForDeletion();
 };
 
 } // namespace rhi::cuda

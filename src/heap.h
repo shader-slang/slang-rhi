@@ -58,6 +58,7 @@ public:
         : DeviceChild(device)
     {
         m_desc = desc;
+        m_descHolder.holdString(m_desc.label);
     }
 
     virtual void makeExternal() override { establishStrongReferenceToDevice(); }
@@ -85,7 +86,9 @@ public:
 
 public:
     HeapDesc m_desc;
+    StructHolder m_descHolder;
     uint32_t m_nextPageId = 1;
+
 
     std::vector<Page*> m_pages;
 };

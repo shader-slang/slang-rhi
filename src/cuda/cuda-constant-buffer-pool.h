@@ -16,6 +16,8 @@ public:
         CUdeviceptr deviceData;
     };
 
+    ~ConstantBufferPool() { reset(); }
+
     void init(DeviceImpl* device);
     void upload(CUstream stream);
     void reset();
@@ -29,7 +31,8 @@ private:
 
     struct Page
     {
-        RefPtr<DualPageAllocator::Handle> handle;
+        HeapAlloc deviceMem;
+        HeapAlloc hostMem;
         size_t usedSize = 0;
     };
 

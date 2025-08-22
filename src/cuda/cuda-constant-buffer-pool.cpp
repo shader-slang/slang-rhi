@@ -2,6 +2,7 @@
 #include "cuda-device.h"
 #include "cuda-buffer.h"
 #include "cuda-utils.h"
+#include "cuda-heap.h"
 
 namespace rhi::cuda {
 
@@ -22,7 +23,7 @@ void ConstantBufferPool::upload(CUstream stream)
         if (page.usedSize > 0)
         {
             SLANG_CUDA_ASSERT_ON_FAIL(
-                cuMemcpyHtoDAsync(page.handle->getDevicePtr(), page.handle->getHostPtr(), page.usedSize, stream)
+                cuMemcpyHtoDAsync(page.deviceMem.getDeviceAddress(), page.hostMem.getHostPtr(), page.usedSize, stream)
             );
         }
     };
@@ -41,6 +42,16 @@ void ConstantBufferPool::reset()
 {
     m_currentPage = -1;
     m_currentOffset = 0;
+    for (auto& page : m_pages)
+    {
+        m_device->m_localMemHeap->free(page.deviceMem);
+        m_device->m_hostMemHeap->free(page.hostMem);
+    }
+    for (auto& page : m_largePages)
+    {
+        m_device->m_localMemHeap->free(page.deviceMem);
+        m_device->m_hostMemHeap->free(page.hostMem);
+    }
     m_pages.clear();
     m_largePages.clear();
 }
@@ -53,8 +64,12 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
         Page& page = m_largePages.back();
         SLANG_RETURN_ON_FAIL(createPage(size, page));
         page.usedSize = size;
-        outAllocation.hostData = page.handle->getHostPtr();
-        outAllocation.deviceData = page.handle->getDevicePtr();
+
+        HeapAllocDesc desc;
+        desc.alignment = kAlignment;
+        desc.size = size;
+        SLANG_RETURN_ON_FAIL(m_device->m_localMemHeap->allocate(desc, &page.deviceMem));
+        SLANG_RETURN_ON_FAIL(m_device->m_hostMemHeap->allocate(desc, &page.hostMem));
         return SLANG_OK;
     }
 
@@ -70,8 +85,8 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
     }
 
     Page& page = m_pages[m_currentPage];
-    outAllocation.hostData = reinterpret_cast<uint8_t*>(page.handle->getHostPtr()) + m_currentOffset;
-    outAllocation.deviceData = page.handle->getDevicePtr() + m_currentOffset;
+    outAllocation.hostData = reinterpret_cast<uint8_t*>(page.hostMem.getHostPtr()) + m_currentOffset;
+    outAllocation.deviceData = page.deviceMem.getDeviceAddress() + m_currentOffset;
     m_currentOffset = alignUp(m_currentOffset + size, kAlignment);
     page.usedSize = m_currentOffset;
     return SLANG_OK;
@@ -79,7 +94,11 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
 
 Result ConstantBufferPool::createPage(size_t size, Page& outPage)
 {
-    SLANG_RETURN_ON_FAIL(m_device->m_dualPageAllocator.allocate(size, outPage.handle.writeRef()));
+    HeapAllocDesc desc;
+    desc.alignment = kAlignment;
+    desc.size = size;
+    SLANG_RETURN_ON_FAIL(m_device->m_localMemHeap->allocate(desc, &outPage.deviceMem));
+    SLANG_RETURN_ON_FAIL(m_device->m_hostMemHeap->allocate(desc, &outPage.hostMem));
     outPage.usedSize = 0;
     return SLANG_OK;
 }

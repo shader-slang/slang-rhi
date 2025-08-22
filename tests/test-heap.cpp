@@ -293,7 +293,7 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA)
             auto rootObject = passEncoder->bindPipeline(initPtrpipeline);
             ShaderCursor shaderCursor(rootObject);
             shaderCursor["val"].setData(alloc.pattern);
-            shaderCursor["dst"].setData(src.deviceAddress);
+            shaderCursor["dst"].setData(src.getDeviceAddress());
             for (int d = 0; d < 100; d++)
                 passEncoder->dispatchCompute(alloc.buffer->getDesc().size / (4 * 32), 1, 1);
             passEncoder->end();
@@ -303,7 +303,7 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA)
             auto passEncoder = commandEncoder->beginComputePass();
             auto rootObject = passEncoder->bindPipeline(copyPtrpipeline);
             ShaderCursor shaderCursor(rootObject);
-            shaderCursor["src"].setData(src.deviceAddress);
+            shaderCursor["src"].setData(src.getDeviceAddress());
             shaderCursor["dst"].setData(alloc.buffer->getDeviceAddress());
             for (int d = 0; d < 100; d++)
                 passEncoder->dispatchCompute(alloc.buffer->getDesc().size / (4 * 32), 1, 1);

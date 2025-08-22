@@ -2582,7 +2582,10 @@ struct HeapAlloc
     Size size = 0;
     void* pageId = nullptr;
     uint32_t nodeIndex = 0xffffffff;
-    DeviceAddress deviceAddress = 0;
+    uintptr_t address = 0;
+
+    DeviceAddress getDeviceAddress() const { return DeviceAddress(address); }
+    void* getHostPtr() const { return reinterpret_cast<void*>(address); }
 };
 
 struct HeapDesc

@@ -767,6 +767,14 @@ Result DebugDevice::waitForFences(
 
 Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
 {
+    HeapDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createHeapLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugHeap> result = new DebugHeap(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createHeap(desc, result->baseObject.writeRef()));
     returnComPtr(outHeap, result);
