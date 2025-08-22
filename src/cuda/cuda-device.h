@@ -30,7 +30,6 @@ public:
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
     bool m_ownsOptixContext = false;
-    std::list<Resource*> m_resourcesToDelete;
     RefPtr<HeapImpl> m_localMemHeap;
     RefPtr<HeapImpl> m_hostMemHeap;
 
