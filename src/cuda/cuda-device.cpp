@@ -678,22 +678,26 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 
 void DeviceImpl::markResourceForDeletion(Resource* resource)
 {
-    // We have to assume that the resource is being used during construction
-    // of a command buffer, so we can't delete it immediately, and must instead
-    // wait until the next submit is complete.
-    // resource->m_deleteSubmitID = m_queue->m_lastSubmittedID + 1;
-    // m_resourcesToDelete.push_back(resource);
-    Device::markResourceForDeletion(resource);
+    if (m_queue->m_lastSubmittedID == m_queue->m_lastFinishedID)
+    {
+        delete resource;
+    }
+    else
+    {
+        resource->m_deleteSubmitID = m_queue->m_lastSubmittedID;
+        m_resourcesToDelete.push_back(resource);
+    }
 }
 
 void DeviceImpl::flushResourcesForDeletion()
 {
-    SLANG_CUDA_CTX_SCOPE(this);
     auto resIt = m_resourcesToDelete.begin();
 
     while (resIt != m_resourcesToDelete.end())
     {
-        // Resource* resource = *resIt;
+        Resource* resource = *resIt;
+        delete resource;
+        resIt = m_resourcesToDelete.erase(resIt);
     }
 }
 
