@@ -845,6 +845,7 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
             offsetForChildrenThatNeedNewSpace += BindingRegisterOffsetPair(elementVarLayout);
             BindingRegisterOffsetPair offsetForOrindaryChildren = subDescriptorSetOffset;
             offsetForOrindaryChildren += BindingRegisterOffsetPair(containerVarLayout);
+            offsetForOrindaryChildren += inElementOffset;
 
             addAsConstantBuffer(
                 elementTypeLayout,
