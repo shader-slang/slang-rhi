@@ -649,7 +649,6 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-fence.cpp
         src/cuda/cuda-heap.cpp
         src/cuda/cuda-nvrtc.cpp
-        src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
         src/cuda/cuda-sampler.cpp
