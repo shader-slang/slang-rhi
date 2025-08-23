@@ -12,6 +12,7 @@
 #include "vk-shader-table.h"
 #include "vk-input-layout.h"
 #include "vk-acceleration-structure.h"
+#include "vk-heap.h"
 #include "vk-utils.h"
 
 #include "core/common.h"
@@ -1410,12 +1411,62 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_queue->init(m_deviceQueue.getQueue(), m_queueFamilyIndex);
     m_queue->setInternalReferenceCount(1);
 
+    // Initialize heaps for all memory types
+    SLANG_RETURN_ON_FAIL(initializeHeaps());
+
     return SLANG_OK;
 }
 
 void DeviceImpl::waitForGpu()
 {
     m_deviceQueue.flushAndWait();
+    // Flush heaps to release temporary allocations
+    flushHeaps();
+}
+
+Result DeviceImpl::initializeHeaps()
+{
+    // Create one heap for each Vulkan memory type to handle the complexity
+    // of different memory property combinations
+    const uint32_t memoryTypeCount = m_api.m_deviceMemoryProperties.memoryTypeCount;
+    m_heaps.resize(memoryTypeCount);
+
+    for (uint32_t i = 0; i < memoryTypeCount; ++i)
+    {
+        const auto& memoryType = m_api.m_deviceMemoryProperties.memoryTypes[i];
+
+        HeapDesc heapDesc = {};
+        heapDesc.label = "Vulkan Memory Type Heap";
+
+        // Determine MemoryType based on Vulkan memory properties
+        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+        {
+            heapDesc.memoryType = MemoryType::DeviceLocal;
+        }
+        else if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+        {
+            if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
+            {
+                heapDesc.memoryType = MemoryType::ReadBack;
+            }
+            else
+            {
+                heapDesc.memoryType = MemoryType::Upload;
+            }
+        }
+        else
+        {
+            // Default fallback
+            heapDesc.memoryType = MemoryType::DeviceLocal;
+        }
+
+        ComPtr<IHeap> heap;
+        SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heap.writeRef()));
+        m_heaps[i] = checked_cast<HeapImpl*>(heap.get());
+        m_heaps[i]->breakStrongReferenceToDevice();
+    }
+
+    return SLANG_OK;
 }
 
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
@@ -1424,6 +1475,25 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
         return SLANG_FAIL;
     m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
+    return SLANG_OK;
+}
+
+HeapImpl* DeviceImpl::getHeapForMemoryType(uint32_t memoryTypeIndex)
+{
+    if (memoryTypeIndex >= m_heaps.size())
+        return nullptr;
+    return m_heaps[memoryTypeIndex].get();
+}
+
+Result DeviceImpl::flushHeaps()
+{
+    for (auto& heap : m_heaps)
+    {
+        if (heap)
+        {
+            SLANG_RETURN_ON_FAIL(heap->flush());
+        }
+    }
     return SLANG_OK;
 }
 

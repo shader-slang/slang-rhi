@@ -4,6 +4,8 @@
 
 namespace rhi::vk {
 
+class HeapImpl;
+
 class VKBufferHandleRAII
 {
 public:
@@ -16,11 +18,21 @@ public:
         VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0
     );
 
+    /// Initialize a buffer allocating from a heap
+    Result initFromHeap(
+        const VulkanApi& api,
+        Size bufferSize,
+        VkBufferUsageFlags usage,
+        HeapImpl* heap,
+        HeapAlloc& outAllocation
+    );
+
     /// Returns true if has been initialized
     bool isInitialized() const { return m_api != nullptr; }
 
     VKBufferHandleRAII()
         : m_api(nullptr)
+        , m_isHeapAllocated(false)
     {
     }
 
@@ -29,13 +41,18 @@ public:
         if (m_api)
         {
             m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+            // Only free memory if it's not heap-allocated
+            if (!m_isHeapAllocated)
+            {
+                m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+            }
         }
     }
 
     VkBuffer m_buffer;
     VkDeviceMemory m_memory;
     const VulkanApi* m_api;
+    bool m_isHeapAllocated;
 };
 
 class BufferImpl : public Buffer
@@ -46,6 +63,12 @@ public:
 
     VKBufferHandleRAII m_buffer;
     VKBufferHandleRAII m_uploadBuffer;
+
+    // Heap allocation tracking
+    RefPtr<HeapImpl> m_heap;
+    HeapAlloc m_heapAllocation;
+    RefPtr<HeapImpl> m_uploadHeap;
+    HeapAlloc m_uploadHeapAllocation;
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 

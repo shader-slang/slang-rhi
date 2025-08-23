@@ -1,6 +1,7 @@
 #include "vk-buffer.h"
 #include "vk-device.h"
 #include "vk-utils.h"
+#include "vk-heap.h"
 
 #if SLANG_WINDOWS_FAMILY
 #include <dxgi1_4.h>
@@ -26,6 +27,7 @@ Result VKBufferHandleRAII::init(
     m_api = &api;
     m_memory = VK_NULL_HANDLE;
     m_buffer = VK_NULL_HANDLE;
+    m_isHeapAllocated = false;
 
     VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufferCreateInfo.size = bufferSize;
@@ -90,6 +92,50 @@ Result VKBufferHandleRAII::init(
     return SLANG_OK;
 }
 
+Result VKBufferHandleRAII::initFromHeap(
+    const VulkanApi& api,
+    Size bufferSize,
+    VkBufferUsageFlags usage,
+    HeapImpl* heap,
+    HeapAlloc& outAllocation
+)
+{
+    SLANG_RHI_ASSERT(!isInitialized());
+
+    m_api = &api;
+    m_memory = VK_NULL_HANDLE;
+    m_buffer = VK_NULL_HANDLE;
+    m_isHeapAllocated = true;
+
+    VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferCreateInfo.size = bufferSize;
+    bufferCreateInfo.usage = usage;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    SLANG_VK_RETURN_ON_FAIL(api.vkCreateBuffer(api.m_device, &bufferCreateInfo, nullptr, &m_buffer));
+
+    VkMemoryRequirements memoryReqs = {};
+    api.vkGetBufferMemoryRequirements(api.m_device, m_buffer, &memoryReqs);
+
+    // Allocate from heap
+    HeapAllocDesc allocDesc;
+    allocDesc.size = memoryReqs.size;
+    allocDesc.alignment = memoryReqs.alignment;
+    SLANG_RETURN_ON_FAIL(heap->allocate(allocDesc, &outAllocation));
+
+    // Get page memory for binding
+    HeapImpl::PageImpl* page = static_cast<HeapImpl::PageImpl*>(outAllocation.pageId);
+    VkDeviceMemory heapMemory = page->m_memory;
+
+    // Bind buffer to heap memory at offset
+    SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, heapMemory, outAllocation.offset));
+
+    // Store heap memory for reference (but don't free it in destructor)
+    m_memory = heapMemory;
+
+    return SLANG_OK;
+}
+
 BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
     : Buffer(device, desc)
 {
@@ -100,6 +146,16 @@ BufferImpl::~BufferImpl()
     for (auto& view : m_views)
     {
         m_buffer.m_api->vkDestroyBufferView(m_buffer.m_api->m_device, view.second, nullptr);
+    }
+
+    // Free heap allocations
+    if (m_heap && m_heapAllocation.isValid())
+    {
+        m_heap->free(m_heapAllocation);
+    }
+    if (m_uploadHeap && m_uploadHeapAllocation.isValid())
+    {
+        m_uploadHeap->free(m_uploadHeapAllocation);
     }
 
     if (m_sharedHandle)
@@ -281,8 +337,12 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
+
+    // Determine memory type index for heap selection
+    uint32_t memoryTypeIndex;
     if (is_set(desc.usage, BufferUsage::Shared))
     {
+        // For shared buffers, use direct allocation for now (complex case)
         VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
 #if SLANG_WINDOWS_FAMILY
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
@@ -295,7 +355,31 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
+        // Find the memory type we need
+        VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        bufferCreateInfo.size = desc.size;
+        bufferCreateInfo.usage = usage;
+        bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VkBuffer tempBuffer;
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateBuffer(m_device, &bufferCreateInfo, nullptr, &tempBuffer));
+
+        VkMemoryRequirements memoryReqs = {};
+        m_api.vkGetBufferMemoryRequirements(m_device, tempBuffer, &memoryReqs);
+
+        int memTypeIndex = m_api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
+        SLANG_RHI_ASSERT(memTypeIndex >= 0);
+        memoryTypeIndex = memTypeIndex;
+
+        m_api.vkDestroyBuffer(m_device, tempBuffer, nullptr);
+
+        // Get heap for this memory type
+        HeapImpl* heap = getHeapForMemoryType(memoryTypeIndex);
+        SLANG_RHI_ASSERT(heap != nullptr);
+
+        // Allocate buffer from heap
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.initFromHeap(m_api, desc.size, usage, heap, buffer->m_heapAllocation));
+        buffer->m_heap = heap;
     }
 
     _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
@@ -304,15 +388,49 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            SLANG_RETURN_ON_FAIL(buffer->m_uploadBuffer.init(
+            // Find upload memory type for staging buffer
+            VkBufferCreateInfo uploadCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+            uploadCreateInfo.size = bufferSize;
+            uploadCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            uploadCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            VkBuffer tempUploadBuffer;
+            SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateBuffer(m_device, &uploadCreateInfo, nullptr, &tempUploadBuffer));
+
+            VkMemoryRequirements uploadMemoryReqs = {};
+            m_api.vkGetBufferMemoryRequirements(m_device, tempUploadBuffer, &uploadMemoryReqs);
+
+            VkMemoryPropertyFlags uploadReqProps =
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            int uploadMemTypeIndex = m_api.findMemoryTypeIndex(uploadMemoryReqs.memoryTypeBits, uploadReqProps);
+            SLANG_RHI_ASSERT(uploadMemTypeIndex >= 0);
+
+            m_api.vkDestroyBuffer(m_device, tempUploadBuffer, nullptr);
+
+            // Get heap for upload memory type
+            HeapImpl* uploadHeap = getHeapForMemoryType(uploadMemTypeIndex);
+            SLANG_RHI_ASSERT(uploadHeap != nullptr);
+
+            // Allocate upload buffer from heap
+            SLANG_RETURN_ON_FAIL(buffer->m_uploadBuffer.initFromHeap(
                 m_api,
                 bufferSize,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                uploadHeap,
+                buffer->m_uploadHeapAllocation
             ));
+            buffer->m_uploadHeap = uploadHeap;
+
             // Copy into staging buffer
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_CHECK(m_api.vkMapMemory(
+                m_device,
+                buffer->m_uploadBuffer.m_memory,
+                buffer->m_uploadHeapAllocation.offset,
+                bufferSize,
+                0,
+                &mappedData
+            ));
             ::memcpy(mappedData, initData, bufferSize);
             m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
 
@@ -329,12 +447,22 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
                 &copyInfo
             );
             m_deviceQueue.flush();
+
+            // Flush heaps to release temporary allocations
+            flushHeaps();
         }
         else
         {
             // Copy into mapped buffer directly
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_CHECK(m_api.vkMapMemory(
+                m_device,
+                buffer->m_buffer.m_memory,
+                buffer->m_heapAllocation.offset,
+                bufferSize,
+                0,
+                &mappedData
+            ));
             ::memcpy(mappedData, initData, bufferSize);
             m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
         }

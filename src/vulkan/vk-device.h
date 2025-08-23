@@ -7,6 +7,8 @@
 
 namespace rhi::vk {
 
+class HeapImpl;
+
 class DeviceImpl : public Device
 {
 public:
@@ -178,6 +180,11 @@ public:
 
     uint32_t getQueueFamilyIndex(QueueType queueType);
 
+    // Heap management
+    HeapImpl* getHeapForMemoryType(uint32_t memoryTypeIndex);
+    Result initializeHeaps();
+    Result flushHeaps();
+
 public:
     DeviceNativeHandles m_existingDeviceHandles;
     VulkanDeviceExtendedDesc m_extendedDesc;
@@ -197,6 +204,9 @@ public:
 
     DescriptorSetAllocator descriptorSetAllocator;
     RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
+
+    // Memory heaps for each Vulkan memory type
+    std::vector<RefPtr<HeapImpl>> m_heaps;
 
     VkSampler m_defaultSampler;
 };

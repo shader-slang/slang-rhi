@@ -356,6 +356,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         _transitionImageLayout(texture->m_image, format, texture->m_desc, VK_IMAGE_LAYOUT_UNDEFINED, defaultLayout);
     }
     m_deviceQueue.flushAndWait();
+    // Flush heaps to release temporary allocations
+    flushHeaps();
 
     // Upload init data if we have some
     if (initData)
