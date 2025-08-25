@@ -119,7 +119,7 @@ inline void writeAccelerationStructureDescriptor(
     VkWriteDescriptorSetAccelerationStructureKHR writeAS = {};
     writeAS.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
     writeAS.accelerationStructureCount = 1;
-    static VkAccelerationStructureKHR nullHandle = VK_NULL_HANDLE;
+    static const VkAccelerationStructureKHR nullHandle = VK_NULL_HANDLE;
     writeAS.pAccelerationStructures = as ? &as->m_vkHandle : &nullHandle;
 
     VkWriteDescriptorSet write = {};
