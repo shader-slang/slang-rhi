@@ -113,6 +113,7 @@ inline void writeAccelerationStructureDescriptor(
     // pAccelerationStructures must not be VK_NULL_HANDLE
     if (!as && !device->m_api.m_extendedFeatures.robustness2Features.nullDescriptor)
     {
+        SLANG_RHI_ASSERT_FAILURE("nullDescriptor feature is not available on the device");
         return;
     }
 
