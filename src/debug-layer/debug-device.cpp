@@ -438,7 +438,7 @@ Result DebugDevice::getAccelerationStructureSizes(
 )
 {
     SLANG_RHI_API_FUNC;
-    validateAccelerationStructureBuildDesc(ctx, desc);
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureBuildDesc(ctx, desc));
     return baseObject->getAccelerationStructureSizes(desc, outSizes);
 }
 
