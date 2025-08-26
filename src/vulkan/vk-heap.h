@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vk-base.h"
+#include "vk-buffer.h"
 #include "../heap.h"
 
 #include <mutex>
@@ -25,13 +26,12 @@ public:
     class PageImpl : public Heap::Page
     {
     public:
-        PageImpl(Heap* heap, const PageDesc& desc, VkBuffer buffer, VkDeviceMemory memory, DeviceImpl* device);
+        PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* device);
         ~PageImpl();
 
         DeviceAddress offsetToAddress(Size offset) override;
 
-        VkBuffer m_buffer;
-        VkDeviceMemory m_memory;
+        VKBufferHandleRAII m_buffer;
         DeviceImpl* m_device;
     };
 
