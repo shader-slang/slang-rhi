@@ -109,10 +109,18 @@ inline void writeAccelerationStructureDescriptor(
     AccelerationStructureImpl* as
 )
 {
+    // The Vulkan spec states: If the nullDescriptor feature is not enabled, each element of
+    // pAccelerationStructures must not be VK_NULL_HANDLE
+    if (!as && !device->m_api.m_extendedFeatures.robustness2Features.nullDescriptor)
+    {
+        SLANG_RHI_ASSERT_FAILURE("nullDescriptor feature is not available on the device");
+        return;
+    }
+
     VkWriteDescriptorSetAccelerationStructureKHR writeAS = {};
     writeAS.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
     writeAS.accelerationStructureCount = 1;
-    VkAccelerationStructureKHR nullHandle = VK_NULL_HANDLE;
+    static const VkAccelerationStructureKHR nullHandle = VK_NULL_HANDLE;
     writeAS.pAccelerationStructures = as ? &as->m_vkHandle : &nullHandle;
 
     VkWriteDescriptorSet write = {};
