@@ -7,6 +7,8 @@
 
 namespace rhi::vk {
 
+class DeviceImpl;
+
 class HeapImpl : public Heap
 {
 public:
@@ -23,28 +25,14 @@ public:
     class PageImpl : public Heap::Page
     {
     public:
-        PageImpl(Heap* heap, const PageDesc& desc, VkBuffer buffer, VkDeviceMemory memory, const VulkanApi& api)
-            : Heap::Page(heap, desc)
-            , m_buffer(buffer)
-            , m_memory(memory)
-            , m_api(&api)
-        {
-        }
+        PageImpl(Heap* heap, const PageDesc& desc, VkBuffer buffer, VkDeviceMemory memory, DeviceImpl* device);
+        ~PageImpl();
 
-        DeviceAddress offsetToAddress(Size offset) override
-        {
-            if (!m_api->vkGetBufferDeviceAddress)
-                return 0;
-
-            VkBufferDeviceAddressInfo info = {};
-            info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-            info.buffer = m_buffer;
-            return (DeviceAddress)(m_api->vkGetBufferDeviceAddress(m_api->m_device, &info) + offset);
-        }
+        DeviceAddress offsetToAddress(Size offset) override;
 
         VkBuffer m_buffer;
         VkDeviceMemory m_memory;
-        const VulkanApi* m_api;
+        DeviceImpl* m_device;
     };
 
     HeapImpl(Device* device, const HeapDesc& desc);

@@ -5,6 +5,33 @@
 
 namespace rhi::vk {
 
+HeapImpl::PageImpl::PageImpl(
+    Heap* heap,
+    const PageDesc& desc,
+    VkBuffer buffer,
+    VkDeviceMemory memory,
+    DeviceImpl* device
+)
+    : Heap::Page(heap, desc)
+    , m_buffer(buffer)
+    , m_memory(memory)
+    , m_device(device)
+{
+}
+
+HeapImpl::PageImpl::~PageImpl() {}
+
+DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
+{
+    if (!m_device->m_api.vkGetBufferDeviceAddress)
+        return 0;
+
+    VkBufferDeviceAddressInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    info.buffer = m_buffer;
+    return (DeviceAddress)(m_device->m_api.vkGetBufferDeviceAddress(m_device->m_api.m_device, &info) + offset);
+}
+
 HeapImpl::HeapImpl(Device* device, const HeapDesc& desc)
     : Heap(device, desc)
 {
@@ -151,7 +178,7 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     }
 
     // Create page with buffer and memory
-    *outPage = new PageImpl(this, desc, buffer, memory, api);
+    *outPage = new PageImpl(this, desc, buffer, memory, deviceImpl);
 
     return SLANG_OK;
 }
