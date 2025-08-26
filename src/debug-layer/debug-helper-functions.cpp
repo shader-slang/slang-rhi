@@ -165,6 +165,8 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
         }
     }
 
+    bool valid = true;
+
     for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
     {
         switch (buildDesc.inputs[i].type)
@@ -174,18 +176,27 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             const AccelerationStructureBuildInputInstances& instances = buildDesc.inputs[i].instances;
             if (instances.instanceCount < 1)
             {
-                RHI_VALIDATION_ERROR("instanceCount must be >= 1.");
-                return SLANG_E_INVALID_ARG;
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].instances.instanceCount must be >= 1.",
+                    i
+                );
+                valid = false;
             }
             if (!instances.instanceBuffer.buffer)
             {
-                RHI_VALIDATION_ERROR("instanceBuffer cannot be null.");
-                return SLANG_E_INVALID_ARG;
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].instances.instanceBuffer cannot be null.",
+                    i
+                );
+                valid = false;
             }
             if (instances.instanceStride == 0)
             {
-                RHI_VALIDATION_ERROR("instanceStride cannot be 0.");
-                return SLANG_E_INVALID_ARG;
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].instances.instanceStride cannot be 0.",
+                    i
+                );
+                valid = false;
             }
             break;
         }
@@ -203,11 +214,12 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             case Format::RG16Snorm:
                 break;
             default:
-                RHI_VALIDATION_ERROR(
-                    "Unsupported vertexFormat. Valid values are RGB32Float, RG32Float, RGBA16Float, "
-                    "RG16Float, RGBA16Snorm or RG16Snorm."
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexFormat is unsupported. "
+                    "Valid values are RGB32Float, RG32Float, RGBA16Float, RG16Float, RGBA16Snorm or RG16Snorm.",
+                    i
                 );
-                return SLANG_E_INVALID_ARG;
+                valid = false;
             }
             if (triangles.indexCount)
             {
@@ -217,26 +229,40 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                 case IndexFormat::Uint32:
                     break;
                 default:
-                    RHI_VALIDATION_ERROR("Unsupported indexFormat. Valid values are Uint16 and Uint32.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].triangles.indexFormat is unsupported. "
+                        "Valid values are Uint16 and Uint32.",
+                        i
+                    );
+                    valid = false;
                 }
                 if (!triangles.indexBuffer.buffer)
                 {
-                    RHI_VALIDATION_ERROR("indexBuffer cannot be null if indexCount is not 0.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].triangles.indexBuffer.buffer cannot be null if "
+                        "indexCount is not 0.",
+                        i
+                    );
+                    valid = false;
                 }
             }
             if (triangles.vertexBufferCount < 1)
             {
-                RHI_VALIDATION_ERROR("vertexBufferCount cannot be <= 1.");
-                return SLANG_E_INVALID_ARG;
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexBufferCount cannot be <= 1.",
+                    i
+                );
+                valid = false;
             }
             for (uint32_t j = 0; j < triangles.vertexBufferCount; ++j)
             {
                 if (!triangles.vertexBuffers[j].buffer)
                 {
-                    RHI_VALIDATION_ERROR("vertexBuffers cannot be null.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexBuffers.buffer cannot be null.",
+                        i
+                    );
+                    valid = false;
                 }
             }
             break;
@@ -262,12 +288,12 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             case Format::RG16Snorm:
                 break;
             default:
-                RHI_VALIDATION_ERROR(
-                    "Unsupported vertexPositionFormat. Valid values are RGB32Float, RG32Float, "
-                    "RGBA16Float, "
-                    "RG16Float, RGBA16Snorm or RG16Snorm."
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].spheres.vertexPositionFormat is unsupported. "
+                    "Valid values are RGB32Float, RG32Float, RGBA16Float, RG16Float, RGBA16Snorm or RG16Snorm.",
+                    i
                 );
-                return SLANG_E_INVALID_ARG;
+                valid = false;
             }
 
             switch (spheres.vertexRadiusFormat)
@@ -276,26 +302,42 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             case Format::R16Float:
                 break;
             default:
-                RHI_VALIDATION_ERROR("Unsupported vertexRadiusFormat. Valid values are R32Float or R16Float.");
-                return SLANG_E_INVALID_ARG;
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].spheres.vertexRadiusFormat is unsupported. "
+                    "Valid values are R32Float or R16Float.",
+                    i
+                );
+                valid = false;
             }
 
             if (ctx->deviceType == DeviceType::CUDA)
             {
                 if (spheres.vertexPositionFormat != Format::RGB32Float)
                 {
-                    RHI_VALIDATION_ERROR("OptiX requires vertexPositionFormat to be RGB32Float.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].spheres.vertexPositionFormat must be RGB32Float "
+                        "(OptiX limitation).",
+                        i
+                    );
+                    valid = false;
                 }
                 if (spheres.vertexRadiusFormat != Format::R32Float)
                 {
-                    RHI_VALIDATION_ERROR("OptiX requires vertexRadiusFormat to be R32Float.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].spheres.vertexRadiusFormat must be R32Float "
+                        "(OptiX limitation).",
+                        i
+                    );
+                    valid = false;
                 }
                 if (spheres.indexBuffer)
                 {
-                    RHI_VALIDATION_ERROR("OptiX does not support indexBuffer.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].spheres.indexBuffer must not be used "
+                        "(OptiX limitation).",
+                        i
+                    );
+                    valid = false;
                 }
             }
             break;
@@ -307,28 +349,44 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
 
             if (ctx->deviceType == DeviceType::CUDA)
             {
-                if (linearSweptSpheres.endCapsMode == LinearSweptSpheresEndCapsMode::None)
+                if (linearSweptSpheres.endCapsMode != LinearSweptSpheresEndCapsMode::Chained)
                 {
-                    RHI_VALIDATION_ERROR("OptiX requires endCapsMode to be Chained.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.endCapsMode must be Chained "
+                        "(OptiX limitation).",
+                        i
+                    );
+                    valid = false;
                 }
 
                 if (linearSweptSpheres.indexingMode != LinearSweptSpheresIndexingMode::Successive)
                 {
-                    RHI_VALIDATION_ERROR("OptiX requires indexingMode to be Successive.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.indexingMode must be Successive "
+                        "(OptiX limitation).",
+                        i
+                    );
+                    valid = false;
                 }
 
                 if (linearSweptSpheres.indexFormat != IndexFormat::Uint32)
                 {
-                    RHI_VALIDATION_ERROR("OptiX requires indexFormat to be Uint32.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.indexFormat must be Uint32 "
+                        "(OptiX limitation).",
+                        i
+                    );
+                    valid = false;
                 }
 
                 if (!linearSweptSpheres.indexBuffer)
                 {
-                    RHI_VALIDATION_ERROR("OptiX requires indexBuffer.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.indexBuffer must be set "
+                        "(OptiX limitation).",
+                        i
+                    );
+                    valid = false;
                 }
             }
 
@@ -337,8 +395,12 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             case Format::RGB32Float:
                 break;
             default:
-                RHI_VALIDATION_ERROR("Unsupported vertexPositionFormat. Valid values are RGB32Float.");
-                return SLANG_E_INVALID_ARG;
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.vertexPositionFormat is not "
+                    "supported. Valid values are RGB32Float.",
+                    i
+                );
+                valid = false;
             }
 
             switch (linearSweptSpheres.vertexRadiusFormat)
@@ -346,8 +408,12 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             case Format::R32Float:
                 break;
             default:
-                RHI_VALIDATION_ERROR("Unsupported vertexRadiusFormat. Valid values are R32Float.");
-                return SLANG_E_INVALID_ARG;
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.vertexRadiusFormat is not "
+                    "supported. Valid values are R32Float.",
+                    i
+                );
+                valid = false;
             }
 
             if (linearSweptSpheres.indexBuffer)
@@ -356,48 +422,72 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                 {
                     if (linearSweptSpheres.indexCount < linearSweptSpheres.primitiveCount * 2)
                     {
-                        RHI_VALIDATION_ERROR("indexCount must be >= primitiveCount * 2 when indexingMode is List.");
-                        return SLANG_E_INVALID_ARG;
+                        RHI_VALIDATION_ERROR_FORMAT(
+                            "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.indexCount must be >= "
+                            "primitiveCount * 2 when indexingMode is List.",
+                            i
+                        );
+                        valid = false;
                     }
                 }
                 else if (linearSweptSpheres.indexingMode == LinearSweptSpheresIndexingMode::Successive)
                 {
                     if (linearSweptSpheres.indexCount < linearSweptSpheres.primitiveCount)
                     {
-                        RHI_VALIDATION_ERROR("indexCount must be >= primitiveCount when indexingMode is Successive.");
-                        return SLANG_E_INVALID_ARG;
+                        RHI_VALIDATION_ERROR_FORMAT(
+                            "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.indexCount must be >= "
+                            "primitiveCount when indexingMode is Successive.",
+                            i
+                        );
+                        valid = false;
                     }
                 }
                 else
                 {
-                    RHI_VALIDATION_ERROR("Invalid indexingMode.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.indexingMode is not supported. "
+                        "Valid values are List and Successive.",
+                        i
+                    );
+                    valid = false;
                 }
             }
 
             if (linearSweptSpheres.vertexBufferCount < 1)
             {
-                RHI_VALIDATION_ERROR("vertexBufferCount cannot be <= 1.");
-                return SLANG_E_INVALID_ARG;
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.vertexBufferCount cannot be <= 1.",
+                    i
+                );
+                valid = false;
             }
             for (uint32_t j = 0; j < linearSweptSpheres.vertexBufferCount; ++j)
             {
                 if (!linearSweptSpheres.vertexPositionBuffers[j].buffer)
                 {
-                    RHI_VALIDATION_ERROR("vertexBuffers cannot be null.");
-                    return SLANG_E_INVALID_ARG;
+                    RHI_VALIDATION_ERROR_FORMAT(
+                        "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.vertexBuffers[%d].buffer cannot "
+                        "be null.",
+                        i,
+                        j
+                    );
+                    valid = false;
                 }
             }
 
             break;
         }
         default:
-            RHI_VALIDATION_ERROR("Invalid AccelerationStructureBuildInputType.");
-            return SLANG_E_INVALID_ARG;
+            RHI_VALIDATION_ERROR_FORMAT(
+                "AccelerationStructureBuildDesc::inputs[%d].type is not supported. ",
+                "Valid values are Instances, Triangles, ProceduralPrimitives, Spheres and LinearSweptSpheres.",
+                i
+            );
+            valid = false;
         }
     }
 
-    return SLANG_OK;
+    return valid ? SLANG_OK : SLANG_E_INVALID_ARG;
 }
 
 } // namespace rhi::debug
