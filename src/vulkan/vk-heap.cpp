@@ -2,21 +2,63 @@
 #include "vk-device.h"
 #include "vk-utils.h"
 #include "vk-command.h"
+#include "core/common.h"
 
 namespace rhi::vk {
 
-HeapImpl::PageImpl::PageImpl(
-    Heap* heap,
-    const PageDesc& desc,
-    VkBuffer buffer,
-    VkDeviceMemory memory,
-    DeviceImpl* device
-)
+HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* device)
     : Heap::Page(heap, desc)
-    , m_buffer(buffer)
-    , m_memory(memory)
     , m_device(device)
 {
+    // Initialize buffer similar to BufferImpl::createBuffer logic
+    const VulkanApi& api = device->m_api;
+
+    // Determine buffer usage flags for heap pages
+    VkBufferUsageFlags usage =
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+    // Enable device address if supported
+    if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+    {
+        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    }
+
+    // Determine memory properties based on heap memory type
+    VkMemoryPropertyFlags reqMemoryProperties;
+    HeapImpl* heapImpl = static_cast<HeapImpl*>(heap);
+
+    if (heapImpl->m_desc.memoryType == MemoryType::DeviceLocal)
+    {
+        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+    else if (heapImpl->m_desc.memoryType == MemoryType::Upload)
+    {
+        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    }
+    else if (heapImpl->m_desc.memoryType == MemoryType::ReadBack)
+    {
+        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                              VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    }
+    else
+    {
+        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+
+    // Check if external memory (shared) is needed
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0;
+    if (is_set(heapImpl->m_desc.usage, HeapUsage::Shared))
+    {
+#if SLANG_WINDOWS_FAMILY
+        externalMemoryHandleTypeFlags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+        externalMemoryHandleTypeFlags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+    }
+
+    // Initialize the buffer using the existing logic
+    Result result = m_buffer.init(api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags);
+    SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
 }
 
 HeapImpl::PageImpl::~PageImpl() {}
@@ -28,7 +70,7 @@ DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
 
     VkBufferDeviceAddressInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    info.buffer = m_buffer;
+    info.buffer = m_buffer.m_buffer;
     return (DeviceAddress)(m_device->m_api.vkGetBufferDeviceAddress(m_device->m_api.m_device, &info) + offset);
 }
 
@@ -92,114 +134,18 @@ Result HeapImpl::flush()
 Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
-    const VulkanApi& api = deviceImpl->m_api;
 
-    // Create buffer for device address support
-    VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferCreateInfo.size = desc.size;
-    bufferCreateInfo.usage =
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    // Enable device address if supported
-    if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
-    {
-        bufferCreateInfo.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    }
-
-    VkBuffer buffer;
-    VkResult result = api.vkCreateBuffer(api.m_device, &bufferCreateInfo, nullptr, &buffer);
-    if (result != VK_SUCCESS)
-    {
-        return SLANG_FAIL;
-    }
-
-    // Get memory requirements
-    VkMemoryRequirements memoryReqs;
-    api.vkGetBufferMemoryRequirements(api.m_device, buffer, &memoryReqs);
-
-    // Determine memory properties based on heap memory type
-    VkMemoryPropertyFlags reqMemoryProperties;
-    if (m_desc.memoryType == MemoryType::DeviceLocal)
-    {
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    }
-    else if (m_desc.memoryType == MemoryType::Upload)
-    {
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    }
-    else if (m_desc.memoryType == MemoryType::ReadBack)
-    {
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                              VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-    }
-    else
-    {
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    }
-
-    // Find suitable memory type using actual memory type bits from buffer requirements
-    int memoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
-    if (memoryTypeIndex < 0)
-    {
-        api.vkDestroyBuffer(api.m_device, buffer, nullptr);
-        return SLANG_FAIL;
-    }
-
-    // Allocate memory
-    VkMemoryAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-    allocateInfo.allocationSize = memoryReqs.size;
-    allocateInfo.memoryTypeIndex = memoryTypeIndex;
-
-    // Enable device address allocation if needed and supported
-    VkMemoryAllocateFlagsInfo flagInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
-    if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress &&
-        (bufferCreateInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT))
-    {
-        flagInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-        allocateInfo.pNext = &flagInfo;
-    }
-
-    VkDeviceMemory memory;
-    result = api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, &memory);
-    if (result != VK_SUCCESS)
-    {
-        api.vkDestroyBuffer(api.m_device, buffer, nullptr);
-        return SLANG_FAIL;
-    }
-
-    // Bind buffer to memory
-    result = api.vkBindBufferMemory(api.m_device, buffer, memory, 0);
-    if (result != VK_SUCCESS)
-    {
-        api.vkFreeMemory(api.m_device, memory, nullptr);
-        api.vkDestroyBuffer(api.m_device, buffer, nullptr);
-        return SLANG_FAIL;
-    }
-
-    // Create page with buffer and memory
-    *outPage = new PageImpl(this, desc, buffer, memory, deviceImpl);
+    // Create page - the constructor will handle all buffer creation logic
+    *outPage = new PageImpl(this, desc, deviceImpl);
 
     return SLANG_OK;
 }
 
 Result HeapImpl::freePage(Page* page_)
 {
-    DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
-    const VulkanApi& api = deviceImpl->m_api;
-
     PageImpl* page = static_cast<PageImpl*>(page_);
 
-    // Clean up Vulkan buffer and memory
-    if (page->m_buffer != VK_NULL_HANDLE)
-    {
-        api.vkDestroyBuffer(api.m_device, page->m_buffer, nullptr);
-    }
-    if (page->m_memory != VK_NULL_HANDLE)
-    {
-        api.vkFreeMemory(api.m_device, page->m_memory, nullptr);
-    }
-
+    // VKBufferHandleRAII destructor will automatically clean up buffer and memory
     delete page;
     return SLANG_OK;
 }
