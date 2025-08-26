@@ -13,20 +13,15 @@
 
 namespace rhi::vk {
 
-Result VKBufferHandleRAII::init(
+// Helper function to create a VkBuffer with optional external memory support
+Result createVkBuffer(
     const VulkanApi& api,
     Size bufferSize,
     VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags reqMemoryProperties,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkBuffer* outBuffer
 )
 {
-    SLANG_RHI_ASSERT(!isInitialized());
-
-    m_api = &api;
-    m_memory = VK_NULL_HANDLE;
-    m_buffer = VK_NULL_HANDLE;
-
     VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufferCreateInfo.size = bufferSize;
     bufferCreateInfo.usage = usage;
@@ -41,17 +36,27 @@ Result VKBufferHandleRAII::init(
         bufferCreateInfo.pNext = &externalMemoryBufferCreateInfo;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateBuffer(api.m_device, &bufferCreateInfo, nullptr, &m_buffer));
+    SLANG_VK_RETURN_ON_FAIL(api.vkCreateBuffer(api.m_device, &bufferCreateInfo, nullptr, outBuffer));
+    return SLANG_OK;
+}
 
-    VkMemoryRequirements memoryReqs = {};
-    api.vkGetBufferMemoryRequirements(api.m_device, m_buffer, &memoryReqs);
-
+// Helper function to allocate VkDeviceMemory with optional external memory support
+Result allocateVkMemory(
+    const VulkanApi& api,
+    const VkMemoryRequirements& memoryReqs,
+    VkMemoryPropertyFlags reqMemoryProperties,
+    bool needsDeviceAddress,
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkDeviceMemory* outMemory
+)
+{
     int memoryTypeIndex = api.findMemoryTypeIndex(memoryReqs.memoryTypeBits, reqMemoryProperties);
     SLANG_RHI_ASSERT(memoryTypeIndex >= 0);
 
     VkMemoryAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocateInfo.allocationSize = memoryReqs.size;
     allocateInfo.memoryTypeIndex = memoryTypeIndex;
+
 #if SLANG_WINDOWS_FAMILY
     VkExportMemoryWin32HandleInfoKHR exportMemoryWin32HandleInfo = {
         VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR
@@ -74,8 +79,9 @@ Result VKBufferHandleRAII::init(
         exportMemoryAllocateInfo.handleTypes = externalMemoryHandleTypeFlags;
         allocateInfo.pNext = &exportMemoryAllocateInfo;
     }
+
     VkMemoryAllocateFlagsInfo flagInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO};
-    if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+    if (needsDeviceAddress)
     {
         flagInfo.deviceMask = 1;
         flagInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
@@ -84,7 +90,58 @@ Result VKBufferHandleRAII::init(
         allocateInfo.pNext = &flagInfo;
     }
 
-    SLANG_VK_RETURN_ON_FAIL(api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, &m_memory));
+    SLANG_VK_RETURN_ON_FAIL(api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory));
+    return SLANG_OK;
+}
+
+// Helper function to allocate VkDeviceMemory for a buffer with optional external memory support
+Result allocateVkMemoryForBuffer(
+    const VulkanApi& api,
+    VkBuffer buffer,
+    VkBufferUsageFlags bufferUsage,
+    VkMemoryPropertyFlags reqMemoryProperties,
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkDeviceMemory* outMemory
+)
+{
+    VkMemoryRequirements memoryReqs = {};
+    api.vkGetBufferMemoryRequirements(api.m_device, buffer, &memoryReqs);
+
+    bool needsDeviceAddress = (bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0;
+
+    return allocateVkMemory(
+        api,
+        memoryReqs,
+        reqMemoryProperties,
+        needsDeviceAddress,
+        externalMemoryHandleTypeFlags,
+        outMemory
+    );
+}
+
+Result VKBufferHandleRAII::init(
+    const VulkanApi& api,
+    Size bufferSize,
+    VkBufferUsageFlags usage,
+    VkMemoryPropertyFlags reqMemoryProperties,
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
+)
+{
+    SLANG_RHI_ASSERT(!isInitialized());
+
+    m_api = &api;
+    m_memory = VK_NULL_HANDLE;
+    m_buffer = VK_NULL_HANDLE;
+
+    // Create buffer
+    SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, externalMemoryHandleTypeFlags, &m_buffer));
+
+    // Allocate memory
+    SLANG_RETURN_ON_FAIL(
+        allocateVkMemoryForBuffer(api, m_buffer, usage, reqMemoryProperties, externalMemoryHandleTypeFlags, &m_memory)
+    );
+
+    // Bind buffer to memory
     SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
 
     return SLANG_OK;
