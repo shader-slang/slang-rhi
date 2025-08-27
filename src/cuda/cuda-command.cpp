@@ -760,7 +760,52 @@ Result CommandQueueImpl::retireCommandBuffers()
     {
         RefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
 
-        CUresult result = cuEventQuery(commandBuffer->m_completionEvent);
+        // Reset the command buffer for reuse.
+        commandBuffer->reset();
+        cbIt = m_commandBuffersInFlight.erase(cbIt);
+    }
+
+    // Update heaps
+    getDevice<DeviceImpl>()->m_deviceMemHeap->flush();
+    getDevice<DeviceImpl>()->m_hostMemHeap->flush();
+
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device);
+    SLANG_RETURN_ON_FAIL(encoder->init());
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
+{
+    // Increment submit count
+    m_lastSubmittedID++;
+
+    // Record submission event so we can detect completion
+    SubmitEvent ev;
+    ev.submitID = m_lastSubmittedID;
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
+    m_submitEvents.push_back(ev);
+
+    if (outId)
+        *outId = m_lastSubmittedID;
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::updateFence()
+{
+    // Iterate the submit events to update the last finished ID
+    auto submitIt = m_submitEvents.begin();
+    while (submitIt != m_submitEvents.end())
+    {
+        CUresult result = cuEventQuery(submitIt->event);
         if (result == CUDA_SUCCESS)
         {
             // Event is complete.
