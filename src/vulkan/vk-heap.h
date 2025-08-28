@@ -27,7 +27,10 @@ public:
 
         DeviceAddress offsetToAddress(Size offset) override;
 
-        VKBufferHandleRAII m_buffer;
+        // Vulkan handles - stored directly instead of using RAII wrapper
+        VkBuffer m_buffer = VK_NULL_HANDLE;
+        VkDeviceMemory m_memory = VK_NULL_HANDLE;
+
         DeviceImpl* m_device;
     };
 

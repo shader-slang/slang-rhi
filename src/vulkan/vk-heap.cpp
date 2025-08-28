@@ -56,12 +56,33 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
 #endif
     }
 
-    // Initialize the buffer using the existing logic
-    Result result = m_buffer.init(api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags);
+    // Create buffer using helper functions from vk-buffer.cpp
+    Result result = createVkBuffer(api, desc.size, usage, externalMemoryHandleTypeFlags, &m_buffer);
     SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
+
+    // Allocate memory for the buffer
+    result =
+        allocateVkMemoryForBuffer(api, m_buffer, usage, reqMemoryProperties, externalMemoryHandleTypeFlags, &m_memory);
+    SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
+
+    // Bind buffer to memory
+    SLANG_VK_CHECK(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
 }
 
-HeapImpl::PageImpl::~PageImpl() {}
+HeapImpl::PageImpl::~PageImpl()
+{
+    const VulkanApi& api = m_device->m_api;
+
+    // Clean up Vulkan handles
+    if (m_buffer != VK_NULL_HANDLE)
+    {
+        api.vkDestroyBuffer(api.m_device, m_buffer, nullptr);
+    }
+    if (m_memory != VK_NULL_HANDLE)
+    {
+        api.vkFreeMemory(api.m_device, m_memory, nullptr);
+    }
+}
 
 DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
 {
@@ -70,7 +91,7 @@ DeviceAddress HeapImpl::PageImpl::offsetToAddress(Size offset)
 
     VkBufferDeviceAddressInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    info.buffer = m_buffer.m_buffer;
+    info.buffer = m_buffer;
     return (DeviceAddress)(m_device->m_api.vkGetBufferDeviceAddress(m_device->m_api.m_device, &info) + offset);
 }
 
@@ -158,7 +179,7 @@ Result HeapImpl::freePage(Page* page_)
 {
     PageImpl* page = static_cast<PageImpl*>(page_);
 
-    // VKBufferHandleRAII destructor will automatically clean up buffer and memory
+    // PageImpl destructor will clean up Vulkan buffer and memory handles
     delete page;
     return SLANG_OK;
 }

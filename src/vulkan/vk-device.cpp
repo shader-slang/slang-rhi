@@ -1436,14 +1436,28 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     }
 
     // create staging buffer
-    VKBufferHandleRAII staging;
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
 
-    SLANG_RETURN_ON_FAIL(staging.init(
+    SLANG_RETURN_ON_FAIL(createVkBuffer(
         m_api,
         size,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        0, // no external memory for staging
+        &stagingBuffer
     ));
+
+    SLANG_RETURN_ON_FAIL(allocateVkMemoryForBuffer(
+        m_api,
+        stagingBuffer,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        0, // no external memory for staging
+        &stagingMemory
+    ));
+
+    // Bind buffer to memory
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkBindBufferMemory(m_api.m_device, stagingBuffer, stagingMemory, 0));
 
     // Copy from real buffer to staging buffer
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
@@ -1475,7 +1489,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     VkBufferCopy copyInfo = {};
     copyInfo.size = size;
     copyInfo.srcOffset = offset;
-    m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer, staging.m_buffer, 1, &copyInfo);
+    m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer, stagingBuffer, 1, &copyInfo);
 
     std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
     std::swap(srcStageFlags, dstStageFlags);
@@ -1497,12 +1511,24 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Write out the data from the buffer
     void* mappedData = nullptr;
-    SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
+    Result result = m_api.vkMapMemory(m_device, stagingMemory, 0, size, 0, &mappedData);
+    if (SLANG_SUCCEEDED(result))
+    {
+        std::memcpy(outData, mappedData, size);
+        m_api.vkUnmapMemory(m_device, stagingMemory);
+    }
 
-    std::memcpy(outData, mappedData, size);
-    m_api.vkUnmapMemory(m_device, staging.m_memory);
+    // Clean up staging buffer and memory
+    if (stagingBuffer != VK_NULL_HANDLE)
+    {
+        m_api.vkDestroyBuffer(m_api.m_device, stagingBuffer, nullptr);
+    }
+    if (stagingMemory != VK_NULL_HANDLE)
+    {
+        m_api.vkFreeMemory(m_api.m_device, stagingMemory, nullptr);
+    }
 
-    return SLANG_OK;
+    return result;
 }
 
 Result DeviceImpl::getAccelerationStructureSizes(

@@ -4,40 +4,23 @@
 
 namespace rhi::vk {
 
-// Combined buffer and memory class
-class VKBufferHandleRAII
-{
-public:
-    /// Initialize a buffer with specified size, and memory props
-    Result init(
-        const VulkanApi& api,
-        Size bufferSize,
-        VkBufferUsageFlags usage,
-        VkMemoryPropertyFlags reqMemoryProperties,
-        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0
-    );
+// Helper functions for buffer and memory creation
+Result createVkBuffer(
+    const VulkanApi& api,
+    Size bufferSize,
+    VkBufferUsageFlags usage,
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkBuffer* outBuffer
+);
 
-    /// Returns true if has been initialized
-    bool isInitialized() const { return m_api != nullptr; }
-
-    VKBufferHandleRAII()
-        : m_api(nullptr)
-    {
-    }
-
-    ~VKBufferHandleRAII()
-    {
-        if (m_api)
-        {
-            m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
-        }
-    }
-
-    VkBuffer m_buffer;
-    VkDeviceMemory m_memory;
-    const VulkanApi* m_api;
-};
+Result allocateVkMemoryForBuffer(
+    const VulkanApi& api,
+    VkBuffer buffer,
+    VkBufferUsageFlags bufferUsage,
+    VkMemoryPropertyFlags reqMemoryProperties,
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkDeviceMemory* outMemory
+);
 
 class BufferImpl : public Buffer
 {

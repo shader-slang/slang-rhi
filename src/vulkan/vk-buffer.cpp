@@ -119,34 +119,6 @@ Result allocateVkMemoryForBuffer(
     );
 }
 
-Result VKBufferHandleRAII::init(
-    const VulkanApi& api,
-    Size bufferSize,
-    VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags reqMemoryProperties,
-    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
-)
-{
-    SLANG_RHI_ASSERT(!isInitialized());
-
-    m_api = &api;
-    m_memory = VK_NULL_HANDLE;
-    m_buffer = VK_NULL_HANDLE;
-
-    // Create buffer
-    SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, externalMemoryHandleTypeFlags, &m_buffer));
-
-    // Allocate memory
-    SLANG_RETURN_ON_FAIL(
-        allocateVkMemoryForBuffer(api, m_buffer, usage, reqMemoryProperties, externalMemoryHandleTypeFlags, &m_memory)
-    );
-
-    // Bind buffer to memory
-    SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
-
-    return SLANG_OK;
-}
-
 BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
     : Buffer(device, desc)
 {
