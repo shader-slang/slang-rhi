@@ -27,22 +27,21 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
     VkMemoryPropertyFlags reqMemoryProperties;
     HeapImpl* heapImpl = static_cast<HeapImpl*>(heap);
 
-    if (heapImpl->m_desc.memoryType == MemoryType::DeviceLocal)
+    switch (heapImpl->m_desc.memoryType)
     {
+    case MemoryType::DeviceLocal:
         reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    }
-    else if (heapImpl->m_desc.memoryType == MemoryType::Upload)
-    {
+        break;
+    case MemoryType::Upload:
         reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    }
-    else if (heapImpl->m_desc.memoryType == MemoryType::ReadBack)
-    {
+        break;
+    case MemoryType::ReadBack:
         reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
                               VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-    }
-    else
-    {
+        break;
+    default:
         reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        break;
     }
 
     // Check if external memory (shared) is needed
