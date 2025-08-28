@@ -4,6 +4,7 @@
 
 namespace rhi::vk {
 
+// Combined buffer and memory class
 class VKBufferHandleRAII
 {
 public:
