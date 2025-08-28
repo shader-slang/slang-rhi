@@ -154,9 +154,33 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const VulkanApi& api = device->m_api;
+
+    // Clean up views
     for (auto& view : m_views)
     {
-        m_buffer.m_api->vkDestroyBufferView(m_buffer.m_api->m_device, view.second, nullptr);
+        api.vkDestroyBufferView(api.m_device, view.second, nullptr);
+    }
+
+    // Clean up upload buffer and memory
+    if (m_uploadBuffer != VK_NULL_HANDLE)
+    {
+        api.vkDestroyBuffer(api.m_device, m_uploadBuffer, nullptr);
+    }
+    if (m_uploadMemory != VK_NULL_HANDLE)
+    {
+        api.vkFreeMemory(api.m_device, m_uploadMemory, nullptr);
+    }
+
+    // Clean up main buffer and memory (only if we own them)
+    if (m_ownsBuffer && m_buffer != VK_NULL_HANDLE)
+    {
+        api.vkDestroyBuffer(api.m_device, m_buffer, nullptr);
+    }
+    if (m_memory != VK_NULL_HANDLE)
+    {
+        api.vkFreeMemory(api.m_device, m_memory, nullptr);
     }
 
     if (m_sharedHandle)
@@ -171,18 +195,21 @@ BufferImpl::~BufferImpl()
 
 DeviceAddress BufferImpl::getDeviceAddress()
 {
-    if (!m_buffer.m_api->vkGetBufferDeviceAddress)
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const VulkanApi& api = device->m_api;
+
+    if (!api.vkGetBufferDeviceAddress)
         return 0;
     VkBufferDeviceAddressInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    info.buffer = m_buffer.m_buffer;
-    return (DeviceAddress)m_buffer.m_api->vkGetBufferDeviceAddress(m_buffer.m_api->m_device, &info);
+    info.buffer = m_buffer;
+    return (DeviceAddress)api.vkGetBufferDeviceAddress(api.m_device, &info);
 }
 
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::VkBuffer;
-    outHandle->value = (uint64_t)m_buffer.m_buffer;
+    outHandle->value = (uint64_t)m_buffer;
     return SLANG_OK;
 }
 
@@ -195,38 +222,39 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
         return SLANG_OK;
     }
 
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const VulkanApi& api = device->m_api;
+
     // If a shared handle doesn't exist, create one and store it.
 #if SLANG_WINDOWS_FAMILY
     VkMemoryGetWin32HandleInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
     info.pNext = nullptr;
-    info.memory = m_buffer.m_memory;
+    info.memory = m_memory;
     info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
-    auto api = m_buffer.m_api;
     PFN_vkGetMemoryWin32HandleKHR vkCreateSharedHandle;
-    vkCreateSharedHandle = api->vkGetMemoryWin32HandleKHR;
+    vkCreateSharedHandle = api.vkGetMemoryWin32HandleKHR;
     if (!vkCreateSharedHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (HANDLE*)&m_sharedHandle.value));
+    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api.m_device, &info, (HANDLE*)&m_sharedHandle.value));
     m_sharedHandle.type = NativeHandleType::Win32;
 #else
     VkMemoryGetFdInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
     info.pNext = nullptr;
-    info.memory = m_buffer.m_memory;
+    info.memory = m_memory;
     info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 
-    auto api = m_buffer.m_api;
     PFN_vkGetMemoryFdKHR vkCreateSharedHandle;
-    vkCreateSharedHandle = api->vkGetMemoryFdKHR;
+    vkCreateSharedHandle = api.vkGetMemoryFdKHR;
     if (!vkCreateSharedHandle)
     {
         return SLANG_FAIL;
     }
-    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (int*)&m_sharedHandle.value));
+    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api.m_device, &info, (int*)&m_sharedHandle.value));
     m_sharedHandle.type = NativeHandleType::FileDescriptor;
 #endif
     *outHandle = m_sharedHandle;
@@ -275,9 +303,12 @@ VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
     if (view)
         return view;
 
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const VulkanApi& api = device->m_api;
+
     VkBufferViewCreateInfo info = {VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO};
     info.format = getVkFormat(format);
-    info.buffer = m_buffer.m_buffer;
+    info.buffer = m_buffer;
     info.offset = range.offset;
     info.range = range.size;
 
@@ -299,7 +330,7 @@ VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
     //     SLANG_RHI_ASSERT_FAILURE("Unhandled");
     // }
 
-    VkResult result = m_buffer.m_api->vkCreateBufferView(m_buffer.m_api->m_device, &info, nullptr, &view);
+    VkResult result = api.vkCreateBufferView(api.m_device, &info, nullptr, &view);
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
     return view;
 }
@@ -346,54 +377,83 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 #else
             = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
-        SLANG_RETURN_ON_FAIL(
-            buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags)
-        );
+        // Create buffer
+        SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, externalMemoryHandleTypeFlags, &buffer->m_buffer));
+
+        // Allocate memory
+        SLANG_RETURN_ON_FAIL(allocateVkMemoryForBuffer(
+            m_api,
+            buffer->m_buffer,
+            usage,
+            reqMemoryProperties,
+            externalMemoryHandleTypeFlags,
+            &buffer->m_memory
+        ));
+
+        // Bind buffer to memory
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkBindBufferMemory(m_api.m_device, buffer->m_buffer, buffer->m_memory, 0));
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, desc.size, usage, reqMemoryProperties));
+        // Create buffer
+        SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, 0, &buffer->m_buffer));
+
+        // Allocate memory
+        SLANG_RETURN_ON_FAIL(
+            allocateVkMemoryForBuffer(m_api, buffer->m_buffer, usage, reqMemoryProperties, 0, &buffer->m_memory)
+        );
+
+        // Bind buffer to memory
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkBindBufferMemory(m_api.m_device, buffer->m_buffer, buffer->m_memory, 0));
     }
 
-    _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
+    _labelObject((uint64_t)buffer->m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
 
     if (initData)
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            SLANG_RETURN_ON_FAIL(buffer->m_uploadBuffer.init(
+            // Create upload buffer
+            SLANG_RETURN_ON_FAIL(
+                createVkBuffer(m_api, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 0, &buffer->m_uploadBuffer)
+            );
+
+            // Allocate upload memory
+            SLANG_RETURN_ON_FAIL(allocateVkMemoryForBuffer(
                 m_api,
-                bufferSize,
+                buffer->m_uploadBuffer,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                0,
+                &buffer->m_uploadMemory
             ));
+
+            // Bind upload buffer to memory
+            SLANG_VK_RETURN_ON_FAIL(
+                m_api.vkBindBufferMemory(m_api.m_device, buffer->m_uploadBuffer, buffer->m_uploadMemory, 0)
+            );
+
             // Copy into staging buffer
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadMemory, 0, bufferSize, 0, &mappedData));
             ::memcpy(mappedData, initData, bufferSize);
-            m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
+            m_api.vkUnmapMemory(m_device, buffer->m_uploadMemory);
 
             // Copy from staging buffer to real buffer
             VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
 
             VkBufferCopy copyInfo = {};
             copyInfo.size = bufferSize;
-            m_api.vkCmdCopyBuffer(
-                commandBuffer,
-                buffer->m_uploadBuffer.m_buffer,
-                buffer->m_buffer.m_buffer,
-                1,
-                &copyInfo
-            );
+            m_api.vkCmdCopyBuffer(commandBuffer, buffer->m_uploadBuffer, buffer->m_buffer, 1, &copyInfo);
             m_deviceQueue.flush();
         }
         else
         {
             // Copy into mapped buffer directly
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_memory, 0, bufferSize, 0, &mappedData));
             ::memcpy(mappedData, initData, bufferSize);
-            m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
+            m_api.vkUnmapMemory(m_device, buffer->m_memory);
         }
     }
 
@@ -407,7 +467,9 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 
     if (handle.type == NativeHandleType::VkBuffer)
     {
-        buffer->m_buffer.m_buffer = (VkBuffer)handle.value;
+        buffer->m_buffer = (VkBuffer)handle.value;
+        buffer->m_memory = VK_NULL_HANDLE; // External handle, we don't own the memory
+        buffer->m_ownsBuffer = false;      // We don't own this buffer, so don't destroy it
     }
     else
     {
@@ -421,16 +483,14 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outData)
-    );
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkMapMemory(m_api.m_device, bufferImpl->m_memory, 0, VK_WHOLE_SIZE, 0, outData));
     return SLANG_OK;
 }
 
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    m_api.vkUnmapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory);
+    m_api.vkUnmapMemory(m_api.m_device, bufferImpl->m_memory);
     return SLANG_OK;
 }
 

@@ -1452,7 +1452,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     barrier.srcAccessMask = calcAccessFlags(bufferImpl->m_desc.defaultState);
     barrier.dstAccessMask = calcAccessFlags(ResourceState::CopyDestination);
-    barrier.buffer = bufferImpl->m_buffer.m_buffer;
+    barrier.buffer = bufferImpl->m_buffer;
     barrier.offset = 0;
     barrier.size = bufferImpl->m_desc.size;
 
@@ -1475,7 +1475,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     VkBufferCopy copyInfo = {};
     copyInfo.size = size;
     copyInfo.srcOffset = offset;
-    m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer.m_buffer, staging.m_buffer, 1, &copyInfo);
+    m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer, staging.m_buffer, 1, &copyInfo);
 
     std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
     std::swap(srcStageFlags, dstStageFlags);
@@ -1547,7 +1547,7 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.defaultState = ResourceState::AccelerationStructure;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
-    createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
+    createInfo.buffer = result->m_buffer->m_buffer;
     createInfo.offset = 0;
     createInfo.size = desc.size;
     createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;

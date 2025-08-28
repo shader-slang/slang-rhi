@@ -187,7 +187,7 @@ Result BindlessDescriptorSet::allocBufferHandle(
     {
         // read-only could be VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
         write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        bufferInfo.buffer = bufferImpl->m_buffer.m_buffer;
+        bufferInfo.buffer = bufferImpl->m_buffer;
         bufferInfo.offset = range.offset;
         bufferInfo.range = range.size;
         write.pBufferInfo = &bufferInfo;

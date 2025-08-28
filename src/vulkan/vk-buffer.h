@@ -45,8 +45,14 @@ public:
     BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
-    VKBufferHandleRAII m_buffer;
-    VKBufferHandleRAII m_uploadBuffer;
+    // Vulkan handles - stored directly instead of using RAII wrapper
+    VkBuffer m_buffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_memory = VK_NULL_HANDLE;
+    VkBuffer m_uploadBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_uploadMemory = VK_NULL_HANDLE;
+
+    // Flag to track if we own the buffer handle (false for buffers created from native handles)
+    bool m_ownsBuffer = true;
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 

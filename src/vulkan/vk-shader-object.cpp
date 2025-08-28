@@ -31,7 +31,7 @@ inline void writePlainBufferDescriptor(
 
     if (buffer)
     {
-        bufferInfo.buffer = buffer->m_buffer.m_buffer;
+        bufferInfo.buffer = buffer->m_buffer;
         bufferInfo.offset = range.offset;
         bufferInfo.range = range.size;
     }
