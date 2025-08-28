@@ -37,8 +37,10 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result DeviceImpl::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
+Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
+    BufferDesc desc = fixupBufferDesc(desc_);
+
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     WGPUBufferDescriptor bufferDesc = {};
     bufferDesc.size = desc.size;
