@@ -33,10 +33,25 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
+    // Track execution errors
+    bool m_hasError = false;
+
     CommandExecutor(DeviceImpl* device, CUstream stream)
         : m_device(device)
         , m_stream(stream)
     {
+    }
+
+    // Macro to check CUDA results and track errors when asserts are disabled
+    void checkCudaResult(CUresult result, const char* call, const char* file, int line)
+    {
+        if (::rhi::cuda::isCUDAError(result))
+        {
+            m_hasError = true;
+            ::rhi::cuda::reportCUDAAssert(result, call, file, line);
+            // Still call the assert handler to respect the disabled assert scope behavior
+            SLANG_RHI_ASSERT_FAILURE("CUDA call failed");
+        }
     }
 
     Result execute(CommandBufferImpl* commandBuffer);
@@ -83,6 +98,14 @@ public:
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 };
 
+// Macro for checking CUDA results in command execution
+#define SLANG_CUDA_CHECK_ON_FAIL(executor, x)                                                                          \
+    {                                                                                                                  \
+        SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
+        auto _res = x;                                                                                                 \
+        (executor).checkCudaResult(_res, #x, __FILE__, __LINE__);                                                      \
+    }
+
 Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 {
 #define NOT_IMPLEMENTED(cmd)                                                                                           \
@@ -112,7 +135,8 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 
 #undef NOT_IMPLEMENTED
 
-    return SLANG_OK;
+    // Return failure if any CUDA commands failed during execution
+    return m_hasError ? SLANG_FAIL : SLANG_OK;
 }
 
 #define NOT_SUPPORTED(x) m_device->printWarning(x " command is not supported!")
@@ -454,7 +478,8 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         if (result == CUDA_SUCCESS)
         {
             SLANG_RHI_ASSERT(globalParamsSymbolSize == bindingData->globalParamsSize);
-            SLANG_CUDA_ASSERT_ON_FAIL(
+            SLANG_CUDA_CHECK_ON_FAIL(
+                *this,
                 cuMemcpyAsync(globalParamsSymbol, bindingData->globalParams, globalParamsSymbolSize, m_stream)
             );
         }
@@ -475,19 +500,22 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     // Once we have all the necessary data extracted and/or
     // set up, we can launch the kernel and see what happens.
     //
-    SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernel(
-        computePipeline->m_function,
-        cmd.x,
-        cmd.y,
-        cmd.z,
-        computePipeline->m_threadGroupSize[0],
-        computePipeline->m_threadGroupSize[1],
-        computePipeline->m_threadGroupSize[2],
-        computePipeline->m_sharedMemorySize,
-        m_stream,
-        nullptr,
-        extraOptions
-    ));
+    SLANG_CUDA_CHECK_ON_FAIL(
+        *this,
+        cuLaunchKernel(
+            computePipeline->m_function,
+            cmd.x,
+            cmd.y,
+            cmd.z,
+            computePipeline->m_threadGroupSize[0],
+            computePipeline->m_threadGroupSize[1],
+            computePipeline->m_threadGroupSize[2],
+            computePipeline->m_sharedMemorySize,
+            m_stream,
+            nullptr,
+            extraOptions
+        )
+    );
 }
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
