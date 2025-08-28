@@ -13,10 +13,6 @@ class DeviceImpl;
 class HeapImpl : public Heap
 {
 public:
-    // Vulkan buffer alignment requirement is typically 256 bytes for UBOs,
-    // but use a conservative 256 bytes to handle most buffer types
-    static const Size kAlignment = 256;
-
     struct PendingFree
     {
         HeapAlloc allocation;

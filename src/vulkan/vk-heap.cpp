@@ -87,7 +87,8 @@ Result HeapImpl::free(HeapAlloc allocation)
     CommandQueueImpl* queue = deviceImpl->m_queue;
 
     // Check if the queue has finished all work by comparing submission IDs
-    if (queue->updateLastFinishedID() >= queue->m_lastSubmittedID)
+    // We don't call updateLastFinishedID for every free, as it's pretty costly
+    if (queue->m_lastFinishedID >= queue->m_lastSubmittedID)
     {
         // Queue is idle, we can immediately retire the allocation
         return retire(allocation);
@@ -136,7 +137,19 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
 
     // Create page - the constructor will handle all buffer creation logic
-    *outPage = new PageImpl(this, desc, deviceImpl);
+    Page* page = new PageImpl(this, desc, deviceImpl);
+
+    // Vulkan memory allocation guarantees an alignment suitable for
+    // any memory type, however if the user asks for an alignment
+    // higher than that, the page may end up misaligned. For now,
+    // treat this as an error, as the user should only ever be asking
+    // for alignments based on correct memory requirements.
+    if (page->offsetToAddress(0) % desc.alignment != 0)
+    {
+        delete page;
+        return SLANG_E_INVALID_ARG;
+    }
+    *outPage = page;
 
     return SLANG_OK;
 }
@@ -152,17 +165,6 @@ Result HeapImpl::freePage(Page* page_)
 
 Result HeapImpl::fixUpAllocDesc(HeapAllocDesc& desc)
 {
-    // Vulkan has various alignment requirements:
-    // - Storage buffers: typically 16 bytes minimum
-    // - Uniform buffers: up to 256 bytes on some hardware
-    // - Device address: usually requires natural alignment
-
-    // Use a conservative alignment that works for most buffer types
-    if (desc.alignment < kAlignment)
-    {
-        desc.alignment = kAlignment;
-    }
-
     // Ensure alignment is power of 2
     if (!math::isPowerOf2(desc.alignment))
     {

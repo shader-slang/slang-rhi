@@ -363,7 +363,7 @@ GPU_TEST_CASE("heap-no-overlaps", CUDA | Vulkan)
     std::vector<size_t> sizes = {1024, 4096, 16384, 65536, 262144, 1048576};
 
     // Use platform-appropriate alignment
-    size_t alignment = (device->getDeviceType() == DeviceType::CUDA) ? 128 : 256;
+    size_t alignment = 128;
 
     for (size_t size : sizes)
     {
@@ -411,7 +411,7 @@ GPU_TEST_CASE("heap-alloc-free-no-overlaps", CUDA | Vulkan)
         {
             HeapAllocDesc allocDesc;
             allocDesc.size = (i + 1) * 8192; // Varying sizes
-            allocDesc.alignment = (device->getDeviceType() == DeviceType::CUDA) ? 128 : 256;
+            allocDesc.alignment = 128;
 
             HeapAlloc allocation;
             REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
@@ -465,32 +465,15 @@ GPU_TEST_CASE("heap-alignment-sizes", CUDA | Vulkan)
 
     // Use platform-appropriate alignments
     std::vector<TestCase> testCases;
-    if (device->getDeviceType() == DeviceType::CUDA)
-    {
-        // CUDA supports up to 128-byte alignment
-        testCases = {
-            {1023, 64},     // Size not aligned to alignment
-            {1024, 128},    // Size multiple of alignment
-            {4096, 64},     // Size multiple of alignment
-            {65535, 128},   // Odd size with large alignment
-            {262144, 128},  // Large size with large alignment
-            {1, 64},        // Minimal size
-            {1048576, 128}, // Large size with standard alignment
-        };
-    }
-    else
-    {
-        // Vulkan and other platforms support larger alignments
-        testCases = {
-            {1023, 256},    // Size not aligned to alignment
-            {1024, 512},    // Size smaller than alignment
-            {4096, 256},    // Size multiple of alignment
-            {65535, 1024},  // Odd size with large alignment
-            {262144, 4096}, // Large size with large alignment
-            {1, 256},       // Minimal size
-            {1048576, 256}, // Large size with standard alignment
-        };
-    }
+    testCases = {
+        {1023, 64},     // Size not aligned to alignment
+        {1024, 128},    // Size multiple of alignment
+        {4096, 64},     // Size multiple of alignment
+        {65535, 128},   // Odd size with large alignment
+        {262144, 128},  // Large size with large alignment
+        {1, 64},        // Minimal size
+        {1048576, 128}, // Large size with standard alignment
+    };
 
     for (auto& testCase : testCases)
     {
@@ -545,7 +528,7 @@ GPU_TEST_CASE("heap-multiple-submits-pending-frees", CUDA | Vulkan)
         // Allocate some memory for this submit
         HeapAllocDesc allocDesc;
         allocDesc.size = (submitIndex + 1) * 65536; // Varying sizes
-        allocDesc.alignment = (device->getDeviceType() == DeviceType::CUDA) ? 128 : 256;
+        allocDesc.alignment = 128;
 
         HeapAlloc allocation;
         REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
@@ -588,7 +571,7 @@ GPU_TEST_CASE("heap-multiple-submits-pending-frees", CUDA | Vulkan)
     {
         HeapAllocDesc allocDesc;
         allocDesc.size = 32768;
-        allocDesc.alignment = (device->getDeviceType() == DeviceType::CUDA) ? 128 : 256;
+        allocDesc.alignment = 128;
 
         HeapAlloc allocation;
         REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
@@ -628,7 +611,7 @@ GPU_TEST_CASE("heap-fragmentation-test", CUDA | Vulkan)
     {
         HeapAllocDesc allocDesc;
         allocDesc.size = 65536; // 64KB each
-        allocDesc.alignment = (device->getDeviceType() == DeviceType::CUDA) ? 128 : 256;
+        allocDesc.alignment = 128;
 
         HeapAlloc allocation;
         REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
@@ -644,7 +627,7 @@ GPU_TEST_CASE("heap-fragmentation-test", CUDA | Vulkan)
     // Try to allocate a larger block that might not fit in the holes
     HeapAllocDesc largeAllocDesc;
     largeAllocDesc.size = 131072; // 128KB - larger than the 64KB holes
-    largeAllocDesc.alignment = (device->getDeviceType() == DeviceType::CUDA) ? 128 : 256;
+    largeAllocDesc.alignment = 128;
 
     HeapAlloc largeAllocation;
     REQUIRE_CALL(heap->allocate(largeAllocDesc, &largeAllocation));
@@ -661,59 +644,4 @@ GPU_TEST_CASE("heap-fragmentation-test", CUDA | Vulkan)
         REQUIRE_CALL(heap->free(allocations[i]));
     }
     REQUIRE_CALL(heap->free(largeAllocation));
-}
-
-GPU_TEST_CASE("heap-extreme-alignments", CUDA | Vulkan)
-{
-    HeapDesc desc;
-    desc.label = "Test Graphics Heap";
-    desc.memoryType = MemoryType::DeviceLocal;
-
-    ComPtr<IHeap> heap;
-    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
-
-    std::vector<HeapAlloc> allocations;
-
-    // Test with large alignments appropriate for each platform
-    std::vector<size_t> alignments;
-    if (device->getDeviceType() == DeviceType::CUDA)
-    {
-        // CUDA maximum is 128 bytes
-        alignments = {64, 128};
-    }
-    else
-    {
-        // Vulkan and other platforms can handle larger alignments
-        alignments = {256, 1024, 4096, 16384, 65536};
-    }
-
-    for (size_t alignment : alignments)
-    {
-        HeapAllocDesc allocDesc;
-        allocDesc.size = 32768; // Fixed size, varying alignment
-        allocDesc.alignment = alignment;
-
-        HeapAlloc allocation;
-        REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
-
-        // Verify alignment is respected
-        CHECK_EQ(allocation.getDeviceAddress() % alignment, 0);
-
-        allocations.push_back(allocation);
-    }
-
-    // Verify no overlaps despite extreme alignments
-    for (size_t i = 0; i < allocations.size(); i++)
-    {
-        for (size_t j = i + 1; j < allocations.size(); j++)
-        {
-            CHECK(!allocationsOverlap(allocations[i], allocations[j]));
-        }
-    }
-
-    // Clean up
-    for (auto& alloc : allocations)
-    {
-        REQUIRE_CALL(heap->free(alloc));
-    }
 }
