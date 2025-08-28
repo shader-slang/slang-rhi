@@ -113,7 +113,6 @@ ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t size)
 GPU_TEST_CASE("heap-create", CUDA | Vulkan)
 {
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
@@ -123,7 +122,6 @@ GPU_TEST_CASE("heap-create", CUDA | Vulkan)
 GPU_TEST_CASE("heap-allocate", CUDA | Vulkan)
 {
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
@@ -163,7 +161,6 @@ GPU_TEST_CASE("heap-allocate", CUDA | Vulkan)
 GPU_TEST_CASE("heap-submit", CUDA | Vulkan)
 {
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
@@ -250,7 +247,6 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA | Vulkan)
 
 
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
@@ -351,7 +347,6 @@ bool allocationsOverlap(const HeapAlloc& a, const HeapAlloc& b)
 GPU_TEST_CASE("heap-no-overlaps", CUDA | Vulkan)
 {
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
@@ -395,7 +390,6 @@ GPU_TEST_CASE("heap-no-overlaps", CUDA | Vulkan)
 GPU_TEST_CASE("heap-alloc-free-no-overlaps", CUDA | Vulkan)
 {
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
@@ -448,7 +442,6 @@ GPU_TEST_CASE("heap-alloc-free-no-overlaps", CUDA | Vulkan)
 GPU_TEST_CASE("heap-alignment-sizes", CUDA | Vulkan)
 {
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
@@ -512,7 +505,6 @@ GPU_TEST_CASE("heap-alignment-sizes", CUDA | Vulkan)
 GPU_TEST_CASE("heap-multiple-submits-pending-frees", CUDA | Vulkan)
 {
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
@@ -597,7 +589,6 @@ GPU_TEST_CASE("heap-multiple-submits-pending-frees", CUDA | Vulkan)
 GPU_TEST_CASE("heap-fragmentation-test", CUDA | Vulkan)
 {
     HeapDesc desc;
-    desc.label = "Test Graphics Heap";
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
