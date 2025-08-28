@@ -736,9 +736,9 @@ CommandQueueImpl::~CommandQueueImpl()
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     // Block on all events completing
-    for (const auto& commandBuffer : m_commandBuffersInFlight)
+    for (const auto& ev : m_submitEvents)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(commandBuffer->m_completionEvent));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
     }
 
     // Retire finished command buffers, which should be all of them
@@ -755,37 +755,22 @@ CommandQueueImpl::~CommandQueueImpl()
 
 Result CommandQueueImpl::retireCommandBuffers()
 {
+    // Run fence logic so m_lastFinishedID is up to date.
+    SLANG_RETURN_ON_FAIL(updateFence());
+
+    // Retire command buffers that're passed the submission ID
     auto cbIt = m_commandBuffersInFlight.begin();
     while (cbIt != m_commandBuffersInFlight.end())
     {
         RefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
-
-        CUresult result = cuEventQuery(commandBuffer->m_completionEvent);
-        if (result == CUDA_SUCCESS)
-        {
-            // Event is complete.
-            // We aren't recycling, so all we have to do is destroy the event
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(commandBuffer->m_completionEvent));
-            m_submitCompleted = commandBuffer->m_submitIndex;
-
-            // Reset the command buffer for reuse.
-            commandBuffer->reset();
-
-            // Remove the command buffer from the list.
-            cbIt = m_commandBuffersInFlight.erase(cbIt);
-        }
-        else if (result == CUDA_ERROR_NOT_READY)
-        {
-            // Not ready means event hasn't been triggered yet, so it's still in-flight.
-            // As command buffers are ordered, this should mean that all subsequent command buffers
-            // are also still in-flight, so we can stop checking.
+        if (commandBuffer->m_submissionID > m_lastFinishedID)
             break;
-        }
-        else
-        {
-            SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, m_device);
-        }
+
+        // Reset the command buffer for reuse.
+        commandBuffer->reset();
+        cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
+
     return SLANG_OK;
 }
 
@@ -798,6 +783,56 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
 }
+
+Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
+{
+    // Increment submit count
+    m_lastSubmittedID++;
+
+    // Record submission event so we can detect completion
+    SubmitEvent ev;
+    ev.submitID = m_lastSubmittedID;
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
+    m_submitEvents.push_back(ev);
+
+    if (outId)
+        *outId = m_lastSubmittedID;
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::updateFence()
+{
+    // Iterate the submit events to update the last finished ID
+    auto submitIt = m_submitEvents.begin();
+    while (submitIt != m_submitEvents.end())
+    {
+        CUresult result = cuEventQuery(submitIt->event);
+        if (result == CUDA_SUCCESS)
+        {
+            // Event is complete.
+            // We aren't recycling, so all we have to do is destroy the event
+            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
+            m_lastFinishedID = submitIt->submitID;
+
+            // Remove the event from the list.
+            submitIt = m_submitEvents.erase(submitIt);
+        }
+        else if (result == CUDA_ERROR_NOT_READY)
+        {
+            // Not ready means event hasn't been triggered yet, so it's still in-flight.
+            // As command buffers are ordered, this should mean that all subsequent events
+            // are also still in-flight, so we can stop checking.
+            break;
+        }
+        else
+        {
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, m_device);
+        }
+    }
+    return SLANG_OK;
+}
+
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
@@ -831,13 +866,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Increment submit count
-        m_submitCount++;
+        // Signal main fence
+        uint64_t submissionID;
+        SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
 
-        // Only record command buffer if executor succeeds and we correctly add it to the active stream
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, CU_EVENT_DISABLE_TIMING));
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, requestedStream));
-        commandBuffer->m_submitIndex = m_submitCount;
+        // Record the command buffer + corresponding submit ID
+        commandBuffer->m_submissionID = submissionID;
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 
@@ -894,6 +928,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+
     BindingDataBuilder builder;
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;

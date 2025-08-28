@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cuda-base.h"
+#include "cuda-heap.h"
 
 namespace rhi::cuda {
 
@@ -12,6 +13,7 @@ public:
 
     void* m_cudaExternalMemory = nullptr;
     void* m_cudaMemory = nullptr;
+    HeapAlloc m_alloc;
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

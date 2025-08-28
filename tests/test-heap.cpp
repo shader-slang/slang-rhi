@@ -110,7 +110,7 @@ ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t size)
     return buffer;
 }
 
-GPU_TEST_CASE("graphics-heap-create", CUDA)
+GPU_TEST_CASE("heap-create", CUDA)
 {
     HeapDesc desc;
     desc.label = "Test Graphics Heap";
@@ -120,7 +120,7 @@ GPU_TEST_CASE("graphics-heap-create", CUDA)
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 }
 
-GPU_TEST_CASE("graphics-heap-allocate", CUDA)
+GPU_TEST_CASE("heap-allocate", CUDA)
 {
     HeapDesc desc;
     desc.label = "Test Graphics Heap";
@@ -130,8 +130,8 @@ GPU_TEST_CASE("graphics-heap-allocate", CUDA)
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
     HeapAllocDesc allocDesc;
-    allocDesc.size = 1024 * 1024;     // 1 MB
-    allocDesc.alignment = 256 * 1024; // 256 KB
+    allocDesc.size = 1024 * 1024; // 1 MB
+    allocDesc.alignment = 128;
 
     HeapAlloc allocation;
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
@@ -160,7 +160,7 @@ GPU_TEST_CASE("graphics-heap-allocate", CUDA)
     CHECK_EQ(report.numPages, 0);
 }
 
-GPU_TEST_CASE("graphics-heap-submit", CUDA)
+GPU_TEST_CASE("heap-submit", CUDA)
 {
     HeapDesc desc;
     desc.label = "Test Graphics Heap";
@@ -170,8 +170,8 @@ GPU_TEST_CASE("graphics-heap-submit", CUDA)
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
     HeapAllocDesc allocDesc;
-    allocDesc.size = 1024 * 1024;     // 1 MB
-    allocDesc.alignment = 256 * 1024; // 256 KB
+    allocDesc.size = 1024 * 1024; // 1 MB
+    allocDesc.alignment = 128;    // 256 KB
 
     HeapAlloc allocation;
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
@@ -225,7 +225,7 @@ struct AllocationInfo
     uint32_t pattern;
 };
 
-GPU_TEST_CASE("graphics-heap-pointer-stress-test", CUDA)
+GPU_TEST_CASE("heap-pointer-stress-test", CUDA)
 {
     ComputePipelineDesc pipelineDesc = {};
 
@@ -293,7 +293,7 @@ GPU_TEST_CASE("graphics-heap-pointer-stress-test", CUDA)
             auto rootObject = passEncoder->bindPipeline(initPtrpipeline);
             ShaderCursor shaderCursor(rootObject);
             shaderCursor["val"].setData(alloc.pattern);
-            shaderCursor["dst"].setData(src.deviceAddress);
+            shaderCursor["dst"].setData(src.getDeviceAddress());
             for (int d = 0; d < 100; d++)
                 passEncoder->dispatchCompute(alloc.buffer->getDesc().size / (4 * 32), 1, 1);
             passEncoder->end();
@@ -303,7 +303,7 @@ GPU_TEST_CASE("graphics-heap-pointer-stress-test", CUDA)
             auto passEncoder = commandEncoder->beginComputePass();
             auto rootObject = passEncoder->bindPipeline(copyPtrpipeline);
             ShaderCursor shaderCursor(rootObject);
-            shaderCursor["src"].setData(src.deviceAddress);
+            shaderCursor["src"].setData(src.getDeviceAddress());
             shaderCursor["dst"].setData(alloc.buffer->getDeviceAddress());
             for (int d = 0; d < 100; d++)
                 passEncoder->dispatchCompute(alloc.buffer->getDesc().size / (4 * 32), 1, 1);

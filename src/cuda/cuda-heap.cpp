@@ -1,4 +1,4 @@
-#include "cuda-graphics-heap.h"
+#include "cuda-heap.h"
 #include "cuda-device.h"
 #include "cuda-utils.h"
 #include "cuda-command.h"
@@ -15,7 +15,7 @@ HeapImpl::~HeapImpl() {}
 Result HeapImpl::free(HeapAlloc allocation)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
-    if (deviceImpl->m_queue->m_submitCount == deviceImpl->m_queue->m_submitCompleted)
+    if (deviceImpl->m_queue->m_lastFinishedID == deviceImpl->m_queue->m_lastSubmittedID)
     {
         return retire(allocation);
     }
@@ -23,7 +23,7 @@ Result HeapImpl::free(HeapAlloc allocation)
     {
         PendingFree pendingFree;
         pendingFree.allocation = allocation;
-        pendingFree.submitIndex = deviceImpl->m_queue->m_submitCount;
+        pendingFree.submitIndex = deviceImpl->m_queue->m_lastSubmittedID;
         m_pendingFrees.push_back(pendingFree);
         return SLANG_OK;
     }
@@ -34,7 +34,7 @@ Result HeapImpl::flush()
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     for (auto it = m_pendingFrees.begin(); it != m_pendingFrees.end();)
     {
-        if (it->submitIndex <= deviceImpl->m_queue->m_submitCompleted)
+        if (it->submitIndex <= deviceImpl->m_queue->m_lastFinishedID)
         {
             SLANG_RETURN_ON_FAIL(retire(it->allocation));
             it = m_pendingFrees.erase(it);
@@ -63,6 +63,7 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     {
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost((void**)&cudaMemory, desc.size), deviceImpl);
     }
+    SLANG_RHI_ASSERT((cudaMemory & kAlignment) == 0);
 
     *outPage = new PageImpl(this, desc, cudaMemory);
 
@@ -88,6 +89,19 @@ Result HeapImpl::freePage(Page* page_)
     return SLANG_OK;
 }
 
+Result HeapImpl::fixUpAllocDesc(HeapAllocDesc& desc)
+{
+    // From scanning cuda documentation, cuMemAlloc doesn't guarantee more than 128B alignment
+    if (desc.alignment > 128)
+        return SLANG_E_INVALID_ARG;
+
+    // General pattern of allocating GPU memory is fairly large chunks, so prefer to
+    // waste a bit of memory with large alignments than worry about lots of pages
+    // with different sizings.
+    desc.alignment = 128;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createHeap(const HeapDesc& desc, IHeap** outHeap)
 {
     SLANG_CUDA_CTX_SCOPE(this);
@@ -96,5 +110,6 @@ Result DeviceImpl::createHeap(const HeapDesc& desc, IHeap** outHeap)
     returnComPtr(outHeap, fence);
     return SLANG_OK;
 }
+
 
 } // namespace rhi::cuda
