@@ -8,8 +8,6 @@
 
 namespace rhi::vk {
 
-class DeviceImpl;
-
 class HeapImpl : public Heap
 {
 public:
