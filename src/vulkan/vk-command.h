@@ -39,7 +39,7 @@ public:
 
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
     Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
-    void retireUnfinishedCommandBuffer(CommandBufferImpl* commandBuffer);
+    void retireCommandBuffer(CommandBufferImpl* commandBuffer);
     void retireCommandBuffers();
     uint64_t updateLastFinishedID();
 
