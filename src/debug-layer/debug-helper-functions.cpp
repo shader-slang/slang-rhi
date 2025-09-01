@@ -146,7 +146,7 @@ std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc)
 {
     return std::string("Unnamed ray tracing pipeline");
 }
-  
+
 std::string createHeapLabel(const HeapDesc& desc)
 {
     return string::format("Unnamed heap (memoryType=%s)", enumToString(desc.memoryType));
