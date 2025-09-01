@@ -11,6 +11,7 @@
 #include "cuda-acceleration-structure.h"
 #include "cuda-shader-table.h"
 #include "cuda-utils.h"
+#include "cuda-heap.h"
 
 namespace rhi::cuda {
 
@@ -150,9 +151,10 @@ DeviceImpl::~DeviceImpl()
         m_uploadHeap.release();
         m_readbackHeap.release();
         m_clearEngine.release();
-        m_dualPageAllocator.reset();
 
         m_queue.setNull();
+        m_deviceMemHeap.setNull();
+        m_hostMemHeap.setNull();
 
 #if SLANG_RHI_ENABLE_OPTIX
         if (m_ownsOptixContext && m_ctx.optixContext)
@@ -416,9 +418,24 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->setInternalReferenceCount(1);
 
-    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
+    // Create 2 heaps. On CUDA both Upload and ReadBack just use host memory,
+    // so we only need one for DeviceLocal and one for Upload/ReadBack.
+    ComPtr<IHeap> heapPtr;
+    HeapDesc heapDesc = {};
 
-    SLANG_RETURN_ON_FAIL(m_dualPageAllocator.init(this));
+    heapDesc.memoryType = MemoryType::Upload;
+    heapDesc.label = "Device local heap";
+    SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
+    m_hostMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
+    m_hostMemHeap->breakStrongReferenceToDevice();
+
+    heapDesc.memoryType = MemoryType::DeviceLocal;
+    heapDesc.label = "Device upload heap";
+    SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
+    m_deviceMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
+    m_deviceMemHeap->breakStrongReferenceToDevice();
+
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
 
     return SLANG_OK;
 }

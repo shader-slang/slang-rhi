@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cuda-base.h"
-#include "../graphics-heap.h"
+#include "../heap.h"
 
 #include <mutex>
 
@@ -10,6 +10,10 @@ namespace rhi::cuda {
 class HeapImpl : public Heap
 {
 public:
+    // Selected based on (https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#alignment)
+    // Highest alignment requirement in CUDA is 128, for optimal memcpy performance.
+    static const Size kAlignment = 128;
+
     struct PendingFree
     {
         HeapAlloc allocation;
@@ -38,6 +42,9 @@ public:
 
     virtual Result allocatePage(const PageDesc& desc, Page** outPage) override;
     virtual Result freePage(Page* page) override;
+
+    // Alignments
+    virtual Result fixUpAllocDesc(HeapAllocDesc& desc) override;
 
     std::list<PendingFree> m_pendingFrees;
 };

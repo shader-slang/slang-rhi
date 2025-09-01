@@ -6,18 +6,29 @@
 
 namespace rhi::cuda {
 
+struct SubmitEvent
+{
+    CUevent event = nullptr;
+    uint64_t submitID = 0;
+};
+
 class CommandQueueImpl : public CommandQueue
 {
 public:
     CUstream m_stream;
-    uint64_t m_submitCount = 0;
-    uint64_t m_submitCompleted = 0;
+
+    uint64_t m_lastSubmittedID = 0;
+    uint64_t m_lastFinishedID = 0;
 
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
+    std::list<SubmitEvent> m_submitEvents;
 
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
     Result retireCommandBuffers();
+
+    Result signalFence(CUstream stream, uint64_t* outId);
+    Result updateFence();
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
@@ -47,8 +58,7 @@ class CommandBufferImpl : public CommandBuffer
 public:
     BindingCache m_bindingCache;
     ConstantBufferPool m_constantBufferPool;
-    CUevent m_completionEvent = nullptr;
-    uint64_t m_submitIndex = 0;
+    uint64_t m_submissionID = 0;
 
     CommandBufferImpl(Device* device);
     virtual ~CommandBufferImpl() = default;
