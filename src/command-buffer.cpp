@@ -168,6 +168,17 @@ void RenderPassEncoder::insertDebugMarker(const char* name, const MarkerColor& c
     }
 }
 
+void RenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    if (m_commandList)
+    {
+        commands::WriteTimestamp cmd;
+        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryIndex = queryIndex;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
 void RenderPassEncoder::end()
 {
     if (m_commandList)
@@ -285,6 +296,17 @@ void ComputePassEncoder::insertDebugMarker(const char* name, const MarkerColor& 
     }
 }
 
+void ComputePassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    if (m_commandList)
+    {
+        commands::WriteTimestamp cmd;
+        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryIndex = queryIndex;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
 void ComputePassEncoder::end()
 {
     if (m_commandList)
@@ -396,6 +418,17 @@ void RayTracingPassEncoder::insertDebugMarker(const char* name, const MarkerColo
         commands::InsertDebugMarker cmd;
         cmd.name = name;
         cmd.color = color;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    if (m_commandList)
+    {
+        commands::WriteTimestamp cmd;
+        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryIndex = queryIndex;
         m_commandList->write(std::move(cmd));
     }
 }
