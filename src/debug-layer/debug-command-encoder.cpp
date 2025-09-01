@@ -112,6 +112,14 @@ void DebugRenderPassEncoder::insertDebugMarker(const char* name, const MarkerCol
     baseObject->insertDebugMarker(name, color);
 }
 
+void DebugRenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRenderPass();
+    baseObject->writeTimestamp(queryPool, queryIndex);
+}
+
 void DebugRenderPassEncoder::end()
 {
     SLANG_RHI_API_FUNC;
@@ -184,6 +192,14 @@ void DebugComputePassEncoder::insertDebugMarker(const char* name, const MarkerCo
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
     baseObject->insertDebugMarker(name, color);
+}
+
+void DebugComputePassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireComputePass();
+    baseObject->writeTimestamp(queryPool, queryIndex);
 }
 
 void DebugComputePassEncoder::end()
@@ -259,6 +275,14 @@ void DebugRayTracingPassEncoder::insertDebugMarker(const char* name, const Marke
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
     baseObject->insertDebugMarker(name, color);
+}
+
+void DebugRayTracingPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    SLANG_RHI_API_FUNC;
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireRayTracingPass();
+    baseObject->writeTimestamp(queryPool, queryIndex);
 }
 
 void DebugRayTracingPassEncoder::end()

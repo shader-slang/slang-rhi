@@ -168,6 +168,6 @@ std::string createComputePipelineLabel(const ComputePipelineDesc& desc);
 std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc);
 std::string createHeapLabel(const HeapDesc& desc);
 
-void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
+Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
 
 } // namespace rhi::debug
