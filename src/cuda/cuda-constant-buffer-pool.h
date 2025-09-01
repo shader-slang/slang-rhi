@@ -6,6 +6,12 @@
 
 namespace rhi::cuda {
 
+enum class ConstantBufferMemType
+{
+    Global,
+    EntryPoint,
+};
+
 class ConstantBufferPool
 {
 public:
@@ -21,7 +27,7 @@ public:
     void upload(CUstream stream);
     void reset();
 
-    Result allocate(size_t size, bool global, Allocation& outAllocation);
+    Result allocate(size_t size, ConstantBufferMemType memType, Allocation& outAllocation);
 
 private:
     // Note: Page size can be relatively small, as it is allocated from
@@ -44,8 +50,7 @@ private:
 
         int m_currentPage = -1;
         size_t m_currentOffset = 0;
-        bool m_host;
-        bool m_device;
+        ConstantBufferMemType m_memType;
 
         Result allocate(DeviceImpl* device, size_t size, Allocation& outAllocation);
         Result createPage(DeviceImpl* device, size_t size, Page& outPage);

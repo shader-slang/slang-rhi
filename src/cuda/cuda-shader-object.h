@@ -40,7 +40,7 @@ struct BindingDataBuilder
     Result writeObjectData(
         ShaderObject* shaderObject,
         ShaderObjectLayoutImpl* specializedLayout,
-        bool global,
+        ConstantBufferMemType memType,
         ObjectData& outData
     );
 };

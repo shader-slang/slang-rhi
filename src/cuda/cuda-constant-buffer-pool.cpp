@@ -15,10 +15,9 @@ void ConstantBufferPool::init(DeviceImpl* device)
 {
     m_device = device;
 
-    // Global data needs host + device mem, entry point only needs host mem.
-    m_globalDataPool.m_host = true;
-    m_globalDataPool.m_device = true;
-    m_entryPointDataPool.m_host = true;
+    // Set memory types for each pool
+    m_globalDataPool.m_memType = ConstantBufferMemType::Global;
+    m_entryPointDataPool.m_memType = ConstantBufferMemType::EntryPoint;
 }
 
 void ConstantBufferPool::upload(CUstream stream)
@@ -50,9 +49,9 @@ void ConstantBufferPool::reset()
     m_globalDataPool.reset(m_device);
 }
 
-Result ConstantBufferPool::allocate(size_t size, bool global, Allocation& outAllocation)
+Result ConstantBufferPool::allocate(size_t size, ConstantBufferMemType memType, Allocation& outAllocation)
 {
-    if (global)
+    if (memType == ConstantBufferMemType::Global)
     {
         return m_globalDataPool.allocate(m_device, size, outAllocation);
     }
@@ -92,8 +91,8 @@ Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Alloc
         Page& page = m_largePages.back();
         SLANG_RETURN_ON_FAIL(createPage(device, size, page));
         page.usedSize = size;
-        outAllocation.hostData = page.hostMem.getHostPtr();
-        outAllocation.deviceData = page.deviceMem.getDeviceAddress();
+        outAllocation.hostData = page.hostMem ? page.hostMem.getHostPtr() : 0;
+        outAllocation.deviceData = page.deviceMem ? page.deviceMem.getDeviceAddress() : 0;
         return SLANG_OK;
     }
 
@@ -109,8 +108,8 @@ Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Alloc
     }
 
     Page& page = m_pages[m_currentPage];
-    outAllocation.hostData = reinterpret_cast<uint8_t*>(page.hostMem.getHostPtr()) + m_currentOffset;
-    outAllocation.deviceData = page.deviceMem.getDeviceAddress() + m_currentOffset;
+    outAllocation.hostData = page.hostMem ? reinterpret_cast<uint8_t*>(page.hostMem.getHostPtr()) + m_currentOffset : 0;
+    outAllocation.deviceData = page.deviceMem ? page.deviceMem.getDeviceAddress() + m_currentOffset : 0;
     m_currentOffset = alignUp(m_currentOffset + size, kAlignment);
     page.usedSize = m_currentOffset;
     return SLANG_OK;
@@ -121,14 +120,19 @@ Result ConstantBufferPool::Pool::createPage(DeviceImpl* device, size_t size, Pag
     HeapAllocDesc desc;
     desc.alignment = kAlignment;
     desc.size = size;
-    if (m_device)
+
+    if (m_memType == ConstantBufferMemType::Global)
     {
+        // Global data needs both host and device memory
         SLANG_RETURN_ON_FAIL(device->m_deviceMemHeap->allocate(desc, &outPage.deviceMem));
-    }
-    if (m_host)
-    {
         SLANG_RETURN_ON_FAIL(device->m_hostMemHeap->allocate(desc, &outPage.hostMem));
     }
+    else // ConstantBufferMemType::EntryPoint
+    {
+        // Entry point only needs host memory
+        SLANG_RETURN_ON_FAIL(device->m_hostMemHeap->allocate(desc, &outPage.hostMem));
+    }
+
     outPage.usedSize = 0;
     return SLANG_OK;
 }
