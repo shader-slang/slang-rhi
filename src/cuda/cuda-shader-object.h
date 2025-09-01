@@ -37,7 +37,12 @@ struct BindingDataBuilder
         size_t size;
     };
 
-    Result writeObjectData(ShaderObject* shaderObject, ShaderObjectLayoutImpl* specializedLayout, ObjectData& outData);
+    Result writeObjectData(
+        ShaderObject* shaderObject,
+        ShaderObjectLayoutImpl* specializedLayout,
+        bool global,
+        ObjectData& outData
+    );
 };
 
 struct BindingDataImpl : BindingData

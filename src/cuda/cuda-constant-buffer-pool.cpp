@@ -14,6 +14,11 @@ inline size_t alignUp(size_t value, size_t alignment)
 void ConstantBufferPool::init(DeviceImpl* device)
 {
     m_device = device;
+
+    // Global data needs host + device mem, entry point only needs host mem.
+    m_globalDataPool.m_host = true;
+    m_globalDataPool.m_device = true;
+    m_entryPointDataPool.m_host = true;
 }
 
 void ConstantBufferPool::upload(CUstream stream)
@@ -28,11 +33,12 @@ void ConstantBufferPool::upload(CUstream stream)
         }
     };
 
-    for (auto& page : m_pages)
+    // Only upload global data
+    for (auto& page : m_globalDataPool.m_pages)
     {
         uploadPage(page);
     }
-    for (auto& page : m_largePages)
+    for (auto& page : m_globalDataPool.m_largePages)
     {
         uploadPage(page);
     }
@@ -40,36 +46,54 @@ void ConstantBufferPool::upload(CUstream stream)
 
 void ConstantBufferPool::reset()
 {
+    m_entryPointDataPool.reset(m_device);
+    m_globalDataPool.reset(m_device);
+}
+
+Result ConstantBufferPool::allocate(size_t size, bool global, Allocation& outAllocation)
+{
+    if (global)
+    {
+        return m_globalDataPool.allocate(m_device, size, outAllocation);
+    }
+    else
+    {
+        return m_entryPointDataPool.allocate(m_device, size, outAllocation);
+    }
+}
+
+void ConstantBufferPool::Pool::reset(DeviceImpl* device)
+{
     m_currentPage = -1;
     m_currentOffset = 0;
     for (auto& page : m_pages)
     {
-        m_device->m_deviceMemHeap->free(page.deviceMem);
-        m_device->m_hostMemHeap->free(page.hostMem);
+        if (page.deviceMem)
+            device->m_deviceMemHeap->free(page.deviceMem);
+        if (page.hostMem)
+            device->m_hostMemHeap->free(page.hostMem);
     }
     for (auto& page : m_largePages)
     {
-        m_device->m_deviceMemHeap->free(page.deviceMem);
-        m_device->m_hostMemHeap->free(page.hostMem);
+        if (page.deviceMem)
+            device->m_deviceMemHeap->free(page.deviceMem);
+        if (page.hostMem)
+            device->m_hostMemHeap->free(page.hostMem);
     }
     m_pages.clear();
     m_largePages.clear();
 }
 
-Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
+Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Allocation& outAllocation)
 {
     if (size > kPageSize)
     {
         m_largePages.push_back(Page());
         Page& page = m_largePages.back();
-        SLANG_RETURN_ON_FAIL(createPage(size, page));
+        SLANG_RETURN_ON_FAIL(createPage(device, size, page));
         page.usedSize = size;
-
-        HeapAllocDesc desc;
-        desc.alignment = kAlignment;
-        desc.size = size;
-        SLANG_RETURN_ON_FAIL(m_device->m_deviceMemHeap->allocate(desc, &page.deviceMem));
-        SLANG_RETURN_ON_FAIL(m_device->m_hostMemHeap->allocate(desc, &page.hostMem));
+        outAllocation.hostData = page.hostMem.getHostPtr();
+        outAllocation.deviceData = page.deviceMem.getDeviceAddress();
         return SLANG_OK;
     }
 
@@ -79,7 +103,7 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
         if (m_currentPage >= int(m_pages.size()))
         {
             m_pages.push_back(Page());
-            SLANG_RETURN_ON_FAIL(createPage(kPageSize, m_pages.back()));
+            SLANG_RETURN_ON_FAIL(createPage(device, kPageSize, m_pages.back()));
         }
         m_currentOffset = 0;
     }
@@ -92,13 +116,19 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
     return SLANG_OK;
 }
 
-Result ConstantBufferPool::createPage(size_t size, Page& outPage)
+Result ConstantBufferPool::Pool::createPage(DeviceImpl* device, size_t size, Page& outPage)
 {
     HeapAllocDesc desc;
     desc.alignment = kAlignment;
     desc.size = size;
-    SLANG_RETURN_ON_FAIL(m_device->m_deviceMemHeap->allocate(desc, &outPage.deviceMem));
-    SLANG_RETURN_ON_FAIL(m_device->m_hostMemHeap->allocate(desc, &outPage.hostMem));
+    if (m_device)
+    {
+        SLANG_RETURN_ON_FAIL(device->m_deviceMemHeap->allocate(desc, &outPage.deviceMem));
+    }
+    if (m_host)
+    {
+        SLANG_RETURN_ON_FAIL(device->m_hostMemHeap->allocate(desc, &outPage.hostMem));
+    }
     outPage.usedSize = 0;
     return SLANG_OK;
 }

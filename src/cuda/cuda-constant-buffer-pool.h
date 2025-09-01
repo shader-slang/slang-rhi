@@ -21,7 +21,7 @@ public:
     void upload(CUstream stream);
     void reset();
 
-    Result allocate(size_t size, Allocation& outAllocation);
+    Result allocate(size_t size, bool global, Allocation& outAllocation);
 
 private:
     // Note: Page size can be relatively small, as it is allocated from
@@ -37,15 +37,24 @@ private:
         size_t usedSize = 0;
     };
 
+    struct Pool
+    {
+        std::vector<Page> m_pages;
+        std::vector<Page> m_largePages;
+
+        int m_currentPage = -1;
+        size_t m_currentOffset = 0;
+        bool m_host;
+        bool m_device;
+
+        Result allocate(DeviceImpl* device, size_t size, Allocation& outAllocation);
+        Result createPage(DeviceImpl* device, size_t size, Page& outPage);
+        void reset(DeviceImpl* device);
+    };
+
     DeviceImpl* m_device;
-
-    std::vector<Page> m_pages;
-    std::vector<Page> m_largePages;
-
-    int m_currentPage = -1;
-    size_t m_currentOffset = 0;
-
-    Result createPage(size_t size, Page& outPage);
+    Pool m_globalDataPool;
+    Pool m_entryPointDataPool;
 };
 
 } // namespace rhi::cuda

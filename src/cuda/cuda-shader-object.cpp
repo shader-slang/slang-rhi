@@ -75,7 +75,7 @@ Result BindingDataBuilder::bindAsRoot(
     // Write global parameters
     {
         ObjectData data;
-        SLANG_RETURN_ON_FAIL(writeObjectData(shaderObject, specializedLayout, data));
+        SLANG_RETURN_ON_FAIL(writeObjectData(shaderObject, specializedLayout, true, data));
         m_bindingData->globalParams = data.device;
         m_bindingData->globalParamsSize = data.size;
     }
@@ -92,7 +92,7 @@ Result BindingDataBuilder::bindAsRoot(
 
         BindingDataImpl::EntryPointData& entryPointData = m_bindingData->entryPoints[i];
         ObjectData data;
-        SLANG_RETURN_ON_FAIL(writeObjectData(entryPoint, entryPointLayout, data));
+        SLANG_RETURN_ON_FAIL(writeObjectData(entryPoint, entryPointLayout, false, data));
         entryPointData.data = data.host;
         entryPointData.size = data.size;
     }
@@ -105,13 +105,14 @@ Result BindingDataBuilder::bindAsRoot(
 Result BindingDataBuilder::writeObjectData(
     ShaderObject* shaderObject,
     ShaderObjectLayoutImpl* specializedLayout,
+    bool global,
     ObjectData& outData
 )
 {
     size_t size = specializedLayout->getElementTypeLayout()->getSize();
 
     ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, allocation));
+    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, global, allocation));
 
     ObjectData objectData = {};
     objectData.size = size;
@@ -207,7 +208,7 @@ Result BindingDataBuilder::writeObjectData(
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
 
                 ObjectData data;
-                SLANG_RETURN_ON_FAIL(writeObjectData(subObject, subObjectLayout, data));
+                SLANG_RETURN_ON_FAIL(writeObjectData(subObject, subObjectLayout, global, data));
                 ::memcpy(dst + uniformOffset, &data.device, sizeof(void*));
                 uniformOffset += sizeof(void*);
             }
