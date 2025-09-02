@@ -926,8 +926,7 @@ Result Device::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
     }
 
     // If buffer is provided, it must be large enough
-    uint32_t bufferSize = *heapCount;
-    if (bufferSize < totalHeapCount)
+    if (*heapCount < totalHeapCount)
         return SLANG_E_BUFFER_TOO_SMALL;
 
     // Fill heap reports
