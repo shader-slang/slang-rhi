@@ -2593,12 +2593,22 @@ struct HeapAlloc
     operator bool() const { return isValid(); }
 };
 
+enum class HeapUsage
+{
+    None = 0,
+    Shared = (1 << 0),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
+
 struct HeapDesc
 {
     StructType structType = StructType::HeapDesc;
 
     /// Type of memory heap should reside in.
     MemoryType memoryType = MemoryType::DeviceLocal;
+
+    /// Usage flags for the heap.
+    HeapUsage usage = HeapUsage::None;
 
     /// The label for the heap.
     const char* label = nullptr;
