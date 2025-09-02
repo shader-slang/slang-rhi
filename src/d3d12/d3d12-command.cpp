@@ -1669,6 +1669,8 @@ CommandEncoderImpl::~CommandEncoderImpl()
     // If the command buffer was not used, return it to the pool.
     if (m_commandBuffer)
     {
+        // Need to close the d3d12 command list because we never recorded commands.
+        m_commandBuffer->m_d3dCommandList->Close();
         m_queue->retireCommandBuffer(m_commandBuffer);
     }
 }
