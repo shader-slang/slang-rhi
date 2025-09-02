@@ -1,6 +1,7 @@
 #include "heap.h"
 
 #include "rhi-shared.h"
+#include "core/string.h"
 
 #include <algorithm>
 
@@ -140,9 +141,19 @@ Result Heap::removeEmptyPages()
     return SLANG_OK;
 }
 
-Result Heap::report(IHeap::Report* outReport)
+Result Heap::report(HeapReport* outReport)
 {
-    Report res;
+    HeapReport res;
+
+    // Copy the heap's label to the report label field
+    if (m_desc.label && *m_desc.label)
+    {
+        string::copy_safe(res.label, sizeof(res.label), m_desc.label);
+    }
+    else
+    {
+        string::copy_safe(res.label, sizeof(res.label), "Unnamed Heap");
+    }
 
     for (Page* page : m_pages)
     {

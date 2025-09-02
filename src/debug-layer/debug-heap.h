@@ -18,7 +18,7 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL report(HeapReport* outReport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL flush() override;
 
