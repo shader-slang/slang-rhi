@@ -15,7 +15,7 @@ Result DebugHeap::free(HeapAlloc allocation)
     return baseObject->free(allocation);
 }
 
-Result DebugHeap::report(IHeap::Report* outReport)
+Result DebugHeap::report(HeapReport* outReport)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->report(outReport);

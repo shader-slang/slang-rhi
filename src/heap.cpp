@@ -140,9 +140,9 @@ Result Heap::removeEmptyPages()
     return SLANG_OK;
 }
 
-Result Heap::report(IHeap::Report* outReport)
+Result Heap::report(HeapReport* outReport)
 {
-    Report res;
+    HeapReport res;
 
     // Copy the heap's label to the report name field
     if (m_desc.label && *m_desc.label)

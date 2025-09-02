@@ -135,7 +135,7 @@ GPU_TEST_CASE("heap-allocate", CUDA | Vulkan)
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
     CHECK_EQ(allocation.size, allocDesc.size);
 
-    IHeap::Report report = heap->report();
+    HeapReport report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size);
     CHECK_EQ(report.numAllocations, 1);
     CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
@@ -174,7 +174,7 @@ GPU_TEST_CASE("heap-submit", CUDA | Vulkan)
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
     CHECK_EQ(allocation.size, allocDesc.size);
 
-    IHeap::Report report = heap->report();
+    HeapReport report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size);
     CHECK_EQ(report.numAllocations, 1);
     CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
@@ -539,7 +539,7 @@ GPU_TEST_CASE("heap-multiple-submits-pending-frees", CUDA | Vulkan)
     }
 
     // At this point, we should have multiple pending frees
-    IHeap::Report report = heap->report();
+    HeapReport report = heap->report();
 
     // The allocations should still be counted as allocated since GPU work is pending
     CHECK(report.totalAllocated > 0);
@@ -651,7 +651,7 @@ GPU_TEST_CASE("heap-reports", ALL)
         CHECK(heapCount == 2);
 
         // Test with exact buffer size
-        std::vector<IHeap::Report> heapReports(heapCount);
+        std::vector<HeapReport> heapReports(heapCount);
         uint32_t actualCount = 0;
         REQUIRE_CALL(device->reportHeaps(&actualCount, heapReports.data(), heapCount));
         CHECK(actualCount == heapCount);
@@ -661,7 +661,7 @@ GPU_TEST_CASE("heap-reports", ALL)
         CHECK(strlen(heapReports[1].name) > 0);
 
         // Test with buffer that's too small - should return error
-        IHeap::Report singleHeap;
+        HeapReport singleHeap;
         uint32_t limitedCount = 0;
         Result result = device->reportHeaps(&limitedCount, &singleHeap, 1);
         CHECK(result == SLANG_E_BUFFER_TOO_SMALL);

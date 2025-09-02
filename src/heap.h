@@ -69,7 +69,7 @@ public:
     // platform specific.
     virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL report(HeapReport* outReport) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() override;
 
