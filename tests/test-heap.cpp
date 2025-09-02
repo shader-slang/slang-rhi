@@ -364,20 +364,6 @@ GPU_TEST_CASE("heap-reports", ALL)
         Result result = device->reportHeaps(&limitedCount, &singleHeap, 1);
         CHECK(result == SLANG_E_BUFFER_TOO_SMALL);
         CHECK(limitedCount == heapCount); // Still returns total count
-
-        // Print heap information for debugging
-        for (uint32_t i = 0; i < actualCount; i++)
-        {
-            printf(
-                "Heap %u: %s - Pages: %u, Allocated: %llu, Usage: %llu, Allocations: %llu\n",
-                i,
-                heapReports[i].name,
-                heapReports[i].report.numPages,
-                heapReports[i].report.totalAllocated,
-                heapReports[i].report.totalMemUsage,
-                heapReports[i].report.numAllocations
-            );
-        }
     }
     else
     {
