@@ -145,14 +145,14 @@ Result Heap::report(HeapReport* outReport)
 {
     HeapReport res;
 
-    // Copy the heap's label to the report name field
+    // Copy the heap's label to the report label field
     if (m_desc.label && *m_desc.label)
     {
-        string::copy_safe(res.name, sizeof(res.name), m_desc.label);
+        string::copy_safe(res.label, sizeof(res.label), m_desc.label);
     }
     else
     {
-        string::copy_safe(res.name, sizeof(res.name), "Unnamed Heap");
+        string::copy_safe(res.label, sizeof(res.label), "Unnamed Heap");
     }
 
     for (Page* page : m_pages)

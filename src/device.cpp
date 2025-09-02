@@ -911,28 +911,32 @@ Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatr
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::reportHeaps(uint32_t* outHeapCount, HeapReport* outHeapReports, uint32_t bufferSize)
+Result Device::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
 {
-    if (!outHeapCount)
+    if (!heapCount)
         return SLANG_E_INVALID_ARG;
 
     uint32_t totalHeapCount = static_cast<uint32_t>(m_reportedHeaps.size());
-    *outHeapCount = totalHeapCount;
 
     // If only querying count, return early
-    if (!outHeapReports)
+    if (!heapReports)
+    {
+        *heapCount = totalHeapCount;
         return SLANG_OK;
+    }
 
     // If buffer is provided, it must be large enough
+    uint32_t bufferSize = *heapCount;
     if (bufferSize < totalHeapCount)
         return SLANG_E_BUFFER_TOO_SMALL;
 
     // Fill heap reports
     for (uint32_t i = 0; i < totalHeapCount; i++)
     {
-        SLANG_RETURN_ON_FAIL(m_reportedHeaps[i]->report(&outHeapReports[i]));
+        SLANG_RETURN_ON_FAIL(m_reportedHeaps[i]->report(&heapReports[i]));
     }
 
+    *heapCount = totalHeapCount;
     return SLANG_OK;
 }
 

@@ -2622,7 +2622,7 @@ struct HeapAllocDesc
 
 struct HeapReport
 {
-    char name[128] = {};
+    char label[128] = {};
     uint32_t numPages = 0;
     uint64_t totalAllocated = 0;
     uint64_t totalMemUsage = 0;
@@ -3271,16 +3271,12 @@ public:
     ) = 0;
 
     /// Report status of internal heaps used by the device.
-    /// If outHeapReports is null, returns the number of heaps in outHeapCount.
-    /// If outHeapReports is provided, fills up to bufferSize heap reports and returns actual count.
-    /// @param outHeapCount [out] Number of heaps available or written
-    /// @param outHeapReports [out] Buffer to write heap reports to (can be null for count query)
-    /// @param bufferSize [in] Size of the outHeapReports buffer (ignored if outHeapReports is null)
-    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(
-        uint32_t* outHeapCount,
-        HeapReport* outHeapReports,
-        uint32_t bufferSize
-    ) = 0;
+    /// If heapReports is null, returns the number of heaps in heapCount.
+    /// If heapReports is provided, fills up to *heapCount heap reports and returns actual count.
+    /// @param heapReports [out] Buffer to write heap reports to (can be null for count query)
+    /// @param heapCount [in/out] On input: size of heapReports buffer (ignored if heapReports is null). On output:
+    /// number of heaps available or written
+    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) = 0;
 };
 
 class ITaskPool : public ISlangUnknown

@@ -643,7 +643,7 @@ GPU_TEST_CASE("heap-reports", ALL)
 
     // First, query the number of heaps
     uint32_t heapCount = 0;
-    REQUIRE_CALL(device->reportHeaps(&heapCount, nullptr, 0));
+    REQUIRE_CALL(device->reportHeaps(nullptr, &heapCount));
 
     if (deviceType == DeviceType::CUDA)
     {
@@ -652,20 +652,19 @@ GPU_TEST_CASE("heap-reports", ALL)
 
         // Test with exact buffer size
         std::vector<HeapReport> heapReports(heapCount);
-        uint32_t actualCount = 0;
-        REQUIRE_CALL(device->reportHeaps(&actualCount, heapReports.data(), heapCount));
+        uint32_t actualCount = heapCount;
+        REQUIRE_CALL(device->reportHeaps(heapReports.data(), &actualCount));
         CHECK(actualCount == heapCount);
 
-        // Check that heap names are set
-        CHECK(strlen(heapReports[0].name) > 0);
-        CHECK(strlen(heapReports[1].name) > 0);
+        // Check that heap labels are set
+        CHECK(strlen(heapReports[0].label) > 0);
+        CHECK(strlen(heapReports[1].label) > 0);
 
         // Test with buffer that's too small - should return error
         HeapReport singleHeap;
-        uint32_t limitedCount = 0;
-        Result result = device->reportHeaps(&limitedCount, &singleHeap, 1);
+        uint32_t limitedCount = 1;
+        Result result = device->reportHeaps(&singleHeap, &limitedCount);
         CHECK(result == SLANG_E_BUFFER_TOO_SMALL);
-        CHECK(limitedCount == heapCount); // Still returns total count
     }
     else
     {
