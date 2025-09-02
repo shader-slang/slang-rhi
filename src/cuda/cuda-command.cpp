@@ -716,19 +716,6 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    // On CUDA, treat the graphics stream as the default stream, identified
-    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
-    // they will be equivalent to secondary, none-default streams in cuda.
-    if (type == QueueType::Graphics)
-    {
-        m_stream = nullptr;
-    }
-    else
-    {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_stream, 0));
-    }
 }
 
 CommandQueueImpl::~CommandQueueImpl()
@@ -753,6 +740,60 @@ CommandQueueImpl::~CommandQueueImpl()
     }
 }
 
+Result CommandQueueImpl::init()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // On CUDA, treat the graphics stream as the default stream, identified
+    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
+    // they will be equivalent to secondary, none-default streams in cuda.
+    if (m_type == QueueType::Graphics)
+    {
+        m_stream = nullptr;
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
+    }
+
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
+{
+    RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl(m_device);
+    returnRefPtr(outCommandBuffer, commandBuffer);
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    RefPtr<CommandBufferImpl> commandBuffer;
+    if (m_commandBuffersPool.empty())
+    {
+        SLANG_RETURN_ON_FAIL(createCommandBuffer(commandBuffer.writeRef()));
+    }
+    else
+    {
+        commandBuffer = m_commandBuffersPool.front();
+        m_commandBuffersPool.pop_front();
+        commandBuffer->setInternalReferenceCount(0);
+    }
+    returnRefPtr(outCommandBuffer, commandBuffer);
+    return SLANG_OK;
+}
+
+void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
+{
+    commandBuffer->reset();
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_commandBuffersPool.push_back(commandBuffer);
+        commandBuffer->setInternalReferenceCount(1);
+    }
+}
+
 Result CommandQueueImpl::retireCommandBuffers()
 {
     // Run fence logic so m_lastFinishedID is up to date.
@@ -766,8 +807,7 @@ Result CommandQueueImpl::retireCommandBuffers()
         if (commandBuffer->m_submissionID > m_lastFinishedID)
             break;
 
-        // Reset the command buffer for reuse.
-        commandBuffer->reset();
+        retireCommandBuffer(commandBuffer);
         cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
 
@@ -778,7 +818,7 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device);
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
@@ -909,16 +949,28 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(Device* device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
     : CommandEncoder(device)
+    , m_queue(queue)
 {
+}
+
+CommandEncoderImpl::~CommandEncoderImpl()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // If the command buffer was not used, return it to the pool.
+    if (m_commandBuffer)
+    {
+        m_queue->retireCommandBuffer(m_commandBuffer);
+    }
 }
 
 Result CommandEncoderImpl::init()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    m_commandBuffer = new CommandBufferImpl(m_device);
+    SLANG_RETURN_ON_FAIL(m_queue->getOrCreateCommandBuffer(m_commandBuffer.writeRef()));
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
 }

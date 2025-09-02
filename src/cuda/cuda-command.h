@@ -20,11 +20,19 @@ public:
     uint64_t m_lastSubmittedID = 0;
     uint64_t m_lastFinishedID = 0;
 
+    std::mutex m_mutex;
+    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
     std::list<SubmitEvent> m_submitEvents;
 
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
+
+    Result init();
+
+    Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
+    Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
+    void retireCommandBuffer(CommandBufferImpl* commandBuffer);
     Result retireCommandBuffers();
 
     Result signalFence(CUstream stream, uint64_t* outId);
@@ -40,9 +48,11 @@ public:
 class CommandEncoderImpl : public CommandEncoder
 {
 public:
+    CommandQueueImpl* m_queue;
     RefPtr<CommandBufferImpl> m_commandBuffer;
 
-    CommandEncoderImpl(Device* device);
+    CommandEncoderImpl(Device* device, CommandQueueImpl* queue);
+    ~CommandEncoderImpl();
 
     Result init();
 

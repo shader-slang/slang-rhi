@@ -416,6 +416,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    SLANG_RETURN_ON_FAIL(m_queue->init());
     m_queue->setInternalReferenceCount(1);
 
     // Create 2 heaps. On CUDA both Upload and ReadBack just use host memory,
