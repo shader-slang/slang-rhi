@@ -144,6 +144,17 @@ Result Heap::report(IHeap::Report* outReport)
 {
     Report res;
 
+    // Copy the heap's label to the report name field
+    if (m_desc.label && *m_desc.label)
+    {
+        strncpy_s(res.name, sizeof(res.name), m_desc.label, sizeof(res.name) - 1);
+        res.name[sizeof(res.name) - 1] = '\0'; // Ensure null termination
+    }
+    else
+    {
+        strcpy_s(res.name, sizeof(res.name), "Unnamed Heap");
+    }
+
     for (Page* page : m_pages)
     {
         res.totalAllocated +=

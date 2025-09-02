@@ -930,23 +930,7 @@ Result Device::reportHeaps(uint32_t* outHeapCount, IHeap::Report* outHeapReports
     // Fill heap reports
     for (uint32_t i = 0; i < totalHeapCount; i++)
     {
-        IHeap::Report report;
-        SLANG_RETURN_ON_FAIL(m_reportedHeaps[i]->report(&report));
-
-        // Copy the heap's label to the report name field
-        Heap* heap = m_reportedHeaps[i];
-        const char* heapLabel = heap->m_desc.label;
-        if (heapLabel && *heapLabel)
-        {
-            strncpy_s(report.name, sizeof(report.name), heapLabel, sizeof(report.name) - 1);
-            report.name[sizeof(report.name) - 1] = '\0'; // Ensure null termination
-        }
-        else
-        {
-            strcpy_s(report.name, sizeof(report.name), "Unnamed Heap");
-        }
-
-        outHeapReports[i] = report;
+        SLANG_RETURN_ON_FAIL(m_reportedHeaps[i]->report(&outHeapReports[i]));
     }
 
     return SLANG_OK;
