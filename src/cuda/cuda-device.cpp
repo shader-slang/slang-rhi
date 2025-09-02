@@ -676,6 +676,47 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
+Result DeviceImpl::reportHeaps(HeapReports* outReports)
+{
+    if (!outReports)
+        return SLANG_E_INVALID_ARG;
+
+    // CUDA device currently has 2 heaps: device memory and host memory
+    static const uint32_t heapCount = 2;
+    static HeapReport heapReports[heapCount];
+    static const char* deviceHeapName = "CUDA Device Memory Heap";
+    static const char* hostHeapName = "CUDA Host Memory Heap";
+
+    // Get device heap report
+    if (m_deviceMemHeap)
+    {
+        heapReports[0].name = deviceHeapName;
+        SLANG_RETURN_ON_FAIL(m_deviceMemHeap->report(&heapReports[0].report));
+    }
+    else
+    {
+        heapReports[0].name = deviceHeapName;
+        heapReports[0].report = {};
+    }
+
+    // Get host heap report
+    if (m_hostMemHeap)
+    {
+        heapReports[1].name = hostHeapName;
+        SLANG_RETURN_ON_FAIL(m_hostMemHeap->report(&heapReports[1].report));
+    }
+    else
+    {
+        heapReports[1].name = hostHeapName;
+        heapReports[1].report = {};
+    }
+
+    outReports->heapCount = heapCount;
+    outReports->heaps = heapReports;
+
+    return SLANG_OK;
+}
+
 } // namespace rhi::cuda
 
 namespace rhi {

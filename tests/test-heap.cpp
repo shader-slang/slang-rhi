@@ -334,3 +334,31 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA)
         }
     }
 }
+
+GPU_TEST_CASE("heap-reports", ALL)
+{
+    HeapReports reports;
+    REQUIRE_CALL(device->reportHeaps(&reports));
+
+    auto deviceType = device->getDeviceType();
+
+    if (deviceType == DeviceType::CUDA)
+    {
+        // CUDA should report 2 heaps (device and host memory)
+        CHECK(reports.heapCount == 2);
+        CHECK(reports.heaps != nullptr);
+
+        if (reports.heapCount >= 2)
+        {
+            // Check that heap names are set
+            CHECK(reports.heaps[0].name != nullptr);
+            CHECK(reports.heaps[1].name != nullptr);
+        }
+    }
+    else
+    {
+        // Other devices should report no heaps (default implementation)
+        CHECK(reports.heapCount == 0);
+        CHECK(reports.heaps == nullptr);
+    }
+}

@@ -910,6 +910,17 @@ Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatr
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::reportHeaps(HeapReports* outReports)
+{
+    if (!outReports)
+        return SLANG_E_INVALID_ARG;
+
+    // Default implementation returns no heaps
+    outReports->heapCount = 0;
+    outReports->heaps = nullptr;
+    return SLANG_OK;
+}
+
 Result Device::getShaderObjectLayout(
     slang::ISession* session,
     slang::TypeReflection* type,

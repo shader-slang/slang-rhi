@@ -298,6 +298,9 @@ public:
         uint32_t descCount
     ) override;
 
+    // Provides a default implementation that returns no heaps.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReports* outReports) override;
+
     Result getEntryPointCodeFromShaderCache(
         ShaderProgram* program,
         slang::IComponentType* componentType,

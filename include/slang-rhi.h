@@ -2642,6 +2642,18 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() = 0;
 };
 
+struct HeapReport
+{
+    const char* name = nullptr;
+    IHeap::Report report = {};
+};
+
+struct HeapReports
+{
+    uint32_t heapCount = 0;
+    HeapReport* heaps = nullptr;
+};
+
 struct AdapterLUID
 {
     uint8_t luid[16];
@@ -3259,6 +3271,11 @@ public:
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount
     ) = 0;
+
+    /// Report status of internal heaps used by the device.
+    /// The returned reports contains information about all heaps managed by the device,
+    /// including their names and current status.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReports* outReports) = 0;
 };
 
 class ITaskPool : public ISlangUnknown
