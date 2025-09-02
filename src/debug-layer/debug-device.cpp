@@ -812,11 +812,11 @@ Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable*
     return baseObject->createShaderTable(desc, outTable);
 }
 
-Result DebugDevice::reportHeaps(HeapReports* outReports)
+Result DebugDevice::reportHeaps(uint32_t* outHeapCount, HeapReport* outHeapReports, uint32_t bufferSize)
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->reportHeaps(outReports);
+    return baseObject->reportHeaps(outHeapCount, outHeapReports, bufferSize);
 }
 
 } // namespace rhi::debug

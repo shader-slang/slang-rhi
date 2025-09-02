@@ -337,28 +337,51 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA)
 
 GPU_TEST_CASE("heap-reports", ALL)
 {
-    HeapReports reports;
-    REQUIRE_CALL(device->reportHeaps(&reports));
-
     auto deviceType = device->getDeviceType();
+
+    // First, query the number of heaps
+    uint32_t heapCount = 0;
+    REQUIRE_CALL(device->reportHeaps(&heapCount, nullptr, 0));
 
     if (deviceType == DeviceType::CUDA)
     {
         // CUDA should report 2 heaps (device and host memory)
-        CHECK(reports.heapCount == 2);
-        CHECK(reports.heaps != nullptr);
+        CHECK(heapCount == 2);
 
-        if (reports.heapCount >= 2)
+        // Test with exact buffer size
+        std::vector<HeapReport> heapReports(heapCount);
+        uint32_t actualCount = 0;
+        REQUIRE_CALL(device->reportHeaps(&actualCount, heapReports.data(), heapCount));
+        CHECK(actualCount == heapCount);
+
+        // Check that heap names are set
+        CHECK(heapReports[0].name != nullptr);
+        CHECK(heapReports[1].name != nullptr);
+
+        // Test with buffer that's too small - should return error
+        HeapReport singleHeap;
+        uint32_t limitedCount = 0;
+        Result result = device->reportHeaps(&limitedCount, &singleHeap, 1);
+        CHECK(result == SLANG_E_BUFFER_TOO_SMALL);
+        CHECK(limitedCount == heapCount); // Still returns total count
+
+        // Print heap information for debugging
+        for (uint32_t i = 0; i < actualCount; i++)
         {
-            // Check that heap names are set
-            CHECK(reports.heaps[0].name != nullptr);
-            CHECK(reports.heaps[1].name != nullptr);
+            printf(
+                "Heap %u: %s - Pages: %u, Allocated: %llu, Usage: %llu, Allocations: %llu\n",
+                i,
+                heapReports[i].name,
+                heapReports[i].report.numPages,
+                heapReports[i].report.totalAllocated,
+                heapReports[i].report.totalMemUsage,
+                heapReports[i].report.numAllocations
+            );
         }
     }
     else
     {
         // Other devices should report no heaps (default implementation)
-        CHECK(reports.heapCount == 0);
-        CHECK(reports.heaps == nullptr);
+        CHECK(heapCount == 0);
     }
 }

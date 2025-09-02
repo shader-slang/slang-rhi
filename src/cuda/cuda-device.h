@@ -170,7 +170,11 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReports* outReports) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(
+        uint32_t* outHeapCount,
+        HeapReport* outHeapReports,
+        uint32_t bufferSize
+    ) override;
 };
 
 } // namespace rhi::cuda

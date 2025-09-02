@@ -676,43 +676,30 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
-Result DeviceImpl::reportHeaps(HeapReports* outReports)
+Result DeviceImpl::reportHeaps(uint32_t* outHeapCount, HeapReport* outHeapReports, uint32_t bufferSize)
 {
-    if (!outReports)
+    if (!outHeapCount)
         return SLANG_E_INVALID_ARG;
 
     // CUDA device currently has 2 heaps: device memory and host memory
-    static const uint32_t heapCount = 2;
-    static HeapReport heapReports[heapCount];
-    static const char* deviceHeapName = "CUDA Device Memory Heap";
-    static const char* hostHeapName = "CUDA Host Memory Heap";
+    const uint32_t totalHeapCount = 2;
+    *outHeapCount = totalHeapCount;
 
-    // Get device heap report
-    if (m_deviceMemHeap)
-    {
-        heapReports[0].name = deviceHeapName;
-        SLANG_RETURN_ON_FAIL(m_deviceMemHeap->report(&heapReports[0].report));
-    }
-    else
-    {
-        heapReports[0].name = deviceHeapName;
-        heapReports[0].report = {};
-    }
+    // If only querying count, return early
+    if (!outHeapReports)
+        return SLANG_OK;
 
-    // Get host heap report
-    if (m_hostMemHeap)
-    {
-        heapReports[1].name = hostHeapName;
-        SLANG_RETURN_ON_FAIL(m_hostMemHeap->report(&heapReports[1].report));
-    }
-    else
-    {
-        heapReports[1].name = hostHeapName;
-        heapReports[1].report = {};
-    }
+    // If buffer is provided, it must be large enough
+    if (bufferSize < totalHeapCount)
+        return SLANG_E_BUFFER_TOO_SMALL;
 
-    outReports->heapCount = heapCount;
-    outReports->heaps = heapReports;
+    // Device heap report
+    outHeapReports[0].name = "CUDA Device Memory Heap";
+    SLANG_RETURN_ON_FAIL(m_deviceMemHeap->report(&outHeapReports[0].report));
+
+    // Host heap report
+    outHeapReports[1].name = "CUDA Host Memory Heap";
+    SLANG_RETURN_ON_FAIL(m_hostMemHeap->report(&outHeapReports[1].report));
 
     return SLANG_OK;
 }

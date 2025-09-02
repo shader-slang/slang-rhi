@@ -910,14 +910,13 @@ Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatr
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::reportHeaps(HeapReports* outReports)
+Result Device::reportHeaps(uint32_t* outHeapCount, HeapReport* outHeapReports, uint32_t bufferSize)
 {
-    if (!outReports)
+    if (!outHeapCount)
         return SLANG_E_INVALID_ARG;
 
     // Default implementation returns no heaps
-    outReports->heapCount = 0;
-    outReports->heaps = nullptr;
+    *outHeapCount = 0;
     return SLANG_OK;
 }
 
