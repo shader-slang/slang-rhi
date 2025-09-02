@@ -847,34 +847,104 @@ slang::IGlobalSession* getSlangGlobalSession()
     return slangGlobalSession;
 }
 
-void runGpuTestFunc(GpuTestFunc func, int testFlags)
+// Trampoline test function registered in doctest for each GPU test instance.
+// Uses GpuTestInfo for additional information about the specific test instance.
+static void gpuTestTrampoline()
 {
-    bool createDevice = (testFlags & GpuTestFlags::DontCreateDevice) == 0;
-    bool cacheDevice = (testFlags & GpuTestFlags::DontCacheDevice) == 0;
+    const doctest::TestCaseData* tc = doctest::getContextOptions()->currentTest;
+    // GpuTestInfo is stored in front of the test name.
+    const GpuTestInfo* info = reinterpret_cast<const GpuTestInfo*>(tc->m_name) - 1;
+
+    DeviceType deviceType = info->deviceType;
+    bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
+    bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+
+    if (isDeviceTypeAvailable(deviceType))
+    {
+        GpuTestContext ctx;
+        ctx.deviceType = deviceType;
+        ctx.slangGlobalSession = getSlangGlobalSession();
+        ComPtr<IDevice> device;
+        if (createDevice)
+        {
+            device = createTestingDevice(&ctx, deviceType, cacheDevice);
+        }
+        info->func(&ctx, device);
+    }
+    else
+    {
+        SKIP("Device not available");
+    }
+}
+
+// Simple allocator for storing GpuTestInfo and test names.
+class GpuTestAllocator
+{
+public:
+    GpuTestAllocator(size_t size = 4 * 1024 * 1024)
+        : m_size(size)
+    {
+        m_data = reinterpret_cast<uint8_t*>(malloc(size));
+    }
+    ~GpuTestAllocator() { free(m_data); }
+    void* allocate(size_t size)
+    {
+        // Align size to 16 bytes
+        size = (size + 15) & ~15;
+        if (m_pos + size > m_size)
+        {
+            SLANG_RHI_ASSERT_FAILURE("Out of memory! Increase the allocation size.");
+        }
+        void* ptr = m_data + m_pos;
+        m_pos += size;
+        return ptr;
+    }
+
+private:
+    size_t m_size;
+    uint8_t* m_data;
+    size_t m_pos;
+};
+
+// Register a GPU test.
+// This is called by the GPU_TEST_CASE macro to register a GPU test.
+// We do some hackery to register multiple test cases with doctest, one for each device type specified in the flags.
+// Because doctest doesn't support any user data in the test case definition and we don't want to alter the
+// doctest implementation, we store the GpuTestInfo structure in front of the unique test name used for each
+// test instance.
+int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, const char* file, int line)
+{
+    static GpuTestAllocator allocator;
 
     for (int i = 1; i <= 7; i++)
     {
-        if ((testFlags & (1 << i)) == 0)
+        if ((flags & (1 << i)) == 0)
             continue;
 
         DeviceType deviceType = DeviceType(i);
+        size_t testNameLen = strlen(name) + 16;
 
-        SUBCASE(deviceTypeToString(deviceType))
-        {
-            if (isDeviceTypeAvailable(deviceType))
-            {
-                GpuTestContext ctx;
-                ctx.deviceType = deviceType;
-                ctx.slangGlobalSession = getSlangGlobalSession();
-                ComPtr<IDevice> device;
-                if (createDevice)
-                {
-                    device = createTestingDevice(&ctx, deviceType, cacheDevice);
-                }
-                func(&ctx, device);
-            }
-        }
+        GpuTestInfo* info = static_cast<GpuTestInfo*>(allocator.allocate(sizeof(GpuTestInfo) + testNameLen));
+        info->func = func;
+        info->deviceType = deviceType;
+        info->flags = flags;
+
+        char* testName = reinterpret_cast<char*>(info + 1);
+        snprintf(testName, testNameLen, "%s[%s]", name, deviceTypeToString(deviceType));
+        testName[testNameLen - 1] = '\0';
+
+        doctest::detail::regTest(
+            doctest::detail::TestCase(
+                gpuTestTrampoline,
+                file,
+                line,
+                doctest_detail_test_suite_ns::getCurrentTestSuite()
+            ) *
+            static_cast<const char*>(testName)
+        );
     }
+
+    return 0;
 }
 
 } // namespace rhi::testing

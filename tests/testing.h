@@ -298,10 +298,10 @@ auto makeArray(Args... args)
 
 using GpuTestFunc = void (*)(GpuTestContext*, ComPtr<IDevice>);
 
-void runGpuTestFunc(GpuTestFunc func, int testFlags);
-
 enum GpuTestFlags
 {
+    None = 0,
+
     // Device type flags
     D3D11 = (1 << (int)DeviceType::D3D11),
     D3D12 = (1 << (int)DeviceType::D3D12),
@@ -317,17 +317,40 @@ enum GpuTestFlags
     DontCacheDevice = (1 << 11),  // Do not use cached devices (create a new device for this test case)
 };
 
+struct GpuTestInfo
+{
+    GpuTestFunc func;
+    DeviceType deviceType;
+    GpuTestFlags flags;
+};
+static_assert(std::is_pod_v<GpuTestInfo>, "GpuTestInfo must be POD");
+
+int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, const char* file, int line);
+
 } // namespace rhi::testing
 
-#define GPU_TEST_CASE_IMPL(name, func, testFlags)                                                                      \
+#define GPU_TEST_CASE_IMPL(name, func, flags)                                                                          \
     static void func(::rhi::testing::GpuTestContext* ctx, ::ComPtr<::rhi::IDevice> device);                            \
-    TEST_CASE(name)                                                                                                    \
-    {                                                                                                                  \
-        ::rhi::testing::runGpuTestFunc(func, testFlags);                                                               \
-    }                                                                                                                  \
+    DOCTEST_GLOBAL_NO_WARNINGS(                                                                                        \
+        DOCTEST_ANONYMOUS(DOCTEST_ANON_VAR_),                                                                          \
+        ::rhi::testing::registerGpuTest(                                                                               \
+            name,                                                                                                      \
+            func,                                                                                                      \
+            static_cast<::rhi::testing::GpuTestFlags>(flags),                                                          \
+            __FILE__,                                                                                                  \
+            __LINE__                                                                                                   \
+        )                                                                                                              \
+    )                                                                                                                  \
     static void func(::rhi::testing::GpuTestContext* ctx, ::ComPtr<::rhi::IDevice> device)
 
-#define GPU_TEST_CASE(name, testFlags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), testFlags)
+// Register a GPU test case.
+// This will register one test case for each device type specified in the flags.
+// Each test will be named <name>[<deviceType>] where `deviceType` is the string representation of the device type.
+// The GPU test function has the following signature: void func(GpuTestContext* ctx, ComPtr<IDevice> device)
+// In addition to the device flags, the following flags can be used:
+// - GpuTestFlag::DontCreateDevice: Do not create a device (device argument is nullptr)
+// - GpuTestFlag::DontCacheDevice: Do not use cached devices (create a new device for this test case)
+#define GPU_TEST_CASE(name, flags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags)
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))
