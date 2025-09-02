@@ -117,7 +117,7 @@ void DebugRenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t quer
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
-    baseObject->writeTimestamp(queryPool, queryIndex);
+    baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
 void DebugRenderPassEncoder::end()
@@ -199,7 +199,7 @@ void DebugComputePassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t que
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
-    baseObject->writeTimestamp(queryPool, queryIndex);
+    baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
 void DebugComputePassEncoder::end()
@@ -282,7 +282,7 @@ void DebugRayTracingPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t 
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
-    baseObject->writeTimestamp(queryPool, queryIndex);
+    baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
 void DebugRayTracingPassEncoder::end()
