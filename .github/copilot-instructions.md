@@ -21,6 +21,10 @@ Code structure:
 
 Building:
     - To build the project, run "cmake --build ./build --config Debug"
+    - If you have cmake configuration issues, you can do a full reconfigure with:
+        - Windows: "cmake --preset msvc --fresh"
+        - Linux: "cmake --preset gcc --fresh"
+    - After running pre-commit, a reconfigure may be necessary.
 
 Testing:
     - Tests are in #tests

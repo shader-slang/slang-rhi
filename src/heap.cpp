@@ -1,6 +1,7 @@
 #include "heap.h"
 
 #include "rhi-shared.h"
+#include "core/string.h"
 
 #include <algorithm>
 
@@ -147,12 +148,11 @@ Result Heap::report(HeapReport* outReport)
     // Copy the heap's label to the report name field
     if (m_desc.label && *m_desc.label)
     {
-        strncpy_s(res.name, sizeof(res.name), m_desc.label, sizeof(res.name) - 1);
-        res.name[sizeof(res.name) - 1] = '\0'; // Ensure null termination
+        string::copy_safe(res.name, sizeof(res.name), m_desc.label);
     }
     else
     {
-        strcpy_s(res.name, sizeof(res.name), "Unnamed Heap");
+        string::copy_safe(res.name, sizeof(res.name), "Unnamed Heap");
     }
 
     for (Page* page : m_pages)
