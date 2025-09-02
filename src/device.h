@@ -17,6 +17,9 @@
 
 namespace rhi {
 
+// Forward declarations
+class Heap;
+
 namespace testing {
 // Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
 extern bool gDebugDisableStateTracking;
@@ -298,10 +301,10 @@ public:
         uint32_t descCount
     ) override;
 
-    // Provides a default implementation that returns no heaps.
+    // Provides a default implementation that reports heaps from m_reportedHeaps.
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(
         uint32_t* outHeapCount,
-        HeapReport* outHeapReports,
+        IHeap::Report* outHeapReports,
         uint32_t bufferSize
     ) override;
 
@@ -407,6 +410,10 @@ public:
     ComPtr<IPersistentCache> m_persistentPipelineCache;
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
+
+    // List of heaps managed by this device. DeviceImpl is expected
+    // to hold references to them.
+    std::vector<Heap*> m_reportedHeaps;
 
     IDebugCallback* m_debugCallback = nullptr;
 };

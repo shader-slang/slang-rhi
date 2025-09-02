@@ -416,6 +416,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
+    SLANG_RETURN_ON_FAIL(m_queue->init());
     m_queue->setInternalReferenceCount(1);
 
     // Create 2 heaps. On CUDA both Upload and ReadBack just use host memory,
@@ -434,6 +435,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
     m_deviceMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
     m_deviceMemHeap->breakStrongReferenceToDevice();
+
+    // Register heaps with the base Device class for reporting
+    m_reportedHeaps.push_back(m_hostMemHeap);
+    m_reportedHeaps.push_back(m_deviceMemHeap);
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
 
@@ -673,34 +678,6 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 1;
-    return SLANG_OK;
-}
-
-Result DeviceImpl::reportHeaps(uint32_t* outHeapCount, HeapReport* outHeapReports, uint32_t bufferSize)
-{
-    if (!outHeapCount)
-        return SLANG_E_INVALID_ARG;
-
-    // CUDA device currently has 2 heaps: device memory and host memory
-    const uint32_t totalHeapCount = 2;
-    *outHeapCount = totalHeapCount;
-
-    // If only querying count, return early
-    if (!outHeapReports)
-        return SLANG_OK;
-
-    // If buffer is provided, it must be large enough
-    if (bufferSize < totalHeapCount)
-        return SLANG_E_BUFFER_TOO_SMALL;
-
-    // Device heap report
-    outHeapReports[0].name = "CUDA Device Memory Heap";
-    SLANG_RETURN_ON_FAIL(m_deviceMemHeap->report(&outHeapReports[0].report));
-
-    // Host heap report
-    outHeapReports[1].name = "CUDA Host Memory Heap";
-    SLANG_RETURN_ON_FAIL(m_hostMemHeap->report(&outHeapReports[1].report));
-
     return SLANG_OK;
 }
 

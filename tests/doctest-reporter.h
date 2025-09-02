@@ -20,6 +20,7 @@ struct CustomReporter : public IReporter
     std::mutex mutex;
     Timer timer;
     int cursorPos = 0;
+    Timer runTimer;
 
     const int resultPos = 64;
     const char* indent = "    ";
@@ -37,6 +38,7 @@ struct CustomReporter : public IReporter
     void test_run_start() override
     {
         LOCK();
+        runTimer.start();
         stream << Color::None;
         consoleReporter.test_run_start();
 
@@ -50,6 +52,12 @@ struct CustomReporter : public IReporter
     {
         LOCK();
         stream << Color::None;
+
+        fill(79, '-');
+        printf("\n");
+        double seconds = runTimer.getElapsedSeconds();
+        printf("Total time: %.2fs\n", seconds);
+
         consoleReporter.test_run_end(in);
     }
 

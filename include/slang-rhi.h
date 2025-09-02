@@ -2593,12 +2593,22 @@ struct HeapAlloc
     operator bool() const { return isValid(); }
 };
 
+enum class HeapUsage
+{
+    None = 0,
+    Shared = (1 << 0),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
+
 struct HeapDesc
 {
     StructType structType = StructType::HeapDesc;
 
     /// Type of memory heap should reside in.
     MemoryType memoryType = MemoryType::DeviceLocal;
+
+    /// Usage flags for the heap.
+    HeapUsage usage = HeapUsage::None;
 
     /// The label for the heap.
     const char* label = nullptr;
@@ -2617,11 +2627,15 @@ class IHeap : public ISlangUnknown
 public:
     struct Report
     {
+        char name[128] = {};
         uint32_t numPages = 0;
         uint64_t totalAllocated = 0;
         uint64_t totalMemUsage = 0;
         uint64_t numAllocations = 0;
     };
+
+    // For compatibility, make HeapReport an alias for Report
+    using HeapReport = Report;
 
 
     virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) = 0;
@@ -2640,12 +2654,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL flush() = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() = 0;
-};
-
-struct HeapReport
-{
-    const char* name = nullptr;
-    IHeap::Report report = {};
 };
 
 struct AdapterLUID
@@ -3274,7 +3282,7 @@ public:
     /// @param bufferSize [in] Size of the outHeapReports buffer (ignored if outHeapReports is null)
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(
         uint32_t* outHeapCount,
-        HeapReport* outHeapReports,
+        IHeap::Report* outHeapReports,
         uint32_t bufferSize
     ) = 0;
 };

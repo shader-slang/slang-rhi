@@ -2,6 +2,7 @@
 
 #include "rhi-shared.h"
 #include "shader.h"
+#include "heap.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -910,13 +911,44 @@ Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatr
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::reportHeaps(uint32_t* outHeapCount, HeapReport* outHeapReports, uint32_t bufferSize)
+Result Device::reportHeaps(uint32_t* outHeapCount, IHeap::Report* outHeapReports, uint32_t bufferSize)
 {
     if (!outHeapCount)
         return SLANG_E_INVALID_ARG;
 
-    // Default implementation returns no heaps
-    *outHeapCount = 0;
+    uint32_t totalHeapCount = static_cast<uint32_t>(m_reportedHeaps.size());
+    *outHeapCount = totalHeapCount;
+
+    // If only querying count, return early
+    if (!outHeapReports)
+        return SLANG_OK;
+
+    // If buffer is provided, it must be large enough
+    if (bufferSize < totalHeapCount)
+        return SLANG_E_BUFFER_TOO_SMALL;
+
+    // Fill heap reports
+    for (uint32_t i = 0; i < totalHeapCount; i++)
+    {
+        IHeap::Report report;
+        SLANG_RETURN_ON_FAIL(m_reportedHeaps[i]->report(&report));
+
+        // Copy the heap's label to the report name field
+        Heap* heap = m_reportedHeaps[i];
+        const char* heapLabel = heap->m_desc.label;
+        if (heapLabel && *heapLabel)
+        {
+            strncpy_s(report.name, sizeof(report.name), heapLabel, sizeof(report.name) - 1);
+            report.name[sizeof(report.name) - 1] = '\0'; // Ensure null termination
+        }
+        else
+        {
+            strcpy_s(report.name, sizeof(report.name), "Unnamed Heap");
+        }
+
+        outHeapReports[i] = report;
+    }
+
     return SLANG_OK;
 }
 

@@ -169,7 +169,7 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(
         uint32_t* outHeapCount,
-        HeapReport* outHeapReports,
+        IHeap::Report* outHeapReports,
         uint32_t bufferSize
     ) override;
 
