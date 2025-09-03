@@ -425,13 +425,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     HeapDesc heapDesc = {};
 
     heapDesc.memoryType = MemoryType::Upload;
-    heapDesc.label = "Device local heap";
+    heapDesc.label = "Device upload heap";
     SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
     m_hostMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
     m_hostMemHeap->breakStrongReferenceToDevice();
 
     heapDesc.memoryType = MemoryType::DeviceLocal;
-    heapDesc.label = "Device upload heap";
+    heapDesc.label = "Device local heap";
     SLANG_RETURN_ON_FAIL(createHeap(heapDesc, heapPtr.writeRef()));
     m_deviceMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
     m_deviceMemHeap->breakStrongReferenceToDevice();
