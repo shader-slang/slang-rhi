@@ -812,8 +812,7 @@ Result CommandQueueImpl::retireCommandBuffers()
     }
 
     // Flush all device heaps
-    DeviceImpl* device = getDevice<DeviceImpl>();
-    SLANG_RETURN_ON_FAIL(device->flushHeaps());
+    SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->flushHeaps());
 
     return SLANG_OK;
 }

@@ -1689,8 +1689,7 @@ void CommandQueueImpl::retireCommandBuffers()
     }
 
     // Flush all device heaps
-    DeviceImpl* device = getDevice<DeviceImpl>();
-    device->flushHeaps();
+    getDevice<DeviceImpl>()->flushHeaps();
 }
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
