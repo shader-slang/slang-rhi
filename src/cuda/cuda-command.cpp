@@ -811,10 +811,9 @@ Result CommandQueueImpl::retireCommandBuffers()
         cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
 
-    // Flush the device heaps
+    // Flush all device heaps
     DeviceImpl* device = getDevice<DeviceImpl>();
-    device->m_hostMemHeap->flush();
-    device->m_deviceMemHeap->flush();
+    SLANG_RETURN_ON_FAIL(device->flushHeaps());
 
     return SLANG_OK;
 }
