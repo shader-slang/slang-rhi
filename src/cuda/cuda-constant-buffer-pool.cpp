@@ -85,6 +85,13 @@ void ConstantBufferPool::Pool::reset(DeviceImpl* device)
 
 Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Allocation& outAllocation)
 {
+    if (size == 0)
+    {
+        outAllocation.hostData = nullptr;
+        outAllocation.deviceData = 0;
+        return SLANG_OK;
+    }
+
     if (size > kPageSize)
     {
         m_largePages.push_back(Page());
