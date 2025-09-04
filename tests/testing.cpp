@@ -847,25 +847,10 @@ slang::IGlobalSession* getSlangGlobalSession()
     return slangGlobalSession;
 }
 
-void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes)
+void runGpuTestFunc(GpuTestFunc func, int testFlags)
 {
-    for (auto deviceType : deviceTypes)
-    {
-        SUBCASE(deviceTypeToString(deviceType))
-        {
-            if (isDeviceTypeAvailable(deviceType))
-            {
-                GpuTestContext ctx;
-                ctx.slangGlobalSession = getSlangGlobalSession();
-                func(&ctx, deviceType);
-            }
-        }
-    }
-}
-
-void runGpuTestFunc(void (*func)(IDevice* device), int testFlags)
-{
-    bool useCachedDevice = (testFlags & TestFlags::NoDeviceCache) == 0;
+    bool useCachedDevice = (testFlags & GpuTestFlags::NoDeviceCache) == 0;
+    bool createDevice = (testFlags & GpuTestFlags::NoDevice) == 0;
 
     for (int i = 1; i <= 7; i++)
     {
@@ -879,9 +864,14 @@ void runGpuTestFunc(void (*func)(IDevice* device), int testFlags)
             if (isDeviceTypeAvailable(deviceType))
             {
                 GpuTestContext ctx;
+                ctx.deviceType = deviceType;
                 ctx.slangGlobalSession = getSlangGlobalSession();
-                ComPtr<IDevice> device = createTestingDevice(&ctx, deviceType, useCachedDevice);
-                func(device);
+                ComPtr<IDevice> device;
+                if (createDevice)
+                {
+                    device = createTestingDevice(&ctx, deviceType, useCachedDevice);
+                }
+                func(&ctx, device);
             }
         }
     }

@@ -3,11 +3,14 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-template<DeviceType DstDeviceType>
-void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
+#if SLANG_WIN64
+GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | NoDevice)
 {
-    ComPtr<IDevice> srcDevice = createTestingDevice(ctx, deviceType);
-    ComPtr<IDevice> dstDevice = createTestingDevice(ctx, DstDeviceType);
+    if (!isDeviceTypeAvailable(DeviceType::CUDA))
+        SKIP("CUDA not available");
+
+    ComPtr<IDevice> srcDevice = createTestingDevice(ctx, ctx->deviceType);
+    ComPtr<IDevice> dstDevice = createTestingDevice(ctx, DeviceType::CUDA);
 
     // Create a shareable buffer using srcDevice, get its handle, then create a buffer using the handle using
     // dstDevice. Read back the buffer and check that its contents are correct.
@@ -63,20 +66,5 @@ void testSharedBuffer(GpuTestContext* ctx, DeviceType deviceType)
     }
 
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
-}
-
-#if SLANG_WIN64
-TEST_CASE("buffer-shared-cuda")
-{
-    if (!isDeviceTypeAvailable(DeviceType::CUDA))
-        SKIP("CUDA not available");
-
-    runGpuTests(
-        testSharedBuffer<DeviceType::CUDA>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
 }
 #endif

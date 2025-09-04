@@ -54,7 +54,7 @@ void testTextureLayout2(
     CHECK_EQ(layout.slicePitch, expectedLayout.slicePitch);
 }
 
-int ALL_TEX = TestFlags::ALL & ~TestFlags::CPU;
+int ALL_TEX = GpuTestFlags::ALL & ~GpuTestFlags::CPU;
 
 GPU_TEST_CASE("texture-layout-1d-nomip", ALL_TEX)
 {

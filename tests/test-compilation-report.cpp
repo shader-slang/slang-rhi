@@ -88,116 +88,111 @@ inline const CompilationReportList* getCompilationReportList(IDevice* device)
     return reportList;
 }
 
-TEST_CASE("compilation-report")
+GPU_TEST_CASE("compilation-report", ALL | NoDevice)
 {
-    runGpuTests(
-        [](GpuTestContext* ctx, DeviceType deviceType)
-        {
-            // On CPU backend, compilation is done late during pipeline creation.
-            // Skip for now, as report is missing compilation times.
-            if (deviceType == DeviceType::CPU)
-            {
-                return;
-            }
+    // On CPU backend, compilation is done late during pipeline creation.
+    // Skip for now, as report is missing compilation times.
+    if (ctx->deviceType == DeviceType::CPU)
+    {
+        return;
+    }
 
-            DeviceExtraOptions options = {};
-            options.enableCompilationReports = true;
-            ComPtr<IDevice> device = createTestingDevice(ctx, deviceType, false, &options);
-            REQUIRE(device);
+    DeviceExtraOptions options = {};
+    options.enableCompilationReports = true;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
 
-            // Create first shader program.
-            ComPtr<IShaderProgram> shaderProgram1 = createShaderProgram(device.get());
+    // Create first shader program.
+    ComPtr<IShaderProgram> shaderProgram1 = createShaderProgram(device.get());
 
-            // We expect no compilation has taken place yet, so the report should be empty.
-            const CompilationReport* report1a = getCompilationReport(shaderProgram1.get());
-            CHECK(report1a->alive == true);
-            CHECK(report1a->createTime == 0.0);
-            CHECK(report1a->compileTime == 0.0);
-            CHECK(report1a->compileSlangTime == 0.0);
-            CHECK(report1a->compileDownstreamTime == 0.0);
-            CHECK(report1a->createPipelineTime == 0.0);
-            CHECK(report1a->entryPointReportCount == 0);
-            CHECK(report1a->pipelineReportCount == 0);
+    // We expect no compilation has taken place yet, so the report should be empty.
+    const CompilationReport* report1a = getCompilationReport(shaderProgram1.get());
+    CHECK(report1a->alive == true);
+    CHECK(report1a->createTime == 0.0);
+    CHECK(report1a->compileTime == 0.0);
+    CHECK(report1a->compileSlangTime == 0.0);
+    CHECK(report1a->compileDownstreamTime == 0.0);
+    CHECK(report1a->createPipelineTime == 0.0);
+    CHECK(report1a->entryPointReportCount == 0);
+    CHECK(report1a->pipelineReportCount == 0);
 
-            // The report should be registered in the device.
-            const CompilationReportList* reports1a = getCompilationReportList(device.get());
-            CHECK(reports1a->reportCount == 1);
-            CHECK(isEqual(&reports1a->reports[0], report1a));
+    // The report should be registered in the device.
+    const CompilationReportList* reports1a = getCompilationReportList(device.get());
+    CHECK(reports1a->reportCount == 1);
+    CHECK(isEqual(&reports1a->reports[0], report1a));
 
-            // Create and dispatch first pipeline.
-            ComPtr<IComputePipeline> pipeline1 = createPipeline(device.get(), shaderProgram1.get());
-            dispatchPipeline(device.get(), pipeline1.get());
+    // Create and dispatch first pipeline.
+    ComPtr<IComputePipeline> pipeline1 = createPipeline(device.get(), shaderProgram1.get());
+    dispatchPipeline(device.get(), pipeline1.get());
 
-            // We expect compilation and pipeline creation has taken place, so the report should contain non-zero times.
-            const CompilationReport* report1b = getCompilationReport(shaderProgram1.get());
-            CHECK(report1b->alive == true);
-            CHECK(report1b->createTime > 0.0);
-            CHECK(report1b->compileTime > 0.0);
-            CHECK(report1b->compileSlangTime > 0.0);
-            // Downstream compilation time may be zero if no downstream compiler is used.
-            CHECK(report1b->compileDownstreamTime >= 0.0);
-            CHECK(report1b->createPipelineTime > 0.0);
-            CHECK(report1b->entryPointReportCount == 1);
-            CHECK(report1b->pipelineReportCount == 1);
+    // We expect compilation and pipeline creation has taken place, so the report should contain non-zero times.
+    const CompilationReport* report1b = getCompilationReport(shaderProgram1.get());
+    CHECK(report1b->alive == true);
+    CHECK(report1b->createTime > 0.0);
+    CHECK(report1b->compileTime > 0.0);
+    CHECK(report1b->compileSlangTime > 0.0);
+    // Downstream compilation time may be zero if no downstream compiler is used.
+    CHECK(report1b->compileDownstreamTime >= 0.0);
+    CHECK(report1b->createPipelineTime > 0.0);
+    CHECK(report1b->entryPointReportCount == 1);
+    CHECK(report1b->pipelineReportCount == 1);
 
-            // The report should still be registered in the device.
-            const CompilationReportList* reports1b = getCompilationReportList(device.get());
-            CHECK(reports1b->reportCount == 1);
-            CHECK(isEqual(&reports1b->reports[0], report1b));
+    // The report should still be registered in the device.
+    const CompilationReportList* reports1b = getCompilationReportList(device.get());
+    CHECK(reports1b->reportCount == 1);
+    CHECK(isEqual(&reports1b->reports[0], report1b));
 
-            // Create second shader program.
-            ComPtr<IShaderProgram> shaderProgram2 = createShaderProgram(device.get());
+    // Create second shader program.
+    ComPtr<IShaderProgram> shaderProgram2 = createShaderProgram(device.get());
 
-            // We expect no compilation has taken place yet, so the report should be empty.
-            const CompilationReport* report2a = getCompilationReport(shaderProgram2.get());
-            CHECK(report2a->alive == true);
-            CHECK(report2a->createTime == 0.0);
-            CHECK(report2a->compileTime == 0.0);
-            CHECK(report2a->compileSlangTime == 0.0);
-            CHECK(report2a->compileDownstreamTime == 0.0);
-            CHECK(report2a->createPipelineTime == 0.0);
-            CHECK(report2a->entryPointReportCount == 0);
-            CHECK(report2a->pipelineReportCount == 0);
+    // We expect no compilation has taken place yet, so the report should be empty.
+    const CompilationReport* report2a = getCompilationReport(shaderProgram2.get());
+    CHECK(report2a->alive == true);
+    CHECK(report2a->createTime == 0.0);
+    CHECK(report2a->compileTime == 0.0);
+    CHECK(report2a->compileSlangTime == 0.0);
+    CHECK(report2a->compileDownstreamTime == 0.0);
+    CHECK(report2a->createPipelineTime == 0.0);
+    CHECK(report2a->entryPointReportCount == 0);
+    CHECK(report2a->pipelineReportCount == 0);
 
-            // The report should be registered in the device.
-            const CompilationReportList* reports2a = getCompilationReportList(device.get());
-            CHECK(reports2a->reportCount == 2);
-            CHECK(isEqual(&reports2a->reports[0], report1b));
-            CHECK(isEqual(&reports2a->reports[1], report2a));
+    // The report should be registered in the device.
+    const CompilationReportList* reports2a = getCompilationReportList(device.get());
+    CHECK(reports2a->reportCount == 2);
+    CHECK(isEqual(&reports2a->reports[0], report1b));
+    CHECK(isEqual(&reports2a->reports[1], report2a));
 
-            // Create and dispatch second pipeline.
-            ComPtr<IComputePipeline> pipeline2 = createPipeline(device.get(), shaderProgram2.get());
-            dispatchPipeline(device.get(), pipeline2.get());
+    // Create and dispatch second pipeline.
+    ComPtr<IComputePipeline> pipeline2 = createPipeline(device.get(), shaderProgram2.get());
+    dispatchPipeline(device.get(), pipeline2.get());
 
-            // We expect compilation and pipeline creation has taken place, so the report should contain non-zero times.
-            const CompilationReport* report2b = getCompilationReport(shaderProgram2.get());
-            CHECK(report2b->alive == true);
-            CHECK(report2b->createTime > 0.0);
-            CHECK(report2b->compileTime > 0.0);
-            CHECK(report2b->compileSlangTime > 0.0);
-            // Downstream compilation time may be zero if no downstream compiler is used.
-            CHECK(report2b->compileDownstreamTime >= 0.0);
-            CHECK(report2b->createPipelineTime > 0.0);
-            CHECK(report2b->entryPointReportCount == 1);
-            CHECK(report2b->pipelineReportCount == 1);
+    // We expect compilation and pipeline creation has taken place, so the report should contain non-zero times.
+    const CompilationReport* report2b = getCompilationReport(shaderProgram2.get());
+    CHECK(report2b->alive == true);
+    CHECK(report2b->createTime > 0.0);
+    CHECK(report2b->compileTime > 0.0);
+    CHECK(report2b->compileSlangTime > 0.0);
+    // Downstream compilation time may be zero if no downstream compiler is used.
+    CHECK(report2b->compileDownstreamTime >= 0.0);
+    CHECK(report2b->createPipelineTime > 0.0);
+    CHECK(report2b->entryPointReportCount == 1);
+    CHECK(report2b->pipelineReportCount == 1);
 
-            // The report should still be registered in the device.
-            const CompilationReportList* reports2b = getCompilationReportList(device.get());
-            CHECK(reports2b->reportCount == 2);
-            CHECK(isEqual(&reports2b->reports[0], report1b));
-            CHECK(isEqual(&reports2b->reports[1], report2b));
+    // The report should still be registered in the device.
+    const CompilationReportList* reports2b = getCompilationReportList(device.get());
+    CHECK(reports2b->reportCount == 2);
+    CHECK(isEqual(&reports2b->reports[0], report1b));
+    CHECK(isEqual(&reports2b->reports[1], report2b));
 
-            // Release the first shader program and pipeline.
-            shaderProgram1 = nullptr;
-            pipeline1 = nullptr;
+    // Release the first shader program and pipeline.
+    shaderProgram1 = nullptr;
+    pipeline1 = nullptr;
 
-            // The report first the first program should still be returned, but marked as no longer alive.
-            const CompilationReportList* reports3 = getCompilationReportList(device.get());
-            CompilationReport report1c = *report1b;
-            report1c.alive = false; // The first program is no longer alive.
-            CHECK(reports3->reportCount == 2);
-            CHECK(isEqual(&reports3->reports[0], &report1c));
-            CHECK(isEqual(&reports3->reports[1], report2b));
-        }
-    );
+    // The report first the first program should still be returned, but marked as no longer alive.
+    const CompilationReportList* reports3 = getCompilationReportList(device.get());
+    CompilationReport report1c = *report1b;
+    report1c.alive = false; // The first program is no longer alive.
+    CHECK(reports3->reportCount == 2);
+    CHECK(isEqual(&reports3->reports[0], &report1c));
+    CHECK(isEqual(&reports3->reports[1], report2b));
 }
