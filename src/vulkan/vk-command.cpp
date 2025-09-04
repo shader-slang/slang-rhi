@@ -1687,6 +1687,9 @@ void CommandQueueImpl::retireCommandBuffers()
             m_commandBuffersInFlight.push_back(commandBuffer);
         }
     }
+
+    // Flush all device heaps
+    getDevice<DeviceImpl>()->flushHeaps();
 }
 
 uint64_t CommandQueueImpl::updateLastFinishedID()

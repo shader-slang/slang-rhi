@@ -301,8 +301,11 @@ public:
         uint32_t descCount
     ) override;
 
-    // Provides a default implementation that reports heaps from m_reportedHeaps.
+    // Provides a default implementation that reports heaps from m_globalHeaps.
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) override;
+
+    // Flush all global heaps managed by this device
+    Result flushHeaps();
 
     Result getEntryPointCodeFromShaderCache(
         ShaderProgram* program,
@@ -409,7 +412,7 @@ public:
 
     // List of heaps managed by this device. DeviceImpl is expected
     // to hold references to them.
-    std::vector<Heap*> m_reportedHeaps;
+    std::vector<Heap*> m_globalHeaps;
 
     IDebugCallback* m_debugCallback = nullptr;
 };

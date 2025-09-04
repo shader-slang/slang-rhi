@@ -916,7 +916,7 @@ Result Device::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
     if (!heapCount)
         return SLANG_E_INVALID_ARG;
 
-    uint32_t totalHeapCount = static_cast<uint32_t>(m_reportedHeaps.size());
+    uint32_t totalHeapCount = static_cast<uint32_t>(m_globalHeaps.size());
 
     // If only querying count, return early
     if (!heapReports)
@@ -932,10 +932,19 @@ Result Device::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
     // Fill heap reports
     for (uint32_t i = 0; i < totalHeapCount; i++)
     {
-        SLANG_RETURN_ON_FAIL(m_reportedHeaps[i]->report(&heapReports[i]));
+        SLANG_RETURN_ON_FAIL(m_globalHeaps[i]->report(&heapReports[i]));
     }
 
     *heapCount = totalHeapCount;
+    return SLANG_OK;
+}
+
+Result Device::flushHeaps()
+{
+    for (Heap* heap : m_globalHeaps)
+    {
+        SLANG_RETURN_ON_FAIL(heap->flush());
+    }
     return SLANG_OK;
 }
 
