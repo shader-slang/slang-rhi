@@ -79,7 +79,7 @@ ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
     return outBuffer;
 }
 
-GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | NoDevice)
+GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
 {
     if (!isDeviceTypeAvailable(DeviceType::CUDA))
         SKIP("CUDA not available");

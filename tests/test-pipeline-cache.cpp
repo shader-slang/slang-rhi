@@ -390,27 +390,27 @@ void runTest(GpuTestContext* ctx)
     test.run(ctx, tempDirectory);
 }
 
-GPU_TEST_CASE("pipeline-cache-compute", D3D12 | Vulkan | NoDevice)
+GPU_TEST_CASE("pipeline-cache-compute", D3D12 | Vulkan | DontCreateDevice)
 {
     runTest<PipelineCacheTestCompute<false>>(ctx);
 }
 
 #if 0
 // TODO: D3D12 does fail in debug layers and not return an error correctly.
-GPU_TEST_CASE("pipeline-cache-compute-corrupt", Vulkan | NoDevice)
+GPU_TEST_CASE("pipeline-cache-compute-corrupt", Vulkan | DontCreateDevice)
 {
     runTest<PipelineCacheTestCompute<true>>(ctx);
 }
 #endif
 
-GPU_TEST_CASE("pipeline-cache-render", D3D12 | Vulkan | NoDevice)
+GPU_TEST_CASE("pipeline-cache-render", D3D12 | Vulkan | DontCreateDevice)
 {
     runTest<PipelineCacheTestRender<false>>(ctx);
 }
 
 #if 0
 // TODO: D3D12 does fail in debug layers and not return an error correctly.
-GPU_TEST_CASE("pipeline-cache-render-corrupt", Vulkan | NoDevice)
+GPU_TEST_CASE("pipeline-cache-render-corrupt", Vulkan | DontCreateDevice)
 {
     runTest<PipelineCacheTestRender<true>>(ctx);
 }

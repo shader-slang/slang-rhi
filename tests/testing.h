@@ -313,8 +313,8 @@ enum GpuTestFlags
     ALL = D3D11 | D3D12 | Vulkan | Metal | CPU | CUDA | WGPU,
 
     // Additional flags
-    NoDevice = (1 << 10),
-    NoDeviceCache = (1 << 11)
+    DontCreateDevice = (1 << 10), // Do not create a device (device argument is nullptr)
+    DontCacheDevice = (1 << 11),  // Do not use cached devices (create a new device for this test case)
 };
 
 } // namespace rhi::testing
