@@ -54,6 +54,7 @@ inline void writeFile(std::string_view path, std::string_view data)
 
 struct GpuTestContext
 {
+    DeviceType deviceType;
     slang::IGlobalSession* slangGlobalSession;
 };
 
@@ -295,12 +296,11 @@ auto makeArray(Args... args)
         rhi::DeviceType::WGPU,                                                                                         \
     }
 
-using GpuTestFunc = void (*)(GpuTestContext*, DeviceType);
+using GpuTestFunc = void (*)(GpuTestContext*, ComPtr<IDevice>);
 
-void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes = ALL_DEVICE_TYPES);
-void runGpuTestFunc(void (*func)(IDevice* device), int testFlags);
+void runGpuTestFunc(GpuTestFunc func, int testFlags);
 
-enum TestFlags
+enum GpuTestFlags
 {
     // Device type flags
     D3D11 = (1 << (int)DeviceType::D3D11),
@@ -313,18 +313,19 @@ enum TestFlags
     ALL = D3D11 | D3D12 | Vulkan | Metal | CPU | CUDA | WGPU,
 
     // Additional flags
-    NoDeviceCache = (1 << 10)
+    NoDevice = (1 << 10),
+    NoDeviceCache = (1 << 11)
 };
 
 } // namespace rhi::testing
 
 #define GPU_TEST_CASE_IMPL(name, func, testFlags)                                                                      \
-    static void func(::rhi::IDevice* device);                                                                          \
+    static void func(::rhi::testing::GpuTestContext* ctx, ::ComPtr<::rhi::IDevice> device);                            \
     TEST_CASE(name)                                                                                                    \
     {                                                                                                                  \
         ::rhi::testing::runGpuTestFunc(func, testFlags);                                                               \
     }                                                                                                                  \
-    static void func(::rhi::IDevice* device)
+    static void func(::rhi::testing::GpuTestContext* ctx, ::ComPtr<::rhi::IDevice> device)
 
 #define GPU_TEST_CASE(name, testFlags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), testFlags)
 

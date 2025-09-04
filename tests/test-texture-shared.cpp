@@ -79,11 +79,13 @@ ComPtr<IBuffer> createBuffer(IDevice* device, int size, void* initialData)
     return outBuffer;
 }
 
-template<DeviceType DstDeviceType>
-void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
+GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | NoDevice)
 {
-    ComPtr<IDevice> srcDevice = createTestingDevice(ctx, deviceType);
-    ComPtr<IDevice> dstDevice = createTestingDevice(ctx, DstDeviceType);
+    if (!isDeviceTypeAvailable(DeviceType::CUDA))
+        SKIP("CUDA not available");
+
+    ComPtr<IDevice> srcDevice = createTestingDevice(ctx, ctx->deviceType);
+    ComPtr<IDevice> dstDevice = createTestingDevice(ctx, DeviceType::CUDA);
 
     SamplerDesc samplerDesc;
     auto sampler = dstDevice->createSampler(samplerDesc);
@@ -136,19 +138,5 @@ void testSharedTexture(GpuTestContext* ctx, DeviceType deviceType)
                 float>(1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f)
         );
     }
-}
-
-TEST_CASE("texture-shared-cuda")
-{
-    if (!isDeviceTypeAvailable(DeviceType::CUDA))
-        SKIP("CUDA not available");
-
-    runGpuTests(
-        testSharedTexture<DeviceType::CUDA>,
-        {
-            DeviceType::Vulkan,
-            DeviceType::D3D12,
-        }
-    );
 }
 #endif
