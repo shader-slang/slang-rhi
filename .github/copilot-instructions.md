@@ -35,6 +35,8 @@ Testing:
     - The 'shared' tests are currently known to fail on multi-gpu systems.
     - Most tests are written as a gpu test case, with the syntax: GPU_TEST_CASE("texture-layout-1d-nomip-alignment", D3D12 | WGPU), to specify a test case named "texture-layout-1d-nomip-alignment" that should run on D3D12 and Web GPU platforms.
     - The possible test flags are in #tests/testing.h, named 'TestFlags'. For a test to run on all platforms, it should specify 'ALL'.
+    - GPU tests register a new test case for each device type using "<name>.<deviceType>" as the test name.
+    - Running a specific GPU test requires to pass "--test-case=<name>.*" to run all variations of the test case, or "--test-case=<name>.d3d12" for example to run the D3D12 variation.
 
 Code style:
     - Class names should start with a capital letter.
