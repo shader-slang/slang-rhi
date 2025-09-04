@@ -4,7 +4,7 @@ using namespace rhi;
 using namespace rhi::testing;
 
 #if SLANG_WIN64
-GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | NoDevice)
+GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
 {
     if (!isDeviceTypeAvailable(DeviceType::CUDA))
         SKIP("CUDA not available");

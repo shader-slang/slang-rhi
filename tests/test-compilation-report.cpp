@@ -88,7 +88,7 @@ inline const CompilationReportList* getCompilationReportList(IDevice* device)
     return reportList;
 }
 
-GPU_TEST_CASE("compilation-report", ALL | NoDevice)
+GPU_TEST_CASE("compilation-report", ALL | DontCreateDevice)
 {
     // On CPU backend, compilation is done late during pipeline creation.
     // Skip for now, as report is missing compilation times.

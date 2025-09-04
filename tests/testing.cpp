@@ -849,8 +849,8 @@ slang::IGlobalSession* getSlangGlobalSession()
 
 void runGpuTestFunc(GpuTestFunc func, int testFlags)
 {
-    bool useCachedDevice = (testFlags & GpuTestFlags::NoDeviceCache) == 0;
-    bool createDevice = (testFlags & GpuTestFlags::NoDevice) == 0;
+    bool createDevice = (testFlags & GpuTestFlags::DontCreateDevice) == 0;
+    bool cacheDevice = (testFlags & GpuTestFlags::DontCacheDevice) == 0;
 
     for (int i = 1; i <= 7; i++)
     {
@@ -869,7 +869,7 @@ void runGpuTestFunc(GpuTestFunc func, int testFlags)
                 ComPtr<IDevice> device;
                 if (createDevice)
                 {
-                    device = createTestingDevice(&ctx, deviceType, useCachedDevice);
+                    device = createTestingDevice(&ctx, deviceType, cacheDevice);
                 }
                 func(&ctx, device);
             }

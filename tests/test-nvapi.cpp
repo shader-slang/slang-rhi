@@ -5,7 +5,7 @@ using namespace rhi::testing;
 
 #if SLANG_RHI_ENABLE_NVAPI
 
-GPU_TEST_CASE("nvapi-implicit", D3D12 | NoDevice)
+GPU_TEST_CASE("nvapi-implicit", D3D12 | DontCreateDevice)
 {
     device = createTestingDevice(ctx, ctx->deviceType, true);
 
@@ -67,7 +67,7 @@ GPU_TEST_CASE("nvapi-implicit", D3D12 | NoDevice)
     compareComputeResult(device, result, std::array{1000, 2000, 3000});
 }
 
-GPU_TEST_CASE("nvapi-explicit", D3D12 | NoDevice)
+GPU_TEST_CASE("nvapi-explicit", D3D12 | DontCreateDevice)
 {
     DeviceExtraOptions extraOptions;
     const char* nvapiSearchPath = SLANG_RHI_NVAPI_INCLUDE_DIR;
