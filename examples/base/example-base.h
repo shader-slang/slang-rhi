@@ -54,22 +54,30 @@ public:
     }
 };
 
+struct ExampleDesc
+{
+    std::string name;
+    std::vector<DeviceType> supportedDeviceTypes = {
+        DeviceType::D3D11,
+        DeviceType::D3D12,
+        DeviceType::Vulkan,
+        DeviceType::Metal,
+        DeviceType::CPU,
+        DeviceType::CUDA,
+        DeviceType::WGPU,
+    };
+    std::vector<Feature> requireFeatures;
+};
+
 class ExampleBase
 {
 public:
-    float m_mousePos[2] = {0.0f, 0.0f};
-    GLFWwindow* window = nullptr;
-    ComPtr<IDevice> device;
-    ComPtr<ISurface> surface;
-
     virtual ~ExampleBase();
 
-    virtual const char* getName() const = 0;
-
-    virtual Result init(DeviceType deviceType) = 0;
+    virtual Result init() = 0;
     virtual void shutdown() = 0;
     virtual void update() = 0;
-    virtual void draw() = 0;
+    virtual void draw(ITexture* image) = 0;
 
     virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight);
     virtual void onMousePosition(float x, float y) {}
@@ -79,33 +87,42 @@ public:
     Result createDevice(DeviceType deviceType);
     Result createWindow(uint32_t width = 640, uint32_t height = 360);
     Result createSurface(Format format = Format::Undefined);
+    void updateAndDraw();
+
+public:
+    ExampleDesc m_desc;
+    float m_mousePos[2] = {0.0f, 0.0f};
+    GLFWwindow* m_window = nullptr;
+    ComPtr<IDevice> m_device;
+    ComPtr<ICommandQueue> m_queue;
+    ComPtr<ISurface> m_surface;
 };
 
 ExampleBase::~ExampleBase()
 {
-    surface.setNull();
-    device.setNull();
-    if (window)
+    m_surface.setNull();
+    m_device.setNull();
+    if (m_window)
     {
-        glfwDestroyWindow(window);
+        glfwDestroyWindow(m_window);
     }
 }
 
 void ExampleBase::onResize(int width, int height, int framebufferWidth, int framebufferHeight)
 {
-    if (surface)
+    if (m_surface)
     {
-        device->getQueue(QueueType::Graphics)->waitOnHost();
+        m_device->getQueue(QueueType::Graphics)->waitOnHost();
         if (framebufferWidth > 0 && framebufferHeight > 0)
         {
             SurfaceConfig surfaceConfig;
             surfaceConfig.width = framebufferWidth;
             surfaceConfig.height = framebufferHeight;
-            surface->configure(surfaceConfig);
+            m_surface->configure(surfaceConfig);
         }
         else
         {
-            surface->unconfigure();
+            m_surface->unconfigure();
         }
     }
 }
@@ -114,38 +131,48 @@ Result ExampleBase::createDevice(DeviceType deviceType)
 {
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
-#ifdef _DEBUG
+#if SLANG_RHI_DEBUG
     getRHI()->enableDebugLayers();
     deviceDesc.enableValidation = true;
     deviceDesc.debugCallback = DebugPrinter::getInstance();
 #endif
-    SLANG_RETURN_ON_FAIL(getRHI()->createDevice(deviceDesc, device.writeRef()));
+    SLANG_RETURN_ON_FAIL(getRHI()->createDevice(deviceDesc, m_device.writeRef()));
+    SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
+
+    for (Feature feature : m_desc.requireFeatures)
+    {
+        if (!m_device->hasFeature(feature))
+        {
+            return SLANG_FAIL;
+        }
+    }
+
     return SLANG_OK;
 }
 
 Result ExampleBase::createWindow(uint32_t width, uint32_t height)
 {
-    const auto& deviceInfo = device->getInfo();
+    const auto& deviceInfo = m_device->getInfo();
     std::string title = string::format(
         "%s | %s (%s)",
-        getName(),
-        deviceInfo.adapterName,
-        getRHI()->getDeviceTypeName(deviceInfo.deviceType)
+        m_desc.name,
+        getRHI()->getDeviceTypeName(deviceInfo.deviceType),
+        deviceInfo.adapterName
     );
 
-    window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
-    if (!window)
+    m_window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+    if (!m_window)
     {
         return SLANG_FAIL;
     }
-    glfwSetWindowUserPointer(window, this);
-    glfwSetWindowSizeCallback(window, example::glfwWindowSizeCallback);
-    glfwSetWindowIconifyCallback(window, example::glfwWindowIconifyCallback);
-    glfwSetWindowMaximizeCallback(window, example::glfwWindowMaximizeCallback);
-    glfwSetFramebufferSizeCallback(window, example::glfwFramebufferSizeCallback);
-    glfwSetCursorPosCallback(window, example::glfwCursorPosCallback);
-    glfwSetMouseButtonCallback(window, example::glfwMouseButtonCallback);
-    glfwSetScrollCallback(window, example::glfwScrollCallback);
+    glfwSetWindowUserPointer(m_window, this);
+    glfwSetWindowSizeCallback(m_window, example::glfwWindowSizeCallback);
+    glfwSetWindowIconifyCallback(m_window, example::glfwWindowIconifyCallback);
+    glfwSetWindowMaximizeCallback(m_window, example::glfwWindowMaximizeCallback);
+    glfwSetFramebufferSizeCallback(m_window, example::glfwFramebufferSizeCallback);
+    glfwSetCursorPosCallback(m_window, example::glfwCursorPosCallback);
+    glfwSetMouseButtonCallback(m_window, example::glfwMouseButtonCallback);
+    glfwSetScrollCallback(m_window, example::glfwScrollCallback);
 
     return SLANG_OK;
 }
@@ -153,16 +180,35 @@ Result ExampleBase::createWindow(uint32_t width, uint32_t height)
 Result ExampleBase::createSurface(Format format)
 {
     int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
+    glfwGetFramebufferSize(m_window, &width, &height);
 
-    SLANG_RETURN_ON_FAIL(device->createSurface(getWindowHandleFromGLFW(window), surface.writeRef()));
+    SLANG_RETURN_ON_FAIL(m_device->createSurface(getWindowHandleFromGLFW(m_window), m_surface.writeRef()));
     SurfaceConfig surfaceConfig;
     surfaceConfig.width = width;
     surfaceConfig.height = height;
     surfaceConfig.format = format;
-    SLANG_RETURN_ON_FAIL(surface->configure(surfaceConfig));
+    SLANG_RETURN_ON_FAIL(m_surface->configure(surfaceConfig));
 
     return SLANG_OK;
+}
+
+void ExampleBase::updateAndDraw()
+{
+    update();
+
+    if (!m_surface->getConfig())
+        return;
+
+    ComPtr<ITexture> image;
+    m_surface->acquireNextImage(image.writeRef());
+    if (!image)
+    {
+        return;
+    }
+
+    draw(image.get());
+
+    m_surface->present();
 }
 
 namespace example {
@@ -186,43 +232,43 @@ static void layoutWindows()
     for (ExampleBase* example : getExamples())
     {
         int width, height;
-        glfwGetWindowSize(example->window, &width, &height);
+        glfwGetWindowSize(example->m_window, &width, &height);
         if (x + width >= ww)
         {
             x = wx + kMargin;
             y += height;
         }
-        glfwSetWindowPos(example->window, x, y);
+        glfwSetWindowPos(example->m_window, x, y);
         x += width;
     }
 }
 
 static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
-    ExampleBase* origin = (ExampleBase*)glfwGetWindowUserPointer(window);
+    ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
     for (ExampleBase* example : getExamples())
     {
-        if (example != origin)
+        if (example != srcExample)
         {
-            glfwSetWindowSize(example->window, width, height);
+            glfwSetWindowSize(example->m_window, width, height);
         }
     }
 }
 
 static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified)
 {
-    ExampleBase* origin = (ExampleBase*)glfwGetWindowUserPointer(window);
+    ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
     for (ExampleBase* example : getExamples())
     {
-        if (example != origin)
+        if (example != srcExample)
         {
             if (iconified)
             {
-                glfwIconifyWindow(example->window);
+                glfwIconifyWindow(example->m_window);
             }
             else
             {
-                glfwRestoreWindow(example->window);
+                glfwRestoreWindow(example->m_window);
             }
         }
     }
@@ -230,18 +276,18 @@ static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified)
 
 static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized)
 {
-    ExampleBase* origin = (ExampleBase*)glfwGetWindowUserPointer(window);
+    ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
     for (ExampleBase* example : getExamples())
     {
-        if (example != origin)
+        if (example != srcExample)
         {
             if (maximized)
             {
-                glfwMaximizeWindow(example->window);
+                glfwMaximizeWindow(example->m_window);
             }
             else
             {
-                glfwRestoreWindow(example->window);
+                glfwRestoreWindow(example->m_window);
             }
         }
     }
@@ -289,14 +335,38 @@ static int main(int argc, const char** argv)
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    // std::vector<DeviceType> deviceTypes = {DeviceType::Vulkan};
-    // std::vector<DeviceType> deviceTypes = {DeviceType::Vulkan, DeviceType::Metal, DeviceType::WGPU};
-    std::vector<DeviceType> deviceTypes = {DeviceType::D3D11, DeviceType::D3D12, DeviceType::Vulkan, DeviceType::WGPU};
-    for (DeviceType deviceType : deviceTypes)
+    ExampleDesc desc = Example::getDesc();
+
+    for (DeviceType deviceType : desc.supportedDeviceTypes)
     {
+        if (!rhi::getRHI()->isDeviceTypeSupported(deviceType))
+        {
+            continue;
+        }
+
         Example* example = new Example();
+        example->m_desc = desc;
+
+        if (!SLANG_SUCCEEDED(example->createDevice(deviceType)))
+        {
+            delete example;
+            continue;
+        }
+
+        if (!SLANG_SUCCEEDED(example->createWindow()))
+        {
+            delete example;
+            continue;
+        }
+
+        if (!SLANG_SUCCEEDED(example->createSurface()))
+        {
+            delete example;
+            continue;
+        }
+
         getExamples().push_back(example);
-        SLANG_RETURN_ON_FAIL(example->init(deviceType));
+        SLANG_RETURN_ON_FAIL(example->init());
     }
 
     if (getExamples().size() > 1)
@@ -309,7 +379,7 @@ static int main(int argc, const char** argv)
         bool shouldClose = false;
         for (ExampleBase* example : getExamples())
         {
-            if (glfwWindowShouldClose(example->window))
+            if (glfwWindowShouldClose(example->m_window))
             {
                 shouldClose = true;
                 break;
@@ -323,14 +393,12 @@ static int main(int argc, const char** argv)
         glfwPollEvents();
 
         for (ExampleBase* example : getExamples())
-            example->update();
-
-        for (ExampleBase* example : getExamples())
-            example->draw();
+            example->updateAndDraw();
     }
 
     for (ExampleBase* example : getExamples())
     {
+        example->m_queue->waitOnHost();
         example->shutdown();
         delete example;
     }
