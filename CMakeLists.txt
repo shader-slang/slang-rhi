@@ -104,7 +104,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_R
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.13" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.13.1" CACHE STRING "Slang version to fetch")
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -485,6 +485,7 @@ target_sources(slang-rhi PRIVATE
     src/enum-strings.cpp
     src/flag-combiner.cpp
     src/format-conversion.cpp
+    src/heap.cpp
     src/pipeline.cpp
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
@@ -505,6 +506,7 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-command-queue.cpp
     src/debug-layer/debug-device.cpp
     src/debug-layer/debug-fence.cpp
+    src/debug-layer/debug-heap.cpp
     src/debug-layer/debug-helper-functions.cpp
     src/debug-layer/debug-query.cpp
     src/debug-layer/debug-shader-object.cpp
@@ -596,6 +598,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
+        src/vulkan/vk-heap.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
@@ -645,8 +648,8 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp
         src/cuda/cuda-fence.cpp
+        src/cuda/cuda-heap.cpp
         src/cuda/cuda-nvrtc.cpp
-        src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
         src/cuda/cuda-sampler.cpp
@@ -717,6 +720,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
+        tests/test-command-encoder.cpp
         tests/test-compilation-report.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
@@ -737,6 +741,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-device-lifetime.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
+        tests/test-heap.cpp
         tests/test-link-time-constant.cpp
         tests/test-link-time-default.cpp
         tests/test-link-time-options.cpp
@@ -746,6 +751,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-nested-parameter-block.cpp
         tests/test-null-views.cpp
         tests/test-nvrtc.cpp
+        tests/test-nvapi.cpp
         tests/test-offset-allocator.cpp
         tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp

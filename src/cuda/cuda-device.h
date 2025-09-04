@@ -2,7 +2,6 @@
 
 #include "cuda-base.h"
 #include "cuda-clear-engine.h"
-#include "cuda-dual-page-allocator.h"
 
 namespace rhi::cuda {
 
@@ -31,7 +30,8 @@ public:
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
     bool m_ownsOptixContext = false;
-    DualPageAllocator m_dualPageAllocator;
+    RefPtr<HeapImpl> m_deviceMemHeap;
+    RefPtr<HeapImpl> m_hostMemHeap;
 
 public:
     using Device::readBuffer;
@@ -163,6 +163,8 @@ public:
         bool waitForAll,
         uint64_t timeout
     ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) override;
 
     void customizeShaderObject(ShaderObject* shaderObject) override;
 

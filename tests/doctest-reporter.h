@@ -7,8 +7,6 @@
 
 namespace doctest {
 
-#define LOCK() std::lock_guard<std::mutex> lock(mutex);
-
 struct CustomReporter : public IReporter
 {
     // caching pointers/references to objects of these types - safe to do
@@ -16,13 +14,12 @@ struct CustomReporter : public IReporter
     const ContextOptions& opt;
     ConsoleReporter consoleReporter;
     const TestCaseData* tc;
-    const SubcaseSignature* sc;
-    std::mutex mutex;
-    Timer timer;
+
     int cursorPos = 0;
+    int testCaseStartCursorPos = 0;
+    Timer runTimer;
 
     const int resultPos = 64;
-    const char* indent = "    ";
 
     // constructor has to accept the ContextOptions by ref as a single argument
     CustomReporter(const ContextOptions& in)
@@ -32,11 +29,23 @@ struct CustomReporter : public IReporter
     {
     }
 
-    void report_query(const QueryData& in) override { consoleReporter.report_query(in); }
+    void report_query(const QueryData& in) override
+    {
+        consoleReporter.report_query(in);
+        if (opt.help)
+        {
+            // clang-format off
+            stream << Color::Cyan << "\n[doctest] " << Color::None;
+            stream << "Additional slang-rhi specific options. Available:\n\n";
+            stream << " -verbose                              print messages from the slang-rhi layer\n";
+            stream << " -check-devices                        print information about detected GPU devices on startup\n";
+            // clang-format on
+        }
+    }
 
     void test_run_start() override
     {
-        LOCK();
+        runTimer.start();
         stream << Color::None;
         consoleReporter.test_run_start();
 
@@ -48,80 +57,69 @@ struct CustomReporter : public IReporter
 
     void test_run_end(const TestRunStats& in) override
     {
-        LOCK();
         stream << Color::None;
+
+        fill(79, '-');
+        printf("\n");
+        double seconds = runTimer.getElapsedSeconds();
+        printf("Total time: %.2fs\n", seconds);
+
         consoleReporter.test_run_end(in);
     }
 
     void test_case_start(const TestCaseData& in) override
     {
-        LOCK();
-        ensure_newline();
         consoleReporter.test_case_start(in);
         tc = &in;
-        color(Color::Grey);
-        fill(79, '-');
-        printf("\n");
         color(Color::None);
-        printf("%s\n", tc->m_name);
+        printf("%s ", tc->m_name);
+        testCaseStartCursorPos = cursorPos;
     }
 
     // called when a test case is reentered because of unfinished subcases
-    void test_case_reenter(const TestCaseData& in) override
-    {
-        LOCK();
-        ensure_newline();
-        consoleReporter.test_case_reenter(in);
-    }
+    void test_case_reenter(const TestCaseData& in) override { consoleReporter.test_case_reenter(in); }
 
     void test_case_end(const CurrentTestCaseStats& in) override
     {
-        LOCK();
-        ensure_newline();
-        consoleReporter.test_case_end(in);
         color(Color::None);
-        printf("%s", tc->m_name);
+        if (cursorPos != testCaseStartCursorPos)
+        {
+            ensure_newline();
+            printf("%s ", tc->m_name);
+        }
         fill(resultPos);
-        if (in.failure_flags)
+        if (const char* msg = rhi::testing::getSkipMessage(tc))
+        {
+            color(Color::Yellow);
+            print("SKIPPED");
+            color(Color::LightGrey);
+            printf(" (%s)\n", msg);
+        }
+        else if (in.failure_flags)
         {
             color(Color::Red);
             print("FAILED");
+            color(Color::LightGrey);
+            printf(" (%.2fs)\n", in.seconds);
         }
         else
         {
             color(Color::Green);
             printf("PASSED");
+            color(Color::LightGrey);
+            printf(" (%.2fs)\n", in.seconds);
         }
-        color(Color::LightGrey);
-        printf(" (%.2fs)\n", in.seconds);
     }
 
     void test_case_exception(const TestCaseException& in) override
     {
-        LOCK();
         ensure_newline();
         consoleReporter.test_case_exception(in);
     }
 
-    void subcase_start(const SubcaseSignature& in) override
-    {
-        LOCK();
-        sc = &in;
-        timer.start();
-        stream << Color::LightGrey;
-        printf("%s (%s)", tc->m_name, sc->m_name.c_str());
-    }
+    void subcase_start(const SubcaseSignature& in) override { consoleReporter.subcase_start(in); }
 
-    void subcase_end() override
-    {
-        LOCK();
-        double seconds = timer.getElapsedSeconds();
-        stream << Color::LightGrey;
-        if (cursorPos == 0)
-            printf("%s (%s)", tc->m_name, sc->m_name.c_str());
-        fill(resultPos);
-        printf("  DONE (%.2fs)\n", seconds);
-    }
+    void subcase_end() override { consoleReporter.subcase_end(); }
 
     void log_assert(const AssertData& in) override
     {
@@ -131,14 +129,12 @@ struct CustomReporter : public IReporter
         if (!in.m_failed && !opt.success)
             return;
 
-        LOCK();
         ensure_newline();
         consoleReporter.log_assert(in);
     }
 
     void log_message(const MessageData& in) override
     {
-        LOCK();
         ensure_newline();
         consoleReporter.log_message(in);
     }
@@ -195,7 +191,7 @@ private:
     {
         printSeparator();
         printf("Checking for available devices:\n");
-        for (rhi::DeviceType deviceType : ALL_DEVICE_TYPES)
+        for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
         {
             printSeparator();
             printf("%s: ", rhi::getRHI()->getDeviceTypeName(deviceType));

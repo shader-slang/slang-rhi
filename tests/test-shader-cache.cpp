@@ -117,7 +117,6 @@ static VirtualShaderCache shaderCache;
 struct ShaderCacheTest
 {
     GpuTestContext* ctx;
-    DeviceType deviceType;
     std::filesystem::path tempDirectory;
 
     ComPtr<IDevice> device;
@@ -179,7 +178,7 @@ struct ShaderCacheTest
     void createDevice()
     {
         DeviceDesc deviceDesc = {};
-        deviceDesc.deviceType = deviceType;
+        deviceDesc.deviceType = ctx->deviceType;
         deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
         auto searchPaths = getSlangSearchPaths();
         std::string tempDirectoryStr = tempDirectory.string();
@@ -296,10 +295,9 @@ struct ShaderCacheTest
 
     VirtualShaderCache::Stats getStats() { return shaderCache.stats; }
 
-    void run(GpuTestContext* ctx_, DeviceType deviceType_, std::string tempDirectory_)
+    void run(GpuTestContext* ctx_, std::string tempDirectory_)
     {
         ctx = ctx_;
-        deviceType = deviceType_;
         tempDirectory = tempDirectory_;
 
         shaderCache.clear();
@@ -896,101 +894,53 @@ struct ShaderCacheTestGraphicsSplit : ShaderCacheTestGraphics
 };
 
 template<typename T>
-void runTest(GpuTestContext* ctx, DeviceType deviceType)
+void runTest(GpuTestContext* ctx)
 {
     std::string tempDirectory = getCaseTempDirectory();
     T test;
-    test.run(ctx, deviceType, tempDirectory);
+    test.run(ctx, tempDirectory);
 }
 
 // TODO
 // These tests are super expensive because they re-create devices.
 // This is needed because slang doesn't support reloading modules at this time.
 
-TEST_CASE("shader-cache-source-file")
+GPU_TEST_CASE("shader-cache-source-file", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(
-        runTest<ShaderCacheTestSourceFile>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runTest<ShaderCacheTestSourceFile>(ctx);
 }
 
-TEST_CASE("shader-cache-source-string")
+GPU_TEST_CASE("shader-cache-source-string", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(
-        runTest<ShaderCacheTestSourceString>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runTest<ShaderCacheTestSourceString>(ctx);
 }
 
-TEST_CASE("shader-cache-entry-point")
+GPU_TEST_CASE("shader-cache-entry-point", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(
-        runTest<ShaderCacheTestEntryPoint>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runTest<ShaderCacheTestEntryPoint>(ctx);
 }
 
-TEST_CASE("shader-cache-import-include")
+GPU_TEST_CASE("shader-cache-import-include", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(
-        runTest<ShaderCacheTestImportInclude>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runTest<ShaderCacheTestImportInclude>(ctx);
 }
 
-TEST_CASE("shader-cache-specialization")
+GPU_TEST_CASE("shader-cache-specialization", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(
-        runTest<ShaderCacheTestSpecialization>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runTest<ShaderCacheTestSpecialization>(ctx);
 }
 
-TEST_CASE("shader-cache-eviction")
+GPU_TEST_CASE("shader-cache-eviction", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(
-        runTest<ShaderCacheTestEviction>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runTest<ShaderCacheTestEviction>(ctx);
 }
 
-TEST_CASE("shader-cache-graphics")
+GPU_TEST_CASE("shader-cache-graphics", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(
-        runTest<ShaderCacheTestEviction>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runTest<ShaderCacheTestGraphics>(ctx);
 }
 
-TEST_CASE("shader-cache-graphics-split")
+GPU_TEST_CASE("shader-cache-graphics-split", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(
-        runTest<ShaderCacheTestGraphicsSplit>,
-        {
-            DeviceType::D3D12,
-            DeviceType::Vulkan,
-        }
-    );
+    runTest<ShaderCacheTestGraphicsSplit>(ctx);
 }

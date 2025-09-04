@@ -31,6 +31,8 @@ struct RefObjectTracker
         objects.erase(obj);
     }
 
+    void reportLiveObjects();
+
     static RefObjectTracker& instance()
     {
         static RefObjectTracker tracker;
@@ -122,7 +124,8 @@ public:
         if (count == 1)
         {
             // Last reference, delete the object
-            delete this;
+            // Default behavior immediately calls 'delete this'
+            deleteThis();
         }
         return count - 1;
     }
@@ -151,10 +154,12 @@ public:
         }
     }
 
-    uint64_t debugGetReferenceCount() { return referenceCount; }
+    uint64_t getReferenceCount() const { return referenceCount; }
+    uint64_t getInternalReferenceCount() const { return internalReferenceCount; }
 
     virtual void makeExternal() {}
     virtual void makeInternal() {}
+    virtual void deleteThis() { delete this; }
 
 #if SLANG_RHI_DEBUG
     // Get the number of RefObject instances currently alive.

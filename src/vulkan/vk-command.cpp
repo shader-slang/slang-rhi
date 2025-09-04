@@ -603,12 +603,12 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
         // Create attachment info
         VkRenderingAttachmentInfoKHR attachmentInfo = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
-        attachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getView().imageView;
+        attachmentInfo.imageView = checked_cast<TextureViewImpl*>(attachment.view)->getRenderTargetView().imageView;
         attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         if (attachment.resolveTarget)
         {
             attachmentInfo.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-            attachmentInfo.resolveImageView = resolveView->getView().imageView;
+            attachmentInfo.resolveImageView = resolveView->getRenderTargetView().imageView;
             attachmentInfo.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         }
         attachmentInfo.loadOp = translateLoadOp(attachment.loadOp);
@@ -648,7 +648,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         {
             hasDepthAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
-            depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getView().imageView;
+            depthAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getRenderTargetView().imageView;
             depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             depthAttachmentInfo.loadOp = translateLoadOp(dsa.depthLoadOp);
             depthAttachmentInfo.storeOp = translateStoreOp(dsa.depthStoreOp);
@@ -658,7 +658,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
         {
             hasStencilAttachment = true;
             const auto& dsa = *desc.depthStencilAttachment;
-            stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getView().imageView;
+            stencilAttachmentInfo.imageView = checked_cast<TextureViewImpl*>(dsa.view)->getRenderTargetView().imageView;
             stencilAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             stencilAttachmentInfo.loadOp = translateLoadOp(dsa.stencilLoadOp);
             stencilAttachmentInfo.storeOp = translateStoreOp(dsa.stencilStoreOp);
@@ -1660,12 +1660,14 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     return SLANG_OK;
 }
 
-void CommandQueueImpl::retireUnfinishedCommandBuffer(CommandBufferImpl* commandBuffer)
+void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
     commandBuffer->reset();
-    m_commandBuffersPool.push_back(commandBuffer);
-    commandBuffer->setInternalReferenceCount(1);
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_commandBuffersPool.push_back(commandBuffer);
+        commandBuffer->setInternalReferenceCount(1);
+    }
 }
 
 void CommandQueueImpl::retireCommandBuffers()
@@ -1678,18 +1680,16 @@ void CommandQueueImpl::retireCommandBuffers()
     {
         if (commandBuffer->m_submissionID <= lastFinishedID)
         {
-            commandBuffer->reset();
-            {
-                std::lock_guard<std::mutex> lock(m_mutex);
-                m_commandBuffersPool.push_back(commandBuffer);
-                commandBuffer->setInternalReferenceCount(1);
-            }
+            retireCommandBuffer(commandBuffer);
         }
         else
         {
             m_commandBuffersInFlight.push_back(commandBuffer);
         }
     }
+
+    // Flush all device heaps
+    getDevice<DeviceImpl>()->flushHeaps();
 }
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
@@ -1832,7 +1832,7 @@ CommandEncoderImpl::~CommandEncoderImpl()
     // If the command buffer was not used, return it to the pool.
     if (m_commandBuffer)
     {
-        m_queue->retireUnfinishedCommandBuffer(m_commandBuffer);
+        m_queue->retireCommandBuffer(m_commandBuffer);
     }
 }
 
@@ -1902,7 +1902,7 @@ Result CommandBufferImpl::init()
     m_descriptorSetAllocator.init(&device->m_api);
 
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-    createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     createInfo.queueFamilyIndex = m_queue->m_queueFamilyIndex;
     SLANG_VK_RETURN_ON_FAIL(
         device->m_api.vkCreateCommandPool(device->m_api.m_device, &createInfo, nullptr, &m_commandPool)
@@ -1923,7 +1923,7 @@ Result CommandBufferImpl::reset()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_commandList.reset();
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkResetCommandBuffer(m_commandBuffer, 0));
+    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkResetCommandPool(device->m_device, m_commandPool, 0));
     m_constantBufferPool.reset();
     m_descriptorSetAllocator.reset();
     m_bindingCache.reset();

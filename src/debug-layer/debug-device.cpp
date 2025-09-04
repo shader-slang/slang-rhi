@@ -1,6 +1,7 @@
 #include "debug-device.h"
 #include "debug-command-queue.h"
 #include "debug-fence.h"
+#include "debug-heap.h"
 #include "debug-helper-functions.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
@@ -219,7 +220,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         break;
     }
 
-    TextureDesc patchedDesc = fixupTextureDesc(desc);
+    TextureDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
     {
@@ -253,7 +254,7 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
 {
     SLANG_RHI_API_FUNC;
 
-    BufferDesc patchedDesc = fixupBufferDesc(desc);
+    BufferDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
     {
@@ -335,11 +336,6 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
     if (desc.reductionOp > TextureReductionOp::Maximum)
     {
         RHI_VALIDATION_ERROR("Invalid reduction op");
-        return SLANG_E_INVALID_ARG;
-    }
-    if (ctx->deviceType == DeviceType::Vulkan && desc.reductionOp == TextureReductionOp::Comparison)
-    {
-        RHI_VALIDATION_ERROR("Vulkan doesn't support TextureReductionOp::Comparison");
         return SLANG_E_INVALID_ARG;
     }
     if (desc.addressU > TextureAddressingMode::MirrorOnce)
@@ -442,7 +438,7 @@ Result DebugDevice::getAccelerationStructureSizes(
 )
 {
     SLANG_RHI_API_FUNC;
-    validateAccelerationStructureBuildDesc(ctx, desc);
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureBuildDesc(ctx, desc));
     return baseObject->getAccelerationStructureSizes(desc, outSizes);
 }
 
@@ -769,6 +765,22 @@ Result DebugDevice::waitForFences(
     return baseObject->waitForFences(fenceCount, innerFences.data(), fenceValues, waitForAll, timeout);
 }
 
+Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
+{
+    HeapDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createHeapLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
+    RefPtr<DebugHeap> result = new DebugHeap(ctx);
+    SLANG_RETURN_ON_FAIL(baseObject->createHeap(desc, result->baseObject.writeRef()));
+    returnComPtr(outHeap, result);
+    return SLANG_OK;
+}
+
 Result DebugDevice::getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment)
 {
     SLANG_RHI_API_FUNC;
@@ -798,6 +810,13 @@ Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable*
     SLANG_RHI_API_FUNC;
 
     return baseObject->createShaderTable(desc, outTable);
+}
+
+Result DebugDevice::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->reportHeaps(heapReports, heapCount);
 }
 
 } // namespace rhi::debug

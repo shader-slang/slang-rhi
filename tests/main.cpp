@@ -52,6 +52,7 @@ int main(int argc, char** argv)
         doctest::Context context(argc, argv);
 
         context.setOption("--reporters", "custom");
+        context.setOption("--order-by", "name");
 
         // Select specific test suite to run
         // context.setOption("-tc", "shader-cache-*");

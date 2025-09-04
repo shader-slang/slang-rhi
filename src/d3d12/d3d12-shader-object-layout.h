@@ -247,6 +247,19 @@ public:
     ComPtr<slang::IComponentType> m_program;
     slang::ProgramLayout* m_programLayout = nullptr;
 
+#if SLANG_RHI_ENABLE_NVAPI
+    // Slang differentiates between explicit and implicit use of NVAPI:
+    // - Explicit use happens when a shader manually includes the NVAPI header.
+    //   In this case the program reflection data contains the global NVAPI UAV slot "g_NvidiaExt"
+    //   and the shader object handling automatically assigns a null-descriptor to it.
+    // - Implicit use happens when a shader doesn't manually include the NVAPI header, but uses
+    //   a standard library call that is implemented using an NVAPI shader intrinsic.
+    //   In that case the program reflection data does not contain "g_NvidiaExt" and slang-rhi creates
+    //   the resource implicitly by adding an extra descriptor range to the root descriptor set
+    //   and then assigns a null-descriptor when binding it.
+    bool m_hasImplicitDescriptorRangeForNVAPI = false;
+#endif
+
     std::vector<EntryPointInfo> m_entryPoints;
 
     ComPtr<ID3D12RootSignature> m_rootSignature;

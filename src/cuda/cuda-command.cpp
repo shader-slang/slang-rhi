@@ -459,10 +459,9 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
             );
         }
     }
-    //
+
     // The argument data for the entry-point parameters are already
     // stored in host memory, as expected by cuLaunchKernel.
-    //
     SLANG_RHI_ASSERT(entryPointData.size >= computePipeline->m_paramBufferSize);
     void* extraOptions[] = {
         CU_LAUNCH_PARAM_BUFFER_POINTER,
@@ -472,9 +471,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         CU_LAUNCH_PARAM_END,
     };
 
-    // Once we have all the necessary data extracted and/or
-    // set up, we can launch the kernel and see what happens.
-    //
+    // Once we have all the necessary data extracted and/or set up, we can launch the kernel.
     SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernel(
         computePipeline->m_function,
         cmd.x,
@@ -719,19 +716,6 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    // On CUDA, treat the graphics stream as the default stream, identified
-    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
-    // they will be equivalent to secondary, none-default streams in cuda.
-    if (type == QueueType::Graphics)
-    {
-        m_stream = nullptr;
-    }
-    else
-    {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_stream, 0));
-    }
 }
 
 CommandQueueImpl::~CommandQueueImpl()
@@ -739,9 +723,9 @@ CommandQueueImpl::~CommandQueueImpl()
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     // Block on all events completing
-    for (const auto& commandBuffer : m_commandBuffersInFlight)
+    for (const auto& ev : m_submitEvents)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(commandBuffer->m_completionEvent));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
     }
 
     // Retire finished command buffers, which should be all of them
@@ -756,24 +740,133 @@ CommandQueueImpl::~CommandQueueImpl()
     }
 }
 
+Result CommandQueueImpl::init()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // On CUDA, treat the graphics stream as the default stream, identified
+    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
+    // they will be equivalent to secondary, none-default streams in cuda.
+    if (m_type == QueueType::Graphics)
+    {
+        m_stream = nullptr;
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
+    }
+
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
+{
+    RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl(m_device);
+    returnRefPtr(outCommandBuffer, commandBuffer);
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    RefPtr<CommandBufferImpl> commandBuffer;
+    if (m_commandBuffersPool.empty())
+    {
+        SLANG_RETURN_ON_FAIL(createCommandBuffer(commandBuffer.writeRef()));
+    }
+    else
+    {
+        commandBuffer = m_commandBuffersPool.front();
+        m_commandBuffersPool.pop_front();
+        commandBuffer->setInternalReferenceCount(0);
+    }
+    returnRefPtr(outCommandBuffer, commandBuffer);
+    return SLANG_OK;
+}
+
+void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
+{
+    commandBuffer->reset();
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_commandBuffersPool.push_back(commandBuffer);
+        commandBuffer->setInternalReferenceCount(1);
+    }
+}
+
 Result CommandQueueImpl::retireCommandBuffers()
 {
-    std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
-    m_commandBuffersInFlight.clear();
+    // Run fence logic so m_lastFinishedID is up to date.
+    SLANG_RETURN_ON_FAIL(updateFence());
 
-    for (const auto& commandBuffer : commandBuffers)
+    // Retire command buffers that're passed the submission ID
+    auto cbIt = m_commandBuffersInFlight.begin();
+    while (cbIt != m_commandBuffersInFlight.end())
     {
-        CUresult result = cuEventQuery(commandBuffer->m_completionEvent);
+        RefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
+        if (commandBuffer->m_submissionID > m_lastFinishedID)
+            break;
+
+        retireCommandBuffer(commandBuffer);
+        cbIt = m_commandBuffersInFlight.erase(cbIt);
+    }
+
+    // Flush all device heaps
+    SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->flushHeaps());
+
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
+    SLANG_RETURN_ON_FAIL(encoder->init());
+    returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
+{
+    // Increment submit count
+    m_lastSubmittedID++;
+
+    // Record submission event so we can detect completion
+    SubmitEvent ev;
+    ev.submitID = m_lastSubmittedID;
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
+    m_submitEvents.push_back(ev);
+
+    if (outId)
+        *outId = m_lastSubmittedID;
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::updateFence()
+{
+    // Iterate the submit events to update the last finished ID
+    auto submitIt = m_submitEvents.begin();
+    while (submitIt != m_submitEvents.end())
+    {
+        CUresult result = cuEventQuery(submitIt->event);
         if (result == CUDA_SUCCESS)
         {
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(commandBuffer->m_completionEvent));
+            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
+            m_lastFinishedID = submitIt->submitID;
+
+            // Remove the event from the list.
+            submitIt = m_submitEvents.erase(submitIt);
         }
         else if (result == CUDA_ERROR_NOT_READY)
         {
             // Not ready means event hasn't been triggered yet, so it's still in-flight.
-            m_commandBuffersInFlight.push_back(commandBuffer);
+            // As command buffers are ordered, this should mean that all subsequent events
+            // are also still in-flight, so we can stop checking.
+            break;
         }
         else
         {
@@ -783,15 +876,6 @@ Result CommandQueueImpl::retireCommandBuffers()
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
-{
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device);
-    SLANG_RETURN_ON_FAIL(encoder->init());
-    returnComPtr(outEncoder, encoder);
-    return SLANG_OK;
-}
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
@@ -825,9 +909,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Only record command buffer if executor succeeds and we correctly add it to the active stream
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, 0));
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, requestedStream));
+        // Signal main fence
+        uint64_t submissionID;
+        SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
+
+        // Record the command buffer + corresponding submit ID
+        commandBuffer->m_submissionID = submissionID;
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 
@@ -836,9 +923,6 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         SLANG_RETURN_ON_FAIL(desc.signalFences[i]->setCurrentValue(desc.signalFenceValues[i]));
     }
-
-    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
-        checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])->reset();
 
     return SLANG_OK;
 }
@@ -868,16 +952,28 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(Device* device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
     : CommandEncoder(device)
+    , m_queue(queue)
 {
+}
+
+CommandEncoderImpl::~CommandEncoderImpl()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // If the command buffer was not used, return it to the pool.
+    if (m_commandBuffer)
+    {
+        m_queue->retireCommandBuffer(m_commandBuffer);
+    }
 }
 
 Result CommandEncoderImpl::init()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    m_commandBuffer = new CommandBufferImpl(m_device);
+    SLANG_RETURN_ON_FAIL(m_queue->getOrCreateCommandBuffer(m_commandBuffer.writeRef()));
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
 }
@@ -887,6 +983,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+
     BindingDataBuilder builder;
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;

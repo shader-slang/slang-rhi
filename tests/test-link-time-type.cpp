@@ -98,7 +98,7 @@ static Result loadProgram(
 }
 
 // TODO(testing): CUDA crashes
-GPU_TEST_CASE("link-time-type", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | NoDeviceCache)
+GPU_TEST_CASE("link-time-type", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | DontCacheDevice)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;

@@ -134,6 +134,7 @@ extern "C" bool rhiCudaDriverApiInit()
         LOAD(cuModuleGetTexRef);
         LOAD(cuModuleLoad);
         LOAD(cuModuleLoadData);
+        LOAD(cuModuleLoadDataEx);
         LOAD(cuModuleUnload);
         LOAD(cuFuncGetAttribute);
         LOAD(cuFuncGetParamInfo);
@@ -249,6 +250,7 @@ extern "C" void rhiCudaDriverApiShutdown()
     UNLOAD(cuModuleGetTexRef);
     UNLOAD(cuModuleLoad);
     UNLOAD(cuModuleLoadData);
+    UNLOAD(cuModuleLoadDataEx);
     UNLOAD(cuModuleUnload);
     UNLOAD(cuFuncGetAttribute);
     UNLOAD(cuFuncGetParamInfo);

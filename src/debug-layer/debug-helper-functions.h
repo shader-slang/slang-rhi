@@ -5,6 +5,7 @@
 #include "debug-command-encoder.h"
 #include "debug-device.h"
 #include "debug-fence.h"
+#include "debug-heap.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
 #include "debug-surface.h"
@@ -151,6 +152,7 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL(ShaderObject)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Surface)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(QueryPool)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(Heap)
 
 std::string subresourceRangeToString(const SubresourceRange& range);
 
@@ -164,7 +166,8 @@ std::string createQueryPoolLabel(const QueryPoolDesc& desc);
 std::string createRenderPipelineLabel(const RenderPipelineDesc& desc);
 std::string createComputePipelineLabel(const ComputePipelineDesc& desc);
 std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc);
+std::string createHeapLabel(const HeapDesc& desc);
 
-void validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
+Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
 
 } // namespace rhi::debug

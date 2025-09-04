@@ -237,7 +237,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             }
 
             VkAccelerationStructureGeometryLinearSweptSpheresDataNV& lssData = linearSweptSpheresDatas[i];
-            lssData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_SPHERES_DATA_NV;
+            lssData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_LINEAR_SWEPT_SPHERES_DATA_NV;
 
             lssData.vertexFormat = getVkFormat(lss.vertexPositionFormat);
             lssData.vertexData.deviceAddress = lss.vertexPositionBuffers[0].getDeviceAddress();

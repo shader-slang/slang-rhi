@@ -2,6 +2,7 @@
 
 #include "rhi-shared.h"
 #include "shader.h"
+#include "heap.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -776,6 +777,13 @@ Result Device::waitForFences(
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::createHeap(const HeapDesc& desc, IHeap** outHeap)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outHeap);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Device::readTexture(
     ITexture* texture,
     uint32_t layer,
@@ -901,6 +909,43 @@ Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatr
     SLANG_UNUSED(descs);
     SLANG_UNUSED(descCount);
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
+{
+    if (!heapCount)
+        return SLANG_E_INVALID_ARG;
+
+    uint32_t totalHeapCount = static_cast<uint32_t>(m_globalHeaps.size());
+
+    // If only querying count, return early
+    if (!heapReports)
+    {
+        *heapCount = totalHeapCount;
+        return SLANG_OK;
+    }
+
+    // If buffer is provided, it must be large enough
+    if (*heapCount < totalHeapCount)
+        return SLANG_E_BUFFER_TOO_SMALL;
+
+    // Fill heap reports
+    for (uint32_t i = 0; i < totalHeapCount; i++)
+    {
+        SLANG_RETURN_ON_FAIL(m_globalHeaps[i]->report(&heapReports[i]));
+    }
+
+    *heapCount = totalHeapCount;
+    return SLANG_OK;
+}
+
+Result Device::flushHeaps()
+{
+    for (Heap* heap : m_globalHeaps)
+    {
+        SLANG_RETURN_ON_FAIL(heap->flush());
+    }
+    return SLANG_OK;
 }
 
 Result Device::getShaderObjectLayout(

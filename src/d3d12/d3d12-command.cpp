@@ -1551,13 +1551,14 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     return SLANG_OK;
 }
 
-void CommandQueueImpl::retireUnfinishedCommandBuffer(CommandBufferImpl* commandBuffer)
+void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    commandBuffer->m_d3dCommandList->Close();
     commandBuffer->reset();
-    m_commandBuffersPool.push_back(commandBuffer);
-    commandBuffer->setInternalReferenceCount(1);
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_commandBuffersPool.push_back(commandBuffer);
+        commandBuffer->setInternalReferenceCount(1);
+    }
 }
 
 void CommandQueueImpl::retireCommandBuffers()
@@ -1570,18 +1571,16 @@ void CommandQueueImpl::retireCommandBuffers()
     {
         if (commandBuffer->m_submissionID <= lastFinishedID)
         {
-            commandBuffer->reset();
-            {
-                std::lock_guard<std::mutex> lock(m_mutex);
-                m_commandBuffersPool.push_back(commandBuffer);
-                commandBuffer->setInternalReferenceCount(1);
-            }
+            retireCommandBuffer(commandBuffer);
         }
         else
         {
             m_commandBuffersInFlight.push_back(commandBuffer);
         }
     }
+
+    // Flush all device heaps
+    getDevice<DeviceImpl>()->flushHeaps();
 }
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
@@ -1673,7 +1672,9 @@ CommandEncoderImpl::~CommandEncoderImpl()
     // If the command buffer was not used, return it to the pool.
     if (m_commandBuffer)
     {
-        m_queue->retireUnfinishedCommandBuffer(m_commandBuffer);
+        // Need to close the d3d12 command list because we never recorded commands.
+        m_commandBuffer->m_d3dCommandList->Close();
+        m_queue->retireCommandBuffer(m_commandBuffer);
     }
 }
 

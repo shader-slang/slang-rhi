@@ -17,7 +17,7 @@ static const Size kPageSize = 16 * 1024 * 1024;
 GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device, kPageSize, MemoryType::Upload);
+    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
 
     Size allocSize = heap.alignUp(16);
 
@@ -61,7 +61,7 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 GPU_TEST_CASE("staging-heap-large-page", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device, kPageSize, MemoryType::Upload);
+    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
 
     StagingHeap::Allocation allocation;
     heap.alloc(16, {2}, &allocation);
@@ -97,7 +97,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
 GPU_TEST_CASE("staging-heap-realloc", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device, kPageSize, MemoryType::Upload);
+    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
 
     Size allocSize = heap.getPageSize() / 16;
 
@@ -130,7 +130,7 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
 GPU_TEST_CASE("staging-heap-handles", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device, kPageSize, MemoryType::Upload);
+    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
 
     // Make an allocation using ref counted handle within a scope.
     {
@@ -165,17 +165,17 @@ void thrashHeap(Device* device, StagingHeap* heap, int idx)
 
 GPU_TEST_CASE("staging-heap-mutithreading", ALL)
 {
-    Device* deviceimpl = (Device*)device;
+    Device* deviceImpl = (Device*)device.get();
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
+    heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
 
-    std::thread t1(thrashHeap, deviceimpl, &heap, 1);
-    std::thread t2(thrashHeap, deviceimpl, &heap, 2);
-    std::thread t3(thrashHeap, deviceimpl, &heap, 3);
-    std::thread t4(thrashHeap, deviceimpl, &heap, 4);
-    std::thread t5(thrashHeap, deviceimpl, &heap, 5);
-    std::thread t6(thrashHeap, deviceimpl, &heap, 6);
+    std::thread t1(thrashHeap, deviceImpl, &heap, 1);
+    std::thread t2(thrashHeap, deviceImpl, &heap, 2);
+    std::thread t3(thrashHeap, deviceImpl, &heap, 3);
+    std::thread t4(thrashHeap, deviceImpl, &heap, 4);
+    std::thread t5(thrashHeap, deviceImpl, &heap, 5);
+    std::thread t6(thrashHeap, deviceImpl, &heap, 6);
 
     t1.join();
     t2.join();
@@ -200,19 +200,19 @@ void doTenAllocations(Device* device, StagingHeap* heap, int idx)
 
 GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
 {
-    Device* deviceimpl = (Device*)device;
+    Device* deviceImpl = (Device*)device.get();
 
     // When pages AREN'T being kept mapped, heap should allocate a new
     // page for each thread. As a result, after 3 threads have done 10
     // allocations we should have 3 pages.
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
+    heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(false);
 
-    std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
-    std::thread t2(doTenAllocations, deviceimpl, &heap, 2);
-    std::thread t3(doTenAllocations, deviceimpl, &heap, 3);
+    std::thread t1(doTenAllocations, deviceImpl, &heap, 1);
+    std::thread t2(doTenAllocations, deviceImpl, &heap, 2);
+    std::thread t3(doTenAllocations, deviceImpl, &heap, 3);
 
     t1.join();
     t2.join();
@@ -225,19 +225,19 @@ GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
 
 GPU_TEST_CASE("staging-heap-shared-pages", ALL)
 {
-    Device* deviceimpl = (Device*)device;
+    Device* deviceImpl = (Device*)device.get();
 
     // When pages ARE being kept mapped, heap should share pages
     // between threads, so 10 small allocations from 3 threads should
     // all fit in the same page.
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
+    heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(true);
 
-    std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
-    std::thread t2(doTenAllocations, deviceimpl, &heap, 2);
-    std::thread t3(doTenAllocations, deviceimpl, &heap, 3);
+    std::thread t1(doTenAllocations, deviceImpl, &heap, 1);
+    std::thread t2(doTenAllocations, deviceImpl, &heap, 2);
+    std::thread t3(doTenAllocations, deviceImpl, &heap, 3);
 
     t1.join();
     t2.join();
@@ -250,20 +250,20 @@ GPU_TEST_CASE("staging-heap-shared-pages", ALL)
 
 GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
 {
-    Device* deviceimpl = (Device*)device;
+    Device* deviceImpl = (Device*)device.get();
 
     // Verify that in none sharing mode, when this thread and another
     // one attempt to allocate, we end up with 2 pages (effectively
     // same as staging-heap-threadlock-pages but with local thread).
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
+    heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(false);
 
     StagingHeap::Allocation alloc;
     heap.alloc(16, {1}, &alloc);
 
-    std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
+    std::thread t1(doTenAllocations, deviceImpl, &heap, 1);
 
     t1.join();
 
@@ -274,21 +274,21 @@ GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
 
 GPU_TEST_CASE("staging-heap-unlockpage-2", ALL)
 {
-    Device* deviceimpl = (Device*)device;
+    Device* deviceImpl = (Device*)device.get();
 
     // Verify that if staging-heap-unlockpage-1 is repeated, but
     // the current thread frees its allocation, the 2nd thread
     // will reuse the page.
 
     StagingHeap heap;
-    heap.initialize(deviceimpl, kPageSize, MemoryType::Upload);
+    heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(false);
 
     StagingHeap::Allocation alloc;
     heap.alloc(16, {1}, &alloc);
     heap.free(alloc);
 
-    std::thread t1(doTenAllocations, deviceimpl, &heap, 1);
+    std::thread t1(doTenAllocations, deviceImpl, &heap, 1);
 
     t1.join();
 

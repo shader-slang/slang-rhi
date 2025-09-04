@@ -80,6 +80,7 @@ enum class StructType
     ShaderTableDesc,
     QueryPoolDesc,
     DeviceDesc,
+    HeapDesc,
 
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
@@ -2205,6 +2206,8 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL end() = 0;
 };
 
@@ -2572,6 +2575,81 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(acquireNextImage(texture.writeRef()));
         return texture;
     }
+};
+
+
+struct HeapAlloc
+{
+    Offset offset = 0;
+    Size size = 0;
+    void* pageId = nullptr;
+    uint32_t nodeIndex = 0xffffffff;
+    uintptr_t address = 0;
+
+    DeviceAddress getDeviceAddress() const { return DeviceAddress(address); }
+    void* getHostPtr() const { return reinterpret_cast<void*>(address); }
+
+    bool isValid() const { return address != 0; }
+    operator bool() const { return isValid(); }
+};
+
+enum class HeapUsage
+{
+    None = 0,
+    Shared = (1 << 0),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
+
+struct HeapDesc
+{
+    StructType structType = StructType::HeapDesc;
+
+    /// Type of memory heap should reside in.
+    MemoryType memoryType = MemoryType::DeviceLocal;
+
+    /// Usage flags for the heap.
+    HeapUsage usage = HeapUsage::None;
+
+    /// The label for the heap.
+    const char* label = nullptr;
+};
+
+struct HeapAllocDesc
+{
+    Size size = 0;
+    Size alignment = 0;
+};
+
+struct HeapReport
+{
+    char label[128] = {};
+    uint32_t numPages = 0;
+    uint64_t totalAllocated = 0;
+    uint64_t totalMemUsage = 0;
+    uint64_t numAllocations = 0;
+};
+
+class IHeap : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0x1c3b8f2a, 0x4d5e, 0x4b6c, {0x9f, 0x7d, 0x3e, 0x1c, 0x8b, 0x6f, 0x2c, 0x5a});
+
+public:
+    virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL report(HeapReport* outReport) = 0;
+
+    HeapReport report()
+    {
+        HeapReport res;
+        report(&res);
+        return res;
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL flush() = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() = 0;
 };
 
 struct AdapterLUID
@@ -3164,6 +3242,9 @@ public:
         uint64_t timeout
     ) = 0;
 
+    /// Create a graphics heap
+    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
         const TextureDesc& desc,
         Size* outSize,
@@ -3188,6 +3269,14 @@ public:
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount
     ) = 0;
+
+    /// Report status of internal heaps used by the device.
+    /// If heapReports is null, returns the number of heaps in heapCount.
+    /// If heapReports is provided, fills up to *heapCount heap reports and returns actual count.
+    /// @param heapReports [out] Buffer to write heap reports to (can be null for count query)
+    /// @param heapCount [in/out] On input: size of heapReports buffer (ignored if heapReports is null). On output:
+    /// number of heaps available or written
+    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) = 0;
 };
 
 class ITaskPool : public ISlangUnknown
@@ -3292,7 +3381,7 @@ public:
     }
 
     /// Reports current set of live objects.
-    /// Currently this just calls D3D's ReportLiveObjects.
+    /// Lists all live RHI objects as well as D3D's live objects (using ReportLiveObjects).
     virtual SLANG_NO_THROW Result SLANG_MCALL reportLiveObjects() = 0;
 
     /// Set the global task pool for the RHI.
