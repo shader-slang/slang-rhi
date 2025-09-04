@@ -873,7 +873,7 @@ static void gpuTestTrampoline()
     }
     else
     {
-        SKIP("Device not available");
+        SKIP("device not available");
     }
 }
 
@@ -949,6 +949,19 @@ int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, cons
     }
 
     return 0;
+}
+
+static std::map<const doctest::TestCaseData*, const char*> sSkipMessages;
+
+void reportSkip(const doctest::detail::TestCase* tc, const char* reason)
+{
+    sSkipMessages[tc] = reason;
+}
+
+const char* getSkipMessage(const doctest::TestCaseData* tc)
+{
+    auto it = sSkipMessages.find(tc);
+    return it != sSkipMessages.end() ? it->second : nullptr;
 }
 
 } // namespace rhi::testing

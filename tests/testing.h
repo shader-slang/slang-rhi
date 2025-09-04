@@ -350,6 +350,9 @@ static_assert(std::is_pod_v<GpuTestInfo>, "GpuTestInfo must be POD");
 
 int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, const char* file, int line);
 
+void reportSkip(const doctest::detail::TestCase* tc, const char* reason);
+const char* getSkipMessage(const doctest::TestCaseData* tc);
+
 } // namespace rhi::testing
 
 #define GPU_TEST_CASE_IMPL(name, func, flags)                                                                          \
@@ -378,9 +381,13 @@ int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, cons
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))
 
+// doctest does not support skipping tests at runtime.
+// We add this functionality using this SKIP macro which should only be called in the main scope of the test function.
+// The `reason` argument MUST be a string literal.
 #define SKIP(reason)                                                                                                   \
     do                                                                                                                 \
     {                                                                                                                  \
+        ::rhi::testing::reportSkip(::doctest::getContextOptions()->currentTest, "" reason);                            \
         return;                                                                                                        \
     }                                                                                                                  \
     while (0)
