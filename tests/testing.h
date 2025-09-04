@@ -285,16 +285,39 @@ auto makeArray(Args... args)
     return std::array<T, sizeof...(Args)>{static_cast<T>(args)...};
 }
 
-#define ALL_DEVICE_TYPES                                                                                               \
-    {                                                                                                                  \
-        rhi::DeviceType::D3D11,                                                                                        \
-        rhi::DeviceType::D3D12,                                                                                        \
-        rhi::DeviceType::Vulkan,                                                                                       \
-        rhi::DeviceType::Metal,                                                                                        \
-        rhi::DeviceType::CPU,                                                                                          \
-        rhi::DeviceType::CUDA,                                                                                         \
-        rhi::DeviceType::WGPU,                                                                                         \
+static constexpr DeviceType kPlatformDeviceTypes[] = {
+#if SLANG_WINDOWS_FAMILY
+    rhi::DeviceType::D3D11,
+    rhi::DeviceType::D3D12,
+    rhi::DeviceType::Vulkan,
+    rhi::DeviceType::CPU,
+    rhi::DeviceType::CUDA,
+    rhi::DeviceType::WGPU,
+#elif SLANG_LINUX_FAMILY
+    rhi::DeviceType::Vulkan,
+    rhi::DeviceType::CPU,
+    rhi::DeviceType::CUDA,
+    rhi::DeviceType::WGPU,
+#elif SLANG_APPLE_FAMILY
+    rhi::DeviceType::Vulkan,
+    rhi::DeviceType::Metal,
+    rhi::DeviceType::CPU,
+    rhi::DeviceType::CUDA,
+    rhi::DeviceType::WGPU,
+#endif
+};
+
+inline bool isPlatformDeviceType(DeviceType deviceType)
+{
+    for (DeviceType platformDeviceType : kPlatformDeviceTypes)
+    {
+        if (platformDeviceType == deviceType)
+        {
+            return true;
+        }
     }
+    return false;
+}
 
 using GpuTestFunc = void (*)(GpuTestContext*, ComPtr<IDevice>);
 
@@ -345,7 +368,7 @@ int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, cons
 
 // Register a GPU test case.
 // This will register one test case for each device type specified in the flags.
-// Each test will be named <name>[<deviceType>] where `deviceType` is the string representation of the device type.
+// Each test will be named <name>.<deviceType> where <deviceType> is the string representation of the device type.
 // The GPU test function has the following signature: void func(GpuTestContext* ctx, ComPtr<IDevice> device)
 // In addition to the device flags, the following flags can be used:
 // - GpuTestFlag::DontCreateDevice: Do not create a device (device argument is nullptr)

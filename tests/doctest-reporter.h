@@ -203,7 +203,7 @@ private:
     {
         printSeparator();
         printf("Checking for available devices:\n");
-        for (rhi::DeviceType deviceType : ALL_DEVICE_TYPES)
+        for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
         {
             printSeparator();
             printf("%s: ", rhi::getRHI()->getDeviceTypeName(deviceType));

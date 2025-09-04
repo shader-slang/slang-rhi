@@ -922,6 +922,10 @@ int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, cons
             continue;
 
         DeviceType deviceType = DeviceType(i);
+
+        if (!isPlatformDeviceType(deviceType))
+            continue;
+
         size_t testNameLen = strlen(name) + 16;
 
         GpuTestInfo* info = static_cast<GpuTestInfo*>(allocator.allocate(sizeof(GpuTestInfo) + testNameLen));
@@ -930,7 +934,7 @@ int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, cons
         info->flags = flags;
 
         char* testName = reinterpret_cast<char*>(info + 1);
-        snprintf(testName, testNameLen, "%s[%s]", name, deviceTypeToString(deviceType));
+        snprintf(testName, testNameLen, "%s.%s", name, deviceTypeToString(deviceType));
         testName[testNameLen - 1] = '\0';
 
         doctest::detail::regTest(
