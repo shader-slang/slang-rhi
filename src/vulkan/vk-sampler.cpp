@@ -107,10 +107,15 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     samplerInfo.minLod = max(0.0f, desc.minLOD);
     samplerInfo.maxLod = clamp(desc.maxLOD, samplerInfo.minLod, VK_LOD_CLAMP_NONE);
 
+    // Only add reduction mode info for non-comparison samplers
+    // Vulkan handles comparison sampling through compareEnable/compareOp, not reduction mode
     VkSamplerReductionModeCreateInfo reductionInfo = {VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO};
-    reductionInfo.reductionMode = translateReductionOp(desc.reductionOp);
-    reductionInfo.pNext = samplerInfo.pNext;
-    samplerInfo.pNext = &reductionInfo;
+    if (desc.reductionOp != TextureReductionOp::Comparison)
+    {
+        reductionInfo.reductionMode = translateReductionOp(desc.reductionOp);
+        reductionInfo.pNext = samplerInfo.pNext;
+        samplerInfo.pNext = &reductionInfo;
+    }
 
     VkSampler sampler;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &sampler));
