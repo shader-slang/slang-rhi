@@ -22,58 +22,41 @@ using namespace rhi;
 class ExampleSurface : public ExampleBase
 {
 public:
-    ComPtr<ICommandQueue> queue;
-    float grey = 0.5f;
-
-    const char* getName() const override { return "Surface"; }
-
-    Result init(DeviceType deviceType) override
+    static ExampleDesc getDesc()
     {
-        createDevice(deviceType);
-        createWindow();
-        createSurface();
-
-        queue = device->getQueue(QueueType::Graphics);
-
-        return SLANG_OK;
+        ExampleDesc desc;
+        desc.name = "Surface";
+        desc.requireFeatures = {Feature::Surface, Feature::Rasterization};
+        return desc;
     }
 
-    virtual void shutdown() override { queue->waitOnHost(); }
+    Result init() override { return SLANG_OK; }
 
-    virtual void update() override {}
+    virtual void shutdown() override {}
 
-    virtual void draw() override
+    virtual void update() override { m_grey = (m_grey + (1.f / 60.f)) > 1.f ? 0.f : m_grey + (1.f / 60.f); }
+
+    virtual void draw(ITexture* image) override
     {
-        if (!surface->getConfig())
-            return;
+        ComPtr<ITextureView> imageView = m_device->createTextureView(image, {});
 
-        ComPtr<ITexture> texture;
-        surface->acquireNextImage(texture.writeRef());
-        if (!texture)
-        {
-            return;
-        }
-        ComPtr<ITextureView> view = device->createTextureView(texture, {});
-
-        auto commandEncoder = queue->createCommandEncoder();
+        ComPtr<ICommandEncoder> commandEncoder = m_queue->createCommandEncoder();
         RenderPassColorAttachment colorAttachment;
-        colorAttachment.clearValue[0] = grey;
-        colorAttachment.clearValue[1] = grey;
-        colorAttachment.clearValue[2] = grey;
+        colorAttachment.clearValue[0] = m_grey;
+        colorAttachment.clearValue[1] = m_grey;
+        colorAttachment.clearValue[2] = m_grey;
         colorAttachment.clearValue[3] = 1.f;
         colorAttachment.loadOp = LoadOp::Clear;
-        colorAttachment.view = view;
+        colorAttachment.view = imageView;
         RenderPassDesc renderPass;
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
-        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
+        IRenderPassEncoder* passEncoder = commandEncoder->beginRenderPass(renderPass);
         passEncoder->end();
-        queue->submit(commandEncoder->finish());
-
-        surface->present();
-
-        grey = (grey + (1.f / 60.f)) > 1.f ? 0.f : grey + (1.f / 60.f);
+        m_queue->submit(commandEncoder->finish());
     }
+
+    float m_grey = 0.5f;
 };
 
 EXAMPLE_MAIN(ExampleSurface)
