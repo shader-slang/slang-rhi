@@ -153,7 +153,7 @@ endif()
 
 # Dawn WebGPU
 if(NOT DEFINED SLANG_RHI_DAWN_URL)
-    set(DAWN_VERSION "131.0.6738.0")
+    set(DAWN_VERSION "135.0.7049.80")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
