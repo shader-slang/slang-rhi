@@ -1787,6 +1787,9 @@ struct RenderPipelineDesc
     RasterizerDesc rasterizer;
     MultisampleDesc multisample;
 
+    // Defer target code compilation of program to dispatch time.
+    bool deferTargetCompilation = false;
+
     const char* label = nullptr;
 };
 
@@ -1797,6 +1800,9 @@ struct ComputePipelineDesc
 
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
+
+    // Defer target code compilation of program to dispatch time.
+    bool deferTargetCompilation = false;
 
     const char* label = nullptr;
 };
@@ -1831,6 +1837,9 @@ struct RayTracingPipelineDesc
     uint32_t maxRayPayloadSize = 0;
     uint32_t maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
+
+    // Defer target code compilation of program to dispatch time.
+    bool deferTargetCompilation = false;
 
     const char* label = nullptr;
 };
