@@ -21,7 +21,24 @@ public:
 
     virtual void shutdown() override {}
 
-    virtual void update() override { }
+    virtual void update() override
+    {
+        if (m_mouseDown[0])
+        {
+            m_stickyMousePos[0] = m_mousePos[0];
+            m_stickyMousePos[1] = m_mousePos[1];
+        }
+        bool wasMouseDown = m_combinedMouseDown;
+        m_combinedMouseDown = m_mouseDown[0] || m_mouseDown[1] || m_mouseDown[2];
+        if (m_combinedMouseDown && !wasMouseDown)
+        {
+            m_combinedMouseClicked = true;
+        }
+        else
+        {
+            m_combinedMouseClicked = false;
+        }
+    }
 
     virtual void draw(ITexture* image) override
     {
@@ -44,11 +61,11 @@ public:
         ShaderCursor cursor(passEncoder->bindPipeline(m_pipeline));
         float resolution[3] = {float(width), float(height), 1.0f};
         cursor["iResolution"].setData(resolution);
-        cursor["iTime"].setData(m_time);
-        cursor["iTimeDelta"].setData(m_timeDelta);
-        cursor["iFrameRate"].setData(m_frameRate);
+        cursor["iTime"].setData(float(m_time));
+        cursor["iTimeDelta"].setData(float(m_timeDelta));
+        cursor["iFrameRate"].setData(float(m_frameRate));
         cursor["iFrame"].setData(m_frame);
-        float mouse[4] = {0.f, 0.f, 0.f, 0.f};
+        float mouse[4] = {m_stickyMousePos[0], m_stickyMousePos[1], m_combinedMouseDown ? 1.f : 0.f, m_combinedMouseClicked ? 1.f : 0.f};
         cursor["iMouse"].setData(mouse);
         cursor["texture"].setBinding(m_texture);
         passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
@@ -59,6 +76,10 @@ public:
 
     ComPtr<IComputePipeline> m_pipeline;
     ComPtr<ITexture> m_texture;
+
+    float m_stickyMousePos[2] = {0.0f, 0.0f};
+    bool m_combinedMouseDown = false;
+    bool m_combinedMouseClicked = false;
 };
 
 EXAMPLE_MAIN(ExampleShaderToy)
