@@ -20,6 +20,9 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <execution>
+#include <limits>
 
 namespace rhi {
 
@@ -64,7 +67,7 @@ struct ExampleDesc
         DeviceType::Vulkan,
         DeviceType::Metal,
         DeviceType::CPU,
-        DeviceType::CUDA,
+        // DeviceType::CUDA,
         // DeviceType::WGPU,
     };
     std::vector<Feature> requireFeatures;
@@ -148,6 +151,7 @@ public:
 
 public:
     ExampleDesc m_desc;
+    DeviceType m_deviceType = DeviceType::Default;
     GLFWwindow* m_window = nullptr;
     ComPtr<IDevice> m_device;
     ComPtr<ICommandQueue> m_queue;
@@ -158,6 +162,7 @@ public:
     double m_timeDelta = 0.0;
     double m_frameRate = 0.0;
     float m_mousePos[2] = {0.0f, 0.0f};
+    bool m_mouseDown[3] = {false, false, false};
 
 private:
     ComPtr<IComputePipeline> m_blitComputePipeline;
@@ -723,6 +728,20 @@ static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, 
 {
     for (ExampleBase* example : getExamples())
     {
+        switch (button)
+        {
+        case GLFW_MOUSE_BUTTON_LEFT:
+            example->m_mouseDown[0] = (action == GLFW_PRESS);
+            break;
+        case GLFW_MOUSE_BUTTON_MIDDLE:
+            example->m_mouseDown[1] = (action == GLFW_PRESS);
+            break;
+        case GLFW_MOUSE_BUTTON_RIGHT:
+            example->m_mouseDown[2] = (action == GLFW_PRESS);
+            break;
+        default:
+            break;
+        }
         example->onMouseButton(button, action, mods);
     }
 }
@@ -735,6 +754,52 @@ static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffse
     }
 }
 
+
+template<typename T>
+struct ioterable
+{
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = T;
+    using difference_type = T;
+    using pointer = std::add_pointer_t<T>;
+    using reference = T;
+
+    explicit ioterable(T n)
+        : val_(n)
+    {
+    }
+
+    ioterable() = default;
+    ioterable(ioterable&&) = default;
+    ioterable(const ioterable&) = default;
+    ioterable& operator=(ioterable&&) = default;
+    ioterable& operator=(const ioterable&) = default;
+
+    ioterable& operator++()
+    {
+        ++val_;
+        return *this;
+    }
+    ioterable operator++(int)
+    {
+        ioterable tmp(*this);
+        ++val_;
+        return tmp;
+    }
+    bool operator==(const ioterable& other) const { return val_ == other.val_; }
+    bool operator!=(const ioterable& other) const { return val_ != other.val_; }
+
+    value_type operator*() const { return val_; }
+
+private:
+    T val_{std::numeric_limits<T>::max()};
+};
+template<typename T, typename Func>
+void parallelFor(T begin, T end, Func&& func)
+{
+    std::for_each(std::execution::par, ioterable(begin), ioterable(end), [&](T i) { func(i); });
+}
+
 template<typename Example>
 static int main(int argc, const char** argv)
 {
@@ -743,6 +808,72 @@ static int main(int argc, const char** argv)
 
     ExampleDesc desc = Example::getDesc();
 
+    std::vector<ExampleBase*>& examples = getExamples();
+
+    // Create an example for each supported device type
+    for (DeviceType deviceType : desc.supportedDeviceTypes)
+    {
+        if (rhi::getRHI()->isDeviceTypeSupported(deviceType))
+        {
+            Example* example = new Example();
+            example->m_desc = desc;
+            example->m_deviceType = deviceType;
+            examples.push_back(example);
+        }
+    }
+
+    // Initialize device (parallel)
+    parallelFor(
+        size_t(0),
+        examples.size(),
+        [&](size_t i)
+        {
+            ExampleBase* example = examples[i];
+            if (!SLANG_SUCCEEDED(example->createDevice(example->m_deviceType)))
+            {
+                delete example;
+                examples[i] = nullptr;
+            }
+        }
+    );
+    examples.erase(std::remove(examples.begin(), examples.end(), nullptr), examples.end());
+
+    // Create window and surface (serial due to GLFW)
+    for (size_t i = 0; i < examples.size(); ++i)
+    {
+        ExampleBase* example = examples[i];
+        if (!SLANG_SUCCEEDED(example->createWindow()))
+        {
+            delete example;
+            examples[i] = nullptr;
+            continue;
+        }
+        if (!SLANG_SUCCEEDED(example->createSurface()))
+        {
+            delete example;
+            examples[i] = nullptr;
+            continue;
+        }
+    }
+    examples.erase(std::remove(examples.begin(), examples.end(), nullptr), examples.end());
+
+    // Initialize examples (parallel)
+    parallelFor(
+        size_t(0),
+        examples.size(),
+        [&](size_t i)
+        {
+            ExampleBase* example = examples[i];
+            if (!SLANG_SUCCEEDED(example->init()))
+            {
+                delete example;
+                examples[i] = nullptr;
+            }
+        }
+    );
+    examples.erase(std::remove(examples.begin(), examples.end(), nullptr), examples.end());
+
+#if 0
     for (DeviceType deviceType : desc.supportedDeviceTypes)
     {
         if (!rhi::getRHI()->isDeviceTypeSupported(deviceType))
@@ -774,15 +905,16 @@ static int main(int argc, const char** argv)
         getExamples().push_back(example);
         SLANG_RETURN_ON_FAIL(example->init());
     }
+#endif
 
-    if (getExamples().size() > 1)
+    if (examples.size() > 1)
     {
         layoutWindows();
     }
 
     {
         double time = glfwGetTime();
-        for (ExampleBase* example : getExamples())
+        for (ExampleBase* example : examples)
         {
             example->m_time = time;
         }
@@ -791,7 +923,7 @@ static int main(int argc, const char** argv)
     while (true)
     {
         bool shouldClose = false;
-        for (ExampleBase* example : getExamples())
+        for (ExampleBase* example : examples)
         {
             if (glfwWindowShouldClose(example->m_window))
             {
@@ -808,11 +940,13 @@ static int main(int argc, const char** argv)
 
         double time = glfwGetTime();
 
-        for (ExampleBase* example : getExamples())
+        for (ExampleBase* example : examples)
+        {
             example->updateAndDraw(time);
+        }
     }
 
-    for (ExampleBase* example : getExamples())
+    for (ExampleBase* example : examples)
     {
         example->m_queue->waitOnHost();
         example->shutdown();

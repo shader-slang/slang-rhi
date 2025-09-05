@@ -31,5 +31,5 @@ void mainCompute(uint3 tid: SV_DispatchThreadID, uniform RWTexture2D<float4> tex
 
     float4 fragColor;
     mainImage(fragColor, tid.xy);
-    texture[tid.xy] = fragColor;
+    texture[uint2(tid.x, uint(iResolution.y) - tid.y - 1)] = fragColor;
 }
