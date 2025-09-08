@@ -11,7 +11,7 @@ uniform RWTexture2D resultTexture;
 uniform RaytracingAccelerationStructure sceneBVH;
 
 [shader("raygeneration")]
-void rayGenShaderA()
+void rayGenShaderIdx0()
 {
     uint2 pixel = DispatchRaysIndex().xy;
     if (any(pixel >= dims))
@@ -32,7 +32,7 @@ void rayGenShaderA()
 }
 
 [shader("raygeneration")]
-void rayGenShaderB()
+void rayGenShaderIdx1()
 {
     uint2 pixel = DispatchRaysIndex().xy;
     if (any(pixel >= dims))
@@ -53,19 +53,19 @@ void rayGenShaderB()
 }
 
 [shader("miss")]
-void missShaderA(inout RayPayload payload)
+void missShaderIdx0(inout RayPayload payload)
 {
     payload.color = float4(1, 1, 1, 1);
 }
 
 [shader("miss")]
-void missShaderB(inout RayPayload payload)
+void missShaderIdx1(inout RayPayload payload)
 {
     payload.color = float4(0, 0, 0, 1);
 }
 
 [shader("closesthit")]
-void closestHitShaderA(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+void closestHitShaderIdx0(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     uint primitiveIndex = PrimitiveIndex();
     float4 color = float4(0, 0, 0, 1);
@@ -74,7 +74,7 @@ void closestHitShaderA(inout RayPayload payload, in BuiltInTriangleIntersectionA
 }
 
 [shader("closesthit")]
-void closestHitShaderB(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+void closestHitShaderIdx1(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     uint primitiveIndex = PrimitiveIndex();
     float4 color = float4(1, 1, 1, 1);
