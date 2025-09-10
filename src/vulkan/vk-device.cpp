@@ -913,18 +913,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         }
 
         VkPhysicalDeviceProperties2 extendedProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-        VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProps = {
+        VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtpProps = {
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR
         };
         VkPhysicalDeviceSubgroupProperties subgroupProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES};
 
-        rtProps.pNext = extendedProps.pNext;
-        extendedProps.pNext = &rtProps;
-        subgroupProps.pNext = extendedProps.pNext;
-        extendedProps.pNext = &subgroupProps;
+        EXTEND_DESC_CHAIN(extendedProps, rtpProps);
+        EXTEND_DESC_CHAIN(extendedProps, subgroupProps);
 
         m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &extendedProps);
-        m_api.m_rtProperties = rtProps;
+        m_api.m_rayTracingPipelineProperties = rtpProps;
 
         // Approximate DX12's WaveOps boolean
         if (subgroupProps.supportedOperations &
@@ -1319,7 +1317,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
             VkImageFormatProperties2 imageProps = {VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2};
-            m_api.vkGetPhysicalDeviceImageFormatProperties2(m_api.m_physicalDevice, &imageInfo, &imageProps);
+            if (m_api.vkGetPhysicalDeviceImageFormatProperties2(m_api.m_physicalDevice, &imageInfo, &imageProps) !=
+                VK_SUCCESS)
+            {
+                m_formatSupport[formatIndex] = FormatSupport::None;
+                continue;
+            }
 
             if (imageProps.imageFormatProperties.sampleCounts > 1)
             {
