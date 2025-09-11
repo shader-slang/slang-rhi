@@ -274,6 +274,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
         DeviceLimits limits = {};
 
+        size_t totalMem = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceTotalMem(&totalMem, m_ctx.device), this);
+        limits.maxBufferSize = totalMem;
+
         limits.maxTextureDimension1D = getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE1D_WIDTH);
         limits.maxTextureDimension2D = min({
             getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE2D_WIDTH),

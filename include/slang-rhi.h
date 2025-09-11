@@ -2711,6 +2711,9 @@ private:
 
 struct DeviceLimits
 {
+    /// Maximum buffer size in bytes.
+    uint64_t maxBufferSize;
+
     /// Maximum dimension for 1D textures.
     uint32_t maxTextureDimension1D;
     /// Maximum dimensions for 2D textures.

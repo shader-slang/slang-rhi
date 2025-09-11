@@ -1169,6 +1169,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
         // Query device limits.
         DeviceLimits limits = {};
+        limits.maxBufferSize = 0x80000000ull; // Assume 2GB
         limits.maxTextureDimension1D = basicProps.limits.maxImageDimension1D;
         limits.maxTextureDimension2D = basicProps.limits.maxImageDimension2D;
         limits.maxTextureDimension3D = basicProps.limits.maxImageDimension3D;
