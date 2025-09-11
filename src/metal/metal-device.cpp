@@ -100,6 +100,44 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.apiName = "Metal";
         m_info.adapterName = "default";
         m_info.adapterLUID = {};
+
+        // TODO: Most limits cannot be queried through the Metal API but are described in
+        // https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
+        // We should ideally query the OS version and GPU family to set more accurate limits.
+        // For now we set some common values that should be safe across most devices.
+        DeviceLimits& limits = m_info.limits;
+        limits.maxBufferSize = static_cast<uint64_t>(m_device->maxBufferLength());
+
+        limits.maxTextureDimension1D = 16384;
+        limits.maxTextureDimension2D = 16384;
+        limits.maxTextureDimension3D = 2048;
+        limits.maxTextureDimensionCube = 16384;
+        limits.maxTextureLayers = 2048;
+
+        limits.maxVertexInputElements = 31;
+        limits.maxVertexInputElementOffset = 2047;
+        limits.maxVertexStreams = 31;
+        limits.maxVertexStreamStride = 2048;
+
+        MTL::Size maxThreadsPerThreadGroup = m_device->maxThreadsPerThreadgroup();
+        limits.maxComputeThreadsPerGroup = static_cast<uint32_t>(
+            maxThreadsPerThreadGroup.width * maxThreadsPerThreadGroup.height * maxThreadsPerThreadGroup.depth
+        );
+        limits.maxComputeThreadGroupSize[0] = static_cast<uint32_t>(maxThreadsPerThreadGroup.width);
+        limits.maxComputeThreadGroupSize[1] = static_cast<uint32_t>(maxThreadsPerThreadGroup.height);
+        limits.maxComputeThreadGroupSize[2] = static_cast<uint32_t>(maxThreadsPerThreadGroup.depth);
+        limits.maxComputeDispatchThreadGroups[0] = 0xffffffff;
+        limits.maxComputeDispatchThreadGroups[1] = 0xffffffff;
+        limits.maxComputeDispatchThreadGroups[2] = 0xffffffff;
+
+        limits.maxViewports = 16;
+        limits.maxViewportDimensions[0] = 16384;
+        limits.maxViewportDimensions[1] = 16384;
+        limits.maxFramebufferDimensions[0] = 16384;
+        limits.maxFramebufferDimensions[1] = 16384;
+        limits.maxFramebufferDimensions[2] = 2048;
+
+        limits.maxShaderVisibleSamplers = 16;
     }
 
     // Initialize features & capabilities.
