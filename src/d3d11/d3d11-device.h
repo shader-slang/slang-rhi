@@ -4,6 +4,12 @@
 
 namespace rhi::d3d11 {
 
+class AdapterImpl : public Adapter
+{
+public:
+    ComPtr<IDXGIAdapter> m_dxgiAdapter;
+};
+
 class DeviceImpl : public Device
 {
 public:
@@ -111,7 +117,7 @@ public:
 
 namespace rhi {
 
-Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
+Result getD3D11Adapter(uint32_t index, IAdapter** outAdapter);
+Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

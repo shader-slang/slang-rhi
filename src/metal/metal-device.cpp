@@ -404,6 +404,11 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 
 namespace rhi {
 
+Result getMetalAdapter(uint32_t index, IAdapter** outAdapter)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
 Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters)
 {
     AUTORELEASEPOOL

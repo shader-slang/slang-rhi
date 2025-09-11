@@ -45,6 +45,10 @@ int main(int argc, char** argv)
         {
             options.checkDevices = true;
         }
+        if (strcmp(argv[i], "-list-adapters") == 0)
+        {
+            options.listAdapters = true;
+        }
     }
 
     int result = 1;

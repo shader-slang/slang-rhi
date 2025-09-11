@@ -14,6 +14,12 @@ struct Context
 #endif
 };
 
+class AdapterImpl : public Adapter
+{
+public:
+    CUdevice m_device;
+};
+
 class DeviceImpl : public Device
 {
 private:

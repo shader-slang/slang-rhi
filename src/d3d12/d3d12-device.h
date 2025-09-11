@@ -272,8 +272,8 @@ private:
 
 namespace rhi {
 
-Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
-void SLANG_MCALL enableD3D12DebugLayerIfAvailable();
+Result getD3D12Adapter(uint32_t index, IAdapter** outAdapter);
+Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
+void enableD3D12DebugLayerIfAvailable();
 
 } // namespace rhi

@@ -142,6 +142,11 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 
 namespace rhi {
 
+Result getCPUAdapter(uint32_t index, IAdapter** outAdapter)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
 Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<cpu::DeviceImpl> result = new cpu::DeviceImpl();

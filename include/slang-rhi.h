@@ -2677,6 +2677,8 @@ struct AdapterLUID
 
 struct AdapterInfo
 {
+    DeviceType deviceType;
+
     // Descriptive name of the adapter.
     char name[128];
 
@@ -2690,23 +2692,12 @@ struct AdapterInfo
     AdapterLUID luid;
 };
 
-class AdapterList
+class IAdapter : public ISlangUnknown
 {
+    SLANG_COM_INTERFACE(0xe776fc81, 0x1d55, 0x4779, {0x90, 0x09, 0xfc, 0xa2, 0xba, 0x91, 0x92, 0xde});
+
 public:
-    AdapterList(ISlangBlob* blob)
-        : m_blob(blob)
-    {
-    }
-
-    const AdapterInfo* getAdapters() const
-    {
-        return reinterpret_cast<const AdapterInfo*>(m_blob ? m_blob->getBufferPointer() : nullptr);
-    }
-
-    uint32_t getCount() const { return (uint32_t)(m_blob ? m_blob->getBufferSize() / sizeof(AdapterInfo) : 0); }
-
-private:
-    ComPtr<ISlangBlob> m_blob;
+    virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const = 0;
 };
 
 struct DeviceLimits
@@ -3358,14 +3349,13 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getFeatureName(Feature feature) = 0;
     virtual SLANG_NO_THROW const char* SLANG_MCALL getCapabilityName(Capability capability) = 0;
 
-    /// Gets a list of available adapters for a given device type.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAdapter(DeviceType type, uint32_t index, IAdapter** outAdapter) = 0;
 
-    inline AdapterList getAdapters(DeviceType type)
+    inline ComPtr<IAdapter> getAdapter(DeviceType type, uint32_t index)
     {
-        ComPtr<ISlangBlob> blob;
-        SLANG_RETURN_NULL_ON_FAIL(getAdapters(type, blob.writeRef()));
-        return AdapterList(blob);
+        ComPtr<IAdapter> adapter;
+        SLANG_RETURN_NULL_ON_FAIL(getAdapter(type, index, adapter.writeRef()));
+        return adapter;
     }
 
     /// Enable debug layers, if available

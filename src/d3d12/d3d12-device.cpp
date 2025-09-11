@@ -1950,7 +1950,12 @@ DeviceImpl::~DeviceImpl()
 
 namespace rhi {
 
-Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
+Result getD3D12Adapter(uint32_t index, IAdapter** outAdapter)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
+Result getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
 {
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
     SLANG_RETURN_ON_FAIL(findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
@@ -1971,7 +1976,7 @@ Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
+Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<d3d12::DeviceImpl> result = new d3d12::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));
@@ -1979,7 +1984,7 @@ Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice
     return SLANG_OK;
 }
 
-void SLANG_MCALL enableD3D12DebugLayerIfAvailable()
+void enableD3D12DebugLayerIfAvailable()
 {
     SharedLibraryHandle d3dModule;
 #if SLANG_WINDOWS_FAMILY

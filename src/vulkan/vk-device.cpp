@@ -1869,9 +1869,20 @@ Result DeviceImpl::waitForFences(
     return result == VK_SUCCESS ? SLANG_OK : SLANG_FAIL;
 }
 
+// const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+// {
+//     static std::vector<RefPtr<AdapterImpl>> adapters = getAdaptersImpl();
+//     return adapters;
+// }
+
 } // namespace rhi::vk
 
 namespace rhi {
+
+Result getVKAdapter(uint32_t index, IAdapter** outAdapter)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
 
 Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
 {

@@ -558,6 +558,11 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
 
 namespace rhi {
 
+Result getWGPUAdapter(uint32_t index, IAdapter** outAdapter)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
 Result SLANG_MCALL getWGPUAdapters(std::vector<AdapterInfo>& outAdapters)
 {
     // TODO: implement

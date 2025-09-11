@@ -19,6 +19,7 @@ struct Options
 {
     bool verbose = false;
     bool checkDevices = false;
+    bool listAdapters = false;
 };
 
 inline Options& options()

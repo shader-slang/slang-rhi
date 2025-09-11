@@ -685,16 +685,13 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
-} // namespace rhi::cuda
-
-namespace rhi {
-
-Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
+inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
 {
     if (!rhiCudaDriverApiInit())
     {
         return SLANG_FAIL;
     }
+
     SLANG_CUDA_RETURN_ON_FAIL(cuInit(0));
     int deviceCount;
     SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
@@ -704,11 +701,39 @@ Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
         SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, deviceIndex));
 
         AdapterInfo info = {};
+        info.deviceType = DeviceType::CUDA;
         SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
         info.luid = cuda::getAdapterLUID(deviceIndex);
-        outAdapters.push_back(info);
+
+        RefPtr<AdapterImpl> adapter = new AdapterImpl();
+        adapter->m_info = info;
+        adapter->m_device = device;
+        outAdapters.push_back(adapter);
     }
 
+    return SLANG_OK;
+}
+
+const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+{
+    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_RHI_ASSERT(SLANG_SUCCEEDED(initResult));
+    return adapters;
+}
+
+} // namespace rhi::cuda
+
+namespace rhi {
+
+Result getCUDAAdapter(uint32_t index, IAdapter** outAdapter)
+{
+    const std::vector<RefPtr<cuda::AdapterImpl>>& adapters = cuda::getAdapters();
+    if (index >= adapters.size())
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    returnComPtr(outAdapter, adapters[index]);
     return SLANG_OK;
 }
 

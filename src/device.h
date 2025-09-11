@@ -25,6 +25,24 @@ namespace testing {
 extern bool gDebugDisableStateTracking;
 } // namespace testing
 
+class Adapter : public IAdapter, public ComObject
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+
+    IAdapter* getInterface(const Guid& guid)
+    {
+        if (guid == ISlangUnknown::getTypeGuid() || guid == IAdapter::getTypeGuid())
+            return static_cast<IAdapter*>(this);
+        return nullptr;
+    }
+
+    virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const override { return m_info; }
+
+public:
+    AdapterInfo m_info;
+};
+
 struct ComponentKey
 {
     std::string typeName;

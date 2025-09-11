@@ -39,14 +39,36 @@ struct CustomReporter : public IReporter
             stream << "Additional slang-rhi specific options. Available:\n\n";
             stream << " -verbose                              print messages from the slang-rhi layer\n";
             stream << " -check-devices                        print information about detected GPU devices on startup\n";
+            stream << " -list-adapters                        print information about available GPU adapters and exit\n";
             // clang-format on
         }
     }
 
     void test_run_start() override
     {
-        runTimer.start();
         stream << Color::None;
+
+        if (rhi::testing::options().listAdapters)
+        {
+            for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
+            {
+                printf("%s adapters:\n", rhi::getRHI()->getDeviceTypeName(deviceType));
+                for (uint32_t i = 0;; ++i)
+                {
+                    Slang::ComPtr<rhi::IAdapter> adapter;
+                    if (SLANG_FAILED(rhi::getRHI()->getAdapter(deviceType, i, adapter.writeRef())))
+                    {
+                        break;
+                    }
+                    const rhi::AdapterInfo& info = adapter->getInfo();
+                    printf("  %u: %s\n", i, info.name);
+                    if (i > 10) break;
+                }
+            }
+            exit(0);
+        }
+
+        runTimer.start();
         consoleReporter.test_run_start();
 
         if (rhi::testing::options().checkDevices)

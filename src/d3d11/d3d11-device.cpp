@@ -653,32 +653,55 @@ Result DeviceImpl::createRootShaderObjectLayout(
     return SLANG_FAIL;
 }
 
-} // namespace rhi::d3d11
-
-namespace rhi {
-
-Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters)
+inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
 {
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
     SLANG_RETURN_ON_FAIL(findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
 
-    outAdapters.clear();
     for (const auto& dxgiAdapter : dxgiAdapters)
     {
         DXGI_ADAPTER_DESC desc;
         dxgiAdapter->GetDesc(&desc);
         AdapterInfo info = {};
+        info.deviceType = DeviceType::D3D11;
         auto name = string::from_wstring(desc.Description);
         memcpy(info.name, name.data(), min(name.size(), sizeof(AdapterInfo::name) - 1));
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
         info.luid = getAdapterLUID(dxgiAdapter);
-        outAdapters.push_back(info);
+
+        RefPtr<AdapterImpl> adapter = new AdapterImpl();
+        adapter->m_dxgiAdapter = dxgiAdapter;
+        adapter->m_info = info;
+        outAdapters.push_back(adapter);
     }
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice)
+const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+{
+    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_RHI_ASSERT(SLANG_SUCCEEDED(initResult));
+    return adapters;
+}
+
+} // namespace rhi::d3d11
+
+namespace rhi {
+
+Result getD3D11Adapter(uint32_t index, IAdapter** outAdapter)
+{
+    const std::vector<RefPtr<d3d11::AdapterImpl>>& adapters = d3d11::getAdapters();
+    if (index >= adapters.size())
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    returnComPtr(outAdapter, adapters[index]);
+    return SLANG_OK;
+}
+
+Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<d3d11::DeviceImpl> result = new d3d11::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

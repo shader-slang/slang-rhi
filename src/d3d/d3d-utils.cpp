@@ -490,7 +490,7 @@ Result reportLiveObjects()
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result SLANG_MCALL reportD3DLiveObjects()
+Result reportD3DLiveObjects()
 {
     return reportLiveObjects();
 }
