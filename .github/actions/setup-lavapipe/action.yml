@@ -22,11 +22,19 @@ runs:
         # Determine arch (x64 or arm64)
         $arch = if ([System.Environment]::Is64BitOperatingSystem) { "x64" } else { "arm64" }
 
-        # Fetch latest Mesa release
+        # Get latest release metadata
         $release = Invoke-RestMethod "https://api.github.com/repos/mmozeiko/build-mesa/releases/latest"
-        $asset = $release.assets | Where-Object { $_.name -match "mesa-.*-windows-$arch.7z" }
-        $url = $asset.browser_download_url
 
+        # Match mesa-lavapipe-<arch>-*.7z
+        $pattern = "mesa-lavapipe-$arch-.*\.7z$"
+        $asset = $release.assets | Where-Object { $_.name -match $pattern }
+
+        if (-not $asset) {
+          Write-Error "Could not find Mesa Lavapipe build asset for $arch"
+          exit 1
+        }
+
+        $url = $asset.browser_download_url
         Write-Host "Downloading $url"
         curl -L -o mesa.7z $url
 
