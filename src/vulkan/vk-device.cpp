@@ -1354,6 +1354,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_formatSupport[formatIndex] = formatSupport;
     }
 
+    // TODO: If this is a software device, disable 12 bytes per pixel formats,
+    // since they require buffer offsets to be 12-byte aligned which we currently
+    // don't guarantee.
+    // This is actually raised by validation layers, so we should fix this in the long run.
+    if (isSoftwareDevice) {
+        m_formatSupport[size_t(Format::RGB32Uint)] = FormatSupport::None;
+        m_formatSupport[size_t(Format::RGB32Sint)] = FormatSupport::None;
+        m_formatSupport[size_t(Format::RGB32Float)] = FormatSupport::None;
+    }
+
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(
         m_slangContext
