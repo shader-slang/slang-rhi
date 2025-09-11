@@ -45,6 +45,7 @@ runs:
         $icdFile = Get-ChildItem mesa\* -Recurse -Include "lvp_icd*.json" | Select-Object -First 1
         Write-Host "Found ICD JSON at $($icdFile.FullName)"
         echo "VK_DRIVER_FILES=$($icdFile.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "VK_ICD_FILENAMES=$($icdFile.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
         $dllDir = $icdFile.DirectoryName
         Write-Host "Adding DLL directory to PATH: $dllDir"
