@@ -609,6 +609,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Query device limits.
     {
         DeviceLimits limits = {};
+        limits.maxBufferSize = 0x80000000ull; // Assume 2GB
         limits.maxTextureDimension1D = D3D12_REQ_TEXTURE1D_U_DIMENSION;
         limits.maxTextureDimension2D = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
         limits.maxTextureDimension3D = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
