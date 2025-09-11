@@ -80,6 +80,12 @@ jobs:
         if: contains(matrix.flags, 'lavapipe')
         uses: ./.github/actions/setup-lavapipe
 
+      - name: Debug environment
+        shell: pwsh
+        run: |
+          Write-Host "VK_DRIVER_FILES: $env:VK_DRIVER_FILES"
+          Write-Host "PATH: $env:PATH"
+
       - name: Configure
         run: cmake --preset ${{matrix.preset}} -S . -B build ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
 
