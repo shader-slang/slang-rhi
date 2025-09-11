@@ -1358,7 +1358,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // since they require buffer offsets to be 12-byte aligned which we currently
     // don't guarantee.
     // This is actually raised by validation layers, so we should fix this in the long run.
-    if (isSoftwareDevice) {
+    if (isSoftwareDevice)
+    {
         m_formatSupport[size_t(Format::RGB32Uint)] = FormatSupport::None;
         m_formatSupport[size_t(Format::RGB32Sint)] = FormatSupport::None;
         m_formatSupport[size_t(Format::RGB32Float)] = FormatSupport::None;
