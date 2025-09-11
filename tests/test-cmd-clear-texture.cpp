@@ -195,6 +195,12 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
 
 GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
+    if ((device->getDeviceType() == DeviceType::D3D11 || device->getDeviceType() == DeviceType::D3D12) &&
+        device->hasFeature(Feature::SoftwareDevice))
+    {
+        SKIP("Skip on D3D11/D3D12 software device, which fails with RGBA8Uint format");
+    }
+
     TextureTestOptions options(device, 1);
     options
         .addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kUintFormats, TextureUsage::UnorderedAccess);
