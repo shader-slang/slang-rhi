@@ -1,0 +1,54 @@
+name: "Setup lavapipe"
+description: "Installs the Mesa lavapipe Vulkan software driver and sets VK_DRIVER_FILES"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Lavapipe (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mesa-vulkan-drivers
+
+        # find lavapipe ICD JSON file
+        ICD_FILE=$(ls /usr/share/vulkan/icd.d/lvp_icd.*.json | head -n1)
+        echo "VK_DRIVER_FILES=$ICD_FILE" >> $GITHUB_ENV
+
+    - name: Install Lavapipe (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        # Install Vulkan SDK (to get vulkan loader)
+        choco install vulkan-sdk --yes --no-progress
+
+        # Determine arch (x64 or arm64)
+        $arch = if ([System.Environment]::Is64BitOperatingSystem) { "x64" } else { "arm64" }
+
+        # Get latest release metadata
+        $release = Invoke-RestMethod "https://api.github.com/repos/mmozeiko/build-mesa/releases/latest"
+
+        # Match mesa-lavapipe-<arch>-*.7z
+        $pattern = "mesa-lavapipe-$arch-.*\.7z$"
+        $asset = $release.assets | Where-Object { $_.name -match $pattern }
+
+        if (-not $asset) {
+          Write-Error "Could not find Mesa Lavapipe build asset for $arch"
+          exit 1
+        }
+
+        $url = $asset.browser_download_url
+        Write-Host "Downloading $url"
+        curl -L -o mesa.7z $url
+
+        # Extract with 7zip (already available on GitHub Windows runners)
+        7z x mesa.7z -omesa
+
+        # Locate ICD JSON
+        $icdFile = Get-ChildItem mesa\* -Recurse -Include "lvp_icd*.json" | Select-Object -First 1
+        Write-Host "Found ICD JSON at $($icdFile.FullName)"
+        echo "VK_DRIVER_FILES=$($icdFile.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+        $dllDir = $icdFile.DirectoryName
+        Write-Host "Adding DLL directory to PATH: $dllDir"
+        echo "$dllDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
