@@ -824,18 +824,6 @@ bool isDeviceTypeAvailable(DeviceType deviceType)
     return sDeviceTypeAvailable[deviceType];
 }
 
-bool isSwiftShaderDevice(IDevice* device)
-{
-    std::string adapterName = device->getInfo().adapterName;
-    std::transform(
-        adapterName.begin(),
-        adapterName.end(),
-        adapterName.begin(),
-        [](unsigned char c) { return std::tolower(c); }
-    );
-    return adapterName.find("swiftshader") != std::string::npos;
-}
-
 slang::IGlobalSession* getSlangGlobalSession()
 {
     static slang::IGlobalSession* slangGlobalSession = []()

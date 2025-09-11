@@ -204,22 +204,16 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #endif
         instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
         instanceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
-
-        // Software (swiftshader) implementation currently does not support surface extension,
-        // so only use it with a hardware implementation.
-        if (!m_api.m_module->isSoftware())
-        {
-            instanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-            // Note: this extension is not yet supported by nvidia drivers, disable for now.
-            // instanceExtensions.push_back("VK_GOOGLE_surfaceless_query");
+        instanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+        // Note: this extension is not yet supported by nvidia drivers, disable for now.
+        // instanceExtensions.push_back("VK_GOOGLE_surfaceless_query");
 #if SLANG_WINDOWS_FAMILY
-            instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+        instanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif SLANG_APPLE_FAMILY
-            instanceExtensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+        instanceExtensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 #elif SLANG_LINUX_FAMILY
-            instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
+        instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
 #endif
-        }
 
         if (enableValidationLayer)
         {
@@ -1146,32 +1140,22 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    Result initDeviceResult = SLANG_OK;
     std::vector<Feature> availableFeatures;
     std::vector<Capability> availableCapabilities;
-    for (int forceSoftware = 0; forceSoftware <= 1; forceSoftware++)
-    {
-        initDeviceResult = m_module.init(forceSoftware != 0);
-        if (initDeviceResult != SLANG_OK)
-            continue;
-        initDeviceResult = m_api.initGlobalProcs(m_module);
-        if (initDeviceResult != SLANG_OK)
-            continue;
-        descriptorSetAllocator.m_api = &m_api;
-        initDeviceResult =
-            initVulkanInstanceAndDevice(desc, isDebugLayersEnabled(), availableFeatures, availableCapabilities);
-        if (initDeviceResult == SLANG_OK)
-            break;
-    }
-    SLANG_RETURN_ON_FAIL(initDeviceResult);
+    SLANG_RETURN_ON_FAIL(m_module.init());
+    SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
+    descriptorSetAllocator.m_api = &m_api;
+    SLANG_RETURN_ON_FAIL(
+        initVulkanInstanceAndDevice(desc, isDebugLayersEnabled(), availableFeatures, availableCapabilities)
+    );
+
+    VkPhysicalDeviceProperties basicProps = {};
+    m_api.vkGetPhysicalDeviceProperties(m_api.m_physicalDevice, &basicProps);
 
     // Initialize device info.
     {
         m_info.deviceType = DeviceType::Vulkan;
         m_info.apiName = "Vulkan";
-
-        VkPhysicalDeviceProperties basicProps = {};
-        m_api.vkGetPhysicalDeviceProperties(m_api.m_physicalDevice, &basicProps);
 
         // Query adapter name.
         m_adapterName = basicProps.deviceName;
@@ -1217,7 +1201,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize features & capabilities.
-    addFeature(m_api.m_module->isSoftware() ? Feature::SoftwareDevice : Feature::HardwareDevice);
+    bool isSoftwareDevice = (basicProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_OTHER) ||
+                            (basicProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU);
+    addFeature(isSoftwareDevice ? Feature::SoftwareDevice : Feature::HardwareDevice);
     addFeature(Feature::Surface);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Rasterization);
@@ -1885,61 +1871,54 @@ namespace rhi {
 
 Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters)
 {
-    for (int forceSoftware = 0; forceSoftware <= 1; forceSoftware++)
+    vk::VulkanModule module;
+    SLANG_RETURN_ON_FAIL(module.init());
+    vk::VulkanApi api;
+    SLANG_RETURN_ON_FAIL(api.initGlobalProcs(module));
+
+    VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    const char* instanceExtensions[] = {
+        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+#if SLANG_APPLE_FAMILY
+        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+#endif
+    };
+    instanceCreateInfo.enabledExtensionCount = SLANG_COUNT_OF(instanceExtensions);
+    instanceCreateInfo.ppEnabledExtensionNames = &instanceExtensions[0];
+#if SLANG_APPLE_FAMILY
+    instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+    VkInstance instance;
+    SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
+
+    // This will fail due to not loading any extensions.
+    api.initInstanceProcs(instance);
+
+    // Make sure required functions for enumerating physical devices were loaded.
+    if (api.vkEnumeratePhysicalDevices || api.vkGetPhysicalDeviceProperties)
     {
-        vk::VulkanModule module;
-        if (module.init(forceSoftware != 0) != SLANG_OK)
-            continue;
-        vk::VulkanApi api;
-        if (api.initGlobalProcs(module) != SLANG_OK)
-            continue;
+        uint32_t numPhysicalDevices = 0;
+        SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
 
-        VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-        const char* instanceExtensions[] = {
-            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-#if SLANG_APPLE_FAMILY
-            VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
-#endif
-        };
-        instanceCreateInfo.enabledExtensionCount = SLANG_COUNT_OF(instanceExtensions);
-        instanceCreateInfo.ppEnabledExtensionNames = &instanceExtensions[0];
-#if SLANG_APPLE_FAMILY
-        instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-        VkInstance instance;
-        SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
+        std::vector<VkPhysicalDevice> physicalDevices;
+        physicalDevices.resize(numPhysicalDevices);
+        SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data()));
 
-        // This will fail due to not loading any extensions.
-        api.initInstanceProcs(instance);
-
-        // Make sure required functions for enumerating physical devices were loaded.
-        if (api.vkEnumeratePhysicalDevices || api.vkGetPhysicalDeviceProperties)
+        for (const auto& physicalDevice : physicalDevices)
         {
-            uint32_t numPhysicalDevices = 0;
-            SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, nullptr));
-
-            std::vector<VkPhysicalDevice> physicalDevices;
-            physicalDevices.resize(numPhysicalDevices);
-            SLANG_VK_RETURN_ON_FAIL(
-                api.vkEnumeratePhysicalDevices(instance, &numPhysicalDevices, physicalDevices.data())
-            );
-
-            for (const auto& physicalDevice : physicalDevices)
-            {
-                VkPhysicalDeviceProperties props;
-                api.vkGetPhysicalDeviceProperties(physicalDevice, &props);
-                AdapterInfo info = {};
-                memcpy(info.name, props.deviceName, min(strlen(props.deviceName), sizeof(AdapterInfo::name) - 1));
-                info.vendorID = props.vendorID;
-                info.deviceID = props.deviceID;
-                info.luid = vk::getAdapterLUID(api, physicalDevice);
-                outAdapters.push_back(info);
-            }
+            VkPhysicalDeviceProperties props;
+            api.vkGetPhysicalDeviceProperties(physicalDevice, &props);
+            AdapterInfo info = {};
+            memcpy(info.name, props.deviceName, min(strlen(props.deviceName), sizeof(AdapterInfo::name) - 1));
+            info.vendorID = props.vendorID;
+            info.deviceID = props.deviceID;
+            info.luid = vk::getAdapterLUID(api, physicalDevice);
+            outAdapters.push_back(info);
         }
-
-        api.vkDestroyInstance(instance, nullptr);
-        module.destroy();
     }
+
+    api.vkDestroyInstance(instance, nullptr);
+    module.destroy();
 
     return SLANG_OK;
 }

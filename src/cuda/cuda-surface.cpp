@@ -212,7 +212,7 @@ Result SurfaceImpl::createVulkanInstance()
 {
     SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
 
-    SLANG_RETURN_ON_FAIL(m_module.init(false));
+    SLANG_RETURN_ON_FAIL(m_module.init());
     SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
 
     VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
