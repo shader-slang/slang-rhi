@@ -2677,19 +2677,23 @@ struct AdapterLUID
 
 struct AdapterInfo
 {
+    // Device type of the adapter.
+    DeviceType deviceType;
+
     // Descriptive name of the adapter.
     char name[128];
 
-    // Unique identifier for the vendor (only available for D3D and Vulkan).
+    // Unique identifier for the vendor (0 if not available).
     uint32_t vendorID;
 
-    // Unique identifier for the physical device among devices from the vendor (only available for D3D and Vulkan)
+    // Unique identifier for the physical device among devices from the vendor (0 if not available)
     uint32_t deviceID;
 
     // Logically unique identifier of the adapter.
     AdapterLUID luid;
 };
 
+// Deprecated
 class AdapterList
 {
 public:
@@ -2707,6 +2711,14 @@ public:
 
 private:
     ComPtr<ISlangBlob> m_blob;
+};
+
+class IAdapter : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0xe776fc81, 0x1d55, 0x4779, {0x90, 0x09, 0xfc, 0xa2, 0xba, 0x91, 0x92, 0xde});
+
+public:
+    virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const = 0;
 };
 
 struct DeviceLimits
@@ -2848,7 +2860,9 @@ struct DeviceDesc
     // For CUDA, this contains a handle for the device and/or a handle for the context. If context is provided,
     // device is ignored (and retreived from context). If only device is provided, a context is created for it.
     DeviceNativeHandles existingDeviceHandles;
-    // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
+    // Adapter to use.
+    IAdapter* adapter = nullptr;
+    // LUID of the adapter to use (deprecated).
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
     uint32_t requiredFeatureCount = 0;
@@ -3358,7 +3372,16 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getFeatureName(Feature feature) = 0;
     virtual SLANG_NO_THROW const char* SLANG_MCALL getCapabilityName(Capability capability) = 0;
 
-    /// Gets a list of available adapters for a given device type.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAdapter(DeviceType type, uint32_t index, IAdapter** outAdapter) = 0;
+
+    inline ComPtr<IAdapter> getAdapter(DeviceType type, uint32_t index)
+    {
+        ComPtr<IAdapter> adapter;
+        SLANG_RETURN_NULL_ON_FAIL(getAdapter(type, index, adapter.writeRef()));
+        return adapter;
+    }
+
+    /// Deprecated. Gets a list of available adapters for a given device type.
     virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
 
     inline AdapterList getAdapters(DeviceType type)
