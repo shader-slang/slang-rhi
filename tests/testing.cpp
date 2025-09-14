@@ -636,10 +636,10 @@ void initializeRenderDoc()
 
     SharedLibraryHandle module = {};
 #if SLANG_WINDOWS_FAMILY
-    if (!SLANG_SUCCEEDED(loadSharedLibrary("renderdoc.dll", module)))
+    if (SLANG_FAILED(loadSharedLibrary("renderdoc.dll", module)))
         return;
 #elif SLANG_LINUX_FAMILY
-    if (!SLANG_SUCCEEDED(loadSharedLibrary("librenderdoc.so", module)))
+    if (SLANG_FAILED(loadSharedLibrary("librenderdoc.so", module)))
         return;
 #else
     return;
@@ -738,7 +738,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #endif
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
-    if (!SLANG_SUCCEEDED(createResult))
+    if (SLANG_FAILED(createResult))
         RETURN_NOT_AVAILABLE("failed to create device");
 
     // Try compiling a trivial shader.
@@ -758,7 +758,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     }
 
     ComPtr<slang::IEntryPoint> entryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
+    if (SLANG_FAILED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
         RETURN_NOT_AVAILABLE("failed to find shader entry point");
 
     ComPtr<slang::IComponentType> composedProgram;

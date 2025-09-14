@@ -27,7 +27,7 @@ void RenderPassEncoder::writeRenderState()
     cmd.state = m_renderState;
     cmd.pipeline = m_pipeline;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
     {
         m_commandEncoder->getDevice()
             ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
@@ -42,7 +42,7 @@ IShaderObject* RenderPassEncoder::bindPipeline(IRenderPipeline* pipeline)
     {
         m_pipeline = pipeline;
         ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-        if (!SLANG_SUCCEEDED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
             return nullptr;
         return m_rootObject;
     }
@@ -210,7 +210,7 @@ void ComputePassEncoder::writeComputeState()
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
     {
         m_commandEncoder->getDevice()
             ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
@@ -225,7 +225,7 @@ IShaderObject* ComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
     {
         m_pipeline = pipeline;
         ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-        if (!SLANG_SUCCEEDED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
             return nullptr;
         return m_rootObject;
     }
@@ -339,7 +339,7 @@ void RayTracingPassEncoder::writeRayTracingState()
     cmd.pipeline = m_pipeline;
     cmd.shaderTable = m_shaderTable;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
     {
         m_commandEncoder->getDevice()
             ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
@@ -356,7 +356,7 @@ IShaderObject* RayTracingPassEncoder::bindPipeline(IRayTracingPipeline* pipeline
         m_pipeline = pipeline;
         m_shaderTable = shaderTable;
         ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-        if (!SLANG_SUCCEEDED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
             return nullptr;
         return m_rootObject;
     }
