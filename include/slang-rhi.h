@@ -2885,6 +2885,8 @@ struct DeviceDesc
     bool enableValidation = false;
     /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
     bool enableRayTracingValidation = false;
+    /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
+    bool enableAftermath = false;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
 
