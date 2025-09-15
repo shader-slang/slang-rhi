@@ -474,6 +474,29 @@ Result loadRenderProgramFromSource(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
+const char* deviceTypeToString(DeviceType deviceType)
+{
+    switch (deviceType)
+    {
+    case DeviceType::D3D11:
+        return "d3d11";
+    case DeviceType::D3D12:
+        return "d3d12";
+    case DeviceType::Vulkan:
+        return "vulkan";
+    case DeviceType::Metal:
+        return "metal";
+    case DeviceType::CPU:
+        return "cpu";
+    case DeviceType::CUDA:
+        return "cuda";
+    case DeviceType::WGPU:
+        return "wgpu";
+    default:
+        return "unknown";
+    }
+}
+
 ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
@@ -499,6 +522,7 @@ ComPtr<IDevice> createTestingDevice(
     ComPtr<IDevice> device;
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
+    deviceDesc.adapter = getSelectedDeviceAdapter(deviceType);
 #if ENABLE_SHADER_CACHE
     deviceDesc.persistentShaderCache = &gShaderCache;
 #endif
@@ -677,29 +701,6 @@ void renderDocBeginFrame() {}
 void renderDocEndFrame() {}
 #endif
 
-inline const char* deviceTypeToString(DeviceType deviceType)
-{
-    switch (deviceType)
-    {
-    case DeviceType::D3D11:
-        return "d3d11";
-    case DeviceType::D3D12:
-        return "d3d12";
-    case DeviceType::Vulkan:
-        return "vulkan";
-    case DeviceType::Metal:
-        return "metal";
-    case DeviceType::CPU:
-        return "cpu";
-    case DeviceType::CUDA:
-        return "cuda";
-    case DeviceType::WGPU:
-        return "wgpu";
-    default:
-        return "unknown";
-    }
-}
-
 static std::map<DeviceType, bool> sDeviceTypeAvailable;
 
 DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
@@ -733,6 +734,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     ComPtr<IDevice> device;
     DeviceDesc desc;
     desc.deviceType = deviceType;
+    desc.adapter = getSelectedDeviceAdapter(deviceType);
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
@@ -824,6 +826,19 @@ bool isDeviceTypeAvailable(DeviceType deviceType)
     return sDeviceTypeAvailable[deviceType];
 }
 
+bool isDeviceTypeSelected(DeviceType deviceType)
+{
+    return options().deviceSelected[size_t(deviceType)];
+}
+
+rhi::IAdapter* getSelectedDeviceAdapter(DeviceType deviceType)
+{
+    int adapterIndex = options().deviceAdapterIndex[size_t(deviceType)];
+    if (adapterIndex < 0)
+        return nullptr;
+    return rhi::getRHI()->getAdapter(deviceType, adapterIndex);
+}
+
 slang::IGlobalSession* getSlangGlobalSession()
 {
     static slang::IGlobalSession* slangGlobalSession = []()
@@ -846,6 +861,11 @@ static void gpuTestTrampoline()
     DeviceType deviceType = info->deviceType;
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+
+    if (!isDeviceTypeSelected(deviceType))
+    {
+        SKIP("device not selected");
+    }
 
     if (isDeviceTypeAvailable(deviceType))
     {
