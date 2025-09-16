@@ -22,6 +22,8 @@
 #include "GFSDK_Aftermath_GpuCrashDump.h"
 #endif
 
+#include <algorithm>
+
 namespace rhi::d3d12 {
 
 // List of validation messages that are filtered out by default.
