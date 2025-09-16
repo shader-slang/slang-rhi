@@ -34,7 +34,7 @@ inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
         AdapterInfo info = {};
         info.deviceType = DeviceType::D3D11;
         auto name = string::from_wstring(desc.Description);
-        memcpy(info.name, name.data(), min(name.size(), sizeof(AdapterInfo::name) - 1));
+        string::copy_safe(info.name, sizeof(info.name), name.c_str());
         info.vendorID = desc.VendorId;
         info.deviceID = desc.DeviceId;
         info.luid = getAdapterLUID(desc.AdapterLuid);
