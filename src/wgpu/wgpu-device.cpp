@@ -65,13 +65,13 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
         WGPURequestAdapterCallbackInfo2 callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPURequestAdapterStatus status_,
-                                   WGPUAdapter adapter,
+                                   WGPUAdapter adapter_,
                                    const char* message,
                                    void* userdata1,
                                    void* userdata2)
         {
             *(WGPURequestAdapterStatus*)userdata1 = status_;
-            *(WGPUAdapter*)userdata2 = adapter;
+            *(WGPUAdapter*)userdata2 = adapter_;
         };
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = &adapter;
