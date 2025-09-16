@@ -453,9 +453,17 @@ Result selectAdapter(
     }
     if (desc.adapter)
     {
-        // Select provided adapter.
-        auto it = std::find(adapters.begin(), adapters.end(), desc.adapter);
-        if (it == adapters.end())
+        // Select provided adapter, check it is valid.
+        bool valid = false;
+        for (const auto& adapter : adapters)
+        {
+            if (adapter == desc.adapter)
+            {
+                valid = true;
+                break;
+            }
+        }
+        if (!valid)
         {
             device->printError("Invalid adapter\n");
             return SLANG_FAIL;
@@ -465,17 +473,21 @@ Result selectAdapter(
     else if (desc.adapterLUID)
     {
         // Select adapter based on LUID.
-        auto it = std::find_if(
-            adapters.begin(),
-            adapters.end(),
-            [&](const RefPtr<T>& a) { return a->getInfo().luid == *desc.adapterLUID; }
-        );
-        if (it == adapters.end())
+        bool found = false;
+        for (const auto& adapter : adapters)
+        {
+            if (adapter->getInfo().luid == *desc.adapterLUID)
+            {
+                outAdapter = adapter;
+                found = true;
+                break;
+            }
+        }
+        if (!found)
         {
             device->printError("Invalid adapter LUID\n");
             return SLANG_FAIL;
         }
-        outAdapter = *it;
     }
     else
     {
