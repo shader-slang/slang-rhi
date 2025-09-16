@@ -20,6 +20,57 @@
 
 namespace rhi::metal {
 
+inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
+{
+    AUTORELEASEPOOL
+
+    auto addAdapter = [&](MTL::Device* device)
+    {
+        AdapterInfo info = {};
+        const char* name = device->name()->cString(NS::ASCIIStringEncoding);
+        string::copy_safe(info.name, sizeof(info.name), name);
+        uint64_t registryID = device->registryID();
+        memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
+
+        RefPtr<AdapterImpl> adapter = new AdapterImpl();
+        adapter->m_info = info;
+        adapter->m_device = NS::RetainPtr(device);
+        outAdapters.push_back(adapter);
+    };
+
+    NS::Array* devices = MTL::CopyAllDevices();
+    if (devices->count() > 0)
+    {
+        for (int i = 0; i < devices->count(); ++i)
+        {
+            MTL::Device* device = static_cast<MTL::Device*>(devices->object(i));
+            addAdapter(device);
+        }
+    }
+    else
+    {
+        MTL::Device* device = MTL::CreateSystemDefaultDevice();
+        addAdapter(device);
+        device->release();
+    }
+
+    // Make the first adapter the default one.
+    if (!outAdapters.empty())
+    {
+        outAdapters[0]->m_isDefault = true;
+    }
+
+    return SLANG_OK;
+}
+
+const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+{
+    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_UNUSED(initResult);
+    return adapters;
+}
+
 DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
@@ -49,7 +100,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    m_device = NS::TransferPtr(MTL::CreateSystemDefaultDevice());
+    RefPtr<AdapterImpl> adapter;
+    selectAdapter(this, getAdapters(), desc, adapter);
+    m_device = adapter->m_device;
     if (!m_device)
     {
         return SLANG_FAIL;
@@ -404,43 +457,22 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 
 namespace rhi {
 
-Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters)
+Result getMetalAdapter(uint32_t index, IAdapter** outAdapter)
 {
-    AUTORELEASEPOOL
-
-    auto addAdapter = [&](MTL::Device* device)
+    const std::vector<RefPtr<metal::AdapterImpl>>& adapters = metal::getAdapters();
+    if (index >= adapters.size())
     {
-        AdapterInfo info = {};
-        const char* name = device->name()->cString(NS::ASCIIStringEncoding);
-        memcpy(info.name, name, min(strlen(name), sizeof(AdapterInfo::name) - 1));
-        uint64_t registryID = device->registryID();
-        memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
-        outAdapters.push_back(info);
-    };
-
-    NS::Array* devices = MTL::CopyAllDevices();
-    if (devices->count() > 0)
-    {
-        for (int i = 0; i < devices->count(); ++i)
-        {
-            MTL::Device* device = static_cast<MTL::Device*>(devices->object(i));
-            addAdapter(device);
-        }
+        return SLANG_E_NOT_FOUND;
     }
-    else
-    {
-        MTL::Device* device = MTL::CreateSystemDefaultDevice();
-        addAdapter(device);
-        device->release();
-    }
+    returnComPtr(outAdapter, adapters[index]);
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outRenderer)
+Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<metal::DeviceImpl> result = new metal::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outRenderer, result);
+    returnComPtr(outDevice, result);
     return SLANG_OK;
 }
 
