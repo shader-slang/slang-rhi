@@ -17,9 +17,13 @@ public:
 
     virtual void shutdown() override {}
 
-    virtual void update() override { m_grey = (m_grey + (1.f / 60.f)) > 1.f ? 0.f : m_grey + (1.f / 60.f); }
+    virtual Result update() override
+    {
+        m_grey = (m_grey + (1.f / 60.f)) > 1.f ? 0.f : m_grey + (1.f / 60.f);
+        return SLANG_OK;
+    }
 
-    virtual void draw(ITexture* image) override
+    virtual Result draw(ITexture* image) override
     {
         ComPtr<ITextureView> imageView = m_device->createTextureView(image, {});
 
@@ -37,6 +41,7 @@ public:
         IRenderPassEncoder* passEncoder = commandEncoder->beginRenderPass(renderPass);
         passEncoder->end();
         m_queue->submit(commandEncoder->finish());
+        return SLANG_OK;
     }
 
     float m_grey = 0.5f;

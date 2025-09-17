@@ -15,13 +15,13 @@ public:
 
     Result init() override
     {
-        SLANG_RETURN_ON_FAIL(createComputePipeline("circle.slang", "mainCompute", m_pipeline.writeRef()));
+        SLANG_RETURN_ON_FAIL(createComputePipeline(m_device, "circle.slang", "mainCompute", m_pipeline.writeRef()));
         return SLANG_OK;
     }
 
     virtual void shutdown() override {}
 
-    virtual void update() override
+    virtual Result update() override
     {
         if (m_mouseDown[0])
         {
@@ -38,9 +38,10 @@ public:
         {
             m_combinedMouseClicked = false;
         }
+        return SLANG_OK;
     }
 
-    virtual void draw(ITexture* image) override
+    virtual Result draw(ITexture* image) override
     {
         uint32_t width = image->getDesc().size.width;
         uint32_t height = image->getDesc().size.height;
@@ -65,13 +66,19 @@ public:
         cursor["iTimeDelta"].setData(float(m_timeDelta));
         cursor["iFrameRate"].setData(float(m_frameRate));
         cursor["iFrame"].setData(m_frame);
-        float mouse[4] = {m_stickyMousePos[0], m_stickyMousePos[1], m_combinedMouseDown ? 1.f : 0.f, m_combinedMouseClicked ? 1.f : 0.f};
+        float mouse[4] = {
+            m_stickyMousePos[0],
+            m_stickyMousePos[1],
+            m_combinedMouseDown ? 1.f : 0.f,
+            m_combinedMouseClicked ? 1.f : 0.f
+        };
         cursor["iMouse"].setData(mouse);
         cursor["texture"].setBinding(m_texture);
         passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
         passEncoder->end();
         blit(image, m_texture, commandEncoder);
         m_queue->submit(commandEncoder->finish());
+        return SLANG_OK;
     }
 
     ComPtr<IComputePipeline> m_pipeline;

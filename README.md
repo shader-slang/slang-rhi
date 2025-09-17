@@ -22,3 +22,7 @@ This library is under active refactoring and development, and is not yet ready f
 - [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) (MIT)
 - [OffsetAllocator](https://github.com/sebbbi/OffsetAllocator) (MIT)
 - [WinPixEventRuntime](https://www.nuget.org/packages/WinPixEventRuntime) (MIT)
+
+The examples depend on the following additional third-party libraries:
+
+- [linalg](https://github.com/sgorsten/linalg) (MIT)
