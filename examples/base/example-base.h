@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils.h"
+
 #include <slang.h>
 
 #if SLANG_WINDOWS_FAMILY
@@ -21,12 +23,11 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <execution>
-#include <limits>
 
 namespace rhi {
 
 namespace example {
+static void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos);
 static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height);
 static void glfwWindowIconifyCallback(GLFWwindow* window, int iconified);
 static void glfwWindowMaximizeCallback(GLFWwindow* window, int maximized);
@@ -34,6 +35,7 @@ static void glfwFramebufferSizeCallback(GLFWwindow* window, int width, int heigh
 static void glfwCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 } // namespace example
 
 class DebugPrinter : public IDebugCallback
@@ -67,7 +69,7 @@ struct ExampleDesc
         DeviceType::Vulkan,
         DeviceType::Metal,
         DeviceType::CPU,
-        // DeviceType::CUDA,
+        DeviceType::CUDA,
         // DeviceType::WGPU,
     };
     std::vector<Feature> requireFeatures;
@@ -80,74 +82,22 @@ public:
 
     virtual Result init() = 0;
     virtual void shutdown() = 0;
-    virtual void update() = 0;
-    virtual void draw(ITexture* image) = 0;
+    virtual Result update() = 0;
+    virtual Result draw(ITexture* image) = 0;
 
     virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight);
     virtual void onMousePosition(float x, float y) {}
     virtual void onMouseButton(int button, int action, int mods) {}
     virtual void onScroll(float x, float y) {}
+    virtual void onKey(int key, int scancode, int action, int mods) {}
 
     Result createDevice(DeviceType deviceType);
     Result createWindow(uint32_t width = 640, uint32_t height = 360);
     Result createSurface(Format format = Format::Undefined);
 
-    // Create compute pipeline
-
-    Result _createComputeProgram(
-        const char* pathOrSource,
-        bool isSource,
-        const char* entryPointName,
-        IShaderProgram** outProgram
-    );
-    Result _createComputePipeline(
-        const char* pathOrSource,
-        bool isSource,
-        const char* entryPointName,
-        IComputePipeline** outPipeline
-    );
-    Result createComputePipeline(const char* path, const char* entryPointName, IComputePipeline** outPipeline);
-    Result createComputePipelineFromSource(
-        const char* source,
-        const char* entryPointName,
-        IComputePipeline** outPipeline
-    );
-
-    // Create render pipeline
-
-    Result _createRenderProgram(
-        const char* pathOrSource,
-        bool isSource,
-        const char* vertexEntryPointName,
-        const char* fragmentEntryPointName,
-        IShaderProgram** outProgram
-    );
-    Result _createRenderPipeline(
-        const char* pathOrSource,
-        bool isSource,
-        const char* vertexEntryPointName,
-        const char* fragmentEntryPointName,
-        const RenderPipelineDesc& pipelineDesc,
-        IRenderPipeline** outPipeline
-    );
-    Result createRenderPipeline(
-        const char* path,
-        const char* vertexEntryPointName,
-        const char* fragmentEntryPointName,
-        const RenderPipelineDesc& pipelineDesc,
-        IRenderPipeline** outPipeline
-    );
-    Result createRenderPipelineFromSource(
-        const char* path,
-        const char* vertexEntryPointName,
-        const char* fragmentEntryPointName,
-        const RenderPipelineDesc& pipelineDesc,
-        IRenderPipeline** outPipeline
-    );
-
     Result blit(ITexture* dst, ITexture* src, ICommandEncoder* commandEncoder);
 
-    void updateAndDraw(double time);
+    Result updateAndDraw(double time);
 
 public:
     ExampleDesc m_desc;
@@ -240,6 +190,7 @@ Result ExampleBase::createWindow(uint32_t width, uint32_t height)
         return SLANG_FAIL;
     }
     glfwSetWindowUserPointer(m_window, this);
+    glfwSetWindowPosCallback(m_window, example::glfwWindowPosCallback);
     glfwSetWindowSizeCallback(m_window, example::glfwWindowSizeCallback);
     glfwSetWindowIconifyCallback(m_window, example::glfwWindowIconifyCallback);
     glfwSetWindowMaximizeCallback(m_window, example::glfwWindowMaximizeCallback);
@@ -247,6 +198,7 @@ Result ExampleBase::createWindow(uint32_t width, uint32_t height)
     glfwSetCursorPosCallback(m_window, example::glfwCursorPosCallback);
     glfwSetMouseButtonCallback(m_window, example::glfwMouseButtonCallback);
     glfwSetScrollCallback(m_window, example::glfwScrollCallback);
+    glfwSetKeyCallback(m_window, example::glfwKeyCallback);
 
     return SLANG_OK;
 }
@@ -264,191 +216,6 @@ Result ExampleBase::createSurface(Format format)
     SLANG_RETURN_ON_FAIL(m_surface->configure(surfaceConfig));
 
     return SLANG_OK;
-}
-
-#define PRINT_DIAGNOSTICS(diagnostics)                                                                                 \
-    {                                                                                                                  \
-        if (diagnostics)                                                                                               \
-        {                                                                                                              \
-            const char* msg = (const char*)diagnostics->getBufferPointer();                                            \
-            printf("%s\n", msg);                                                                                       \
-        }                                                                                                              \
-    }
-
-Result ExampleBase::_createComputeProgram(
-    const char* pathOrSource,
-    bool isSource,
-    const char* entryPointName,
-    IShaderProgram** outProgram
-)
-{
-    ComPtr<slang::IBlob> diagnostics;
-    slang::IModule* module = nullptr;
-    if (isSource)
-    {
-        module = m_device->getSlangSession()
-                     ->loadModuleFromSourceString(nullptr, nullptr, pathOrSource, diagnostics.writeRef());
-    }
-    else
-    {
-        module = m_device->getSlangSession()->loadModule(pathOrSource, diagnostics.writeRef());
-    }
-    PRINT_DIAGNOSTICS(diagnostics);
-    if (!module)
-    {
-        printf("Failed to load Slang module from '%s'\n", pathOrSource);
-        return SLANG_FAIL;
-    }
-    slang::IEntryPoint* entryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, &entryPoint)))
-    {
-        printf("Failed to find entry point '%s' in module '%s'\n", entryPointName, pathOrSource);
-        return SLANG_FAIL;
-    }
-    ShaderProgramDesc programDesc = {};
-    programDesc.linkingStyle = LinkingStyle::SingleProgram;
-    slang::IComponentType* entryPoints[] = {entryPoint};
-    programDesc.slangEntryPoints = entryPoints;
-    programDesc.slangEntryPointCount = SLANG_COUNT_OF(entryPoints);
-    programDesc.slangGlobalScope = module;
-    m_device->createShaderProgram(programDesc, outProgram, diagnostics.writeRef());
-    PRINT_DIAGNOSTICS(diagnostics);
-    if (!(*outProgram))
-    {
-        printf("Failed to create program for entry point '%s' in module '%s'\n", entryPointName, pathOrSource);
-        return SLANG_FAIL;
-    }
-    return SLANG_OK;
-}
-
-Result ExampleBase::_createComputePipeline(
-    const char* pathOrSource,
-    bool isSource,
-    const char* entryPointName,
-    IComputePipeline** outPipeline
-)
-{
-    ComPtr<IShaderProgram> program;
-    SLANG_RETURN_ON_FAIL(_createComputeProgram(pathOrSource, isSource, entryPointName, program.writeRef()));
-
-    ComputePipelineDesc pipelineDesc = {};
-    pipelineDesc.program = program;
-    SLANG_RETURN_ON_FAIL(m_device->createComputePipeline(pipelineDesc, outPipeline));
-    return SLANG_OK;
-}
-
-Result ExampleBase::createComputePipeline(const char* path, const char* entryPointName, IComputePipeline** outPipeline)
-{
-    return _createComputePipeline(path, false, entryPointName, outPipeline);
-}
-
-Result ExampleBase::createComputePipelineFromSource(
-    const char* source,
-    const char* entryPointName,
-    IComputePipeline** outPipeline
-)
-{
-    return _createComputePipeline(source, true, entryPointName, outPipeline);
-}
-
-Result ExampleBase::_createRenderProgram(
-    const char* path,
-    bool isSource,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    IShaderProgram** outProgram
-)
-{
-    ComPtr<slang::IBlob> diagnostics;
-    slang::IModule* module = nullptr;
-    if (isSource)
-    {
-        module =
-            m_device->getSlangSession()->loadModuleFromSourceString(nullptr, nullptr, path, diagnostics.writeRef());
-    }
-    else
-    {
-        module = m_device->getSlangSession()->loadModule(path, diagnostics.writeRef());
-    }
-    PRINT_DIAGNOSTICS(diagnostics);
-    if (!module)
-    {
-        printf("Failed to load Slang module from '%s'\n", path);
-        return SLANG_FAIL;
-    }
-    slang::IEntryPoint* vertexEntryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName(vertexEntryPointName, &vertexEntryPoint)))
-    {
-        printf("Failed to find entry point '%s' in module '%s'\n", vertexEntryPointName, path);
-        return SLANG_FAIL;
-    }
-    slang::IEntryPoint* fragmentEntryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName(fragmentEntryPointName, &fragmentEntryPoint)))
-    {
-        printf("Failed to find entry point '%s' in module '%s'\n", fragmentEntryPointName, path);
-        return SLANG_FAIL;
-    }
-    ShaderProgramDesc programDesc = {};
-    programDesc.linkingStyle = LinkingStyle::SingleProgram;
-    slang::IComponentType* entryPoints[] = {vertexEntryPoint, fragmentEntryPoint};
-    programDesc.slangEntryPoints = entryPoints;
-    programDesc.slangEntryPointCount = SLANG_COUNT_OF(entryPoints);
-    programDesc.slangGlobalScope = module;
-    m_device->createShaderProgram(programDesc, outProgram, diagnostics.writeRef());
-    PRINT_DIAGNOSTICS(diagnostics);
-    if (!(*outProgram))
-    {
-        printf(
-            "Failed to create program for entry points '%s' / '%s' in module '%s'\n",
-            vertexEntryPointName,
-            fragmentEntryPointName,
-            path
-        );
-        return SLANG_FAIL;
-    }
-    return SLANG_OK;
-}
-
-Result ExampleBase::_createRenderPipeline(
-    const char* pathOrSource,
-    bool isSource,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    const RenderPipelineDesc& pipelineDesc,
-    IRenderPipeline** outPipeline
-)
-{
-    ComPtr<IShaderProgram> program;
-    SLANG_RETURN_ON_FAIL(
-        _createRenderProgram(pathOrSource, isSource, vertexEntryPointName, fragmentEntryPointName, program.writeRef())
-    );
-
-    RenderPipelineDesc pipelineDescCopy = pipelineDesc;
-    pipelineDescCopy.program = program;
-    SLANG_RETURN_ON_FAIL(m_device->createRenderPipeline(pipelineDescCopy, outPipeline));
-    return SLANG_OK;
-}
-
-Result ExampleBase::createRenderPipeline(
-    const char* path,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    const RenderPipelineDesc& pipelineDesc,
-    IRenderPipeline** outPipeline
-)
-{
-    return _createRenderPipeline(path, false, vertexEntryPointName, fragmentEntryPointName, pipelineDesc, outPipeline);
-}
-
-Result ExampleBase::createRenderPipelineFromSource(
-    const char* path,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    const RenderPipelineDesc& pipelineDesc,
-    IRenderPipeline** outPipeline
-)
-{
-    return _createRenderPipeline(path, true, vertexEntryPointName, fragmentEntryPointName, pipelineDesc, outPipeline);
 }
 
 Result ExampleBase::blit(ITexture* dst, ITexture* src, ICommandEncoder* commandEncoder)
@@ -538,6 +305,7 @@ Result ExampleBase::blit(ITexture* dst, ITexture* src, ICommandEncoder* commandE
             pipelineDesc.targets = &colorTarget;
             pipelineDesc.targetCount = 1;
             SLANG_RETURN_ON_FAIL(createRenderPipelineFromSource(
+                m_device,
                 blitRenderShader,
                 "mainVertex",
                 "mainFragment",
@@ -588,7 +356,7 @@ Result ExampleBase::blit(ITexture* dst, ITexture* src, ICommandEncoder* commandE
             );
 
             SLANG_RETURN_ON_FAIL(
-                createComputePipelineFromSource(shader, "mainCompute", m_blitComputePipeline.writeRef())
+                createComputePipelineFromSource(m_device, shader, "mainCompute", m_blitComputePipeline.writeRef())
             );
         }
         IComputePassEncoder* passEncoder = commandEncoder->beginComputePass();
@@ -598,15 +366,17 @@ Result ExampleBase::blit(ITexture* dst, ITexture* src, ICommandEncoder* commandE
         passEncoder->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
         passEncoder->end();
     }
+
+    return SLANG_OK;
 }
 
-void ExampleBase::updateAndDraw(double time)
+Result ExampleBase::updateAndDraw(double time)
 {
     m_timeDelta = time - m_time;
     m_time = time;
     m_frameRate = 0.9 * m_frameRate + 0.1 * (m_timeDelta > 0.0 ? (1.0 / m_timeDelta) : 0.0);
 
-    update();
+    SLANG_RETURN_ON_FAIL(update());
 
     if (m_surface->getConfig())
     {
@@ -614,12 +384,14 @@ void ExampleBase::updateAndDraw(double time)
         m_surface->acquireNextImage(image.writeRef());
         if (image)
         {
-            draw(image.get());
-            m_surface->present();
+            SLANG_RETURN_ON_FAIL(draw(image.get()));
+            SLANG_RETURN_ON_FAIL(m_surface->present());
         }
     }
 
     m_frame += 1;
+
+    return SLANG_OK;
 }
 
 namespace example {
@@ -630,6 +402,9 @@ static std::vector<ExampleBase*>& getExamples()
     return examples;
 }
 
+static ExampleBase* mainExample;
+static bool layoutInProgress = false;
+
 static void layoutWindows()
 {
     static const int kMargin = 100;
@@ -638,12 +413,20 @@ static void layoutWindows()
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     glfwGetMonitorWorkarea(monitor, &wx, &wy, &ww, &wh);
 
+    int frameLeft, frameTop, frameRight, frameBottom;
+    glfwGetWindowFrameSize(mainExample->m_window, &frameLeft, &frameTop, &frameRight, &frameBottom);
+
+    layoutInProgress = true;
+
     int x = wx + kMargin;
     int y = wy + kMargin;
     for (ExampleBase* example : getExamples())
     {
         int width, height;
         glfwGetWindowSize(example->m_window, &width, &height);
+        width += frameLeft + frameRight;
+        height += frameTop + frameBottom;
+
         if (x + width >= ww)
         {
             x = wx + kMargin;
@@ -652,10 +435,29 @@ static void layoutWindows()
         glfwSetWindowPos(example->m_window, x, y);
         x += width;
     }
+
+    layoutInProgress = false;
+}
+
+static void glfwWindowPosCallback(GLFWwindow* window, int xpos, int ypos)
+{
+    if (layoutInProgress)
+    {
+        return;
+    }
+    ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
+    if (srcExample == mainExample)
+    {
+        layoutWindows();
+    }
 }
 
 static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
 {
+    if (layoutInProgress)
+    {
+        return;
+    }
     ExampleBase* srcExample = (ExampleBase*)glfwGetWindowUserPointer(window);
     for (ExampleBase* example : getExamples())
     {
@@ -663,6 +465,10 @@ static void glfwWindowSizeCallback(GLFWwindow* window, int width, int height)
         {
             glfwSetWindowSize(example->m_window, width, height);
         }
+    }
+    if (srcExample == mainExample)
+    {
+        layoutWindows();
     }
 }
 
@@ -754,50 +560,16 @@ static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffse
     }
 }
 
-
-template<typename T>
-struct ioterable
+static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = T;
-    using difference_type = T;
-    using pointer = std::add_pointer_t<T>;
-    using reference = T;
-
-    explicit ioterable(T n)
-        : val_(n)
+    for (ExampleBase* example : getExamples())
     {
+        example->onKey(key, scancode, action, mods);
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        {
+            glfwSetWindowShouldClose(example->m_window, GLFW_TRUE);
+        }
     }
-
-    ioterable() = default;
-    ioterable(ioterable&&) = default;
-    ioterable(const ioterable&) = default;
-    ioterable& operator=(ioterable&&) = default;
-    ioterable& operator=(const ioterable&) = default;
-
-    ioterable& operator++()
-    {
-        ++val_;
-        return *this;
-    }
-    ioterable operator++(int)
-    {
-        ioterable tmp(*this);
-        ++val_;
-        return tmp;
-    }
-    bool operator==(const ioterable& other) const { return val_ == other.val_; }
-    bool operator!=(const ioterable& other) const { return val_ != other.val_; }
-
-    value_type operator*() const { return val_; }
-
-private:
-    T val_{std::numeric_limits<T>::max()};
-};
-template<typename T, typename Func>
-void parallelFor(T begin, T end, Func&& func)
-{
-    std::for_each(std::execution::par, ioterable(begin), ioterable(end), [&](T i) { func(i); });
 }
 
 template<typename Example>
@@ -823,92 +595,47 @@ static int main(int argc, const char** argv)
     }
 
     // Initialize device (parallel)
-    parallelFor(
-        size_t(0),
-        examples.size(),
-        [&](size_t i)
+    parallelForEach(
+        examples,
+        [](ExampleBase*& example)
         {
-            ExampleBase* example = examples[i];
             if (!SLANG_SUCCEEDED(example->createDevice(example->m_deviceType)))
             {
                 delete example;
-                examples[i] = nullptr;
+                example = nullptr;
             }
         }
     );
     examples.erase(std::remove(examples.begin(), examples.end(), nullptr), examples.end());
 
     // Create window and surface (serial due to GLFW)
-    for (size_t i = 0; i < examples.size(); ++i)
+    for (ExampleBase*& example : examples)
     {
-        ExampleBase* example = examples[i];
-        if (!SLANG_SUCCEEDED(example->createWindow()))
+        if (!SLANG_SUCCEEDED(example->createWindow()) || !SLANG_SUCCEEDED(example->createSurface()))
         {
             delete example;
-            examples[i] = nullptr;
-            continue;
-        }
-        if (!SLANG_SUCCEEDED(example->createSurface()))
-        {
-            delete example;
-            examples[i] = nullptr;
-            continue;
+            example = nullptr;
         }
     }
     examples.erase(std::remove(examples.begin(), examples.end(), nullptr), examples.end());
 
     // Initialize examples (parallel)
-    parallelFor(
-        size_t(0),
-        examples.size(),
-        [&](size_t i)
+    parallelForEach(
+        examples,
+        [](ExampleBase*& example)
         {
-            ExampleBase* example = examples[i];
             if (!SLANG_SUCCEEDED(example->init()))
             {
                 delete example;
-                examples[i] = nullptr;
+                example = nullptr;
             }
         }
     );
     examples.erase(std::remove(examples.begin(), examples.end(), nullptr), examples.end());
 
-#if 0
-    for (DeviceType deviceType : desc.supportedDeviceTypes)
-    {
-        if (!rhi::getRHI()->isDeviceTypeSupported(deviceType))
-        {
-            continue;
-        }
-
-        Example* example = new Example();
-        example->m_desc = desc;
-
-        if (!SLANG_SUCCEEDED(example->createDevice(deviceType)))
-        {
-            delete example;
-            continue;
-        }
-
-        if (!SLANG_SUCCEEDED(example->createWindow()))
-        {
-            delete example;
-            continue;
-        }
-
-        if (!SLANG_SUCCEEDED(example->createSurface()))
-        {
-            delete example;
-            continue;
-        }
-
-        getExamples().push_back(example);
-        SLANG_RETURN_ON_FAIL(example->init());
-    }
-#endif
-
     if (examples.size() > 1)
     {
+        mainExample = examples[0];
         layoutWindows();
     }
 
@@ -942,7 +669,11 @@ static int main(int argc, const char** argv)
 
         for (ExampleBase* example : examples)
         {
-            example->updateAndDraw(time);
+            if (!SLANG_SUCCEEDED(example->updateAndDraw(time)))
+            {
+                // TODO: handle error
+                break;
+            }
         }
     }
 
