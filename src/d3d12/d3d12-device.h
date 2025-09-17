@@ -22,28 +22,14 @@ typedef HRESULT(WINAPI* PFN_SetMarkerOnCommandList)(
     PCSTR formatString
 );
 
-struct D3D12DeviceInfo
+class AdapterImpl : public Adapter
 {
-    void clear()
-    {
-        m_dxgiFactory.setNull();
-        m_device.setNull();
-        m_adapter.setNull();
-        m_desc = {};
-        m_desc1 = {};
-        m_isWarp = false;
-        m_isSoftware = false;
-    }
-
-    bool m_isWarp;
-    bool m_isSoftware;
-    ComPtr<IDXGIFactory> m_dxgiFactory;
-    ComPtr<ID3D12Device> m_device;
-    ComPtr<ID3D12Device5> m_device5;
-    ComPtr<IDXGIAdapter> m_adapter;
-    DXGI_ADAPTER_DESC m_desc;
-    DXGI_ADAPTER_DESC1 m_desc1;
+public:
+    ComPtr<IDXGIAdapter> m_dxgiAdapter;
+    bool m_isWarp = false;
 };
+
+const std::vector<RefPtr<AdapterImpl>>& getAdapters();
 
 class DeviceImpl : public Device
 {
@@ -54,11 +40,10 @@ public:
 
     ComPtr<ID3D12Debug> m_dxDebug;
 
-    static const bool g_isAftermathEnabled;
-
-    D3D12DeviceInfo m_deviceInfo;
-    ID3D12Device* m_device = nullptr;
-    ID3D12Device5* m_device5 = nullptr;
+    ComPtr<IDXGIFactory> m_dxgiFactory;
+    ComPtr<IDXGIAdapter> m_dxgiAdapter;
+    ComPtr<ID3D12Device> m_device;
+    ComPtr<ID3D12Device5> m_device5;
 
     RefPtr<CommandQueueImpl> m_queue;
 
@@ -80,6 +65,7 @@ public:
     PFN_SetMarkerOnCommandList m_SetMarkerOnCommandList = nullptr;
 
 #if SLANG_RHI_ENABLE_NVAPI
+    bool m_nvapiEnabled = false;
     NVAPIShaderExtension m_nvapiShaderExtension;
     void* m_raytracingValidationHandle = nullptr;
 #endif
@@ -234,13 +220,6 @@ public:
         MemoryType access = MemoryType::DeviceLocal
     );
 
-    Result _createDevice(
-        DeviceCheckFlags deviceCheckFlags,
-        const AdapterLUID* adapterLUID,
-        D3D_FEATURE_LEVEL featureLevel,
-        D3D12DeviceInfo& outDeviceInfo
-    );
-
     struct
     {
         std::mutex mutex;
@@ -272,8 +251,8 @@ private:
 
 namespace rhi {
 
-Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
-void SLANG_MCALL enableD3D12DebugLayerIfAvailable();
+Result getD3D12Adapter(uint32_t index, IAdapter** outAdapter);
+Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
+void enableD3D12DebugLayerIfAvailable();
 
 } // namespace rhi

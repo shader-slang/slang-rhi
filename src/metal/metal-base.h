@@ -7,6 +7,7 @@
 
 namespace rhi::metal {
 
+class AdapterImpl;
 class DeviceImpl;
 class InputLayoutImpl;
 class BufferImpl;

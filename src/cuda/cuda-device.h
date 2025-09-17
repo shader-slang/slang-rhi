@@ -14,15 +14,16 @@ struct Context
 #endif
 };
 
+class AdapterImpl : public Adapter
+{
+public:
+    int m_deviceIndex;
+};
+
+const std::vector<RefPtr<AdapterImpl>>& getAdapters();
+
 class DeviceImpl : public Device
 {
-private:
-    static int _calcSMCountPerMultiProcessor(int major, int minor);
-
-    Result _findMaxFlopsDeviceIndex(int* outDeviceIndex);
-
-    Result _initCuda();
-
 public:
     Context m_ctx;
     std::string m_adapterName;
@@ -175,7 +176,7 @@ public:
 
 namespace rhi {
 
-Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
+Result getCUDAAdapter(uint32_t index, IAdapter** outAdapter);
+Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

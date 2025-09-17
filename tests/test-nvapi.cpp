@@ -8,6 +8,8 @@ using namespace rhi::testing;
 GPU_TEST_CASE("nvapi-implicit", D3D12 | DontCreateDevice)
 {
     device = createTestingDevice(ctx, ctx->deviceType, true);
+    if (!device->hasCapability(Capability::hlsl_nvapi))
+        SKIP("Device does not support NVAPI");
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
@@ -73,6 +75,8 @@ GPU_TEST_CASE("nvapi-explicit", D3D12 | DontCreateDevice)
     const char* nvapiSearchPath = SLANG_RHI_NVAPI_INCLUDE_DIR;
     extraOptions.searchPaths.push_back(nvapiSearchPath);
     device = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
+    if (!device->hasCapability(Capability::hlsl_nvapi))
+        SKIP("Device does not support NVAPI");
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;

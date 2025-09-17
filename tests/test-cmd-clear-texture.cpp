@@ -195,6 +195,13 @@ GPU_TEST_CASE("cmd-clear-texture-uint-zero", D3D11 | D3D12 | Vulkan | Metal | CU
 
 GPU_TEST_CASE("cmd-clear-texture-uint-pattern", D3D11 | D3D12 | Vulkan | Metal | CUDA)
 {
+    // TODO: These currently fail due to differences of handling overlfow of the clear values.
+    // NVIDIA driver seems to clamp the clear value, whereas WARP appears to mask it.
+    if (device->getDeviceType() == DeviceType::D3D11 && device->hasFeature(Feature::SoftwareDevice))
+        SKIP("Test currently fails on D3D11 WARP adapter");
+    if (device->getDeviceType() == DeviceType::D3D12 && device->hasFeature(Feature::SoftwareDevice))
+        SKIP("Test currently fails on D3D12 WARP adapter");
+
     TextureTestOptions options(device, 1);
     options
         .addVariants(TTShape::All, TTArray::Both, TTMip::Both, TTMS::Off, kUintFormats, TextureUsage::UnorderedAccess);

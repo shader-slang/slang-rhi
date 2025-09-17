@@ -13,6 +13,7 @@
 
 namespace rhi::cuda {
 
+class AdapterImpl;
 class BufferImpl;
 class TextureImpl;
 class TextureViewImpl;

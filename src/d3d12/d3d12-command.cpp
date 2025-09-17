@@ -1149,9 +1149,8 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (NVAPIUtil::isAvailable())
+    if (m_device->m_nvapiEnabled)
     {
-
         NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_EX desc = {};
         desc.destAccelerationStructureData = dst->getDeviceAddress();
         desc.sourceAccelerationStructureData = src ? src->getDeviceAddress() : 0;

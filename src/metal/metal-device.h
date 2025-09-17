@@ -7,6 +7,14 @@
 
 namespace rhi::metal {
 
+class AdapterImpl : public Adapter
+{
+public:
+    NS::SharedPtr<MTL::Device> m_device;
+};
+
+const std::vector<RefPtr<AdapterImpl>>& getAdapters();
+
 class DeviceImpl : public Device
 {
 public:
@@ -165,7 +173,7 @@ public:
 
 namespace rhi {
 
-Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outRenderer);
+Result getMetalAdapter(uint32_t index, IAdapter** outAdapter);
+Result createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

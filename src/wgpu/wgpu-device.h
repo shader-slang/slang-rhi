@@ -142,7 +142,7 @@ private:
 
 namespace rhi {
 
-Result SLANG_MCALL getWGPUAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outRenderer);
+Result getWGPUAdapter(uint32_t index, IAdapter** outAdapter);
+Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

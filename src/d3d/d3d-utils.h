@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../flag-combiner.h"
-
 #include "core/common.h"
 
 #include <slang-com-helper.h>
@@ -10,6 +8,7 @@
 
 #include <d3dcommon.h>
 #include <dxgi.h>
+#include <dxgi1_4.h>
 
 namespace rhi {
 
@@ -43,24 +42,13 @@ Result compileHLSLShader(
 );
 
 SharedLibraryHandle getDXGIModule();
-Result createDXGIFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory);
+Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory);
+ComPtr<IDXGIFactory> getDXGIFactory();
 
-/// Find adapters
-Result findAdapters(
-    DeviceCheckFlags flags,
-    const AdapterLUID* adapterLUID,
-    IDXGIFactory* dxgiFactory,
-    std::vector<ComPtr<IDXGIAdapter>>& dxgiAdapters
-);
+Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
+Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
 
-/// Find adapters
-Result findAdapters(
-    DeviceCheckFlags flags,
-    const AdapterLUID* adapterLUID,
-    std::vector<ComPtr<IDXGIAdapter>>& dxgiAdapters
-);
-
-AdapterLUID getAdapterLUID(IDXGIAdapter* dxgiAdapter);
+AdapterLUID getAdapterLUID(LUID luid);
 
 /// True if the adapter is warp
 bool isWarpAdapter(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapter);

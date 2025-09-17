@@ -38,15 +38,42 @@ struct CustomReporter : public IReporter
             stream << Color::Cyan << "\n[doctest] " << Color::None;
             stream << "Additional slang-rhi specific options. Available:\n\n";
             stream << " -verbose                              print messages from the slang-rhi layer\n";
-            stream << " -check-devices                        print information about detected GPU devices on startup\n";
+            stream << " -check-devices                        print information about used GPU devices on startup\n";
+            stream << " -list-devices                         print information about available GPU devices and exit\n";
+            stream << " -select-devices=<device>[,...|*]      select which devices to use for testing (default: all)\n";
+            stream << "                                       <device> can be d3d11, d3d12, vulkan, metal, cpu, cuda, wgpu\n";
+            stream << "                                       to select a specific adapter, the adapter index can be appended after a colon (i.e. d3d12:1)\n";
+            stream << "                                       use * to select all available devices\n";
             // clang-format on
         }
     }
 
     void test_run_start() override
     {
-        runTimer.start();
         stream << Color::None;
+
+        if (rhi::testing::options().listDevices)
+        {
+            printf("Available devices:\n");
+            for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
+            {
+                for (uint32_t i = 0;; ++i)
+                {
+                    Slang::ComPtr<rhi::IAdapter> adapter;
+                    if (SLANG_FAILED(rhi::getRHI()->getAdapter(deviceType, i, adapter.writeRef())))
+                    {
+                        break;
+                    }
+                    char deviceID[16];
+                    snprintf(deviceID, sizeof(deviceID), "%s:%u", rhi::testing::deviceTypeToString(deviceType), i);
+                    const rhi::AdapterInfo& info = adapter->getInfo();
+                    printf("- %-8s \"%s\"\n", deviceID, info.name);
+                }
+            }
+            exit(0);
+        }
+
+        runTimer.start();
         consoleReporter.test_run_start();
 
         if (rhi::testing::options().checkDevices)
@@ -193,6 +220,8 @@ private:
         printf("Checking for available devices:\n");
         for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
         {
+            if (!rhi::testing::isDeviceTypeSelected(deviceType))
+                continue;
             printSeparator();
             printf("%s: ", rhi::getRHI()->getDeviceTypeName(deviceType));
             rhi::testing::DeviceAvailabilityResult result = rhi::testing::checkDeviceTypeAvailable(deviceType);

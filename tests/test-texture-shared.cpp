@@ -87,6 +87,9 @@ GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     ComPtr<IDevice> srcDevice = createTestingDevice(ctx, ctx->deviceType);
     ComPtr<IDevice> dstDevice = createTestingDevice(ctx, DeviceType::CUDA);
 
+    if (srcDevice->getInfo().adapterLUID != dstDevice->getInfo().adapterLUID)
+        SKIP("Devices do not refer to the same physical device");
+
     SamplerDesc samplerDesc;
     auto sampler = dstDevice->createSampler(samplerDesc);
 

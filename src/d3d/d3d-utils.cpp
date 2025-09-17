@@ -279,7 +279,7 @@ SharedLibraryHandle getDXGIModule()
     return s_dxgiModule;
 }
 
-Result createDXGIFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactory)
+Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory)
 {
     auto dxgiModule = getDXGIModule();
     if (!dxgiModule)
@@ -296,7 +296,7 @@ Result createDXGIFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactor
         {
             UINT dxgiFlags = 0;
 
-            if (flags & DeviceCheckFlag::UseDebug)
+            if (debug)
             {
                 dxgiFlags |= DXGI_CREATE_FACTORY_DEBUG;
             }
@@ -320,84 +320,60 @@ Result createDXGIFactory(DeviceCheckFlags flags, ComPtr<IDXGIFactory>& outFactor
     }
 }
 
-Result findAdapters(
-    DeviceCheckFlags flags,
-    const AdapterLUID* adapterLUID,
-    IDXGIFactory* dxgiFactory,
-    std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters
-)
+ComPtr<IDXGIFactory> getDXGIFactory()
 {
-    outDxgiAdapters.clear();
-
-    ComPtr<IDXGIAdapter> warpAdapter;
-    if ((flags & DeviceCheckFlag::UseHardwareDevice) == 0)
+    static ComPtr<IDXGIFactory> factory = []()
     {
-        ComPtr<IDXGIFactory4> dxgiFactory4;
-        if (SLANG_SUCCEEDED(dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory4.writeRef()))))
+        ComPtr<IDXGIFactory> f;
+        if (SLANG_FAILED(createDXGIFactory(SLANG_RHI_DEBUG ? true : false, f)))
         {
-            dxgiFactory4->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.writeRef()));
-            if (!adapterLUID || getAdapterLUID(warpAdapter) == *adapterLUID)
-            {
-                outDxgiAdapters.push_back(warpAdapter);
-            }
+            return ComPtr<IDXGIFactory>();
+        }
+        return f;
+    }();
+    return factory;
+}
+
+Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>& outAdapters)
+{
+    ComPtr<IDXGIFactory1> dxgiFactory1;
+    dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory1.writeRef()));
+    if (dxgiFactory1)
+    {
+        UINT i = 0;
+        ComPtr<IDXGIAdapter1> adapter;
+        while (dxgiFactory1->EnumAdapters1(i, adapter.writeRef()) != DXGI_ERROR_NOT_FOUND)
+        {
+            outAdapters.push_back(ComPtr<IDXGIAdapter>(static_cast<IDXGIAdapter*>(adapter.get())));
+            ++i;
         }
     }
-
-    for (UINT adapterIndex = 0; true; adapterIndex++)
+    else
     {
-        ComPtr<IDXGIAdapter> dxgiAdapter;
-        if (dxgiFactory->EnumAdapters(adapterIndex, dxgiAdapter.writeRef()) == DXGI_ERROR_NOT_FOUND)
-            break;
-
-        // Skip if warp (as we will have already added it)
-        if (dxgiAdapter == warpAdapter)
+        UINT i = 0;
+        ComPtr<IDXGIAdapter> adapter;
+        while (dxgiFactory->EnumAdapters(i, adapter.writeRef()) != DXGI_ERROR_NOT_FOUND)
         {
-            continue;
-        }
-        if (adapterLUID && getAdapterLUID(dxgiAdapter) != *adapterLUID)
-        {
-            continue;
-        }
-
-        // Get if it's software
-        UINT deviceFlags = 0;
-        ComPtr<IDXGIAdapter1> dxgiAdapter1;
-        if (SLANG_SUCCEEDED(dxgiAdapter->QueryInterface(IID_PPV_ARGS(dxgiAdapter1.writeRef()))))
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            dxgiAdapter1->GetDesc1(&desc);
-            deviceFlags = desc.Flags;
-        }
-
-        // If the right type then add it
-        if ((deviceFlags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && (flags & DeviceCheckFlag::UseHardwareDevice) != 0)
-        {
-            outDxgiAdapters.push_back(dxgiAdapter);
+            outAdapters.push_back(adapter);
+            ++i;
         }
     }
-
     return SLANG_OK;
 }
 
-Result findAdapters(
-    DeviceCheckFlags flags,
-    const AdapterLUID* adapterLUID,
-    std::vector<ComPtr<IDXGIAdapter>>& outDxgiAdapters
-)
+Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters)
 {
     ComPtr<IDXGIFactory> factory;
-    SLANG_RETURN_ON_FAIL(createDXGIFactory(flags, factory));
-    return findAdapters(flags, adapterLUID, factory, outDxgiAdapters);
+    SLANG_RETURN_ON_FAIL(createDXGIFactory(false, factory));
+    return enumAdapters(factory, outAdapters);
 }
 
-AdapterLUID getAdapterLUID(IDXGIAdapter* dxgiAdapter)
+AdapterLUID getAdapterLUID(LUID luid)
 {
-    DXGI_ADAPTER_DESC desc;
-    dxgiAdapter->GetDesc(&desc);
-    AdapterLUID luid = {};
+    AdapterLUID adapterLUID = {};
     SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= sizeof(LUID));
-    memcpy(&luid, &desc.AdapterLuid, sizeof(LUID));
-    return luid;
+    memcpy(&adapterLUID, &luid, sizeof(LUID));
+    return adapterLUID;
 }
 
 bool isWarpAdapter(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
@@ -490,7 +466,7 @@ Result reportLiveObjects()
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result SLANG_MCALL reportD3DLiveObjects()
+Result reportD3DLiveObjects()
 {
     return reportLiveObjects();
 }

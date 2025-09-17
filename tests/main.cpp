@@ -25,7 +25,7 @@ std::string getCurrentTestCaseName()
 
 } // namespace rhi::testing
 
-int main(int argc, char** argv)
+int main(int argc, const char** argv)
 {
     rhi::testing::cleanupTestTempDirectories();
 
@@ -33,17 +33,47 @@ int main(int argc, char** argv)
     rhi::getRHI()->enableDebugLayers();
 #endif
 
-    // Pass extra command line arguments to the custom reporter.
-    for (int i = 1; i < argc; ++i)
+    // Parse extra command line options.
     {
         auto& options = rhi::testing::options();
-        if (strcmp(argv[i], "-verbose") == 0)
+        if (doctest::parseFlag(argc, argv, "verbose"))
         {
             options.verbose = true;
         }
-        if (strcmp(argv[i], "-check-devices") == 0)
+        if (doctest::parseFlag(argc, argv, "check-devices"))
         {
             options.checkDevices = true;
+        }
+        if (doctest::parseFlag(argc, argv, "list-devices"))
+        {
+            options.listDevices = true;
+        }
+        std::vector<doctest::String> strings;
+        if (doctest::parseCommaSepArgs(argc, argv, "select-devices=", strings))
+        {
+            options.deviceSelected.fill(false);
+            for (const auto& str : strings)
+            {
+                if (str == "*")
+                {
+                    options.deviceSelected.fill(true);
+                    continue;
+                }
+                for (rhi::DeviceType deviceType : rhi::testing::kPlatformDeviceTypes)
+                {
+                    doctest::String deviceTypeStr = rhi::testing::deviceTypeToString(deviceType);
+                    if (str == deviceTypeStr || str.substr(0, deviceTypeStr.size()) == deviceTypeStr)
+                    {
+                        options.deviceSelected[size_t(deviceType)] = true;
+                        if (str.size() > deviceTypeStr.size() + 1 && str[deviceTypeStr.size()] == ':')
+                        {
+                            int adapterIndex = atoi(str.c_str() + deviceTypeStr.size() + 1);
+                            options.deviceAdapterIndex[size_t(deviceType)] = adapterIndex;
+                        }
+                        break;
+                    }
+                }
+            }
         }
     }
 

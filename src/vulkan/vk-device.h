@@ -7,6 +7,14 @@
 
 namespace rhi::vk {
 
+class AdapterImpl : public Adapter
+{
+public:
+    uint8_t m_deviceUUID[VK_UUID_SIZE];
+};
+
+const std::vector<RefPtr<AdapterImpl>>& getAdapters();
+
 class DeviceImpl : public Device
 {
 public:
@@ -205,7 +213,7 @@ public:
 
 namespace rhi {
 
-Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outRenderer);
+Result getVKAdapter(uint32_t index, IAdapter** outAdapter);
+Result createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

@@ -179,6 +179,7 @@ struct ShaderCacheTest
     {
         DeviceDesc deviceDesc = {};
         deviceDesc.deviceType = ctx->deviceType;
+        deviceDesc.adapter = getSelectedDeviceAdapter(ctx->deviceType);
         deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
         auto searchPaths = getSlangSearchPaths();
         std::string tempDirectoryStr = tempDirectory.string();

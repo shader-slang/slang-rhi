@@ -104,6 +104,7 @@ private:
 
 namespace rhi {
 
-Result SLANG_MCALL createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result getCPUAdapter(uint32_t index, IAdapter** outAdapter);
+Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi
