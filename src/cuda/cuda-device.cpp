@@ -159,6 +159,10 @@ DeviceImpl::~DeviceImpl()
 #if SLANG_RHI_ENABLE_OPTIX
         if (m_ownsOptixContext && m_ctx.optixContext)
         {
+            // Disable the log callback before destroying the context to prevent
+            // callbacks from being invoked during destruction, which can cause
+            // crashes when the device is being destroyed.
+            optixDeviceContextSetLogCallback(m_ctx.optixContext, nullptr, nullptr, 0);
             optixDeviceContextDestroy(m_ctx.optixContext);
         }
 #endif
