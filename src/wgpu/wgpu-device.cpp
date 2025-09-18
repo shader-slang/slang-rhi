@@ -205,26 +205,31 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Initialize device limits.
     {
-        m_info.limits.maxTextureDimension1D = m_ctx.limits.maxTextureDimension1D;
-        m_info.limits.maxTextureDimension2D = m_ctx.limits.maxTextureDimension2D;
-        m_info.limits.maxTextureDimension3D = m_ctx.limits.maxTextureDimension3D;
-        m_info.limits.maxTextureDimensionCube = m_ctx.limits.maxTextureDimension2D;
-        m_info.limits.maxTextureLayers = m_ctx.limits.maxTextureArrayLayers;
-        m_info.limits.maxVertexInputElements = m_ctx.limits.maxVertexAttributes;
-        m_info.limits.maxVertexInputElementOffset = m_ctx.limits.maxVertexBufferArrayStride;
-        m_info.limits.maxVertexStreams = m_ctx.limits.maxVertexBuffers;
-        m_info.limits.maxVertexStreamStride = m_ctx.limits.maxVertexBufferArrayStride;
-        m_info.limits.maxComputeThreadsPerGroup = m_ctx.limits.maxComputeInvocationsPerWorkgroup;
-        m_info.limits.maxComputeThreadGroupSize[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
-        m_info.limits.maxComputeThreadGroupSize[1] = m_ctx.limits.maxComputeWorkgroupSizeY;
-        m_info.limits.maxComputeThreadGroupSize[2] = m_ctx.limits.maxComputeWorkgroupSizeZ;
-        m_info.limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        m_info.limits.maxComputeDispatchThreadGroups[1] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        m_info.limits.maxComputeDispatchThreadGroups[2] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        // m_info.limits.maxViewports
-        // m_info.limits.maxViewportDimensions[2]
-        // m_info.limits.maxFramebufferDimensions[3]
-        m_info.limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
+        DeviceLimits& limits = m_info.limits;
+        limits.maxBufferSize = m_ctx.limits.maxBufferSize;
+        limits.maxTextureDimension1D = m_ctx.limits.maxTextureDimension1D;
+        limits.maxTextureDimension2D = m_ctx.limits.maxTextureDimension2D;
+        limits.maxTextureDimension3D = m_ctx.limits.maxTextureDimension3D;
+        limits.maxTextureDimensionCube = m_ctx.limits.maxTextureDimension2D;
+        limits.maxTextureLayers = m_ctx.limits.maxTextureArrayLayers;
+        limits.maxVertexInputElements = m_ctx.limits.maxVertexAttributes;
+        limits.maxVertexInputElementOffset = m_ctx.limits.maxVertexBufferArrayStride;
+        limits.maxVertexStreams = m_ctx.limits.maxVertexBuffers;
+        limits.maxVertexStreamStride = m_ctx.limits.maxVertexBufferArrayStride;
+        limits.maxComputeThreadsPerGroup = m_ctx.limits.maxComputeInvocationsPerWorkgroup;
+        limits.maxComputeThreadGroupSize[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
+        limits.maxComputeThreadGroupSize[1] = m_ctx.limits.maxComputeWorkgroupSizeY;
+        limits.maxComputeThreadGroupSize[2] = m_ctx.limits.maxComputeWorkgroupSizeZ;
+        limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxComputeDispatchThreadGroups[1] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxComputeDispatchThreadGroups[2] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxViewports = 1;
+        limits.maxViewportDimensions[0] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxViewportDimensions[1] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[0] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[1] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[2] = m_ctx.limits.maxTextureArrayLayers;
+        limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
     }
 
     // Initialize features & capabilities.

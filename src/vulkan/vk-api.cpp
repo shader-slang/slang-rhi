@@ -15,30 +15,22 @@ namespace rhi::vk {
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VulkanModule !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Result VulkanModule::init(bool useSoftwareImpl)
+Result VulkanModule::init()
 {
     if (isInitialized())
     {
         destroy();
     }
 
-    const char* dynamicLibraryName = "Unknown";
-    m_isSoftware = useSoftwareImpl;
-
 #if SLANG_WINDOWS_FAMILY
-    dynamicLibraryName = useSoftwareImpl ? "vk_swiftshader.dll" : "vulkan-1.dll";
-    HMODULE module = ::LoadLibraryA(dynamicLibraryName);
+    HMODULE module = ::LoadLibraryA("vulkan-1.dll");
     m_module = (void*)module;
+#elif SLANG_LINUX_FAMILY
+    m_module = dlopen("libvulkan.so.1", RTLD_NOW);
 #elif SLANG_APPLE_FAMILY
-    dynamicLibraryName = useSoftwareImpl ? "libvk_swiftshader.dylib" : "libvulkan.1.dylib";
-    m_module = dlopen(dynamicLibraryName, RTLD_NOW | RTLD_GLOBAL);
+    m_module = dlopen("libvulkan.1.dylib", RTLD_NOW | RTLD_GLOBAL);
 #else
-    dynamicLibraryName = useSoftwareImpl ? "libvk_swiftshader.so" : "libvulkan.so.1";
-    if (useSoftwareImpl)
-    {
-        dlopen("libpthread.so.0", RTLD_NOW | RTLD_GLOBAL);
-    }
-    m_module = dlopen(dynamicLibraryName, RTLD_NOW);
+#error "Unsupported platform"
 #endif
 
     if (!m_module)
