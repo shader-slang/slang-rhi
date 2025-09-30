@@ -825,6 +825,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 endif()
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
+add_dependencies(slang-rhi slang-rhi-copy-files)
 
 # Add coverage target if coverage is enabled
 if(SLANG_RHI_ENABLE_COVERAGE)
