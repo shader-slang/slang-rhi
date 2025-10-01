@@ -57,7 +57,7 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     // Make the first adapter the default one.
     if (!outAdapters.empty())
     {
-        outAdapters[0]->m_isDefault = true;
+        outAdapters[0].m_isDefault = true;
     }
 
     return SLANG_OK;
