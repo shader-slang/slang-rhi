@@ -387,6 +387,7 @@ struct RayTracingReorderTest
 
 GPU_TEST_CASE("ray-tracing-reorder-hint", CUDA | Vulkan)
 {
+    SKIP("Disabled until PR https://github.com/shader-slang/slang/pull/8576 is merged");
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
@@ -399,6 +400,7 @@ GPU_TEST_CASE("ray-tracing-reorder-hint", CUDA | Vulkan)
 
 GPU_TEST_CASE("ray-tracing-reorder-hit-obj", CUDA | Vulkan)
 {
+    SKIP("Disabled until PR https://github.com/shader-slang/slang/pull/8576 is merged");
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
@@ -411,6 +413,7 @@ GPU_TEST_CASE("ray-tracing-reorder-hit-obj", CUDA | Vulkan)
 
 GPU_TEST_CASE("ray-tracing-reorder-hit-obj-and-hint", CUDA | Vulkan)
 {
+    SKIP("Disabled until PR https://github.com/shader-slang/slang/pull/8576 is merged");
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
