@@ -25,17 +25,13 @@ namespace testing {
 extern bool gDebugDisableStateTracking;
 } // namespace testing
 
-class Adapter : public IAdapter, public ComObject
+// Base class for adapters.
+// We specifically don't use ComObject as we don't want ref counting.
+// Adapters are lazily created and stored in static vectors and only released on program exit.
+class Adapter : public IAdapter
 {
 public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-
-    IAdapter* getInterface(const Guid& guid)
-    {
-        if (guid == ISlangUnknown::getTypeGuid() || guid == IAdapter::getTypeGuid())
-            return static_cast<IAdapter*>(this);
-        return nullptr;
-    }
+    virtual ~Adapter() {}
 
     virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const override { return m_info; }
 
@@ -439,12 +435,7 @@ public:
 };
 
 template<typename T>
-Result selectAdapter(
-    Device* device,
-    const std::vector<RefPtr<T>>& adapters,
-    const DeviceDesc& desc,
-    RefPtr<T>& outAdapter
-)
+Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc& desc, T*& outAdapter)
 {
     if (adapters.empty())
     {
@@ -455,9 +446,9 @@ Result selectAdapter(
     {
         // Select provided adapter, check it is valid.
         bool valid = false;
-        for (const auto& adapter : adapters)
+        for (auto& adapter : adapters)
         {
-            if (adapter == desc.adapter)
+            if (&adapter == desc.adapter)
             {
                 valid = true;
                 break;
@@ -474,11 +465,11 @@ Result selectAdapter(
     {
         // Select adapter based on LUID.
         bool found = false;
-        for (const auto& adapter : adapters)
+        for (auto& adapter : adapters)
         {
-            if (adapter->getInfo().luid == *desc.adapterLUID)
+            if (adapter.getInfo().luid == *desc.adapterLUID)
             {
-                outAdapter = adapter;
+                outAdapter = &adapter;
                 found = true;
                 break;
             }
@@ -492,12 +483,12 @@ Result selectAdapter(
     else
     {
         // Select the default adapter or the first one if no default is available.
-        outAdapter = adapters[0];
-        for (const auto& adapter : adapters)
+        outAdapter = &adapters[0];
+        for (auto& adapter : adapters)
         {
-            if (adapter->m_isDefault)
+            if (adapter.m_isDefault)
             {
-                outAdapter = adapter;
+                outAdapter = &adapter;
                 break;
             }
         }

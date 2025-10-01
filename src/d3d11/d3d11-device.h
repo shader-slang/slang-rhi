@@ -11,8 +11,6 @@ public:
     bool m_isWarp = false;
 };
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters();
-
 class DeviceImpl : public Device
 {
 public:
@@ -121,7 +119,7 @@ public:
 
 namespace rhi {
 
-Result getD3D11Adapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getD3D11Adapter(uint32_t index);
 Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

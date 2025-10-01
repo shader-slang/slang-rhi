@@ -32,7 +32,7 @@
 
 namespace rhi::vk {
 
-inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
+inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 {
     VulkanModule module;
     SLANG_RETURN_ON_FAIL(module.init());
@@ -96,24 +96,24 @@ inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
         info.deviceID = props.properties.deviceID;
         info.luid = getAdapterLUID(idProps);
 
-        RefPtr<AdapterImpl> adapter = new AdapterImpl();
-        adapter->m_info = info;
-        memcpy(adapter->m_deviceUUID, idProps.deviceUUID, VK_UUID_SIZE);
+        AdapterImpl adapter;
+        adapter.m_info = info;
+        memcpy(adapter.m_deviceUUID, idProps.deviceUUID, VK_UUID_SIZE);
 
         outAdapters.push_back(adapter);
     }
 
     if (!outAdapters.empty())
     {
-        outAdapters[defaultDeviceIndex]->m_isDefault = true;
+        outAdapters[defaultDeviceIndex].m_isDefault = true;
     }
 
     return SLANG_OK;
 }
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+std::vector<AdapterImpl>& getAdapters()
 {
-    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static std::vector<AdapterImpl> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -411,7 +411,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     if (!desc.existingDeviceHandles.handles[1])
     {
-        RefPtr<AdapterImpl> adapter;
+        AdapterImpl* adapter = nullptr;
         SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
@@ -1938,15 +1938,10 @@ Result DeviceImpl::waitForFences(
 
 namespace rhi {
 
-Result getVKAdapter(uint32_t index, IAdapter** outAdapter)
+IAdapter* getVKAdapter(uint32_t index)
 {
-    const std::vector<RefPtr<vk::AdapterImpl>>& adapters = vk::getAdapters();
-    if (index >= adapters.size())
-    {
-        return SLANG_E_NOT_FOUND;
-    }
-    returnComPtr(outAdapter, adapters[index]);
-    return SLANG_OK;
+    std::vector<vk::AdapterImpl>& adapters = vk::getAdapters();
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
 Result createVKDevice(const DeviceDesc* desc, IDevice** outDevice)

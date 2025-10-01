@@ -20,8 +20,6 @@ public:
     int m_deviceIndex;
 };
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters();
-
 class DeviceImpl : public Device
 {
 public:
@@ -176,7 +174,7 @@ public:
 
 namespace rhi {
 
-Result getCUDAAdapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getCUDAAdapter(uint32_t index);
 Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

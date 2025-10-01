@@ -110,17 +110,12 @@ int main(int argc, const char** argv)
     }
 #endif
 
-    // TODO: The recent addition of adapters leads to the following check reporting leaked objects.
-    // Adapters are currently created lazily and stored in static vectors only released on program exit.
-    // We temporarily disable this check but need a solution for this!
-#if 0
 #if SLANG_RHI_DEBUG
     if (rhi::RefObject::getObjectCount() > 0)
     {
         std::cerr << std::to_string(rhi::RefObject::getObjectCount()) << " leaked objects detected!" << std::endl;
         return 1;
     }
-#endif
 #endif
 
     return result;

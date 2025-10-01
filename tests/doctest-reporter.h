@@ -59,8 +59,8 @@ struct CustomReporter : public IReporter
             {
                 for (uint32_t i = 0;; ++i)
                 {
-                    Slang::ComPtr<rhi::IAdapter> adapter;
-                    if (SLANG_FAILED(rhi::getRHI()->getAdapter(deviceType, i, adapter.writeRef())))
+                    rhi::IAdapter* adapter = rhi::getRHI()->getAdapter(deviceType, i);
+                    if (!adapter)
                     {
                         break;
                     }

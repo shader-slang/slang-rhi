@@ -11,13 +11,13 @@
 
 namespace rhi {
 
-Result getD3D11Adapter(uint32_t index, IAdapter** outAdapter);
-Result getD3D12Adapter(uint32_t index, IAdapter** outAdapter);
-Result getVKAdapter(uint32_t index, IAdapter** outAdapter);
-Result getMetalAdapter(uint32_t index, IAdapter** outAdapter);
-Result getCUDAAdapter(uint32_t index, IAdapter** outAdapter);
-Result getCPUAdapter(uint32_t index, IAdapter** outAdapter);
-Result getWGPUAdapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getD3D11Adapter(uint32_t index);
+IAdapter* getD3D12Adapter(uint32_t index);
+IAdapter* getVKAdapter(uint32_t index);
+IAdapter* getMetalAdapter(uint32_t index);
+IAdapter* getCUDAAdapter(uint32_t index);
+IAdapter* getCPUAdapter(uint32_t index);
+IAdapter* getWGPUAdapter(uint32_t index);
 
 Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
 Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
@@ -144,7 +144,7 @@ public:
     virtual const char* getFeatureName(Feature feature) override;
     virtual const char* getCapabilityName(Capability capability) override;
 
-    virtual Result getAdapter(DeviceType type, uint32_t index, IAdapter** outAdapter) override;
+    virtual IAdapter* getAdapter(DeviceType type, uint32_t index) override;
     virtual Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
     virtual void enableDebugLayers() override;
     virtual Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
@@ -228,40 +228,40 @@ const char* RHI::getCapabilityName(Capability capability)
     return size_t(capability) < kCapabilityNames.size() ? kCapabilityNames[size_t(capability)] : nullptr;
 }
 
-Result RHI::getAdapter(DeviceType type, uint32_t index, IAdapter** outAdapter)
+IAdapter* RHI::getAdapter(DeviceType type, uint32_t index)
 {
     switch (type)
     {
 #if SLANG_RHI_ENABLE_D3D11
     case DeviceType::D3D11:
-        return getD3D11Adapter(index, outAdapter);
+        return getD3D11Adapter(index);
 #endif
 #if SLANG_RHI_ENABLE_D3D12
     case DeviceType::D3D12:
-        return getD3D12Adapter(index, outAdapter);
+        return getD3D12Adapter(index);
 #endif
 #if SLANG_RHI_ENABLE_VULKAN
     case DeviceType::Vulkan:
-        return getVKAdapter(index, outAdapter);
+        return getVKAdapter(index);
 #endif
 #if SLANG_RHI_ENABLE_METAL
     case DeviceType::Metal:
-        return getMetalAdapter(index, outAdapter);
+        return getMetalAdapter(index);
 #endif
 #if SLANG_RHI_ENABLE_CUDA
     case DeviceType::CUDA:
-        return getCUDAAdapter(index, outAdapter);
+        return getCUDAAdapter(index);
 #endif
 #if SLANG_RHI_ENABLE_CPU
     case DeviceType::CPU:
-        return getCPUAdapter(index, outAdapter);
+        return getCPUAdapter(index);
 #endif
 #if SLANG_RHI_ENABLE_WGPU
     case DeviceType::WGPU:
-        return getWGPUAdapter(index, outAdapter);
+        return getWGPUAdapter(index);
 #endif
     default:
-        return SLANG_E_INVALID_ARG;
+        return nullptr;
     }
 }
 
@@ -271,8 +271,8 @@ Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
 
     for (uint32_t i = 0;; ++i)
     {
-        ComPtr<IAdapter> adapter;
-        if (SLANG_FAILED(getAdapter(type, i, adapter.writeRef())))
+        IAdapter* adapter = getAdapter(type, i);
+        if (!adapter)
         {
             break;
         }

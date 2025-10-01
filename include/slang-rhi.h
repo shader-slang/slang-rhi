@@ -2713,10 +2713,8 @@ private:
     ComPtr<ISlangBlob> m_blob;
 };
 
-class IAdapter : public ISlangUnknown
+class IAdapter
 {
-    SLANG_COM_INTERFACE(0xe776fc81, 0x1d55, 0x4779, {0x90, 0x09, 0xfc, 0xa2, 0xba, 0x91, 0x92, 0xde});
-
 public:
     virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const = 0;
 };
@@ -3374,14 +3372,7 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getFeatureName(Feature feature) = 0;
     virtual SLANG_NO_THROW const char* SLANG_MCALL getCapabilityName(Capability capability) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getAdapter(DeviceType type, uint32_t index, IAdapter** outAdapter) = 0;
-
-    inline ComPtr<IAdapter> getAdapter(DeviceType type, uint32_t index)
-    {
-        ComPtr<IAdapter> adapter;
-        SLANG_RETURN_NULL_ON_FAIL(getAdapter(type, index, adapter.writeRef()));
-        return adapter;
-    }
+    virtual SLANG_NO_THROW IAdapter* SLANG_MCALL getAdapter(DeviceType type, uint32_t index) = 0;
 
     /// Deprecated. Gets a list of available adapters for a given device type.
     virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
