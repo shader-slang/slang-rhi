@@ -142,7 +142,7 @@ private:
 
 namespace rhi {
 
-Result getWGPUAdapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getWGPUAdapter(uint32_t index);
 Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

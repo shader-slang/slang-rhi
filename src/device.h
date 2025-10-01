@@ -31,19 +31,7 @@ extern bool gDebugDisableStateTracking;
 class Adapter : public IAdapter
 {
 public:
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-
     virtual ~Adapter() {}
-
-    uint32_t addReference() { return 1; }
-    uint32_t releaseReference() { return 1; }
-
-    IAdapter* getInterface(const Guid& guid)
-    {
-        if (guid == ISlangUnknown::getTypeGuid() || guid == IAdapter::getTypeGuid())
-            return static_cast<IAdapter*>(this);
-        return nullptr;
-    }
 
     virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const override { return m_info; }
 

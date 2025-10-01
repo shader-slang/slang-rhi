@@ -174,7 +174,7 @@ public:
 
 namespace rhi {
 
-Result getCUDAAdapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getCUDAAdapter(uint32_t index);
 Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

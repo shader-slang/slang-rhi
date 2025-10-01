@@ -249,7 +249,7 @@ private:
 
 namespace rhi {
 
-Result getD3D12Adapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getD3D12Adapter(uint32_t index);
 Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
 void enableD3D12DebugLayerIfAvailable();
 

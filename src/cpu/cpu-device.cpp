@@ -142,7 +142,7 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 
 namespace rhi {
 
-Result getCPUAdapter(uint32_t index, IAdapter** outAdapter)
+IAdapter* getCPUAdapter(uint32_t index)
 {
     static Adapter adapter = []()
     {
@@ -154,12 +154,7 @@ Result getCPUAdapter(uint32_t index, IAdapter** outAdapter)
         outAdapter.m_isDefault = true;
         return outAdapter;
     }();
-    if (index == 0)
-    {
-        *outAdapter = &adapter;
-        return SLANG_OK;
-    }
-    return SLANG_E_NOT_FOUND;
+    return index == 0 ? &adapter : nullptr;
 }
 
 Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice)

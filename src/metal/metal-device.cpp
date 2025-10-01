@@ -457,15 +457,10 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 
 namespace rhi {
 
-Result getMetalAdapter(uint32_t index, IAdapter** outAdapter)
+IAdapter* getMetalAdapter(uint32_t index)
 {
     std::vector<metal::AdapterImpl>& adapters = metal::getAdapters();
-    if (index >= adapters.size())
-    {
-        return SLANG_E_NOT_FOUND;
-    }
-    *outAdapter = &adapters[index];
-    return SLANG_OK;
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
 Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outDevice)

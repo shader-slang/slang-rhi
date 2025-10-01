@@ -629,15 +629,10 @@ std::vector<Adapter>& getAdapters()
 
 namespace rhi {
 
-Result getWGPUAdapter(uint32_t index, IAdapter** outAdapter)
+IAdapter* getWGPUAdapter(uint32_t index)
 {
     std::vector<Adapter>& adapters = wgpu::getAdapters();
-    if (index >= adapters.size())
-    {
-        return SLANG_E_NOT_FOUND;
-    }
-    *outAdapter = &adapters[index];
-    return SLANG_OK;
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
 Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice)

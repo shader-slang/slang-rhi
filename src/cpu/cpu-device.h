@@ -104,7 +104,7 @@ private:
 
 namespace rhi {
 
-Result getCPUAdapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getCPUAdapter(uint32_t index);
 Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

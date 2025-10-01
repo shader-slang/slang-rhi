@@ -701,15 +701,10 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 
 namespace rhi {
 
-Result getCUDAAdapter(uint32_t index, IAdapter** outAdapter)
+IAdapter* getCUDAAdapter(uint32_t index)
 {
     std::vector<cuda::AdapterImpl>& adapters = cuda::getAdapters();
-    if (index >= adapters.size())
-    {
-        return SLANG_E_NOT_FOUND;
-    }
-    *outAdapter = &adapters[index];
-    return SLANG_OK;
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
 Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice)

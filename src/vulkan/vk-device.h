@@ -211,7 +211,7 @@ public:
 
 namespace rhi {
 
-Result getVKAdapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getVKAdapter(uint32_t index);
 Result createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

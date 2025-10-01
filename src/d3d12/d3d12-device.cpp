@@ -1884,15 +1884,10 @@ DeviceImpl::~DeviceImpl()
 
 namespace rhi {
 
-Result getD3D12Adapter(uint32_t index, IAdapter** outAdapter)
+IAdapter* getD3D12Adapter(uint32_t index)
 {
     std::vector<d3d12::AdapterImpl>& adapters = d3d12::getAdapters();
-    if (index >= adapters.size())
-    {
-        return SLANG_E_NOT_FOUND;
-    }
-    *outAdapter = &adapters[index];
-    return SLANG_OK;
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
 Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)

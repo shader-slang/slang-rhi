@@ -171,7 +171,7 @@ public:
 
 namespace rhi {
 
-Result getMetalAdapter(uint32_t index, IAdapter** outAdapter);
+IAdapter* getMetalAdapter(uint32_t index);
 Result createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi
