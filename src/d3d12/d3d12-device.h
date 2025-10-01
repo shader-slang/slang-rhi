@@ -29,8 +29,6 @@ public:
     bool m_isWarp = false;
 };
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters();
-
 class DeviceImpl : public Device
 {
 public:

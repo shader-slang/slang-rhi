@@ -13,8 +13,6 @@ public:
     uint8_t m_deviceUUID[VK_UUID_SIZE];
 };
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters();
-
 class DeviceImpl : public Device
 {
 public:

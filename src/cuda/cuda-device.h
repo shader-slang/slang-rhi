@@ -20,8 +20,6 @@ public:
     int m_deviceIndex;
 };
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters();
-
 class DeviceImpl : public Device
 {
 public:

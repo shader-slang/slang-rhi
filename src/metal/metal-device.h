@@ -13,8 +13,6 @@ public:
     NS::SharedPtr<MTL::Device> m_device;
 };
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters();
-
 class DeviceImpl : public Device
 {
 public:

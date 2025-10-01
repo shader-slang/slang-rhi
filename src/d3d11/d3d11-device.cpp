@@ -22,7 +22,7 @@
 
 namespace rhi::d3d11 {
 
-inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
+inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 {
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
     SLANG_RETURN_ON_FAIL(enumAdapters(dxgiAdapters));
@@ -39,25 +39,25 @@ inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
         info.deviceID = desc.DeviceId;
         info.luid = getAdapterLUID(desc.AdapterLuid);
 
-        RefPtr<AdapterImpl> adapter = new AdapterImpl();
-        adapter->m_info = info;
-        adapter->m_dxgiAdapter = dxgiAdapter;
-        adapter->m_isWarp = (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c);
+        AdapterImpl adapter;
+        adapter.m_info = info;
+        adapter.m_dxgiAdapter = dxgiAdapter;
+        adapter.m_isWarp = (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c);
         outAdapters.push_back(adapter);
     }
 
     // For now, make the first adapter the default one.
     if (!outAdapters.empty())
     {
-        outAdapters[0]->m_isDefault = true;
+        outAdapters[0].m_isDefault = true;
     }
 
     return SLANG_OK;
 }
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+std::vector<AdapterImpl>& getAdapters()
 {
-    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static std::vector<AdapterImpl> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -94,8 +94,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     m_dxgiFactory = getDXGIFactory();
 
-    RefPtr<AdapterImpl> adapter;
-    SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+    AdapterImpl* adapter = nullptr;
+    SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, &adapter));
     m_dxgiAdapter = adapter->m_dxgiAdapter;
 
     // We will ask for the highest feature level that can be supported.
@@ -640,12 +640,12 @@ namespace rhi {
 
 Result getD3D11Adapter(uint32_t index, IAdapter** outAdapter)
 {
-    const std::vector<RefPtr<d3d11::AdapterImpl>>& adapters = d3d11::getAdapters();
+    std::vector<d3d11::AdapterImpl>& adapters = d3d11::getAdapters();
     if (index >= adapters.size())
     {
         return SLANG_E_NOT_FOUND;
     }
-    returnComPtr(outAdapter, adapters[index]);
+    *outAdapter = &adapters[index];
     return SLANG_OK;
 }
 

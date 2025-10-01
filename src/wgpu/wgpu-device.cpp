@@ -583,7 +583,7 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-inline Result getAdaptersImpl(std::vector<RefPtr<Adapter>>& outAdapters)
+inline Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
 {
     // If WGPU is not available, return no adapters.
     API api;
@@ -609,17 +609,17 @@ inline Result getAdaptersImpl(std::vector<RefPtr<Adapter>>& outAdapters)
     info.vendorID = wgpuAdapterInfo.vendorID;
     info.deviceID = wgpuAdapterInfo.deviceID;
 
-    RefPtr<Adapter> adapter = new Adapter();
-    adapter->m_info = info;
-    adapter->m_isDefault = true;
+    Adapter adapter;
+    adapter.m_info = info;
+    adapter.m_isDefault = true;
     outAdapters.push_back(adapter);
 
     return SLANG_OK;
 }
 
-const std::vector<RefPtr<Adapter>>& getAdapters()
+std::vector<Adapter>& getAdapters()
 {
-    static std::vector<RefPtr<Adapter>> adapters;
+    static std::vector<Adapter> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -631,12 +631,12 @@ namespace rhi {
 
 Result getWGPUAdapter(uint32_t index, IAdapter** outAdapter)
 {
-    const std::vector<RefPtr<Adapter>>& adapters = wgpu::getAdapters();
+    std::vector<Adapter>& adapters = wgpu::getAdapters();
     if (index >= adapters.size())
     {
         return SLANG_E_NOT_FOUND;
     }
-    returnComPtr(outAdapter, adapters[index]);
+    *outAdapter = &adapters[index];
     return SLANG_OK;
 }
 

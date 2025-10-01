@@ -20,7 +20,7 @@
 
 namespace rhi::metal {
 
-inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
+inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 {
     AUTORELEASEPOOL
 
@@ -32,9 +32,9 @@ inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
         uint64_t registryID = device->registryID();
         memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
 
-        RefPtr<AdapterImpl> adapter = new AdapterImpl();
-        adapter->m_info = info;
-        adapter->m_device = NS::RetainPtr(device);
+        AdapterImpl adapter;
+        adapter.m_info = info;
+        adapter.m_device = NS::RetainPtr(device);
         outAdapters.push_back(adapter);
     };
 
@@ -63,9 +63,9 @@ inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
     return SLANG_OK;
 }
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+std::vector<AdapterImpl>& getAdapters()
 {
-    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static std::vector<AdapterImpl> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -100,8 +100,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    RefPtr<AdapterImpl> adapter;
-    selectAdapter(this, getAdapters(), desc, adapter);
+    AdapterImpl* adapter = nullptr;
+    selectAdapter(this, getAdapters(), desc, &adapter);
     m_device = adapter->m_device;
     if (!m_device)
     {
@@ -459,12 +459,12 @@ namespace rhi {
 
 Result getMetalAdapter(uint32_t index, IAdapter** outAdapter)
 {
-    const std::vector<RefPtr<metal::AdapterImpl>>& adapters = metal::getAdapters();
+    std::vector<metal::AdapterImpl>& adapters = metal::getAdapters();
     if (index >= adapters.size())
     {
         return SLANG_E_NOT_FOUND;
     }
-    returnComPtr(outAdapter, adapters[index]);
+    *outAdapter = &adapters[index];
     return SLANG_OK;
 }
 

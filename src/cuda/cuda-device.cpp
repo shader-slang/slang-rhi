@@ -115,7 +115,7 @@ inline Result findMaxFlopsDeviceIndex(int* outDeviceIndex)
     return SLANG_OK;
 }
 
-inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
+inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 {
     if (!rhiCudaDriverApiInit())
     {
@@ -137,9 +137,9 @@ inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
         SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
         info.luid = getAdapterLUID(deviceIndex);
 
-        RefPtr<AdapterImpl> adapter = new AdapterImpl();
-        adapter->m_info = info;
-        adapter->m_deviceIndex = deviceIndex;
+        AdapterImpl adapter;
+        adapter.m_info = info;
+        adapter.m_deviceIndex = deviceIndex;
         outAdapters.push_back(adapter);
     }
 
@@ -149,15 +149,15 @@ inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
         int defaultDeviceIndex = 0;
         SLANG_RETURN_ON_FAIL(findMaxFlopsDeviceIndex(&defaultDeviceIndex));
         SLANG_RHI_ASSERT(defaultDeviceIndex >= 0 && defaultDeviceIndex < (int)outAdapters.size());
-        outAdapters[defaultDeviceIndex]->m_isDefault = true;
+        outAdapters[defaultDeviceIndex].m_isDefault = true;
     }
 
     return SLANG_OK;
 }
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+std::vector<AdapterImpl>& getAdapters()
 {
-    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static std::vector<AdapterImpl> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -254,8 +254,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     else
     {
         // User provided no external handles, so we need to create a device and context.
-        RefPtr<AdapterImpl> adapter;
-        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+        AdapterImpl* adapter = nullptr;
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, &adapter));
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, adapter->m_deviceIndex), this);
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDevicePrimaryCtxRetain(&m_ctx.context, m_ctx.device), this);
         m_ownsContext = true;
@@ -703,12 +703,12 @@ namespace rhi {
 
 Result getCUDAAdapter(uint32_t index, IAdapter** outAdapter)
 {
-    const std::vector<RefPtr<cuda::AdapterImpl>>& adapters = cuda::getAdapters();
+    std::vector<cuda::AdapterImpl>& adapters = cuda::getAdapters();
     if (index >= adapters.size())
     {
         return SLANG_E_NOT_FOUND;
     }
-    returnComPtr(outAdapter, adapters[index]);
+    *outAdapter = &adapters[index];
     return SLANG_OK;
 }
 

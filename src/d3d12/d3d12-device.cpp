@@ -90,7 +90,7 @@ inline int getShaderModelFromProfileName(const char* name)
     return -1;
 }
 
-inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
+inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 {
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
     SLANG_RETURN_ON_FAIL(enumAdapters(dxgiAdapters));
@@ -107,25 +107,25 @@ inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
         info.deviceID = desc.DeviceId;
         info.luid = getAdapterLUID(desc.AdapterLuid);
 
-        RefPtr<AdapterImpl> adapter = new AdapterImpl();
-        adapter->m_info = info;
-        adapter->m_dxgiAdapter = dxgiAdapter;
-        adapter->m_isWarp = (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c);
+        AdapterImpl adapter;
+        adapter.m_info = info;
+        adapter.m_dxgiAdapter = dxgiAdapter;
+        adapter.m_isWarp = (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c);
         outAdapters.push_back(adapter);
     }
 
     // For now, make the first adapter the default one.
     if (!outAdapters.empty())
     {
-        outAdapters[0]->m_isDefault = true;
+        outAdapters[0].m_isDefault = true;
     }
 
     return SLANG_OK;
 }
 
-const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+std::vector<AdapterImpl>& getAdapters()
 {
-    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static std::vector<AdapterImpl> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -295,11 +295,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     m_dxgiFactory = getDXGIFactory();
-    RefPtr<AdapterImpl> adapter;
+    AdapterImpl* adapter = nullptr;
 
     if (!desc.existingDeviceHandles.handles[0])
     {
-        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, &adapter));
         m_dxgiAdapter = adapter->m_dxgiAdapter;
 
         const D3D_FEATURE_LEVEL featureLevels[] =
@@ -327,13 +327,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         auto it = std::find_if(
             getAdapters().begin(),
             getAdapters().end(),
-            [&](const RefPtr<AdapterImpl>& a) { return luid == a->m_info.luid; }
+            [&](const AdapterImpl& a) { return luid == a.m_info.luid; }
         );
         if (it == getAdapters().end())
         {
             return SLANG_FAIL;
         }
-        adapter = *it;
+        adapter = &*it;
         m_dxgiAdapter = adapter->m_dxgiAdapter;
     }
 
@@ -1886,12 +1886,12 @@ namespace rhi {
 
 Result getD3D12Adapter(uint32_t index, IAdapter** outAdapter)
 {
-    const std::vector<RefPtr<d3d12::AdapterImpl>>& adapters = d3d12::getAdapters();
+    std::vector<d3d12::AdapterImpl>& adapters = d3d12::getAdapters();
     if (index >= adapters.size())
     {
         return SLANG_E_NOT_FOUND;
     }
-    returnComPtr(outAdapter, adapters[index]);
+    *outAdapter = &adapters[index];
     return SLANG_OK;
 }
 
