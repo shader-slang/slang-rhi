@@ -381,6 +381,7 @@ struct RayTracingReorderTest
 
 GPU_TEST_CASE("ray-tracing-reorder-hint", ALL)
 {
+    SKIP("Disabled until PR https://github.com/shader-slang/slang/pull/8576 is merged");
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
@@ -393,6 +394,7 @@ GPU_TEST_CASE("ray-tracing-reorder-hint", ALL)
 
 GPU_TEST_CASE("ray-tracing-reorder-hit-obj", ALL)
 {
+    SKIP("Disabled until PR https://github.com/shader-slang/slang/pull/8576 is merged");
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
@@ -405,6 +407,7 @@ GPU_TEST_CASE("ray-tracing-reorder-hit-obj", ALL)
 
 GPU_TEST_CASE("ray-tracing-reorder-hit-obj-and-hint", ALL)
 {
+    SKIP("Disabled until PR https://github.com/shader-slang/slang/pull/8576 is merged");
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
