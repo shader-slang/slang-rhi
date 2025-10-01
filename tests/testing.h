@@ -15,10 +15,15 @@
 
 namespace rhi::testing {
 
+static constexpr size_t kDeviceTypeCount = 7;
+
 struct Options
 {
     bool verbose = false;
     bool checkDevices = false;
+    bool listDevices = false;
+    std::array<bool, kDeviceTypeCount + 1> deviceSelected = {true};
+    std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex = {-1};
 };
 
 inline Options& options()
@@ -236,6 +241,8 @@ void compareComputeResult(
     compareComputeResult(device, texture, layer, mip, span<T>(expectedResult.data(), Count), expectFailure);
 }
 
+const char* deviceTypeToString(DeviceType deviceType);
+
 struct DeviceExtraOptions
 {
     std::vector<const char*> searchPaths;
@@ -267,7 +274,9 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType);
 
 bool isDeviceTypeAvailable(DeviceType deviceType);
 
-bool isSwiftShaderDevice(IDevice* device);
+bool isDeviceTypeSelected(DeviceType deviceType);
+
+rhi::IAdapter* getSelectedDeviceAdapter(DeviceType deviceType);
 
 slang::IGlobalSession* getSlangGlobalSession();
 

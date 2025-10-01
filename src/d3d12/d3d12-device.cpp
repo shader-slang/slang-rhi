@@ -22,9 +22,9 @@
 #include "GFSDK_Aftermath_GpuCrashDump.h"
 #endif
 
-namespace rhi::d3d12 {
+#include <algorithm>
 
-static const uint32_t D3D_FEATURE_LEVEL_12_2 = 0xc200;
+namespace rhi::d3d12 {
 
 // List of validation messages that are filtered out by default.
 static const D3D12_MESSAGE_ID kFilteredValidationMessages[] = {
@@ -32,12 +32,6 @@ static const D3D12_MESSAGE_ID kFilteredValidationMessages[] = {
     D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
     D3D12_MESSAGE_ID_FENCE_ZERO_WAIT,
 };
-
-#if SLANG_RHI_NV_AFTERMATH
-const bool DeviceImpl::g_isAftermathEnabled = true;
-#else
-const bool DeviceImpl::g_isAftermathEnabled = false;
-#endif
 
 struct ShaderModelInfo
 {
@@ -94,6 +88,47 @@ inline int getShaderModelFromProfileName(const char* name)
         }
     }
     return -1;
+}
+
+inline Result getAdaptersImpl(std::vector<RefPtr<AdapterImpl>>& outAdapters)
+{
+    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
+    SLANG_RETURN_ON_FAIL(enumAdapters(dxgiAdapters));
+
+    for (const auto& dxgiAdapter : dxgiAdapters)
+    {
+        DXGI_ADAPTER_DESC desc;
+        dxgiAdapter->GetDesc(&desc);
+        AdapterInfo info = {};
+        info.deviceType = DeviceType::D3D12;
+        auto name = string::from_wstring(desc.Description);
+        string::copy_safe(info.name, sizeof(info.name), name.c_str());
+        info.vendorID = desc.VendorId;
+        info.deviceID = desc.DeviceId;
+        info.luid = getAdapterLUID(desc.AdapterLuid);
+
+        RefPtr<AdapterImpl> adapter = new AdapterImpl();
+        adapter->m_info = info;
+        adapter->m_dxgiAdapter = dxgiAdapter;
+        adapter->m_isWarp = (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c);
+        outAdapters.push_back(adapter);
+    }
+
+    // For now, make the first adapter the default one.
+    if (!outAdapters.empty())
+    {
+        outAdapters[0]->m_isDefault = true;
+    }
+
+    return SLANG_OK;
+}
+
+const std::vector<RefPtr<AdapterImpl>>& getAdapters()
+{
+    static std::vector<RefPtr<AdapterImpl>> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_UNUSED(initResult);
+    return adapters;
 }
 
 static void validationMessageCallback(
@@ -164,160 +199,6 @@ static void __stdcall raytracingValidationMessageCallback(
 }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
-Result DeviceImpl::_createDevice(
-    DeviceCheckFlags deviceCheckFlags,
-    const AdapterLUID* adapterLUID,
-    D3D_FEATURE_LEVEL featureLevel,
-    D3D12DeviceInfo& outDeviceInfo
-)
-{
-    outDeviceInfo.clear();
-
-    ComPtr<IDXGIFactory> dxgiFactory;
-    SLANG_RETURN_ON_FAIL(createDXGIFactory(deviceCheckFlags, dxgiFactory));
-
-    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(findAdapters(deviceCheckFlags, adapterLUID, dxgiFactory, dxgiAdapters));
-
-    ComPtr<ID3D12Device> device;
-    ComPtr<IDXGIAdapter> adapter;
-
-    for (size_t i = 0; i < dxgiAdapters.size(); ++i)
-    {
-        IDXGIAdapter* dxgiAdapter = dxgiAdapters[i];
-        if (SLANG_SUCCEEDED(m_D3D12CreateDevice(dxgiAdapter, featureLevel, IID_PPV_ARGS(device.writeRef()))))
-        {
-            adapter = dxgiAdapter;
-            break;
-        }
-    }
-
-    if (!device)
-    {
-        return SLANG_FAIL;
-    }
-
-    if (m_dxDebug && (deviceCheckFlags & DeviceCheckFlag::UseDebug) && !g_isAftermathEnabled)
-    {
-        ComPtr<ID3D12InfoQueue> infoQueue;
-        if (SLANG_SUCCEEDED(device->QueryInterface(infoQueue.writeRef())))
-        {
-            // Make break
-            infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-            if (m_extendedDesc.debugBreakOnD3D12Error)
-            {
-                infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-            }
-            D3D12_INFO_QUEUE_FILTER f = {};
-            f.DenyList.NumIDs = (UINT)SLANG_COUNT_OF(kFilteredValidationMessages);
-            f.DenyList.pIDList = (D3D12_MESSAGE_ID*)kFilteredValidationMessages;
-            infoQueue->AddStorageFilterEntries(&f);
-
-            // Apparently there is a problem with sm 6.3 with spurious errors, with debug layer
-            // enabled
-            D3D12_FEATURE_DATA_SHADER_MODEL featureShaderModel;
-            featureShaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_3;
-            SLANG_SUCCEEDED(
-                device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &featureShaderModel, sizeof(featureShaderModel))
-            );
-
-            if (featureShaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_3)
-            {
-                // Filter out any messages that cause issues
-                // TODO: Remove this when the debug layers work properly
-                D3D12_MESSAGE_ID messageIds[] = {
-                    // When the debug layer is enabled this error is triggered sometimes after a
-                    // CopyDescriptorsSimple call The failed check validates that the source and
-                    // destination ranges of the copy do not overlap. The check assumes descriptor
-                    // handles are pointers to memory, but this is not always the case and the check
-                    // fails (even though everything is okay).
-                    D3D12_MESSAGE_ID_COPY_DESCRIPTORS_INVALID_RANGES,
-                };
-
-                // We filter INFO messages because they are way too many
-                D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
-
-                D3D12_INFO_QUEUE_FILTER infoQueueFilter = {};
-                infoQueueFilter.DenyList.NumSeverities = SLANG_COUNT_OF(severities);
-                infoQueueFilter.DenyList.pSeverityList = severities;
-                infoQueueFilter.DenyList.NumIDs = SLANG_COUNT_OF(messageIds);
-                infoQueueFilter.DenyList.pIDList = messageIds;
-
-                infoQueue->PushStorageFilter(&infoQueueFilter);
-            }
-        }
-        ComPtr<ID3D12InfoQueue1> infoQueue1;
-        if (SLANG_SUCCEEDED(device->QueryInterface(infoQueue1.writeRef())))
-        {
-            if (!SLANG_SUCCEEDED(infoQueue1->RegisterMessageCallback(
-                    validationMessageCallback,
-                    D3D12_MESSAGE_CALLBACK_FLAG_NONE,
-                    this,
-                    &m_validationMessageCallbackCookie
-                )))
-            {
-                printWarning("Failed to register D3D12 validation message callback.");
-            }
-        }
-    }
-
-#ifdef SLANG_RHI_NV_AFTERMATH
-    {
-        if ((deviceCheckFlags & DeviceCheckFlag::UseDebug) && g_isAftermathEnabled)
-        {
-            // Initialize Nsight Aftermath for this device.
-            // This combination of flags is not necessarily appropraite for real world usage
-            const uint32_t aftermathFlags = GFSDK_Aftermath_FeatureFlags_EnableMarkers |      // Enable event marker
-                                                                                              // tracking.
-                                            GFSDK_Aftermath_FeatureFlags_CallStackCapturing | // Enable automatic call
-                                                                                              // stack event markers.
-                                            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking |  // Enable tracking of
-                                                                                                   // resources.
-                                            GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo | // Generate debug
-                                                                                                   // information for
-                                                                                                   // shaders.
-                                            GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting; // Enable
-                                                                                                     // additional
-                                                                                                     // runtime shader
-                                                                                                     // error reporting.
-
-            auto initResult = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, device);
-
-            if (initResult != GFSDK_Aftermath_Result_Success)
-            {
-                SLANG_RHI_ASSERT_FAILURE("Unable to initialize aftermath");
-                // Unable to initialize
-                return SLANG_FAIL;
-            }
-        }
-    }
-#endif
-
-    // Get the descs
-    {
-        adapter->GetDesc(&outDeviceInfo.m_desc);
-
-        // Look up GetDesc1 info
-        ComPtr<IDXGIAdapter1> adapter1;
-        if (SLANG_SUCCEEDED(adapter->QueryInterface(adapter1.writeRef())))
-        {
-            adapter1->GetDesc1(&outDeviceInfo.m_desc1);
-        }
-    }
-
-    // Save other info
-    outDeviceInfo.m_device = device;
-    outDeviceInfo.m_dxgiFactory = dxgiFactory;
-    outDeviceInfo.m_adapter = adapter;
-    outDeviceInfo.m_isWarp = isWarpAdapter(dxgiFactory, adapter);
-    const UINT kMicrosoftVendorId = 5140;
-    outDeviceInfo.m_isSoftware = outDeviceInfo.m_isWarp ||
-                                 ((outDeviceInfo.m_desc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0) ||
-                                 outDeviceInfo.m_desc.VendorId == kMicrosoftVendorId;
-
-    return SLANG_OK;
-}
-
 Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
@@ -331,7 +212,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #endif
     if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
     {
-        handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "error: failed load 'd3d12.dll'\n");
+        printError("Failed to load '%s'\n", libName);
         return SLANG_FAIL;
     }
 
@@ -353,7 +234,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // If Aftermath is enabled, we can't enable the D3D12 debug layer as well
-    if (isDebugLayersEnabled() && !g_isAftermathEnabled)
+    if (isDebugLayersEnabled() && !desc.enableAftermath)
     {
         m_D3D12GetDebugInterface = (PFN_D3D12_GET_DEBUG_INTERFACE)loadProc(d3dModule, "D3D12GetDebugInterface");
         if (m_D3D12GetDebugInterface)
@@ -413,41 +294,25 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
+    m_dxgiFactory = getDXGIFactory();
+    RefPtr<AdapterImpl> adapter;
+
     if (!desc.existingDeviceHandles.handles[0])
     {
-        FlagCombiner combiner;
-        if (isDebugLayersEnabled())
-        {
-            /// First try debug then non debug.
-            combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff);
-        }
-        else
-        {
-            /// Don't bother with debug.
-            combiner.add(DeviceCheckFlag::UseDebug, ChangeType::Off);
-        }
-        /// First try hardware, then reference.
-        combiner.add(DeviceCheckFlag::UseHardwareDevice, ChangeType::OnOff);
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+        m_dxgiAdapter = adapter->m_dxgiAdapter;
 
         const D3D_FEATURE_LEVEL featureLevels[] =
-            {(D3D_FEATURE_LEVEL)D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
+            {D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
         for (auto featureLevel : featureLevels)
         {
-            const int numCombinations = combiner.getNumCombinations();
-            for (int i = 0; i < numCombinations; ++i)
+            if (SUCCEEDED(m_D3D12CreateDevice(m_dxgiAdapter, featureLevel, IID_PPV_ARGS(m_device.writeRef()))))
             {
-                if (SLANG_SUCCEEDED(
-                        _createDevice(combiner.getCombination(i), desc.adapterLUID, featureLevel, m_deviceInfo)
-                    ))
-                {
-                    goto succ;
-                }
+                break;
             }
         }
-    succ:
-        if (!m_deviceInfo.m_adapter)
+        if (!m_device)
         {
-            // Couldn't find an adapter
             return SLANG_FAIL;
         }
     }
@@ -457,32 +322,108 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             return SLANG_FAIL;
         }
-        // Store the existing device handle in desc in m_deviceInfo
-        m_deviceInfo.m_device = (ID3D12Device*)desc.existingDeviceHandles.handles[0].value;
+        m_device = (ID3D12Device*)desc.existingDeviceHandles.handles[0].value;
+        AdapterLUID luid = getAdapterLUID(m_device->GetAdapterLuid());
+        auto it = std::find_if(
+            getAdapters().begin(),
+            getAdapters().end(),
+            [&](const RefPtr<AdapterImpl>& a) { return luid == a->m_info.luid; }
+        );
+        if (it == getAdapters().end())
+        {
+            return SLANG_FAIL;
+        }
+        adapter = *it;
+        m_dxgiAdapter = adapter->m_dxgiAdapter;
     }
 
-    // Set the device
-    m_device = m_deviceInfo.m_device;
-    m_device->QueryInterface<ID3D12Device5>(m_deviceInfo.m_device5.writeRef());
-    m_device5 = m_deviceInfo.m_device5.get();
+    // Query for ID3D12Device5 interface.
+    m_device->QueryInterface<ID3D12Device5>(m_device5.writeRef());
 
-    // Disable noisy debug layer messages.
-    if (isDebugLayersEnabled())
+    if (m_dxDebug && desc.enableValidation && !desc.enableAftermath)
     {
         ComPtr<ID3D12InfoQueue> infoQueue;
-        m_device->QueryInterface(infoQueue.writeRef());
-        if (infoQueue)
+        if (SLANG_SUCCEEDED(m_device->QueryInterface(infoQueue.writeRef())))
         {
-            D3D12_MESSAGE_ID hideMessages[] = {
-                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-                D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
-            };
+            // Make break
+            infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+            if (m_extendedDesc.debugBreakOnD3D12Error)
+            {
+                infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+            }
             D3D12_INFO_QUEUE_FILTER f = {};
-            f.DenyList.NumIDs = (UINT)std::size(hideMessages);
-            f.DenyList.pIDList = hideMessages;
+            f.DenyList.NumIDs = (UINT)SLANG_COUNT_OF(kFilteredValidationMessages);
+            f.DenyList.pIDList = (D3D12_MESSAGE_ID*)kFilteredValidationMessages;
             infoQueue->AddStorageFilterEntries(&f);
+
+            // Apparently there is a problem with sm 6.3 with spurious errors, with debug layer
+            // enabled
+            D3D12_FEATURE_DATA_SHADER_MODEL featureShaderModel;
+            featureShaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_3;
+            SLANG_SUCCEEDED(m_device->CheckFeatureSupport(
+                D3D12_FEATURE_SHADER_MODEL,
+                &featureShaderModel,
+                sizeof(featureShaderModel)
+            ));
+
+            if (featureShaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_3)
+            {
+                // Filter out any messages that cause issues
+                // TODO: Remove this when the debug layers work properly
+                D3D12_MESSAGE_ID messageIds[] = {
+                    // When the debug layer is enabled this error is triggered sometimes after a
+                    // CopyDescriptorsSimple call The failed check validates that the source and
+                    // destination ranges of the copy do not overlap. The check assumes descriptor
+                    // handles are pointers to memory, but this is not always the case and the check
+                    // fails (even though everything is okay).
+                    D3D12_MESSAGE_ID_COPY_DESCRIPTORS_INVALID_RANGES,
+                };
+
+                // We filter INFO messages because they are way too many
+                D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
+
+                D3D12_INFO_QUEUE_FILTER infoQueueFilter = {};
+                infoQueueFilter.DenyList.NumSeverities = SLANG_COUNT_OF(severities);
+                infoQueueFilter.DenyList.pSeverityList = severities;
+                infoQueueFilter.DenyList.NumIDs = SLANG_COUNT_OF(messageIds);
+                infoQueueFilter.DenyList.pIDList = messageIds;
+
+                infoQueue->PushStorageFilter(&infoQueueFilter);
+            }
+        }
+        ComPtr<ID3D12InfoQueue1> infoQueue1;
+        if (SLANG_SUCCEEDED(m_device->QueryInterface(infoQueue1.writeRef())))
+        {
+            if (SLANG_FAILED(infoQueue1->RegisterMessageCallback(
+                    validationMessageCallback,
+                    D3D12_MESSAGE_CALLBACK_FLAG_NONE,
+                    this,
+                    &m_validationMessageCallbackCookie
+                )))
+            {
+                printWarning("Failed to register D3D12 validation message callback.");
+            }
         }
     }
+
+#ifdef SLANG_RHI_NV_AFTERMATH
+    if (desc.enableAftermath && adapter->isNVIDIA())
+    {
+        // Initialize Nsight Aftermath for this device.
+        // This combination of flags is not necessarily appropraite for real world usage
+        const uint32_t aftermathFlags =
+            GFSDK_Aftermath_FeatureFlags_EnableMarkers | GFSDK_Aftermath_FeatureFlags_CallStackCapturing |
+            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking | GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |
+            GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
+
+        auto initResult = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
+
+        if (initResult != GFSDK_Aftermath_Result_Success)
+        {
+            printWarning("Failed to initialize aftermath: %d\n", int(initResult));
+        }
+    }
+#endif
 
     // Initialize descriptor heaps.
     {
@@ -591,19 +532,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Query adapter name & LUID.
-    if (m_deviceInfo.m_adapter)
     {
         DXGI_ADAPTER_DESC adapterDesc;
-        m_deviceInfo.m_adapter->GetDesc(&adapterDesc);
+        m_dxgiAdapter->GetDesc(&adapterDesc);
         m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
-        m_info.adapterLUID = getAdapterLUID(m_deviceInfo.m_adapter);
-    }
-    else
-    {
-        m_adapterName = "Unknown";
-        m_info.adapterName = m_adapterName.data();
-        m_info.adapterLUID = {};
+        m_info.adapterLUID = getAdapterLUID(adapterDesc.AdapterLuid);
     }
 
     // Query device limits.
@@ -642,7 +576,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize features & capabilities.
-    addFeature(m_deviceInfo.m_isSoftware ? Feature::SoftwareDevice : Feature::HardwareDevice);
+    addFeature(adapter->m_isWarp ? Feature::SoftwareDevice : Feature::HardwareDevice);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Surface);
     addFeature(Feature::PipelineCache);
@@ -836,8 +770,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Initialize NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
     {
-        if (SLANG_SUCCEEDED(NVAPIUtil::initialize()))
+        if (adapter->isNVIDIA() && SLANG_SUCCEEDED(NVAPIUtil::initialize()))
         {
+            m_nvapiEnabled = true;
             m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
             if (m_nvapiShaderExtension)
             {
@@ -1039,7 +974,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::D3D12Device;
-    outHandles->handles[0].value = (uint64_t)m_device;
+    outHandles->handles[0].value = (uint64_t)m_device.get();
     outHandles->handles[1] = {};
     outHandles->handles[2] = {};
     return SLANG_OK;
@@ -1549,7 +1484,7 @@ Result DeviceImpl::createShaderProgram(
         shaderProgram->m_rootObjectLayout.writeRef(),
         d3dDiagnosticBlob.writeRef()
     );
-    if (!SLANG_SUCCEEDED(rootShaderLayoutResult))
+    if (SLANG_FAILED(rootShaderLayoutResult))
     {
         if (outDiagnosticBlob && d3dDiagnosticBlob)
         {
@@ -1655,7 +1590,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullDescriptor(
     }
     CPUDescriptorAllocation allocation = m_cpuCbvSrvUavHeap->allocate();
     Result result = createNullDescriptor(m_device, allocation.cpuHandle, bindingType, resourceShape);
-    if (!SLANG_SUCCEEDED(result))
+    if (SLANG_FAILED(result))
     {
         SLANG_RHI_ASSERT_FAILURE("Failed to create null descriptor");
     }
@@ -1702,7 +1637,7 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         );
         return;
     }
-    if (!SLANG_SUCCEEDED(enableExperimentalFeaturesFunc(
+    if (SLANG_FAILED(enableExperimentalFeaturesFunc(
             (UINT)desc.featureCount,
             (const IID*)desc.featureIIDs,
             (void*)desc.configurationStructs,
@@ -1790,9 +1725,8 @@ Result DeviceImpl::getAccelerationStructureSizes(
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (NVAPIUtil::isAvailable())
+    if (m_nvapiEnabled)
     {
-
         AccelerationStructureBuildDescConverterNVAPI converter;
         SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
 
@@ -1848,7 +1782,7 @@ Result DeviceImpl::createAccelerationStructure(
 Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
 #if SLANG_RHI_ENABLE_NVAPI
-    if (!NVAPIUtil::isAvailable())
+    if (!m_nvapiEnabled)
         return SLANG_E_NOT_AVAILABLE;
 
     if (m_cooperativeVectorProperties.empty())
@@ -1883,7 +1817,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
 Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
 {
 #if SLANG_RHI_ENABLE_NVAPI
-    if (!NVAPIUtil::isAvailable())
+    if (!m_nvapiEnabled)
         return SLANG_E_NOT_AVAILABLE;
 
     for (uint32_t i = 0; i < descCount; ++i)
@@ -1950,28 +1884,18 @@ DeviceImpl::~DeviceImpl()
 
 namespace rhi {
 
-Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters)
+Result getD3D12Adapter(uint32_t index, IAdapter** outAdapter)
 {
-    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
-
-    outAdapters.clear();
-    for (const auto& dxgiAdapter : dxgiAdapters)
+    const std::vector<RefPtr<d3d12::AdapterImpl>>& adapters = d3d12::getAdapters();
+    if (index >= adapters.size())
     {
-        DXGI_ADAPTER_DESC desc;
-        dxgiAdapter->GetDesc(&desc);
-        AdapterInfo info = {};
-        auto name = string::from_wstring(desc.Description);
-        memcpy(info.name, name.data(), min(name.length(), sizeof(AdapterInfo::name) - 1));
-        info.vendorID = desc.VendorId;
-        info.deviceID = desc.DeviceId;
-        info.luid = getAdapterLUID(dxgiAdapter);
-        outAdapters.push_back(info);
+        return SLANG_E_NOT_FOUND;
     }
+    returnComPtr(outAdapter, adapters[index]);
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
+Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<d3d12::DeviceImpl> result = new d3d12::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));
@@ -1979,7 +1903,7 @@ Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice
     return SLANG_OK;
 }
 
-void SLANG_MCALL enableD3D12DebugLayerIfAvailable()
+void enableD3D12DebugLayerIfAvailable()
 {
     SharedLibraryHandle d3dModule;
 #if SLANG_WINDOWS_FAMILY

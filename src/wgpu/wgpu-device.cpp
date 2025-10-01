@@ -20,6 +20,79 @@ static void errorCallback(WGPUErrorType type, const char* message, void* userdat
     device->handleError(type, message);
 }
 
+static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
+{
+    static const std::vector<const char*> enabledToggles = {"use_dxc"};
+    WGPUDawnTogglesDescriptor togglesDesc = {};
+    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
+    togglesDesc.enabledToggleCount = enabledToggles.size();
+    togglesDesc.enabledToggles = enabledToggles.data();
+    return togglesDesc;
+}
+
+static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
+{
+    WGPUInstanceDescriptor instanceDesc = {};
+    instanceDesc.features.timedWaitAnyEnable = WGPUBool(true);
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
+    instanceDesc.nextInChain = &togglesDesc.chain;
+    WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
+    if (!instance)
+    {
+        return SLANG_FAIL;
+    }
+    *outInstance = instance;
+    return SLANG_OK;
+}
+
+static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
+{
+    // Request adapter.
+    WGPURequestAdapterOptions options = {};
+    options.powerPreference = WGPUPowerPreference_HighPerformance;
+#if SLANG_WINDOWS_FAMILY
+    // TODO(webgpu-d3d): New validation error in D3D kills webgpu, so use vulkan for now.
+    options.backendType = WGPUBackendType_Vulkan;
+#elif SLANG_LINUX_FAMILY
+    options.backendType = WGPUBackendType_Vulkan;
+#endif
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
+    options.nextInChain = &togglesDesc.chain;
+
+    WGPUAdapter adapter = {};
+    {
+        WGPURequestAdapterStatus status = WGPURequestAdapterStatus_Unknown;
+        WGPURequestAdapterCallbackInfo2 callbackInfo = {};
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
+                                   WGPUAdapter adapter_,
+                                   const char* message,
+                                   void* userdata1,
+                                   void* userdata2)
+        {
+            *(WGPURequestAdapterStatus*)userdata1 = status_;
+            *(WGPUAdapter*)userdata2 = adapter_;
+        };
+        callbackInfo.userdata1 = &status;
+        callbackInfo.userdata2 = &adapter;
+        WGPUFuture future = api.wgpuInstanceRequestAdapter2(instance, &options, callbackInfo);
+        WGPUFutureWaitInfo futures[1] = {{future}};
+        uint64_t timeoutNS = UINT64_MAX;
+        WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
+    }
+
+    if (!adapter)
+    {
+        return SLANG_FAIL;
+    }
+    *outAdapter = adapter;
+    return SLANG_OK;
+}
+
 Context::~Context()
 {
     if (device)
@@ -72,53 +145,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(m_ctx.api.init());
     API& api = m_ctx.api;
 
-    const std::vector<const char*> enabledToggles = {"use_dxc"};
-    WGPUDawnTogglesDescriptor togglesDesc = {};
-    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
-    togglesDesc.enabledToggleCount = enabledToggles.size();
-    togglesDesc.enabledToggles = enabledToggles.data();
-
-    WGPUInstanceDescriptor instanceDesc = {};
-    instanceDesc.features.timedWaitAnyEnable = WGPUBool(true);
-    instanceDesc.nextInChain = &togglesDesc.chain;
-    m_ctx.instance = api.wgpuCreateInstance(&instanceDesc);
-
-    // Request adapter.
-    WGPURequestAdapterOptions options = {};
-    options.powerPreference = WGPUPowerPreference_HighPerformance;
-#if SLANG_WINDOWS_FAMILY
-    // TODO(webgpu-d3d): New validation error in D3D kills webgpu, so use vulkan for now.
-    options.backendType = WGPUBackendType_Vulkan;
-#elif SLANG_LINUX_FAMILY
-    options.backendType = WGPUBackendType_Vulkan;
-#endif
-    options.nextInChain = &togglesDesc.chain;
-
-    {
-        WGPURequestAdapterStatus status = WGPURequestAdapterStatus_Unknown;
-        WGPURequestAdapterCallbackInfo2 callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
-                                   WGPUAdapter adapter,
-                                   const char* message,
-                                   void* userdata1,
-                                   void* userdata2)
-        {
-            *(WGPURequestAdapterStatus*)userdata1 = status_;
-            *(WGPUAdapter*)userdata2 = adapter;
-        };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &m_ctx.adapter;
-        WGPUFuture future = m_ctx.api.wgpuInstanceRequestAdapter2(m_ctx.instance, &options, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
+    SLANG_RETURN_ON_FAIL(createWGPUInstance(api, &m_ctx.instance));
+    SLANG_RETURN_ON_FAIL(createWGPUAdapter(api, m_ctx.instance, &m_ctx.adapter));
 
     // Query adapter limits.
     WGPUSupportedLimits adapterLimits = {};
@@ -138,6 +166,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.uncapturedErrorCallbackInfo.callback = errorCallback;
     deviceDesc.uncapturedErrorCallbackInfo.userdata = this;
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
 
     {
@@ -554,21 +583,68 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
+inline Result getAdaptersImpl(std::vector<RefPtr<Adapter>>& outAdapters)
+{
+    // If WGPU is not available, return no adapters.
+    API api;
+    if (SLANG_FAILED(api.init()))
+    {
+        return SLANG_OK;
+    }
+
+    WGPUInstance wgpuInstance = {};
+    SLANG_RETURN_ON_FAIL(createWGPUInstance(api, &wgpuInstance));
+    SLANG_RHI_DEFERRED({ api.wgpuInstanceRelease(wgpuInstance); });
+
+    WGPUAdapter wgpuAdapter = {};
+    SLANG_RETURN_ON_FAIL(createWGPUAdapter(api, wgpuInstance, &wgpuAdapter));
+    SLANG_RHI_DEFERRED({ api.wgpuAdapterRelease(wgpuAdapter); });
+
+    WGPUAdapterInfo wgpuAdapterInfo = {};
+    api.wgpuAdapterGetInfo(wgpuAdapter, &wgpuAdapterInfo);
+
+    AdapterInfo info = {};
+    info.deviceType = DeviceType::WGPU;
+    string::copy_safe(info.name, sizeof(info.name), wgpuAdapterInfo.device);
+    info.vendorID = wgpuAdapterInfo.vendorID;
+    info.deviceID = wgpuAdapterInfo.deviceID;
+
+    RefPtr<Adapter> adapter = new Adapter();
+    adapter->m_info = info;
+    adapter->m_isDefault = true;
+    outAdapters.push_back(adapter);
+
+    return SLANG_OK;
+}
+
+const std::vector<RefPtr<Adapter>>& getAdapters()
+{
+    static std::vector<RefPtr<Adapter>> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_UNUSED(initResult);
+    return adapters;
+}
+
 } // namespace rhi::wgpu
 
 namespace rhi {
 
-Result SLANG_MCALL getWGPUAdapters(std::vector<AdapterInfo>& outAdapters)
+Result getWGPUAdapter(uint32_t index, IAdapter** outAdapter)
 {
-    // TODO: implement
+    const std::vector<RefPtr<Adapter>>& adapters = wgpu::getAdapters();
+    if (index >= adapters.size())
+    {
+        return SLANG_E_NOT_FOUND;
+    }
+    returnComPtr(outAdapter, adapters[index]);
     return SLANG_OK;
 }
 
-Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outRenderer)
+Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<wgpu::DeviceImpl> result = new wgpu::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outRenderer, result);
+    returnComPtr(outDevice, result);
     return SLANG_OK;
 }
 

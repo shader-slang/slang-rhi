@@ -536,7 +536,7 @@ struct VulkanApi
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 
     VkPhysicalDeviceProperties m_deviceProperties;
-    VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties;
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rayTracingPipelineProperties;
     VkPhysicalDeviceFeatures m_deviceFeatures;
     VkPhysicalDeviceMemoryProperties m_deviceMemoryProperties;
     VulkanExtendedFeatures m_extendedFeatures;

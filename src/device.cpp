@@ -589,7 +589,7 @@ Result Device::getCapabilities(uint32_t* outCapabilityCount, Capability* outCapa
 
 bool Device::hasCapability(Capability capability)
 {
-    return size_t(capability) < size_t(Capability::_Count) ? m_featureSet[size_t(capability)] : false;
+    return size_t(capability) < size_t(Capability::_Count) ? m_capabilitySet[size_t(capability)] : false;
 }
 
 bool Device::hasCapability(const char* capability)

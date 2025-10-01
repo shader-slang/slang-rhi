@@ -12,6 +12,9 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     ComPtr<IDevice> srcDevice = createTestingDevice(ctx, ctx->deviceType);
     ComPtr<IDevice> dstDevice = createTestingDevice(ctx, DeviceType::CUDA);
 
+    if (srcDevice->getInfo().adapterLUID != dstDevice->getInfo().adapterLUID)
+        SKIP("Devices do not refer to the same physical device");
+
     // Create a shareable buffer using srcDevice, get its handle, then create a buffer using the handle using
     // dstDevice. Read back the buffer and check that its contents are correct.
     const int numberCount = 4;

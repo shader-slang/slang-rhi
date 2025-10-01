@@ -142,6 +142,26 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 
 namespace rhi {
 
+Result getCPUAdapter(uint32_t index, IAdapter** outAdapter)
+{
+    static RefPtr<Adapter> adapter = []()
+    {
+        RefPtr<Adapter> outAdapter = new Adapter();
+        AdapterInfo info = {};
+        info.deviceType = DeviceType::CPU;
+        string::copy_safe(info.name, sizeof(info.name), "Default");
+        outAdapter->m_info = info;
+        outAdapter->m_isDefault = true;
+        return outAdapter;
+    }();
+    if (index == 0)
+    {
+        returnComPtr(outAdapter, adapter);
+        return SLANG_OK;
+    }
+    return SLANG_E_NOT_FOUND;
+}
+
 Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<cpu::DeviceImpl> result = new cpu::DeviceImpl();
