@@ -22,8 +22,14 @@ struct Options
     bool verbose = false;
     bool checkDevices = false;
     bool listDevices = false;
-    std::array<bool, kDeviceTypeCount + 1> deviceSelected = {true};
-    std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex = {-1};
+    std::array<bool, kDeviceTypeCount + 1> deviceSelected;
+    std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
+
+    Options()
+    {
+        deviceSelected.fill(true);
+        deviceAdapterIndex.fill(-1);
+    }
 };
 
 inline Options& options()
