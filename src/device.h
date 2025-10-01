@@ -447,7 +447,7 @@ public:
 };
 
 template<typename T>
-Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc& desc, T** outAdapter)
+Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc& desc, T*& outAdapter)
 {
     if (adapters.empty())
     {
@@ -471,7 +471,7 @@ Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc&
             device->printError("Invalid adapter\n");
             return SLANG_FAIL;
         }
-        *outAdapter = checked_cast<T*>(desc.adapter);
+        outAdapter = checked_cast<T*>(desc.adapter);
     }
     else if (desc.adapterLUID)
     {
@@ -481,7 +481,7 @@ Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc&
         {
             if (adapter.getInfo().luid == *desc.adapterLUID)
             {
-                *outAdapter = &adapter;
+                outAdapter = &adapter;
                 found = true;
                 break;
             }
@@ -495,12 +495,12 @@ Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc&
     else
     {
         // Select the default adapter or the first one if no default is available.
-        *outAdapter = &adapters[0];
+        outAdapter = &adapters[0];
         for (auto& adapter : adapters)
         {
             if (adapter.m_isDefault)
             {
-                *outAdapter = &adapter;
+                outAdapter = &adapter;
                 break;
             }
         }

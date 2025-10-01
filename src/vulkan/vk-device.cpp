@@ -412,7 +412,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     if (!desc.existingDeviceHandles.handles[1])
     {
         AdapterImpl* adapter = nullptr;
-        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, &adapter));
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));

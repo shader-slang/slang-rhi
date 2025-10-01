@@ -95,7 +95,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_dxgiFactory = getDXGIFactory();
 
     AdapterImpl* adapter = nullptr;
-    SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, &adapter));
+    SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
     m_dxgiAdapter = adapter->m_dxgiAdapter;
 
     // We will ask for the highest feature level that can be supported.

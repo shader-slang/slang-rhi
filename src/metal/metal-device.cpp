@@ -101,7 +101,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
     AdapterImpl* adapter = nullptr;
-    selectAdapter(this, getAdapters(), desc, &adapter);
+    selectAdapter(this, getAdapters(), desc, adapter);
     m_device = adapter->m_device;
     if (!m_device)
     {

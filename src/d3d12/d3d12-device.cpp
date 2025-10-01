@@ -299,7 +299,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     if (!desc.existingDeviceHandles.handles[0])
     {
-        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, &adapter));
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
         m_dxgiAdapter = adapter->m_dxgiAdapter;
 
         const D3D_FEATURE_LEVEL featureLevels[] =
