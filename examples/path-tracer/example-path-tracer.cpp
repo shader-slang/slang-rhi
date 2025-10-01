@@ -118,14 +118,17 @@ struct Transform
     float3 translation{0.f};
     float3 scaling{1.f};
     float3 rotation{0.f};
-    float4x4 matrix;
 
-    void updateMatrix()
+    float4x4 getMatrix() const
     {
         float4x4 T = translation_matrix(translation);
         float4x4 S = scaling_matrix(scaling);
-        float4x4 R = linalg::identity; // TODO support rotation
-        matrix = mul(mul(T, R), S);
+        float4 Rx = rotation_quat(float3(1, 0, 0), rotation.x);
+        float4 Ry = rotation_quat(float3(0, 1, 0), rotation.y);
+        float4 Rz = rotation_quat(float3(0, 0, 1), rotation.z);
+        float4x4 R = rotation_matrix(qmul(qmul(Rz, Ry), Rx));
+        float4x4 M = mul(mul(T, R), S);
+        return M;
     }
 };
 
@@ -186,7 +189,6 @@ struct Stage
             transform.translation.y += 1;
             transform.scaling = randomFloat3() + 0.5f;
             transform.rotation = randomFloat3() * 10.f;
-            transform.updateMatrix();
             uint32_t cubeTransform = addTransform(transform);
             addInstance(cubeMesh, cubeMaterials[i % cubeMaterials.size()], cubeTransform);
         }
@@ -216,8 +218,8 @@ struct Scene
     };
 
     ComPtr<IDevice> device;
-    // const Stage& stage;
-    // const Camera& camera;
+    const Stage* stage;
+    const Camera* camera;
 
     std::vector<MaterialDesc> materialDescs;
     ComPtr<IBuffer> materialDescsBuffer;
@@ -237,6 +239,8 @@ struct Scene
     Result initialize(IDevice* device, const Stage& stage)
     {
         this->device = device;
+        this->stage = &stage;
+        this->camera = &stage.camera;
 
         // Prepare material descriptors
         materialDescs.resize(stage.materials.size());
@@ -322,7 +326,7 @@ struct Scene
         transforms.resize(stage.transforms.size());
         for (size_t i = 0; i < stage.transforms.size(); ++i)
         {
-            transforms[i] = stage.transforms[i].matrix;
+            transforms[i] = transpose(stage.transforms[i].getMatrix());
         }
         inverseTransposeTransforms.resize(transforms.size());
         for (size_t i = 0; i < transforms.size(); ++i)
@@ -418,7 +422,7 @@ struct Scene
         {
             const InstanceDesc& instanceDesc = instanceDescs[instanceID];
             AccelerationStructureInstanceDescGeneric& instanceDescGeneric = instanceDescsGeneric[instanceID];
-            // instanceDescGeneric.transform = float3x4(transforms[instanceDesc.transformID]);
+            memcpy(instanceDescGeneric.transform, &transforms[instanceDesc.transformID], sizeof(float3x4));
             instanceDescGeneric.instanceID = (uint32_t)instanceID;
             instanceDescGeneric.instanceMask = 0xFF;
             instanceDescGeneric.instanceContributionToHitGroupIndex = 0;
@@ -498,7 +502,7 @@ struct Scene
         cursor["indices"].setBinding(indexBuffer);
         cursor["transforms"].setBinding(transformsBuffer);
         cursor["inverseTransposeTransforms"].setBinding(inverseTransposeTransformsBuffer);
-        // camera.bind(cursor["camera"]);
+        camera->bind(cursor["camera"]);
     }
 };
 
@@ -518,25 +522,46 @@ struct PathTracer
 
         if (USE_RAYTRACING_PIPELINE)
         {
-            // program = device->load_program("pathtracer.slang", {"rt_ray_gen", "rt_closest_hit", "rt_miss"});
-            // rayTracingPipeline = device->create_ray_tracing_pipeline({
-            //     .program = program,
-            //     .hit_groups =
-            //         {
-            //             {
-            //                 .hit_group_name = "default",
-            //                 .closest_hit_entry_point = "rt_closest_hit",
-            //             },
-            //         },
-            //     .max_recursion = 6,
-            //     .max_ray_payload_size = 128,
-            // });
-            // shaderTable = device->create_shader_table({
-            //     .program = program,
-            //     .ray_gen_entry_points = {"rt_ray_gen"},
-            //     .miss_entry_points = {"rt_miss"},
-            //     .hit_group_names = {"default"},
-            // });
+            ComPtr<IShaderProgram> program;
+            const char* entryPointNames[] = {
+                "mainRayGen",
+                "mainClosestHit",
+                "mainMiss",
+            };
+            SLANG_RETURN_ON_FAIL(createProgram(
+                device,
+                "path-tracer.slang",
+                false,
+                entryPointNames,
+                SLANG_COUNT_OF(entryPointNames),
+                program.writeRef()
+            ));
+
+            HitGroupDesc hitGroupDescs[1] = {};
+            hitGroupDescs[0].hitGroupName = "default";
+            hitGroupDescs[0].closestHitEntryPoint = "mainClosestHit";
+            RayTracingPipelineDesc rayTracingPipelineDesc = {};
+            rayTracingPipelineDesc.program = program;
+            rayTracingPipelineDesc.hitGroupCount = SLANG_COUNT_OF(hitGroupDescs);
+            rayTracingPipelineDesc.hitGroups = hitGroupDescs;
+            rayTracingPipelineDesc.maxRecursion = 6;
+            rayTracingPipelineDesc.maxRayPayloadSize = 128;
+            rayTracingPipelineDesc.maxAttributeSizeInBytes = 8;
+            rayTracingPipelineDesc.flags = RayTracingPipelineFlags::None;
+            SLANG_RETURN_ON_FAIL(device->createRayTracingPipeline(rayTracingPipelineDesc, rayTracingPipeline.writeRef()));
+
+            const char* rayGenEntryPoints[] = {"mainRayGen"};
+            const char* missEntryPoints[] = {"mainMiss"};
+            const char* hitGroupNames[] = {"default"};
+            ShaderTableDesc shaderTableDesc = {};
+            shaderTableDesc.rayGenShaderCount = SLANG_COUNT_OF(rayGenEntryPoints);
+            shaderTableDesc.rayGenShaderEntryPointNames = rayGenEntryPoints;
+            shaderTableDesc.missShaderCount = SLANG_COUNT_OF(missEntryPoints);
+            shaderTableDesc.missShaderEntryPointNames = missEntryPoints;
+            shaderTableDesc.hitGroupCount = SLANG_COUNT_OF(hitGroupNames);
+            shaderTableDesc.hitGroupNames = hitGroupNames;
+            shaderTableDesc.program = program;
+            SLANG_RETURN_ON_FAIL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
         }
         else
         {
@@ -552,14 +577,16 @@ struct PathTracer
     {
         if (USE_RAYTRACING_PIPELINE)
         {
-            // ref<RayTracingPassEncoder> passEncoder = commandEncoder->begin_ray_tracing_pass();
-            // ShaderObject* shaderObject = passEncoder->bind_pipeline(rayTracingPipeline, shaderTable);
-            // ShaderCursor cursor = ShaderCursor(shaderObject);
-            // cursor["g_output"] = output;
-            // cursor["g_frame"] = frame;
-            // scene.bind(cursor["g_scene"]);
-            // passEncoder->dispatch_rays(0, {output->width(), output->height(), 1});
-            // passEncoder->end();
+            IRayTracingPassEncoder* passEncoder = commandEncoder->beginRayTracingPass();
+            IShaderObject* shaderObject = passEncoder->bindPipeline(rayTracingPipeline, shaderTable);
+            ShaderCursor cursor = ShaderCursor(shaderObject);
+            scene->bind(cursor["g_scene"]);
+            cursor = ShaderCursor(shaderObject->getEntryPoint(0));
+            cursor["output"].setBinding(output);
+            cursor["frame"].setData(frame);
+            Extent3D size = output->getDesc().size;
+            passEncoder->dispatchRays(0, size.width, size.height, 1);
+            passEncoder->end();
         }
         else
         {
@@ -650,6 +677,7 @@ public:
     {
         ExampleDesc desc;
         desc.name = "PathTracer";
+        desc.supportedDeviceTypes = {DeviceType::Vulkan};
         desc.requireFeatures = {
             Feature::Surface,
             Feature::AccelerationStructure,
@@ -659,6 +687,7 @@ public:
             Feature::RayQuery,
 #endif
         };
+        desc.preprocessorMacros.push_back({"USE_RAYTRACING_PIPELINE", USE_RAYTRACING_PIPELINE ? "1" : "0"});
         return desc;
     }
 

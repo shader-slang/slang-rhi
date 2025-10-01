@@ -44,11 +44,12 @@ T divRoundUp(T x, T y)
         }                                                                                                              \
     }
 
-inline Result _createComputeProgram(
+inline Result createProgram(
     IDevice* device,
     const char* pathOrSource,
     bool isSource,
-    const char* entryPointName,
+    const char** entryPointNames,
+    size_t entryPointCount,
     IShaderProgram** outProgram
 )
 {
@@ -69,23 +70,27 @@ inline Result _createComputeProgram(
         printf("Failed to load Slang module from '%s'\n", pathOrSource);
         return SLANG_FAIL;
     }
-    slang::IEntryPoint* entryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointName, &entryPoint)))
+    std::vector<slang::IComponentType*> entryPoints;
+    for (size_t i = 0; i < entryPointCount; ++i)
     {
-        printf("Failed to find entry point '%s' in module '%s'\n", entryPointName, pathOrSource);
-        return SLANG_FAIL;
+        slang::IEntryPoint* entryPoint;
+        if (!SLANG_SUCCEEDED(module->findEntryPointByName(entryPointNames[i], &entryPoint)))
+        {
+            printf("Failed to find entry point '%s' in module '%s'\n", entryPointNames[i], pathOrSource);
+            return SLANG_FAIL;
+        }
+        entryPoints.push_back(entryPoint);
     }
     ShaderProgramDesc programDesc = {};
     programDesc.linkingStyle = LinkingStyle::SingleProgram;
-    slang::IComponentType* entryPoints[] = {entryPoint};
-    programDesc.slangEntryPoints = entryPoints;
-    programDesc.slangEntryPointCount = SLANG_COUNT_OF(entryPoints);
+    programDesc.slangEntryPoints = entryPoints.data();
+    programDesc.slangEntryPointCount = entryPoints.size();
     programDesc.slangGlobalScope = module;
     device->createShaderProgram(programDesc, outProgram, diagnostics.writeRef());
     PRINT_DIAGNOSTICS(diagnostics);
     if (!(*outProgram))
     {
-        printf("Failed to create program for entry point '%s' in module '%s'\n", entryPointName, pathOrSource);
+        printf("Failed to create program for module '%s'\n", pathOrSource);
         return SLANG_FAIL;
     }
     return SLANG_OK;
@@ -100,7 +105,7 @@ inline Result _createComputePipeline(
 )
 {
     ComPtr<IShaderProgram> program;
-    SLANG_RETURN_ON_FAIL(_createComputeProgram(device, pathOrSource, isSource, entryPointName, program.writeRef()));
+    SLANG_RETURN_ON_FAIL(createProgram(device, pathOrSource, isSource, &entryPointName, 1, program.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = program;
@@ -128,64 +133,6 @@ inline Result createComputePipelineFromSource(
     return _createComputePipeline(device, source, true, entryPointName, outPipeline);
 }
 
-inline Result _createRenderProgram(
-    IDevice* device,
-    const char* path,
-    bool isSource,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    IShaderProgram** outProgram
-)
-{
-    ComPtr<slang::IBlob> diagnostics;
-    slang::IModule* module = nullptr;
-    if (isSource)
-    {
-        module = device->getSlangSession()->loadModuleFromSourceString(nullptr, nullptr, path, diagnostics.writeRef());
-    }
-    else
-    {
-        module = device->getSlangSession()->loadModule(path, diagnostics.writeRef());
-    }
-    PRINT_DIAGNOSTICS(diagnostics);
-    if (!module)
-    {
-        printf("Failed to load Slang module from '%s'\n", path);
-        return SLANG_FAIL;
-    }
-    slang::IEntryPoint* vertexEntryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName(vertexEntryPointName, &vertexEntryPoint)))
-    {
-        printf("Failed to find entry point '%s' in module '%s'\n", vertexEntryPointName, path);
-        return SLANG_FAIL;
-    }
-    slang::IEntryPoint* fragmentEntryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName(fragmentEntryPointName, &fragmentEntryPoint)))
-    {
-        printf("Failed to find entry point '%s' in module '%s'\n", fragmentEntryPointName, path);
-        return SLANG_FAIL;
-    }
-    ShaderProgramDesc programDesc = {};
-    programDesc.linkingStyle = LinkingStyle::SingleProgram;
-    slang::IComponentType* entryPoints[] = {vertexEntryPoint, fragmentEntryPoint};
-    programDesc.slangEntryPoints = entryPoints;
-    programDesc.slangEntryPointCount = SLANG_COUNT_OF(entryPoints);
-    programDesc.slangGlobalScope = module;
-    device->createShaderProgram(programDesc, outProgram, diagnostics.writeRef());
-    PRINT_DIAGNOSTICS(diagnostics);
-    if (!(*outProgram))
-    {
-        printf(
-            "Failed to create program for entry points '%s' / '%s' in module '%s'\n",
-            vertexEntryPointName,
-            fragmentEntryPointName,
-            path
-        );
-        return SLANG_FAIL;
-    }
-    return SLANG_OK;
-}
-
 inline Result _createRenderPipeline(
     IDevice* device,
     const char* pathOrSource,
@@ -197,12 +144,13 @@ inline Result _createRenderPipeline(
 )
 {
     ComPtr<IShaderProgram> program;
-    SLANG_RETURN_ON_FAIL(_createRenderProgram(
+    const char* entryPointNames[] = {vertexEntryPointName, fragmentEntryPointName};
+    SLANG_RETURN_ON_FAIL(createProgram(
         device,
         pathOrSource,
         isSource,
-        vertexEntryPointName,
-        fragmentEntryPointName,
+        entryPointNames,
+        SLANG_COUNT_OF(entryPointNames),
         program.writeRef()
     ));
 

@@ -73,6 +73,7 @@ struct ExampleDesc
         // DeviceType::WGPU,
     };
     std::vector<Feature> requireFeatures;
+    std::vector<std::pair<std::string, std::string>> preprocessorMacros;
 };
 
 class ExampleBase
@@ -160,6 +161,18 @@ Result ExampleBase::createDevice(DeviceType deviceType)
     const char* searchPaths[] = {EXAMPLE_DIR};
     deviceDesc.slang.searchPaths = searchPaths;
     deviceDesc.slang.searchPathCount = SLANG_COUNT_OF(searchPaths);
+
+    std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
+    for (const auto& macro : m_desc.preprocessorMacros)
+    {
+        slang::PreprocessorMacroDesc desc;
+        desc.name = macro.first.c_str();
+        desc.value = macro.second.c_str();
+        preprocessorMacros.push_back(desc);
+    }
+    deviceDesc.slang.preprocessorMacros = preprocessorMacros.data();
+    deviceDesc.slang.preprocessorMacroCount = preprocessorMacros.size();
+
     SLANG_RETURN_ON_FAIL(getRHI()->createDevice(deviceDesc, m_device.writeRef()));
     SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
 
@@ -633,55 +646,58 @@ static int main(int argc, const char** argv)
     );
     examples.erase(std::remove(examples.begin(), examples.end(), nullptr), examples.end());
 
-    if (examples.size() > 1)
+    if (examples.size() > 0)
     {
-        mainExample = examples[0];
-        layoutWindows();
-    }
-
-    {
-        double time = glfwGetTime();
-        for (ExampleBase* example : examples)
+        if (examples.size() > 1)
         {
-            example->m_time = time;
+            mainExample = examples[0];
+            layoutWindows();
         }
-    }
 
-    while (true)
-    {
-        bool shouldClose = false;
-        for (ExampleBase* example : examples)
         {
-            if (glfwWindowShouldClose(example->m_window))
+            double time = glfwGetTime();
+            for (ExampleBase* example : examples)
             {
-                shouldClose = true;
-                break;
+                example->m_time = time;
             }
         }
-        if (shouldClose)
+
+        while (true)
         {
-            break;
+            bool shouldClose = false;
+            for (ExampleBase* example : examples)
+            {
+                if (glfwWindowShouldClose(example->m_window))
+                {
+                    shouldClose = true;
+                    break;
+                }
+            }
+            if (shouldClose)
+            {
+                break;
+            }
+
+            glfwPollEvents();
+
+            double time = glfwGetTime();
+
+            for (ExampleBase* example : examples)
+            {
+                if (!SLANG_SUCCEEDED(example->updateAndDraw(time)))
+                {
+                    // TODO: handle error
+                    break;
+                }
+            }
         }
-
-        glfwPollEvents();
-
-        double time = glfwGetTime();
 
         for (ExampleBase* example : examples)
         {
-            if (!SLANG_SUCCEEDED(example->updateAndDraw(time)))
-            {
-                // TODO: handle error
-                break;
-            }
+            example->m_queue->waitOnHost();
+            example->shutdown();
+            delete example;
         }
-    }
-
-    for (ExampleBase* example : examples)
-    {
-        example->m_queue->waitOnHost();
-        example->shutdown();
-        delete example;
     }
 
     glfwTerminate();
