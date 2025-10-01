@@ -690,9 +690,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
             // TODO: This sets global state!
             // Need to revisit if createRayTracingPipeline2 can get called from multiple threads.
-            SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-                NvAPI_D3D12_SetCreatePipelineStateOptions((ID3D12Device5*)m_device, &params)
-            );
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
         }
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
@@ -714,9 +712,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
             params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
 
-            SLANG_RHI_NVAPI_RETURN_ON_FAIL(
-                NvAPI_D3D12_SetCreatePipelineStateOptions((ID3D12Device5*)m_device, &params)
-            );
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
         }
     }
 #endif // SLANG_RHI_ENABLE_NVAPI

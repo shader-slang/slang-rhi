@@ -25,6 +25,24 @@ namespace testing {
 extern bool gDebugDisableStateTracking;
 } // namespace testing
 
+// Base class for adapters.
+// We specifically don't use ComObject as we don't want ref counting.
+// Adapters are lazily created and stored in static vectors and only released on program exit.
+class Adapter : public IAdapter
+{
+public:
+    virtual ~Adapter() {}
+
+    virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const override { return m_info; }
+
+    bool isNVIDIA() const { return m_info.vendorID == 0x10DE || m_info.deviceType == DeviceType::CUDA; }
+
+public:
+    AdapterInfo m_info;
+    /// True if this is the default adapter to use during automatic adapter selection.
+    bool m_isDefault = false;
+};
+
 struct ComponentKey
 {
     std::string typeName;
@@ -330,7 +348,6 @@ public:
         ShaderObjectLayout** outLayout
     );
 
-
 public:
     inline void handleMessage(DebugMessageType type, DebugMessageSource source, const char* message)
     {
@@ -416,5 +433,68 @@ public:
 
     IDebugCallback* m_debugCallback = nullptr;
 };
+
+template<typename T>
+Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc& desc, T*& outAdapter)
+{
+    if (adapters.empty())
+    {
+        device->printError("No adapters found\n");
+        return SLANG_FAIL;
+    }
+    if (desc.adapter)
+    {
+        // Select provided adapter, check it is valid.
+        bool valid = false;
+        for (auto& adapter : adapters)
+        {
+            if (&adapter == desc.adapter)
+            {
+                valid = true;
+                break;
+            }
+        }
+        if (!valid)
+        {
+            device->printError("Invalid adapter\n");
+            return SLANG_FAIL;
+        }
+        outAdapter = checked_cast<T*>(desc.adapter);
+    }
+    else if (desc.adapterLUID)
+    {
+        // Select adapter based on LUID.
+        bool found = false;
+        for (auto& adapter : adapters)
+        {
+            if (adapter.getInfo().luid == *desc.adapterLUID)
+            {
+                outAdapter = &adapter;
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            device->printError("Invalid adapter LUID\n");
+            return SLANG_FAIL;
+        }
+    }
+    else
+    {
+        // Select the default adapter or the first one if no default is available.
+        outAdapter = &adapters[0];
+        for (auto& adapter : adapters)
+        {
+            if (adapter.m_isDefault)
+            {
+                outAdapter = &adapter;
+                break;
+            }
+        }
+    }
+    return SLANG_OK;
+}
+
 
 } // namespace rhi

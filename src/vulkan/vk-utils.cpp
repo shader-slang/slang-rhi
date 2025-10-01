@@ -562,26 +562,19 @@ VkImageAspectFlags getAspectMaskFromFormat(VkFormat format, TextureAspect aspect
     return VkImageAspectFlags(0);
 }
 
-AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicalDevice)
+AdapterLUID getAdapterLUID(const VkPhysicalDeviceIDProperties& props)
 {
     AdapterLUID luid = {};
-
-    VkPhysicalDeviceIDPropertiesKHR idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR};
-    VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-    props.pNext = &idProps;
-    SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceFeatures2);
-    api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
-    if (idProps.deviceLUIDValid)
+    if (props.deviceLUIDValid)
     {
-        SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= VK_LUID_SIZE);
-        memcpy(&luid, idProps.deviceLUID, VK_LUID_SIZE);
+        static_assert(sizeof(AdapterLUID) >= VK_LUID_SIZE);
+        memcpy(&luid, props.deviceLUID, VK_LUID_SIZE);
     }
     else
     {
-        SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= VK_UUID_SIZE);
-        memcpy(&luid, idProps.deviceUUID, VK_UUID_SIZE);
+        static_assert(sizeof(AdapterLUID) >= VK_UUID_SIZE);
+        memcpy(&luid, props.deviceUUID, VK_UUID_SIZE);
     }
-
     return luid;
 }
 

@@ -483,7 +483,6 @@ target_sources(slang-rhi PRIVATE
     src/device.cpp
     src/device-child.cpp
     src/enum-strings.cpp
-    src/flag-combiner.cpp
     src/format-conversion.cpp
     src/heap.cpp
     src/pipeline.cpp
