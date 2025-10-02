@@ -180,6 +180,10 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     pipelineData->buffer = checked_cast<BufferImpl*>(buffer.get());
     pipelineData->raygenInfos = std::move(raygenInfos);
 
+    // Vulkan should always align allocations to the required minimum (by spec).
+    // However, it seems with lavapipe this is not always the case.
+    SLANG_RHI_ASSERT(buffer->getDeviceAddress() % rtpProps.shaderGroupBaseAlignment == 0);
+
     pipelineData->missRecordStride = missRecordSize;
     pipelineData->hitGroupRecordStride = hitGroupRecordSize;
     pipelineData->callableRecordStride = callableRecordSize;
