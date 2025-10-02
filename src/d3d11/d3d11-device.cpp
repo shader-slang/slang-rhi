@@ -109,47 +109,51 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         D3D_FEATURE_LEVEL_9_1,
     };
 
-    UINT deviceFlags = 0;
-    if (desc.enableValidation)
-    {
-        deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-    }
-    D3D_FEATURE_LEVEL featureLevel;
+    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL(0);
 
-    // On a machine that does not have an up-to-date version of D3D installed,
-    // the `D3D11CreateDevice` call will fail with `E_INVALIDARG` if you ask for feature level 11_1.
-    // The workaround is to call `D3D11CreateDevice` the first time with 11_1 and then back off to 11_0 if that fails.
-    Result result = D3D11CreateDevice_(
-        m_dxgiAdapter,
-        D3D_DRIVER_TYPE_UNKNOWN,
-        nullptr,
-        deviceFlags,
-        featureLevels,
-        SLANG_COUNT_OF(featureLevels),
-        D3D11_SDK_VERSION,
-        m_device.writeRef(),
-        &featureLevel,
-        m_immediateContext.writeRef()
-    );
-    if (result == E_INVALIDARG)
+    // When creating the D3D11 device we need to consider:
+    // - Creation may fail if debug layer is requested but not available on the system.
+    // - Creation may fail if feature level 11_1 is requested on a system that does not support it.
+    // To handle this we try a few combinations until one works or we run out of options.
+    // The order of flags is important, as we want to try the most specific options first.
+
+    enum CreateFlag
     {
+        UseDebug = 1,
+        Use11_1 = 2
+    };
+    int createFlags[] = {UseDebug | Use11_1, UseDebug, Use11_1, 0};
+    int usedCreateFlags = 0;
+
+    Result result = SLANG_FAIL;
+    for (uint32_t i = isDebugLayersEnabled() ? 0 : 2; i < SLANG_COUNT_OF(createFlags); i++)
+    {
+        usedCreateFlags = createFlags[i];
+        bool useDebug = (usedCreateFlags & UseDebug) != 0;
+        bool use11_1 = (usedCreateFlags & Use11_1) != 0;
         result = D3D11CreateDevice_(
             m_dxgiAdapter,
             D3D_DRIVER_TYPE_UNKNOWN,
             nullptr,
-            deviceFlags,
-            featureLevels + 1,
-            SLANG_COUNT_OF(featureLevels) - 1,
+            useDebug ? D3D11_CREATE_DEVICE_DEBUG : 0,
+            use11_1 ? featureLevels : featureLevels + 1,
+            use11_1 ? SLANG_COUNT_OF(featureLevels) : SLANG_COUNT_OF(featureLevels) - 1,
             D3D11_SDK_VERSION,
             m_device.writeRef(),
             &featureLevel,
             m_immediateContext.writeRef()
         );
+        if (SUCCEEDED(result))
+            break;
     }
     if (FAILED(result))
     {
         printError("D3D11CreateDevice failed: %08x\n", result);
         return SLANG_FAIL;
+    }
+    if (isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
+    {
+        printWarning("Debug layer requested but not available.\n");
     }
 
 #if SLANG_RHI_ENABLE_AFTERMATH
@@ -290,7 +294,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::hlsl);
 
-    // Initialize NVAPI
+// Initialize NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
     {
         if (adapter->isNVIDIA() && SLANG_SUCCEEDED(NVAPIUtil::initialize()))
