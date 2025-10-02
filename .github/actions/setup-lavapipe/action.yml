@@ -1,0 +1,80 @@
+name: "Setup lavapipe"
+description: "Installs the Mesa lavapipe Vulkan software driver and sets VK_DRIVER_FILES"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Lavapipe (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mesa-vulkan-drivers
+
+        # Find lavapipe ICD JSON file
+        ICD_FILE=$(ls /usr/share/vulkan/icd.d/lvp_icd.*.json | head -n1)
+        echo "VK_DRIVER_FILES=$ICD_FILE" >> $GITHUB_ENV
+
+    - name: Install Lavapipe (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        # Set Vulkan runtime version
+        $vulkanVersion = "1.4.321.0"
+
+        # Determine arch (x64 or arm64)
+        if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
+          $arch = "arm64"
+        } else {
+          $arch = "x64"
+        }
+
+        # Set VulkanRT download URL based on arch
+        if ($arch -eq "x64") {
+          $vulkanUrl = "https://sdk.lunarg.com/sdk/download/$vulkanVersion/windows/VulkanRT-X64-$vulkanVersion-Components.zip"
+        } else {
+          $vulkanUrl = "https://sdk.lunarg.com/sdk/download/$vulkanVersion/warm/VulkanRT-ARM64-$vulkanVersion-Components.zip"
+        }
+
+        # Create lavapipe directory
+        New-Item -ItemType Directory -Path lavapipe -Force | Out-Null
+
+        # Download Vulkan runtime
+        Write-Host "Downloading Vulkan runtime from $vulkanUrl"
+        curl -L -o vulkanrt.zip $vulkanUrl
+
+        # Extract all files
+        if ($arch -eq "x64") {
+          7z e vulkanrt.zip */x64/vulkan-1.dll -olavapipe | Out-Null
+        } else {
+          7z e vulkanrt.zip */vulkan-1.dll -olavapipe | Out-Null
+        }
+
+        # Get latest Mesa Lavapipe release metadata
+        $release = Invoke-RestMethod "https://api.github.com/repos/mmozeiko/build-mesa/releases/latest"
+        $pattern = "mesa-lavapipe-$arch-.*\.7z$"
+        $asset = $release.assets | Where-Object { $_.name -match $pattern }
+        if (-not $asset) {
+          Write-Error "Could not find Mesa Lavapipe build asset for $arch"
+          exit 1
+        }
+        $mesaUrl = $asset.browser_download_url
+        Write-Host "Downloading Mesa Lavapipe from $mesaUrl"
+        curl -L -o mesa.7z $mesaUrl
+        7z x mesa.7z -olavapipe
+
+        # Locate ICD JSON
+        $icdFile = Get-ChildItem lavapipe\* -Recurse -Include "lvp_icd*.json" | Select-Object -First 1
+        Write-Host "Found ICD JSON at $($icdFile.FullName)"
+
+        # Add the ICD JSON path to the user-specific registry key
+        $regPath = "HKLM:\SOFTWARE\Khronos\Vulkan\Drivers"
+        if (-Not (Test-Path $regPath)) {
+          New-Item -Path "HKLM:\SOFTWARE\Khronos\Vulkan" -Name "Drivers" -Force
+        }
+        New-ItemProperty -Path $regPath -Name $icdFile.FullName -PropertyType DWord -Value 0
+
+        # Add lavapipe directory to PATH
+        $lavapipeDir = Resolve-Path lavapipe
+        Write-Host "Adding lavapipe directory to PATH: $lavapipeDir"
+        echo "$lavapipeDir" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
