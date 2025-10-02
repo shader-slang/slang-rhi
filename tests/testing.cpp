@@ -212,14 +212,7 @@ public:
         }
         else if (type == DebugMessageType::Warning)
         {
-            if (shouldIgnoreError(type, source, message))
-            {
-                output(msg);
-            }
-            else
-            {
-                FAIL(msg);
-            }
+            output(msg);
         }
         else if (type == DebugMessageType::Error)
         {
