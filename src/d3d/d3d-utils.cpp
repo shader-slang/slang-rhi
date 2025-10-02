@@ -294,18 +294,21 @@ Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory)
         auto createFactory2 = (PFN_DXGI_CREATE_FACTORY_2)findSymbolAddressByName(dxgiModule, "CreateDXGIFactory2");
         if (createFactory2)
         {
-            UINT dxgiFlags = 0;
-
+            ComPtr<IDXGIFactory4> factory;
+            Result result = SLANG_FAIL;
             if (debug)
             {
-                dxgiFlags |= DXGI_CREATE_FACTORY_DEBUG;
+                result = (createFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(factory.writeRef())));
             }
-
-            ComPtr<IDXGIFactory4> factory;
-            SLANG_RETURN_ON_FAIL(createFactory2(dxgiFlags, IID_PPV_ARGS(factory.writeRef())));
-
-            outFactory = factory;
-            return SLANG_OK;
+            if (SLANG_FAILED(result))
+            {
+                result = createFactory2(0, IID_PPV_ARGS(factory.writeRef()));
+            }
+            if (SLANG_SUCCEEDED(result))
+            {
+                outFactory = factory;
+            }
+            return result;
         }
     }
 
@@ -363,8 +366,11 @@ Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>
 
 Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters)
 {
-    ComPtr<IDXGIFactory> factory;
-    SLANG_RETURN_ON_FAIL(createDXGIFactory(false, factory));
+    ComPtr<IDXGIFactory> factory = getDXGIFactory();
+    if (!factory)
+    {
+        return SLANG_FAIL;
+    }
     return enumAdapters(factory, outAdapters);
 }
 
