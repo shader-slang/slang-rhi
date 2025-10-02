@@ -323,12 +323,14 @@ Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory)
     }
 }
 
+bool isDebugLayersEnabled();
+
 ComPtr<IDXGIFactory> getDXGIFactory()
 {
     static ComPtr<IDXGIFactory> factory = []()
     {
         ComPtr<IDXGIFactory> f;
-        if (SLANG_FAILED(createDXGIFactory(SLANG_RHI_DEBUG ? true : false, f)))
+        if (SLANG_FAILED(createDXGIFactory(isDebugLayersEnabled(), f)))
         {
             return ComPtr<IDXGIFactory>();
         }

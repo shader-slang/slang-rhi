@@ -340,7 +340,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Query for ID3D12Device5 interface.
     m_device->QueryInterface<ID3D12Device5>(m_device5.writeRef());
 
-    if (m_dxDebug && desc.enableValidation && !desc.enableAftermath)
+    if (m_dxDebug && isDebugLayersEnabled() && !desc.enableAftermath)
     {
         ComPtr<ID3D12InfoQueue> infoQueue;
         if (SLANG_SUCCEEDED(m_device->QueryInterface(infoQueue.writeRef())))
