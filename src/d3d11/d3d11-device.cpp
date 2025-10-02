@@ -109,7 +109,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         D3D_FEATURE_LEVEL_9_1,
     };
 
-    D3D_FEATURE_LEVEL featureLevel;
+    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL(0);
 
     // When creating the D3D11 device we need to consider:
     // - Creation may fail if debug layer is requested but not available on the system.
