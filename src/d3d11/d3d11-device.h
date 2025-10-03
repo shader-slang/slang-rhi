@@ -4,6 +4,13 @@
 
 namespace rhi::d3d11 {
 
+class AdapterImpl : public Adapter
+{
+public:
+    ComPtr<IDXGIAdapter> m_dxgiAdapter;
+    bool m_isWarp = false;
+};
+
 class DeviceImpl : public Device
 {
 public:
@@ -96,10 +103,11 @@ public:
 
     RefPtr<CommandQueueImpl> m_queue;
 
+    ComPtr<IDXGIFactory> m_dxgiFactory;
+    ComPtr<IDXGIAdapter> m_dxgiAdapter;
     ComPtr<ID3D11Device> m_device;
     ComPtr<ID3D11DeviceContext> m_immediateContext;
     ComPtr<ID3D11DeviceContext1> m_immediateContext1;
-    ComPtr<IDXGIFactory> m_dxgiFactory;
     ComPtr<ID3D11Query> m_disjointQuery;
 
 #if SLANG_RHI_ENABLE_NVAPI
@@ -111,7 +119,7 @@ public:
 
 namespace rhi {
 
-Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
+IAdapter* getD3D11Adapter(uint32_t index);
+Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

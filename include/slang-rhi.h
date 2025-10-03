@@ -2677,19 +2677,23 @@ struct AdapterLUID
 
 struct AdapterInfo
 {
+    // Device type of the adapter.
+    DeviceType deviceType;
+
     // Descriptive name of the adapter.
     char name[128];
 
-    // Unique identifier for the vendor (only available for D3D and Vulkan).
+    // Unique identifier for the vendor (0 if not available).
     uint32_t vendorID;
 
-    // Unique identifier for the physical device among devices from the vendor (only available for D3D and Vulkan)
+    // Unique identifier for the physical device among devices from the vendor (0 if not available)
     uint32_t deviceID;
 
     // Logically unique identifier of the adapter.
     AdapterLUID luid;
 };
 
+// Deprecated
 class AdapterList
 {
 public:
@@ -2709,8 +2713,17 @@ private:
     ComPtr<ISlangBlob> m_blob;
 };
 
+class IAdapter
+{
+public:
+    virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const = 0;
+};
+
 struct DeviceLimits
 {
+    /// Maximum buffer size in bytes.
+    uint64_t maxBufferSize;
+
     /// Maximum dimension for 1D textures.
     uint32_t maxTextureDimension1D;
     /// Maximum dimensions for 2D textures.
@@ -2845,7 +2858,9 @@ struct DeviceDesc
     // For CUDA, this contains a handle for the device and/or a handle for the context. If context is provided,
     // device is ignored (and retreived from context). If only device is provided, a context is created for it.
     DeviceNativeHandles existingDeviceHandles;
-    // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
+    // Adapter to use.
+    IAdapter* adapter = nullptr;
+    // LUID of the adapter to use (deprecated).
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
     uint32_t requiredFeatureCount = 0;
@@ -2868,6 +2883,8 @@ struct DeviceDesc
     bool enableValidation = false;
     /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
     bool enableRayTracingValidation = false;
+    /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
+    bool enableAftermath = false;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
 
@@ -3355,7 +3372,9 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getFeatureName(Feature feature) = 0;
     virtual SLANG_NO_THROW const char* SLANG_MCALL getCapabilityName(Capability capability) = 0;
 
-    /// Gets a list of available adapters for a given device type.
+    virtual SLANG_NO_THROW IAdapter* SLANG_MCALL getAdapter(DeviceType type, uint32_t index) = 0;
+
+    /// Deprecated. Gets a list of available adapters for a given device type.
     virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
 
     inline AdapterList getAdapters(DeviceType type)

@@ -10,6 +10,7 @@
 
 namespace rhi::d3d11 {
 
+class AdapterImpl;
 class DeviceImpl;
 class ShaderProgramImpl;
 class BufferImpl;

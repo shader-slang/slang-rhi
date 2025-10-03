@@ -11,22 +11,24 @@
 
 namespace rhi {
 
-Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
-Result SLANG_MCALL createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
-Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
-Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
-Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
-Result SLANG_MCALL createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
-Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
+IAdapter* getD3D11Adapter(uint32_t index);
+IAdapter* getD3D12Adapter(uint32_t index);
+IAdapter* getVKAdapter(uint32_t index);
+IAdapter* getMetalAdapter(uint32_t index);
+IAdapter* getCUDAAdapter(uint32_t index);
+IAdapter* getCPUAdapter(uint32_t index);
+IAdapter* getWGPUAdapter(uint32_t index);
 
-Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL getD3D12Adapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
+Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
+Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
+Result createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
+Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
+Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
-Result SLANG_MCALL reportD3DLiveObjects();
-void SLANG_MCALL enableD3D12DebugLayerIfAvailable();
+Result reportD3DLiveObjects();
+void enableD3D12DebugLayerIfAvailable();
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
@@ -142,14 +144,15 @@ public:
     virtual const char* getFeatureName(Feature feature) override;
     virtual const char* getCapabilityName(Capability capability) override;
 
-    Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
-    void enableDebugLayers() override;
-    Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
+    virtual IAdapter* getAdapter(DeviceType type, uint32_t index) override;
+    virtual Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
+    virtual void enableDebugLayers() override;
+    virtual Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
 
-    Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;
+    virtual Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;
 
-    Result reportLiveObjects() override;
-    Result setTaskPool(ITaskPool* scheduler) override;
+    virtual Result reportLiveObjects() override;
+    virtual Result setTaskPool(ITaskPool* scheduler) override;
 
     static RHI* getInstance()
     {
@@ -225,47 +228,59 @@ const char* RHI::getCapabilityName(Capability capability)
     return size_t(capability) < kCapabilityNames.size() ? kCapabilityNames[size_t(capability)] : nullptr;
 }
 
-Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
+IAdapter* RHI::getAdapter(DeviceType type, uint32_t index)
 {
-    std::vector<AdapterInfo> adapters;
-
     switch (type)
     {
 #if SLANG_RHI_ENABLE_D3D11
     case DeviceType::D3D11:
-        SLANG_RETURN_ON_FAIL(getD3D11Adapters(adapters));
-        break;
+        return getD3D11Adapter(index);
 #endif
 #if SLANG_RHI_ENABLE_D3D12
     case DeviceType::D3D12:
-        SLANG_RETURN_ON_FAIL(getD3D12Adapters(adapters));
-        break;
+        return getD3D12Adapter(index);
 #endif
 #if SLANG_RHI_ENABLE_VULKAN
     case DeviceType::Vulkan:
-        SLANG_RETURN_ON_FAIL(getVKAdapters(adapters));
-        break;
+        return getVKAdapter(index);
 #endif
 #if SLANG_RHI_ENABLE_METAL
     case DeviceType::Metal:
-        SLANG_RETURN_ON_FAIL(getMetalAdapters(adapters));
-        break;
+        return getMetalAdapter(index);
 #endif
-    case DeviceType::CPU:
-        return SLANG_E_NOT_IMPLEMENTED;
 #if SLANG_RHI_ENABLE_CUDA
     case DeviceType::CUDA:
-        SLANG_RETURN_ON_FAIL(getCUDAAdapters(adapters));
-        break;
+        return getCUDAAdapter(index);
+#endif
+#if SLANG_RHI_ENABLE_CPU
+    case DeviceType::CPU:
+        return getCPUAdapter(index);
+#endif
+#if SLANG_RHI_ENABLE_WGPU
+    case DeviceType::WGPU:
+        return getWGPUAdapter(index);
 #endif
     default:
-        return SLANG_E_INVALID_ARG;
+        return nullptr;
+    }
+}
+
+Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
+{
+    std::vector<AdapterInfo> adapterInfos;
+
+    for (uint32_t i = 0;; ++i)
+    {
+        IAdapter* adapter = getAdapter(type, i);
+        if (!adapter)
+        {
+            break;
+        }
+        adapterInfos.push_back(adapter->getInfo());
     }
 
-    auto adaptersBlob = OwnedBlob::create(adapters.data(), adapters.size() * sizeof(AdapterInfo));
-    if (outAdaptersBlob)
-        returnComPtr(outAdaptersBlob, adaptersBlob);
-
+    auto adaptersBlob = OwnedBlob::create(adapterInfos.data(), adapterInfos.size() * sizeof(AdapterInfo));
+    returnComPtr(outAdaptersBlob, adaptersBlob);
     return SLANG_OK;
 }
 
@@ -278,18 +293,18 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
         DeviceDesc newDesc = *desc;
 #if SLANG_WINDOWS_FAMILY
         newDesc.deviceType = DeviceType::D3D12;
-        if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+        if (SLANG_SUCCEEDED(_createDevice(&newDesc, outDevice)))
             return SLANG_OK;
         newDesc.deviceType = DeviceType::Vulkan;
-        if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+        if (SLANG_SUCCEEDED(_createDevice(&newDesc, outDevice)))
             return SLANG_OK;
 #elif SLANG_LINUX_FAMILY
         newDesc.deviceType = DeviceType::Vulkan;
-        if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+        if (SLANG_SUCCEEDED(_createDevice(&newDesc, outDevice)))
             return SLANG_OK;
 #elif SLANG_APPLE_FAMILY
         newDesc.deviceType = DeviceType::Metal;
-        if (_createDevice(&newDesc, outDevice) == SLANG_OK)
+        if (SLANG_SUCCEEDED(_createDevice(&newDesc, outDevice)))
             return SLANG_OK;
 #endif
         return SLANG_FAIL;

@@ -20,6 +20,79 @@ static void errorCallback(WGPUErrorType type, const char* message, void* userdat
     device->handleError(type, message);
 }
 
+static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
+{
+    static const std::vector<const char*> enabledToggles = {"use_dxc"};
+    WGPUDawnTogglesDescriptor togglesDesc = {};
+    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
+    togglesDesc.enabledToggleCount = enabledToggles.size();
+    togglesDesc.enabledToggles = enabledToggles.data();
+    return togglesDesc;
+}
+
+static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
+{
+    WGPUInstanceDescriptor instanceDesc = {};
+    instanceDesc.features.timedWaitAnyEnable = WGPUBool(true);
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
+    instanceDesc.nextInChain = &togglesDesc.chain;
+    WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
+    if (!instance)
+    {
+        return SLANG_FAIL;
+    }
+    *outInstance = instance;
+    return SLANG_OK;
+}
+
+static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
+{
+    // Request adapter.
+    WGPURequestAdapterOptions options = {};
+    options.powerPreference = WGPUPowerPreference_HighPerformance;
+#if SLANG_WINDOWS_FAMILY
+    // TODO(webgpu-d3d): New validation error in D3D kills webgpu, so use vulkan for now.
+    options.backendType = WGPUBackendType_Vulkan;
+#elif SLANG_LINUX_FAMILY
+    options.backendType = WGPUBackendType_Vulkan;
+#endif
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
+    options.nextInChain = &togglesDesc.chain;
+
+    WGPUAdapter adapter = {};
+    {
+        WGPURequestAdapterStatus status = WGPURequestAdapterStatus_Unknown;
+        WGPURequestAdapterCallbackInfo2 callbackInfo = {};
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
+                                   WGPUAdapter adapter_,
+                                   const char* message,
+                                   void* userdata1,
+                                   void* userdata2)
+        {
+            *(WGPURequestAdapterStatus*)userdata1 = status_;
+            *(WGPUAdapter*)userdata2 = adapter_;
+        };
+        callbackInfo.userdata1 = &status;
+        callbackInfo.userdata2 = &adapter;
+        WGPUFuture future = api.wgpuInstanceRequestAdapter2(instance, &options, callbackInfo);
+        WGPUFutureWaitInfo futures[1] = {{future}};
+        uint64_t timeoutNS = UINT64_MAX;
+        WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
+    }
+
+    if (!adapter)
+    {
+        return SLANG_FAIL;
+    }
+    *outAdapter = adapter;
+    return SLANG_OK;
+}
+
 Context::~Context()
 {
     if (device)
@@ -72,53 +145,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(m_ctx.api.init());
     API& api = m_ctx.api;
 
-    const std::vector<const char*> enabledToggles = {"use_dxc"};
-    WGPUDawnTogglesDescriptor togglesDesc = {};
-    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
-    togglesDesc.enabledToggleCount = enabledToggles.size();
-    togglesDesc.enabledToggles = enabledToggles.data();
-
-    WGPUInstanceDescriptor instanceDesc = {};
-    instanceDesc.features.timedWaitAnyEnable = WGPUBool(true);
-    instanceDesc.nextInChain = &togglesDesc.chain;
-    m_ctx.instance = api.wgpuCreateInstance(&instanceDesc);
-
-    // Request adapter.
-    WGPURequestAdapterOptions options = {};
-    options.powerPreference = WGPUPowerPreference_HighPerformance;
-#if SLANG_WINDOWS_FAMILY
-    // TODO(webgpu-d3d): New validation error in D3D kills webgpu, so use vulkan for now.
-    options.backendType = WGPUBackendType_Vulkan;
-#elif SLANG_LINUX_FAMILY
-    options.backendType = WGPUBackendType_Vulkan;
-#endif
-    options.nextInChain = &togglesDesc.chain;
-
-    {
-        WGPURequestAdapterStatus status = WGPURequestAdapterStatus_Unknown;
-        WGPURequestAdapterCallbackInfo2 callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
-                                   WGPUAdapter adapter,
-                                   const char* message,
-                                   void* userdata1,
-                                   void* userdata2)
-        {
-            *(WGPURequestAdapterStatus*)userdata1 = status_;
-            *(WGPUAdapter*)userdata2 = adapter;
-        };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &m_ctx.adapter;
-        WGPUFuture future = m_ctx.api.wgpuInstanceRequestAdapter2(m_ctx.instance, &options, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
+    SLANG_RETURN_ON_FAIL(createWGPUInstance(api, &m_ctx.instance));
+    SLANG_RETURN_ON_FAIL(createWGPUAdapter(api, m_ctx.instance, &m_ctx.adapter));
 
     // Query adapter limits.
     WGPUSupportedLimits adapterLimits = {};
@@ -138,6 +166,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.uncapturedErrorCallbackInfo.callback = errorCallback;
     deviceDesc.uncapturedErrorCallbackInfo.userdata = this;
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
 
     {
@@ -205,26 +234,31 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Initialize device limits.
     {
-        m_info.limits.maxTextureDimension1D = m_ctx.limits.maxTextureDimension1D;
-        m_info.limits.maxTextureDimension2D = m_ctx.limits.maxTextureDimension2D;
-        m_info.limits.maxTextureDimension3D = m_ctx.limits.maxTextureDimension3D;
-        m_info.limits.maxTextureDimensionCube = m_ctx.limits.maxTextureDimension2D;
-        m_info.limits.maxTextureLayers = m_ctx.limits.maxTextureArrayLayers;
-        m_info.limits.maxVertexInputElements = m_ctx.limits.maxVertexAttributes;
-        m_info.limits.maxVertexInputElementOffset = m_ctx.limits.maxVertexBufferArrayStride;
-        m_info.limits.maxVertexStreams = m_ctx.limits.maxVertexBuffers;
-        m_info.limits.maxVertexStreamStride = m_ctx.limits.maxVertexBufferArrayStride;
-        m_info.limits.maxComputeThreadsPerGroup = m_ctx.limits.maxComputeInvocationsPerWorkgroup;
-        m_info.limits.maxComputeThreadGroupSize[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
-        m_info.limits.maxComputeThreadGroupSize[1] = m_ctx.limits.maxComputeWorkgroupSizeY;
-        m_info.limits.maxComputeThreadGroupSize[2] = m_ctx.limits.maxComputeWorkgroupSizeZ;
-        m_info.limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        m_info.limits.maxComputeDispatchThreadGroups[1] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        m_info.limits.maxComputeDispatchThreadGroups[2] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        // m_info.limits.maxViewports
-        // m_info.limits.maxViewportDimensions[2]
-        // m_info.limits.maxFramebufferDimensions[3]
-        m_info.limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
+        DeviceLimits& limits = m_info.limits;
+        limits.maxBufferSize = m_ctx.limits.maxBufferSize;
+        limits.maxTextureDimension1D = m_ctx.limits.maxTextureDimension1D;
+        limits.maxTextureDimension2D = m_ctx.limits.maxTextureDimension2D;
+        limits.maxTextureDimension3D = m_ctx.limits.maxTextureDimension3D;
+        limits.maxTextureDimensionCube = m_ctx.limits.maxTextureDimension2D;
+        limits.maxTextureLayers = m_ctx.limits.maxTextureArrayLayers;
+        limits.maxVertexInputElements = m_ctx.limits.maxVertexAttributes;
+        limits.maxVertexInputElementOffset = m_ctx.limits.maxVertexBufferArrayStride;
+        limits.maxVertexStreams = m_ctx.limits.maxVertexBuffers;
+        limits.maxVertexStreamStride = m_ctx.limits.maxVertexBufferArrayStride;
+        limits.maxComputeThreadsPerGroup = m_ctx.limits.maxComputeInvocationsPerWorkgroup;
+        limits.maxComputeThreadGroupSize[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
+        limits.maxComputeThreadGroupSize[1] = m_ctx.limits.maxComputeWorkgroupSizeY;
+        limits.maxComputeThreadGroupSize[2] = m_ctx.limits.maxComputeWorkgroupSizeZ;
+        limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxComputeDispatchThreadGroups[1] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxComputeDispatchThreadGroups[2] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxViewports = 1;
+        limits.maxViewportDimensions[0] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxViewportDimensions[1] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[0] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[1] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[2] = m_ctx.limits.maxTextureArrayLayers;
+        limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
     }
 
     // Initialize features & capabilities.
@@ -549,21 +583,63 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
+inline Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
+{
+    // If WGPU is not available, return no adapters.
+    API api;
+    if (SLANG_FAILED(api.init()))
+    {
+        return SLANG_OK;
+    }
+
+    WGPUInstance wgpuInstance = {};
+    SLANG_RETURN_ON_FAIL(createWGPUInstance(api, &wgpuInstance));
+    SLANG_RHI_DEFERRED({ api.wgpuInstanceRelease(wgpuInstance); });
+
+    WGPUAdapter wgpuAdapter = {};
+    SLANG_RETURN_ON_FAIL(createWGPUAdapter(api, wgpuInstance, &wgpuAdapter));
+    SLANG_RHI_DEFERRED({ api.wgpuAdapterRelease(wgpuAdapter); });
+
+    WGPUAdapterInfo wgpuAdapterInfo = {};
+    api.wgpuAdapterGetInfo(wgpuAdapter, &wgpuAdapterInfo);
+
+    AdapterInfo info = {};
+    info.deviceType = DeviceType::WGPU;
+    string::copy_safe(info.name, sizeof(info.name), wgpuAdapterInfo.device);
+    info.vendorID = wgpuAdapterInfo.vendorID;
+    info.deviceID = wgpuAdapterInfo.deviceID;
+
+    Adapter adapter;
+    adapter.m_info = info;
+    adapter.m_isDefault = true;
+    outAdapters.push_back(adapter);
+
+    return SLANG_OK;
+}
+
+std::vector<Adapter>& getAdapters()
+{
+    static std::vector<Adapter> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_UNUSED(initResult);
+    return adapters;
+}
+
 } // namespace rhi::wgpu
 
 namespace rhi {
 
-Result SLANG_MCALL getWGPUAdapters(std::vector<AdapterInfo>& outAdapters)
+IAdapter* getWGPUAdapter(uint32_t index)
 {
-    // TODO: implement
-    return SLANG_OK;
+    std::vector<Adapter>& adapters = wgpu::getAdapters();
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
-Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outRenderer)
+Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<wgpu::DeviceImpl> result = new wgpu::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outRenderer, result);
+    returnComPtr(outDevice, result);
     return SLANG_OK;
 }
 

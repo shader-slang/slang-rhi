@@ -1092,13 +1092,13 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         BufferImpl* shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
         DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
 
-        auto rtProps = api.m_rtProperties;
+        auto rtpProps = api.m_rayTracingPipelineProperties;
         size_t alignedHandleSize =
-            math::calcAligned2(rtProps.shaderGroupHandleSize, rtProps.shaderGroupHandleAlignment);
+            math::calcAligned2(rtpProps.shaderGroupHandleSize, rtpProps.shaderGroupHandleAlignment);
 
         // Raygen index is set at dispatch time.
         m_rayGenTableAddr = shaderTableAddr;
-        m_raygenSBT.stride = math::calcAligned2(alignedHandleSize, rtProps.shaderGroupBaseAlignment);
+        m_raygenSBT.stride = math::calcAligned2(alignedHandleSize, rtpProps.shaderGroupBaseAlignment);
         m_raygenSBT.deviceAddress = shaderTableAddr;
         m_raygenSBT.size = m_raygenSBT.stride;
 

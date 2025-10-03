@@ -20,6 +20,57 @@
 
 namespace rhi::metal {
 
+inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
+{
+    AUTORELEASEPOOL
+
+    auto addAdapter = [&](MTL::Device* device)
+    {
+        AdapterInfo info = {};
+        const char* name = device->name()->cString(NS::ASCIIStringEncoding);
+        string::copy_safe(info.name, sizeof(info.name), name);
+        uint64_t registryID = device->registryID();
+        memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
+
+        AdapterImpl adapter;
+        adapter.m_info = info;
+        adapter.m_device = NS::RetainPtr(device);
+        outAdapters.push_back(adapter);
+    };
+
+    NS::Array* devices = MTL::CopyAllDevices();
+    if (devices->count() > 0)
+    {
+        for (int i = 0; i < devices->count(); ++i)
+        {
+            MTL::Device* device = static_cast<MTL::Device*>(devices->object(i));
+            addAdapter(device);
+        }
+    }
+    else
+    {
+        MTL::Device* device = MTL::CreateSystemDefaultDevice();
+        addAdapter(device);
+        device->release();
+    }
+
+    // Make the first adapter the default one.
+    if (!outAdapters.empty())
+    {
+        outAdapters[0].m_isDefault = true;
+    }
+
+    return SLANG_OK;
+}
+
+std::vector<AdapterImpl>& getAdapters()
+{
+    static std::vector<AdapterImpl> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_UNUSED(initResult);
+    return adapters;
+}
+
 DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
@@ -49,7 +100,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    m_device = NS::TransferPtr(MTL::CreateSystemDefaultDevice());
+    AdapterImpl* adapter = nullptr;
+    selectAdapter(this, getAdapters(), desc, adapter);
+    m_device = adapter->m_device;
     if (!m_device)
     {
         return SLANG_FAIL;
@@ -100,6 +153,44 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_info.apiName = "Metal";
         m_info.adapterName = "default";
         m_info.adapterLUID = {};
+
+        // TODO: Most limits cannot be queried through the Metal API but are described in
+        // https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
+        // We should ideally query the OS version and GPU family to set more accurate limits.
+        // For now we set some common values that should be safe across most devices.
+        DeviceLimits& limits = m_info.limits;
+        limits.maxBufferSize = static_cast<uint64_t>(m_device->maxBufferLength());
+
+        limits.maxTextureDimension1D = 16384;
+        limits.maxTextureDimension2D = 16384;
+        limits.maxTextureDimension3D = 2048;
+        limits.maxTextureDimensionCube = 16384;
+        limits.maxTextureLayers = 2048;
+
+        limits.maxVertexInputElements = 31;
+        limits.maxVertexInputElementOffset = 2047;
+        limits.maxVertexStreams = 31;
+        limits.maxVertexStreamStride = 2048;
+
+        MTL::Size maxThreadsPerThreadGroup = m_device->maxThreadsPerThreadgroup();
+        limits.maxComputeThreadsPerGroup = static_cast<uint32_t>(
+            maxThreadsPerThreadGroup.width * maxThreadsPerThreadGroup.height * maxThreadsPerThreadGroup.depth
+        );
+        limits.maxComputeThreadGroupSize[0] = static_cast<uint32_t>(maxThreadsPerThreadGroup.width);
+        limits.maxComputeThreadGroupSize[1] = static_cast<uint32_t>(maxThreadsPerThreadGroup.height);
+        limits.maxComputeThreadGroupSize[2] = static_cast<uint32_t>(maxThreadsPerThreadGroup.depth);
+        limits.maxComputeDispatchThreadGroups[0] = 0xffffffff;
+        limits.maxComputeDispatchThreadGroups[1] = 0xffffffff;
+        limits.maxComputeDispatchThreadGroups[2] = 0xffffffff;
+
+        limits.maxViewports = 16;
+        limits.maxViewportDimensions[0] = 16384;
+        limits.maxViewportDimensions[1] = 16384;
+        limits.maxFramebufferDimensions[0] = 16384;
+        limits.maxFramebufferDimensions[1] = 16384;
+        limits.maxFramebufferDimensions[2] = 2048;
+
+        limits.maxShaderVisibleSamplers = 16;
     }
 
     // Initialize features & capabilities.
@@ -366,43 +457,17 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 
 namespace rhi {
 
-Result SLANG_MCALL getMetalAdapters(std::vector<AdapterInfo>& outAdapters)
+IAdapter* getMetalAdapter(uint32_t index)
 {
-    AUTORELEASEPOOL
-
-    auto addAdapter = [&](MTL::Device* device)
-    {
-        AdapterInfo info = {};
-        const char* name = device->name()->cString(NS::ASCIIStringEncoding);
-        memcpy(info.name, name, min(strlen(name), sizeof(AdapterInfo::name) - 1));
-        uint64_t registryID = device->registryID();
-        memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
-        outAdapters.push_back(info);
-    };
-
-    NS::Array* devices = MTL::CopyAllDevices();
-    if (devices->count() > 0)
-    {
-        for (int i = 0; i < devices->count(); ++i)
-        {
-            MTL::Device* device = static_cast<MTL::Device*>(devices->object(i));
-            addAdapter(device);
-        }
-    }
-    else
-    {
-        MTL::Device* device = MTL::CreateSystemDefaultDevice();
-        addAdapter(device);
-        device->release();
-    }
-    return SLANG_OK;
+    std::vector<metal::AdapterImpl>& adapters = metal::getAdapters();
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
-Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outRenderer)
+Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<metal::DeviceImpl> result = new metal::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outRenderer, result);
+    returnComPtr(outDevice, result);
     return SLANG_OK;
 }
 

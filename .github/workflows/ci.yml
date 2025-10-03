@@ -49,11 +49,12 @@ jobs:
           # Builds running on GitHub hosted runners (build + tests)
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", runs-on: macos-latest }
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", runs-on: macos-latest }
+          # Builds running on GitHub hosted runners (build + tests on WARP)
+          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: windows-latest }
+          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", runs-on: windows-latest }
+          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, flags: "unit-test", runs-on: windows-11-arm }
           # Builds running on GitHub hosted runners (build only)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", runs-on: windows-latest }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", runs-on: windows-latest }
           - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
-          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, runs-on: windows-latest }
           - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
           - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
 

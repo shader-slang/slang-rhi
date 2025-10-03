@@ -12,6 +12,7 @@
 
 namespace rhi::d3d12 {
 
+class AdapterImpl;
 class DeviceImpl;
 class BufferImpl;
 class TextureImpl;

@@ -9,6 +9,7 @@
 
 namespace rhi::vk {
 
+class AdapterImpl;
 class DeviceImpl;
 class InputLayoutImpl;
 class BufferImpl;
