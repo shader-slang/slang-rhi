@@ -535,8 +535,7 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics", ALL)
     test.run("rayGenLssIntrinsics", "closestHitLssIntrinsics");
 }
 
-// Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/8128
-GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL & ~D3D12)
+GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");

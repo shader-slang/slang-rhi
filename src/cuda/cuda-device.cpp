@@ -15,7 +15,7 @@
 
 namespace rhi::cuda {
 
-int DeviceImpl::_calcSMCountPerMultiProcessor(int major, int minor)
+inline int calcSMCountPerMultiProcessor(int major, int minor)
 {
     // Defines for GPU Architecture types (using the SM version to determine
     // the # of cores per SM
@@ -59,33 +59,24 @@ int DeviceImpl::_calcSMCountPerMultiProcessor(int major, int minor)
     return last.coreCount;
 }
 
-Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
+inline Result findMaxFlopsDeviceIndex(int* outDeviceIndex)
 {
     int smPerMultiproc = 0;
     int maxPerfDevice = -1;
     int deviceCount = 0;
 
     uint64_t maxComputePerf = 0;
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGetCount(&deviceCount), this);
+    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
 
     // Find the best CUDA capable GPU device
     for (int currentDevice = 0; currentDevice < deviceCount; ++currentDevice)
     {
         CUdevice device;
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&device, currentDevice), this);
+        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, currentDevice));
         int computeMode = -1, major = 0, minor = 0;
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuDeviceGetAttribute(&computeMode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, device),
-            this
-        );
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device),
-            this
-        );
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device),
-            this
-        );
+        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&computeMode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, device));
+        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device));
+        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device));
 
         // If this GPU is not running on Compute Mode prohibited,
         // then we can add it to the list
@@ -97,18 +88,14 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
             }
             else
             {
-                smPerMultiproc = _calcSMCountPerMultiProcessor(major, minor);
+                smPerMultiproc = calcSMCountPerMultiProcessor(major, minor);
             }
 
             int multiProcessorCount = 0, clockRate = 0;
-            SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-                cuDeviceGetAttribute(&multiProcessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device),
-                this
+            SLANG_CUDA_RETURN_ON_FAIL(
+                cuDeviceGetAttribute(&multiProcessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device)
             );
-            SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-                cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device),
-                this
-            );
+            SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device));
             uint64_t compute_perf = uint64_t(multiProcessorCount) * smPerMultiproc * clockRate;
 
             if (compute_perf > maxComputePerf)
@@ -128,15 +115,52 @@ Result DeviceImpl::_findMaxFlopsDeviceIndex(int* outDeviceIndex)
     return SLANG_OK;
 }
 
-Result DeviceImpl::_initCuda()
+inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 {
     if (!rhiCudaDriverApiInit())
     {
-        printError("Failed to initialize CUDA driver API.");
         return SLANG_FAIL;
     }
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuInit(0), this);
+
+    SLANG_CUDA_RETURN_ON_FAIL(cuInit(0));
+
+    int deviceCount;
+    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
+
+    for (int deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++)
+    {
+        CUdevice device;
+        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, deviceIndex));
+
+        AdapterInfo info = {};
+        info.deviceType = DeviceType::CUDA;
+        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
+        info.luid = getAdapterLUID(deviceIndex);
+
+        AdapterImpl adapter;
+        adapter.m_info = info;
+        adapter.m_deviceIndex = deviceIndex;
+        outAdapters.push_back(adapter);
+    }
+
+    // Find the max flops adapter and mark it as the default one.
+    if (!outAdapters.empty())
+    {
+        int defaultDeviceIndex = 0;
+        SLANG_RETURN_ON_FAIL(findMaxFlopsDeviceIndex(&defaultDeviceIndex));
+        SLANG_RHI_ASSERT(defaultDeviceIndex >= 0 && defaultDeviceIndex < (int)outAdapters.size());
+        outAdapters[defaultDeviceIndex].m_isDefault = true;
+    }
+
     return SLANG_OK;
+}
+
+std::vector<AdapterImpl>& getAdapters()
+{
+    static std::vector<AdapterImpl> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_UNUSED(initResult);
+    return adapters;
 }
 
 DeviceImpl::DeviceImpl() {}
@@ -189,7 +213,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    SLANG_RETURN_ON_FAIL(_initCuda());
+    if (!rhiCudaDriverApiInit())
+    {
+        printError("Failed to initialize CUDA driver API.");
+        return SLANG_FAIL;
+    }
+
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuInit(0), this);
 
     for (const auto& handle : desc.existingDeviceHandles.handles)
     {
@@ -224,27 +254,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     else
     {
         // User provided no external handles, so we need to create a device and context.
-        int selectedDeviceIndex = -1;
-        if (desc.adapterLUID)
-        {
-            int deviceCount = -1;
-            SLANG_CUDA_ASSERT_ON_FAIL(cuDeviceGetCount(&deviceCount));
-            for (int deviceIndex = 0; deviceIndex < deviceCount; ++deviceIndex)
-            {
-                if (getAdapterLUID(deviceIndex) == *desc.adapterLUID)
-                {
-                    selectedDeviceIndex = deviceIndex;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            SLANG_RETURN_ON_FAIL(_findMaxFlopsDeviceIndex(&selectedDeviceIndex));
-        }
-
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, selectedDeviceIndex), this);
-
+        AdapterImpl* adapter = nullptr;
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, adapter->m_deviceIndex), this);
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDevicePrimaryCtxRetain(&m_ctx.context, m_ctx.device), this);
         m_ownsContext = true;
     }
@@ -273,6 +285,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         };
 
         DeviceLimits limits = {};
+
+        size_t totalMem = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceTotalMem(&totalMem, m_ctx.device), this);
+        limits.maxBufferSize = totalMem;
 
         limits.maxTextureDimension1D = getAttribute(CU_DEVICE_ATTRIBUTE_MAXIMUM_SURFACE1D_WIDTH);
         limits.maxTextureDimension2D = min({
@@ -685,30 +701,13 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 
 namespace rhi {
 
-Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters)
+IAdapter* getCUDAAdapter(uint32_t index)
 {
-    if (!rhiCudaDriverApiInit())
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_CUDA_RETURN_ON_FAIL(cuInit(0));
-    int deviceCount;
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
-    for (int deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++)
-    {
-        CUdevice device;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, deviceIndex));
-
-        AdapterInfo info = {};
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
-        info.luid = cuda::getAdapterLUID(deviceIndex);
-        outAdapters.push_back(info);
-    }
-
-    return SLANG_OK;
+    std::vector<cuda::AdapterImpl>& adapters = cuda::getAdapters();
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
-Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice)
+Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<cuda::DeviceImpl> result = new cuda::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

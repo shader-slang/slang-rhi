@@ -22,6 +22,47 @@
 
 namespace rhi::d3d11 {
 
+inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
+{
+    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
+    SLANG_RETURN_ON_FAIL(enumAdapters(dxgiAdapters));
+
+    for (const auto& dxgiAdapter : dxgiAdapters)
+    {
+        DXGI_ADAPTER_DESC desc;
+        dxgiAdapter->GetDesc(&desc);
+        AdapterInfo info = {};
+        info.deviceType = DeviceType::D3D11;
+        auto name = string::from_wstring(desc.Description);
+        string::copy_safe(info.name, sizeof(info.name), name.c_str());
+        info.vendorID = desc.VendorId;
+        info.deviceID = desc.DeviceId;
+        info.luid = getAdapterLUID(desc.AdapterLuid);
+
+        AdapterImpl adapter;
+        adapter.m_info = info;
+        adapter.m_dxgiAdapter = dxgiAdapter;
+        adapter.m_isWarp = (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c);
+        outAdapters.push_back(adapter);
+    }
+
+    // For now, make the first adapter the default one.
+    if (!outAdapters.empty())
+    {
+        outAdapters[0].m_isDefault = true;
+    }
+
+    return SLANG_OK;
+}
+
+std::vector<AdapterImpl>& getAdapters()
+{
+    static std::vector<AdapterImpl> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_UNUSED(initResult);
+    return adapters;
+}
+
 DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl() {}
@@ -39,15 +80,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #endif
     if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
     {
-        fprintf(stderr, "error: failed to load '%s'\n", libName);
-        return SLANG_FAIL;
-    }
-
-    PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN D3D11CreateDeviceAndSwapChain_ =
-        (PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN)findSymbolAddressByName(d3dModule, "D3D11CreateDeviceAndSwapChain");
-    if (!D3D11CreateDeviceAndSwapChain_)
-    {
-        fprintf(stderr, "error: failed load symbol 'D3D11CreateDeviceAndSwapChain'\n");
+        printError("Failed to load '%s'\n", libName);
         return SLANG_FAIL;
     }
 
@@ -55,9 +88,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         (PFN_D3D11_CREATE_DEVICE)findSymbolAddressByName(d3dModule, "D3D11CreateDevice");
     if (!D3D11CreateDevice_)
     {
-        fprintf(stderr, "error: failed load symbol 'D3D11CreateDevice'\n");
+        printError("Failed to load symbol 'D3D11CreateDevice'\n");
         return SLANG_FAIL;
     }
+
+    m_dxgiFactory = getDXGIFactory();
+
+    AdapterImpl* adapter = nullptr;
+    SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+    m_dxgiAdapter = adapter->m_dxgiAdapter;
 
     // We will ask for the highest feature level that can be supported.
     const D3D_FEATURE_LEVEL featureLevels[] = {
@@ -69,125 +108,75 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         D3D_FEATURE_LEVEL_9_2,
         D3D_FEATURE_LEVEL_9_1,
     };
-    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_9_1;
-    const int totalNumFeatureLevels = SLANG_COUNT_OF(featureLevels);
-    bool isHardwareDevice = false;
 
+    D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL(0);
+
+    // When creating the D3D11 device we need to consider:
+    // - Creation may fail if debug layer is requested but not available on the system.
+    // - Creation may fail if feature level 11_1 is requested on a system that does not support it.
+    // To handle this we try a few combinations until one works or we run out of options.
+    // The order of flags is important, as we want to try the most specific options first.
+
+    enum CreateFlag
     {
-        // On a machine that does not have an up-to-date version of D3D installed,
-        // the `D3D11CreateDeviceAndSwapChain` call will fail with `E_INVALIDARG`
-        // if you ask for feature level 11_1 (DeviceCheckFlag::UseFullFeatureLevel).
-        // The workaround is to call `D3D11CreateDeviceAndSwapChain` the first time
-        // with 11_1 and then back off to 11_0 if that fails.
+        UseDebug = 1,
+        Use11_1 = 2
+    };
+    int createFlags[] = {UseDebug | Use11_1, UseDebug, Use11_1, 0};
+    int usedCreateFlags = 0;
 
-        FlagCombiner combiner;
-        // TODO: we should probably provide a command-line option
-        // to override UseDebug of default rather than leave it
-        // up to each back-end to specify.
-
-#if SLANG_RHI_DEBUG
-        /// First try debug then non debug
-        combiner.add(DeviceCheckFlag::UseDebug, ChangeType::OnOff);
-#else
-        /// Don't bother with debug
-        combiner.add(DeviceCheckFlag::UseDebug, ChangeType::Off);
-#endif
-        /// First try hardware, then reference
-        combiner.add(DeviceCheckFlag::UseHardwareDevice, ChangeType::OnOff);
-        /// First try fully featured, then degrade features
-        combiner.add(DeviceCheckFlag::UseFullFeatureLevel, ChangeType::OnOff);
-
-        const int numCombinations = combiner.getNumCombinations();
-        Result res = SLANG_FAIL;
-        for (int i = 0; i < numCombinations; ++i)
-        {
-            const auto deviceCheckFlags = combiner.getCombination(i);
-            isHardwareDevice = (deviceCheckFlags & DeviceCheckFlag::UseHardwareDevice) != 0;
-            createDXGIFactory(deviceCheckFlags, m_dxgiFactory);
-
-            // If we have an adapter set on the desc, look it up.
-            ComPtr<IDXGIAdapter> adapter;
-            if (desc.adapterLUID)
-            {
-                std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-                findAdapters(deviceCheckFlags, desc.adapterLUID, m_dxgiFactory, dxgiAdapters);
-                if (dxgiAdapters.empty())
-                {
-                    continue;
-                }
-                adapter = dxgiAdapters[0];
-            }
-
-            // The adapter can be nullptr - that just means 'default', but when so we need to select the driver type
-            D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_UNKNOWN;
-            if (adapter == nullptr)
-            {
-                // If we don't have an adapter, select directly
-                driverType = (deviceCheckFlags & DeviceCheckFlag::UseHardwareDevice) ? D3D_DRIVER_TYPE_HARDWARE
-                                                                                     : D3D_DRIVER_TYPE_REFERENCE;
-            }
-
-            const int startFeatureIndex = (deviceCheckFlags & DeviceCheckFlag::UseFullFeatureLevel) ? 0 : 1;
-            const UINT deviceFlags = (deviceCheckFlags & DeviceCheckFlag::UseDebug) ? D3D11_CREATE_DEVICE_DEBUG : 0;
-
-            res = D3D11CreateDevice_(
-                adapter,
-                driverType,
-                nullptr,
-                deviceFlags,
-                &featureLevels[startFeatureIndex],
-                totalNumFeatureLevels - startFeatureIndex,
-                D3D11_SDK_VERSION,
-                m_device.writeRef(),
-                &featureLevel,
-                m_immediateContext.writeRef()
-            );
+    Result result = SLANG_FAIL;
+    for (uint32_t i = isDebugLayersEnabled() ? 0 : 2; i < SLANG_COUNT_OF(createFlags); i++)
+    {
+        usedCreateFlags = createFlags[i];
+        bool useDebug = (usedCreateFlags & UseDebug) != 0;
+        bool use11_1 = (usedCreateFlags & Use11_1) != 0;
+        result = D3D11CreateDevice_(
+            m_dxgiAdapter,
+            D3D_DRIVER_TYPE_UNKNOWN,
+            nullptr,
+            useDebug ? D3D11_CREATE_DEVICE_DEBUG : 0,
+            use11_1 ? featureLevels : featureLevels + 1,
+            use11_1 ? SLANG_COUNT_OF(featureLevels) : SLANG_COUNT_OF(featureLevels) - 1,
+            D3D11_SDK_VERSION,
+            m_device.writeRef(),
+            &featureLevel,
+            m_immediateContext.writeRef()
+        );
+        if (SUCCEEDED(result))
+            break;
+    }
+    if (FAILED(result))
+    {
+        printError("D3D11CreateDevice failed: %08x\n", result);
+        return SLANG_FAIL;
+    }
+    if (isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
+    {
+        printWarning("Debug layer requested but not available.\n");
+    }
 
 #if SLANG_RHI_ENABLE_AFTERMATH
-            if (SLANG_SUCCEEDED(res))
-            {
-                if (deviceCheckFlags & DeviceCheckFlag::UseDebug)
-                {
-                    // Initialize Nsight Aftermath for this device.
-                    // This combination of flags is not necessarily appropriate for real world usage
-                    const uint32_t aftermathFlags =
-                        GFSDK_Aftermath_FeatureFlags_EnableMarkers |      // Enable event marker tracking.
-                        GFSDK_Aftermath_FeatureFlags_CallStackCapturing | // Enable automatic call stack event markers.
-                        GFSDK_Aftermath_FeatureFlags_EnableResourceTracking |    // Enable tracking of resources.
-                        GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |   // Generate debug information for
-                                                                                 // shaders.
-                        GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting; // Enable additional runtime shader
-                                                                                 // error reporting.
+    if (desc.enableAftermath && adapter->isNVIDIA())
+    {
+        // Initialize Nsight Aftermath for this device.
+        // This combination of flags is not necessarily appropriate for real world usage
+        const uint32_t aftermathFlags =
+            GFSDK_Aftermath_FeatureFlags_EnableMarkers | GFSDK_Aftermath_FeatureFlags_CallStackCapturing |
+            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking | GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |
+            GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
 
-                    auto initResult =
-                        GFSDK_Aftermath_DX11_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
+        auto initResult = GFSDK_Aftermath_DX11_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
 
-                    if (initResult != GFSDK_Aftermath_Result_Success)
-                    {
-                        SLANG_RHI_ASSERT_FAILURE("Unable to initialize aftermath");
-                        // Unable to initialize aftermath
-                        return SLANG_FAIL;
-                    }
-                }
-            }
+        if (initResult != GFSDK_Aftermath_Result_Success)
+        {
+            printWarning("Failed to initialize aftermath: %d\n", int(initResult));
+        }
+    }
 #endif
 
-            // Check if successfully constructed - if so we are done.
-            if (SLANG_SUCCEEDED(res))
-            {
-                break;
-            }
-        }
-        // If res is failure, means all styles have have failed, and so initialization fails.
-        if (SLANG_FAILED(res))
-        {
-            return res;
-        }
-        // Check we have a swap chain, context and device
-        SLANG_RHI_ASSERT(m_immediateContext && m_device);
-
-        SLANG_RETURN_ON_FAIL(m_immediateContext->QueryInterface(m_immediateContext1.writeRef()));
-    }
+    SLANG_RHI_ASSERT(m_device && m_immediateContext);
+    SLANG_RETURN_ON_FAIL(m_immediateContext->QueryInterface(m_immediateContext1.writeRef()));
 
     // Initialize device info
     {
@@ -197,15 +186,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     // Query adapter name & LUID
     {
-        ComPtr<IDXGIDevice> dxgiDevice;
-        SLANG_RETURN_ON_FAIL(m_device->QueryInterface(dxgiDevice.writeRef()));
-        ComPtr<IDXGIAdapter> dxgiAdapter;
-        dxgiDevice->GetAdapter(dxgiAdapter.writeRef());
         DXGI_ADAPTER_DESC adapterDesc;
-        dxgiAdapter->GetDesc(&adapterDesc);
+        m_dxgiAdapter->GetDesc(&adapterDesc);
         m_adapterName = string::from_wstring(adapterDesc.Description);
         m_info.adapterName = m_adapterName.data();
-        m_info.adapterLUID = getAdapterLUID(dxgiAdapter);
+        m_info.adapterLUID = getAdapterLUID(adapterDesc.AdapterLuid);
     }
 
     // Query timestamp frequency
@@ -264,6 +249,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
 
         DeviceLimits limits = {};
+        limits.maxBufferSize = 0x80000000ull; // Assume 2GB
         limits.maxTextureDimension1D = maxTextureDimensionUV;
         limits.maxTextureDimension2D = maxTextureDimensionUV;
         limits.maxTextureDimension3D = maxTextureDimensionW;
@@ -296,7 +282,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize features & capabilities
-    addFeature(isHardwareDevice ? Feature::HardwareDevice : Feature::SoftwareDevice);
+    addFeature(adapter->m_isWarp ? Feature::SoftwareDevice : Feature::HardwareDevice);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
@@ -308,10 +294,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::hlsl);
 
-    // Initialize NVAPI
+// Initialize NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
     {
-        if (SLANG_SUCCEEDED(NVAPIUtil::initialize()))
+        if (adapter->isNVIDIA() && SLANG_SUCCEEDED(NVAPIUtil::initialize()))
         {
             m_nvapiShaderExtension = NVAPIShaderExtension{desc.nvapiExtUavSlot, desc.nvapiExtRegisterSpace};
             if (m_nvapiShaderExtension)
@@ -656,28 +642,13 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 namespace rhi {
 
-Result SLANG_MCALL getD3D11Adapters(std::vector<AdapterInfo>& outAdapters)
+IAdapter* getD3D11Adapter(uint32_t index)
 {
-    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(findAdapters(DeviceCheckFlag::UseHardwareDevice, nullptr, dxgiAdapters));
-
-    outAdapters.clear();
-    for (const auto& dxgiAdapter : dxgiAdapters)
-    {
-        DXGI_ADAPTER_DESC desc;
-        dxgiAdapter->GetDesc(&desc);
-        AdapterInfo info = {};
-        auto name = string::from_wstring(desc.Description);
-        memcpy(info.name, name.data(), min(name.size(), sizeof(AdapterInfo::name) - 1));
-        info.vendorID = desc.VendorId;
-        info.deviceID = desc.DeviceId;
-        info.luid = getAdapterLUID(dxgiAdapter);
-        outAdapters.push_back(info);
-    }
-    return SLANG_OK;
+    std::vector<d3d11::AdapterImpl>& adapters = d3d11::getAdapters();
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
-Result SLANG_MCALL createD3D11Device(const DeviceDesc* desc, IDevice** outDevice)
+Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<d3d11::DeviceImpl> result = new d3d11::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));

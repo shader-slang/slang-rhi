@@ -212,14 +212,7 @@ public:
         }
         else if (type == DebugMessageType::Warning)
         {
-            if (shouldIgnoreError(type, source, message))
-            {
-                output(msg);
-            }
-            else
-            {
-                FAIL(msg);
-            }
+            output(msg);
         }
         else if (type == DebugMessageType::Error)
         {
@@ -474,6 +467,29 @@ Result loadRenderProgramFromSource(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
+const char* deviceTypeToString(DeviceType deviceType)
+{
+    switch (deviceType)
+    {
+    case DeviceType::D3D11:
+        return "d3d11";
+    case DeviceType::D3D12:
+        return "d3d12";
+    case DeviceType::Vulkan:
+        return "vulkan";
+    case DeviceType::Metal:
+        return "metal";
+    case DeviceType::CPU:
+        return "cpu";
+    case DeviceType::CUDA:
+        return "cuda";
+    case DeviceType::WGPU:
+        return "wgpu";
+    default:
+        return "unknown";
+    }
+}
+
 ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
@@ -499,6 +515,7 @@ ComPtr<IDevice> createTestingDevice(
     ComPtr<IDevice> device;
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
+    deviceDesc.adapter = getSelectedDeviceAdapter(deviceType);
 #if ENABLE_SHADER_CACHE
     deviceDesc.persistentShaderCache = &gShaderCache;
 #endif
@@ -636,10 +653,10 @@ void initializeRenderDoc()
 
     SharedLibraryHandle module = {};
 #if SLANG_WINDOWS_FAMILY
-    if (!SLANG_SUCCEEDED(loadSharedLibrary("renderdoc.dll", module)))
+    if (SLANG_FAILED(loadSharedLibrary("renderdoc.dll", module)))
         return;
 #elif SLANG_LINUX_FAMILY
-    if (!SLANG_SUCCEEDED(loadSharedLibrary("librenderdoc.so", module)))
+    if (SLANG_FAILED(loadSharedLibrary("librenderdoc.so", module)))
         return;
 #else
     return;
@@ -677,29 +694,6 @@ void renderDocBeginFrame() {}
 void renderDocEndFrame() {}
 #endif
 
-inline const char* deviceTypeToString(DeviceType deviceType)
-{
-    switch (deviceType)
-    {
-    case DeviceType::D3D11:
-        return "d3d11";
-    case DeviceType::D3D12:
-        return "d3d12";
-    case DeviceType::Vulkan:
-        return "vulkan";
-    case DeviceType::Metal:
-        return "metal";
-    case DeviceType::CPU:
-        return "cpu";
-    case DeviceType::CUDA:
-        return "cuda";
-    case DeviceType::WGPU:
-        return "wgpu";
-    default:
-        return "unknown";
-    }
-}
-
 static std::map<DeviceType, bool> sDeviceTypeAvailable;
 
 DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
@@ -733,12 +727,13 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     ComPtr<IDevice> device;
     DeviceDesc desc;
     desc.deviceType = deviceType;
+    desc.adapter = getSelectedDeviceAdapter(deviceType);
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
-    if (!SLANG_SUCCEEDED(createResult))
+    if (SLANG_FAILED(createResult))
         RETURN_NOT_AVAILABLE("failed to create device");
 
     // Try compiling a trivial shader.
@@ -758,7 +753,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     }
 
     ComPtr<slang::IEntryPoint> entryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
+    if (SLANG_FAILED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
         RETURN_NOT_AVAILABLE("failed to find shader entry point");
 
     ComPtr<slang::IComponentType> composedProgram;
@@ -824,16 +819,17 @@ bool isDeviceTypeAvailable(DeviceType deviceType)
     return sDeviceTypeAvailable[deviceType];
 }
 
-bool isSwiftShaderDevice(IDevice* device)
+bool isDeviceTypeSelected(DeviceType deviceType)
 {
-    std::string adapterName = device->getInfo().adapterName;
-    std::transform(
-        adapterName.begin(),
-        adapterName.end(),
-        adapterName.begin(),
-        [](unsigned char c) { return std::tolower(c); }
-    );
-    return adapterName.find("swiftshader") != std::string::npos;
+    return options().deviceSelected[size_t(deviceType)];
+}
+
+rhi::IAdapter* getSelectedDeviceAdapter(DeviceType deviceType)
+{
+    int adapterIndex = options().deviceAdapterIndex[size_t(deviceType)];
+    if (adapterIndex < 0)
+        return nullptr;
+    return rhi::getRHI()->getAdapter(deviceType, adapterIndex);
 }
 
 slang::IGlobalSession* getSlangGlobalSession()
@@ -858,6 +854,11 @@ static void gpuTestTrampoline()
     DeviceType deviceType = info->deviceType;
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+
+    if (!isDeviceTypeSelected(deviceType))
+    {
+        SKIP("device not selected");
+    }
 
     if (isDeviceTypeAvailable(deviceType))
     {

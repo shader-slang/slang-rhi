@@ -104,7 +104,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_R
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.13.1" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.18.1" CACHE STRING "Slang version to fetch")
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -483,7 +483,6 @@ target_sources(slang-rhi PRIVATE
     src/device.cpp
     src/device-child.cpp
     src/enum-strings.cpp
-    src/flag-combiner.cpp
     src/format-conversion.cpp
     src/heap.cpp
     src/pipeline.cpp
@@ -826,6 +825,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 endif()
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
+add_dependencies(slang-rhi slang-rhi-copy-files)
 
 # Add coverage target if coverage is enabled
 if(SLANG_RHI_ENABLE_COVERAGE)

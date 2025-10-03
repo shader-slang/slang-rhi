@@ -7,11 +7,12 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("device-lifetime", ALL)
+GPU_TEST_CASE("device-lifetime", ALL | DontCreateDevice)
 {
     // Create a device
     DeviceDesc deviceDesc = {};
-    deviceDesc.deviceType = device->getDeviceType();
+    deviceDesc.deviceType = ctx->deviceType;
+    deviceDesc.adapter = getSelectedDeviceAdapter(ctx->deviceType);
     ComPtr<IDevice> testDevice;
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, testDevice.writeRef()));
 
