@@ -54,7 +54,8 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
     WGPURequestAdapterOptions options = {};
     options.powerPreference = WGPUPowerPreference_HighPerformance;
 #if SLANG_WINDOWS_FAMILY
-    options.backendType = WGPUBackendType_D3D12;
+    // TODO: D3D12 Validation errors prevents use of D3D12, use Vulkan for now.
+    options.backendType = WGPUBackendType_Vulkan;
 #elif SLANG_LINUX_FAMILY
     options.backendType = WGPUBackendType_Vulkan;
 #endif
