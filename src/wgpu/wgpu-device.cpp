@@ -27,7 +27,7 @@ static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
 {
     WGPUInstanceDescriptor instanceDesc = {};
-    instanceDesc.features.timedWaitAnyEnable = WGPUBool(true);
+    instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
     WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
@@ -55,12 +55,12 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
 
     WGPUAdapter adapter = {};
     {
-        WGPURequestAdapterStatus status = WGPURequestAdapterStatus_Unknown;
-        WGPURequestAdapterCallbackInfo2 callbackInfo = {};
+        WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
+        WGPURequestAdapterCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPURequestAdapterStatus status_,
                                    WGPUAdapter adapter_,
-                                   const char* message,
+                                   WGPUStringView /*message*/,
                                    void* userdata1,
                                    void* userdata2)
         {
@@ -69,7 +69,7 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
         };
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = &adapter;
-        WGPUFuture future = api.wgpuInstanceRequestAdapter2(instance, &options, callbackInfo);
+        WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
