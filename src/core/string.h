@@ -26,6 +26,28 @@ inline void copy_safe(char* dst, size_t dstSize, const char* src)
     }
 }
 
+inline void copy_safe(char* dst, size_t dstSize, const char* src, size_t srcSize)
+{
+    if (!dst || !src || dstSize == 0 || srcSize == 0)
+    {
+        return;
+    }
+
+    // Copy characters from src to dst until either (dstSize - 1) is exhausted or we hit the end of src.
+    while (dstSize > 1 && srcSize > 0)
+    {
+        *dst++ = *src++;
+        --dstSize;
+        --srcSize;
+    }
+    // Fill the rest of dst with null characters to ensure null-termination.
+    while (dstSize > 0)
+    {
+        *dst++ = 0;
+        --dstSize;
+    }
+}
+
 inline std::wstring to_wstring(std::string_view str)
 {
     std::wstring wstr;
