@@ -16,10 +16,9 @@ namespace rhi::wgpu {
 
 static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 {
-    static const std::vector<const char*> enabledToggles = {"use_dxc"};
-    static const std::vector<const char*> disabledToggles = {
-        "d3d12_create_not_zeroed_heap",
-    };
+    // Currently no toggles are needed.
+    static const std::vector<const char*> enabledToggles = {};
+    static const std::vector<const char*> disabledToggles = {};
     WGPUDawnTogglesDescriptor togglesDesc = {};
     togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
     togglesDesc.enabledToggleCount = enabledToggles.size();
@@ -55,8 +54,7 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
     WGPURequestAdapterOptions options = {};
     options.powerPreference = WGPUPowerPreference_HighPerformance;
 #if SLANG_WINDOWS_FAMILY
-    // TODO(webgpu-d3d): New validation error in D3D kills webgpu, so use vulkan for now.
-    options.backendType = WGPUBackendType_Vulkan;
+    options.backendType = WGPUBackendType_D3D12;
 #elif SLANG_LINUX_FAMILY
     options.backendType = WGPUBackendType_Vulkan;
 #endif
