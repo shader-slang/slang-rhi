@@ -27,12 +27,18 @@ struct TestResult
 {
     int queryWasSuccess;
     int invokeWasSuccess;
+
+    float rayOrigin[3];
+    float rayDirection[3];
 };
 
 struct TestResultCudaAligned
 {
     int queryWasSuccess;
     int invokeWasSuccess;
+
+    float rayOrigin[3];
+    float rayDirection[3];
 };
 
 struct RayTracingHitObjectIntrinsicsTest
@@ -311,7 +317,7 @@ struct RayTracingHitObjectIntrinsicsTest
     }
 
     template<typename T>
-    void checkTestResults()
+    void checkQueryAndInvokeResults()
     {
         ComPtr<ISlangBlob> resultBlob;
         REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(T), resultBlob.writeRef()));
@@ -322,12 +328,12 @@ struct RayTracingHitObjectIntrinsicsTest
         CHECK_EQ(result->invokeWasSuccess, 1);
     }
 
-    void checkTestResults()
+    void checkQueryAndInvokeResults()
     {
         if (device->getDeviceType() == DeviceType::CUDA)
-            checkTestResults<TestResultCudaAligned>();
+            checkQueryAndInvokeResults<TestResultCudaAligned>();
         else
-            checkTestResults<TestResult>();
+            checkQueryAndInvokeResults<TestResult>();
     }
 
     void renderFrame()
@@ -350,11 +356,10 @@ struct RayTracingHitObjectIntrinsicsTest
     {
         createRequiredResources(raygenName, closestHitName, missName, closestHitName2, missName2);
         renderFrame();
-        checkTestResults();
     }
 };
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-nop-rg", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-rg", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -364,9 +369,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-nop-rg", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderMakeQueryInvokeNOP", "closestHitNOP", "missNOP");
+    test.checkQueryAndInvokeResults();
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-nop-ch", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-ch", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -376,9 +382,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-nop-ch", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderInvokeCH", "closestHitMakeQueryInvokeNOP", "missNOP");
+    test.checkQueryAndInvokeResults();
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-nop-ms", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-ms", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -388,9 +395,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-nop-ms", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderInvokeMS", "closestHitNOP", "missMakeQueryInvokeNOP");
+    test.checkQueryAndInvokeResults();
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-miss-rg", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-rg", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -400,9 +408,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-miss-rg", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderMakeQueryInvokeMiss", "closestHitNOP", "missInvoke");
+    test.checkQueryAndInvokeResults();
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-miss-ch", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-ch", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -412,9 +421,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-miss-ch", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderInvokeCH", "closestHitMakeQueryInvokeMiss", "missInvoke");
+    test.checkQueryAndInvokeResults();
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-miss-ms", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-ms", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -424,9 +434,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-miss-ms", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderInvokeMS", "closestHitNOP", "missMakeQueryInvokeMiss", nullptr, "missInvoke");
+    test.checkQueryAndInvokeResults();
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-hit-rg", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-rg", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -436,9 +447,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-hit-rg", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderMakeQueryInvokeHit", "closestHitInvoke", "missNOP");
+    test.checkQueryAndInvokeResults();
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-hit-ch", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ch", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -448,9 +460,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-hit-ch", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderInvokeCH", "closestHitMakeQueryInvokeHit", "missNOP", "closestHitInvoke", nullptr);
+    test.checkQueryAndInvokeResults();
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-hit-ms", ALL)
+GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ms", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -460,4 +473,70 @@ GPU_TEST_CASE("ray-tracing-hitobject-intrinsics-hit-ms", ALL)
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run("rayGenShaderInvokeMS", "closestHitNOP", "missMakeQueryInvokeHit", "closestHitInvoke", nullptr);
+    test.checkQueryAndInvokeResults();
+}
+
+// CUDA/OptiX is disabled because it only supports getting the ray origin in world space.
+// D3D12 is disabled due to https://github.com/shader-slang/slang/issues/8615
+GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-origin", ALL & ~CUDA & ~D3D12)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingHitObjectIntrinsicsTest test;
+    test.init(device);
+    test.run("rayGenShaderQueryRayObjectOrigin", "closestHitNOP", "missNOP");
+
+    ComPtr<ISlangBlob> resultBlob;
+
+    if (device->getDeviceType() == DeviceType::CUDA)
+    {
+        REQUIRE_CALL(device->readBuffer(test.resultBuffer, 0, sizeof(TestResultCudaAligned), resultBlob.writeRef()));
+        const TestResultCudaAligned* result = reinterpret_cast<const TestResultCudaAligned*>(resultBlob->getBufferPointer());
+        CHECK_EQ(result->rayOrigin[0], 0.1f);
+        CHECK_EQ(result->rayOrigin[1], 0.1f);
+        CHECK_EQ(result->rayOrigin[2], 0.1f);
+    }
+    else
+    {
+        REQUIRE_CALL(device->readBuffer(test.resultBuffer, 0, sizeof(TestResult), resultBlob.writeRef()));
+        const TestResult* result = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
+        CHECK_EQ(result->rayOrigin[0], 0.1f);
+        CHECK_EQ(result->rayOrigin[1], 0.1f);
+        CHECK_EQ(result->rayOrigin[2], 0.1f);
+    }
+}
+
+// Disabled under CUDA/OptiX and D3D12 due to https://github.com/shader-slang/slang/issues/8615
+GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-direction", ALL & ~CUDA & ~D3D12)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingHitObjectIntrinsicsTest test;
+    test.init(device);
+    test.run("rayGenShaderQueryRayObjectDirection", "closestHitNOP", "missNOP");
+
+    ComPtr<ISlangBlob> resultBlob;
+
+    if (device->getDeviceType() == DeviceType::CUDA)
+    {
+        REQUIRE_CALL(device->readBuffer(test.resultBuffer, 0, sizeof(TestResultCudaAligned), resultBlob.writeRef()));
+        const TestResultCudaAligned* result = reinterpret_cast<const TestResultCudaAligned*>(resultBlob->getBufferPointer());
+        CHECK_EQ(result->rayDirection[0], 0.0f);
+        CHECK_EQ(result->rayDirection[1], 0.0f);
+        CHECK_EQ(result->rayDirection[2], 1.0f);
+    }
+    else
+    {
+        REQUIRE_CALL(device->readBuffer(test.resultBuffer, 0, sizeof(TestResult), resultBlob.writeRef()));
+        const TestResult* result = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
+        CHECK_EQ(result->rayDirection[0], 0.0f);
+        CHECK_EQ(result->rayDirection[1], 0.0f);
+        CHECK_EQ(result->rayDirection[2], 1.0f);
+    }
 }

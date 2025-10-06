@@ -21,14 +21,15 @@ struct RayPayload
     int invokeWasSuccess : read(caller) : write(caller, closesthit, miss);
 };
 
-// uniform uint2 dims;
-// uniform RWTexture2D resultTexture;
 uniform RaytracingAccelerationStructure sceneBVH;
 
 struct Result
 {
     int queryWasSuccess;
     int invokeWasSuccess;
+
+    float3 rayOrigin;
+    float3 rayDirection;
 };
 
 uniform RWStructuredBuffer<Result> resultBuffer;
@@ -266,4 +267,40 @@ void missMakeQueryInvokeHit(inout RayPayload payload)
     RayPayload payloadHit = {};
     HitObject.Invoke(sceneBVH, hitObjectHit, payloadHit);
     payload.invokeWasSuccess = payloadHit.invokeWasSuccess;
+}
+
+[shader("raygeneration")]
+void rayGenShaderQueryRayObjectOrigin()
+{
+    // We hand-specify these so we can check them on the host
+    float3 origin = {0.1, 0.1, 0.1};
+    float3 dir = {0.0, 0.0, 1.0};
+
+    RayDesc ray;
+    ray.Origin = origin;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitobj = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+    resultBuffer[0].rayOrigin = hitobj.GetObjectRayOrigin();
+}
+
+[shader("raygeneration")]
+void rayGenShaderQueryRayObjectDirection()
+{
+    // We hand-specify these so we can check them on the host
+    float3 origin = {0.1, 0.1, 0.1};
+    float3 dir = {0.0, 0.0, 1.0};
+
+    RayDesc ray;
+    ray.Origin = origin;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitobj = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+    resultBuffer[0].rayDirection = hitobj.GetObjectRayDirection();
 }
