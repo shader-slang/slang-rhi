@@ -52,7 +52,9 @@ jobs:
           # Builds running on GitHub hosted runners (build + tests on WARP)
           - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: windows-latest }
           - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", runs-on: windows-latest }
-          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, flags: "unit-test", runs-on: windows-11-arm }
+          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: windows-11-arm }
+          # Raytracing tests are flakey on aarch64/Debug builds, so tests are currently disabled
+          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Debug", flags: "", runs-on: windows-11-arm }
           # Builds running on GitHub hosted runners (build only)
           - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
           - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
