@@ -118,11 +118,8 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         outAdapters.push_back(adapter);
     }
 
-    // For now, make the first adapter the default one.
-    if (!outAdapters.empty())
-    {
-        outAdapters[0].m_isDefault = true;
-    }
+    // Mark default adapter (prefer discrete if available).
+    markDefaultAdapter(outAdapters);
 
     return SLANG_OK;
 }
