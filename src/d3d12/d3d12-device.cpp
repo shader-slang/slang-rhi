@@ -97,20 +97,8 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 
     for (const auto& dxgiAdapter : dxgiAdapters)
     {
-        DXGI_ADAPTER_DESC desc;
-        dxgiAdapter->GetDesc(&desc);
-        AdapterInfo info = {};
+        AdapterInfo info = getAdapterInfo(dxgiAdapter);
         info.deviceType = DeviceType::D3D12;
-        info.adapterType = desc.DedicatedVideoMemory > 0 ? AdapterType::Discrete : AdapterType::Integrated;
-        if (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c)
-        {
-            info.adapterType = AdapterType::Software;
-        }
-        auto name = string::from_wstring(desc.Description);
-        string::copy_safe(info.name, sizeof(info.name), name.c_str());
-        info.vendorID = desc.VendorId;
-        info.deviceID = desc.DeviceId;
-        info.luid = getAdapterLUID(desc.AdapterLuid);
 
         AdapterImpl adapter;
         adapter.m_info = info;
