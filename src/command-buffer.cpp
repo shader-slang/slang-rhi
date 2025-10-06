@@ -2,6 +2,7 @@
 
 #include "rhi-shared.h"
 #include "device.h"
+#include "format-conversion.h"
 
 namespace rhi {
 
@@ -717,6 +718,13 @@ void CommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange subres
     cmd.texture = texture;
     cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
     ::memcpy(cmd.clearValue, clearValue, sizeof(cmd.clearValue));
+    // Different APIs/drivers appear to handle out-of-range clear values differently.
+    // To ensure consistent results we clamp the values here.
+    FormatConversionFuncs funcs = getFormatConversionFuncs(texture->getDesc().format);
+    if (funcs.clampIntFunc)
+    {
+        funcs.clampIntFunc(cmd.clearValue);
+    }
     m_commandList->write(std::move(cmd));
 }
 
@@ -726,6 +734,13 @@ void CommandEncoder::clearTextureSint(ITexture* texture, SubresourceRange subres
     cmd.texture = texture;
     cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
     ::memcpy(cmd.clearValue, clearValue, sizeof(cmd.clearValue));
+    // Different APIs/drivers appear to handle out-of-range clear values differently.
+    // To ensure consistent results we clamp the values here.
+    FormatConversionFuncs funcs = getFormatConversionFuncs(texture->getDesc().format);
+    if (funcs.clampIntFunc)
+    {
+        funcs.clampIntFunc(cmd.clearValue);
+    }
     m_commandList->write(std::move(cmd));
 }
 
