@@ -20,6 +20,9 @@ for line in lines:
     if line.startswith("//"):
         output += "    /* " + line[3:] + " */ \\\n"
     else:
+        match = RE_PROC.search(line)
+        if match is None:
+            continue
         name = RE_PROC.search(line).group(1)
         output += "    x(" + name + ") \\\n"
 

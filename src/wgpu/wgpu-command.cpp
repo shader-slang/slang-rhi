@@ -98,7 +98,7 @@ public:
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 {
-    auto existingError = m_device->getAndClearLastError();
+    auto existingError = m_device->getAndClearLastUncapturedError();
     if (existingError != WGPUErrorType_NoError)
         m_device->printWarning("Web GPU device had reported error before command record.");
 
@@ -139,7 +139,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
         return SLANG_FAIL;
     }
 
-    auto lastError = m_device->getAndClearLastError();
+    auto lastError = m_device->getAndClearLastUncapturedError();
     if (lastError != WGPUErrorType_NoError)
     {
         return SLANG_FAIL;
@@ -238,13 +238,13 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             uint32_t srcZ = cmd.srcOffset.z + cmd.srcSubresource.layer + layer;
             uint32_t dstZ = cmd.dstOffset.z + cmd.dstSubresource.layer + layer;
 
-            WGPUImageCopyTexture source = {};
+            WGPUTexelCopyTextureInfo source = {};
             source.texture = src->m_texture;
             source.origin = {cmd.srcOffset.x, cmd.srcOffset.y, srcZ};
             source.mipLevel = srcMip;
             source.aspect = WGPUTextureAspect_All;
 
-            WGPUImageCopyTexture destination = {};
+            WGPUTexelCopyTextureInfo destination = {};
             destination.texture = dst->m_texture;
             destination.origin = {cmd.dstOffset.x, cmd.dstOffset.y, dstZ};
             destination.mipLevel = dstMip;
@@ -308,13 +308,13 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     SLANG_RHI_ASSERT(srcLayer == 0 || srcOffset.z == 0);
     uint32_t z = srcOffset.z + srcLayer;
 
-    WGPUImageCopyTexture source = {};
+    WGPUTexelCopyTextureInfo source = {};
     source.texture = src->m_texture;
     source.origin = {srcOffset.x, srcOffset.y, z};
     source.mipLevel = srcMip;
     source.aspect = WGPUTextureAspect_All;
 
-    WGPUImageCopyBuffer destination = {};
+    WGPUTexelCopyBufferInfo destination = {};
     destination.buffer = dst->m_buffer;
     destination.layout.offset = dstOffset;
     destination.layout.bytesPerRow = dstRowPitch;
@@ -366,7 +366,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
         {
             uint32_t mip = subresourceRange.mip + mipOffset;
 
-            WGPUImageCopyBuffer srcRegion;
+            WGPUTexelCopyBufferInfo srcRegion;
             srcRegion.buffer = buffer->m_buffer;
             srcRegion.layout.bytesPerRow = srLayout->rowPitch;
             srcRegion.layout.rowsPerImage = srLayout->rowCount;
@@ -377,7 +377,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             SLANG_RHI_ASSERT(layer == 0 || cmd.offset.z == 0);
             uint32_t z = cmd.offset.z + layer;
 
-            WGPUImageCopyTexture dstRegion;
+            WGPUTexelCopyTextureInfo dstRegion;
             dstRegion.aspect = WGPUTextureAspect_All;
             dstRegion.mipLevel = mip;
             dstRegion.origin = {(uint32_t)cmd.offset.x, (uint32_t)cmd.offset.y, z};
@@ -791,15 +791,15 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
     if (m_renderPassActive)
     {
-        m_ctx.api.wgpuRenderPassEncoderPushDebugGroup(m_renderPassEncoder, cmd.name);
+        m_ctx.api.wgpuRenderPassEncoderPushDebugGroup(m_renderPassEncoder, translateString(cmd.name));
     }
     else if (m_computePassActive)
     {
-        m_ctx.api.wgpuComputePassEncoderPushDebugGroup(m_computePassEncoder, cmd.name);
+        m_ctx.api.wgpuComputePassEncoderPushDebugGroup(m_computePassEncoder, translateString(cmd.name));
     }
     else
     {
-        m_ctx.api.wgpuCommandEncoderPushDebugGroup(m_commandEncoder, cmd.name);
+        m_ctx.api.wgpuCommandEncoderPushDebugGroup(m_commandEncoder, translateString(cmd.name));
     }
 }
 
@@ -823,15 +823,15 @@ void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 {
     if (m_renderPassActive)
     {
-        m_ctx.api.wgpuRenderPassEncoderInsertDebugMarker(m_renderPassEncoder, cmd.name);
+        m_ctx.api.wgpuRenderPassEncoderInsertDebugMarker(m_renderPassEncoder, translateString(cmd.name));
     }
     else if (m_computePassActive)
     {
-        m_ctx.api.wgpuComputePassEncoderInsertDebugMarker(m_computePassEncoder, cmd.name);
+        m_ctx.api.wgpuComputePassEncoderInsertDebugMarker(m_computePassEncoder, translateString(cmd.name));
     }
     else
     {
-        m_ctx.api.wgpuCommandEncoderInsertDebugMarker(m_commandEncoder, cmd.name);
+        m_ctx.api.wgpuCommandEncoderInsertDebugMarker(m_commandEncoder, translateString(cmd.name));
     }
 }
 
@@ -935,13 +935,13 @@ Result CommandQueueImpl::waitOnHost()
 
     // Wait for the command buffer to finish executing
     {
-        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
-        WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
+        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
+        WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
         { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
         callbackInfo.userdata1 = &status;
-        WGPUFuture future = device->m_ctx.api.wgpuQueueOnSubmittedWorkDone2(m_queue, callbackInfo);
+        WGPUFuture future = device->m_ctx.api.wgpuQueueOnSubmittedWorkDone(m_queue, callbackInfo);
         constexpr size_t futureCount = 1;
         WGPUFutureWaitInfo futures[futureCount] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;

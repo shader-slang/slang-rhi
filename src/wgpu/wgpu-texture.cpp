@@ -70,7 +70,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureDesc.mipLevelCount = desc.mipCount;
     textureDesc.sampleCount = desc.sampleCount;
     textureDesc.format = translateTextureFormat(desc.format);
-    textureDesc.label = desc.label;
+    textureDesc.label = translateString(desc.label);
     textureDesc.usage = translateTextureUsage(desc.usage);
     if (initData)
     {
@@ -179,7 +179,7 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     viewDesc.baseArrayLayer = view->m_desc.subresourceRange.layer;
     viewDesc.arrayLayerCount = view->m_desc.subresourceRange.layerCount;
     viewDesc.aspect = translateTextureAspect(desc.aspect);
-    viewDesc.label = desc.label;
+    viewDesc.label = translateString(desc.label);
 
     view->m_textureView = m_ctx.api.wgpuTextureCreateView(textureImpl->m_texture, &viewDesc);
     if (!view->m_textureView)
