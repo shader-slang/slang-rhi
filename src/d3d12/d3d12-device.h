@@ -26,7 +26,6 @@ class AdapterImpl : public Adapter
 {
 public:
     ComPtr<IDXGIAdapter> m_dxgiAdapter;
-    bool m_isWarp = false;
 };
 
 class DeviceImpl : public Device

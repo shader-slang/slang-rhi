@@ -149,6 +149,7 @@ IAdapter* getCPUAdapter(uint32_t index)
         Adapter outAdapter;
         AdapterInfo info = {};
         info.deviceType = DeviceType::CPU;
+        info.adapterType = AdapterType::Software;
         string::copy_safe(info.name, sizeof(info.name), "Default");
         outAdapter.m_info = info;
         outAdapter.m_isDefault = true;

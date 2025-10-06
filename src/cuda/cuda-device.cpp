@@ -134,6 +134,7 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 
         AdapterInfo info = {};
         info.deviceType = DeviceType::CUDA;
+        info.adapterType = AdapterType::Discrete;
         SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
         info.luid = getAdapterLUID(deviceIndex);
 

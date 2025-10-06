@@ -33,6 +33,11 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         dxgiAdapter->GetDesc(&desc);
         AdapterInfo info = {};
         info.deviceType = DeviceType::D3D11;
+        info.adapterType = desc.DedicatedVideoMemory > 0 ? AdapterType::Discrete : AdapterType::Integrated;
+        if (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c)
+        {
+            info.adapterType = AdapterType::Software;
+        }
         auto name = string::from_wstring(desc.Description);
         string::copy_safe(info.name, sizeof(info.name), name.c_str());
         info.vendorID = desc.VendorId;
@@ -42,7 +47,6 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         AdapterImpl adapter;
         adapter.m_info = info;
         adapter.m_dxgiAdapter = dxgiAdapter;
-        adapter.m_isWarp = (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c);
         outAdapters.push_back(adapter);
     }
 
@@ -282,7 +286,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize features & capabilities
-    addFeature(adapter->m_isWarp ? Feature::SoftwareDevice : Feature::HardwareDevice);
+    bool isSoftwareDevice = adapter->m_info.adapterType == AdapterType::Software;
+    addFeature(isSoftwareDevice ? Feature::SoftwareDevice : Feature::HardwareDevice);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);

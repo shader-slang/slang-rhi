@@ -91,6 +91,22 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         }
 
         AdapterInfo info = {};
+        info.deviceType = DeviceType::Vulkan;
+        switch (props.properties.deviceType)
+        {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            info.adapterType = AdapterType::Discrete;
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            info.adapterType = AdapterType::Integrated;
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            info.adapterType = AdapterType::Software;
+            break;
+        default:
+            info.adapterType = AdapterType::Unknown;
+            break;
+        }
         string::copy_safe(info.name, sizeof(info.name), props.properties.deviceName);
         info.vendorID = props.properties.vendorID;
         info.deviceID = props.properties.deviceID;
