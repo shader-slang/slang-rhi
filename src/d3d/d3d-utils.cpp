@@ -376,26 +376,48 @@ Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters)
     return enumAdapters(factory, outAdapters);
 }
 
+AdapterInfo getAdapterInfo(IDXGIAdapter* dxgiAdapter)
+{
+    DXGI_ADAPTER_DESC desc;
+    dxgiAdapter->GetDesc(&desc);
+    AdapterInfo info = {};
+    info.adapterType = desc.DedicatedVideoMemory > 0 ? AdapterType::Discrete : AdapterType::Integrated;
+
+    // Check for software adapter.
+    ComPtr<IDXGIAdapter1> dxgiAdapter1;
+    if (SUCCEEDED(dxgiAdapter->QueryInterface(dxgiAdapter1.writeRef())))
+    {
+        DXGI_ADAPTER_DESC1 desc1;
+        dxgiAdapter1->GetDesc1(&desc1);
+        if (desc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+        {
+            info.adapterType = AdapterType::Software;
+        }
+    }
+    else
+    {
+        // Fallback: Check for WARP adapter.
+        if (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c)
+        {
+            info.adapterType = AdapterType::Software;
+        }
+    }
+
+    auto name = string::from_wstring(desc.Description);
+    string::copy_safe(info.name, sizeof(info.name), name.c_str());
+    info.vendorID = desc.VendorId;
+    info.deviceID = desc.DeviceId;
+    info.luid = getAdapterLUID(desc.AdapterLuid);
+
+    return info;
+}
+
 AdapterLUID getAdapterLUID(LUID luid)
 {
     AdapterLUID adapterLUID = {};
     SLANG_RHI_ASSERT(sizeof(AdapterLUID) >= sizeof(LUID));
     memcpy(&adapterLUID, &luid, sizeof(LUID));
     return adapterLUID;
-}
-
-bool isWarpAdapter(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapterIn)
-{
-    ComPtr<IDXGIFactory4> dxgiFactory4;
-    if (SLANG_SUCCEEDED(dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory4.writeRef()))))
-    {
-        ComPtr<IDXGIAdapter> warpAdapter;
-        dxgiFactory4->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.writeRef()));
-
-        return adapterIn == warpAdapter;
-    }
-
-    return false;
 }
 
 uint32_t getPlaneSliceCount(DXGI_FORMAT format)

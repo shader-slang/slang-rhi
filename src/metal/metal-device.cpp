@@ -27,6 +27,8 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     auto addAdapter = [&](MTL::Device* device)
     {
         AdapterInfo info = {};
+        info.deviceType = DeviceType::Metal;
+        info.adapterType = device->hasUnifiedMemory() ? AdapterType::Integrated : AdapterType::Discrete;
         const char* name = device->name()->cString(NS::ASCIIStringEncoding);
         string::copy_safe(info.name, sizeof(info.name), name);
         uint64_t registryID = device->registryID();

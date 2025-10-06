@@ -434,6 +434,25 @@ public:
     IDebugCallback* m_debugCallback = nullptr;
 };
 
+/// Mark the default adapter in the list, preferring the first discrete adapter.
+template<typename T>
+void markDefaultAdapter(std::vector<T>& adapters)
+{
+    if (!adapters.empty())
+    {
+        size_t best = 0;
+        for (size_t i = 0; i < adapters.size(); i++)
+        {
+            if (adapters[i].m_info.adapterType == AdapterType::Discrete)
+            {
+                best = i;
+                break;
+            }
+        }
+        adapters[best].m_isDefault = true;
+    }
+}
+
 template<typename T>
 Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc& desc, T*& outAdapter)
 {

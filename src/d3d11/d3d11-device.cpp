@@ -29,28 +29,17 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 
     for (const auto& dxgiAdapter : dxgiAdapters)
     {
-        DXGI_ADAPTER_DESC desc;
-        dxgiAdapter->GetDesc(&desc);
-        AdapterInfo info = {};
+        AdapterInfo info = getAdapterInfo(dxgiAdapter);
         info.deviceType = DeviceType::D3D11;
-        auto name = string::from_wstring(desc.Description);
-        string::copy_safe(info.name, sizeof(info.name), name.c_str());
-        info.vendorID = desc.VendorId;
-        info.deviceID = desc.DeviceId;
-        info.luid = getAdapterLUID(desc.AdapterLuid);
 
         AdapterImpl adapter;
         adapter.m_info = info;
         adapter.m_dxgiAdapter = dxgiAdapter;
-        adapter.m_isWarp = (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c);
         outAdapters.push_back(adapter);
     }
 
-    // For now, make the first adapter the default one.
-    if (!outAdapters.empty())
-    {
-        outAdapters[0].m_isDefault = true;
-    }
+    // Mark default adapter (prefer discrete if available).
+    markDefaultAdapter(outAdapters);
 
     return SLANG_OK;
 }
@@ -282,7 +271,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize features & capabilities
-    addFeature(adapter->m_isWarp ? Feature::SoftwareDevice : Feature::HardwareDevice);
+    bool isSoftwareDevice = adapter->m_info.adapterType == AdapterType::Software;
+    addFeature(isSoftwareDevice ? Feature::SoftwareDevice : Feature::HardwareDevice);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);

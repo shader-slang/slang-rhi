@@ -633,6 +633,21 @@ inline Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
 
     AdapterInfo info = {};
     info.deviceType = DeviceType::WGPU;
+    switch (wgpuAdapterInfo.adapterType)
+    {
+    case WGPUAdapterType_DiscreteGPU:
+        info.adapterType = AdapterType::Discrete;
+        break;
+    case WGPUAdapterType_IntegratedGPU:
+        info.adapterType = AdapterType::Integrated;
+        break;
+    case WGPUAdapterType_CPU:
+        info.adapterType = AdapterType::Software;
+        break;
+    default:
+        info.adapterType = AdapterType::Unknown;
+        break;
+    }
     string::copy_safe(info.name, sizeof(info.name), wgpuAdapterInfo.device.data, wgpuAdapterInfo.device.length);
     info.vendorID = wgpuAdapterInfo.vendorID;
     info.deviceID = wgpuAdapterInfo.deviceID;
