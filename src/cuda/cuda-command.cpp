@@ -444,11 +444,24 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     // Copy global parameter data to the `SLANG_globalParams` symbol.
     if (computePipeline->m_globalParams)
     {
-        SLANG_RHI_ASSERT(computePipeline->m_globalParamsSize == bindingData->globalParamsSize);
+        // TODO: Slang sometimes computes the size of the global parameters layout incorrectly.
+        // Instead of the assert, we currently warn about this mismatch once.
+        // SLANG_RHI_ASSERT(computePipeline->m_globalParamsSize == bindingData->globalParamsSize);
+        if (computePipeline->m_globalParamsSize != bindingData->globalParamsSize &&
+            !computePipeline->m_warnedAboutGlobalParamsSizeMismatch)
+        {
+            m_device->printWarning(
+                "Warning: Incorrect global parameter size (expected %llu, got %llu) for pipeline %s",
+                computePipeline->m_globalParamsSize,
+                bindingData->globalParamsSize,
+                computePipeline->m_kernelName.c_str()
+            );
+            computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
+        }
         SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
             computePipeline->m_globalParams,
             bindingData->globalParams,
-            computePipeline->m_globalParamsSize,
+            min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
             m_stream
         ));
     }
