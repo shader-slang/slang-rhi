@@ -22,15 +22,15 @@ static const FormatConversionFuncs sFuncs[] = {
     {Format::RGBA8Uint, packUint8<4>, unpackUint8<4>, clampUint8<4>, nullptr, nullptr},
     {Format::RGBA8Sint, packSint8<4>, unpackSint8<4>, clampSint8<4>, nullptr, nullptr},
     {Format::RGBA8Unorm, nullptr, nullptr, nullptr, packUnorm8<4>, unpackUnorm8<4>},
-    {Format::RGBA8UnormSrgb, nullptr, nullptr, nullptr, nullptr, nullptr},
+    {Format::RGBA8UnormSrgb, nullptr, nullptr, nullptr, packRGBA8UnormSrgb, unpackRGBA8UnormSrgb},
     {Format::RGBA8Snorm, nullptr, nullptr, nullptr, packSnorm8<4>, unpackSnorm8<4>},
 
     // TODO flip channels
     {Format::BGRA8Unorm, nullptr, nullptr, nullptr, packBGRA8Unorm, unpackBGRA8Unorm},
-    {Format::BGRA8UnormSrgb, nullptr, nullptr, nullptr, nullptr, nullptr},
+    {Format::BGRA8UnormSrgb, nullptr, nullptr, nullptr, packBGRA8UnormSrgb, unpackBGRA8UnormSrgb},
     // TODO should we discard last channel?
     {Format::BGRX8Unorm, nullptr, nullptr, nullptr, packBGRA8Unorm, unpackBGRA8Unorm},
-    {Format::BGRX8UnormSrgb, nullptr, nullptr, nullptr, nullptr, nullptr},
+    {Format::BGRX8UnormSrgb, nullptr, nullptr, nullptr, packBGRA8UnormSrgb, unpackBGRA8UnormSrgb},
 
     {Format::R16Uint, packUint16<1>, unpackUint16<1>, clampUint16<1>, nullptr, nullptr},
     {Format::R16Sint, packSint16<1>, unpackSint16<1>, clampSint16<1>, nullptr, nullptr},

@@ -184,6 +184,38 @@ inline void unpackUnorm8(const void* in, float out[4])
         out[i] = reinterpret_cast<const uint8_t*>(in)[i] / 255.f;
 }
 
+inline float linearToSrgb(float v)
+{
+    if (v <= 0.0031308f)
+        return v * 12.92f;
+    else
+        return 1.055f * ::pow(v, 1.f / 2.4f) - 0.055f;
+}
+
+inline float srgbToLinear(float v)
+{
+    if (v <= 0.04045f)
+        return v / 12.92f;
+    else
+        return ::pow((v + 0.055f) / 1.055f, 2.4f);
+}
+
+inline void packRGBA8UnormSrgb(const float in[4], void* out)
+{
+    reinterpret_cast<uint8_t*>(out)[0] = uint8_t(::floor(linearToSrgb(in[0]) * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[1] = uint8_t(::floor(linearToSrgb(in[1]) * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[2] = uint8_t(::floor(linearToSrgb(in[2]) * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[3] = uint8_t(::floor(in[3] * 255.f + 0.5f));
+}
+
+inline void unpackRGBA8UnormSrgb(const void* in, float out[4])
+{
+    out[0] = srgbToLinear(reinterpret_cast<const uint8_t*>(in)[0] / 255.f);
+    out[1] = srgbToLinear(reinterpret_cast<const uint8_t*>(in)[1] / 255.f);
+    out[2] = srgbToLinear(reinterpret_cast<const uint8_t*>(in)[2] / 255.f);
+    out[3] = reinterpret_cast<const uint8_t*>(in)[3] / 255.f;
+}
+
 inline void packBGRA8Unorm(const float in[4], void* out)
 {
     reinterpret_cast<uint8_t*>(out)[0] = uint8_t(::floor(in[2] * 255.f + 0.5f));
@@ -197,6 +229,22 @@ inline void unpackBGRA8Unorm(const void* in, float out[4])
     out[0] = reinterpret_cast<const uint8_t*>(in)[2] / 255.f;
     out[1] = reinterpret_cast<const uint8_t*>(in)[1] / 255.f;
     out[2] = reinterpret_cast<const uint8_t*>(in)[0] / 255.f;
+    out[3] = reinterpret_cast<const uint8_t*>(in)[3] / 255.f;
+}
+
+inline void packBGRA8UnormSrgb(const float in[4], void* out)
+{
+    reinterpret_cast<uint8_t*>(out)[0] = uint8_t(::floor(linearToSrgb(in[2]) * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[1] = uint8_t(::floor(linearToSrgb(in[1]) * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[2] = uint8_t(::floor(linearToSrgb(in[0]) * 255.f + 0.5f));
+    reinterpret_cast<uint8_t*>(out)[3] = uint8_t(::floor(in[3] * 255.f + 0.5f));
+}
+
+inline void unpackBGRA8UnormSrgb(const void* in, float out[4])
+{
+    out[0] = srgbToLinear(reinterpret_cast<const uint8_t*>(in)[2] / 255.f);
+    out[1] = srgbToLinear(reinterpret_cast<const uint8_t*>(in)[1] / 255.f);
+    out[2] = srgbToLinear(reinterpret_cast<const uint8_t*>(in)[0] / 255.f);
     out[3] = reinterpret_cast<const uint8_t*>(in)[3] / 255.f;
 }
 
