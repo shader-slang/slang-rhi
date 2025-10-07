@@ -442,22 +442,15 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     const auto& entryPointData = bindingData->entryPoints[computePipeline->m_kernelIndex];
 
     // Copy global parameter data to the `SLANG_globalParams` symbol.
+    if (computePipeline->m_globalParams)
     {
-        CUdeviceptr globalParamsSymbol = 0;
-        size_t globalParamsSymbolSize = 0;
-        CUresult result = cuModuleGetGlobal(
-            &globalParamsSymbol,
-            &globalParamsSymbolSize,
-            computePipeline->m_module,
-            "SLANG_globalParams"
-        );
-        if (result == CUDA_SUCCESS)
-        {
-            SLANG_RHI_ASSERT(globalParamsSymbolSize == bindingData->globalParamsSize);
-            SLANG_CUDA_ASSERT_ON_FAIL(
-                cuMemcpyAsync(globalParamsSymbol, bindingData->globalParams, globalParamsSymbolSize, m_stream)
-            );
-        }
+        SLANG_RHI_ASSERT(computePipeline->m_globalParamsSize == bindingData->globalParamsSize);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
+            computePipeline->m_globalParams,
+            bindingData->globalParams,
+            computePipeline->m_globalParamsSize,
+            m_stream
+        ));
     }
 
     // The argument data for the entry-point parameters are already
