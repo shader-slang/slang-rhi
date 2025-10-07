@@ -97,6 +97,18 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     pipeline->m_kernelIndex = kernelIndex;
     pipeline->m_rootObjectLayout->getKernelThreadGroupSize(kernelIndex, pipeline->m_threadGroupSize);
 
+    // Get the global `SLANG_globalParams` address and size.
+    if (cuModuleGetGlobal(
+            &pipeline->m_globalParams,
+            &pipeline->m_globalParamsSize,
+            pipeline->m_module,
+            "SLANG_globalParams"
+        ) != CUDA_SUCCESS)
+    {
+        pipeline->m_globalParams = 0;
+        pipeline->m_globalParamsSize = 0;
+    }
+
     // Compute the size of the parameter buffer.
     // Slang's layout computation for the CUDA parameter will align the size
     // Of the buffer to the largest parameter size.

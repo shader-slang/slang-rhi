@@ -442,22 +442,28 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     const auto& entryPointData = bindingData->entryPoints[computePipeline->m_kernelIndex];
 
     // Copy global parameter data to the `SLANG_globalParams` symbol.
+    if (computePipeline->m_globalParams)
     {
-        CUdeviceptr globalParamsSymbol = 0;
-        size_t globalParamsSymbolSize = 0;
-        CUresult result = cuModuleGetGlobal(
-            &globalParamsSymbol,
-            &globalParamsSymbolSize,
-            computePipeline->m_module,
-            "SLANG_globalParams"
-        );
-        if (result == CUDA_SUCCESS)
+        // TODO: Slang sometimes computes the size of the global parameters layout incorrectly.
+        // Instead of the assert, we currently warn about this mismatch once.
+        // SLANG_RHI_ASSERT(computePipeline->m_globalParamsSize == bindingData->globalParamsSize);
+        if (computePipeline->m_globalParamsSize != bindingData->globalParamsSize &&
+            !computePipeline->m_warnedAboutGlobalParamsSizeMismatch)
         {
-            SLANG_RHI_ASSERT(globalParamsSymbolSize == bindingData->globalParamsSize);
-            SLANG_CUDA_ASSERT_ON_FAIL(
-                cuMemcpyAsync(globalParamsSymbol, bindingData->globalParams, globalParamsSymbolSize, m_stream)
+            m_device->printWarning(
+                "Warning: Incorrect global parameter size (expected %llu, got %llu) for pipeline %s",
+                computePipeline->m_globalParamsSize,
+                bindingData->globalParamsSize,
+                computePipeline->m_kernelName.c_str()
             );
+            computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
         }
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
+            computePipeline->m_globalParams,
+            bindingData->globalParams,
+            min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
+            m_stream
+        ));
     }
 
     // The argument data for the entry-point parameters are already

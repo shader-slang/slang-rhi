@@ -13,6 +13,10 @@ public:
     std::string m_kernelName;
     uint32_t m_kernelIndex = 0;
     uint32_t m_threadGroupSize[3] = {1, 1, 1};
+    CUdeviceptr m_globalParams = 0;
+    size_t m_globalParamsSize = 0;
+    // TODO: This is a temporary flag to warn about global parameter size mismatch once.
+    bool m_warnedAboutGlobalParamsSizeMismatch = false;
     size_t m_paramBufferSize = 0;
     size_t m_sharedMemorySize = 0;
 
