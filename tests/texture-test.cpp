@@ -1213,6 +1213,11 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
         if (!is_set(support, FormatSupport::Texture))
             return;
 
+        // Skip if format doesn't support UAV access.
+        if (is_set(testTexture.desc.usage, TextureUsage::UnorderedAccess) &&
+            (!is_set(support, FormatSupport::ShaderUavLoad) || !is_set(support, FormatSupport::ShaderUavStore)))
+            return;
+
         const FormatInfo& info = getFormatInfo(format);
 
         // Metal doesn't support writing into depth textures.
