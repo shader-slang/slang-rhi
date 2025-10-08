@@ -221,7 +221,7 @@ static void compareTexelData(Format format, span<TexelData> a, span<TexelData> b
     REQUIRE(a.size() == b.size());
     const FormatInfo& info = getFormatInfo(format);
 
-    float atol[4] = {0.f, 0.f, 0.f, 0.f};
+    float tolerance[4] = {0.f, 0.f, 0.f, 0.f};
     if (info.kind == FormatKind::Normalized)
     {
         int bits = (info.blockSizeInBytes * 8) / info.channelCount;
@@ -243,11 +243,11 @@ static void compareTexelData(Format format, span<TexelData> a, span<TexelData> b
         for (int i = 0; i < 4; ++i)
         {
             if (channelBits[i] > 0)
-                atol[i] = 1.f / ((1 << channelBits[i]) - 1);
+                tolerance[i] = 1.f / ((1 << channelBits[i]) - 1);
             if (info.isSigned)
-                atol[i] *= 2;
+                tolerance[i] *= 2;
             if (info.isSrgb)
-                atol[i] *= 2; // sRGB conversion is not exact
+                tolerance[i] *= 2; // sRGB conversion is not exact
         }
     }
 
@@ -278,8 +278,8 @@ static void compareTexelData(Format format, span<TexelData> a, span<TexelData> b
             else if (info.kind == FormatKind::Normalized)
             {
 
-                CHECK(texelA.floats[c] >= texelB.floats[c] - atol[c]);
-                CHECK(texelA.floats[c] <= texelB.floats[c] + atol[c]);
+                CHECK(texelA.floats[c] >= texelB.floats[c] - tolerance[c]);
+                CHECK(texelA.floats[c] <= texelB.floats[c] + tolerance[c]);
             }
             else if (info.kind == FormatKind::Float)
             {
