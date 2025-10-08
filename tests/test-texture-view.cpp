@@ -1395,6 +1395,7 @@ GPU_TEST_CASE("texture-view-store-single", D3D12 | Vulkan | CUDA | Metal)
             if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
                 return;
             // CUDA does not support creating a surface from a subset of layers.
+            // TODO: We should check for that in the validation layer.
             if (device->getDeviceType() == DeviceType::CUDA &&
                 (desc.type == TextureType::Texture1DArray || desc.type == TextureType::Texture2DArray) &&
                 desc.arrayLength > 1)
