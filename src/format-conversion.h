@@ -189,15 +189,15 @@ inline float linearToSrgb(float v)
     if (v <= 0.0031308f)
         return v * 12.92f;
     else
-        return 1.055f * ::pow(v, 1.f / 2.4f) - 0.055f;
+        return ::pow(v, 1.f / 2.4f) * 1.055f - 0.055f;
 }
 
 inline float srgbToLinear(float v)
 {
     if (v <= 0.04045f)
-        return v / 12.92f;
+        return v * (1.f / 12.92f);
     else
-        return ::pow((v + 0.055f) / 1.055f, 2.4f);
+        return ::pow((v + 0.055f) * (1.f / 1.055f), 2.4f);
 }
 
 inline void packRGBA8UnormSrgb(const float in[4], void* out)
