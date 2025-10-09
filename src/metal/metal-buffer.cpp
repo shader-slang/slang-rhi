@@ -29,6 +29,31 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result BufferImpl::getDescriptorHandle(
+    DescriptorHandleAccess access,
+    Format format,
+    BufferRange range,
+    DescriptorHandle* outHandle
+)
+{
+    switch (access)
+    {
+    case DescriptorHandleAccess::Read:
+        outHandle->type = DescriptorHandleType::Buffer;
+        break;
+    case DescriptorHandleAccess::ReadWrite:
+        outHandle->type = DescriptorHandleType::RWBuffer;
+        break;
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+
+    range = resolveBufferRange(range);
+    outHandle->value = (uint64_t)m_buffer->gpuAddress() + range.offset;
+
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
     AUTORELEASEPOOL

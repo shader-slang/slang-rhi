@@ -211,6 +211,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         addFeature(Feature::ArgumentBufferTier2);
         addFeature(Feature::ParameterBlock);
+        addFeature(Feature::Bindless);
     }
 
     addCapability(Capability::metal);
