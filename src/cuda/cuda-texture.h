@@ -77,6 +77,10 @@ public:
 
     // ITextureView implementation
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
+        DescriptorHandleAccess access,
+        DescriptorHandle* outHandle
+    ) override;
 
     CUtexObject getTexObject()
     {

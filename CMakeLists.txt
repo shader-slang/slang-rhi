@@ -713,7 +713,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/main.cpp
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
-        tests/test-bindless-descriptor-handles.cpp
+        tests/test-bindless.cpp
         tests/test-bind-pointers.cpp
         tests/test-blob.cpp
         tests/test-buffer-barrier.cpp
