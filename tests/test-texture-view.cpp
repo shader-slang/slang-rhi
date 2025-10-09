@@ -193,6 +193,14 @@ inline bool shouldSkipFormat(Format format)
     }
 }
 
+inline bool needsFormatConversion(Format format)
+{
+    const FormatInfo& info = getFormatInfo(format);
+    return info.kind == FormatKind::Normalized || info.kind == FormatKind::Float ||
+           (info.kind == FormatKind::Integer && info.blockSizeInBytes / info.channelCount != 4);
+}
+
+
 struct TexelData
 {
     uint32_t layer;
@@ -221,7 +229,7 @@ static void compareTexelData(Format format, span<TexelData> a, span<TexelData> b
     REQUIRE(a.size() == b.size());
     const FormatInfo& info = getFormatInfo(format);
 
-    float atol[4] = {0.f, 0.f, 0.f, 0.f};
+    float tolerance[4] = {0.f, 0.f, 0.f, 0.f};
     if (info.kind == FormatKind::Normalized)
     {
         int bits = (info.blockSizeInBytes * 8) / info.channelCount;
@@ -243,11 +251,11 @@ static void compareTexelData(Format format, span<TexelData> a, span<TexelData> b
         for (int i = 0; i < 4; ++i)
         {
             if (channelBits[i] > 0)
-                atol[i] = 1.f / ((1 << channelBits[i]) - 1);
+                tolerance[i] = 1.f / ((1 << channelBits[i]) - 1);
             if (info.isSigned)
-                atol[i] *= 2;
+                tolerance[i] *= 2;
             if (info.isSrgb)
-                atol[i] *= 2; // sRGB conversion is not exact
+                tolerance[i] *= 2; // sRGB conversion is not exact
         }
     }
 
@@ -278,8 +286,8 @@ static void compareTexelData(Format format, span<TexelData> a, span<TexelData> b
             else if (info.kind == FormatKind::Normalized)
             {
 
-                CHECK(texelA.floats[c] >= texelB.floats[c] - atol[c]);
-                CHECK(texelA.floats[c] <= texelB.floats[c] + atol[c]);
+                CHECK(texelA.floats[c] >= texelB.floats[c] - tolerance[c]);
+                CHECK(texelA.floats[c] <= texelB.floats[c] + tolerance[c]);
             }
             else if (info.kind == FormatKind::Float)
             {
@@ -956,11 +964,8 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-all-mips", D3D12 | Vulkan | CUDA 
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // TODO: Skip CUDA tests due to Slang issues.
-            // CUDA Texture.Load() currently doesn't support mip argument.
-            if (device->getDeviceType() == DeviceType::CUDA &&
-                (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray ||
-                 desc.arrayLength > 1 || desc.mipCount > 1))
+            // CUDA does not support loads from 1D textures (limitation in PTX ISA).
+            if (device->getDeviceType() == DeviceType::CUDA && (desc.type == TextureType::Texture1D))
                 return;
 
             ComPtr<ITextureView> textureView = c->getTexture()->getDefaultView();
@@ -1012,11 +1017,8 @@ GPU_TEST_CASE("texture-view-load-ro-all-layers-single-mip", D3D12 | Vulkan | CUD
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // TODO: Skip CUDA tests due to Slang issues.
-            // CUDA Texture.Load() currently doesn't support mip argument.
-            if (device->getDeviceType() == DeviceType::CUDA &&
-                (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray ||
-                 desc.arrayLength > 1 || desc.mipCount > 1))
+            // CUDA does not support loads from 1D textures (limitation in PTX ISA).
+            if (device->getDeviceType() == DeviceType::CUDA && (desc.type == TextureType::Texture1D))
                 return;
 
             for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
@@ -1084,8 +1086,8 @@ GPU_TEST_CASE("texture-view-load-rw-all-layers-single-mip", D3D12 | Vulkan | CUD
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // TODO: Skip CUDA tests due to Slang issues.
-            if (device->getDeviceType() == DeviceType::CUDA)
+            // CUDA does not support loads from surfaces that need format conversion (limitation in PTX ISA).
+            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
                 return;
 
             for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
@@ -1153,10 +1155,8 @@ GPU_TEST_CASE("texture-view-load-ro-single", D3D12 | Vulkan | CUDA | Metal)
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // TODO: Skip CUDA tests due to Slang issues.
-            if (device->getDeviceType() == DeviceType::CUDA &&
-                (desc.type == TextureType::Texture1D || desc.type == TextureType::Texture1DArray ||
-                 desc.type == TextureType::Texture2DArray))
+            // CUDA does not support loads from 1D textures (limitation in PTX ISA).
+            if (device->getDeviceType() == DeviceType::CUDA && (desc.type == TextureType::Texture1D))
                 return;
 
             for (uint32_t layer = 0; layer < desc.arrayLength; ++layer)
@@ -1235,8 +1235,8 @@ GPU_TEST_CASE("texture-view-load-rw-single", D3D12 | Vulkan | CUDA | Metal)
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // TODO: Skip CUDA tests due to Slang issues.
-            if (device->getDeviceType() == DeviceType::CUDA)
+            // CUDA does not support loads from surfaces that need format conversion (limitation in PTX ISA).
+            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
                 return;
 
             for (uint32_t layer = 0; layer < desc.arrayLength; ++layer)
@@ -1315,8 +1315,8 @@ GPU_TEST_CASE("texture-view-store-all-layers-single-mip", D3D12 | Vulkan | CUDA 
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // TODO: Skip CUDA tests due to Slang issues.
-            if (device->getDeviceType() == DeviceType::CUDA)
+            // CUDA does not support stores to surfaces that need format conversion (limitation in PTX ISA).
+            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
                 return;
 
             for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
@@ -1391,8 +1391,14 @@ GPU_TEST_CASE("texture-view-store-single", D3D12 | Vulkan | CUDA | Metal)
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // TODO: Skip CUDA tests due to Slang issues.
-            if (device->getDeviceType() == DeviceType::CUDA)
+            // CUDA does not support stores to surfaces that need format conversion (limitation in PTX ISA).
+            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
+                return;
+            // CUDA does not support creating a surface from a subset of layers.
+            // TODO: We should check for that in the validation layer.
+            if (device->getDeviceType() == DeviceType::CUDA &&
+                (desc.type == TextureType::Texture1DArray || desc.type == TextureType::Texture2DArray) &&
+                desc.arrayLength > 1)
                 return;
 
             for (uint32_t layer = 0; layer < desc.arrayLength; ++layer)
