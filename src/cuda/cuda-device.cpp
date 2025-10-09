@@ -321,6 +321,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Initialize features & capabilities
     addFeature(Feature::HardwareDevice);
     addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Bindless);
 #if SLANG_RHI_ENABLE_VULKAN
     // Supports surface/swapchain (implemented in Vulkan).
     addFeature(Feature::Surface);

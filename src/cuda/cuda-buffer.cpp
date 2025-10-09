@@ -36,6 +36,32 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result BufferImpl::getDescriptorHandle(
+    DescriptorHandleAccess access,
+    Format format,
+    BufferRange range,
+    DescriptorHandle* outHandle
+)
+{
+    switch (access)
+    {
+    case DescriptorHandleAccess::Read:
+        outHandle->type = DescriptorHandleType::Buffer;
+        break;
+    case DescriptorHandleAccess::ReadWrite:
+        outHandle->type = DescriptorHandleType::RWBuffer;
+        break;
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+
+    // Bindless CUDA buffers are currently not supported.
+    // Slang emits code that treats bindless descriptors as pointers to StructuredBuffer<T>, RWStructuredBuffer<T> etc.
+    // To support that we'd have to allocate these buffer structures in CUDA device memory and point to these.
+    // For now we just bail out.
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
     SLANG_CUDA_CTX_SCOPE(this);
