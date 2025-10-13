@@ -52,7 +52,7 @@ void rayGenShaderInvokeCH()
 {
     float3 tgt = {0.25, 0.25, 1.0};
     float3 pos = {0.0, 0.0, 0.0};
-    float3 dir = tgt - pos; 
+    float3 dir = tgt - pos;
 
     // Trace a ray directly at the triangle, guaranteeing a hit
     RayDesc ray;
@@ -193,13 +193,12 @@ void missMakeQueryInvokeMiss(inout RayPayload payload)
 }
 
 [shader("raygeneration")]
-void rayGenShaderMakeQueryInvokeHit()
+void rayGenShaderTraceQueryInvokeHit()
 {
     float3 tgt = {0.25, 0.25, 1.0};
     float3 pos = {0.0, 0.0, 0.0};
     float3 dir = tgt - pos;
 
-    // Trace a ray directly away from the triangle, guaranteeing a miss
     RayDesc ray;
     ray.Origin = pos;
     ray.Direction = dir;
@@ -228,7 +227,6 @@ void closestHitMakeQueryInvokeHit(inout RayPayload payload, in BuiltInTriangleIn
     float3 pos = {0.0, 0.0, 0.0};
     float3 dir = tgt - pos;
 
-    // Trace a ray directly away from the triangle, guaranteeing a miss
     RayDesc ray;
     ray.Origin = pos;
     ray.Direction = dir;
@@ -252,7 +250,6 @@ void missMakeQueryInvokeHit(inout RayPayload payload)
     float3 pos = {0.0, 0.0, 0.0};
     float3 dir = tgt - pos;
 
-    // Trace a ray directly away from the triangle, guaranteeing a miss
     RayDesc ray;
     ray.Origin = pos;
     ray.Direction = dir;
@@ -269,6 +266,7 @@ void missMakeQueryInvokeHit(inout RayPayload payload)
     payload.invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
+#if !(defined(__CUDA__) || defined(__D3D12__))
 [shader("raygeneration")]
 void rayGenShaderQueryRayObjectOrigin()
 {
@@ -286,7 +284,9 @@ void rayGenShaderQueryRayObjectOrigin()
 
     resultBuffer[0].rayOrigin = hitobj.GetObjectRayOrigin();
 }
+#endif
 
+#if !(defined(__CUDA__) || defined(__D3D12__))
 [shader("raygeneration")]
 void rayGenShaderQueryRayObjectDirection()
 {
@@ -304,3 +304,4 @@ void rayGenShaderQueryRayObjectDirection()
 
     resultBuffer[0].rayDirection = hitobj.GetObjectRayDirection();
 }
+#endif

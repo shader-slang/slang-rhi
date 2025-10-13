@@ -6,7 +6,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-// Vertex and index data for a single triangle. We don't actually use it, but slang-rhi disallows non-empty accel structures.
+// Vertex and index data for a single triangle. We don't actually use it, but slang-rhi disallows non-empty accel
+// structures.
 
 struct Vertex
 {
@@ -21,7 +22,7 @@ static const Vertex kVertexData[kVertexCount] = {
 };
 
 static const int kIndexCount = 3;
-static const uint32_t kIndexData[kIndexCount] = { 0, 1, 2 };
+static const uint32_t kIndexData[kIndexCount] = {0, 1, 2};
 
 struct TestResult
 {
@@ -59,13 +60,21 @@ struct RayTracingHitObjectIntrinsicsTest
 
     void init(IDevice* device_) { this->device = device_; }
 
-    Result loadShaderPrograms(const char* raygenName, const char* closestHitName, const char* missName, const char* closestHitName2 = nullptr, const char* missName2 = nullptr, IShaderProgram** outProgram = nullptr)
+    Result loadShaderPrograms(
+        const char* moduleName,
+        const char* raygenName,
+        const char* closestHitName,
+        const char* missName,
+        const char* closestHitName2 = nullptr,
+        const char* missName2 = nullptr,
+        IShaderProgram** outProgram = nullptr
+    )
     {
         ComPtr<slang::ISession> slangSession;
         slangSession = device->getSlangSession();
 
         ComPtr<slang::IBlob> diagnosticsBlob;
-        slang::IModule* module = slangSession->loadModule("test-ray-tracing-hitobject-intrinsics", diagnosticsBlob.writeRef());
+        slang::IModule* module = slangSession->loadModule(moduleName, diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
             return SLANG_FAIL;
@@ -95,7 +104,7 @@ struct RayTracingHitObjectIntrinsicsTest
             SLANG_RETURN_ON_FAIL(module->findEntryPointByName(closestHitName2, entryPoint.writeRef()));
             componentTypes.push_back(entryPoint);
         }
-        
+
         ComPtr<slang::IComponentType> linkedProgram;
         Result result = slangSession->createCompositeComponentType(
             componentTypes.data(),
@@ -128,7 +137,14 @@ struct RayTracingHitObjectIntrinsicsTest
         REQUIRE(resultBuffer != nullptr);
     }
 
-    void createRequiredResources(const char* raygenName, const char* closestHitName, const char* missName, const char* closestHitName2 = nullptr, const char* missName2 = nullptr)
+    void createRequiredResources(
+        const char* moduleName,
+        const char* raygenName,
+        const char* closestHitName,
+        const char* missName,
+        const char* closestHitName2 = nullptr,
+        const char* missName2 = nullptr
+    )
     {
         queue = device->getQueue(QueueType::Graphics);
 
@@ -275,7 +291,15 @@ struct RayTracingHitObjectIntrinsicsTest
         }
 
         ComPtr<IShaderProgram> rayTracingProgram;
-        REQUIRE_CALL(loadShaderPrograms(raygenName, closestHitName, missName, closestHitName2, missName2, rayTracingProgram.writeRef()));
+        REQUIRE_CALL(loadShaderPrograms(
+            moduleName,
+            raygenName,
+            closestHitName,
+            missName,
+            closestHitName2,
+            missName2,
+            rayTracingProgram.writeRef()
+        ));
 
         const char* hitgroupNames[] = {"hitgroup1", "hitgroup2"};
 
@@ -352,9 +376,16 @@ struct RayTracingHitObjectIntrinsicsTest
         queue->waitOnHost();
     }
 
-    void run(const char* raygenName, const char* closestHitName, const char* missName, const char* closestHitName2 = nullptr, const char* missName2 = nullptr)
+    void run(
+        const char* moduleName,
+        const char* raygenName,
+        const char* closestHitName,
+        const char* missName,
+        const char* closestHitName2 = nullptr,
+        const char* missName2 = nullptr
+    )
     {
-        createRequiredResources(raygenName, closestHitName, missName, closestHitName2, missName2);
+        createRequiredResources(moduleName, raygenName, closestHitName, missName, closestHitName2, missName2);
         renderFrame();
     }
 };
@@ -368,7 +399,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-rg", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderMakeQueryInvokeNOP", "closestHitNOP", "missNOP");
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderMakeQueryInvokeNOP", "closestHitNOP", "missNOP");
     test.checkQueryAndInvokeResults();
 }
 
@@ -381,7 +412,12 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-ch", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderInvokeCH", "closestHitMakeQueryInvokeNOP", "missNOP");
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderInvokeCH",
+        "closestHitMakeQueryInvokeNOP",
+        "missNOP"
+    );
     test.checkQueryAndInvokeResults();
 }
 
@@ -394,7 +430,12 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-ms", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderInvokeMS", "closestHitNOP", "missMakeQueryInvokeNOP");
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderInvokeMS",
+        "closestHitNOP",
+        "missMakeQueryInvokeNOP"
+    );
     test.checkQueryAndInvokeResults();
 }
 
@@ -407,7 +448,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-rg", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderMakeQueryInvokeMiss", "closestHitNOP", "missInvoke");
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderMakeQueryInvokeMiss", "closestHitNOP", "missInvoke");
     test.checkQueryAndInvokeResults();
 }
 
@@ -420,7 +461,12 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-ch", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderInvokeCH", "closestHitMakeQueryInvokeMiss", "missInvoke");
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderInvokeCH",
+        "closestHitMakeQueryInvokeMiss",
+        "missInvoke"
+    );
     test.checkQueryAndInvokeResults();
 }
 
@@ -433,7 +479,14 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-ms", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderInvokeMS", "closestHitNOP", "missMakeQueryInvokeMiss", nullptr, "missInvoke");
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderInvokeMS",
+        "closestHitNOP",
+        "missMakeQueryInvokeMiss",
+        nullptr,
+        "missInvoke"
+    );
     test.checkQueryAndInvokeResults();
 }
 
@@ -446,7 +499,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-rg", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderMakeQueryInvokeHit", "closestHitInvoke", "missNOP");
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderTraceQueryInvokeHit", "closestHitInvoke", "missNOP");
     test.checkQueryAndInvokeResults();
 }
 
@@ -459,7 +512,14 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ch", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderInvokeCH", "closestHitMakeQueryInvokeHit", "missNOP", "closestHitInvoke", nullptr);
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderInvokeCH",
+        "closestHitMakeQueryInvokeHit",
+        "missNOP",
+        "closestHitInvoke",
+        nullptr
+    );
     test.checkQueryAndInvokeResults();
 }
 
@@ -472,7 +532,14 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ms", ALL)
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderInvokeMS", "closestHitNOP", "missMakeQueryInvokeHit", "closestHitInvoke", nullptr);
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderInvokeMS",
+        "closestHitNOP",
+        "missMakeQueryInvokeHit",
+        "closestHitInvoke",
+        nullptr
+    );
     test.checkQueryAndInvokeResults();
 }
 
@@ -487,14 +554,15 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-origin", ALL & ~CUDA &
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderQueryRayObjectOrigin", "closestHitNOP", "missNOP");
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderQueryRayObjectOrigin", "closestHitNOP", "missNOP");
 
     ComPtr<ISlangBlob> resultBlob;
 
     if (device->getDeviceType() == DeviceType::CUDA)
     {
         REQUIRE_CALL(device->readBuffer(test.resultBuffer, 0, sizeof(TestResultCudaAligned), resultBlob.writeRef()));
-        const TestResultCudaAligned* result = reinterpret_cast<const TestResultCudaAligned*>(resultBlob->getBufferPointer());
+        const TestResultCudaAligned* result =
+            reinterpret_cast<const TestResultCudaAligned*>(resultBlob->getBufferPointer());
         CHECK_EQ(result->rayOrigin[0], 0.1f);
         CHECK_EQ(result->rayOrigin[1], 0.1f);
         CHECK_EQ(result->rayOrigin[2], 0.1f);
@@ -519,14 +587,20 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-direction", ALL & ~CUD
 
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenShaderQueryRayObjectDirection", "closestHitNOP", "missNOP");
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderQueryRayObjectDirection",
+        "closestHitNOP",
+        "missNOP"
+    );
 
     ComPtr<ISlangBlob> resultBlob;
 
     if (device->getDeviceType() == DeviceType::CUDA)
     {
         REQUIRE_CALL(device->readBuffer(test.resultBuffer, 0, sizeof(TestResultCudaAligned), resultBlob.writeRef()));
-        const TestResultCudaAligned* result = reinterpret_cast<const TestResultCudaAligned*>(resultBlob->getBufferPointer());
+        const TestResultCudaAligned* result =
+            reinterpret_cast<const TestResultCudaAligned*>(resultBlob->getBufferPointer());
         CHECK_EQ(result->rayDirection[0], 0.0f);
         CHECK_EQ(result->rayDirection[1], 0.0f);
         CHECK_EQ(result->rayDirection[2], 1.0f);
@@ -539,4 +613,29 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-direction", ALL & ~CUD
         CHECK_EQ(result->rayDirection[1], 0.0f);
         CHECK_EQ(result->rayDirection[2], 1.0f);
     }
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-make-hit", ALL | DontCreateDevice)
+{
+    // Limit the shader model to SM 6.6 for this test, since the NVAPI headers don't support MakeHit
+    // for newer shader models.
+    DeviceExtraOptions extraOptions;
+    extraOptions.d3d12MaxShaderModel = 0x66; // SM 6.6
+    device = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
+    REQUIRE(device);
+
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingHitObjectIntrinsicsTest test;
+    test.init(device);
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics-make-hit",
+        "rayGenShaderMakeQueryInvokeHit",
+        "closestHitInvoke",
+        "missNOP"
+    );
+    test.checkQueryAndInvokeResults();
 }
