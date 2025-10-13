@@ -813,8 +813,7 @@ public:
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureImpl* dst,
         AccelerationStructureImpl* src,
-        CUdeviceptr scratchBuffer,
-        size_t scratchBufferSize,
+        BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         const AccelerationStructureQueryDesc* queryDescs
     ) override
@@ -843,8 +842,8 @@ public:
             &converter.buildOptions,
             converter.buildInputs.data(),
             converter.buildInputs.size(),
-            scratchBuffer,
-            scratchBufferSize,
+            scratchBuffer.getDeviceAddress(),
+            checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset,
             dst->m_buffer,
             dst->m_desc.size,
             &dst->m_handle,

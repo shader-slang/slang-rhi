@@ -64,8 +64,7 @@ public:
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureImpl* dst,
         AccelerationStructureImpl* src,
-        CUdeviceptr scratchBuffer,
-        size_t scratchBufferSize,
+        BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         const AccelerationStructureQueryDesc* queryDescs
     ) = 0;
