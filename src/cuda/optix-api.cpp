@@ -996,7 +996,6 @@ Result createContext(
         options.validationMode = enableRayTracingValidation ? OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL
                                                             : OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
 
-
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
             optixDeviceContextCreate(device->m_ctx.context, &options, &context->m_deviceContext),
             device

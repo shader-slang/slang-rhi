@@ -339,10 +339,17 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         ))
     {
         addFeature(Feature::AccelerationStructure);
-        addFeature(Feature::AccelerationStructureSpheres);
-        addFeature(Feature::AccelerationStructureLinearSweptSpheres);
         addFeature(Feature::RayTracing);
-        addFeature(Feature::ShaderExecutionReordering);
+        int optixVersion = m_ctx.optixContext->getOptixVersion();
+        if (optixVersion >= 80100)
+        {
+            addFeature(Feature::ShaderExecutionReordering);
+        }
+        if (optixVersion >= 90000)
+        {
+            addFeature(Feature::AccelerationStructureSpheres);
+            addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+        }
         addCapability(Capability::_raygen);
         addCapability(Capability::_intersection);
         addCapability(Capability::_anyhit);
