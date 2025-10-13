@@ -426,6 +426,8 @@ public:
     OptixDeviceContext m_deviceContext;
     bool m_ownsDeviceContext = false;
 
+    virtual int getOptixVersion() const override { return OPTIX_VERSION; }
+
     virtual ~ContextImpl() override
     {
         if (m_ownsDeviceContext)
@@ -811,7 +813,8 @@ public:
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureImpl* dst,
         AccelerationStructureImpl* src,
-        BufferOffsetPair scratchBuffer,
+        CUdeviceptr scratchBuffer,
+        size_t scratchBufferSize,
         uint32_t propertyQueryCount,
         const AccelerationStructureQueryDesc* queryDescs
     ) override
@@ -840,8 +843,8 @@ public:
             &converter.buildOptions,
             converter.buildInputs.data(),
             converter.buildInputs.size(),
-            scratchBuffer.getDeviceAddress(),
-            checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset,
+            scratchBuffer,
+            scratchBufferSize,
             dst->m_buffer,
             dst->m_desc.size,
             &dst->m_handle,

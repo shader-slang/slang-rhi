@@ -555,7 +555,8 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
         cmd.desc,
         dst,
         src,
-        cmd.scratchBuffer,
+        cmd.scratchBuffer.getDeviceAddress(),
+        cmd.scratchBuffer.buffer->getDesc().size - cmd.scratchBuffer.offset,
         cmd.propertyQueryCount,
         cmd.queryDescs
     );
