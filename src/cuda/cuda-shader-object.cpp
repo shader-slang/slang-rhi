@@ -47,15 +47,13 @@ void shaderObjectSetBinding(
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
-#if SLANG_RHI_ENABLE_OPTIX
     case slang::BindingType::RayTracingAccelerationStructure:
     {
         AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
-        OptixTraversableHandle handle = as->m_handle;
+        uint64_t handle = as->m_handle;
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
-#endif
     default:
         break;
     }
@@ -172,7 +170,6 @@ Result BindingDataBuilder::writeObjectData(
                 memcpy(dst + uniformOffset + (i * uniformStride) + 8, &dataSize, sizeof(dataSize));
             }
             break;
-#if SLANG_RHI_ENABLE_OPTIX
         case slang::BindingType::RayTracingAccelerationStructure:
             for (uint32_t i = 0; i < count; ++i)
             {
@@ -182,7 +179,6 @@ Result BindingDataBuilder::writeObjectData(
                 memcpy(dst + uniformOffset + (i * uniformStride), &handle, sizeof(handle));
             }
             break;
-#endif
         }
     }
 #endif

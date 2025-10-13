@@ -4,8 +4,6 @@
 
 #include <map>
 
-#if SLANG_RHI_ENABLE_OPTIX
-
 namespace rhi::cuda {
 
 class ShaderTableImpl : public ShaderTable
@@ -16,9 +14,7 @@ public:
 
     struct Instance
     {
-        CUdeviceptr buffer;
-        OptixShaderBindingTable sbt;
-        size_t raygenRecordSize;
+        RefPtr<optix::ShaderBindingTable> optixShaderBindingTable;
     };
 
     std::mutex m_mutex;
@@ -28,5 +24,3 @@ public:
 };
 
 } // namespace rhi::cuda
-
-#endif // SLANG_RHI_ENABLE_OPTIX
