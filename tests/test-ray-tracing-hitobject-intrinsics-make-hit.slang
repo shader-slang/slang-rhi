@@ -46,7 +46,7 @@ void rayGenShaderMakeQueryInvokeHit()
 {
     // MakeHit requires the attributes from a hit. To get those, we'll trace a ray, then copy the
     // attributes from the resulting hit to the one we make.
-    
+
     float3 tgt = {0.25, 0.25, 1.0};
     float3 pos = {0.0, 0.0, 0.0};
     float3 dir = tgt - pos;
