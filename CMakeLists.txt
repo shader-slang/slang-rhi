@@ -345,7 +345,7 @@ if(SLANG_RHI_ENABLE_OPTIX)
     set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR}/include)
     add_library(slang-rhi-optix INTERFACE)
     target_include_directories(slang-rhi-optix INTERFACE ${SLANG_RHI_OPTIX_INCLUDE_DIR})
-    target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
+    target_link_libraries(slang-rhi PUBLIC slang-rhi-optix)
 endif()
 
 # Fetch & setup Vulkan headers
