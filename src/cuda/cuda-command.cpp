@@ -548,13 +548,11 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
     if (!m_device->m_ctx.optixContext)
         return;
 
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
     m_device->m_ctx.optixContext->buildAccelerationStructure(
         m_stream,
         cmd.desc,
-        dst,
-        src,
+        checked_cast<AccelerationStructureImpl*>(cmd.dst),
+        checked_cast<AccelerationStructureImpl*>(cmd.src),
         cmd.scratchBuffer,
         cmd.propertyQueryCount,
         cmd.queryDescs
@@ -566,9 +564,12 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
     if (!m_device->m_ctx.optixContext)
         return;
 
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
-    m_device->m_ctx.optixContext->copyAccelerationStructure(m_stream, dst, src, cmd.mode);
+    m_device->m_ctx.optixContext->copyAccelerationStructure(
+        m_stream,
+        checked_cast<AccelerationStructureImpl*>(cmd.dst),
+        checked_cast<AccelerationStructureImpl*>(cmd.src),
+        cmd.mode
+    );
 }
 
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
