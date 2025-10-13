@@ -953,7 +953,7 @@ Result createContext(
     {
         static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* userData)
         {
-            ContextImpl* context = static_cast<ContextImpl*>(userData);
+            ContextImpl* context_ = static_cast<ContextImpl*>(userData);
             DebugMessageType type;
             switch (level)
             {
@@ -980,7 +980,7 @@ Result createContext(
             else if (msgSize >= int(sizeof(msg)))
                 msg[sizeof(msg) - 1] = 0;
 
-            context->m_device->handleMessage(type, DebugMessageSource::Driver, msg);
+            context_->m_device->handleMessage(type, DebugMessageSource::Driver, msg);
         };
 
         OptixDeviceContextOptions options = {};
