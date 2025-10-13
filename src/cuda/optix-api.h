@@ -3,6 +3,10 @@
 #include "cuda-api.h"
 #include "core/smart-pointer.h"
 
+// slang-rhi needs to support multiple versions of OptiX. We do this by defining a thin
+// abstraction layer that wraps the OptiX API. The implementation of this layer can then
+// be swapped out to support different versions of OptiX.
+
 // Forward declarations
 
 namespace rhi {
@@ -23,6 +27,7 @@ typedef unsigned long long OptixTraversableHandle;
 class Pipeline;
 class ShaderBindingTable;
 
+/// Wrapper for OptiX device context.
 class Context : public RefObject
 {
 public:
@@ -87,12 +92,15 @@ public:
     ) = 0;
 };
 
+/// Wrapper for OptiX shader binding table.
 class ShaderBindingTable : public RefObject
 {};
 
+/// Wrapper for OptiX pipeline.
 class Pipeline : public RefObject
 {
 public:
+    /// Get the underlying OptixPipeline handle.
     virtual uint64_t getNativeHandle() const = 0;
 };
 
