@@ -27,7 +27,7 @@ public:
     bool m_rayTracingStateValid = false;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
-    ShaderTableImpl::Instance* m_shaderTableInstance = nullptr;
+    optix::ShaderBindingTable* m_shaderBindingTable = nullptr;
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -517,7 +517,7 @@ void CommandExecutor::cmdSetRayTracingState(const commands::SetRayTracingState& 
     m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
     m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
     m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
-    m_shaderTableInstance = m_shaderTable ? m_shaderTable->getInstance(m_rayTracingPipeline) : nullptr;
+    m_shaderBindingTable = m_shaderTable ? m_shaderTable->getShaderBindingTable(m_rayTracingPipeline) : nullptr;
     m_rayTracingStateValid = m_rayTracingPipeline && m_bindingData && m_shaderTable;
 }
 
@@ -535,7 +535,7 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
         m_rayTracingPipeline->m_optixPipeline,
         bindingData->globalParams,
         bindingData->globalParamsSize,
-        m_shaderTableInstance->optixShaderBindingTable,
+        m_shaderBindingTable,
         cmd.rayGenShaderIndex,
         cmd.width,
         cmd.height,

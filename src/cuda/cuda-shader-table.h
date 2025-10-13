@@ -12,15 +12,10 @@ public:
     ShaderTableImpl(Device* device, const ShaderTableDesc& desc);
     ~ShaderTableImpl();
 
-    struct Instance
-    {
-        RefPtr<optix::ShaderBindingTable> optixShaderBindingTable;
-    };
-
     std::mutex m_mutex;
-    std::map<RayTracingPipelineImpl*, Instance> m_instances;
+    std::map<RayTracingPipelineImpl*, RefPtr<optix::ShaderBindingTable>> m_shaderBindingTables;
 
-    Instance* getInstance(RayTracingPipelineImpl* pipeline);
+    optix::ShaderBindingTable* getShaderBindingTable(RayTracingPipelineImpl* pipeline);
 };
 
 } // namespace rhi::cuda

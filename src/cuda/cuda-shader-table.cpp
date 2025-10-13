@@ -14,24 +14,24 @@ ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
 
 ShaderTableImpl::~ShaderTableImpl() {}
 
-ShaderTableImpl::Instance* ShaderTableImpl::getInstance(RayTracingPipelineImpl* pipeline)
+optix::ShaderBindingTable* ShaderTableImpl::getShaderBindingTable(RayTracingPipelineImpl* pipeline)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    auto instanceIt = m_instances.find(pipeline);
-    if (instanceIt != m_instances.end())
-        return &instanceIt->second;
+    auto instanceIt = m_shaderBindingTables.find(pipeline);
+    if (instanceIt != m_shaderBindingTables.end())
+        return instanceIt->second.get();
 
-    Instance& instance = m_instances[pipeline];
+    RefPtr<optix::ShaderBindingTable>& shaderBindingTable = m_shaderBindingTables[pipeline];
 
     Result result = getDevice<DeviceImpl>()->m_ctx.optixContext->createShaderBindingTable(
         this,
         pipeline->m_optixPipeline,
-        instance.optixShaderBindingTable.writeRef()
+        shaderBindingTable.writeRef()
     );
     SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
 
-    return &instance;
+    return shaderBindingTable.get();
 }
 
 } // namespace rhi::cuda
