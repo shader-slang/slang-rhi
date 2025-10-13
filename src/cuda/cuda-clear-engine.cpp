@@ -1,4 +1,5 @@
 #include "cuda-clear-engine.h"
+#include "cuda-device.h"
 #include "cuda-texture.h"
 #include "cuda-utils.h"
 #include "cuda-nvrtc.h"
@@ -10,7 +11,7 @@ CMRC_DECLARE(resources);
 
 namespace rhi::cuda {
 
-Result ClearEngine::initialize(IDebugCallback* debugCallback)
+Result ClearEngine::initialize(DeviceImpl* device)
 {
     // Load CUDA kernel source
     auto fs = cmrc::resources::get_filesystem();
@@ -20,12 +21,12 @@ Result ClearEngine::initialize(IDebugCallback* debugCallback)
     NVRTC::CompileResult compileResult;
     {
         NVRTC nvrtc;
-        SLANG_RETURN_ON_FAIL(nvrtc.initialize(debugCallback));
+        SLANG_RETURN_ON_FAIL(nvrtc.initialize(device->m_debugCallback));
         SLANG_RETURN_ON_FAIL(nvrtc.compilePTX(source.begin(), compileResult));
     }
 
     // Load PTX module
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&m_module, compileResult.ptx.data()), debugCallback);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&m_module, compileResult.ptx.data()), device);
 
     // Get clear kernel functions
     for (size_t dim = 0; dim < size_t(Dimension::Count); ++dim)
@@ -53,7 +54,7 @@ Result ClearEngine::initialize(IDebugCallback* debugCallback)
                 );
                 SLANG_CUDA_RETURN_ON_FAIL_REPORT(
                     cuModuleGetFunction(&m_clearFunction[dim][size][layered], m_module, name),
-                    debugCallback
+                    device
                 );
             }
         }

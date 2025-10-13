@@ -458,7 +458,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_globalHeaps.push_back(m_hostMemHeap);
     m_globalHeaps.push_back(m_deviceMemHeap);
 
-    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(this));
 
     return SLANG_OK;
 }
