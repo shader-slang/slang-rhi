@@ -38,7 +38,7 @@ public:
         Count,
     };
 
-    Result initialize(IDebugCallback* debugCallback);
+    Result initialize(DeviceImpl* device);
     void release();
 
     void clearTextureUint(

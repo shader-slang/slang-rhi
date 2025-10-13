@@ -876,7 +876,7 @@ Result CommandQueueImpl::updateFence()
         }
         else
         {
-            SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, m_device);
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
         }
     }
     return SLANG_OK;
