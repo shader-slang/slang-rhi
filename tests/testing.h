@@ -256,6 +256,11 @@ struct DeviceExtraOptions
     IPersistentCache* persistentPipelineCache = nullptr;
     bool enableCompilationReports = false;
     DeviceNativeHandles existingDeviceHandles;
+
+    // D3D12-specific (no effect for other devices): Limit the maximum shader model. When set to 0
+    // (default), uses automatic detection.
+    // This value is passed to D3D12DeviceExtendedDesc::highestShaderModel.
+    uint32_t d3d12MaxShaderModel = 0;
 };
 
 ComPtr<IDevice> createTestingDevice(
