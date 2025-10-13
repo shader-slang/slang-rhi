@@ -11,11 +11,14 @@
 #include "core/stable_vector.h"
 
 #define OPTIX_DONT_INCLUDE_CUDA
+#define OPTIX_ENABLE_SDK_MIXING
 #include <optix.h>
 #include <optix_stubs.h>
 #if !(OPTIX_VERSION >= 90000)
 #error "OptiX version 9.0 or higher is required. Try reconfigure slang-rhi to fetch the latest OptiX headers."
 #endif
+
+#include <optix_function_table_definition.h>
 
 namespace rhi::cuda::optix {
 
@@ -1003,5 +1006,3 @@ Result createContext(
 }
 
 } // namespace rhi::cuda::optix
-
-#include <optix_function_table_definition.h>
