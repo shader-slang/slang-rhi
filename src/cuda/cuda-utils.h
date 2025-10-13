@@ -38,13 +38,7 @@ inline bool isCUDAError(CUresult result)
     return result != 0;
 }
 
-void reportCUDAError(
-    CUresult result,
-    const char* call,
-    const char* file,
-    int line,
-    DebugCallbackAdapter debug_callback
-);
+void reportCUDAError(CUresult result, const char* call, const char* file, int line, DeviceAdapter device);
 
 void reportCUDAAssert(CUresult result, const char* call, const char* file, int line);
 
@@ -58,13 +52,13 @@ void reportCUDAAssert(CUresult result, const char* call, const char* file, int l
         }                                                                                                              \
     }
 
-#define SLANG_CUDA_RETURN_ON_FAIL_REPORT(x, debug_callback)                                                            \
+#define SLANG_CUDA_RETURN_ON_FAIL_REPORT(x, device)                                                                    \
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
         auto _res = x;                                                                                                 \
         if (::rhi::cuda::isCUDAError(_res))                                                                            \
         {                                                                                                              \
-            ::rhi::cuda::reportCUDAError(_res, #x, __FILE__, __LINE__, debug_callback);                                \
+            ::rhi::cuda::reportCUDAError(_res, #x, __FILE__, __LINE__, device);                                        \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
     }
@@ -87,13 +81,7 @@ inline bool isOptixError(OptixResult result)
     return result != OPTIX_SUCCESS;
 }
 
-void reportOptixError(
-    OptixResult result,
-    const char* call,
-    const char* file,
-    int line,
-    DebugCallbackAdapter debug_callback
-);
+void reportOptixError(OptixResult result, const char* call, const char* file, int line, DeviceAdapter device);
 
 void reportOptixAssert(OptixResult result, const char* call, const char* file, int line);
 
@@ -106,12 +94,12 @@ void reportOptixAssert(OptixResult result, const char* call, const char* file, i
         }                                                                                                              \
     }
 
-#define SLANG_OPTIX_RETURN_ON_FAIL_REPORT(x, debug_callback)                                                           \
+#define SLANG_OPTIX_RETURN_ON_FAIL_REPORT(x, device)                                                                   \
     {                                                                                                                  \
         auto _res = x;                                                                                                 \
         if (::rhi::cuda::isOptixError(_res))                                                                           \
         {                                                                                                              \
-            ::rhi::cuda::reportOptixError(_res, #x, __FILE__, __LINE__, debug_callback);                               \
+            ::rhi::cuda::reportOptixError(_res, #x, __FILE__, __LINE__, device);                                       \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
     }

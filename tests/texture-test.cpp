@@ -680,13 +680,16 @@ void TextureData::clearUint(const uint32_t clearValue[4]) const
     }
 }
 
-void TextureData::clearUint(uint32_t layer, uint32_t mip, const uint32_t clearValue[4]) const
+void TextureData::clearUint(uint32_t layer, uint32_t mip, const uint32_t clearValue_[4]) const
 {
     const Subresource& subresource = getSubresource(layer, mip);
     FormatConversionFuncs funcs = getFormatConversionFuncs(desc.format);
     SLANG_RHI_ASSERT(funcs.packIntFunc);
+    SLANG_RHI_ASSERT(funcs.clampIntFunc);
     size_t pixelSize = formatInfo.blockSizeInBytes / formatInfo.pixelsPerBlock;
     uint8_t pixelData[16];
+    uint32_t clearValue[4] = {clearValue_[0], clearValue_[1], clearValue_[2], clearValue_[3]};
+    funcs.clampIntFunc(clearValue);
     funcs.packIntFunc(clearValue, pixelData);
     for (uint32_t depth = 0; depth < subresource.layout.size.depth; depth++)
     {
@@ -704,18 +707,13 @@ void TextureData::clearUint(uint32_t layer, uint32_t mip, const uint32_t clearVa
 
 void TextureData::clearSint(const int32_t clearValue[4]) const
 {
-    uint32_t clearValueUint[4];
-    truncateBySintFormat(desc.format, reinterpret_cast<const uint32_t*>(clearValue), clearValueUint);
-    clearUint(clearValueUint);
+    clearUint(reinterpret_cast<const uint32_t*>(clearValue));
 }
 
 void TextureData::clearSint(uint32_t layer, uint32_t mip, const int32_t clearValue[4]) const
 {
-    uint32_t clearValueUint[4];
-    truncateBySintFormat(desc.format, reinterpret_cast<const uint32_t*>(clearValue), clearValueUint);
-    clearUint(layer, mip, clearValueUint);
+    clearUint(layer, mip, reinterpret_cast<const uint32_t*>(clearValue));
 }
-
 
 //----------------------------------------------------------
 // TextureTestOptions
@@ -1213,6 +1211,11 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
         FormatSupport support;
         m_device->getFormatSupport(format, &support);
         if (!is_set(support, FormatSupport::Texture))
+            return;
+
+        // Skip if format doesn't support UAV access.
+        if (is_set(testTexture.desc.usage, TextureUsage::UnorderedAccess) &&
+            (!is_set(support, FormatSupport::ShaderUavLoad) || !is_set(support, FormatSupport::ShaderUavStore)))
             return;
 
         const FormatInfo& info = getFormatInfo(format);

@@ -45,9 +45,9 @@ void checkCurrentContext()
 }
 #endif
 
-void reportCUDAError(CUresult result, const char* call, const char* file, int line, DebugCallbackAdapter debug_callback)
+void reportCUDAError(CUresult result, const char* call, const char* file, int line, DeviceAdapter device)
 {
-    if (!debug_callback)
+    if (!device)
         return;
 
     const char* errorString = nullptr;
@@ -57,7 +57,7 @@ void reportCUDAError(CUresult result, const char* call, const char* file, int li
     char buf[4096];
     snprintf(buf, sizeof(buf), "%s failed: %s (%s)\nAt %s:%d\n", call, errorString, errorName, file, line);
     buf[sizeof(buf) - 1] = 0; // Ensure null termination
-    debug_callback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
+    device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
 }
 
 void reportCUDAAssert(CUresult result, const char* call, const char* file, int line)
@@ -71,15 +71,9 @@ void reportCUDAAssert(CUresult result, const char* call, const char* file, int l
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-void reportOptixError(
-    OptixResult result,
-    const char* call,
-    const char* file,
-    int line,
-    DebugCallbackAdapter debug_callback
-)
+void reportOptixError(OptixResult result, const char* call, const char* file, int line, DeviceAdapter device)
 {
-    if (!debug_callback)
+    if (!device)
         return;
 
     char buf[4096];
@@ -94,7 +88,7 @@ void reportOptixError(
         line
     );
     buf[sizeof(buf) - 1] = 0; // Ensure null termination
-    debug_callback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
+    device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
 }
 
 void reportOptixAssert(OptixResult result, const char* call, const char* file, int line)

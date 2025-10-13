@@ -71,10 +71,6 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
     SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()));
 
-    // Use device with most extensions as the default device.
-    uint32_t defaultDeviceIndex = 0;
-    uint32_t bestExtensionCount = 0;
-
     for (const auto& physicalDevice : physicalDevices)
     {
         VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
@@ -82,15 +78,24 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         props.pNext = &idProps;
         SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceFeatures2);
         api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
-        uint32_t extensionCount = 0;
-        api.vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-        if (extensionCount > bestExtensionCount)
-        {
-            bestExtensionCount = extensionCount;
-            defaultDeviceIndex = (uint32_t)outAdapters.size();
-        }
 
         AdapterInfo info = {};
+        info.deviceType = DeviceType::Vulkan;
+        switch (props.properties.deviceType)
+        {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            info.adapterType = AdapterType::Discrete;
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            info.adapterType = AdapterType::Integrated;
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            info.adapterType = AdapterType::Software;
+            break;
+        default:
+            info.adapterType = AdapterType::Unknown;
+            break;
+        }
         string::copy_safe(info.name, sizeof(info.name), props.properties.deviceName);
         info.vendorID = props.properties.vendorID;
         info.deviceID = props.properties.deviceID;
@@ -103,10 +108,8 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         outAdapters.push_back(adapter);
     }
 
-    if (!outAdapters.empty())
-    {
-        outAdapters[defaultDeviceIndex].m_isDefault = true;
-    }
+    // Mark default adapter (prefer discrete if available).
+    markDefaultAdapter(outAdapters);
 
     return SLANG_OK;
 }

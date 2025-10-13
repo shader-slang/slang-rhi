@@ -34,6 +34,13 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
     return m_buffer;
 }
 
+Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    outHandle->type = DescriptorHandleType::AccelerationStructure;
+    outHandle->value = (uint64_t)m_handle;
+    return SLANG_OK;
+}
+
 Result AccelerationStructureBuildDescConverter::convert(
     const AccelerationStructureBuildDesc& buildDesc,
     IDebugCallback* debugCallback

@@ -134,6 +134,7 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
 
         AdapterInfo info = {};
         info.deviceType = DeviceType::CUDA;
+        info.adapterType = AdapterType::Discrete;
         SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
         info.luid = getAdapterLUID(deviceIndex);
 
@@ -320,6 +321,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Initialize features & capabilities
     addFeature(Feature::HardwareDevice);
     addFeature(Feature::ParameterBlock);
+    addFeature(Feature::Bindless);
 #if SLANG_RHI_ENABLE_VULKAN
     // Supports surface/swapchain (implemented in Vulkan).
     addFeature(Feature::Surface);
@@ -456,7 +458,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_globalHeaps.push_back(m_hostMemHeap);
     m_globalHeaps.push_back(m_deviceMemHeap);
 
-    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_debugCallback));
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(this));
 
     return SLANG_OK;
 }

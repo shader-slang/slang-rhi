@@ -592,7 +592,7 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
 #endif
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(
             cuImportExternalSemaphore(&frameData.cudaSemaphore, &externalSemaphoreHandleDesc),
-            m_deviceImpl->m_debugCallback
+            m_deviceImpl.get()
         );
     }
 

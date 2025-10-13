@@ -2675,10 +2675,21 @@ struct AdapterLUID
     bool operator!=(const AdapterLUID& other) const { return !this->operator==(other); }
 };
 
+enum class AdapterType
+{
+    Discrete,
+    Integrated,
+    Software,
+    Unknown,
+};
+
 struct AdapterInfo
 {
     // Device type of the adapter.
     DeviceType deviceType;
+
+    // Type of the adapter (e.g. discrete, integrated, software).
+    AdapterType adapterType;
 
     // Descriptive name of the adapter.
     char name[128];

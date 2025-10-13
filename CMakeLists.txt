@@ -104,7 +104,7 @@ cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_R
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.18.1" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.18.2" CACHE STRING "Slang version to fetch")
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -153,7 +153,7 @@ endif()
 
 # Dawn WebGPU
 if(NOT DEFINED SLANG_RHI_DAWN_URL)
-    set(DAWN_VERSION "131.0.6738.0")
+    set(DAWN_VERSION "135.0.7049.80")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -345,7 +345,7 @@ if(SLANG_RHI_ENABLE_OPTIX)
     set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR}/include)
     add_library(slang-rhi-optix INTERFACE)
     target_include_directories(slang-rhi-optix INTERFACE ${SLANG_RHI_OPTIX_INCLUDE_DIR})
-    target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
+    target_link_libraries(slang-rhi PUBLIC slang-rhi-optix)
 endif()
 
 # Fetch & setup Vulkan headers
@@ -713,7 +713,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/main.cpp
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
-        tests/test-bindless-descriptor-handles.cpp
+        tests/test-bindless.cpp
         tests/test-bind-pointers.cpp
         tests/test-blob.cpp
         tests/test-buffer-barrier.cpp

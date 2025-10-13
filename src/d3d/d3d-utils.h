@@ -48,10 +48,9 @@ ComPtr<IDXGIFactory> getDXGIFactory();
 Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
 Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
 
-AdapterLUID getAdapterLUID(LUID luid);
+AdapterInfo getAdapterInfo(IDXGIAdapter* dxgiAdapter);
 
-/// True if the adapter is warp
-bool isWarpAdapter(IDXGIFactory* dxgiFactory, IDXGIAdapter* adapter);
+AdapterLUID getAdapterLUID(LUID luid);
 
 uint32_t getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect);
 
