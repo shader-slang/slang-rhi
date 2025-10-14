@@ -590,7 +590,7 @@ ComPtr<IDevice> createTestingDevice(
         optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
         optixSearchPath.value.stringValue0 = "nvrtc";
-        optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_INCLUDE_DIR;
+        optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/9_0";
         compilerOptions.push_back(optixSearchPath);
     }
 #endif

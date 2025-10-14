@@ -2792,7 +2792,8 @@ struct DeviceInfo
     uint64_t timestampFrequency = 0;
 
     /// The version of OptiX used by the device (0 if OptiX is not supported).
-    int optixVersion = 0;
+    /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
+    uint32_t optixVersion = 0;
 };
 
 enum class DebugMessageType
@@ -2892,6 +2893,10 @@ struct DeviceDesc
     uint32_t nvapiExtUavSlot = uint32_t(-1);
     /// NVAPI shader extension register space.
     uint32_t nvapiExtRegisterSpace = 0;
+
+    /// OptiX version to use (0 to use latest).
+    /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
+    uint32_t requiredOptixVersion = 0;
 
     /// Enable RHI validation layer.
     bool enableValidation = false;

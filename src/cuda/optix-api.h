@@ -32,7 +32,8 @@ struct ContextDesc
     /// Device to create the context for.
     DeviceImpl* device;
     /// If not zero, the context will be created for this specific OptiX version.
-    int requiredOptixVersion;
+    /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
+    uint32_t requiredOptixVersion;
     /// If not null, an existing OptiX device context to use instead of creating a new one.
     void* existingOptixDeviceContext;
     /// Whether to enable ray tracing validation (if supported by the OptiX version).
@@ -44,8 +45,8 @@ class Context : public RefObject
 {
 public:
     /// Get the OptiX version used by this context.
-    /// The format matches the OPTIX_VERSION macro, e.g. 0x090000 for version 9.0.0.
-    virtual int getOptixVersion() const = 0;
+    /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
+    virtual uint32_t getOptixVersion() const = 0;
 
     /// Get the underlying OptiX device context.
     virtual void* getOptixDeviceContext() const = 0;

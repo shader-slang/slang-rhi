@@ -8,7 +8,7 @@ namespace rhi::cuda::optix {
 
 #define IMPORT_OPTIX_API(tag)                                                                                          \
     namespace tag {                                                                                                    \
-    extern int optixVersion;                                                                                           \
+    extern uint32_t optixVersion;                                                                                      \
     bool initialize(IDebugCallback* debugCallback);                                                                    \
     Result createContext(const ContextDesc& desc, Context** outContext);                                               \
     }
@@ -19,7 +19,7 @@ IMPORT_OPTIX_API(v9_0)
 
 struct OptixAPI
 {
-    int optixVersion;
+    uint32_t optixVersion;
     bool (*initialize)(IDebugCallback* /*debugCallback*/);
     Result (*createContext)(const ContextDesc& /*desc*/, Context** /*outContext*/);
 };

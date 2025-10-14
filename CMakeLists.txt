@@ -364,8 +364,7 @@ if(SLANG_RHI_ENABLE_OPTIX)
         copy_file(${src_dir}/internal/optix_device_impl.h ${dst_dir}/internal)
         copy_file(${src_dir}/internal/optix_device_impl_transformations.h ${dst_dir}/internal)
     endforeach()
-    # TODO: For now we hardcode to OptiX 9.0
-    set(SLANG_RHI_OPTIX_INCLUDE_DIR ${SLANG_RHI_BINARY_DIR}/optix/9_0)
+    set(SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR ${SLANG_RHI_BINARY_DIR}/optix)
 endif()
 
 # Fetch & setup Vulkan headers
@@ -816,7 +815,7 @@ if(SLANG_RHI_BUILD_TESTS)
         SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
-        SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
+        SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
         SLANG_RHI_BUILD_TESTS_WITH_GLFW=$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint

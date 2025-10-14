@@ -428,7 +428,7 @@ public:
     OptixDeviceContext m_deviceContext;
     bool m_ownsDeviceContext = false;
 
-    virtual int getOptixVersion() const override { return OPTIX_VERSION; }
+    virtual uint32_t getOptixVersion() const override { return OPTIX_VERSION; }
 
     virtual ~ContextImpl() override
     {
@@ -992,7 +992,7 @@ Result createContext(const ContextDesc& desc, Context** outContext)
     return SLANG_OK;
 }
 
-int optixVersion = OPTIX_VERSION;
+uint32_t optixVersion = OPTIX_VERSION;
 
 bool initialize(IDebugCallback* debugCallback)
 {

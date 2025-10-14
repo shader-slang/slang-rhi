@@ -329,15 +329,16 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::cuda);
 
-    optix::ContextDesc contextDesc = {};
-    contextDesc.device = this;
-    contextDesc.existingOptixDeviceContext = existingOptixDeviceContext;
-    contextDesc.enableRayTracingValidation = desc.enableRayTracingValidation;
-    if (SLANG_SUCCEEDED(optix::createContext(contextDesc, m_ctx.optixContext.writeRef())))
+    optix::ContextDesc optixContextDesc = {};
+    optixContextDesc.device = this;
+    optixContextDesc.requiredOptixVersion = desc.requiredOptixVersion;
+    optixContextDesc.existingOptixDeviceContext = existingOptixDeviceContext;
+    optixContextDesc.enableRayTracingValidation = desc.enableRayTracingValidation;
+    if (SLANG_SUCCEEDED(optix::createContext(optixContextDesc, m_ctx.optixContext.writeRef())))
     {
         addFeature(Feature::AccelerationStructure);
         addFeature(Feature::RayTracing);
-        int optixVersion = m_ctx.optixContext->getOptixVersion();
+        uint32_t optixVersion = m_ctx.optixContext->getOptixVersion();
         m_info.optixVersion = optixVersion;
         if (optixVersion >= 80100)
         {
