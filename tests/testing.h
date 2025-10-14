@@ -24,6 +24,7 @@ struct Options
     bool listDevices = false;
     std::array<bool, kDeviceTypeCount + 1> deviceSelected;
     std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
+    int optixVersion = 0;
 
     Options()
     {

@@ -583,6 +583,7 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
 #if SLANG_RHI_ENABLE_OPTIX
+    deviceDesc.requiredOptixVersion = options().optixVersion;
     // Setup Optix headers
     if (deviceType == DeviceType::CUDA)
     {
