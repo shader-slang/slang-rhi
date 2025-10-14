@@ -90,6 +90,16 @@ jobs:
         run: ./slang-rhi-tests -check-devices
         working-directory: build/${{matrix.config}}
 
+      - name: Unit Tests (OptiX 8.0)
+        if: contains(matrix.flags, 'unit-test')
+        run: ./slang-rhi-tests -tc=ray-tracing*.cuda -optix-version=80000
+        working-directory: build/${{matrix.config}}
+
+      - name: Unit Tests (OptiX 8.1)
+        if: contains(matrix.flags, 'unit-test')
+        run: ./slang-rhi-tests -tc=ray-tracing*.cuda -optix-version=80100
+        working-directory: build/${{matrix.config}}
+
       - name: Coverage Report
         if: contains(matrix.flags, 'coverage')
         continue-on-error: true

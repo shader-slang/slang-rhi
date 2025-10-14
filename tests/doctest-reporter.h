@@ -44,6 +44,7 @@ struct CustomReporter : public IReporter
             stream << "                                       <device> can be d3d11, d3d12, vulkan, metal, cpu, cuda, wgpu\n";
             stream << "                                       to select a specific adapter, the adapter index can be appended after a colon (i.e. d3d12:1)\n";
             stream << "                                       use * to select all available devices\n";
+            stream << " -optix-version=<version>              select a specific OptiX version to use, e.g. 80100 for version 8.1\n";
             // clang-format on
         }
     }
