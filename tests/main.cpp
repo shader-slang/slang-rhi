@@ -75,7 +75,7 @@ int main(int argc, const char** argv)
                 }
             }
         }
-        doctest::parseIntOption(argc, argv, "optix-version", doctest::option_int, options.optixVersion);
+        doctest::parseIntOption(argc, argv, "optix-version=", doctest::option_int, options.optixVersion);
     }
 
     int result = 1;
