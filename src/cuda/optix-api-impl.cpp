@@ -1015,3 +1015,288 @@ bool initialize(IDebugCallback* debugCallback)
 }
 
 } // namespace rhi::cuda::optix::VERSION_TAG
+
+// Denoiser API
+
+namespace rhi::optix_denoiser::VERSION_TAG {
+
+// OptixResult
+static_assert(OPTIX_SUCCESS == ::OPTIX_SUCCESS);
+static_assert(OPTIX_ERROR_INVALID_VALUE == ::OPTIX_ERROR_INVALID_VALUE);
+static_assert(OPTIX_ERROR_HOST_OUT_OF_MEMORY == ::OPTIX_ERROR_HOST_OUT_OF_MEMORY);
+static_assert(OPTIX_ERROR_INVALID_OPERATION == ::OPTIX_ERROR_INVALID_OPERATION);
+static_assert(OPTIX_ERROR_FILE_IO_ERROR == ::OPTIX_ERROR_FILE_IO_ERROR);
+static_assert(OPTIX_ERROR_INVALID_FILE_FORMAT == ::OPTIX_ERROR_INVALID_FILE_FORMAT);
+static_assert(OPTIX_ERROR_DISK_CACHE_INVALID_PATH == ::OPTIX_ERROR_DISK_CACHE_INVALID_PATH);
+static_assert(OPTIX_ERROR_DISK_CACHE_PERMISSION_ERROR == ::OPTIX_ERROR_DISK_CACHE_PERMISSION_ERROR);
+static_assert(OPTIX_ERROR_DISK_CACHE_DATABASE_ERROR == ::OPTIX_ERROR_DISK_CACHE_DATABASE_ERROR);
+static_assert(OPTIX_ERROR_DISK_CACHE_INVALID_DATA == ::OPTIX_ERROR_DISK_CACHE_INVALID_DATA);
+static_assert(OPTIX_ERROR_LAUNCH_FAILURE == ::OPTIX_ERROR_LAUNCH_FAILURE);
+static_assert(OPTIX_ERROR_INVALID_DEVICE_CONTEXT == ::OPTIX_ERROR_INVALID_DEVICE_CONTEXT);
+static_assert(OPTIX_ERROR_CUDA_NOT_INITIALIZED == ::OPTIX_ERROR_CUDA_NOT_INITIALIZED);
+static_assert(OPTIX_ERROR_VALIDATION_FAILURE == ::OPTIX_ERROR_VALIDATION_FAILURE);
+static_assert(OPTIX_ERROR_INVALID_INPUT == ::OPTIX_ERROR_INVALID_INPUT);
+static_assert(OPTIX_ERROR_INVALID_LAUNCH_PARAMETER == ::OPTIX_ERROR_INVALID_LAUNCH_PARAMETER);
+static_assert(OPTIX_ERROR_INVALID_PAYLOAD_ACCESS == ::OPTIX_ERROR_INVALID_PAYLOAD_ACCESS);
+static_assert(OPTIX_ERROR_INVALID_ATTRIBUTE_ACCESS == ::OPTIX_ERROR_INVALID_ATTRIBUTE_ACCESS);
+static_assert(OPTIX_ERROR_INVALID_FUNCTION_USE == ::OPTIX_ERROR_INVALID_FUNCTION_USE);
+static_assert(OPTIX_ERROR_INVALID_FUNCTION_ARGUMENTS == ::OPTIX_ERROR_INVALID_FUNCTION_ARGUMENTS);
+static_assert(OPTIX_ERROR_PIPELINE_OUT_OF_CONSTANT_MEMORY == ::OPTIX_ERROR_PIPELINE_OUT_OF_CONSTANT_MEMORY);
+static_assert(OPTIX_ERROR_PIPELINE_LINK_ERROR == ::OPTIX_ERROR_PIPELINE_LINK_ERROR);
+static_assert(OPTIX_ERROR_ILLEGAL_DURING_TASK_EXECUTE == ::OPTIX_ERROR_ILLEGAL_DURING_TASK_EXECUTE);
+static_assert(OPTIX_ERROR_INTERNAL_COMPILER_ERROR == ::OPTIX_ERROR_INTERNAL_COMPILER_ERROR);
+static_assert(OPTIX_ERROR_DENOISER_MODEL_NOT_SET == ::OPTIX_ERROR_DENOISER_MODEL_NOT_SET);
+static_assert(OPTIX_ERROR_DENOISER_NOT_INITIALIZED == ::OPTIX_ERROR_DENOISER_NOT_INITIALIZED);
+static_assert(OPTIX_ERROR_NOT_COMPATIBLE == ::OPTIX_ERROR_NOT_COMPATIBLE);
+static_assert(OPTIX_ERROR_PAYLOAD_TYPE_MISMATCH == ::OPTIX_ERROR_PAYLOAD_TYPE_MISMATCH);
+static_assert(OPTIX_ERROR_PAYLOAD_TYPE_RESOLUTION_FAILED == ::OPTIX_ERROR_PAYLOAD_TYPE_RESOLUTION_FAILED);
+static_assert(OPTIX_ERROR_PAYLOAD_TYPE_ID_INVALID == ::OPTIX_ERROR_PAYLOAD_TYPE_ID_INVALID);
+static_assert(OPTIX_ERROR_NOT_SUPPORTED == ::OPTIX_ERROR_NOT_SUPPORTED);
+static_assert(OPTIX_ERROR_UNSUPPORTED_ABI_VERSION == ::OPTIX_ERROR_UNSUPPORTED_ABI_VERSION);
+static_assert(OPTIX_ERROR_FUNCTION_TABLE_SIZE_MISMATCH == ::OPTIX_ERROR_FUNCTION_TABLE_SIZE_MISMATCH);
+static_assert(OPTIX_ERROR_INVALID_ENTRY_FUNCTION_OPTIONS == ::OPTIX_ERROR_INVALID_ENTRY_FUNCTION_OPTIONS);
+static_assert(OPTIX_ERROR_LIBRARY_NOT_FOUND == ::OPTIX_ERROR_LIBRARY_NOT_FOUND);
+static_assert(OPTIX_ERROR_ENTRY_SYMBOL_NOT_FOUND == ::OPTIX_ERROR_ENTRY_SYMBOL_NOT_FOUND);
+static_assert(OPTIX_ERROR_LIBRARY_UNLOAD_FAILURE == ::OPTIX_ERROR_LIBRARY_UNLOAD_FAILURE);
+static_assert(OPTIX_ERROR_DEVICE_OUT_OF_MEMORY == ::OPTIX_ERROR_DEVICE_OUT_OF_MEMORY);
+#if OPTIX_VERSION >= 90000
+static_assert(OPTIX_ERROR_INVALID_POINTER == ::OPTIX_ERROR_INVALID_POINTER);
+#endif
+static_assert(OPTIX_ERROR_CUDA_ERROR == ::OPTIX_ERROR_CUDA_ERROR);
+static_assert(OPTIX_ERROR_INTERNAL_ERROR == ::OPTIX_ERROR_INTERNAL_ERROR);
+static_assert(OPTIX_ERROR_UNKNOWN == ::OPTIX_ERROR_UNKNOWN);
+
+// OptixDeviceContextValidationMode
+static_assert(OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF == ::OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF);
+static_assert(OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL == ::OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL);
+
+// OptixPixelFormat
+static_assert(OPTIX_PIXEL_FORMAT_HALF1 == ::OPTIX_PIXEL_FORMAT_HALF1);
+static_assert(OPTIX_PIXEL_FORMAT_HALF2 == ::OPTIX_PIXEL_FORMAT_HALF2);
+static_assert(OPTIX_PIXEL_FORMAT_HALF3 == ::OPTIX_PIXEL_FORMAT_HALF3);
+static_assert(OPTIX_PIXEL_FORMAT_HALF4 == ::OPTIX_PIXEL_FORMAT_HALF4);
+static_assert(OPTIX_PIXEL_FORMAT_FLOAT1 == ::OPTIX_PIXEL_FORMAT_FLOAT1);
+static_assert(OPTIX_PIXEL_FORMAT_FLOAT2 == ::OPTIX_PIXEL_FORMAT_FLOAT2);
+static_assert(OPTIX_PIXEL_FORMAT_FLOAT3 == ::OPTIX_PIXEL_FORMAT_FLOAT3);
+static_assert(OPTIX_PIXEL_FORMAT_FLOAT4 == ::OPTIX_PIXEL_FORMAT_FLOAT4);
+static_assert(OPTIX_PIXEL_FORMAT_UCHAR3 == ::OPTIX_PIXEL_FORMAT_UCHAR3);
+static_assert(OPTIX_PIXEL_FORMAT_UCHAR4 == ::OPTIX_PIXEL_FORMAT_UCHAR4);
+static_assert(OPTIX_PIXEL_FORMAT_INTERNAL_GUIDE_LAYER == ::OPTIX_PIXEL_FORMAT_INTERNAL_GUIDE_LAYER);
+
+// OptixDenoiserModelKind
+static_assert(OPTIX_DENOISER_MODEL_KIND_AOV == ::OPTIX_DENOISER_MODEL_KIND_AOV);
+static_assert(OPTIX_DENOISER_MODEL_KIND_TEMPORAL_AOV == ::OPTIX_DENOISER_MODEL_KIND_TEMPORAL_AOV);
+static_assert(OPTIX_DENOISER_MODEL_KIND_UPSCALE2X == ::OPTIX_DENOISER_MODEL_KIND_UPSCALE2X);
+static_assert(OPTIX_DENOISER_MODEL_KIND_TEMPORAL_UPSCALE2X == ::OPTIX_DENOISER_MODEL_KIND_TEMPORAL_UPSCALE2X);
+static_assert(OPTIX_DENOISER_MODEL_KIND_LDR == ::OPTIX_DENOISER_MODEL_KIND_LDR);
+static_assert(OPTIX_DENOISER_MODEL_KIND_HDR == ::OPTIX_DENOISER_MODEL_KIND_HDR);
+static_assert(OPTIX_DENOISER_MODEL_KIND_TEMPORAL == ::OPTIX_DENOISER_MODEL_KIND_TEMPORAL);
+
+// OptixDenoiserAlphaMode
+static_assert(OPTIX_DENOISER_ALPHA_MODE_COPY == ::OPTIX_DENOISER_ALPHA_MODE_COPY);
+static_assert(OPTIX_DENOISER_ALPHA_MODE_DENOISE == ::OPTIX_DENOISER_ALPHA_MODE_DENOISE);
+
+// OptixDenoiserAOVType
+static_assert(OPTIX_DENOISER_AOV_TYPE_NONE == ::OPTIX_DENOISER_AOV_TYPE_NONE);
+static_assert(OPTIX_DENOISER_AOV_TYPE_BEAUTY == ::OPTIX_DENOISER_AOV_TYPE_BEAUTY);
+static_assert(OPTIX_DENOISER_AOV_TYPE_SPECULAR == ::OPTIX_DENOISER_AOV_TYPE_SPECULAR);
+static_assert(OPTIX_DENOISER_AOV_TYPE_REFLECTION == ::OPTIX_DENOISER_AOV_TYPE_REFLECTION);
+static_assert(OPTIX_DENOISER_AOV_TYPE_REFRACTION == ::OPTIX_DENOISER_AOV_TYPE_REFRACTION);
+static_assert(OPTIX_DENOISER_AOV_TYPE_DIFFUSE == ::OPTIX_DENOISER_AOV_TYPE_DIFFUSE);
+
+// Check struct sizes (this does not fully check struct field offsets, but is a good proxy)
+static_assert(sizeof(OptixDeviceContextOptions) == sizeof(::OptixDeviceContextOptions));
+static_assert(sizeof(OptixImage2D) == sizeof(::OptixImage2D));
+static_assert(sizeof(OptixDenoiserOptions) == sizeof(::OptixDenoiserOptions));
+static_assert(sizeof(OptixDenoiserGuideLayer) == sizeof(::OptixDenoiserGuideLayer));
+static_assert(sizeof(OptixDenoiserLayer) == sizeof(::OptixDenoiserLayer));
+static_assert(sizeof(OptixDenoiserParams) == sizeof(::OptixDenoiserParams));
+static_assert(sizeof(OptixDenoiserSizes) == sizeof(::OptixDenoiserSizes));
+
+struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
+{
+    virtual void destroy() override
+    {
+        rhiCudaDriverApiShutdown();
+        delete this;
+    }
+
+    virtual const char* optixGetErrorName(OptixResult result) override
+    {
+        return ::optixGetErrorName((::OptixResult)result);
+    }
+
+    virtual const char* optixGetErrorString(OptixResult result) override
+    {
+        return ::optixGetErrorString((::OptixResult)result);
+    }
+
+    virtual OptixResult optixDeviceContextCreate(
+        CUcontext fromContext,
+        const OptixDeviceContextOptions* options,
+        OptixDeviceContext* context
+    ) override
+    {
+        return (OptixResult)::optixDeviceContextCreate(
+            fromContext,
+            (const ::OptixDeviceContextOptions*)options,
+            (::OptixDeviceContext*)context
+        );
+    }
+
+    virtual OptixResult optixDeviceContextDestroy(OptixDeviceContext context) override
+    {
+        return (OptixResult)::optixDeviceContextDestroy((::OptixDeviceContext)context);
+    }
+
+    virtual OptixResult optixDenoiserCreate(
+        OptixDeviceContext context,
+        OptixDenoiserModelKind modelKind,
+        const OptixDenoiserOptions* options,
+        OptixDenoiser* returnHandle
+    ) override
+    {
+        return (OptixResult)::optixDenoiserCreate(
+            (::OptixDeviceContext)context,
+            (::OptixDenoiserModelKind)modelKind,
+            (const ::OptixDenoiserOptions*)options,
+            (::OptixDenoiser*)returnHandle
+        );
+    }
+
+    virtual OptixResult optixDenoiserCreateWithUserModel(
+        OptixDeviceContext context,
+        const void* data,
+        size_t dataSizeInBytes,
+        OptixDenoiser* returnHandle
+    ) override
+    {
+        return (OptixResult)::optixDenoiserCreateWithUserModel(
+            (::OptixDeviceContext)context,
+            data,
+            dataSizeInBytes,
+            (::OptixDenoiser*)returnHandle
+        );
+    }
+
+    virtual OptixResult optixDenoiserDestroy(OptixDenoiser handle) override
+    {
+        return (OptixResult)::optixDenoiserDestroy((::OptixDenoiser)handle);
+    }
+
+    virtual OptixResult optixDenoiserComputeMemoryResources(
+        const OptixDenoiser handle,
+        unsigned int maximumInputWidth,
+        unsigned int maximumInputHeight,
+        OptixDenoiserSizes* returnSizes
+    ) override
+    {
+        return (OptixResult)::optixDenoiserComputeMemoryResources(
+            (::OptixDenoiser)handle,
+            maximumInputWidth,
+            maximumInputHeight,
+            (::OptixDenoiserSizes*)returnSizes
+        );
+    }
+
+    virtual OptixResult optixDenoiserSetup(
+        OptixDenoiser denoiser,
+        CUstream stream,
+        unsigned int inputWidth,
+        unsigned int inputHeight,
+        CUdeviceptr denoiserState,
+        size_t denoiserStateSizeInBytes,
+        CUdeviceptr scratch,
+        size_t scratchSizeInBytes
+    ) override
+    {
+        return (OptixResult)::optixDenoiserSetup(
+            (::OptixDenoiser)denoiser,
+            stream,
+            inputWidth,
+            inputHeight,
+            denoiserState,
+            denoiserStateSizeInBytes,
+            scratch,
+            scratchSizeInBytes
+        );
+    }
+
+    virtual OptixResult optixDenoiserInvoke(
+        OptixDenoiser handle,
+        CUstream stream,
+        const OptixDenoiserParams* params,
+        CUdeviceptr denoiserData,
+        size_t denoiserDataSize,
+        const OptixDenoiserGuideLayer* guideLayer,
+        const OptixDenoiserLayer* layers,
+        unsigned int numLayers,
+        unsigned int inputOffsetX,
+        unsigned int inputOffsetY,
+        CUdeviceptr scratch,
+        size_t scratchSizeInBytes
+    )
+    {
+        return (OptixResult)::optixDenoiserInvoke(
+            (::OptixDenoiser)handle,
+            stream,
+            (const ::OptixDenoiserParams*)params,
+            denoiserData,
+            denoiserDataSize,
+            (const ::OptixDenoiserGuideLayer*)guideLayer,
+            (const ::OptixDenoiserLayer*)layers,
+            numLayers,
+            inputOffsetX,
+            inputOffsetY,
+            scratch,
+            scratchSizeInBytes
+        );
+    }
+
+    virtual OptixResult optixDenoiserComputeIntensity(
+        OptixDenoiser handle,
+        CUstream stream,
+        const OptixImage2D* inputImage,
+        CUdeviceptr outputIntensity,
+        CUdeviceptr scratch,
+        size_t scratchSizeInBytes
+    ) override
+    {
+        return (OptixResult)::optixDenoiserComputeIntensity(
+            (::OptixDenoiser)handle,
+            stream,
+            (const ::OptixImage2D*)inputImage,
+            outputIntensity,
+            scratch,
+            scratchSizeInBytes
+        );
+    }
+
+    virtual OptixResult optixDenoiserComputeAverageColor(
+        OptixDenoiser handle,
+        CUstream stream,
+        const OptixImage2D* inputImage,
+        CUdeviceptr outputAverageColor,
+        CUdeviceptr scratch,
+        size_t scratchSizeInBytes
+    ) override
+    {
+        return (OptixResult)::optixDenoiserComputeAverageColor(
+            (::OptixDenoiser)handle,
+            stream,
+            (const ::OptixImage2D*)inputImage,
+            outputAverageColor,
+            scratch,
+            scratchSizeInBytes
+        );
+    }
+};
+
+Result createOptixDenoiserAPI(OptixDenoiserAPI** outAPI)
+{
+    SLANG_RETURN_ON_FAIL(rhiCudaDriverApiInit());
+    *outAPI = new OptixDenoiserAPIImpl();
+    return SLANG_OK;
+}
+
+} // namespace rhi::optix_denoiser::VERSION_TAG
