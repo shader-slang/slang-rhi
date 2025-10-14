@@ -102,6 +102,11 @@ cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI
 cmake_dependent_option(SLANG_RHI_ENABLE_OPTIX "Enable OptiX support" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
 
+# Enabled OptiX versions
+if(NOT DEFINED SLANG_RHI_OPTIX_VERSIONS)
+    set(SLANG_RHI_OPTIX_VERSIONS "8_0;8_1;9_0")
+endif()
+
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
 set(SLANG_RHI_FETCH_SLANG_VERSION "2025.19" CACHE STRING "Slang version to fetch")
@@ -137,7 +142,6 @@ if(NOT DEFINED SLANG_RHI_NVAPI_URL)
 endif()
 
 # OptiX headers
-set(SLANG_RHI_OPTIX_VERSIONS "8_0;8_1;9_0")
 if(NOT DEFINED SLANG_RHI_OPTIX_8_0_URL)
     set(SLANG_RHI_OPTIX_8_0_URL "https://github.com/NVIDIA/optix-dev/archive/f60c1e44f18426f426a2ed948f28515b3cf67b8a.zip")
 endif()
@@ -419,6 +423,16 @@ cmrc_add_resource_library(
 )
 set_target_properties(slang-rhi-resources PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
+
+# Create an "x" for the enabled OptiX versions for use in the config header
+# Sort the versions in descending order so that the highest version is first
+set(SLANG_RHI_OPTIX_VERSIONS_SORTED ${SLANG_RHI_OPTIX_VERSIONS})
+list(SORT SLANG_RHI_OPTIX_VERSIONS_SORTED COMPARE NATURAL)
+list(REVERSE SLANG_RHI_OPTIX_VERSIONS_SORTED)
+set(SLANG_RHI_OPTIX_VERSIONS_X "")
+foreach(ver IN LISTS SLANG_RHI_OPTIX_VERSIONS_SORTED)
+    string(APPEND SLANG_RHI_OPTIX_VERSIONS_X " x(v${ver})")
+endforeach()
 
 # Generate config header
 configure_file(
