@@ -1084,10 +1084,6 @@ GPU_TEST_CASE("texture-view-load-rw-all-layers-single-mip", D3D12 | Vulkan | CUD
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // // CUDA does not support loads from surfaces that need format conversion (limitation in PTX ISA).
-            // if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
-            //     return;
-
             for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
             {
                 TextureViewDesc viewDesc = {};
@@ -1233,10 +1229,6 @@ GPU_TEST_CASE("texture-view-load-rw-single", D3D12 | Vulkan | CUDA | Metal)
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // CUDA does not support loads from surfaces that need format conversion (limitation in PTX ISA).
-            // if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
-            //     return;
-
             for (uint32_t layer = 0; layer < desc.arrayLength; ++layer)
             {
                 for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
@@ -1313,9 +1305,9 @@ GPU_TEST_CASE("texture-view-store-all-layers-single-mip", D3D12 | Vulkan | CUDA 
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // CUDA does not support stores to surfaces that need format conversion (limitation in PTX ISA).
-            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
-                return;
+            // // CUDA does not support stores to surfaces that need format conversion (limitation in PTX ISA).
+            // if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
+            //     return;
 
             for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
             {
@@ -1390,8 +1382,8 @@ GPU_TEST_CASE("texture-view-store-single", D3D12 | Vulkan | CUDA | Metal)
                 return;
 
             // CUDA does not support stores to surfaces that need format conversion (limitation in PTX ISA).
-            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
-                return;
+            // if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
+            //     return;
             // CUDA does not support creating a surface from a subset of layers.
             // TODO: We should check for that in the validation layer.
             if (device->getDeviceType() == DeviceType::CUDA &&
