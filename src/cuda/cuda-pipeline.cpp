@@ -4,6 +4,8 @@
 #include "cuda-shader-object-layout.h"
 #include "cuda-utils.h"
 
+#include <cstring>
+
 // Enable using cuModuleLoadDataEx for loading CUDA modules.
 // This allows us to get logs for module loading.
 #define SLANG_RHI_CUDA_DEBUG_MODULE_LOAD 0
@@ -186,7 +188,22 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     optixPipelineCompileOptions.numAttributeValues =
         (desc.maxAttributeSizeInBytes + sizeof(uint32_t) - 1) / sizeof(uint32_t);
     optixPipelineCompileOptions.exceptionFlags = OPTIX_EXCEPTION_FLAG_NONE;
-    optixPipelineCompileOptions.pipelineLaunchParamsVariableName = "SLANG_globalParams";
+
+    // Check if SLANG_globalParams exists in any module.
+    // The Slang compiler only generates this variable when there are uniform parameters.
+    // If no uniform parameters exist, we set this to nullptr to avoid OptiX validation warnings.
+    bool hasGlobalParams = false;
+    for (const auto& module : program->m_modules)
+    {
+        const char* ptxCode = static_cast<const char*>(module.code->getBufferPointer());
+        if (std::strstr(ptxCode, "SLANG_globalParams"))
+        {
+            hasGlobalParams = true;
+            break;
+        }
+    }
+    optixPipelineCompileOptions.pipelineLaunchParamsVariableName =
+        hasGlobalParams ? "SLANG_globalParams" : nullptr;
 
     optixPipelineCompileOptions.usesPrimitiveTypeFlags = 0;
     if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
