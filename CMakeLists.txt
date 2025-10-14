@@ -640,7 +640,6 @@ endif()
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
         src/cuda/cuda-acceleration-structure.cpp
-        src/cuda/cuda-api.cpp
         src/cuda/cuda-buffer.cpp
         src/cuda/cuda-clear-engine.cpp
         src/cuda/cuda-command.cpp
@@ -659,6 +658,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-surface.cpp
         src/cuda/cuda-texture.cpp
         src/cuda/cuda-utils.cpp
+        src/cuda/optix-api.cpp
     )
 endif()
 

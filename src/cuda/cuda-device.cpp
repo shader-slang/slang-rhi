@@ -181,12 +181,7 @@ DeviceImpl::~DeviceImpl()
         m_deviceMemHeap.setNull();
         m_hostMemHeap.setNull();
 
-#if SLANG_RHI_ENABLE_OPTIX
-        if (m_ownsOptixContext && m_ctx.optixContext)
-        {
-            optixDeviceContextDestroy(m_ctx.optixContext);
-        }
-#endif
+        m_ctx.optixContext.setNull();
     }
 
     if (m_ownsContext && m_ctx.context)
@@ -199,12 +194,12 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::CUdevice;
     outHandles->handles[0].value = m_ctx.device;
-#if SLANG_RHI_ENABLE_OPTIX
-    outHandles->handles[1].type = NativeHandleType::OptixDeviceContext;
-    outHandles->handles[1].value = (uint64_t)m_ctx.optixContext;
-#else
     outHandles->handles[1] = {};
-#endif
+    if (m_ctx.optixContext)
+    {
+        outHandles->handles[1].type = NativeHandleType::OptixDeviceContext;
+        outHandles->handles[1].value = (uint64_t)m_ctx.optixContext->getOptixDeviceContext();
+    }
     outHandles->handles[2].type = NativeHandleType::CUcontext;
     outHandles->handles[2].value = (uint64_t)m_ctx.context;
     return SLANG_OK;
@@ -222,6 +217,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuInit(0), this);
 
+    void* existingOptixDeviceContext = nullptr;
+
     for (const auto& handle : desc.existingDeviceHandles.handles)
     {
         if (handle.type == NativeHandleType::CUdevice)
@@ -234,9 +231,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
         else if (handle.type == NativeHandleType::OptixDeviceContext)
         {
-#if SLANG_RHI_ENABLE_OPTIX
-            m_ctx.optixContext = (OptixDeviceContext)handle.value;
-#endif
+            existingOptixDeviceContext = (void*)handle.value;
         }
     }
 
@@ -334,79 +329,34 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::cuda);
 
-
-#if SLANG_RHI_ENABLE_OPTIX
+    if (SLANG_SUCCEEDED(
+            optix::createContext(
+                this,
+                existingOptixDeviceContext,
+                desc.enableRayTracingValidation,
+                m_ctx.optixContext.writeRef()
+            )
+        ))
     {
-        OptixResult result = optixInit();
-        if (result == OPTIX_SUCCESS)
+        addFeature(Feature::AccelerationStructure);
+        addFeature(Feature::RayTracing);
+        int optixVersion = m_ctx.optixContext->getOptixVersion();
+        if (optixVersion >= 80100)
         {
-            if (!m_ctx.optixContext)
-            {
-                static auto logCallback = [](unsigned int level, const char* tag, const char* message, void* userData)
-                {
-                    DeviceImpl* device = static_cast<DeviceImpl*>(userData);
-                    DebugMessageType type;
-                    switch (level)
-                    {
-                    case 1: // fatal
-                        type = DebugMessageType::Error;
-                        break;
-                    case 2: // error
-                        type = DebugMessageType::Error;
-                        break;
-                    case 3: // warning
-                        type = DebugMessageType::Warning;
-                        break;
-                    case 4: // print
-                        type = DebugMessageType::Info;
-                        break;
-                    default:
-                        return;
-                    }
-
-                    char msg[4096];
-                    int msgSize = snprintf(msg, sizeof(msg), "[%s]: %s", tag, message);
-                    if (msgSize < 0)
-                        return;
-                    else if (msgSize >= int(sizeof(msg)))
-                        msg[sizeof(msg) - 1] = 0;
-
-                    device->handleMessage(type, DebugMessageSource::Driver, msg);
-                };
-
-                OptixDeviceContextOptions options = {};
-                options.logCallbackFunction = logCallback;
-                options.logCallbackLevel = 4;
-                options.logCallbackData = this;
-                options.validationMode = desc.enableRayTracingValidation ? OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL
-                                                                         : OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_OFF;
-
-
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixDeviceContextCreate(m_ctx.context, &options, &m_ctx.optixContext),
-                    this
-                );
-                m_ownsOptixContext = true;
-            }
-
-            addFeature(Feature::AccelerationStructure);
+            addFeature(Feature::ShaderExecutionReordering);
+        }
+        if (optixVersion >= 90000)
+        {
             addFeature(Feature::AccelerationStructureSpheres);
             addFeature(Feature::AccelerationStructureLinearSweptSpheres);
-            addFeature(Feature::RayTracing);
-            addFeature(Feature::ShaderExecutionReordering);
-            addCapability(Capability::_raygen);
-            addCapability(Capability::_intersection);
-            addCapability(Capability::_anyhit);
-            addCapability(Capability::_closesthit);
-            addCapability(Capability::_callable);
-            addCapability(Capability::_miss);
         }
-        else
-        {
-            printWarning("Failed to initialize OptiX: %s (%s)", optixGetErrorString(result), optixGetErrorName(result));
-        }
+        addCapability(Capability::_raygen);
+        addCapability(Capability::_intersection);
+        addCapability(Capability::_anyhit);
+        addCapability(Capability::_closesthit);
+        addCapability(Capability::_callable);
+        addCapability(Capability::_miss);
     }
-#endif
 
     // Initialize slang context
     SLANG_RETURN_ON_FAIL(
@@ -516,7 +466,6 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
-#if SLANG_RHI_ENABLE_OPTIX
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -524,11 +473,6 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;
-#else
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(outShaderTable);
-    return SLANG_E_NOT_AVAILABLE;
-#endif
 }
 
 Result DeviceImpl::createShaderProgram(
@@ -638,32 +582,11 @@ Result DeviceImpl::getAccelerationStructureSizes(
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
-#if SLANG_RHI_ENABLE_OPTIX
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    AccelerationStructureBuildDescConverter converter;
-    SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
-    OptixAccelBufferSizes sizes;
-    SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-        optixAccelComputeMemoryUsage(
-            m_ctx.optixContext,
-            &converter.buildOptions,
-            converter.buildInputs.data(),
-            converter.buildInputs.size(),
-            &sizes
-        ),
-        this
-    );
-    outSizes->accelerationStructureSize = sizes.outputSizeInBytes;
-    outSizes->scratchSize = sizes.tempSizeInBytes;
-    outSizes->updateScratchSize = sizes.tempUpdateSizeInBytes;
-
-    return SLANG_OK;
-#else
-    return SLANG_E_NOT_AVAILABLE;
-#endif
+    return m_ctx.optixContext->getAccelerationStructureSizes(desc, outSizes);
 }
 
 Result DeviceImpl::createAccelerationStructure(
@@ -673,7 +596,6 @@ Result DeviceImpl::createAccelerationStructure(
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
-#if SLANG_RHI_ENABLE_OPTIX
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -683,9 +605,6 @@ Result DeviceImpl::createAccelerationStructure(
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
-#else
-    return SLANG_E_NOT_AVAILABLE;
-#endif
 }
 
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)

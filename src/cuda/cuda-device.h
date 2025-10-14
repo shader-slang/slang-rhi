@@ -9,9 +9,7 @@ struct Context
 {
     CUdevice device = -1;
     CUcontext context = nullptr;
-#if SLANG_RHI_ENABLE_OPTIX
-    OptixDeviceContext optixContext = nullptr;
-#endif
+    RefPtr<optix::Context> optixContext;
 };
 
 class AdapterImpl : public Adapter
@@ -28,7 +26,6 @@ public:
     RefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
-    bool m_ownsOptixContext = false;
     RefPtr<HeapImpl> m_deviceMemHeap;
     RefPtr<HeapImpl> m_hostMemHeap;
 
