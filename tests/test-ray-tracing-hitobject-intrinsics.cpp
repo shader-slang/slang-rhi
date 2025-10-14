@@ -620,7 +620,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-hit", ALL | DontCreateDevice)
     // Limit the shader model to SM 6.6 for this test, since the NVAPI headers don't support MakeHit
     // for newer shader models.
     DeviceExtraOptions extraOptions;
-    extraOptions.d3d12MaxShaderModel = 0x66; // SM 6.6
+    extraOptions.d3d12HighestShaderModel = 0x66; // SM 6.6
     device = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
     REQUIRE(device);
 
