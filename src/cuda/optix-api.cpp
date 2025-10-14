@@ -26,7 +26,7 @@ struct OptixAPI
 
 static OptixAPI s_optixAPIs[] = {
     {v9_0::optixVersion, v9_0::initialize, v9_0::createContext},
-    // Disable older versions for now
+    // Disable older versions for now, as Slang doesn't properly support generating code for them.
     // {v8_1::optixVersion, v8_1::initialize, v8_1::createContext},
     // {v8_0::optixVersion, v8_0::initialize, v8_0::createContext},
 };
