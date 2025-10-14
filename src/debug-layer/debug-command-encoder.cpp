@@ -159,6 +159,21 @@ void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z
     SLANG_RHI_API_FUNC;
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
+    if (x == 0)
+    {
+        RHI_VALIDATION_ERROR("x dimension must be greater than 0");
+        return;
+    }
+    if (y == 0)
+    {
+        RHI_VALIDATION_ERROR("y dimension must be greater than 0");
+        return;
+    }
+    if (z == 0)
+    {
+        RHI_VALIDATION_ERROR("z dimension must be greater than 0");
+        return;
+    }
     baseObject->dispatchCompute(x, y, z);
 }
 
