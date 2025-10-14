@@ -13,9 +13,9 @@ namespace rhi::cuda::optix {
     Result createContext(const ContextDesc& desc, Context** outContext);                                               \
     }
 
-IMPORT_OPTIX_API(v8_0)
-IMPORT_OPTIX_API(v8_1)
-IMPORT_OPTIX_API(v9_0)
+// The SLANG_RHI_OPTIX_VERSIONS_X macro is generated in CMakeLists.txt
+// It expands to a list of invocations of the given macro, one for each enabled OptiX version (in descending order).
+SLANG_RHI_OPTIX_VERSIONS_X(IMPORT_OPTIX_API)
 
 struct OptixAPI
 {
@@ -24,11 +24,9 @@ struct OptixAPI
     Result (*createContext)(const ContextDesc& /*desc*/, Context** /*outContext*/);
 };
 
-static OptixAPI s_optixAPIs[] = {
-    {v9_0::optixVersion, v9_0::initialize, v9_0::createContext},
-    {v8_1::optixVersion, v8_1::initialize, v8_1::createContext},
-    {v8_0::optixVersion, v8_0::initialize, v8_0::createContext},
-};
+#define DEFINE_OPTIX_API(tag) {tag::optixVersion, tag::initialize, tag::createContext},
+
+static OptixAPI s_optixAPIs[] = {SLANG_RHI_OPTIX_VERSIONS_X(DEFINE_OPTIX_API)};
 
 Result createContext(const ContextDesc& desc, Context** outContext)
 {
