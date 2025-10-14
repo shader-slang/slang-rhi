@@ -1238,7 +1238,7 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
         unsigned int inputOffsetY,
         CUdeviceptr scratch,
         size_t scratchSizeInBytes
-    )
+    ) override
     {
         return (OptixResult)::optixDenoiserInvoke(
             (::OptixDenoiser)handle,
