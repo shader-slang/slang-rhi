@@ -590,7 +590,22 @@ ComPtr<IDevice> createTestingDevice(
         optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
         optixSearchPath.value.stringValue0 = "nvrtc";
-        optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_INCLUDE_DIR;
+        if (deviceDesc.requiredOptixVersion == 0 || deviceDesc.requiredOptixVersion == 90000)
+        {
+            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/9_0";
+        }
+        else if (deviceDesc.requiredOptixVersion == 80100)
+        {
+            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/8_1";
+        }
+        else if (deviceDesc.requiredOptixVersion == 80000)
+        {
+            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/8_0";
+        }
+        else
+        {
+            FAIL("Unsupported Optix version");
+        }
         compilerOptions.push_back(optixSearchPath);
     }
 #endif

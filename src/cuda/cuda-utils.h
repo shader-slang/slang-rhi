@@ -74,48 +74,6 @@ void reportCUDAAssert(CUresult result, const char* call, const char* file, int l
         }                                                                                                              \
     }
 
-#if SLANG_RHI_ENABLE_OPTIX
-
-inline bool isOptixError(OptixResult result)
-{
-    return result != OPTIX_SUCCESS;
-}
-
-void reportOptixError(OptixResult result, const char* call, const char* file, int line, DeviceAdapter device);
-
-void reportOptixAssert(OptixResult result, const char* call, const char* file, int line);
-
-#define SLANG_OPTIX_RETURN_ON_FAIL(x)                                                                                  \
-    {                                                                                                                  \
-        auto _res = x;                                                                                                 \
-        if (::rhi::cuda::isOptixError(_res))                                                                           \
-        {                                                                                                              \
-            return SLANG_FAIL;                                                                                         \
-        }                                                                                                              \
-    }
-
-#define SLANG_OPTIX_RETURN_ON_FAIL_REPORT(x, device)                                                                   \
-    {                                                                                                                  \
-        auto _res = x;                                                                                                 \
-        if (::rhi::cuda::isOptixError(_res))                                                                           \
-        {                                                                                                              \
-            ::rhi::cuda::reportOptixError(_res, #x, __FILE__, __LINE__, device);                                       \
-            return SLANG_FAIL;                                                                                         \
-        }                                                                                                              \
-    }
-
-#define SLANG_OPTIX_ASSERT_ON_FAIL(x)                                                                                  \
-    {                                                                                                                  \
-        auto _res = x;                                                                                                 \
-        if (::rhi::cuda::isOptixError(_res))                                                                           \
-        {                                                                                                              \
-            ::rhi::cuda::reportOptixAssert(_res, #x, __FILE__, __LINE__);                                              \
-            SLANG_RHI_ASSERT_FAILURE("OptiX call failed");                                                             \
-        }                                                                                                              \
-    }
-
-#endif // SLANG_RHI_ENABLE_OPTIX
-
 AdapterLUID getAdapterLUID(int deviceIndex);
 
 } // namespace rhi::cuda

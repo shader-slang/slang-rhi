@@ -23,13 +23,11 @@ public:
     bool m_computeStateValid = false;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
-#if SLANG_RHI_ENABLE_OPTIX
     bool m_rayTracingPassActive = false;
     bool m_rayTracingStateValid = false;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
-    ShaderTableImpl::Instance* m_shaderTableInstance = nullptr;
-#endif
+    optix::ShaderBindingTable* m_shaderBindingTable = nullptr;
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -502,154 +500,76 @@ void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchCompute
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-#if SLANG_RHI_ENABLE_OPTIX
     m_rayTracingPassActive = true;
-#else
-    NOT_SUPPORTED(S_CommandEncoder_beginRayTracingPass);
-#endif
 }
 
 void CommandExecutor::cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-#if SLANG_RHI_ENABLE_OPTIX
     m_rayTracingPassActive = false;
-#endif
 }
 
 void CommandExecutor::cmdSetRayTracingState(const commands::SetRayTracingState& cmd)
 {
-#if SLANG_RHI_ENABLE_OPTIX
     if (!m_rayTracingPassActive)
         return;
 
     m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
     m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
     m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
-    m_shaderTableInstance = m_shaderTable ? m_shaderTable->getInstance(m_rayTracingPipeline) : nullptr;
+    m_shaderBindingTable = m_shaderTable ? m_shaderTable->getShaderBindingTable(m_rayTracingPipeline) : nullptr;
     m_rayTracingStateValid = m_rayTracingPipeline && m_bindingData && m_shaderTable;
-#else
-    SLANG_UNUSED(cmd);
-#endif
 }
 
 void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
-#if SLANG_RHI_ENABLE_OPTIX
     if (!m_rayTracingStateValid)
         return;
 
+    if (!m_device->m_ctx.optixContext)
+        return;
+
     BindingDataImpl* bindingData = m_bindingData;
-
-    OptixShaderBindingTable sbt = m_shaderTableInstance->sbt;
-    sbt.raygenRecord += cmd.rayGenShaderIndex * m_shaderTableInstance->raygenRecordSize;
-
-    SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
-        m_rayTracingPipeline->m_pipeline,
+    m_device->m_ctx.optixContext->dispatchRays(
         m_stream,
+        m_rayTracingPipeline->m_optixPipeline,
         bindingData->globalParams,
         bindingData->globalParamsSize,
-        &sbt,
+        m_shaderBindingTable,
+        cmd.rayGenShaderIndex,
         cmd.width,
         cmd.height,
         cmd.depth
-    ));
-#else
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RayTracingPassEncoder_dispatchRays);
-#endif
+    );
 }
 
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
-#if SLANG_RHI_ENABLE_OPTIX
-    AccelerationStructureBuildDescConverter converter;
-    if (converter.convert(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
+    if (!m_device->m_ctx.optixContext)
         return;
 
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-
-    short_vector<OptixAccelEmitDesc, 8> emittedProperties;
-    for (uint32_t i = 0; i < cmd.propertyQueryCount; i++)
-    {
-        if (cmd.queryDescs[i].queryType == QueryType::AccelerationStructureCompactedSize)
-        {
-            PlainBufferProxyQueryPoolImpl* queryPool =
-                checked_cast<PlainBufferProxyQueryPoolImpl*>(cmd.queryDescs[i].queryPool);
-            OptixAccelEmitDesc property = {};
-            property.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
-            property.result = queryPool->m_buffer + cmd.queryDescs[i].firstQueryIndex * sizeof(uint64_t);
-            emittedProperties.push_back(property);
-        }
-    }
-
-    SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelBuild(
-        m_device->m_ctx.optixContext,
+    m_device->m_ctx.optixContext->buildAccelerationStructure(
         m_stream,
-        &converter.buildOptions,
-        converter.buildInputs.data(),
-        converter.buildInputs.size(),
-        cmd.scratchBuffer.getDeviceAddress(),
-        checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer)->m_desc.size - cmd.scratchBuffer.offset,
-        dst->m_buffer,
-        dst->m_desc.size,
-        &dst->m_handle,
-        emittedProperties.empty() ? nullptr : emittedProperties.data(),
-        emittedProperties.size()
-    ));
-#else  // SLANG_RHI_ENABLE_OPTIX
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_buildAccelerationStructure);
-#endif // SLANG_RHI_ENABLE_OPTIX
+        cmd.desc,
+        checked_cast<AccelerationStructureImpl*>(cmd.dst),
+        checked_cast<AccelerationStructureImpl*>(cmd.src),
+        cmd.scratchBuffer,
+        cmd.propertyQueryCount,
+        cmd.queryDescs
+    );
 }
 
 void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
-#if SLANG_RHI_ENABLE_OPTIX
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+    if (!m_device->m_ctx.optixContext)
+        return;
 
-    switch (cmd.mode)
-    {
-    case AccelerationStructureCopyMode::Clone:
-    {
-#if 0
-                OptixRelocationInfo relocInfo = {};
-                optixAccelGetRelocationInfo(m_commandBuffer->m_device->m_ctx.optixContext, src->m_handle, &relocInfo);
-
-                // TODO setup inputs
-                OptixRelocateInput relocInput = {};
-
-                cuMemcpyDtoD(dst->m_buffer, src->m_buffer, src->m_desc.size);
-
-                optixAccelRelocate(
-                    m_commandBuffer->m_device->m_ctx.optixContext,
-                    m_stream,
-                    &relocInfo,
-                    &relocInput,
-                    1,
-                    dst->m_buffer,
-                    dst->m_desc.size,
-                    &dst->m_handle
-                );
-                break;
-#endif
-    }
-    case AccelerationStructureCopyMode::Compact:
-        SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelCompact(
-            m_device->m_ctx.optixContext,
-            m_stream,
-            src->m_handle,
-            dst->m_buffer,
-            dst->m_desc.size,
-            &dst->m_handle
-        ));
-        break;
-    }
-#else  // SLANG_RHI_ENABLE_OPTIX
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_copyAccelerationStructure);
-#endif // SLANG_RHI_ENABLE_OPTIX
+    m_device->m_ctx.optixContext->copyAccelerationStructure(
+        m_stream,
+        checked_cast<AccelerationStructureImpl*>(cmd.dst),
+        checked_cast<AccelerationStructureImpl*>(cmd.src),
+        cmd.mode
+    );
 }
 
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)

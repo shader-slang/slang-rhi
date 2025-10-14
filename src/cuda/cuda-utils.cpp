@@ -69,43 +69,6 @@ void reportCUDAAssert(CUresult result, const char* call, const char* file, int l
     std::fprintf(stderr, "%s failed: %s (%s)\n", call, errorString, errorName);
 }
 
-#if SLANG_RHI_ENABLE_OPTIX
-
-void reportOptixError(OptixResult result, const char* call, const char* file, int line, DeviceAdapter device)
-{
-    if (!device)
-        return;
-
-    char buf[4096];
-    snprintf(
-        buf,
-        sizeof(buf),
-        "%s failed: %s (%s)\nAt %s:%d\n",
-        call,
-        optixGetErrorString(result),
-        optixGetErrorName(result),
-        file,
-        line
-    );
-    buf[sizeof(buf) - 1] = 0; // Ensure null termination
-    device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
-}
-
-void reportOptixAssert(OptixResult result, const char* call, const char* file, int line)
-{
-    std::fprintf(
-        stderr,
-        "%s:%d: %s failed: %s (%s)\n",
-        file,
-        line,
-        call,
-        optixGetErrorString(result),
-        optixGetErrorName(result)
-    );
-}
-
-#endif // SLANG_RHI_ENABLE_OPTIX
-
 AdapterLUID getAdapterLUID(int deviceIndex)
 {
     CUdevice device;
