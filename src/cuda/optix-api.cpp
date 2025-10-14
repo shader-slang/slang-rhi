@@ -84,7 +84,7 @@ namespace rhi::optix_denoiser {
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-Result rhiCreateOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
+Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
 {
     for (auto& api : s_optixAPIs)
     {
@@ -106,7 +106,7 @@ Result rhiCreateOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAP
 
 #else // SLANG_RHI_ENABLE_OPTIX
 
-Result rhiCreateOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
+Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
 {
     SLANG_UNUSED(optixVersion);
     SLANG_UNUSED(outAPI);

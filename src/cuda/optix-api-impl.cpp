@@ -1122,11 +1122,7 @@ CHECK_STRUCT(OptixDenoiserSizes);
 
 struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
 {
-    virtual void destroy() override
-    {
-        rhiCudaDriverApiShutdown();
-        delete this;
-    }
+    virtual ~OptixDenoiserAPIImpl() override { rhiCudaDriverApiShutdown(); }
 
     virtual const char* optixGetErrorName(OptixResult result) override
     {

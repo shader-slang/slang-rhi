@@ -174,7 +174,7 @@ struct OptixDenoiserSizes
 
 struct OptixDenoiserAPI
 {
-    virtual void destroy() = 0;
+    virtual ~OptixDenoiserAPI() = default;
 
     virtual const char* optixGetErrorName(OptixResult result) = 0;
 
@@ -256,6 +256,6 @@ struct OptixDenoiserAPI
     ) = 0;
 };
 
-extern "C" Result rhiCreateOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI);
+extern "C" Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI);
 
 } // namespace rhi::optix_denoiser
