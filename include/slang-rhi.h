@@ -2790,6 +2790,9 @@ struct DeviceInfo
 
     /// The clock frequency used in timestamp queries.
     uint64_t timestampFrequency = 0;
+
+    /// The version of OptiX used by the device (0 if OptiX is not supported).
+    int optixVersion = 0;
 };
 
 enum class DebugMessageType

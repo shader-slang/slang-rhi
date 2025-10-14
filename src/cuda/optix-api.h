@@ -27,6 +27,18 @@ typedef unsigned long long OptixTraversableHandle;
 class Pipeline;
 class ShaderBindingTable;
 
+struct ContextDesc
+{
+    /// Device to create the context for.
+    DeviceImpl* device;
+    /// If not zero, the context will be created for this specific OptiX version.
+    int requiredOptixVersion;
+    /// If not null, an existing OptiX device context to use instead of creating a new one.
+    void* existingOptixDeviceContext;
+    /// Whether to enable ray tracing validation (if supported by the OptiX version).
+    bool enableRayTracingValidation;
+};
+
 /// Wrapper for OptiX device context.
 class Context : public RefObject
 {
@@ -103,11 +115,6 @@ public:
     virtual uint64_t getNativeHandle() const = 0;
 };
 
-Result createContext(
-    DeviceImpl* device,
-    void* existingOptixDeviceContext,
-    bool enableRayTracingValidation,
-    Context** outContext
-);
+Result createContext(const ContextDesc& desc, Context** outContext);
 
 } // namespace rhi::cuda::optix
