@@ -12,6 +12,7 @@
 #include <mutex>
 
 static std::recursive_mutex sCudaModuleMutex;
+static int sCudaModuleRefCount = 0;
 static rhi::SharedLibraryHandle sCudaModule;
 
 extern "C" bool rhiCudaDriverApiInit()
@@ -19,7 +20,10 @@ extern "C" bool rhiCudaDriverApiInit()
     std::lock_guard<std::recursive_mutex> lock(sCudaModuleMutex);
 
     if (sCudaModule)
+    {
+        sCudaModuleRefCount++;
         return true;
+    }
 
 #if SLANG_WINDOWS_FAMILY
     const char* cudaPaths[] = {
@@ -161,6 +165,7 @@ extern "C" bool rhiCudaDriverApiInit()
         return false;
     }
 
+    sCudaModuleRefCount = 1;
     return true;
 }
 
@@ -169,6 +174,9 @@ extern "C" void rhiCudaDriverApiShutdown()
     std::lock_guard<std::recursive_mutex> lock(sCudaModuleMutex);
 
     if (!sCudaModule)
+        return;
+    sCudaModuleRefCount--;
+    if (sCudaModuleRefCount > 0)
         return;
 
 #define UNLOAD(name, ...) name = nullptr
