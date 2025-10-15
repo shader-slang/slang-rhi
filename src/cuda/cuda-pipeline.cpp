@@ -67,6 +67,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         (void*)(uintptr_t)logVerbose,
     };
 
+    // Note: This copy is to guarantee correct alignment for CUDA
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost(&programMemory, module.code->getBufferSize()), this);
     memcpy(programMemory, module.code->getBufferPointer(), module.code->getBufferSize());
     CUresult result = cuModuleLoadDataEx(
@@ -90,6 +91,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     }
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
 #else  // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
+    // Note: This copy is to guarantee correct alignment for CUDA
     void* programMemory;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost(&programMemory, module.code->getBufferSize()), this);
     memcpy(programMemory, module.code->getBufferPointer(), module.code->getBufferSize());
