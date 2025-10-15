@@ -77,7 +77,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         options,
         optionValues
     );
-    cuMemFreeHost(programMemory);
+    //cuMemFreeHost(programMemory);
 
     infoLogSize = *(unsigned int*)(&optionValues[1]);
     errorLogSize = *(unsigned int*)(&optionValues[3]);
@@ -96,7 +96,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost(&programMemory, module.code->getBufferSize()), this);
     memcpy(programMemory, module.code->getBufferPointer(), module.code->getBufferSize());
     CUresult result = cuModuleLoadData(&pipeline->m_module, programMemory);
-    cuMemFreeHost(programMemory);
+    //cuMemFreeHost(programMemory);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
 #endif // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
     pipeline->m_kernelName = module.entryPointName;
