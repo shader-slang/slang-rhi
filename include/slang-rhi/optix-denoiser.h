@@ -5,7 +5,9 @@
 #include "cuda-driver-api.h"
 
 // This file defines a minimal subset of the OptiX API needed to use the OptiX denoiser.
-// We do this because slang-rhi provides functionality to dynamically use different versions of the OptiX API.
+// slang-rhi has support for multiple versions of OptiX via an internal abstraction layer.
+// To avoid introducing a hard dependency on the OptiX SDK, we define the necessary parts of
+// the OptiX API here instead of including the OptiX headers directly.
 // For documentation on the OptiX API, consult the official OptiX documentation from NVIDIA:
 // https://developer.nvidia.com/optix
 
@@ -256,6 +258,12 @@ struct OptixDenoiserAPI
     ) = 0;
 };
 
+/// Create an instance of the OptixDenoiserAPI for the specified OptiX version.
+/// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
+/// If successful, the returned instance should be freed by the caller via `delete`.
+/// \param optixVersion The specific OptiX version to target or 0 to target the highest version available.
+/// \param outAPI The created API instance.
+/// \return SLANG_OK if successful, SLANG_E_NOT_AVAILABLE if the specified version is not available, or another error code if the creation failed.
 extern "C" Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI);
 
 } // namespace rhi::optix_denoiser
