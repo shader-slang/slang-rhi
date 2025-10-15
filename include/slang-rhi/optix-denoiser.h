@@ -174,46 +174,49 @@ struct OptixDenoiserSizes
     size_t internalGuideLayerPixelSizeInBytes;
 };
 
-struct OptixDenoiserAPI
+class IOptixDenoiserAPI : public ISlangUnknown
 {
-    virtual ~OptixDenoiserAPI() = default;
+public:
+    SLANG_COM_INTERFACE(0x746a5883, 0x2a7e, 0x4d67, {0xbe, 0x2e, 0x62, 0x65, 0x8c, 0x02, 0x9e, 0x89});
 
-    virtual const char* optixGetErrorName(OptixResult result) = 0;
+    virtual ~IOptixDenoiserAPI() = default;
 
-    virtual const char* optixGetErrorString(OptixResult result) = 0;
+    virtual SLANG_NO_THROW const char* SLANG_MCALL optixGetErrorName(OptixResult result) = 0;
 
-    virtual OptixResult optixDeviceContextCreate(
+    virtual SLANG_NO_THROW const char* SLANG_MCALL optixGetErrorString(OptixResult result) = 0;
+
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDeviceContextCreate(
         CUcontext fromContext,
         const OptixDeviceContextOptions* options,
         OptixDeviceContext* context
     ) = 0;
 
-    virtual OptixResult optixDeviceContextDestroy(OptixDeviceContext context) = 0;
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDeviceContextDestroy(OptixDeviceContext context) = 0;
 
-    virtual OptixResult optixDenoiserCreate(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserCreate(
         OptixDeviceContext context,
         OptixDenoiserModelKind modelKind,
         const OptixDenoiserOptions* options,
         OptixDenoiser* returnHandle
     ) = 0;
 
-    virtual OptixResult optixDenoiserCreateWithUserModel(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserCreateWithUserModel(
         OptixDeviceContext context,
         const void* data,
         size_t dataSizeInBytes,
         OptixDenoiser* returnHandle
     ) = 0;
 
-    virtual OptixResult optixDenoiserDestroy(OptixDenoiser handle) = 0;
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserDestroy(OptixDenoiser handle) = 0;
 
-    virtual OptixResult optixDenoiserComputeMemoryResources(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserComputeMemoryResources(
         const OptixDenoiser handle,
         unsigned int maximumInputWidth,
         unsigned int maximumInputHeight,
         OptixDenoiserSizes* returnSizes
     ) = 0;
 
-    virtual OptixResult optixDenoiserSetup(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserSetup(
         OptixDenoiser denoiser,
         CUstream stream,
         unsigned int inputWidth,
@@ -224,7 +227,7 @@ struct OptixDenoiserAPI
         size_t scratchSizeInBytes
     ) = 0;
 
-    virtual OptixResult optixDenoiserInvoke(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserInvoke(
         OptixDenoiser handle,
         CUstream stream,
         const OptixDenoiserParams* params,
@@ -239,7 +242,7 @@ struct OptixDenoiserAPI
         size_t scratchSizeInBytes
     ) = 0;
 
-    virtual OptixResult optixDenoiserComputeIntensity(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserComputeIntensity(
         OptixDenoiser handle,
         CUstream stream,
         const OptixImage2D* inputImage,
@@ -248,7 +251,7 @@ struct OptixDenoiserAPI
         size_t scratchSizeInBytes
     ) = 0;
 
-    virtual OptixResult optixDenoiserComputeAverageColor(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserComputeAverageColor(
         OptixDenoiser handle,
         CUstream stream,
         const OptixImage2D* inputImage,
@@ -258,12 +261,14 @@ struct OptixDenoiserAPI
     ) = 0;
 };
 
-/// Create an instance of the OptixDenoiserAPI for the specified OptiX version.
+} // namespace rhi::optix_denoiser
+
+/// Create an instance of the IOptixDenoiserAPI for the specified OptiX version.
 /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
-/// If successful, the returned instance should be freed by the caller via `delete`.
 /// \param optixVersion The specific OptiX version to target or 0 to target the highest version available.
 /// \param outAPI The created API instance.
 /// \return SLANG_OK if successful, SLANG_E_NOT_AVAILABLE if the specified version is not available, or another error code if the creation failed.
-extern "C" Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI);
-
-} // namespace rhi::optix_denoiser
+extern "C" SLANG_RHI_API rhi::Result SLANG_MCALL rhiCreateOptixDenoiserAPI(
+    uint32_t optixVersion,
+    rhi::optix_denoiser::IOptixDenoiserAPI** outAPI
+);

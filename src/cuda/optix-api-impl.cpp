@@ -1120,21 +1120,39 @@ CHECK_STRUCT(OptixDenoiserLayer);
 CHECK_STRUCT(OptixDenoiserParams);
 CHECK_STRUCT(OptixDenoiserSizes);
 
-struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
+struct OptixDenoiserAPIImpl : public IOptixDenoiserAPI, public ComObject
 {
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+
+    IOptixDenoiserAPI* getInterface(const Guid& guid)
+    {
+        if (guid == ISlangUnknown::getTypeGuid() || guid == IOptixDenoiserAPI::getTypeGuid())
+            return static_cast<IOptixDenoiserAPI*>(this);
+        return nullptr;
+    }
+
+    Result init()
+    {
+        if (!rhiCudaDriverApiInit())
+        {
+            return SLANG_FAIL;
+        }
+        return SLANG_OK;
+    }
+
     virtual ~OptixDenoiserAPIImpl() override { rhiCudaDriverApiShutdown(); }
 
-    virtual const char* optixGetErrorName(OptixResult result) override
+    virtual SLANG_NO_THROW const char* SLANG_MCALL optixGetErrorName(OptixResult result) override
     {
         return ::optixGetErrorName((::OptixResult)result);
     }
 
-    virtual const char* optixGetErrorString(OptixResult result) override
+    virtual SLANG_NO_THROW const char* SLANG_MCALL optixGetErrorString(OptixResult result) override
     {
         return ::optixGetErrorString((::OptixResult)result);
     }
 
-    virtual OptixResult optixDeviceContextCreate(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDeviceContextCreate(
         CUcontext fromContext,
         const OptixDeviceContextOptions* options,
         OptixDeviceContext* context
@@ -1147,12 +1165,12 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
         );
     }
 
-    virtual OptixResult optixDeviceContextDestroy(OptixDeviceContext context) override
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDeviceContextDestroy(OptixDeviceContext context) override
     {
         return (OptixResult)::optixDeviceContextDestroy((::OptixDeviceContext)context);
     }
 
-    virtual OptixResult optixDenoiserCreate(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserCreate(
         OptixDeviceContext context,
         OptixDenoiserModelKind modelKind,
         const OptixDenoiserOptions* options,
@@ -1167,7 +1185,7 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
         );
     }
 
-    virtual OptixResult optixDenoiserCreateWithUserModel(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserCreateWithUserModel(
         OptixDeviceContext context,
         const void* data,
         size_t dataSizeInBytes,
@@ -1182,12 +1200,12 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
         );
     }
 
-    virtual OptixResult optixDenoiserDestroy(OptixDenoiser handle) override
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserDestroy(OptixDenoiser handle) override
     {
         return (OptixResult)::optixDenoiserDestroy((::OptixDenoiser)handle);
     }
 
-    virtual OptixResult optixDenoiserComputeMemoryResources(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserComputeMemoryResources(
         const OptixDenoiser handle,
         unsigned int maximumInputWidth,
         unsigned int maximumInputHeight,
@@ -1202,7 +1220,7 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
         );
     }
 
-    virtual OptixResult optixDenoiserSetup(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserSetup(
         OptixDenoiser denoiser,
         CUstream stream,
         unsigned int inputWidth,
@@ -1225,7 +1243,7 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
         );
     }
 
-    virtual OptixResult optixDenoiserInvoke(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserInvoke(
         OptixDenoiser handle,
         CUstream stream,
         const OptixDenoiserParams* params,
@@ -1256,7 +1274,7 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
         );
     }
 
-    virtual OptixResult optixDenoiserComputeIntensity(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserComputeIntensity(
         OptixDenoiser handle,
         CUstream stream,
         const OptixImage2D* inputImage,
@@ -1275,7 +1293,7 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
         );
     }
 
-    virtual OptixResult optixDenoiserComputeAverageColor(
+    virtual SLANG_NO_THROW OptixResult SLANG_MCALL optixDenoiserComputeAverageColor(
         OptixDenoiser handle,
         CUstream stream,
         const OptixImage2D* inputImage,
@@ -1295,10 +1313,11 @@ struct OptixDenoiserAPIImpl : public OptixDenoiserAPI
     }
 };
 
-Result createOptixDenoiserAPI(OptixDenoiserAPI** outAPI)
+Result createOptixDenoiserAPI(IOptixDenoiserAPI** outAPI)
 {
-    SLANG_RETURN_ON_FAIL(rhiCudaDriverApiInit());
-    *outAPI = new OptixDenoiserAPIImpl();
+    RefPtr<OptixDenoiserAPIImpl> api = new OptixDenoiserAPIImpl();
+    SLANG_RETURN_ON_FAIL(api->init());
+    returnComPtr(outAPI, api);
     return SLANG_OK;
 }
 

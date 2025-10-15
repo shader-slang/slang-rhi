@@ -11,7 +11,7 @@
     Result createContext(const ContextDesc& desc, Context** outContext);                                               \
     }                                                                                                                  \
     namespace rhi::optix_denoiser::tag {                                                                               \
-    Result createOptixDenoiserAPI(::rhi::optix_denoiser::OptixDenoiserAPI** outAPI);                                   \
+    Result createOptixDenoiserAPI(::rhi::optix_denoiser::IOptixDenoiserAPI** outAPI);                                  \
     }
 
 // The SLANG_RHI_OPTIX_VERSIONS_X macro is generated in CMakeLists.txt
@@ -26,7 +26,7 @@ struct OptixAPI
         const rhi::cuda::optix::ContextDesc& /*desc*/,
         rhi::cuda::optix::Context** /*outContext*/
     );
-    rhi::Result (*createOptixDenoiserAPI)(rhi::optix_denoiser::OptixDenoiserAPI** /*outAPI*/);
+    rhi::Result (*createOptixDenoiserAPI)(rhi::optix_denoiser::IOptixDenoiserAPI** /*outAPI*/);
 };
 
 #define DEFINE_OPTIX_API(tag)                                                                                          \
@@ -80,11 +80,12 @@ Result createContext(const ContextDesc& desc, Context** outContext)
 
 // Denoiser API
 
-namespace rhi::optix_denoiser {
-
 #if SLANG_RHI_ENABLE_OPTIX
 
-Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
+extern "C" SLANG_RHI_API rhi::Result SLANG_MCALL rhiCreateOptixDenoiserAPI(
+    uint32_t optixVersion,
+    rhi::optix_denoiser::IOptixDenoiserAPI** outAPI
+)
 {
     for (auto& api : s_optixAPIs)
     {
@@ -94,7 +95,7 @@ Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
         }
         if (api.initialize(nullptr))
         {
-            Result result = api.createOptixDenoiserAPI(outAPI);
+            rhi::Result result = api.createOptixDenoiserAPI(outAPI);
             if (SLANG_SUCCEEDED(result) || optixVersion != 0)
             {
                 return result;
@@ -106,7 +107,10 @@ Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
 
 #else // SLANG_RHI_ENABLE_OPTIX
 
-Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
+extern "C" SLANG_RHI_API rhi::Result SLANG_MCALL rhiCreateOptixDenoiserAPI(
+    uint32_t optixVersion,
+    rhi::optix_denoiser::IOptixDenoiserAPI** outAPI
+)
 {
     SLANG_UNUSED(optixVersion);
     SLANG_UNUSED(outAPI);
@@ -114,5 +118,3 @@ Result createOptixDenoiserAPI(uint32_t optixVersion, OptixDenoiserAPI** outAPI)
 }
 
 #endif // SLANG_RHI_ENABLE_OPTIX
-
-} // namespace rhi::optix_denoiser
