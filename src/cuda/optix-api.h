@@ -3,6 +3,8 @@
 #include "cuda-api.h"
 #include "core/smart-pointer.h"
 
+#include "slang-rhi/optix-denoiser.h"
+
 // slang-rhi needs to support multiple versions of OptiX. We do this by defining a thin
 // abstraction layer that wraps the OptiX API. The implementation of this layer can then
 // be swapped out to support different versions of OptiX.
