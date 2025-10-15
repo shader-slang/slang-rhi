@@ -167,6 +167,7 @@ public:
     ) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(Capability capability) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasCapability(const char* capability) override;
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL getOptixVersion() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFormatSupport(Format format, FormatSupport* outFormatSupport) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSlangSession(slang::ISession** outSlangSession) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) override;

@@ -617,6 +617,14 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
+uint32_t DeviceImpl::getOptixVersion()
+{
+    if( !m_ctx.optixContext )
+        return 0;
+
+    return m_ctx.optixContext->getOptixVersion();
+}
+
 } // namespace rhi::cuda
 
 namespace rhi {

@@ -629,6 +629,10 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-hit", ALL | DontCreateDevice)
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
+    // Disabled under pre OptiX 9.0 due to https://github.com/shader-slang/slang/issues/8723
+    if( device->getDeviceType() == DeviceType::CUDA && device->getOptixVersion() < 90000 )
+        SKIP("MakeHit not functional with specified OptiX version");
+
     RayTracingHitObjectIntrinsicsTest test;
     test.init(device);
     test.run(

@@ -66,6 +66,12 @@ bool DebugDevice::hasCapability(Capability capability)
     return baseObject->hasCapability(capability);
 }
 
+uint32_t DebugDevice::getOptixVersion()
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->getOptixVersion();
+}
+
 bool DebugDevice::hasCapability(const char* capability)
 {
     SLANG_RHI_API_FUNC;
