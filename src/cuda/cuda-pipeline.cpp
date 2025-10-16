@@ -85,7 +85,10 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     }
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
 #else  // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
+    printInfo("Loading CUDA module of size %llu, with address %p\n", module.code->getBufferSize(), module.code->getBufferPointer());
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
 #endif // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
     pipeline->m_kernelName = module.entryPointName;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(
