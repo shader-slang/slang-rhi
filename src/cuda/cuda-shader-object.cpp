@@ -203,8 +203,10 @@ Result BindingDataBuilder::writeObjectData(
             {
                 ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
 
+                // Sub-objects are always written to global memory, even if the parent represents an entry-point.
+                // This is because entry-point data reference global memory for their sub-objects (parameter blocks).
                 ObjectData data;
-                SLANG_RETURN_ON_FAIL(writeObjectData(subObject, subObjectLayout, memType, data));
+                SLANG_RETURN_ON_FAIL(writeObjectData(subObject, subObjectLayout, ConstantBufferMemType::Global, data));
                 ::memcpy(dst + uniformOffset, &data.device, sizeof(void*));
                 uniformOffset += sizeof(void*);
             }
