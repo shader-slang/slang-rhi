@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cuda-api.h"
+#include "optix-api.h"
 
 #include "../rhi-shared.h"
 #include "../slang-context.h"
@@ -13,6 +14,7 @@
 
 namespace rhi::cuda {
 
+class AdapterImpl;
 class BufferImpl;
 class TextureImpl;
 class TextureViewImpl;

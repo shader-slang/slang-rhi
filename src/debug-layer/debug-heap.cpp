@@ -1,4 +1,4 @@
-#include "debug-graphics-heap.h"
+#include "debug-heap.h"
 #include "debug-helper-functions.h"
 
 namespace rhi::debug {
@@ -15,7 +15,7 @@ Result DebugHeap::free(HeapAlloc allocation)
     return baseObject->free(allocation);
 }
 
-Result DebugHeap::report(IHeap::Report* outReport)
+Result DebugHeap::report(HeapReport* outReport)
 {
     SLANG_RHI_API_FUNC;
     return baseObject->report(outReport);

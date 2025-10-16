@@ -61,7 +61,7 @@ VkPipelineStageFlags calcPipelineStageFlagsFromImageLayout(VkImageLayout layout)
 
 VkImageAspectFlags getAspectMaskFromFormat(VkFormat format, TextureAspect aspect = TextureAspect::All);
 
-AdapterLUID getAdapterLUID(VulkanApi api, VkPhysicalDevice physicaDevice);
+AdapterLUID getAdapterLUID(const VkPhysicalDeviceIDProperties& props);
 
 VkShaderStageFlags translateShaderStage(SlangStage stage);
 

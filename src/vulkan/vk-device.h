@@ -7,6 +7,12 @@
 
 namespace rhi::vk {
 
+class AdapterImpl : public Adapter
+{
+public:
+    uint8_t m_deviceUUID[VK_UUID_SIZE];
+};
+
 class DeviceImpl : public Device
 {
 public:
@@ -88,6 +94,8 @@ public:
         IRayTracingPipeline** outPipeline
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
         IBuffer* buffer,
@@ -203,7 +211,7 @@ public:
 
 namespace rhi {
 
-Result SLANG_MCALL getVKAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createVKDevice(const DeviceDesc* desc, IDevice** outRenderer);
+IAdapter* getVKAdapter(uint32_t index);
+Result createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

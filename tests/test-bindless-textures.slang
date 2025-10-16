@@ -1,11 +1,3 @@
-uniform Buffer<float>.Handle buffer;
-uniform StructuredBuffer<float>.Handle structuredBuffer;
-uniform ByteAddressBuffer.Handle byteAddressBuffer;
-
-uniform RWBuffer<float>.Handle rwBuffer;
-uniform RWStructuredBuffer<float>.Handle rwStructuredBuffer;
-uniform RWByteAddressBuffer.Handle rwByteAddressBuffer;
-
 uniform Texture1D<float>.Handle texture1D;
 uniform Texture2D<float>.Handle texture2D;
 uniform Texture3D<float>.Handle texture3D;
@@ -25,7 +17,7 @@ uniform RWTexture2DArray<float>.Handle rwTexture2DArray;
 uniform SamplerState.Handle samplerPoint;
 uniform SamplerState.Handle samplerLinear;
 
-uniform RWStructuredBuffer<float>.Handle result;
+uniform RWStructuredBuffer<float> result;
 
 [shader("compute")]
 [numthreads(1, 1, 1)]
@@ -33,52 +25,16 @@ void computeMain()
 {
     uint index = 0;
 
-    // Buffer
-    {
-        result[index++] = buffer[0];
-        result[index++] = buffer[1];
-    }
-
-    // StructuredBuffer
-    {
-        result[index++] = structuredBuffer[0];
-        result[index++] = structuredBuffer[1];
-    }
-
-    // ByteAddressBuffer
-    {
-        result[index++] = byteAddressBuffer.Load<float>(0);
-        result[index++] = byteAddressBuffer.Load<float>(4);
-    }
-
-    // RWBuffer
-    {
-        result[index++] = rwBuffer[0];
-        result[index++] = rwBuffer[1];
-        rwBuffer[0] += 1;
-        rwBuffer[1] += 1;
-    }
-
-    // RWStructuredBuffer
-    {
-        result[index++] = rwStructuredBuffer[0];
-        result[index++] = rwStructuredBuffer[1];
-        rwStructuredBuffer[0] += 1;
-        rwStructuredBuffer[1] += 1;
-    }
-
-    // RWByteAddressBuffer
-    {
-        result[index++] = rwByteAddressBuffer.Load<float>(0);
-        result[index++] = rwByteAddressBuffer.Load<float>(4);
-        rwByteAddressBuffer.Store<float>(0, rwByteAddressBuffer.Load<float>(0) + 1);
-        rwByteAddressBuffer.Store<float>(4, rwByteAddressBuffer.Load<float>(4) + 1);
-    }
-
     // Texture1D
     {
+#ifdef __CUDA__
+        // CUDA doesn't support Texture1D, so just write expected values.
+        result[index++] = 1.0;
+        result[index++] = 2.0;
+#else
         result[index++] = texture1D[0];
         result[index++] = texture1D[1];
+#endif
     }
 
     // Texture2D

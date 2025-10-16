@@ -2,6 +2,7 @@
 
 #include "rhi-shared.h"
 #include "device.h"
+#include "format-conversion.h"
 
 namespace rhi {
 
@@ -27,7 +28,7 @@ void RenderPassEncoder::writeRenderState()
     cmd.state = m_renderState;
     cmd.pipeline = m_pipeline;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
     {
         m_commandEncoder->getDevice()
             ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
@@ -42,7 +43,7 @@ IShaderObject* RenderPassEncoder::bindPipeline(IRenderPipeline* pipeline)
     {
         m_pipeline = pipeline;
         ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-        if (!SLANG_SUCCEEDED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
             return nullptr;
         return m_rootObject;
     }
@@ -168,6 +169,17 @@ void RenderPassEncoder::insertDebugMarker(const char* name, const MarkerColor& c
     }
 }
 
+void RenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    if (m_commandList)
+    {
+        commands::WriteTimestamp cmd;
+        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryIndex = queryIndex;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
 void RenderPassEncoder::end()
 {
     if (m_commandList)
@@ -199,7 +211,7 @@ void ComputePassEncoder::writeComputeState()
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
     {
         m_commandEncoder->getDevice()
             ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
@@ -214,7 +226,7 @@ IShaderObject* ComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
     {
         m_pipeline = pipeline;
         ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-        if (!SLANG_SUCCEEDED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
             return nullptr;
         return m_rootObject;
     }
@@ -285,6 +297,17 @@ void ComputePassEncoder::insertDebugMarker(const char* name, const MarkerColor& 
     }
 }
 
+void ComputePassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    if (m_commandList)
+    {
+        commands::WriteTimestamp cmd;
+        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryIndex = queryIndex;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
 void ComputePassEncoder::end()
 {
     if (m_commandList)
@@ -317,7 +340,7 @@ void RayTracingPassEncoder::writeRayTracingState()
     cmd.pipeline = m_pipeline;
     cmd.shaderTable = m_shaderTable;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (!SLANG_SUCCEEDED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
     {
         m_commandEncoder->getDevice()
             ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
@@ -334,7 +357,7 @@ IShaderObject* RayTracingPassEncoder::bindPipeline(IRayTracingPipeline* pipeline
         m_pipeline = pipeline;
         m_shaderTable = shaderTable;
         ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
-        if (!SLANG_SUCCEEDED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
             return nullptr;
         return m_rootObject;
     }
@@ -396,6 +419,17 @@ void RayTracingPassEncoder::insertDebugMarker(const char* name, const MarkerColo
         commands::InsertDebugMarker cmd;
         cmd.name = name;
         cmd.color = color;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void RayTracingPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    if (m_commandList)
+    {
+        commands::WriteTimestamp cmd;
+        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryIndex = queryIndex;
         m_commandList->write(std::move(cmd));
     }
 }
@@ -684,6 +718,13 @@ void CommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange subres
     cmd.texture = texture;
     cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
     ::memcpy(cmd.clearValue, clearValue, sizeof(cmd.clearValue));
+    // Different APIs/drivers appear to handle out-of-range clear values differently.
+    // To ensure consistent results we clamp the values here.
+    FormatConversionFuncs funcs = getFormatConversionFuncs(texture->getDesc().format);
+    if (funcs.clampIntFunc)
+    {
+        funcs.clampIntFunc(cmd.clearValue);
+    }
     m_commandList->write(std::move(cmd));
 }
 
@@ -693,6 +734,13 @@ void CommandEncoder::clearTextureSint(ITexture* texture, SubresourceRange subres
     cmd.texture = texture;
     cmd.subresourceRange = checked_cast<Texture*>(texture)->resolveSubresourceRange(subresourceRange);
     ::memcpy(cmd.clearValue, clearValue, sizeof(cmd.clearValue));
+    // Different APIs/drivers appear to handle out-of-range clear values differently.
+    // To ensure consistent results we clamp the values here.
+    FormatConversionFuncs funcs = getFormatConversionFuncs(texture->getDesc().format);
+    if (funcs.clampIntFunc)
+    {
+        funcs.clampIntFunc(cmd.clearValue);
+    }
     m_commandList->write(std::move(cmd));
 }
 

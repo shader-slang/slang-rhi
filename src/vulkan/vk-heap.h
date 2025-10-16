@@ -1,11 +1,12 @@
 #pragma once
 
-#include "cuda-base.h"
-#include "../graphics-heap.h"
+#include "vk-base.h"
+#include "vk-buffer.h"
+#include "../heap.h"
 
 #include <mutex>
 
-namespace rhi::cuda {
+namespace rhi::vk {
 
 class HeapImpl : public Heap
 {
@@ -19,15 +20,13 @@ public:
     class PageImpl : public Heap::Page
     {
     public:
-        PageImpl(Heap* heap, const PageDesc& desc, CUdeviceptr cudaMemory)
-            : Heap::Page(heap, desc)
-            , m_cudaMemory(cudaMemory)
-        {
-        }
+        PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* device);
+        ~PageImpl();
 
-        DeviceAddress offsetToAddress(Size offset) override { return DeviceAddress(m_cudaMemory + offset); }
+        DeviceAddress offsetToAddress(Size offset) override;
 
-        CUdeviceptr m_cudaMemory;
+        VKBufferHandleRAII m_buffer;
+        DeviceImpl* m_device;
     };
 
     HeapImpl(Device* device, const HeapDesc& desc);
@@ -39,7 +38,10 @@ public:
     virtual Result allocatePage(const PageDesc& desc, Page** outPage) override;
     virtual Result freePage(Page* page) override;
 
+    // Alignment requirements
+    virtual Result fixUpAllocDesc(HeapAllocDesc& desc) override;
+
     std::list<PendingFree> m_pendingFrees;
 };
 
-} // namespace rhi::cuda
+} // namespace rhi::vk

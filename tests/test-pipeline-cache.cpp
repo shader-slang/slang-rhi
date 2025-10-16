@@ -112,7 +112,6 @@ public:
 struct PipelineCacheTest
 {
     GpuTestContext* ctx;
-    DeviceType deviceType;
     std::filesystem::path tempDirectory;
     VirtualCache pipelineCache;
     ComPtr<IDevice> device;
@@ -121,15 +120,14 @@ struct PipelineCacheTest
     {
         DeviceExtraOptions extraOptions;
         extraOptions.persistentPipelineCache = &pipelineCache;
-        device = createTestingDevice(ctx, deviceType, false, &extraOptions);
+        device = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
     }
 
     VirtualCache::Stats getStats() { return pipelineCache.stats; }
 
-    void run(GpuTestContext* ctx_, DeviceType deviceType_, std::string tempDirectory_)
+    void run(GpuTestContext* ctx_, std::string tempDirectory_)
     {
         ctx = ctx_;
-        deviceType = deviceType_;
         tempDirectory = tempDirectory_;
 
         pipelineCache.clear();
@@ -385,35 +383,35 @@ struct PipelineCacheTestRender : PipelineCacheTest
 };
 
 template<typename T>
-void runTest(GpuTestContext* ctx, DeviceType deviceType)
+void runTest(GpuTestContext* ctx)
 {
     std::string tempDirectory = getCaseTempDirectory();
     T test;
-    test.run(ctx, deviceType, tempDirectory);
+    test.run(ctx, tempDirectory);
 }
 
-TEST_CASE("pipeline-cache-compute")
+GPU_TEST_CASE("pipeline-cache-compute", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(runTest<PipelineCacheTestCompute<false>>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runTest<PipelineCacheTestCompute<false>>(ctx);
 }
 
 #if 0
 // TODO: D3D12 does fail in debug layers and not return an error correctly.
-TEST_CASE("pipeline-cache-compute-corrupt")
+GPU_TEST_CASE("pipeline-cache-compute-corrupt", Vulkan | DontCreateDevice)
 {
-    runGpuTests(runTest<PipelineCacheTestCompute<true>>, {DeviceType::Vulkan});
+    runTest<PipelineCacheTestCompute<true>>(ctx);
 }
 #endif
 
-TEST_CASE("pipeline-cache-render")
+GPU_TEST_CASE("pipeline-cache-render", D3D12 | Vulkan | DontCreateDevice)
 {
-    runGpuTests(runTest<PipelineCacheTestRender<false>>, {DeviceType::D3D12, DeviceType::Vulkan});
+    runTest<PipelineCacheTestRender<false>>(ctx);
 }
 
 #if 0
 // TODO: D3D12 does fail in debug layers and not return an error correctly.
-TEST_CASE("pipeline-cache-render-corrupt")
+GPU_TEST_CASE("pipeline-cache-render-corrupt", Vulkan | DontCreateDevice)
 {
-    runGpuTests(runTest<PipelineCacheTestRender<true>>, {DeviceType::Vulkan});
+    runTest<PipelineCacheTestRender<true>>(ctx);
 }
 #endif

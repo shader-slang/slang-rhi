@@ -1787,6 +1787,9 @@ struct RenderPipelineDesc
     RasterizerDesc rasterizer;
     MultisampleDesc multisample;
 
+    // Defer target code compilation of program to dispatch time.
+    bool deferTargetCompilation = false;
+
     const char* label = nullptr;
 };
 
@@ -1797,6 +1800,9 @@ struct ComputePipelineDesc
 
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
+
+    // Defer target code compilation of program to dispatch time.
+    bool deferTargetCompilation = false;
 
     const char* label = nullptr;
 };
@@ -1831,6 +1837,9 @@ struct RayTracingPipelineDesc
     uint32_t maxRayPayloadSize = 0;
     uint32_t maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
+
+    // Defer target code compilation of program to dispatch time.
+    bool deferTargetCompilation = false;
 
     const char* label = nullptr;
 };
@@ -2205,6 +2214,8 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() = 0;
 };
@@ -2582,8 +2593,21 @@ struct HeapAlloc
     Size size = 0;
     void* pageId = nullptr;
     uint32_t nodeIndex = 0xffffffff;
-    DeviceAddress deviceAddress = 0;
+    uintptr_t address = 0;
+
+    DeviceAddress getDeviceAddress() const { return DeviceAddress(address); }
+    void* getHostPtr() const { return reinterpret_cast<void*>(address); }
+
+    bool isValid() const { return address != 0; }
+    operator bool() const { return isValid(); }
 };
+
+enum class HeapUsage
+{
+    None = 0,
+    Shared = (1 << 0),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
 
 struct HeapDesc
 {
@@ -2591,6 +2615,9 @@ struct HeapDesc
 
     /// Type of memory heap should reside in.
     MemoryType memoryType = MemoryType::DeviceLocal;
+
+    /// Usage flags for the heap.
+    HeapUsage usage = HeapUsage::None;
 
     /// The label for the heap.
     const char* label = nullptr;
@@ -2602,29 +2629,29 @@ struct HeapAllocDesc
     Size alignment = 0;
 };
 
+struct HeapReport
+{
+    char label[128] = {};
+    uint32_t numPages = 0;
+    uint64_t totalAllocated = 0;
+    uint64_t totalMemUsage = 0;
+    uint64_t numAllocations = 0;
+};
+
 class IHeap : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x1c3b8f2a, 0x4d5e, 0x4b6c, {0x9f, 0x7d, 0x3e, 0x1c, 0x8b, 0x6f, 0x2c, 0x5a});
 
 public:
-    struct Report
-    {
-        uint32_t numPages = 0;
-        uint64_t totalAllocated = 0;
-        uint64_t totalMemUsage = 0;
-        uint64_t numAllocations = 0;
-    };
-
-
     virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL report(Report* outReport) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL report(HeapReport* outReport) = 0;
 
-    Report report()
+    HeapReport report()
     {
-        Report res;
+        HeapReport res;
         report(&res);
         return res;
     }
@@ -2648,21 +2675,36 @@ struct AdapterLUID
     bool operator!=(const AdapterLUID& other) const { return !this->operator==(other); }
 };
 
+enum class AdapterType
+{
+    Discrete,
+    Integrated,
+    Software,
+    Unknown,
+};
+
 struct AdapterInfo
 {
+    // Device type of the adapter.
+    DeviceType deviceType;
+
+    // Type of the adapter (e.g. discrete, integrated, software).
+    AdapterType adapterType;
+
     // Descriptive name of the adapter.
     char name[128];
 
-    // Unique identifier for the vendor (only available for D3D and Vulkan).
+    // Unique identifier for the vendor (0 if not available).
     uint32_t vendorID;
 
-    // Unique identifier for the physical device among devices from the vendor (only available for D3D and Vulkan)
+    // Unique identifier for the physical device among devices from the vendor (0 if not available)
     uint32_t deviceID;
 
     // Logically unique identifier of the adapter.
     AdapterLUID luid;
 };
 
+// Deprecated
 class AdapterList
 {
 public:
@@ -2682,8 +2724,17 @@ private:
     ComPtr<ISlangBlob> m_blob;
 };
 
+class IAdapter
+{
+public:
+    virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const = 0;
+};
+
 struct DeviceLimits
 {
+    /// Maximum buffer size in bytes.
+    uint64_t maxBufferSize;
+
     /// Maximum dimension for 1D textures.
     uint32_t maxTextureDimension1D;
     /// Maximum dimensions for 2D textures.
@@ -2739,6 +2790,10 @@ struct DeviceInfo
 
     /// The clock frequency used in timestamp queries.
     uint64_t timestampFrequency = 0;
+
+    /// The version of OptiX used by the device (0 if OptiX is not supported).
+    /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
+    uint32_t optixVersion = 0;
 };
 
 enum class DebugMessageType
@@ -2818,7 +2873,9 @@ struct DeviceDesc
     // For CUDA, this contains a handle for the device and/or a handle for the context. If context is provided,
     // device is ignored (and retreived from context). If only device is provided, a context is created for it.
     DeviceNativeHandles existingDeviceHandles;
-    // LUID of the adapter to use. Use getGfxAdapters() to get a list of available adapters.
+    // Adapter to use.
+    IAdapter* adapter = nullptr;
+    // LUID of the adapter to use (deprecated).
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
     uint32_t requiredFeatureCount = 0;
@@ -2837,10 +2894,16 @@ struct DeviceDesc
     /// NVAPI shader extension register space.
     uint32_t nvapiExtRegisterSpace = 0;
 
+    /// OptiX version to use (0 to use latest).
+    /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
+    uint32_t requiredOptixVersion = 0;
+
     /// Enable RHI validation layer.
     bool enableValidation = false;
     /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
     bool enableRayTracingValidation = false;
+    /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
+    bool enableAftermath = false;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
 
@@ -3251,6 +3314,14 @@ public:
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount
     ) = 0;
+
+    /// Report status of internal heaps used by the device.
+    /// If heapReports is null, returns the number of heaps in heapCount.
+    /// If heapReports is provided, fills up to *heapCount heap reports and returns actual count.
+    /// @param heapReports [out] Buffer to write heap reports to (can be null for count query)
+    /// @param heapCount [in/out] On input: size of heapReports buffer (ignored if heapReports is null). On output:
+    /// number of heaps available or written
+    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) = 0;
 };
 
 class ITaskPool : public ISlangUnknown
@@ -3320,7 +3391,9 @@ public:
     virtual SLANG_NO_THROW const char* SLANG_MCALL getFeatureName(Feature feature) = 0;
     virtual SLANG_NO_THROW const char* SLANG_MCALL getCapabilityName(Capability capability) = 0;
 
-    /// Gets a list of available adapters for a given device type.
+    virtual SLANG_NO_THROW IAdapter* SLANG_MCALL getAdapter(DeviceType type, uint32_t index) = 0;
+
+    /// Deprecated. Gets a list of available adapters for a given device type.
     virtual SLANG_NO_THROW Result SLANG_MCALL getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) = 0;
 
     inline AdapterList getAdapters(DeviceType type)

@@ -1,14 +1,19 @@
-#include "graphics-heap.h"
+#include "heap.h"
 
 #include "rhi-shared.h"
+#include "core/string.h"
 
 #include <algorithm>
 
 
 namespace rhi {
 
-Result Heap::allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation)
+Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 {
+    // Allow device implementation to fix up descriptor
+    HeapAllocDesc desc = desc_;
+    SLANG_RETURN_ON_FAIL(fixUpAllocDesc(desc));
+
     // Bail with invalid alignment
     if (!math::isPowerOf2(desc.alignment) || desc.alignment == 0)
     {
@@ -136,9 +141,19 @@ Result Heap::removeEmptyPages()
     return SLANG_OK;
 }
 
-Result Heap::report(IHeap::Report* outReport)
+Result Heap::report(HeapReport* outReport)
 {
-    Report res;
+    HeapReport res;
+
+    // Copy the heap's label to the report label field
+    if (m_desc.label && *m_desc.label)
+    {
+        string::copy_safe(res.label, sizeof(res.label), m_desc.label);
+    }
+    else
+    {
+        string::copy_safe(res.label, sizeof(res.label), "Unnamed Heap");
+    }
 
     for (Page* page : m_pages)
     {

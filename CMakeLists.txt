@@ -102,9 +102,14 @@ cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI
 cmake_dependent_option(SLANG_RHI_ENABLE_OPTIX "Enable OptiX support" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
 
+# Enabled OptiX versions
+if(NOT DEFINED SLANG_RHI_OPTIX_VERSIONS)
+    set(SLANG_RHI_OPTIX_VERSIONS "8_0;8_1;9_0")
+endif()
+
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.13.1" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.19" CACHE STRING "Slang version to fetch")
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -137,8 +142,14 @@ if(NOT DEFINED SLANG_RHI_NVAPI_URL)
 endif()
 
 # OptiX headers
-if(NOT DEFINED SLANG_RHI_OPTIX_URL)
-    set(SLANG_RHI_OPTIX_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip") # 9.0.0
+if(NOT DEFINED SLANG_RHI_OPTIX_8_0_URL)
+    set(SLANG_RHI_OPTIX_8_0_URL "https://github.com/NVIDIA/optix-dev/archive/f60c1e44f18426f426a2ed948f28515b3cf67b8a.zip")
+endif()
+if(NOT DEFINED SLANG_RHI_OPTIX_8_1_URL)
+    set(SLANG_RHI_OPTIX_8_1_URL "https://github.com/NVIDIA/optix-dev/archive/50021ea0af6d41609a97777ceebbdf1e1d34efe7.zip")
+endif()
+if(NOT DEFINED SLANG_RHI_OPTIX_9_0_URL)
+    set(SLANG_RHI_OPTIX_9_0_URL "https://github.com/NVIDIA/optix-dev/archive/a1280c1863ff19d87f8e827468a4cc906ba9032a.zip")
 endif()
 
 # Vulkan headers
@@ -153,7 +164,7 @@ endif()
 
 # Dawn WebGPU
 if(NOT DEFINED SLANG_RHI_DAWN_URL)
-    set(DAWN_VERSION "131.0.6738.0")
+    set(DAWN_VERSION "135.0.7049.80")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -341,11 +352,23 @@ endif()
 # Fetch & setup OptiX headers
 if(SLANG_RHI_ENABLE_OPTIX)
     message(STATUS "Fetching OptiX headers ...")
-    FetchPackage(optix URL ${SLANG_RHI_OPTIX_URL})
-    set(SLANG_RHI_OPTIX_INCLUDE_DIR ${optix_SOURCE_DIR}/include)
-    add_library(slang-rhi-optix INTERFACE)
-    target_include_directories(slang-rhi-optix INTERFACE ${SLANG_RHI_OPTIX_INCLUDE_DIR})
-    target_link_libraries(slang-rhi PRIVATE slang-rhi-optix)
+    foreach(optix_version IN LISTS SLANG_RHI_OPTIX_VERSIONS)
+        set(fetch_name "optix_${optix_version}")
+        set(fetch_url "${SLANG_RHI_OPTIX_${optix_version}_URL}")
+        FetchPackage(${fetch_name} URL ${fetch_url})
+        set(target_name "slang-rhi-optix-${optix_version}")
+        add_library(${target_name} INTERFACE)
+        target_include_directories(${target_name} INTERFACE "${${fetch_name}_SOURCE_DIR}/include")
+        # Copy device side headers
+        set(src_dir "${${fetch_name}_SOURCE_DIR}/include")
+        set(dst_dir "optix/${optix_version}")
+        copy_file(${src_dir}/optix.h ${dst_dir})
+        copy_file(${src_dir}/optix_device.h ${dst_dir})
+        copy_file(${src_dir}/optix_types.h ${dst_dir})
+        copy_file(${src_dir}/internal/optix_device_impl.h ${dst_dir}/internal)
+        copy_file(${src_dir}/internal/optix_device_impl_transformations.h ${dst_dir}/internal)
+    endforeach()
+    set(SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR ${SLANG_RHI_BINARY_DIR}/optix)
 endif()
 
 # Fetch & setup Vulkan headers
@@ -400,6 +423,16 @@ cmrc_add_resource_library(
 )
 set_target_properties(slang-rhi-resources PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(slang-rhi PRIVATE slang-rhi-resources)
+
+# Create an "x" for the enabled OptiX versions for use in the config header
+# Sort the versions in descending order so that the highest version is first
+set(SLANG_RHI_OPTIX_VERSIONS_SORTED ${SLANG_RHI_OPTIX_VERSIONS})
+list(SORT SLANG_RHI_OPTIX_VERSIONS_SORTED COMPARE NATURAL)
+list(REVERSE SLANG_RHI_OPTIX_VERSIONS_SORTED)
+set(SLANG_RHI_OPTIX_VERSIONS_X "")
+foreach(ver IN LISTS SLANG_RHI_OPTIX_VERSIONS_SORTED)
+    string(APPEND SLANG_RHI_OPTIX_VERSIONS_X " x(v${ver})")
+endforeach()
 
 # Generate config header
 configure_file(
@@ -483,9 +516,8 @@ target_sources(slang-rhi PRIVATE
     src/device.cpp
     src/device-child.cpp
     src/enum-strings.cpp
-    src/flag-combiner.cpp
     src/format-conversion.cpp
-    src/graphics-heap.cpp
+    src/heap.cpp
     src/pipeline.cpp
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
@@ -506,7 +538,7 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-command-queue.cpp
     src/debug-layer/debug-device.cpp
     src/debug-layer/debug-fence.cpp
-    src/debug-layer/debug-graphics-heap.cpp
+    src/debug-layer/debug-heap.cpp
     src/debug-layer/debug-helper-functions.cpp
     src/debug-layer/debug-query.cpp
     src/debug-layer/debug-shader-object.cpp
@@ -598,6 +630,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
+        src/vulkan/vk-heap.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
@@ -640,16 +673,14 @@ endif()
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
         src/cuda/cuda-acceleration-structure.cpp
-        src/cuda/cuda-api.cpp
         src/cuda/cuda-buffer.cpp
         src/cuda/cuda-clear-engine.cpp
         src/cuda/cuda-command.cpp
         src/cuda/cuda-constant-buffer-pool.cpp
         src/cuda/cuda-device.cpp
         src/cuda/cuda-fence.cpp
-        src/cuda/cuda-graphics-heap.cpp
+        src/cuda/cuda-heap.cpp
         src/cuda/cuda-nvrtc.cpp
-        src/cuda/cuda-dual-page-allocator.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
         src/cuda/cuda-sampler.cpp
@@ -660,7 +691,15 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-surface.cpp
         src/cuda/cuda-texture.cpp
         src/cuda/cuda-utils.cpp
+        src/cuda/optix-api.cpp
     )
+    if(SLANG_RHI_ENABLE_OPTIX)
+        foreach(optix_version IN LISTS SLANG_RHI_OPTIX_VERSIONS)
+            target_sources(slang-rhi PRIVATE "src/cuda/optix-api-impl-${optix_version}.cpp")
+            get_target_property(optix_include_dir "slang-rhi-optix-${optix_version}" INTERFACE_INCLUDE_DIRECTORIES)
+            set_source_files_properties(src/cuda/optix-api-impl-${optix_version}.cpp PROPERTIES COMPILE_FLAGS "-I${optix_include_dir}")
+        endforeach()
+    endif()
 endif()
 
 if(SLANG_RHI_ENABLE_WGPU)
@@ -714,12 +753,13 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/main.cpp
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
-        tests/test-bindless-descriptor-handles.cpp
+        tests/test-bindless.cpp
         tests/test-bind-pointers.cpp
         tests/test-blob.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
+        tests/test-command-encoder.cpp
         tests/test-compilation-report.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
@@ -740,7 +780,7 @@ if(SLANG_RHI_BUILD_TESTS)
         tests/test-device-lifetime.cpp
         tests/test-fence.cpp
         tests/test-formats.cpp
-        tests/test-graphics-heap.cpp
+        tests/test-heap.cpp
         tests/test-link-time-constant.cpp
         tests/test-link-time-default.cpp
         tests/test-link-time-options.cpp
@@ -789,7 +829,7 @@ if(SLANG_RHI_BUILD_TESTS)
         SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
-        SLANG_RHI_OPTIX_INCLUDE_DIR="${SLANG_RHI_OPTIX_INCLUDE_DIR}"
+        SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
         SLANG_RHI_BUILD_TESTS_WITH_GLFW=$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
         $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
@@ -799,9 +839,6 @@ if(SLANG_RHI_BUILD_TESTS)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
-    if(SLANG_RHI_ENABLE_OPTIX)
-        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-optix)
-    endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
@@ -825,6 +862,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
 endif()
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
+add_dependencies(slang-rhi slang-rhi-copy-files)
 
 # Add coverage target if coverage is enabled
 if(SLANG_RHI_ENABLE_COVERAGE)

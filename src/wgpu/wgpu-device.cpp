@@ -14,10 +14,85 @@
 
 namespace rhi::wgpu {
 
-static void errorCallback(WGPUErrorType type, const char* message, void* userdata)
+static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 {
-    DeviceImpl* device = static_cast<DeviceImpl*>(userdata);
-    device->handleError(type, message);
+    // Currently no toggles are needed.
+    static const std::vector<const char*> enabledToggles = {};
+    static const std::vector<const char*> disabledToggles = {};
+    WGPUDawnTogglesDescriptor togglesDesc = {};
+    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
+    togglesDesc.enabledToggleCount = enabledToggles.size();
+    togglesDesc.enabledToggles = enabledToggles.data();
+    togglesDesc.disabledToggleCount = disabledToggles.size();
+    togglesDesc.disabledToggles = disabledToggles.data();
+    return togglesDesc;
+}
+
+static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
+{
+    WGPUInstanceDescriptor instanceDesc = {};
+    instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
+    instanceDesc.nextInChain = &togglesDesc.chain;
+    WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
+    if (!instance)
+    {
+        return SLANG_FAIL;
+    }
+    *outInstance = instance;
+    return SLANG_OK;
+}
+
+#if 0
+
+
+#endif
+
+static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
+{
+    // Request adapter.
+    WGPURequestAdapterOptions options = {};
+    options.powerPreference = WGPUPowerPreference_HighPerformance;
+#if SLANG_WINDOWS_FAMILY
+    // TODO: D3D12 Validation errors prevents use of D3D12, use Vulkan for now.
+    options.backendType = WGPUBackendType_Vulkan;
+#elif SLANG_LINUX_FAMILY
+    options.backendType = WGPUBackendType_Vulkan;
+#endif
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
+    options.nextInChain = &togglesDesc.chain;
+
+    WGPUAdapter adapter = {};
+    {
+        WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
+        WGPURequestAdapterCallbackInfo callbackInfo = {};
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
+                                   WGPUAdapter adapter_,
+                                   WGPUStringView message,
+                                   void* userdata1,
+                                   void* userdata2)
+        {
+            *(WGPURequestAdapterStatus*)userdata1 = status_;
+            *(WGPUAdapter*)userdata2 = adapter_;
+        };
+        callbackInfo.userdata1 = &status;
+        callbackInfo.userdata2 = &adapter;
+        WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
+        WGPUFutureWaitInfo futures[1] = {{future}};
+        uint64_t timeoutNS = UINT64_MAX;
+        WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
+    }
+    if (!adapter)
+    {
+        return SLANG_FAIL;
+    }
+    *outAdapter = adapter;
+    return SLANG_OK;
 }
 
 Context::~Context()
@@ -52,17 +127,30 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-void DeviceImpl::handleError(WGPUErrorType type, const char* message)
+void DeviceImpl::reportError(const char* func, WGPUStringView message)
 {
-    fprintf(stderr, "WGPU error: %s\n", message);
-    this->m_lastError = type;
+    std::string msg = "WGPU error in " + std::string(func) + ": " + std::string(message.data, message.length);
+    m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
 }
 
-WGPUErrorType DeviceImpl::getAndClearLastError()
+void DeviceImpl::reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message)
 {
-    WGPUErrorType lastError = this->m_lastError;
-    this->m_lastError = WGPUErrorType_NoError;
-    return lastError;
+    std::string msg = "WGPU device lost: " + std::string(message.data, message.length);
+    m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
+}
+
+void DeviceImpl::reportUncapturedError(WGPUErrorType type, WGPUStringView message)
+{
+    std::string msg = "WGPU uncaptured error: " + std::string(message.data, message.length);
+    m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
+    this->m_lastUncapturedError = type;
+}
+
+WGPUErrorType DeviceImpl::getAndClearLastUncapturedError()
+{
+    WGPUErrorType error = this->m_lastUncapturedError;
+    this->m_lastUncapturedError = WGPUErrorType_NoError;
+    return error;
 }
 
 Result DeviceImpl::initialize(const DeviceDesc& desc)
@@ -72,81 +160,40 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(m_ctx.api.init());
     API& api = m_ctx.api;
 
-    const std::vector<const char*> enabledToggles = {"use_dxc"};
-    WGPUDawnTogglesDescriptor togglesDesc = {};
-    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
-    togglesDesc.enabledToggleCount = enabledToggles.size();
-    togglesDesc.enabledToggles = enabledToggles.data();
-
-    WGPUInstanceDescriptor instanceDesc = {};
-    instanceDesc.features.timedWaitAnyEnable = WGPUBool(true);
-    instanceDesc.nextInChain = &togglesDesc.chain;
-    m_ctx.instance = api.wgpuCreateInstance(&instanceDesc);
-
-    // Request adapter.
-    WGPURequestAdapterOptions options = {};
-    options.powerPreference = WGPUPowerPreference_HighPerformance;
-#if SLANG_WINDOWS_FAMILY
-    // TODO(webgpu-d3d): New validation error in D3D kills webgpu, so use vulkan for now.
-    options.backendType = WGPUBackendType_Vulkan;
-#elif SLANG_LINUX_FAMILY
-    options.backendType = WGPUBackendType_Vulkan;
-#endif
-    options.nextInChain = &togglesDesc.chain;
-
-    {
-        WGPURequestAdapterStatus status = WGPURequestAdapterStatus_Unknown;
-        WGPURequestAdapterCallbackInfo2 callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
-                                   WGPUAdapter adapter,
-                                   const char* message,
-                                   void* userdata1,
-                                   void* userdata2)
-        {
-            *(WGPURequestAdapterStatus*)userdata1 = status_;
-            *(WGPUAdapter*)userdata2 = adapter;
-        };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &m_ctx.adapter;
-        WGPUFuture future = m_ctx.api.wgpuInstanceRequestAdapter2(m_ctx.instance, &options, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
+    SLANG_RETURN_ON_FAIL(createWGPUInstance(api, &m_ctx.instance));
+    SLANG_RETURN_ON_FAIL(createWGPUAdapter(api, m_ctx.instance, &m_ctx.adapter));
 
     // Query adapter limits.
-    WGPUSupportedLimits adapterLimits = {};
+    WGPULimits adapterLimits = {};
     api.wgpuAdapterGetLimits(m_ctx.adapter, &adapterLimits);
 
     // Query adapter features.
-    size_t adapterFeatureCount = api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, nullptr);
-    std::vector<WGPUFeatureName> adapterFeatures(adapterFeatureCount);
-    api.wgpuAdapterEnumerateFeatures(m_ctx.adapter, adapterFeatures.data());
+    WGPUSupportedFeatures adapterFeatures = {};
+    api.wgpuAdapterGetFeatures(m_ctx.adapter, &adapterFeatures);
 
     // We request a device with the maximum available limits and feature set.
-    WGPURequiredLimits requiredLimits = {};
-    requiredLimits.limits = adapterLimits.limits;
+    WGPULimits requiredLimits = adapterLimits;
     WGPUDeviceDescriptor deviceDesc = {};
-    deviceDesc.requiredFeatures = adapterFeatures.data();
-    deviceDesc.requiredFeatureCount = adapterFeatures.size();
+    deviceDesc.requiredFeatures = adapterFeatures.features;
+    deviceDesc.requiredFeatureCount = adapterFeatures.featureCount;
     deviceDesc.requiredLimits = &requiredLimits;
-    deviceDesc.uncapturedErrorCallbackInfo.callback = errorCallback;
-    deviceDesc.uncapturedErrorCallbackInfo.userdata = this;
+    deviceDesc.uncapturedErrorCallbackInfo.callback =
+        [](const WGPUDevice* device, WGPUErrorType type, WGPUStringView message, void* userdata1, void* userdata2)
+    {
+        DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(userdata1);
+        deviceImpl->reportUncapturedError(type, message);
+    };
+    deviceDesc.uncapturedErrorCallbackInfo.userdata1 = this;
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
 
     {
-        WGPURequestDeviceStatus status = WGPURequestDeviceStatus_Unknown;
-        WGPURequestDeviceCallbackInfo2 callbackInfo = {};
+        WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
+        WGPURequestDeviceCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPURequestDeviceStatus status_,
                                    WGPUDevice device,
-                                   const char* message,
+                                   WGPUStringView message,
                                    void* userdata1,
                                    void* userdata2)
         {
@@ -156,24 +203,24 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = &m_ctx.device;
 
-        WGPUDeviceLostCallbackInfo2 deviceLostCallbackInfo = {};
+        WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = {};
         deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
                                              WGPUDeviceLostReason reason,
-                                             const char* message,
+                                             WGPUStringView message,
                                              void* userdata1,
                                              void* userdata2)
         {
             if (reason != WGPUDeviceLostReason_Destroyed)
             {
                 DeviceImpl* deviceimpl = static_cast<DeviceImpl*>(userdata1);
-                deviceimpl->handleError(WGPUErrorType_DeviceLost, message);
+                deviceimpl->reportDeviceLost(reason, message);
             }
         };
         deviceLostCallbackInfo.userdata1 = this;
         deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
-        deviceDesc.deviceLostCallbackInfo2 = deviceLostCallbackInfo;
+        deviceDesc.deviceLostCallbackInfo = deviceLostCallbackInfo;
 
-        WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice2(m_ctx.adapter, &deviceDesc, callbackInfo);
+        WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
@@ -185,46 +232,54 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Query device limits.
-    WGPUSupportedLimits supportedLimits = {};
+    WGPULimits supportedLimits = {};
     api.wgpuDeviceGetLimits(m_ctx.device, &supportedLimits);
-    m_ctx.limits = supportedLimits.limits;
+    m_ctx.limits = supportedLimits;
 
     // Query device features.
-    size_t deviceFeatureCount = api.wgpuDeviceEnumerateFeatures(m_ctx.device, nullptr);
-    std::vector<WGPUFeatureName> deviceFeatures(deviceFeatureCount);
-    api.wgpuDeviceEnumerateFeatures(m_ctx.device, deviceFeatures.data());
-    m_ctx.features.insert(deviceFeatures.begin(), deviceFeatures.end());
+    WGPUSupportedFeatures supportedFeatures = {};
+    api.wgpuDeviceGetFeatures(m_ctx.device, &supportedFeatures);
+    m_ctx.features.insert(supportedFeatures.features, supportedFeatures.features + supportedFeatures.featureCount);
 
     // Initialize device info.
     {
         m_info.deviceType = DeviceType::WGPU;
         m_info.apiName = "WGPU";
-        m_info.adapterName = "default";
         m_info.adapterLUID = {};
+
+        WGPUAdapterInfo wgpuAdapterInfo = {};
+        api.wgpuAdapterGetInfo(m_ctx.adapter, &wgpuAdapterInfo);
+        m_adapterName = std::string(wgpuAdapterInfo.device.data, wgpuAdapterInfo.device.length);
+        m_info.adapterName = m_adapterName.c_str();
     }
 
     // Initialize device limits.
     {
-        m_info.limits.maxTextureDimension1D = m_ctx.limits.maxTextureDimension1D;
-        m_info.limits.maxTextureDimension2D = m_ctx.limits.maxTextureDimension2D;
-        m_info.limits.maxTextureDimension3D = m_ctx.limits.maxTextureDimension3D;
-        m_info.limits.maxTextureDimensionCube = m_ctx.limits.maxTextureDimension2D;
-        m_info.limits.maxTextureLayers = m_ctx.limits.maxTextureArrayLayers;
-        m_info.limits.maxVertexInputElements = m_ctx.limits.maxVertexAttributes;
-        m_info.limits.maxVertexInputElementOffset = m_ctx.limits.maxVertexBufferArrayStride;
-        m_info.limits.maxVertexStreams = m_ctx.limits.maxVertexBuffers;
-        m_info.limits.maxVertexStreamStride = m_ctx.limits.maxVertexBufferArrayStride;
-        m_info.limits.maxComputeThreadsPerGroup = m_ctx.limits.maxComputeInvocationsPerWorkgroup;
-        m_info.limits.maxComputeThreadGroupSize[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
-        m_info.limits.maxComputeThreadGroupSize[1] = m_ctx.limits.maxComputeWorkgroupSizeY;
-        m_info.limits.maxComputeThreadGroupSize[2] = m_ctx.limits.maxComputeWorkgroupSizeZ;
-        m_info.limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        m_info.limits.maxComputeDispatchThreadGroups[1] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        m_info.limits.maxComputeDispatchThreadGroups[2] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
-        // m_info.limits.maxViewports
-        // m_info.limits.maxViewportDimensions[2]
-        // m_info.limits.maxFramebufferDimensions[3]
-        m_info.limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
+        DeviceLimits& limits = m_info.limits;
+        limits.maxBufferSize = m_ctx.limits.maxBufferSize;
+        limits.maxTextureDimension1D = m_ctx.limits.maxTextureDimension1D;
+        limits.maxTextureDimension2D = m_ctx.limits.maxTextureDimension2D;
+        limits.maxTextureDimension3D = m_ctx.limits.maxTextureDimension3D;
+        limits.maxTextureDimensionCube = m_ctx.limits.maxTextureDimension2D;
+        limits.maxTextureLayers = m_ctx.limits.maxTextureArrayLayers;
+        limits.maxVertexInputElements = m_ctx.limits.maxVertexAttributes;
+        limits.maxVertexInputElementOffset = m_ctx.limits.maxVertexBufferArrayStride;
+        limits.maxVertexStreams = m_ctx.limits.maxVertexBuffers;
+        limits.maxVertexStreamStride = m_ctx.limits.maxVertexBufferArrayStride;
+        limits.maxComputeThreadsPerGroup = m_ctx.limits.maxComputeInvocationsPerWorkgroup;
+        limits.maxComputeThreadGroupSize[0] = m_ctx.limits.maxComputeWorkgroupSizeX;
+        limits.maxComputeThreadGroupSize[1] = m_ctx.limits.maxComputeWorkgroupSizeY;
+        limits.maxComputeThreadGroupSize[2] = m_ctx.limits.maxComputeWorkgroupSizeZ;
+        limits.maxComputeDispatchThreadGroups[0] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxComputeDispatchThreadGroups[1] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxComputeDispatchThreadGroups[2] = m_ctx.limits.maxComputeWorkgroupsPerDimension;
+        limits.maxViewports = 1;
+        limits.maxViewportDimensions[0] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxViewportDimensions[1] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[0] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[1] = m_ctx.limits.maxTextureDimension2D;
+        limits.maxFramebufferDimensions[2] = m_ctx.limits.maxTextureArrayLayers;
+        limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
     }
 
     // Initialize features & capabilities.
@@ -464,13 +519,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Wait for the command buffer to finish executing
     {
-        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus_Unknown;
-        WGPUQueueWorkDoneCallbackInfo2 callbackInfo = {};
+        WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
+        WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
         { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
         callbackInfo.userdata1 = &status;
-        WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone2(queue, callbackInfo);
+        WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
@@ -483,13 +538,20 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Map the staging buffer
     {
-        WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Unknown;
-        WGPUBufferMapCallbackInfo2 callbackInfo = {};
+        WGPUMapAsyncStatus status = WGPUMapAsyncStatus(0);
+        WGPUBufferMapCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPUMapAsyncStatus status_, const char* message, void* userdata1, void* userdata2)
-        { *(WGPUMapAsyncStatus*)userdata1 = status_; };
+        callbackInfo.callback = [](WGPUMapAsyncStatus status_, WGPUStringView message, void* userdata1, void* userdata2)
+        {
+            *(WGPUMapAsyncStatus*)userdata1 = status_;
+            if (status_ != WGPUMapAsyncStatus_Success)
+            {
+                static_cast<DeviceImpl*>(userdata2)->reportError("wgpuBufferMapAsync", message);
+            }
+        };
         callbackInfo.userdata1 = &status;
-        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync2(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
+        callbackInfo.userdata2 = this;
+        WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
@@ -549,21 +611,78 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
+inline Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
+{
+    // If WGPU is not available, return no adapters.
+    API api;
+    if (SLANG_FAILED(api.init()))
+    {
+        return SLANG_OK;
+    }
+
+    WGPUInstance wgpuInstance = {};
+    SLANG_RETURN_ON_FAIL(createWGPUInstance(api, &wgpuInstance));
+    SLANG_RHI_DEFERRED({ api.wgpuInstanceRelease(wgpuInstance); });
+
+    WGPUAdapter wgpuAdapter = {};
+    SLANG_RETURN_ON_FAIL(createWGPUAdapter(api, wgpuInstance, &wgpuAdapter));
+    SLANG_RHI_DEFERRED({ api.wgpuAdapterRelease(wgpuAdapter); });
+
+    WGPUAdapterInfo wgpuAdapterInfo = {};
+    api.wgpuAdapterGetInfo(wgpuAdapter, &wgpuAdapterInfo);
+
+    AdapterInfo info = {};
+    info.deviceType = DeviceType::WGPU;
+    switch (wgpuAdapterInfo.adapterType)
+    {
+    case WGPUAdapterType_DiscreteGPU:
+        info.adapterType = AdapterType::Discrete;
+        break;
+    case WGPUAdapterType_IntegratedGPU:
+        info.adapterType = AdapterType::Integrated;
+        break;
+    case WGPUAdapterType_CPU:
+        info.adapterType = AdapterType::Software;
+        break;
+    default:
+        info.adapterType = AdapterType::Unknown;
+        break;
+    }
+    string::copy_safe(info.name, sizeof(info.name), wgpuAdapterInfo.device.data, wgpuAdapterInfo.device.length);
+    info.vendorID = wgpuAdapterInfo.vendorID;
+    info.deviceID = wgpuAdapterInfo.deviceID;
+
+    Adapter adapter;
+    adapter.m_info = info;
+    adapter.m_isDefault = true;
+    outAdapters.push_back(adapter);
+
+    return SLANG_OK;
+}
+
+std::vector<Adapter>& getAdapters()
+{
+    static std::vector<Adapter> adapters;
+    static Result initResult = getAdaptersImpl(adapters);
+    SLANG_UNUSED(initResult);
+    return adapters;
+}
+
 } // namespace rhi::wgpu
 
 namespace rhi {
 
-Result SLANG_MCALL getWGPUAdapters(std::vector<AdapterInfo>& outAdapters)
+IAdapter* getWGPUAdapter(uint32_t index)
 {
-    // TODO: implement
-    return SLANG_OK;
+    std::vector<Adapter>& adapters = wgpu::getAdapters();
+    return index < adapters.size() ? &adapters[index] : nullptr;
 }
 
-Result SLANG_MCALL createWGPUDevice(const DeviceDesc* desc, IDevice** outRenderer)
+Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice)
 {
     RefPtr<wgpu::DeviceImpl> result = new wgpu::DeviceImpl();
     SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outRenderer, result);
+    returnComPtr(outDevice, result);
     return SLANG_OK;
 }
 

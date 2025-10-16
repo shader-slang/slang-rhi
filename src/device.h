@@ -17,10 +17,31 @@
 
 namespace rhi {
 
+// Forward declarations
+class Heap;
+
 namespace testing {
 // Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
 extern bool gDebugDisableStateTracking;
 } // namespace testing
+
+// Base class for adapters.
+// We specifically don't use ComObject as we don't want ref counting.
+// Adapters are lazily created and stored in static vectors and only released on program exit.
+class Adapter : public IAdapter
+{
+public:
+    virtual ~Adapter() {}
+
+    virtual SLANG_NO_THROW const AdapterInfo& SLANG_MCALL getInfo() const override { return m_info; }
+
+    bool isNVIDIA() const { return m_info.vendorID == 0x10DE || m_info.deviceType == DeviceType::CUDA; }
+
+public:
+    AdapterInfo m_info;
+    /// True if this is the default adapter to use during automatic adapter selection.
+    bool m_isDefault = false;
+};
 
 struct ComponentKey
 {
@@ -298,6 +319,12 @@ public:
         uint32_t descCount
     ) override;
 
+    // Provides a default implementation that reports heaps from m_globalHeaps.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) override;
+
+    // Flush all global heaps managed by this device
+    Result flushHeaps();
+
     Result getEntryPointCodeFromShaderCache(
         ShaderProgram* program,
         slang::IComponentType* componentType,
@@ -320,7 +347,6 @@ public:
         slang::TypeLayoutReflection* typeLayout,
         ShaderObjectLayout** outLayout
     );
-
 
 public:
     inline void handleMessage(DebugMessageType type, DebugMessageSource source, const char* message)
@@ -401,7 +427,93 @@ public:
 
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
 
+    // List of heaps managed by this device. DeviceImpl is expected
+    // to hold references to them.
+    std::vector<Heap*> m_globalHeaps;
+
     IDebugCallback* m_debugCallback = nullptr;
 };
+
+/// Mark the default adapter in the list, preferring the first discrete adapter.
+template<typename T>
+void markDefaultAdapter(std::vector<T>& adapters)
+{
+    if (!adapters.empty())
+    {
+        size_t best = 0;
+        for (size_t i = 0; i < adapters.size(); i++)
+        {
+            if (adapters[i].m_info.adapterType == AdapterType::Discrete)
+            {
+                best = i;
+                break;
+            }
+        }
+        adapters[best].m_isDefault = true;
+    }
+}
+
+template<typename T>
+Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc& desc, T*& outAdapter)
+{
+    if (adapters.empty())
+    {
+        device->printError("No adapters found\n");
+        return SLANG_FAIL;
+    }
+    if (desc.adapter)
+    {
+        // Select provided adapter, check it is valid.
+        bool valid = false;
+        for (auto& adapter : adapters)
+        {
+            if (&adapter == desc.adapter)
+            {
+                valid = true;
+                break;
+            }
+        }
+        if (!valid)
+        {
+            device->printError("Invalid adapter\n");
+            return SLANG_FAIL;
+        }
+        outAdapter = checked_cast<T*>(desc.adapter);
+    }
+    else if (desc.adapterLUID)
+    {
+        // Select adapter based on LUID.
+        bool found = false;
+        for (auto& adapter : adapters)
+        {
+            if (adapter.getInfo().luid == *desc.adapterLUID)
+            {
+                outAdapter = &adapter;
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            device->printError("Invalid adapter LUID\n");
+            return SLANG_FAIL;
+        }
+    }
+    else
+    {
+        // Select the default adapter or the first one if no default is available.
+        outAdapter = &adapters[0];
+        for (auto& adapter : adapters)
+        {
+            if (adapter.m_isDefault)
+            {
+                outAdapter = &adapter;
+                break;
+            }
+        }
+    }
+    return SLANG_OK;
+}
+
 
 } // namespace rhi

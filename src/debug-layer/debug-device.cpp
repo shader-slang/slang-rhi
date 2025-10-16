@@ -1,7 +1,7 @@
 #include "debug-device.h"
 #include "debug-command-queue.h"
 #include "debug-fence.h"
-#include "debug-graphics-heap.h"
+#include "debug-heap.h"
 #include "debug-helper-functions.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
@@ -438,7 +438,7 @@ Result DebugDevice::getAccelerationStructureSizes(
 )
 {
     SLANG_RHI_API_FUNC;
-    validateAccelerationStructureBuildDesc(ctx, desc);
+    SLANG_RETURN_ON_FAIL(validateAccelerationStructureBuildDesc(ctx, desc));
     return baseObject->getAccelerationStructureSizes(desc, outSizes);
 }
 
@@ -767,6 +767,14 @@ Result DebugDevice::waitForFences(
 
 Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
 {
+    HeapDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createHeapLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
     RefPtr<DebugHeap> result = new DebugHeap(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createHeap(desc, result->baseObject.writeRef()));
     returnComPtr(outHeap, result);
@@ -802,6 +810,13 @@ Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable*
     SLANG_RHI_API_FUNC;
 
     return baseObject->createShaderTable(desc, outTable);
+}
+
+Result DebugDevice::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
+{
+    SLANG_RHI_API_FUNC;
+
+    return baseObject->reportHeaps(heapReports, heapCount);
 }
 
 } // namespace rhi::debug

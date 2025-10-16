@@ -212,7 +212,7 @@ Result SurfaceImpl::createVulkanInstance()
 {
     SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
 
-    SLANG_RETURN_ON_FAIL(m_module.init(false));
+    SLANG_RETURN_ON_FAIL(m_module.init());
     SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
 
     VkApplicationInfo applicationInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
@@ -592,7 +592,7 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
 #endif
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(
             cuImportExternalSemaphore(&frameData.cudaSemaphore, &externalSemaphoreHandleDesc),
-            m_deviceImpl->m_debugCallback
+            m_deviceImpl.get()
         );
     }
 

@@ -2,6 +2,7 @@
 
 #include "rhi-shared.h"
 #include "shader.h"
+#include "heap.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -222,6 +223,22 @@ Result Device::getConcretePipeline(
     Pipeline*& outPipeline
 )
 {
+    // Virtual pipelines are created due to 2 reasons:
+    //
+    // 1) When the user creates a pipeline with a program that has undefined specialization arguments, there is no way
+    // to compile target code to create the backend pipeline resources during creation time. Therefore, a virtual
+    // pipeline is created which needs to be specialized later (during dispatch time, when specialization arguments are
+    // known).
+    //
+    // 2) The user requests deferred compilation of target code when creating a pipeline, in which case the
+    // backend resources are not created until they are needed (during dispatch time).
+    //
+    // This code handles both these cases. For the specialization case, we query the device's pipeline cache for
+    // a specialized pipeline that matches the specialization arguments provided. If not found, we specialize
+    // the program, compile the target code, create the backend resources and cache the specialized pipeline
+    // For the deferred case, we simply create the backend resources and keep a reference to the concrete pipeline
+    // in the virtual one for later use.
+
     // If this is already a concrete pipeline, then we are done.
     if (!pipeline->isVirtual())
     {
@@ -229,73 +246,96 @@ Result Device::getConcretePipeline(
         return SLANG_OK;
     }
 
-    // Create key for looking up cached pipelines.
+    // Return early if we previously created a concrete pipeline for this virtual pipeline.
+    outPipeline = pipeline->getConcretePipeline();
+    if (outPipeline)
+    {
+        return SLANG_OK;
+    }
+
+    // Check if program is specializable (if it has specialization arguments).
+    bool isSpecializable = pipeline->m_program->isSpecializable();
+
+    // If the pipeline is specializable, collect specialization arguments from bound shader objects
+    // and lookup the cache.
     PipelineKey pipelineKey;
     pipelineKey.pipeline = pipeline;
-
-    // If the pipeline is specializable, collect specialization arguments from bound shader objects.
-    if (pipeline->m_program->isSpecializable())
+    if (isSpecializable)
     {
         if (!specializationArgs)
+        {
             return SLANG_FAIL;
+        }
         for (const auto& componentID : specializationArgs->componentIDs)
         {
             pipelineKey.specializationArgs.push_back(componentID);
         }
+        pipelineKey.updateHash();
+        outPipeline = m_shaderCache.getSpecializedPipeline(pipelineKey);
+        if (outPipeline)
+        {
+            return SLANG_OK;
+        }
     }
 
-    // Look up pipeline in cache.
-    pipelineKey.updateHash();
-    RefPtr<Pipeline> concretePipeline = m_shaderCache.getSpecializedPipeline(pipelineKey);
-    if (!concretePipeline)
+    // At this point we need to create a new concrete pipeline.
+    RefPtr<ShaderProgram> program = pipeline->m_program;
+    if (isSpecializable)
     {
-        // Specialize program if needed.
-        RefPtr<ShaderProgram> program = pipeline->m_program;
-        if (program->isSpecializable())
-        {
-            RefPtr<ShaderProgram> specializedProgram;
-            SLANG_RETURN_ON_FAIL(specializeProgram(program, *specializationArgs, specializedProgram.writeRef()));
-            program = specializedProgram;
-            // Program is owned by the specialized pipeline (which is owned by the device).
-            program->breakStrongReferenceToDevice();
-        }
+        RefPtr<ShaderProgram> specializedProgram;
+        SLANG_RETURN_ON_FAIL(specializeProgram(program, *specializationArgs, specializedProgram.writeRef()));
+        program = specializedProgram;
+    }
 
-        // Ensure sure shaders are compiled.
-        SLANG_RETURN_ON_FAIL(program->compileShaders(this));
+    // Ensure sure shaders are compiled.
+    SLANG_RETURN_ON_FAIL(program->compileShaders(this));
 
-        switch (pipeline->getType())
-        {
-        case PipelineType::Render:
-        {
-            RenderPipelineDesc desc = checked_cast<VirtualRenderPipeline*>(pipeline)->m_desc;
-            desc.program = program;
-            ComPtr<IRenderPipeline> renderPipeline;
-            SLANG_RETURN_ON_FAIL(createRenderPipeline2(desc, renderPipeline.writeRef()));
-            concretePipeline = checked_cast<RenderPipeline*>(renderPipeline.get());
-            break;
-        }
-        case PipelineType::Compute:
-        {
-            ComputePipelineDesc desc = checked_cast<VirtualComputePipeline*>(pipeline)->m_desc;
-            desc.program = program;
-            ComPtr<IComputePipeline> computePipeline;
-            SLANG_RETURN_ON_FAIL(createComputePipeline2(desc, computePipeline.writeRef()));
-            concretePipeline = checked_cast<ComputePipeline*>(computePipeline.get());
-            break;
-        }
-        case PipelineType::RayTracing:
-        {
-            RayTracingPipelineDesc desc = checked_cast<VirtualRayTracingPipeline*>(pipeline)->m_desc;
-            desc.program = program;
-            ComPtr<IRayTracingPipeline> rayTracingPipeline;
-            SLANG_RETURN_ON_FAIL(createRayTracingPipeline2(desc, rayTracingPipeline.writeRef()));
-            concretePipeline = checked_cast<RayTracingPipeline*>(rayTracingPipeline.get());
-            break;
-        }
-        }
+    // Create a new concrete pipeline.
+    RefPtr<Pipeline> concretePipeline;
+    switch (pipeline->getType())
+    {
+    case PipelineType::Render:
+    {
+        RenderPipelineDesc desc = checked_cast<VirtualRenderPipeline*>(pipeline)->m_desc;
+        desc.program = program;
+        ComPtr<IRenderPipeline> renderPipeline;
+        SLANG_RETURN_ON_FAIL(createRenderPipeline2(desc, renderPipeline.writeRef()));
+        concretePipeline = checked_cast<RenderPipeline*>(renderPipeline.get());
+        break;
+    }
+    case PipelineType::Compute:
+    {
+        ComputePipelineDesc desc = checked_cast<VirtualComputePipeline*>(pipeline)->m_desc;
+        desc.program = program;
+        ComPtr<IComputePipeline> computePipeline;
+        SLANG_RETURN_ON_FAIL(createComputePipeline2(desc, computePipeline.writeRef()));
+        concretePipeline = checked_cast<ComputePipeline*>(computePipeline.get());
+        break;
+    }
+    case PipelineType::RayTracing:
+    {
+        RayTracingPipelineDesc desc = checked_cast<VirtualRayTracingPipeline*>(pipeline)->m_desc;
+        desc.program = program;
+        ComPtr<IRayTracingPipeline> rayTracingPipeline;
+        SLANG_RETURN_ON_FAIL(createRayTracingPipeline2(desc, rayTracingPipeline.writeRef()));
+        concretePipeline = checked_cast<RayTracingPipeline*>(rayTracingPipeline.get());
+        break;
+    }
+    }
+
+    if (isSpecializable)
+    {
+        // Cache the specialized pipeline for later use.
         m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
         // Pipeline is owned by the cache.
         concretePipeline->breakStrongReferenceToDevice();
+        // Program is owned by the specialized pipeline (which is owned by the cache).
+        concretePipeline->m_program->breakStrongReferenceToDevice();
+    }
+    else
+    {
+        // Store the concrete pipeline in the virtual one.
+        pipeline->setConcretePipeline(concretePipeline);
     }
 
     outPipeline = concretePipeline;
@@ -549,7 +589,7 @@ Result Device::getCapabilities(uint32_t* outCapabilityCount, Capability* outCapa
 
 bool Device::hasCapability(Capability capability)
 {
-    return size_t(capability) < size_t(Capability::_Count) ? m_featureSet[size_t(capability)] : false;
+    return size_t(capability) < size_t(Capability::_Count) ? m_capabilitySet[size_t(capability)] : false;
 }
 
 bool Device::hasCapability(const char* capability)
@@ -633,7 +673,7 @@ Result Device::createInputLayout(const InputLayoutDesc& desc, IInputLayout** out
 Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = program->isSpecializable();
+    bool createVirtual = desc.deferTargetCompilation | program->isSpecializable();
     if (createVirtual)
     {
         RefPtr<VirtualRenderPipeline> pipeline = new VirtualRenderPipeline(this, desc);
@@ -650,7 +690,7 @@ Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipel
 Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = program->isSpecializable();
+    bool createVirtual = desc.deferTargetCompilation | program->isSpecializable();
     if (createVirtual)
     {
         RefPtr<VirtualComputePipeline> pipeline = new VirtualComputePipeline(this, desc);
@@ -667,7 +707,7 @@ Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePi
 Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = program->isSpecializable();
+    bool createVirtual = desc.deferTargetCompilation | program->isSpecializable();
     if (createVirtual)
     {
         RefPtr<VirtualRayTracingPipeline> pipeline = new VirtualRayTracingPipeline(this, desc);
@@ -908,6 +948,43 @@ Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatr
     SLANG_UNUSED(descs);
     SLANG_UNUSED(descCount);
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
+{
+    if (!heapCount)
+        return SLANG_E_INVALID_ARG;
+
+    uint32_t totalHeapCount = static_cast<uint32_t>(m_globalHeaps.size());
+
+    // If only querying count, return early
+    if (!heapReports)
+    {
+        *heapCount = totalHeapCount;
+        return SLANG_OK;
+    }
+
+    // If buffer is provided, it must be large enough
+    if (*heapCount < totalHeapCount)
+        return SLANG_E_BUFFER_TOO_SMALL;
+
+    // Fill heap reports
+    for (uint32_t i = 0; i < totalHeapCount; i++)
+    {
+        SLANG_RETURN_ON_FAIL(m_globalHeaps[i]->report(&heapReports[i]));
+    }
+
+    *heapCount = totalHeapCount;
+    return SLANG_OK;
+}
+
+Result Device::flushHeaps()
+{
+    for (Heap* heap : m_globalHeaps)
+    {
+        SLANG_RETURN_ON_FAIL(heap->flush());
+    }
+    return SLANG_OK;
 }
 
 Result Device::getShaderObjectLayout(

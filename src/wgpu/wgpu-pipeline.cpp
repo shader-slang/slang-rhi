@@ -48,7 +48,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     pipelineDesc.layout = program->m_rootObjectLayout->m_pipelineLayout;
 
     pipelineDesc.vertex.module = vertexModule->module;
-    pipelineDesc.vertex.entryPoint = vertexModule->entryPointName.c_str();
+    pipelineDesc.vertex.entryPoint = translateString(vertexModule->entryPointName.c_str());
     pipelineDesc.vertex.buffers = inputLayout->m_vertexBufferLayouts.data();
     pipelineDesc.vertex.bufferCount = (uint32_t)inputLayout->m_vertexBufferLayouts.size();
 
@@ -114,12 +114,12 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     WGPUFragmentState fragment = {};
     fragment.module = fragmentModule->module;
-    fragment.entryPoint = fragmentModule->entryPointName.c_str();
+    fragment.entryPoint = translateString(fragmentModule->entryPointName.c_str());
     fragment.targetCount = targets.size();
     fragment.targets = targets.data();
     pipelineDesc.fragment = &fragment;
 
-    pipelineDesc.label = desc.label;
+    pipelineDesc.label = translateString(desc.label);
 
     WGPURenderPipeline renderPipeline = {};
     renderPipeline = m_ctx.api.wgpuDeviceCreateRenderPipeline(m_ctx.device, &pipelineDesc);
@@ -186,9 +186,9 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     WGPUComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.layout = program->m_rootObjectLayout->m_pipelineLayout;
     pipelineDesc.compute.module = computeModule->module;
-    pipelineDesc.compute.entryPoint = computeModule->entryPointName.c_str();
+    pipelineDesc.compute.entryPoint = translateString(computeModule->entryPointName.c_str());
 
-    pipelineDesc.label = desc.label;
+    pipelineDesc.label = translateString(desc.label);
 
     WGPUComputePipeline computePipeline = {};
     computePipeline = m_ctx.api.wgpuDeviceCreateComputePipeline(m_ctx.device, &pipelineDesc);

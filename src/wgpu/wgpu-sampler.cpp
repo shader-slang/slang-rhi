@@ -41,7 +41,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
         samplerDesc.compare = translateCompareFunction(desc.comparisonFunc);
     }
     samplerDesc.maxAnisotropy = desc.maxAnisotropy;
-    samplerDesc.label = desc.label;
+    samplerDesc.label = translateString(desc.label);
     sampler->m_sampler = m_ctx.api.wgpuDeviceCreateSampler(m_ctx.device, &samplerDesc);
     if (!sampler->m_sampler)
     {

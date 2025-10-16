@@ -23,13 +23,11 @@ public:
     bool m_computeStateValid = false;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
-#if SLANG_RHI_ENABLE_OPTIX
     bool m_rayTracingPassActive = false;
     bool m_rayTracingStateValid = false;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
-    ShaderTableImpl::Instance* m_shaderTableInstance = nullptr;
-#endif
+    optix::ShaderBindingTable* m_shaderBindingTable = nullptr;
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -442,22 +440,28 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     const auto& entryPointData = bindingData->entryPoints[computePipeline->m_kernelIndex];
 
     // Copy global parameter data to the `SLANG_globalParams` symbol.
+    if (computePipeline->m_globalParams)
     {
-        CUdeviceptr globalParamsSymbol = 0;
-        size_t globalParamsSymbolSize = 0;
-        CUresult result = cuModuleGetGlobal(
-            &globalParamsSymbol,
-            &globalParamsSymbolSize,
-            computePipeline->m_module,
-            "SLANG_globalParams"
-        );
-        if (result == CUDA_SUCCESS)
+        // TODO: Slang sometimes computes the size of the global parameters layout incorrectly.
+        // Instead of the assert, we currently warn about this mismatch once.
+        // SLANG_RHI_ASSERT(computePipeline->m_globalParamsSize == bindingData->globalParamsSize);
+        if (computePipeline->m_globalParamsSize != bindingData->globalParamsSize &&
+            !computePipeline->m_warnedAboutGlobalParamsSizeMismatch)
         {
-            SLANG_RHI_ASSERT(globalParamsSymbolSize == bindingData->globalParamsSize);
-            SLANG_CUDA_ASSERT_ON_FAIL(
-                cuMemcpyAsync(globalParamsSymbol, bindingData->globalParams, globalParamsSymbolSize, m_stream)
+            m_device->printWarning(
+                "Warning: Incorrect global parameter size (expected %llu, got %llu) for pipeline %s",
+                computePipeline->m_globalParamsSize,
+                bindingData->globalParamsSize,
+                computePipeline->m_kernelName.c_str()
             );
+            computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
         }
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
+            computePipeline->m_globalParams,
+            bindingData->globalParams,
+            min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
+            m_stream
+        ));
     }
 
     // The argument data for the entry-point parameters are already
@@ -496,154 +500,76 @@ void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchCompute
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-#if SLANG_RHI_ENABLE_OPTIX
     m_rayTracingPassActive = true;
-#else
-    NOT_SUPPORTED(S_CommandEncoder_beginRayTracingPass);
-#endif
 }
 
 void CommandExecutor::cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-#if SLANG_RHI_ENABLE_OPTIX
     m_rayTracingPassActive = false;
-#endif
 }
 
 void CommandExecutor::cmdSetRayTracingState(const commands::SetRayTracingState& cmd)
 {
-#if SLANG_RHI_ENABLE_OPTIX
     if (!m_rayTracingPassActive)
         return;
 
     m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
     m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
     m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
-    m_shaderTableInstance = m_shaderTable ? m_shaderTable->getInstance(m_rayTracingPipeline) : nullptr;
+    m_shaderBindingTable = m_shaderTable ? m_shaderTable->getShaderBindingTable(m_rayTracingPipeline) : nullptr;
     m_rayTracingStateValid = m_rayTracingPipeline && m_bindingData && m_shaderTable;
-#else
-    SLANG_UNUSED(cmd);
-#endif
 }
 
 void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
-#if SLANG_RHI_ENABLE_OPTIX
     if (!m_rayTracingStateValid)
         return;
 
+    if (!m_device->m_ctx.optixContext)
+        return;
+
     BindingDataImpl* bindingData = m_bindingData;
-
-    OptixShaderBindingTable sbt = m_shaderTableInstance->sbt;
-    sbt.raygenRecord += cmd.rayGenShaderIndex * m_shaderTableInstance->raygenRecordSize;
-
-    SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
-        m_rayTracingPipeline->m_pipeline,
+    m_device->m_ctx.optixContext->dispatchRays(
         m_stream,
+        m_rayTracingPipeline->m_optixPipeline,
         bindingData->globalParams,
         bindingData->globalParamsSize,
-        &sbt,
+        m_shaderBindingTable,
+        cmd.rayGenShaderIndex,
         cmd.width,
         cmd.height,
         cmd.depth
-    ));
-#else
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RayTracingPassEncoder_dispatchRays);
-#endif
+    );
 }
 
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
-#if SLANG_RHI_ENABLE_OPTIX
-    AccelerationStructureBuildDescConverter converter;
-    if (converter.convert(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
+    if (!m_device->m_ctx.optixContext)
         return;
 
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-
-    short_vector<OptixAccelEmitDesc, 8> emittedProperties;
-    for (uint32_t i = 0; i < cmd.propertyQueryCount; i++)
-    {
-        if (cmd.queryDescs[i].queryType == QueryType::AccelerationStructureCompactedSize)
-        {
-            PlainBufferProxyQueryPoolImpl* queryPool =
-                checked_cast<PlainBufferProxyQueryPoolImpl*>(cmd.queryDescs[i].queryPool);
-            OptixAccelEmitDesc property = {};
-            property.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
-            property.result = queryPool->m_buffer + cmd.queryDescs[i].firstQueryIndex * sizeof(uint64_t);
-            emittedProperties.push_back(property);
-        }
-    }
-
-    SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelBuild(
-        m_device->m_ctx.optixContext,
+    m_device->m_ctx.optixContext->buildAccelerationStructure(
         m_stream,
-        &converter.buildOptions,
-        converter.buildInputs.data(),
-        converter.buildInputs.size(),
-        cmd.scratchBuffer.getDeviceAddress(),
-        checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer)->m_desc.size - cmd.scratchBuffer.offset,
-        dst->m_buffer,
-        dst->m_desc.size,
-        &dst->m_handle,
-        emittedProperties.empty() ? nullptr : emittedProperties.data(),
-        emittedProperties.size()
-    ));
-#else  // SLANG_RHI_ENABLE_OPTIX
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_buildAccelerationStructure);
-#endif // SLANG_RHI_ENABLE_OPTIX
+        cmd.desc,
+        checked_cast<AccelerationStructureImpl*>(cmd.dst),
+        checked_cast<AccelerationStructureImpl*>(cmd.src),
+        cmd.scratchBuffer,
+        cmd.propertyQueryCount,
+        cmd.queryDescs
+    );
 }
 
 void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
-#if SLANG_RHI_ENABLE_OPTIX
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+    if (!m_device->m_ctx.optixContext)
+        return;
 
-    switch (cmd.mode)
-    {
-    case AccelerationStructureCopyMode::Clone:
-    {
-#if 0
-                OptixRelocationInfo relocInfo = {};
-                optixAccelGetRelocationInfo(m_commandBuffer->m_device->m_ctx.optixContext, src->m_handle, &relocInfo);
-
-                // TODO setup inputs
-                OptixRelocateInput relocInput = {};
-
-                cuMemcpyDtoD(dst->m_buffer, src->m_buffer, src->m_desc.size);
-
-                optixAccelRelocate(
-                    m_commandBuffer->m_device->m_ctx.optixContext,
-                    m_stream,
-                    &relocInfo,
-                    &relocInput,
-                    1,
-                    dst->m_buffer,
-                    dst->m_desc.size,
-                    &dst->m_handle
-                );
-                break;
-#endif
-    }
-    case AccelerationStructureCopyMode::Compact:
-        SLANG_OPTIX_ASSERT_ON_FAIL(optixAccelCompact(
-            m_device->m_ctx.optixContext,
-            m_stream,
-            src->m_handle,
-            dst->m_buffer,
-            dst->m_desc.size,
-            &dst->m_handle
-        ));
-        break;
-    }
-#else  // SLANG_RHI_ENABLE_OPTIX
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_copyAccelerationStructure);
-#endif // SLANG_RHI_ENABLE_OPTIX
+    m_device->m_ctx.optixContext->copyAccelerationStructure(
+        m_stream,
+        checked_cast<AccelerationStructureImpl*>(cmd.dst),
+        checked_cast<AccelerationStructureImpl*>(cmd.src),
+        cmd.mode
+    );
 }
 
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
@@ -716,19 +642,6 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
     : CommandQueue(device, type)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    // On CUDA, treat the graphics stream as the default stream, identified
-    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
-    // they will be equivalent to secondary, none-default streams in cuda.
-    if (type == QueueType::Graphics)
-    {
-        m_stream = nullptr;
-    }
-    else
-    {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamCreate(&m_stream, 0));
-    }
 }
 
 CommandQueueImpl::~CommandQueueImpl()
@@ -736,9 +649,9 @@ CommandQueueImpl::~CommandQueueImpl()
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     // Block on all events completing
-    for (const auto& commandBuffer : m_commandBuffersInFlight)
+    for (const auto& ev : m_submitEvents)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(commandBuffer->m_completionEvent));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
     }
 
     // Retire finished command buffers, which should be all of them
@@ -753,39 +666,80 @@ CommandQueueImpl::~CommandQueueImpl()
     }
 }
 
+Result CommandQueueImpl::init()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // On CUDA, treat the graphics stream as the default stream, identified
+    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
+    // they will be equivalent to secondary, none-default streams in cuda.
+    if (m_type == QueueType::Graphics)
+    {
+        m_stream = nullptr;
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
+    }
+
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
+{
+    RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl(m_device);
+    returnRefPtr(outCommandBuffer, commandBuffer);
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    RefPtr<CommandBufferImpl> commandBuffer;
+    if (m_commandBuffersPool.empty())
+    {
+        SLANG_RETURN_ON_FAIL(createCommandBuffer(commandBuffer.writeRef()));
+    }
+    else
+    {
+        commandBuffer = m_commandBuffersPool.front();
+        m_commandBuffersPool.pop_front();
+        commandBuffer->setInternalReferenceCount(0);
+    }
+    returnRefPtr(outCommandBuffer, commandBuffer);
+    return SLANG_OK;
+}
+
+void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
+{
+    commandBuffer->reset();
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_commandBuffersPool.push_back(commandBuffer);
+        commandBuffer->setInternalReferenceCount(1);
+    }
+}
+
 Result CommandQueueImpl::retireCommandBuffers()
 {
+    // Run fence logic so m_lastFinishedID is up to date.
+    SLANG_RETURN_ON_FAIL(updateFence());
+
+    // Retire command buffers that're passed the submission ID
     auto cbIt = m_commandBuffersInFlight.begin();
     while (cbIt != m_commandBuffersInFlight.end())
     {
         RefPtr<CommandBufferImpl>& commandBuffer = *cbIt;
-
-        CUresult result = cuEventQuery(commandBuffer->m_completionEvent);
-        if (result == CUDA_SUCCESS)
-        {
-            // Event is complete.
-            // We aren't recycling, so all we have to do is destroy the event
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(commandBuffer->m_completionEvent));
-            m_submitCompleted = commandBuffer->m_submitIndex;
-
-            // Reset the command buffer for reuse.
-            commandBuffer->reset();
-
-            // Remove the command buffer from the list.
-            cbIt = m_commandBuffersInFlight.erase(cbIt);
-        }
-        else if (result == CUDA_ERROR_NOT_READY)
-        {
-            // Not ready means event hasn't been triggered yet, so it's still in-flight.
-            // As command buffers are ordered, this should mean that all subsequent command buffers
-            // are also still in-flight, so we can stop checking.
+        if (commandBuffer->m_submissionID > m_lastFinishedID)
             break;
-        }
-        else
-        {
-            SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, m_device);
-        }
+
+        retireCommandBuffer(commandBuffer);
+        cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
+
+    // Flush all device heaps
+    SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->flushHeaps());
+
     return SLANG_OK;
 }
 
@@ -793,11 +747,61 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device);
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
 }
+
+Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
+{
+    // Increment submit count
+    m_lastSubmittedID++;
+
+    // Record submission event so we can detect completion
+    SubmitEvent ev;
+    ev.submitID = m_lastSubmittedID;
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
+    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
+    m_submitEvents.push_back(ev);
+
+    if (outId)
+        *outId = m_lastSubmittedID;
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::updateFence()
+{
+    // Iterate the submit events to update the last finished ID
+    auto submitIt = m_submitEvents.begin();
+    while (submitIt != m_submitEvents.end())
+    {
+        CUresult result = cuEventQuery(submitIt->event);
+        if (result == CUDA_SUCCESS)
+        {
+            // Event is complete.
+            // We aren't recycling, so all we have to do is destroy the event
+            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
+            m_lastFinishedID = submitIt->submitID;
+
+            // Remove the event from the list.
+            submitIt = m_submitEvents.erase(submitIt);
+        }
+        else if (result == CUDA_ERROR_NOT_READY)
+        {
+            // Not ready means event hasn't been triggered yet, so it's still in-flight.
+            // As command buffers are ordered, this should mean that all subsequent events
+            // are also still in-flight, so we can stop checking.
+            break;
+        }
+        else
+        {
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
+        }
+    }
+    return SLANG_OK;
+}
+
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
@@ -831,13 +835,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Increment submit count
-        m_submitCount++;
+        // Signal main fence
+        uint64_t submissionID;
+        SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
 
-        // Only record command buffer if executor succeeds and we correctly add it to the active stream
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&commandBuffer->m_completionEvent, CU_EVENT_DISABLE_TIMING));
-        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(commandBuffer->m_completionEvent, requestedStream));
-        commandBuffer->m_submitIndex = m_submitCount;
+        // Record the command buffer + corresponding submit ID
+        commandBuffer->m_submissionID = submissionID;
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 
@@ -875,16 +878,28 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(Device* device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
     : CommandEncoder(device)
+    , m_queue(queue)
 {
+}
+
+CommandEncoderImpl::~CommandEncoderImpl()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // If the command buffer was not used, return it to the pool.
+    if (m_commandBuffer)
+    {
+        m_queue->retireCommandBuffer(m_commandBuffer);
+    }
 }
 
 Result CommandEncoderImpl::init()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    m_commandBuffer = new CommandBufferImpl(m_device);
+    SLANG_RETURN_ON_FAIL(m_queue->getOrCreateCommandBuffer(m_commandBuffer.writeRef()));
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
 }
@@ -894,6 +909,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+
     BindingDataBuilder builder;
     builder.m_device = getDevice<DeviceImpl>();
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;

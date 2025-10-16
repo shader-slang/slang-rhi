@@ -24,13 +24,13 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
         return bufferIt->second.get();
 
     auto& api = device->m_api;
-    const auto& rtProps = api.m_rtProperties;
-    uint32_t handleSize = rtProps.shaderGroupHandleSize;
-    m_raygenTableSize = m_rayGenShaderCount * rtProps.shaderGroupBaseAlignment;
-    m_missTableSize = (uint32_t)math::calcAligned2(m_missShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
-    m_hitTableSize = (uint32_t)math::calcAligned2(m_hitGroupCount * handleSize, rtProps.shaderGroupBaseAlignment);
+    const auto& rtpProps = api.m_rayTracingPipelineProperties;
+    uint32_t handleSize = rtpProps.shaderGroupHandleSize;
+    m_raygenTableSize = m_rayGenShaderCount * rtpProps.shaderGroupBaseAlignment;
+    m_missTableSize = (uint32_t)math::calcAligned2(m_missShaderCount * handleSize, rtpProps.shaderGroupBaseAlignment);
+    m_hitTableSize = (uint32_t)math::calcAligned2(m_hitGroupCount * handleSize, rtpProps.shaderGroupBaseAlignment);
     m_callableTableSize =
-        (uint32_t)math::calcAligned2(m_callableShaderCount * handleSize, rtProps.shaderGroupBaseAlignment);
+        (uint32_t)math::calcAligned2(m_callableShaderCount * handleSize, rtpProps.shaderGroupBaseAlignment);
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
     auto tableData = std::make_unique<uint8_t[]>(tableSize);
@@ -57,7 +57,7 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     // index in the buffer of handles.
     for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * rtProps.shaderGroupBaseAlignment;
+        auto dstHandlePtr = subTablePtr + i * rtpProps.shaderGroupBaseAlignment;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
         auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
         if (it == pipeline->m_shaderGroupNameToIndex.end())
@@ -65,7 +65,7 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
-        memset(dstHandlePtr + handleSize, 0, rtProps.shaderGroupBaseAlignment - handleSize);
+        memset(dstHandlePtr + handleSize, 0, rtpProps.shaderGroupBaseAlignment - handleSize);
     }
     subTablePtr += m_raygenTableSize;
 

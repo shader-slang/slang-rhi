@@ -9,9 +9,6 @@ using namespace rhi::testing;
 
 GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal | CUDA)
 {
-    if (isSwiftShaderDevice(device))
-        SKIP("not supported with swiftshader");
-
     const int numberCount = 1;
     BufferDesc bufferDesc = {};
     bufferDesc.size = numberCount * sizeof(float);
@@ -67,9 +64,6 @@ GPU_TEST_CASE("native-handle-buffer", D3D12 | Vulkan | Metal | CUDA)
 
 GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal | CUDA)
 {
-    if (isSwiftShaderDevice(device))
-        SKIP("not supported with swiftshader");
-
     TextureDesc desc = {};
     desc.type = TextureType::Texture2D;
     desc.mipCount = 1;
@@ -125,9 +119,6 @@ GPU_TEST_CASE("native-handle-texture", D3D12 | Vulkan | Metal | CUDA)
 
 GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal | CUDA)
 {
-    if (isSwiftShaderDevice(device))
-        SKIP("not supported with swiftshader");
-
     auto queue = device->getQueue(QueueType::Graphics);
     NativeHandle handle;
     REQUIRE_CALL(queue->getNativeHandle(&handle));
@@ -171,9 +162,6 @@ GPU_TEST_CASE("native-handle-command-queue", D3D12 | Vulkan | Metal | CUDA)
 
 GPU_TEST_CASE("native-handle-command-buffer", D3D12 | Vulkan | Metal)
 {
-    if (isSwiftShaderDevice(device))
-        SKIP("not supported with swiftshader");
-
     auto queue = device->getQueue(QueueType::Graphics);
     auto commandEncoder = queue->createCommandEncoder();
     auto commandBuffer = commandEncoder->finish();

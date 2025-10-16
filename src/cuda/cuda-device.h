@@ -2,7 +2,6 @@
 
 #include "cuda-base.h"
 #include "cuda-clear-engine.h"
-#include "cuda-dual-page-allocator.h"
 
 namespace rhi::cuda {
 
@@ -10,28 +9,25 @@ struct Context
 {
     CUdevice device = -1;
     CUcontext context = nullptr;
-#if SLANG_RHI_ENABLE_OPTIX
-    OptixDeviceContext optixContext = nullptr;
-#endif
+    RefPtr<optix::Context> optixContext;
+};
+
+class AdapterImpl : public Adapter
+{
+public:
+    int m_deviceIndex;
 };
 
 class DeviceImpl : public Device
 {
-private:
-    static int _calcSMCountPerMultiProcessor(int major, int minor);
-
-    Result _findMaxFlopsDeviceIndex(int* outDeviceIndex);
-
-    Result _initCuda();
-
 public:
     Context m_ctx;
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;
     ClearEngine m_clearEngine;
     bool m_ownsContext = false;
-    bool m_ownsOptixContext = false;
-    DualPageAllocator m_dualPageAllocator;
+    RefPtr<HeapImpl> m_deviceMemHeap;
+    RefPtr<HeapImpl> m_hostMemHeap;
 
 public:
     using Device::readBuffer;
@@ -175,7 +171,7 @@ public:
 
 namespace rhi {
 
-Result SLANG_MCALL getCUDAAdapters(std::vector<AdapterInfo>& outAdapters);
-Result SLANG_MCALL createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
+IAdapter* getCUDAAdapter(uint32_t index);
+Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
 
 } // namespace rhi

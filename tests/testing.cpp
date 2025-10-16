@@ -212,14 +212,7 @@ public:
         }
         else if (type == DebugMessageType::Warning)
         {
-            if (shouldIgnoreError(type, source, message))
-            {
-                output(msg);
-            }
-            else
-            {
-                FAIL(msg);
-            }
+            output(msg);
         }
         else if (type == DebugMessageType::Error)
         {
@@ -474,6 +467,29 @@ Result loadRenderProgramFromSource(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
+const char* deviceTypeToString(DeviceType deviceType)
+{
+    switch (deviceType)
+    {
+    case DeviceType::D3D11:
+        return "d3d11";
+    case DeviceType::D3D12:
+        return "d3d12";
+    case DeviceType::Vulkan:
+        return "vulkan";
+    case DeviceType::Metal:
+        return "metal";
+    case DeviceType::CPU:
+        return "cpu";
+    case DeviceType::CUDA:
+        return "cuda";
+    case DeviceType::WGPU:
+        return "wgpu";
+    default:
+        return "unknown";
+    }
+}
+
 ComPtr<IDevice> createTestingDevice(
     GpuTestContext* ctx,
     DeviceType deviceType,
@@ -499,6 +515,7 @@ ComPtr<IDevice> createTestingDevice(
     ComPtr<IDevice> device;
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
+    deviceDesc.adapter = getSelectedDeviceAdapter(deviceType);
 #if ENABLE_SHADER_CACHE
     deviceDesc.persistentShaderCache = &gShaderCache;
 #endif
@@ -566,6 +583,7 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
 #if SLANG_RHI_ENABLE_OPTIX
+    deviceDesc.requiredOptixVersion = options().optixVersion;
     // Setup Optix headers
     if (deviceType == DeviceType::CUDA)
     {
@@ -573,7 +591,22 @@ ComPtr<IDevice> createTestingDevice(
         optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
         optixSearchPath.value.stringValue0 = "nvrtc";
-        optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_INCLUDE_DIR;
+        if (deviceDesc.requiredOptixVersion == 0 || deviceDesc.requiredOptixVersion == 90000)
+        {
+            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/9_0";
+        }
+        else if (deviceDesc.requiredOptixVersion == 80100)
+        {
+            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/8_1";
+        }
+        else if (deviceDesc.requiredOptixVersion == 80000)
+        {
+            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/8_0";
+        }
+        else
+        {
+            FAIL("Unsupported Optix version");
+        }
         compilerOptions.push_back(optixSearchPath);
     }
 #endif
@@ -636,10 +669,10 @@ void initializeRenderDoc()
 
     SharedLibraryHandle module = {};
 #if SLANG_WINDOWS_FAMILY
-    if (!SLANG_SUCCEEDED(loadSharedLibrary("renderdoc.dll", module)))
+    if (SLANG_FAILED(loadSharedLibrary("renderdoc.dll", module)))
         return;
 #elif SLANG_LINUX_FAMILY
-    if (!SLANG_SUCCEEDED(loadSharedLibrary("librenderdoc.so", module)))
+    if (SLANG_FAILED(loadSharedLibrary("librenderdoc.so", module)))
         return;
 #else
     return;
@@ -677,29 +710,6 @@ void renderDocBeginFrame() {}
 void renderDocEndFrame() {}
 #endif
 
-inline const char* deviceTypeToString(DeviceType deviceType)
-{
-    switch (deviceType)
-    {
-    case DeviceType::D3D11:
-        return "d3d11";
-    case DeviceType::D3D12:
-        return "d3d12";
-    case DeviceType::Vulkan:
-        return "vulkan";
-    case DeviceType::Metal:
-        return "metal";
-    case DeviceType::CPU:
-        return "cpu";
-    case DeviceType::CUDA:
-        return "cuda";
-    case DeviceType::WGPU:
-        return "wgpu";
-    default:
-        return "unknown";
-    }
-}
-
 static std::map<DeviceType, bool> sDeviceTypeAvailable;
 
 DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
@@ -733,12 +743,13 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     ComPtr<IDevice> device;
     DeviceDesc desc;
     desc.deviceType = deviceType;
+    desc.adapter = getSelectedDeviceAdapter(deviceType);
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
-    if (!SLANG_SUCCEEDED(createResult))
+    if (SLANG_FAILED(createResult))
         RETURN_NOT_AVAILABLE("failed to create device");
 
     // Try compiling a trivial shader.
@@ -758,7 +769,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     }
 
     ComPtr<slang::IEntryPoint> entryPoint;
-    if (!SLANG_SUCCEEDED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
+    if (SLANG_FAILED(module->findEntryPointByName("computeMain", entryPoint.writeRef())))
         RETURN_NOT_AVAILABLE("failed to find shader entry point");
 
     ComPtr<slang::IComponentType> composedProgram;
@@ -824,16 +835,17 @@ bool isDeviceTypeAvailable(DeviceType deviceType)
     return sDeviceTypeAvailable[deviceType];
 }
 
-bool isSwiftShaderDevice(IDevice* device)
+bool isDeviceTypeSelected(DeviceType deviceType)
 {
-    std::string adapterName = device->getInfo().adapterName;
-    std::transform(
-        adapterName.begin(),
-        adapterName.end(),
-        adapterName.begin(),
-        [](unsigned char c) { return std::tolower(c); }
-    );
-    return adapterName.find("swiftshader") != std::string::npos;
+    return options().deviceSelected[size_t(deviceType)];
+}
+
+rhi::IAdapter* getSelectedDeviceAdapter(DeviceType deviceType)
+{
+    int adapterIndex = options().deviceAdapterIndex[size_t(deviceType)];
+    if (adapterIndex < 0)
+        return nullptr;
+    return rhi::getRHI()->getAdapter(deviceType, adapterIndex);
 }
 
 slang::IGlobalSession* getSlangGlobalSession()
@@ -847,44 +859,126 @@ slang::IGlobalSession* getSlangGlobalSession()
     return slangGlobalSession;
 }
 
-void runGpuTests(GpuTestFunc func, std::initializer_list<DeviceType> deviceTypes)
+// Trampoline test function registered in doctest for each GPU test instance.
+// Uses GpuTestInfo for additional information about the specific test instance.
+static void gpuTestTrampoline()
 {
-    for (auto deviceType : deviceTypes)
+    const doctest::TestCaseData* tc = doctest::getContextOptions()->currentTest;
+    // GpuTestInfo is stored in front of the test name.
+    const GpuTestInfo* info = reinterpret_cast<const GpuTestInfo*>(tc->m_name) - 1;
+
+    DeviceType deviceType = info->deviceType;
+    bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
+    bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+
+    if (!isDeviceTypeSelected(deviceType))
     {
-        SUBCASE(deviceTypeToString(deviceType))
+        SKIP("device not selected");
+    }
+
+    if (isDeviceTypeAvailable(deviceType))
+    {
+        GpuTestContext ctx;
+        ctx.deviceType = deviceType;
+        ctx.slangGlobalSession = getSlangGlobalSession();
+        ComPtr<IDevice> device;
+        if (createDevice)
         {
-            if (isDeviceTypeAvailable(deviceType))
-            {
-                GpuTestContext ctx;
-                ctx.slangGlobalSession = getSlangGlobalSession();
-                func(&ctx, deviceType);
-            }
+            device = createTestingDevice(&ctx, deviceType, cacheDevice);
         }
+        info->func(&ctx, device);
+    }
+    else
+    {
+        SKIP("device not available");
     }
 }
 
-void runGpuTestFunc(void (*func)(IDevice* device), int testFlags)
+// Simple allocator for storing GpuTestInfo and test names.
+class GpuTestAllocator
 {
-    bool useCachedDevice = (testFlags & TestFlags::NoDeviceCache) == 0;
+public:
+    GpuTestAllocator(size_t size = 4 * 1024 * 1024)
+        : m_size(size)
+    {
+        m_data = reinterpret_cast<uint8_t*>(malloc(size));
+    }
+    ~GpuTestAllocator() { free(m_data); }
+    void* allocate(size_t size)
+    {
+        // Align size to 16 bytes
+        size = (size + 15) & ~15;
+        if (m_pos + size > m_size)
+        {
+            SLANG_RHI_ASSERT_FAILURE("Out of memory! Increase the allocation size.");
+        }
+        void* ptr = m_data + m_pos;
+        m_pos += size;
+        return ptr;
+    }
+
+private:
+    size_t m_size;
+    uint8_t* m_data;
+    size_t m_pos;
+};
+
+// Register a GPU test.
+// This is called by the GPU_TEST_CASE macro to register a GPU test.
+// We do some hackery to register multiple test cases with doctest, one for each device type specified in the flags.
+// Because doctest doesn't support any user data in the test case definition and we don't want to alter the
+// doctest implementation, we store the GpuTestInfo structure in front of the unique test name used for each
+// test instance.
+int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, const char* file, int line)
+{
+    static GpuTestAllocator allocator;
 
     for (int i = 1; i <= 7; i++)
     {
-        if ((testFlags & (1 << i)) == 0)
+        if ((flags & (1 << i)) == 0)
             continue;
 
         DeviceType deviceType = DeviceType(i);
 
-        SUBCASE(deviceTypeToString(deviceType))
-        {
-            if (isDeviceTypeAvailable(deviceType))
-            {
-                GpuTestContext ctx;
-                ctx.slangGlobalSession = getSlangGlobalSession();
-                ComPtr<IDevice> device = createTestingDevice(&ctx, deviceType, useCachedDevice);
-                func(device);
-            }
-        }
+        if (!isPlatformDeviceType(deviceType))
+            continue;
+
+        size_t testNameLen = strlen(name) + 16;
+
+        GpuTestInfo* info = static_cast<GpuTestInfo*>(allocator.allocate(sizeof(GpuTestInfo) + testNameLen));
+        info->func = func;
+        info->deviceType = deviceType;
+        info->flags = flags;
+
+        char* testName = reinterpret_cast<char*>(info + 1);
+        snprintf(testName, testNameLen, "%s.%s", name, deviceTypeToString(deviceType));
+        testName[testNameLen - 1] = '\0';
+
+        doctest::detail::regTest(
+            doctest::detail::TestCase(
+                gpuTestTrampoline,
+                file,
+                line,
+                doctest_detail_test_suite_ns::getCurrentTestSuite()
+            ) *
+            static_cast<const char*>(testName)
+        );
     }
+
+    return 0;
+}
+
+static std::map<const doctest::TestCaseData*, const char*> sSkipMessages;
+
+void reportSkip(const doctest::detail::TestCase* tc, const char* reason)
+{
+    sSkipMessages[tc] = reason;
+}
+
+const char* getSkipMessage(const doctest::TestCaseData* tc)
+{
+    auto it = sSkipMessages.find(tc);
+    return it != sSkipMessages.end() ? it->second : nullptr;
 }
 
 } // namespace rhi::testing

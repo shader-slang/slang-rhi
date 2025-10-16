@@ -323,27 +323,19 @@ public:
     bool m_configured = false;
 };
 
-struct DebugCallbackAdapter
+struct DeviceAdapter
 {
-    IDebugCallback* callback;
-    DebugCallbackAdapter(IDebugCallback* callback)
-        : callback(callback)
+    Device* device;
+    DeviceAdapter(Device* device)
+        : device(device)
     {
     }
-    DebugCallbackAdapter(Device* device)
-        : callback(device ? device->m_debugCallback : nullptr)
+    DeviceAdapter(DeviceChild* deviceChild)
+        : device(deviceChild && deviceChild->getDevice() ? deviceChild->getDevice() : nullptr)
     {
     }
-    DebugCallbackAdapter(DeviceChild* deviceChild)
-        : callback(deviceChild && deviceChild->getDevice() ? deviceChild->getDevice()->m_debugCallback : nullptr)
-    {
-    }
-    DebugCallbackAdapter(const BreakableReference<Device>& device)
-        : callback(device ? device->m_debugCallback : nullptr)
-    {
-    }
-    explicit operator bool() const { return callback != nullptr; }
-    IDebugCallback* operator->() const { return callback; }
+    explicit operator bool() const { return device != nullptr; }
+    Device* operator->() const { return device; }
 };
 
 bool isDepthFormat(Format format);
