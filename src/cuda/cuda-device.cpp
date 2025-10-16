@@ -602,6 +602,7 @@ Result DeviceImpl::createAccelerationStructure(
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
+    result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
 }
