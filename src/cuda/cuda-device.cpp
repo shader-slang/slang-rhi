@@ -619,7 +619,7 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 
 uint32_t DeviceImpl::getOptixVersion()
 {
-    if (!m_ctx.optixContext)
+    if( !m_ctx.optixContext )
         return 0;
 
     return m_ctx.optixContext->getOptixVersion();
