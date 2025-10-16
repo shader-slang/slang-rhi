@@ -165,8 +165,6 @@ public:
     void customizeShaderObject(ShaderObject* shaderObject) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
-
-    virtual SLANG_NO_THROW uint32_t SLANG_MCALL getOptixVersion() override;
 };
 
 } // namespace rhi::cuda

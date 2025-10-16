@@ -445,11 +445,6 @@ Result Device::queryInterface(const SlangUUID& uuid, void** outObject)
     return SLANG_OK;
 }
 
-uint32_t Device::getOptixVersion()
-{
-    return 0;
-}
-
 IDevice* Device::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IDevice::getTypeGuid())
