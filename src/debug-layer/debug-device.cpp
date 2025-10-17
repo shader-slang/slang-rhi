@@ -563,6 +563,11 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRender
 {
     SLANG_RHI_API_FUNC;
 
+    if (desc.program == nullptr)
+    {
+        RHI_VALIDATION_ERROR("Program must be specified");
+        return SLANG_E_INVALID_ARG;
+    }
     if (ctx->deviceType == DeviceType::WGPU && desc.primitiveTopology == PrimitiveTopology::PatchList)
     {
         RHI_VALIDATION_ERROR("WebGPU doesn't support PatchList topology");
@@ -589,6 +594,12 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComp
 {
     SLANG_RHI_API_FUNC;
 
+    if (desc.program == nullptr)
+    {
+        RHI_VALIDATION_ERROR("Program must be specified");
+        return SLANG_E_INVALID_ARG;
+    }
+
     ComputePipelineDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
@@ -603,6 +614,12 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComp
 Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
+
+    if (desc.program == nullptr)
+    {
+        RHI_VALIDATION_ERROR("Program must be specified");
+        return SLANG_E_INVALID_ARG;
+    }
 
     RayTracingPipelineDesc patchedDesc = desc;
     std::string label;
