@@ -8,9 +8,10 @@
 /// This is useful for debugging to ensure that the CUDA context is set correctly when calling CUDA APIs.
 #define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 0
 
-/// Enable syncronous CUDA error checking by calling cuCtxSynchronize after each CUDA call and checking
-/// for errors.
-#define SLANG_RHI_ENABLE_CUDA_SYNC_ERROR_CHECK 1
+/// Enable synchronous CUDA error checking by calling cuCtxSynchronize after each CUDA call and checking
+/// for errors. This is very slow, but useful for tracking down CUDA errors that are triggered by
+/// asynchronous operations.
+#define SLANG_RHI_ENABLE_CUDA_SYNC_ERROR_CHECK 0
 
 namespace rhi::cuda {
 
