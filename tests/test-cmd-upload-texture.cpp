@@ -1,6 +1,5 @@
 #include "testing.h"
 
-#include "texture-utils.h"
 #include "texture-test.h"
 
 #include "core/common.h"

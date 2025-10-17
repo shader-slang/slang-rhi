@@ -82,10 +82,8 @@ Result createContext(const ContextDesc& desc, Context** outContext)
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-extern "C" SLANG_RHI_API rhi::Result SLANG_MCALL rhiCreateOptixDenoiserAPI(
-    uint32_t optixVersion,
-    rhi::optix_denoiser::IOptixDenoiserAPI** outAPI
-)
+extern "C" SLANG_RHI_API rhi::Result SLANG_STDCALL
+rhiCreateOptixDenoiserAPI(uint32_t optixVersion, rhi::optix_denoiser::IOptixDenoiserAPI** outAPI)
 {
     for (auto& api : s_optixAPIs)
     {
@@ -107,10 +105,8 @@ extern "C" SLANG_RHI_API rhi::Result SLANG_MCALL rhiCreateOptixDenoiserAPI(
 
 #else // SLANG_RHI_ENABLE_OPTIX
 
-extern "C" SLANG_RHI_API rhi::Result SLANG_MCALL rhiCreateOptixDenoiserAPI(
-    uint32_t optixVersion,
-    rhi::optix_denoiser::IOptixDenoiserAPI** outAPI
-)
+extern "C" SLANG_RHI_API rhi::Result SLANG_STDCALL
+rhiCreateOptixDenoiserAPI(uint32_t optixVersion, rhi::optix_denoiser::IOptixDenoiserAPI** outAPI)
 {
     SLANG_UNUSED(optixVersion);
     SLANG_UNUSED(outAPI);
