@@ -72,7 +72,7 @@ void checkCudaSyncError(bool pre, const char* call, const char* file, int line)
         {
             std::fprintf(stderr, "Error detected AFTER the call, suggesting it is responsible\n");
         }
-        ::rhi::handleAssert("CUDA error detected", __FILE__, __LINE__);
+        ::rhi::handleAssert("CUDA error detected", file, line);
     }
 }
 
