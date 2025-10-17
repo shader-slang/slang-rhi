@@ -801,6 +801,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
         tests/test-ray-tracing-lss.cpp
+        tests/test-ray-tracing-hitobject-intrinsics.cpp
         tests/test-ray-tracing-reorder.cpp
         tests/test-ray-tracing-sphere.cpp
         tests/test-resolve-resource-tests.cpp

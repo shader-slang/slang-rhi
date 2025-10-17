@@ -623,6 +623,10 @@ ComPtr<IDevice> createTestingDevice(
     if (deviceType == DeviceType::D3D12)
     {
         extDesc.rootParameterShaderAttributeName = "root";
+        if (extraOptions && extraOptions->d3d12HighestShaderModel != 0)
+        {
+            extDesc.highestShaderModel = extraOptions->d3d12HighestShaderModel;
+        }
         deviceDesc.next = &extDesc;
     }
 

@@ -54,7 +54,7 @@ struct ExpectedPixel
         }                                                                                                              \
     }
 
-struct BaseRayTracingTest
+struct RayTracingTriangleIntersection
 {
     IDevice* device;
 
@@ -92,17 +92,17 @@ struct BaseRayTracingTest
         std::vector<slang::IComponentType*> componentTypes;
         componentTypes.push_back(module);
         ComPtr<slang::IEntryPoint> entryPoint;
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("rayGenShaderA", entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("rayGenShaderIdx0", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("rayGenShaderB", entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("rayGenShaderIdx1", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShaderA", entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShaderIdx0", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShaderB", entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShaderIdx1", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShaderA", entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShaderIdx0", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShaderB", entryPoint.writeRef()));
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShaderIdx1", entryPoint.writeRef()));
         componentTypes.push_back(entryPoint);
 
         ComPtr<slang::IComponentType> linkedProgram;
@@ -298,9 +298,9 @@ struct BaseRayTracingTest
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = 2;
         HitGroupDesc hitGroups[2];
-        hitGroups[0].closestHitEntryPoint = "closestHitShaderA";
+        hitGroups[0].closestHitEntryPoint = "closestHitShaderIdx0";
         hitGroups[0].hitGroupName = hitgroupNames[0];
-        hitGroups[1].closestHitEntryPoint = "closestHitShaderB";
+        hitGroups[1].closestHitEntryPoint = "closestHitShaderIdx1";
         hitGroups[1].hitGroupName = hitgroupNames[1];
         rtpDesc.hitGroups = hitGroups;
         rtpDesc.maxRayPayloadSize = 64;
@@ -309,8 +309,8 @@ struct BaseRayTracingTest
         REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));
         REQUIRE(raytracingPipeline != nullptr);
 
-        const char* raygenNames[] = {"rayGenShaderA", "rayGenShaderB"};
-        const char* missNames[] = {"missShaderA", "missShaderB"};
+        const char* raygenNames[] = {"rayGenShaderIdx0", "rayGenShaderIdx1"};
+        const char* missNames[] = {"missShaderIdx0", "missShaderIdx1"};
 
         ShaderTableDesc shaderTableDesc = {};
         shaderTableDesc.program = rayTracingProgram;
@@ -349,7 +349,7 @@ struct BaseRayTracingTest
     }
 };
 
-struct RayTracingTestA : BaseRayTracingTest
+struct RayTracingTriangleIntersectionRaygenIdx0 : RayTracingTriangleIntersection
 {
     void renderFrame()
     {
@@ -389,7 +389,7 @@ struct RayTracingTestA : BaseRayTracingTest
     }
 };
 
-struct RayTracingTestB : BaseRayTracingTest
+struct RayTracingTriangleIntersectionRaygenIdx1 : RayTracingTriangleIntersection
 {
     void renderFrame()
     {
@@ -429,22 +429,22 @@ struct RayTracingTestB : BaseRayTracingTest
     }
 };
 
-GPU_TEST_CASE("ray-tracing-a", ALL)
+GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
-    RayTracingTestA test;
+    RayTracingTriangleIntersectionRaygenIdx0 test;
     test.init(device);
     test.run();
 }
 
-GPU_TEST_CASE("ray-tracing-b", ALL)
+GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
-    RayTracingTestB test;
+    RayTracingTriangleIntersectionRaygenIdx1 test;
     test.init(device);
     test.run();
 }
