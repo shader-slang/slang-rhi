@@ -45,6 +45,34 @@ void checkCurrentContext()
 }
 #endif
 
+#if SLANG_RHI_ENABLE_CUDA_SYNC_ERROR_CHECK
+void checkCudaSyncError(const char* file, int line)
+{
+    CUresult result = cuCtxSynchronize();
+    if (isCUDAError(result))
+    {
+        // Ignore errors that kick in before CUDA initialization or outside CUDA context
+        if (result != CUDA_ERROR_NOT_INITIALIZED && result != CUDA_ERROR_INVALID_CONTEXT)
+        {
+            reportCUDAAssert(result, "cuCtxSynchronize (error check)", file, line);
+        }
+    }
+}
+void checkCudaSyncErrorReport(const char* file, int line, DeviceAdapter device)
+{
+    CUresult result = cuCtxSynchronize();
+    if (isCUDAError(result))
+    {
+        // Ignore errors that kick in before CUDA initialization or outside CUDA context
+        if (result != CUDA_ERROR_NOT_INITIALIZED && result != CUDA_ERROR_INVALID_CONTEXT)
+        {
+            reportCUDAError(result, "cuCtxSynchronize (error check)", file, line, device);
+        }
+    }
+}
+
+#endif
+
 void reportCUDAError(CUresult result, const char* call, const char* file, int line, DeviceAdapter device)
 {
     if (!device)

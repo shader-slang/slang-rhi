@@ -8,6 +8,10 @@
 /// This is useful for debugging to ensure that the CUDA context is set correctly when calling CUDA APIs.
 #define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 0
 
+/// Enable syncronous CUDA error checking by calling cuCtxSynchronize after each CUDA call and checking
+/// for errors.
+#define SLANG_RHI_ENABLE_CUDA_SYNC_ERROR_CHECK 1
+
 namespace rhi::cuda {
 
 class DeviceImpl;
@@ -25,6 +29,16 @@ public:
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
 CUcontext getCurrentContext();
 void checkCurrentContext();
+#endif
+
+#if SLANG_RHI_ENABLE_CUDA_SYNC_ERROR_CHECK
+void checkCudaSyncError(const char* file, int line);
+void checkCudaSyncErrorReport(const char* file, int line, DeviceAdapter device);
+#define SLANG_CUDA_CHECK_SYNC_ERROR() ::rhi::cuda::checkCudaSyncError(__FILE__, __LINE__)
+#define SLANG_CUDA_CHECK_SYNC_ERROR_REPORT(device) ::rhi::cuda::checkCudaSyncErrorReport(__FILE__, __LINE__, device)
+#else
+#define SLANG_CUDA_CHECK_SYNC_ERROR()
+#define SLANG_CUDA_CHECK_SYNC_ERROR_REPORT(device)
 #endif
 
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
@@ -45,33 +59,39 @@ void reportCUDAAssert(CUresult result, const char* call, const char* file, int l
 #define SLANG_CUDA_RETURN_ON_FAIL(x)                                                                                   \
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
+        SLANG_CUDA_CHECK_SYNC_ERROR();                                                                                 \
         auto _res = x;                                                                                                 \
         if (::rhi::cuda::isCUDAError(_res))                                                                            \
         {                                                                                                              \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
+        SLANG_CUDA_CHECK_SYNC_ERROR();                                                                                 \
     }
 
 #define SLANG_CUDA_RETURN_ON_FAIL_REPORT(x, device)                                                                    \
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
+        SLANG_CUDA_CHECK_SYNC_ERROR_REPORT(device);                                                                    \
         auto _res = x;                                                                                                 \
         if (::rhi::cuda::isCUDAError(_res))                                                                            \
         {                                                                                                              \
             ::rhi::cuda::reportCUDAError(_res, #x, __FILE__, __LINE__, device);                                        \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
+        SLANG_CUDA_CHECK_SYNC_ERROR_REPORT(device);                                                                    \
     }
 
 #define SLANG_CUDA_ASSERT_ON_FAIL(x)                                                                                   \
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \
+        SLANG_CUDA_CHECK_SYNC_ERROR();                                                                                 \
         auto _res = x;                                                                                                 \
         if (::rhi::cuda::isCUDAError(_res))                                                                            \
         {                                                                                                              \
             ::rhi::cuda::reportCUDAAssert(_res, #x, __FILE__, __LINE__);                                               \
             SLANG_RHI_ASSERT_FAILURE("CUDA call failed");                                                              \
         }                                                                                                              \
+        SLANG_CUDA_CHECK_SYNC_ERROR();                                                                                 \
     }
 
 AdapterLUID getAdapterLUID(int deviceIndex);
