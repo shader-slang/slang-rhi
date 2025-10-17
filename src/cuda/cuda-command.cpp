@@ -475,6 +475,36 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         CU_LAUNCH_PARAM_END,
     };
 
+    fprintf(
+        stderr,
+        "Launching compute kernel '%s' with %d,%d,%d blocks and %d,%d,%d threads per block\n",
+        computePipeline->getDesc().label,
+        cmd.x,
+        cmd.y,
+        cmd.z,
+        computePipeline->m_threadGroupSize[0],
+        computePipeline->m_threadGroupSize[1],
+        computePipeline->m_threadGroupSize[2]
+    );
+    fprintf(
+        stderr,
+        "Extra options info: param buffer ptr %p, size %zu\n",
+        entryPointData.data,
+        computePipeline->m_paramBufferSize
+    );
+    fprintf(
+        stderr,
+        "Extra options info: global params ptr %p, size %zu\n",
+        (void*)computePipeline->m_globalParams,
+        computePipeline->m_globalParamsSize
+    );
+    fprintf(
+        stderr,
+        "Extra options info: function ptr %p, shaed mem size %zu\n",
+        (void*)computePipeline->m_function,
+        computePipeline->m_sharedMemorySize
+    );
+
     // Once we have all the necessary data extracted and/or set up, we can launch the kernel.
     SLANG_CUDA_ASSERT_ON_FAIL(cuLaunchKernel(
         computePipeline->m_function,
