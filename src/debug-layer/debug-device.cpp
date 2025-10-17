@@ -457,7 +457,7 @@ Result DebugDevice::createAccelerationStructure(
         patchedDesc.label = label.c_str();
     }
 
-    return baseObject->createAccelerationStructure(desc, outAccelerationStructure);
+    return baseObject->createAccelerationStructure(patchedDesc, outAccelerationStructure);
 }
 
 Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurface)
@@ -776,7 +776,7 @@ Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
     }
 
     RefPtr<DebugHeap> result = new DebugHeap(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createHeap(desc, result->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->createHeap(patchedDesc, result->baseObject.writeRef()));
     returnComPtr(outHeap, result);
     return SLANG_OK;
 }
