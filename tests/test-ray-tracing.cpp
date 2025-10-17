@@ -1,5 +1,4 @@
 #include "testing.h"
-#include "texture-utils.h"
 
 #include <slang-rhi/acceleration-structure-utils.h>
 

@@ -132,19 +132,57 @@ std::string createQueryPoolLabel(const QueryPoolDesc& desc)
     return string::format("Unnamed query pool (type=%s, count=%u)", enumToString(desc.type), desc.count);
 }
 
+std::string createShaderProgramLabel(const ShaderProgramDesc& desc)
+{
+    std::string result = "Unnamed shader program";
+    if (!desc.slangGlobalScope)
+    {
+        return result;
+    }
+    SlangUInt entryPointCount = desc.slangGlobalScope->getLayout()->getEntryPointCount();
+    if (entryPointCount == 1)
+    {
+        result += " (entryPoint=";
+    }
+    else if (entryPointCount > 1)
+    {
+        result += " (entryPoints=[";
+    }
+    for (SlangUInt i = 0; i < entryPointCount; ++i)
+    {
+        auto entryPointLayout = desc.slangGlobalScope->getLayout()->getEntryPointByIndex(i);
+        const char* entryPointName =
+            entryPointLayout->getNameOverride() ? entryPointLayout->getNameOverride() : entryPointLayout->getName();
+        if (i > 0)
+        {
+            result += ", ";
+        }
+        result += entryPointName;
+    }
+    if (entryPointCount == 1)
+    {
+        result += ")";
+    }
+    else if (entryPointCount > 1)
+    {
+        result += "])";
+    }
+    return result;
+}
+
 std::string createRenderPipelineLabel(const RenderPipelineDesc& desc)
 {
-    return std::string("Unnamed render pipeline");
+    return string::format("Unnamed render pipeline (program=\"%s\")", desc.program->getDesc().label);
 }
 
 std::string createComputePipelineLabel(const ComputePipelineDesc& desc)
 {
-    return std::string("Unnamed compute pipeline");
+    return string::format("Unnamed compute pipeline (program=\"%s\")", desc.program->getDesc().label);
 }
 
 std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc)
 {
-    return std::string("Unnamed ray tracing pipeline");
+    return string::format("Unnamed ray tracing pipeline (program=\"%s\")", desc.program->getDesc().label);
 }
 
 std::string createHeapLabel(const HeapDesc& desc)

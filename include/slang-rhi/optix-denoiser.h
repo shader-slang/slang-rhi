@@ -268,7 +268,5 @@ public:
 /// \param optixVersion The specific OptiX version to target or 0 to target the highest version available.
 /// \param outAPI The created API instance.
 /// \return SLANG_OK if successful, SLANG_E_NOT_AVAILABLE if the specified version is not available, or another error code if the creation failed.
-extern "C" SLANG_RHI_API rhi::Result SLANG_MCALL rhiCreateOptixDenoiserAPI(
-    uint32_t optixVersion,
-    rhi::optix_denoiser::IOptixDenoiserAPI** outAPI
-);
+extern "C" SLANG_RHI_API rhi::Result SLANG_STDCALL
+rhiCreateOptixDenoiserAPI(uint32_t optixVersion, rhi::optix_denoiser::IOptixDenoiserAPI** outAPI);

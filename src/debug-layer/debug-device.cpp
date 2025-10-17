@@ -457,7 +457,7 @@ Result DebugDevice::createAccelerationStructure(
         patchedDesc.label = label.c_str();
     }
 
-    return baseObject->createAccelerationStructure(desc, outAccelerationStructure);
+    return baseObject->createAccelerationStructure(patchedDesc, outAccelerationStructure);
 }
 
 Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurface)
@@ -548,13 +548,26 @@ Result DebugDevice::createShaderProgram(
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createShaderProgram(desc, outProgram, outDiagnostics);
+    ShaderProgramDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createShaderProgramLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
+    return baseObject->createShaderProgram(patchedDesc, outProgram, outDiagnostics);
 }
 
 Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
 
+    if (desc.program == nullptr)
+    {
+        RHI_VALIDATION_ERROR("Program must be specified");
+        return SLANG_E_INVALID_ARG;
+    }
     if (ctx->deviceType == DeviceType::WGPU && desc.primitiveTopology == PrimitiveTopology::PatchList)
     {
         RHI_VALIDATION_ERROR("WebGPU doesn't support PatchList topology");
@@ -581,6 +594,12 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComp
 {
     SLANG_RHI_API_FUNC;
 
+    if (desc.program == nullptr)
+    {
+        RHI_VALIDATION_ERROR("Program must be specified");
+        return SLANG_E_INVALID_ARG;
+    }
+
     ComputePipelineDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
@@ -595,6 +614,12 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComp
 Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
+
+    if (desc.program == nullptr)
+    {
+        RHI_VALIDATION_ERROR("Program must be specified");
+        return SLANG_E_INVALID_ARG;
+    }
 
     RayTracingPipelineDesc patchedDesc = desc;
     std::string label;
@@ -776,7 +801,7 @@ Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
     }
 
     RefPtr<DebugHeap> result = new DebugHeap(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createHeap(desc, result->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->createHeap(patchedDesc, result->baseObject.writeRef()));
     returnComPtr(outHeap, result);
     return SLANG_OK;
 }
