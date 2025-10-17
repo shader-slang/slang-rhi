@@ -17,7 +17,9 @@
 #define SLANG_RHI_API
 #endif
 #endif
-#endif
+#else // SLANG_RHI_SHARED
+#define SLANG_RHI_API
+#endif // SLANG_RHI_SHARED
 
 // Needed for building on cygwin with gcc
 #undef Always
