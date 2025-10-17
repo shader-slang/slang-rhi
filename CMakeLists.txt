@@ -185,10 +185,11 @@ endif()
 
 if(SLANG_RHI_BUILD_SHARED)
     add_library(slang-rhi SHARED)
-    target_compile_definitions(slang-rhi PUBLIC SLANG_RHI_DYNAMIC)
-    target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_DYNAMIC_EXPORT)
+    set(SLANG_RHI_SHARED ON)
+    target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_SHARED_EXPORT)
 else()
     add_library(slang-rhi STATIC)
+    set(SLANG_RHI_SHARED OFF)
 endif()
 
 set(SLANG_RHI_COPY_FILES "")

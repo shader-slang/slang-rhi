@@ -7,23 +7,16 @@
 
 #include <slang-rhi/capabilities.h>
 
-#if defined(SLANG_RHI_DYNAMIC)
+#if SLANG_RHI_SHARED
+#ifdef SLANG_RHI_SHARED_EXPORT
+#define SLANG_RHI_API SLANG_DLL_EXPORT
+#else
 #if defined(_MSC_VER)
-#ifdef SLANG_RHI_DYNAMIC_EXPORT
-#define SLANG_RHI_API SLANG_DLL_EXPORT
-#else
 #define SLANG_RHI_API __declspec(dllimport)
-#endif
 #else
-// TODO: need to consider compiler capabilities
-// #     ifdef SLANG_DYNAMIC_EXPORT
-#define SLANG_RHI_API SLANG_DLL_EXPORT
-// #     endif
-#endif
-#endif
-
-#ifndef SLANG_RHI_API
 #define SLANG_RHI_API
+#endif
+#endif
 #endif
 
 // Needed for building on cygwin with gcc
