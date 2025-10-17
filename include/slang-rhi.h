@@ -7,24 +7,19 @@
 
 #include <slang-rhi/capabilities.h>
 
-#if defined(SLANG_RHI_DYNAMIC)
+#if SLANG_RHI_SHARED
+#ifdef SLANG_RHI_SHARED_EXPORT
+#define SLANG_RHI_API SLANG_DLL_EXPORT
+#else
 #if defined(_MSC_VER)
-#ifdef SLANG_RHI_DYNAMIC_EXPORT
-#define SLANG_RHI_API SLANG_DLL_EXPORT
-#else
 #define SLANG_RHI_API __declspec(dllimport)
-#endif
 #else
-// TODO: need to consider compiler capabilities
-// #     ifdef SLANG_DYNAMIC_EXPORT
-#define SLANG_RHI_API SLANG_DLL_EXPORT
-// #     endif
-#endif
-#endif
-
-#ifndef SLANG_RHI_API
 #define SLANG_RHI_API
 #endif
+#endif
+#else // SLANG_RHI_SHARED
+#define SLANG_RHI_API
+#endif // SLANG_RHI_SHARED
 
 // Needed for building on cygwin with gcc
 #undef Always
@@ -3436,19 +3431,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPool(ITaskPool* taskPool) = 0;
 };
 
-// Global public functions
-
-extern "C"
-{
-    /// Get the global interface to the RHI.
-    SLANG_RHI_API IRHI* SLANG_MCALL getRHI();
-}
-
-inline const FormatInfo& getFormatInfo(Format format)
-{
-    return getRHI()->getFormatInfo(format);
-}
-
 // Extended descs.
 struct D3D12ExperimentalFeaturesDesc
 {
@@ -3478,5 +3460,25 @@ struct VulkanDeviceExtendedDesc
 
     bool enableDebugPrintf = false;
 };
+
+} // namespace rhi
+
+/// Get the global interface to the RHI.
+extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance();
+
+// Global public functions
+
+namespace rhi {
+
+/// Get the global interface to the RHI.
+inline IRHI* getRHI()
+{
+    return ::rhiGetInstance();
+}
+
+inline const FormatInfo& getFormatInfo(Format format)
+{
+    return getRHI()->getFormatInfo(format);
+}
 
 } // namespace rhi

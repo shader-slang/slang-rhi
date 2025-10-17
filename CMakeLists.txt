@@ -185,8 +185,11 @@ endif()
 
 if(SLANG_RHI_BUILD_SHARED)
     add_library(slang-rhi SHARED)
+    set(SLANG_RHI_SHARED ON)
+    target_compile_definitions(slang-rhi PRIVATE SLANG_RHI_SHARED_EXPORT)
 else()
     add_library(slang-rhi STATIC)
+    set(SLANG_RHI_SHARED OFF)
 endif()
 
 set(SLANG_RHI_COPY_FILES "")
@@ -738,7 +741,8 @@ target_compile_definitions(slang-rhi
 target_compile_features(slang-rhi PRIVATE cxx_std_17)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(SLANG_RHI_BUILD_TESTS)
+# Tests currently require linking statically due to reaching into internal details of the RHI implementation.
+if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
 

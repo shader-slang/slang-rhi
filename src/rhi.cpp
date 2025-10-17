@@ -425,12 +425,9 @@ bool isDebugLayersEnabled()
     return RHI::getInstance()->debugLayersEnabled;
 }
 
-extern "C"
-{
-    IRHI* getRHI()
-    {
-        return RHI::getInstance();
-    }
-}
-
 } // namespace rhi
+
+extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance()
+{
+    return rhi::RHI::getInstance();
+}
