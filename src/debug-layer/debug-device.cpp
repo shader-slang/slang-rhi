@@ -548,7 +548,15 @@ Result DebugDevice::createShaderProgram(
 {
     SLANG_RHI_API_FUNC;
 
-    return baseObject->createShaderProgram(desc, outProgram, outDiagnostics);
+    ShaderProgramDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createShaderProgramLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
+    return baseObject->createShaderProgram(patchedDesc, outProgram, outDiagnostics);
 }
 
 Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
