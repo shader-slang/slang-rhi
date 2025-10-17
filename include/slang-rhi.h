@@ -3436,19 +3436,6 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPool(ITaskPool* taskPool) = 0;
 };
 
-// Global public functions
-
-extern "C"
-{
-    /// Get the global interface to the RHI.
-    SLANG_RHI_API IRHI* SLANG_MCALL getRHI();
-}
-
-inline const FormatInfo& getFormatInfo(Format format)
-{
-    return getRHI()->getFormatInfo(format);
-}
-
 // Extended descs.
 struct D3D12ExperimentalFeaturesDesc
 {
@@ -3478,5 +3465,25 @@ struct VulkanDeviceExtendedDesc
 
     bool enableDebugPrintf = false;
 };
+
+} // namespace rhi
+
+/// Get the global interface to the RHI.
+extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance();
+
+// Global public functions
+
+namespace rhi {
+
+/// Get the global interface to the RHI.
+inline IRHI* getRHI()
+{
+    return ::rhiGetInstance();
+}
+
+inline const FormatInfo& getFormatInfo(Format format)
+{
+    return getRHI()->getFormatInfo(format);
+}
 
 } // namespace rhi
