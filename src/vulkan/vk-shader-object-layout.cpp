@@ -144,14 +144,11 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             auto vkDescriptorType = _mapDescriptorType(slangDescriptorType);
             VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
             vkBindingRangeDesc.binding =
-                offset.binding + (uint32_t)typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
-                                     slangDescriptorSetIndex,
-                                     descriptorRangeIndex
-                                 );
-            vkBindingRangeDesc.descriptorCount = (uint32_t)typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
-                slangDescriptorSetIndex,
-                descriptorRangeIndex
-            );
+                offset.binding +
+                (uint32_t
+                )typeLayout->getDescriptorSetDescriptorRangeIndexOffset(slangDescriptorSetIndex, descriptorRangeIndex);
+            vkBindingRangeDesc.descriptorCount = (uint32_t
+            )typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(slangDescriptorSetIndex, descriptorRangeIndex);
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 
@@ -414,7 +411,6 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
     for (SlangInt r = 0; r < subObjectRangeCount; ++r)
     {
         SlangInt bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(r);
-        auto& bindingRange = m_bindingRanges[bindingRangeIndex];
         auto slangBindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
 
@@ -557,12 +553,6 @@ Result ShaderObjectLayoutImpl::createForElementType(
     //
     BindingOffset elementOffset;
     elementOffset.binding = ordinaryDataBufferCount;
-
-    // All bindings are now handled uniformly since pending data has been removed.
-    //
-    uint32_t primaryDescriptorCount =
-        ordinaryDataBufferCount +
-        (uint32_t)builder.m_elementTypeLayout->getSize(SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT);
 
     // Once we've computed the offset information, we simply add the
     // descriptor ranges as if things were declared as a `ConstantBuffer<X>`,

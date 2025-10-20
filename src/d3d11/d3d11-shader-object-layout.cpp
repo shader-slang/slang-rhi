@@ -140,7 +140,6 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     for (SlangInt r = 0; r < subObjectRangeCount; ++r)
     {
         SlangInt bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(r);
-        BindingRangeInfo& bindingRange = m_bindingRanges[bindingRangeIndex];
 
         slang::BindingType slangBindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
@@ -179,6 +178,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             // Pending data layout APIs have been removed.
             // Interface-type ranges now have no additional layout information.
             // Sub-object layout remains nullptr for interface types.
+            break;
         }
 
         subObjectRange.layout = subObjectLayout;
@@ -249,8 +249,6 @@ Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** o
 void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutReflection* globalsLayout)
 {
     setElementTypeLayout(globalsLayout->getTypeLayout());
-    // Pending data offset is no longer needed
-    m_pendingDataOffset = SimpleBindingOffset();
 }
 
 void RootShaderObjectLayoutImpl::Builder::addEntryPoint(
@@ -281,14 +279,12 @@ Result RootShaderObjectLayoutImpl::create(
     {
         auto slangEntryPoint = programLayout->getEntryPointByIndex(e);
         RefPtr<ShaderObjectLayoutImpl> entryPointLayout;
-        SLANG_RETURN_ON_FAIL(
-            ShaderObjectLayoutImpl::createForElementType(
-                device,
-                program->getSession(),
-                slangEntryPoint->getTypeLayout(),
-                entryPointLayout.writeRef()
-            )
-        );
+        SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(
+            device,
+            program->getSession(),
+            slangEntryPoint->getTypeLayout(),
+            entryPointLayout.writeRef()
+        ));
         builder.addEntryPoint(slangEntryPoint->getStage(), entryPointLayout, slangEntryPoint);
     }
 
@@ -304,7 +300,6 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
     m_program = builder->m_program;
     m_programLayout = builder->m_programLayout;
     m_entryPoints = builder->m_entryPoints;
-    m_pendingDataOffset = builder->m_pendingDataOffset;
     m_slangSession = m_program->getSession();
 
     return SLANG_OK;

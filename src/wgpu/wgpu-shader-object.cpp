@@ -103,7 +103,6 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindGroupLayouts = specializedLayout->m_bindGroupLayouts;
 
     BindingOffset offset = {};
-    offset.pending = specializedLayout->m_pendingDataOffset;
 
     // Note: the operations here are quite similar to what `bindAsParameterBlock` does.
     // The key difference in practice is that we do *not* make use of the adjustment
