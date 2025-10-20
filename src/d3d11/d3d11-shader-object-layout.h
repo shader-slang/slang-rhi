@@ -277,7 +277,7 @@ protected:
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         std::vector<EntryPointInfo> m_entryPoints;
-    
+
         Builder(Device* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
             : Super::Builder(device, program->getSession())
             , m_program(program)

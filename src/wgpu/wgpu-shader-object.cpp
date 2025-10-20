@@ -315,8 +315,8 @@ Result BindingDataBuilder::bindAsValue(
                 // For the purposes of nested binding, what used to be the pending offset
                 // will now be used as the primary offset.
                 //
-                SimpleBindingOffset objOffset = rangeOffset.pending;
-                SimpleBindingOffset objStride = rangeStride.pending;
+                SimpleBindingOffset objOffset = rangeOffset;
+                SimpleBindingOffset objStride = rangeStride;
                 for (uint32_t i = 0; i < count; ++i)
                 {
                     // An existential-type sub-object is always bound just as a value,
@@ -360,13 +360,7 @@ Result BindingDataBuilder::bindAsParameterBlock(
     offset.bindingSet = (uint32_t)m_entries.size();
     offset.binding = 0;
 
-    // TODO: We should also be writing to `offset.pending` here,
-    // because any resource/sampler bindings related to "pending"
-    // data should *also* be writing into the chosen set.
-    //
-    // The challenge here is that we need to compute the right
-    // value for `offset.pending.binding`, so that it writes after
-    // all the other bindings.
+    // Note: Pending data layout functionality has been removed.
 
     // Writing the bindings for a parameter block is relatively easy:
     // we just need to allocate the descriptor set(s) needed for this
