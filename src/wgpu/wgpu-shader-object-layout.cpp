@@ -238,8 +238,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             break;
 
         case slang::BindingType::ExistentialValue:
-            // Pending data layout APIs have been removed.
-            // Interface-type ranges no longer contribute additional descriptor ranges.
+            // Interface-type ranges are no longer supported after pending data removal.
             break;
 
         case slang::BindingType::ConstantBuffer:
@@ -420,9 +419,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         break;
 
         case slang::BindingType::ExistentialValue:
-            // Pending data layout APIs have been removed.
-            // Interface-type ranges now have no additional layout information.
-            // Sub-object layout remains nullptr for interface types.
+            // Interface-type ranges are no longer supported after pending data removal.
             break;
         }
 
@@ -663,7 +660,6 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
     m_program = builder->m_program;
     m_programLayout = builder->m_programLayout;
     m_entryPoints = _Move(builder->m_entryPoints);
-    m_pendingDataOffset = builder->m_pendingDataOffset;
     m_device = device;
 
     // If the program has unbound specialization parameters,
@@ -780,7 +776,7 @@ void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutR
     // While we expect that the parameter in the global scope start
     // at an offset of zero, it is also worth querying the offset
     // information because it could impact the locations assigned
-    // to "pending" data in the case of static specialization.
+    // for handling static specialization cases.
     //
     BindingOffset offset(globalsLayout);
 
@@ -801,7 +797,6 @@ void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutR
     // data because we will need it again later when it comes time to
     // actually bind things.
     //
-    m_pendingDataOffset = offset.pending;
 }
 
 void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryPointLayout)
@@ -810,13 +805,12 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     auto entryPointVarLayout = slangEntryPointLayout->getVarLayout();
 
     // The offset information for each entry point needs to
-    // be adjusted by any offset for "pending" data that
+    // be handled uniformly now that pending data has been removed.
     // was recorded in the global-scope layout.
     //
     // TODO(tfoley): Double-check that this is correct.
 
     BindingOffset entryPointOffset(entryPointVarLayout);
-    entryPointOffset.pending += m_pendingDataOffset;
 
     EntryPointInfo info;
     info.layout = entryPointLayout;

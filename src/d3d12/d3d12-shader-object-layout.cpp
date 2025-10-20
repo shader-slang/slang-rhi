@@ -242,9 +242,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         RefPtr<ShaderObjectLayoutImpl> subObjectLayout;
         if (slangBindingType == slang::BindingType::ExistentialValue)
         {
-            // Pending data layout APIs have been removed.
-            // Interface-type ranges now have no additional layout information.
-            // Sub-object layout remains nullptr for interface types.
+            // Interface-type ranges are no longer supported after pending data removal.
         }
         else
         {
@@ -263,7 +261,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         // The Slang reflection API stors offset information for sub-object ranges,
         // and we care about *some* of that information: in particular, we need
         // the offset of sub-objects in terms of uniform/ordinary data for the
-        // cases where we need to fill in "pending" data in our ordinary buffer.
+        // for handling sub-object offset computations.
         //
         subObjectRange.offset = SubObjectRangeOffset(typeLayout->getSubObjectRangeOffset(r));
         subObjectRange.stride = SubObjectRangeStride(slangLeafTypeLayout);
@@ -370,8 +368,6 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         m_totalCounts.sampler += rangeSamplerCount;
         m_childRootParameterCount += rangeRootParamCount;
 
-        subObjectRange.pendingOrdinaryDataOffset = subObjectRange.offset.pendingOrdinaryData;
-        subObjectRange.pendingOrdinaryDataStride = subObjectRange.stride.pendingOrdinaryData;
 
         m_subObjectRanges.push_back(subObjectRange);
     }
@@ -648,7 +644,6 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
     BindingRegisterOffsetPair offset(varLayout);
     auto elementOffset = offset;
     elementOffset.primary.spaceOffset = 0;
-    elementOffset.pending.spaceOffset = 0;
     addAsValue(varLayout->getTypeLayout(), physicalDescriptorSetIndex, offset, elementOffset);
 }
 
@@ -754,7 +749,6 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
         subObjectRangeElementOffset +=
             BindingRegisterOffsetPair(typeLayout->getSubObjectRangeOffset(subObjectRangeIndex));
         subObjectRangeElementOffset.primary.spaceOffset = inElementOffset.primary.spaceOffset;
-        subObjectRangeElementOffset.pending.spaceOffset = inElementOffset.pending.spaceOffset;
 
         switch (bindingType)
         {
@@ -791,7 +785,6 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
 
             BindingRegisterOffsetPair subDescriptorSetOffset;
             subDescriptorSetOffset.primary.spaceOffset = subObjectRangeContainerOffset.primary.spaceOffset;
-            subDescriptorSetOffset.pending.spaceOffset = subObjectRangeContainerOffset.pending.spaceOffset;
 
             auto subPhysicalDescriptorSetIndex = addDescriptorSet();
 

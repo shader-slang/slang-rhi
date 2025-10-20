@@ -181,8 +181,6 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             // Sub-object layout remains nullptr for interface types.
         }
 
-        subObjectRange.pendingOrdinaryDataOffset = subObjectRange.offset.pendingOrdinaryData;
-        subObjectRange.pendingOrdinaryDataStride = subObjectRange.stride.pendingOrdinaryData;
         subObjectRange.layout = subObjectLayout;
 
         m_subObjectRanges.push_back(subObjectRange);

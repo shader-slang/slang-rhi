@@ -61,19 +61,11 @@ struct SimpleBindingOffset
 
 // While a "simple" binding offset representation will work in many cases,
 // once we need to deal with layout for programs with interface-type parameters
-// that have been statically specialized, we also need to track the offset
-// for where to bind any "pending" data that arises from the process of static
-// specialization.
-//
-// In order to conveniently track both the "primary" and "pending" offset information,
-// we will define a more complete `BindingOffset` type that combines simple
-// binding offsets for the primary and pending parts.
+// that have been statically specialized.
 
 /// A representation of the offset at which to bind a shader parameter or sub-object
 struct BindingOffset : SimpleBindingOffset
 {
-    // Offsets for "primary" data are stored directly in the `BindingOffset`
-    // via the inheritance from `SimpleBindingOffset`.
 
 
     /// Create a default (zero) offset

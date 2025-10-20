@@ -185,11 +185,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             break;
 
         case slang::BindingType::ExistentialValue:
-            // An interest/existential-typed sub-object range will only contribute
-            // descriptor ranges to a parent object in the case where it has been
-            // specialied, which is precisely the case where the Slang reflection
-            // information will tell us about its "pending" layout.
-            //
+            // Interface-type ranges are no longer supported after pending data removal.
             break;
 
         case slang::BindingType::ConstantBuffer:
@@ -460,8 +456,6 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         //
         subObjectRange.offset = SubObjectRangeOffset(typeLayout->getSubObjectRangeOffset(r));
         subObjectRange.stride = SubObjectRangeStride(slangLeafTypeLayout);
-        subObjectRange.pendingOrdinaryDataOffset = 0;
-        subObjectRange.pendingOrdinaryDataStride = 0;
 
         switch (slangBindingType)
         {
@@ -483,16 +477,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
                 m_totalBindingCount += subObjectLayout->getTotalBindingCount();
                 m_childPushConstantRangeCount += subObjectLayout->getTotalPushConstantRangeCount();
 
-                // An interface-type range that includes ordinary data can
-                // increase the size of the ordinary data buffer we need to
-                // allocate for the parent object.
-                //
-                uint32_t ordinaryDataEnd = 0;
-
-                if (ordinaryDataEnd > m_totalOrdinaryDataSize)
-                {
-                    m_totalOrdinaryDataSize = ordinaryDataEnd;
-                }
+                // Interface-type ranges are no longer supported after pending data removal.
             }
             break;
 
@@ -573,10 +558,7 @@ Result ShaderObjectLayoutImpl::createForElementType(
     BindingOffset elementOffset;
     elementOffset.binding = ordinaryDataBufferCount;
 
-    // Furthermore, any `binding`s that arise due to "pending" data
-    // in the type of the object (due to specialization for existential types)
-    // will need to come after all the other `binding`s that were
-    // part of the "primary" (unspecialized) data.
+    // All bindings are now handled uniformly since pending data has been removed.
     //
     uint32_t primaryDescriptorCount =
         ordinaryDataBufferCount +
@@ -928,7 +910,7 @@ void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutR
     // While we expect that the parameter in the global scope start
     // at an offset of zero, it is also worth querying the offset
     // information because it could impact the locations assigned
-    // to "pending" data in the case of static specialization.
+    // for handling static specialization cases.
     //
     BindingOffset offset(globalsLayout);
 
@@ -945,9 +927,7 @@ void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutR
     //
     _addDescriptorRangesAsValue(globalsLayout->getTypeLayout(), offset);
 
-    // We want to keep track of the offset that was applied to "pending"
-    // data because we will need it again later when it comes time to
-    // actually bind things.
+    // Binding offset handling has been simplified after pending data removal.
     //
 }
 
@@ -957,7 +937,7 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     auto entryPointVarLayout = slangEntryPointLayout->getVarLayout();
 
     // The offset information for each entry point needs to
-    // be adjusted by any offset for "pending" data that
+    // be handled uniformly now that pending data has been removed.
     // was recorded in the global-scope layout.
     //
     // TODO(tfoley): Double-check that this is correct.

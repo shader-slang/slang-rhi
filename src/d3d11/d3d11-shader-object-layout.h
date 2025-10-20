@@ -62,22 +62,12 @@ struct SimpleBindingOffset
 
 // While a "simple" binding offset representation will work in many cases,
 // once we need to deal with layout for programs with interface-type parameters
-// that have been statically specialized, we also need to track the offset
-// for where to bind any "pending" data that arises from the process of static
-// specialization.
-//
-// In order to conveniently track both the "primary" and "pending" offset information,
-// we will define a more complete `BindingOffset` type that combines simple
-// binding offsets for the primary and pending parts.
+// that have been statically specialized.
 
 /// A representation of the offset at which to bind a shader parameter or sub-object
 struct BindingOffset : SimpleBindingOffset
 {
-    // Offsets for "primary" data are stored directly in the `BindingOffset`
-    // via the inheritance from `SimpleBindingOffset`.
 
-    /// Offset for any "pending" data
-    SimpleBindingOffset pending;
 
     /// Create a default (zero) offset
     BindingOffset() {}
@@ -91,14 +81,12 @@ struct BindingOffset : SimpleBindingOffset
     /// Create an offset based on offset information in the given Slang `varLayout`
     BindingOffset(slang::VariableLayoutReflection* varLayout)
         : SimpleBindingOffset(varLayout)
-        , pending(nullptr)
     {
     }
 
     /// Create an offset based on size/stride information in the given Slang `typeLayout`
     BindingOffset(slang::TypeLayoutReflection* typeLayout)
         : SimpleBindingOffset(typeLayout)
-        , pending(nullptr)
     {
     }
 
@@ -109,7 +97,6 @@ struct BindingOffset : SimpleBindingOffset
     void operator+=(const BindingOffset& offset)
     {
         SimpleBindingOffset::operator+=(offset);
-        pending += offset.pending;
     }
 };
 
@@ -157,8 +144,6 @@ public:
 
         SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout);
 
-        /// The offset for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Stride information for a sub-object range
@@ -168,8 +153,6 @@ public:
 
         SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout);
 
-        /// The strid for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Information about a logical binding range as reported by Slang reflection
@@ -272,7 +255,6 @@ public:
     slang::ProgramLayout* m_programLayout = nullptr;
 
     std::vector<EntryPointInfo> m_entryPoints;
-    SimpleBindingOffset m_pendingDataOffset;
 
     static Result create(
         Device* device,
@@ -295,8 +277,7 @@ protected:
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         std::vector<EntryPointInfo> m_entryPoints;
-        SimpleBindingOffset m_pendingDataOffset;
-
+    
         Builder(Device* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
             : Super::Builder(device, program->getSession())
             , m_program(program)
