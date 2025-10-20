@@ -584,7 +584,7 @@ ComPtr<IDevice> createTestingDevice(
 
 #if SLANG_RHI_ENABLE_OPTIX
     deviceDesc.requiredOptixVersion = options().optixVersion;
-    // Setup Optix headers
+    // Setup OptiX headers
     if (deviceType == DeviceType::CUDA)
     {
         slang::CompilerOptionEntry optixSearchPath;
@@ -605,7 +605,7 @@ ComPtr<IDevice> createTestingDevice(
         }
         else
         {
-            FAIL("Unsupported Optix version");
+            FAIL("Unsupported OptiX version");
         }
         compilerOptions.push_back(optixSearchPath);
     }

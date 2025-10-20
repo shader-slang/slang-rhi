@@ -671,8 +671,8 @@ Result CommandQueueImpl::init()
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     // On CUDA, treat the graphics stream as the default stream, identified
-    // by a NULL ptr. When we support async compute queues on d3d/vulkan,
-    // they will be equivalent to secondary, none-default streams in cuda.
+    // by a NULL ptr. When we support async compute queues on D3D/Vulkan,
+    // they will be equivalent to secondary, non-default streams in CUDA.
     if (m_type == QueueType::Graphics)
     {
         m_stream = nullptr;

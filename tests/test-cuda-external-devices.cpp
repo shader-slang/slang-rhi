@@ -91,7 +91,7 @@ void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool exp
         desc.cudaStream = stream;
 
         // Unfortunately our command executor can't return errors, and instead throws an
-        // assert when this cuda command fails. To avoid killing the test even when things
+        // assert when this CUDA command fails. To avoid killing the test even when things
         // go wrong, we disable asserts for the scope of this call. If the submit fails,
         // the result comparison should detect the real error.
         {
@@ -112,7 +112,7 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
 {
     using namespace rhi::cuda;
 
-    // Get cuda implementations of the main test device
+    // Get CUDA implementations of the main test device
     auto cuda_device_1 = getCUDADevice(device);
 
     // Explicitly create a 2nd context, and pop it off the stack so it doesn't become the current context.
@@ -129,7 +129,7 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
     opts.existingDeviceHandles.handles[0].value = reinterpret_cast<uint64_t>(tmp_context);
     ComPtr<IDevice> device2 = createTestingDevice(&ctx2, DeviceType::CUDA, false, &opts);
 
-    // Get cuda implementations of both devices
+    // Get CUDA implementations of both devices
     auto cuda_device_2 = getCUDADevice(device2.get());
 
     // Create a 3rd device that shares context with the 1st
@@ -145,7 +145,7 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
     runPointerCopyTest(cuda_device_2, nullptr, false);
     runPointerCopyTest(cuda_device_3, nullptr, false);
 
-    // Now use cuda driver api to create a new stream from device1's context
+    // Now use CUDA driver api to create a new stream from device1's context
     CUstream stream;
     {
         SLANG_CUDA_CTX_SCOPE(cuda_device_1);
@@ -156,7 +156,7 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
     runPointerCopyTest(cuda_device_1, stream, false);
 
     // Now attempt and expect failure in submitting on device 2 using the custom stream,
-    // because cuda requires that the stream used is associated with the active
+    // because CUDA requires that the stream used is associated with the active
     // context.
     runPointerCopyTest(cuda_device_2, stream, true);
 
@@ -171,7 +171,7 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
     device2.setNull();
     device3.setNull();
 
-    // Clean up cuda!
+    // Clean up CUDA!
     cuStreamDestroy(stream);
     cuCtxDestroy(tmp_context);
 }
