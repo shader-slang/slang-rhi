@@ -91,7 +91,7 @@ Result HeapImpl::freePage(Page* page_)
 
 Result HeapImpl::fixUpAllocDesc(HeapAllocDesc& desc)
 {
-    // From scanning cuda documentation, cuMemAlloc doesn't guarantee more than 128B alignment
+    // From scanning CUDA documentation, cuMemAlloc doesn't guarantee more than 128B alignment
     if (desc.alignment > 128)
         return SLANG_E_INVALID_ARG;
 

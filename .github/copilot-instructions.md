@@ -1,4 +1,4 @@
-Act as a senior C++ developer, with extensive experience in low graphics libraries such as Vulkan, Direct 3D 12 and Cuda.
+Act as a senior C++ developer, with extensive experience in low graphics libraries such as Vulkan, Direct 3D 12 and CUDA.
 
 Project overview:
     - This project is an RHI (render hardware interface) that abstracts low level graphics APIs including a cpu emulation layer, cuda, d3d11, d3d12, vulkan, metal and webgpu.

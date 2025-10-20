@@ -12,7 +12,7 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
-    // Texture is either stored in cuda array or mip mapped array.
+    // Texture is either stored in CUDA array or mip mapped array.
     CUarray m_cudaArray = 0;
     CUmipmappedArray m_cudaMipMappedArray = 0;
 
