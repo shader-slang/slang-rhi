@@ -32,7 +32,7 @@ void rayGenShaderReorderHint()
     uint numHintBits = 1;
     ReorderThread(hint, numHintBits);
 
-    HitObject.Invoke(sceneBVH, hit, payload);
+    HitObject.Invoke(hit, payload);
     resultTexture[pixel] = payload.color;
 }
 
@@ -56,7 +56,7 @@ void rayGenShaderReorderHitObj()
 
     ReorderThread(hit);
 
-    HitObject.Invoke(sceneBVH, hit, payload);
+    HitObject.Invoke(hit, payload);
     resultTexture[pixel] = payload.color;
 }
 
@@ -82,7 +82,7 @@ void rayGenShaderReorderHitObjAndHint()
     uint numHintBits = 1;
     ReorderThread(hit, hint, numHintBits);
 
-    HitObject.Invoke(sceneBVH, hit, payload);
+    HitObject.Invoke(hit, payload);
     resultTexture[pixel] = payload.color;
 }
 
