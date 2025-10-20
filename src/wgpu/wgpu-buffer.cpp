@@ -80,7 +80,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
             callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
             callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-            { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
+            {
+                *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
+            };
             callbackInfo.userdata1 = &status;
             WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
             constexpr size_t futureCount = 1;

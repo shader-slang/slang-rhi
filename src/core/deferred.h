@@ -17,6 +17,12 @@ private:
     Callback m_callback;
 };
 
-#define SLANG_RHI_DEFERRED(block) Deferred SLANG_CONCAT(_deferred, __COUNTER__)([&]() { block })
+#define SLANG_RHI_DEFERRED(block)                                                                                      \
+    Deferred SLANG_CONCAT(_deferred, __COUNTER__)(                                                                     \
+        [&]()                                                                                                          \
+        {                                                                                                              \
+            block                                                                                                      \
+        }                                                                                                              \
+    )
 
 } // namespace rhi

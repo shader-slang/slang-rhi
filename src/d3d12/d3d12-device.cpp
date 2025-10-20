@@ -316,7 +316,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         auto it = std::find_if(
             getAdapters().begin(),
             getAdapters().end(),
-            [&](const AdapterImpl& a) { return luid == a.m_info.luid; }
+            [&](const AdapterImpl& a)
+            {
+                return luid == a.m_info.luid;
+            }
         );
         if (it == getAdapters().end())
         {

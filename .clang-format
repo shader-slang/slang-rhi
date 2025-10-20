@@ -15,6 +15,7 @@ SpaceBeforeCpp11BracedList: false
 AlwaysBreakTemplateDeclarations: true
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortEnumsOnASingleLine: true
+AllowShortLambdasOnASingleLine: false
 AllowAllArgumentsOnNextLine: false
 BinPackArguments: false
 AllowAllParametersOfDeclarationOnNextLine: false

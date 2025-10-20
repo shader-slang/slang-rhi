@@ -371,13 +371,28 @@ public:
         (processVariantArg(args), ...);
 
         // Add the post processor to generator list
-        addGenerator([this](int state, TextureTestVariant variant) { postProcessVariant(state, variant); });
+        addGenerator(
+            [this](int state, TextureTestVariant variant)
+            {
+                postProcessVariant(state, variant);
+            }
+        );
 
         // Add the filter for invalid format combinations
-        addGenerator([this](int state, TextureTestVariant variant) { filterFormat(state, variant); });
+        addGenerator(
+            [this](int state, TextureTestVariant variant)
+            {
+                filterFormat(state, variant);
+            }
+        );
 
         // Add generator that adjusts texture size after formats selected.
-        addGenerator([this](int state, TextureTestVariant variant) { applyTextureSize(state, variant); });
+        addGenerator(
+            [this](int state, TextureTestVariant variant)
+            {
+                applyTextureSize(state, variant);
+            }
+        );
     }
 
     /// Get current device.

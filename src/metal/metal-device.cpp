@@ -347,7 +347,10 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 {
     AUTORELEASEPOOL
 
-    auto alignTo = [&](Size size, Size alignment) -> Size { return ((size + alignment - 1) / alignment) * alignment; };
+    auto alignTo = [&](Size size, Size alignment) -> Size
+    {
+        return ((size + alignment - 1) / alignment) * alignment;
+    };
 
     TextureDesc desc = fixupTextureDesc(desc_);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);

@@ -133,7 +133,16 @@ void testSimpleDependency(ITaskPool* pool)
         );
     }
 
-    ITaskPool::TaskHandle waitTask = pool->submitTask([](void*) { CHECK(finished == N); }, nullptr, nullptr, tasks, N);
+    ITaskPool::TaskHandle waitTask = pool->submitTask(
+        [](void*)
+        {
+            CHECK(finished == N);
+        },
+        nullptr,
+        nullptr,
+        tasks,
+        N
+    );
 
     for (size_t i = 0; i < N; ++i)
     {
@@ -157,14 +166,30 @@ inline ITaskPool::TaskHandle spawn(ITaskPool* pool, int depth)
         ITaskPool::TaskHandle a = spawn(pool, depth - 1);
         ITaskPool::TaskHandle b = spawn(pool, depth - 1);
         ITaskPool::TaskHandle tasks[] = {a, b};
-        ITaskPool::TaskHandle c = pool->submitTask([](void*) {}, nullptr, nullptr, tasks, 2);
+        ITaskPool::TaskHandle c = pool->submitTask(
+            [](void*)
+            {
+            },
+            nullptr,
+            nullptr,
+            tasks,
+            2
+        );
         pool->releaseTask(a);
         pool->releaseTask(b);
         return c;
     }
     else
     {
-        return pool->submitTask([](void*) {}, nullptr, nullptr, nullptr, 0);
+        return pool->submitTask(
+            [](void*)
+            {
+            },
+            nullptr,
+            nullptr,
+            nullptr,
+            0
+        );
     }
 }
 
@@ -195,7 +220,15 @@ inline ITaskPool::TaskHandle fibonacciTask(int n)
         payload->result = n;
         payload->a = nullptr;
         payload->b = nullptr;
-        return fibonacciPool->submitTask([](void* payload) {}, payload, ::free, nullptr, 0);
+        return fibonacciPool->submitTask(
+            [](void* payload)
+            {
+            },
+            payload,
+            ::free,
+            nullptr,
+            0
+        );
     }
     else
     {

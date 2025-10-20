@@ -523,7 +523,9 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-        { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
+        {
+            *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
+        };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
