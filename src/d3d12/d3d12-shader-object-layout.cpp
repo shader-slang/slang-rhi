@@ -27,18 +27,12 @@ inline bool isBindingRangeRootParameter(
 
 ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
 {
-    if (auto pendingLayout = varLayout->getPendingDataLayout())
-    {
-        pendingOrdinaryData = (uint32_t)pendingLayout->getOffset(SLANG_PARAMETER_CATEGORY_UNIFORM);
-    }
+    // Pending layout APIs have been removed - no additional offset needed
 }
 
 ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
 {
-    if (auto pendingLayout = typeLayout->getPendingDataTypeLayout())
-    {
-        pendingOrdinaryData = (uint32_t)pendingLayout->getSize(SLANG_PARAMETER_CATEGORY_UNIFORM);
-    }
+    // Pending layout APIs have been removed - no stride needed
 }
 
 Result ShaderObjectLayoutImpl::createForElementType(
@@ -248,10 +242,9 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         RefPtr<ShaderObjectLayoutImpl> subObjectLayout;
         if (slangBindingType == slang::BindingType::ExistentialValue)
         {
-            if (auto pendingTypeLayout = slangLeafTypeLayout->getPendingDataTypeLayout())
-            {
-                createForElementType(m_device, m_session, pendingTypeLayout, subObjectLayout.writeRef());
-            }
+            // Pending data layout APIs have been removed.
+            // Interface-type ranges now have no additional layout information.
+            // Sub-object layout remains nullptr for interface types.
         }
         else
         {
@@ -360,40 +353,9 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             // we may need to account for additional information that needs to be
             // allocaated.
             //
-            if (subObjectLayout)
-            {
-                // The ordinary data for an existential-type value is allocated into
-                // the same buffer as the parent object, so we only want to consider
-                // the resource descriptors *other than* the ordinary data buffer.
-                //
-                // Otherwise the logic here is identical to the constant buffer case.
-                //
-                objectCounts.resource = subObjectLayout->getTotalResourceDescriptorCountWithoutOrdinaryDataBuffer();
-                objectCounts.sampler = subObjectLayout->getTotalSamplerDescriptorCount();
-                objectCounts.rootParam = subObjectRange.layout->getChildRootParameterCount();
-
-                // Note: In the implementation for some other graphics API (e.g.,
-                // Vulkan) there needs to be more work done to handle the fact that
-                // "pending" data from interface-type sub-objects get allocated to a
-                // distinct offset after all the "primary" data. We are consciously
-                // ignoring that issue here, and the physical layout of a shader object
-                // into the D3D12 binding state may end up interleaving
-                // resources/samplers for "primary" and "pending" data.
-                //
-                // If this choice ever causes issues, we can revisit the approach here.
-
-                // An interface-type range that includes ordinary data can
-                // increase the size of the ordinary data buffer we need to
-                // allocate for the parent object.
-                //
-                uint32_t ordinaryDataEnd = subObjectRange.offset.pendingOrdinaryData +
-                                           (uint32_t)count * subObjectRange.stride.pendingOrdinaryData;
-
-                if (ordinaryDataEnd > m_totalOrdinaryDataSize)
-                {
-                    m_totalOrdinaryDataSize = ordinaryDataEnd;
-                }
-            }
+            // Pending data layout APIs have been removed.
+            // Interface-type ranges now have no additional resource requirements.
+            // The subObjectLayout will be nullptr for interface types.
             break;
         }
 
@@ -856,17 +818,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
         }
         case slang::BindingType::ExistentialValue:
         {
-            // Any nested binding ranges in the sub-object will "leak" into the
-            // binding ranges for the surrounding context.
-            //
-            auto specializedTypeLayout = subObjectTypeLayout->getPendingDataTypeLayout();
-            if (specializedTypeLayout)
-            {
-                BindingRegisterOffsetPair pendingOffset;
-                pendingOffset.primary = subObjectRangeElementOffset.pending;
-
-                addAsValue(specializedTypeLayout, physicalDescriptorSetIndex, pendingOffset, pendingOffset);
-            }
+            // Pending data layout APIs have been removed.
+            // Interface-type ranges no longer contribute additional binding ranges.
             break;
         }
         default:

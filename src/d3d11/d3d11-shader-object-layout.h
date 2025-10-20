@@ -91,14 +91,14 @@ struct BindingOffset : SimpleBindingOffset
     /// Create an offset based on offset information in the given Slang `varLayout`
     BindingOffset(slang::VariableLayoutReflection* varLayout)
         : SimpleBindingOffset(varLayout)
-        , pending(varLayout->getPendingDataLayout())
+        , pending(nullptr)
     {
     }
 
     /// Create an offset based on size/stride information in the given Slang `typeLayout`
     BindingOffset(slang::TypeLayoutReflection* typeLayout)
         : SimpleBindingOffset(typeLayout)
-        , pending(typeLayout->getPendingDataTypeLayout())
+        , pending(nullptr)
     {
     }
 

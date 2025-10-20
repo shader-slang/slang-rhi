@@ -99,7 +99,6 @@ Result BindingDataBuilder::bindAsRoot(
     //
     BindingOffset offset;
 #if 0
-    offset.pending = layout->getPendingDataOffset();
 #endif
 
     // Note: We could *almost* call `bindAsConstantBuffer()` here to bind
@@ -332,13 +331,8 @@ Result BindingDataBuilder::bindAsValue(
             //
             if (subObjectLayout)
             {
-                // The data for objects in this range will always be bound into
-                // the "pending" allocation for the parent block/buffer/object.
-                // As a result, the offset for the first object in the range
-                // will come from the `pending` part of the range's offset.
-                //
-                SimpleBindingOffset objOffset = rangeOffset.pending;
-                SimpleBindingOffset objStride = rangeStride.pending;
+                SimpleBindingOffset objOffset = {};
+                SimpleBindingOffset objStride = {};
 
                 for (Index i = 0; i < count; ++i)
                 {

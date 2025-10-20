@@ -75,8 +75,6 @@ struct BindingOffset : SimpleBindingOffset
     // Offsets for "primary" data are stored directly in the `BindingOffset`
     // via the inheritance from `SimpleBindingOffset`.
 
-    /// Offset for any "pending" data
-    SimpleBindingOffset pending;
 
     /// Create a default (zero) offset
     BindingOffset() {}
@@ -90,7 +88,6 @@ struct BindingOffset : SimpleBindingOffset
     /// Create an offset based on offset information in the given Slang `varLayout`
     BindingOffset(slang::VariableLayoutReflection* varLayout)
         : SimpleBindingOffset(varLayout)
-        , pending(varLayout->getPendingDataLayout())
     {
     }
 
@@ -101,7 +98,6 @@ struct BindingOffset : SimpleBindingOffset
     void operator+=(const BindingOffset& offset)
     {
         SimpleBindingOffset::operator+=(offset);
-        pending += offset.pending;
     }
 };
 
@@ -148,14 +144,8 @@ public:
         SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
             : BindingOffset(varLayout)
         {
-            if (auto pendingLayout = varLayout->getPendingDataLayout())
-            {
-                pendingOrdinaryData = (uint32_t)pendingLayout->getOffset(SLANG_PARAMETER_CATEGORY_UNIFORM);
-            }
         }
 
-        /// The offset for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Stride information for a sub-object range
@@ -165,14 +155,8 @@ public:
 
         SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
         {
-            if (auto pendingLayout = typeLayout->getPendingDataTypeLayout())
-            {
-                pendingOrdinaryData = (uint32_t)pendingLayout->getStride();
-            }
         }
 
-        /// The stride for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Information about a logical binding range as reported by Slang reflection
@@ -454,8 +438,6 @@ public:
         slang::ProgramLayout* m_programLayout;
         std::vector<EntryPointInfo> m_entryPoints;
 
-        /// Offset to apply to "pending" data from this object, sub-objects, and entry points
-        SimpleBindingOffset m_pendingDataOffset;
     };
 
     uint32_t findEntryPointIndex(VkShaderStageFlags stage);
@@ -469,7 +451,6 @@ public:
         RootShaderObjectLayoutImpl** outLayout
     );
 
-    const SimpleBindingOffset& getPendingDataOffset() const { return m_pendingDataOffset; }
 
     slang::IComponentType* getSlangProgram() const { return m_program; }
     slang::ProgramLayout* getSlangProgramLayout() const { return m_programLayout; }
@@ -517,7 +498,6 @@ public:
     std::vector<VkPushConstantRange> m_allPushConstantRanges;
     uint32_t m_totalPushConstantSize = 0;
 
-    SimpleBindingOffset m_pendingDataOffset;
     DeviceImpl* m_device = nullptr;
 };
 
