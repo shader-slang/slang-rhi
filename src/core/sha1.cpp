@@ -110,10 +110,15 @@ void SHA1::addByte(uint8_t byte)
 
 void SHA1::processBlock(const uint8_t* ptr)
 {
-    auto rol32 = [](uint32_t x, uint32_t n) { return (x << n) | (x >> (32 - n)); };
+    auto rol32 = [](uint32_t x, uint32_t n)
+    {
+        return (x << n) | (x >> (32 - n));
+    };
 
     auto make_word = [](const uint8_t* p)
-    { return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | (uint32_t)p[3]; };
+    {
+        return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | (uint32_t)p[3];
+    };
 
     const uint32_t c0 = 0x5a827999;
     const uint32_t c1 = 0x6ed9eba1;

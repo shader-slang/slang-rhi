@@ -47,7 +47,10 @@ public:
             auto it = std::min_element(
                 entries.begin(),
                 entries.end(),
-                [](const auto& a, const auto& b) { return a.second.ticket < b.second.ticket; }
+                [](const auto& a, const auto& b)
+                {
+                    return a.second.ticket < b.second.ticket;
+                }
             );
             entries.erase(it);
         }

@@ -939,7 +939,9 @@ Result CommandQueueImpl::waitOnHost()
         WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
-        { *(WGPUQueueWorkDoneStatus*)userdata1 = status_; };
+        {
+            *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
+        };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = device->m_ctx.api.wgpuQueueOnSubmittedWorkDone(m_queue, callbackInfo);
         constexpr size_t futureCount = 1;
