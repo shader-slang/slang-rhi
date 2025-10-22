@@ -840,6 +840,18 @@ void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* ds
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::buildClusterAccelerationStructure(
+    const ClusterAccelBuildDesc& desc,
+    BufferOffsetPair scratchBuffer,
+    BufferOffsetPair resultBuffer
+)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(scratchBuffer);
+    SLANG_UNUSED(resultBuffer);
+    // Not implemented in the generic encoder; backends may override.
+}
+
 void CommandEncoder::convertCooperativeVectorMatrix(
     IBuffer* dstBuffer,
     const CooperativeVectorMatrixDesc* dstDescs,

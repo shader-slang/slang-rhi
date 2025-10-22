@@ -122,6 +122,8 @@ enum class DeviceType
     x(RayQuery,                                 "ray-query"                                     ) \
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
+    /* Cluster acceleration structure */                                                          \
+    x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
     x(RealtimeClock,                            "realtime-clock"                                ) \
@@ -1438,6 +1440,37 @@ struct AccelerationStructureSizes
     uint64_t updateScratchSize = 0;
 };
 
+// Cluster Acceleration Structure (CLAS) API
+enum class ClusterAccelBuildOp
+{
+    CLASFromTriangles,
+    BLASFromCLAS,
+    TemplatesFromTriangles,
+    CLASFromTemplates,
+};
+
+struct ClusterAccelSizes
+{
+    uint64_t resultSize = 0;
+    uint64_t scratchSize = 0;
+};
+
+struct ClusterAccelBuildDesc
+{
+    /// Operation to perform.
+    ClusterAccelBuildOp op = ClusterAccelBuildOp::CLASFromTriangles;
+
+    /// Device buffer containing an array of op-specific device-args records written by kernels.
+    BufferOffsetPair argsBuffer = {};
+    /// Stride in bytes between consecutive arg records in argsBuffer.
+    uint32_t argsStride = 0;
+    /// Number of arg records to consume from argsBuffer.
+    uint32_t argCount = 0;
+
+    /// Host-side extension chain.
+    const void* next = nullptr;
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
@@ -2421,6 +2454,13 @@ public:
         BufferOffsetPair src
     ) = 0;
 
+    // Build a cluster acceleration structure.
+    virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(
+        const ClusterAccelBuildDesc& desc,
+        BufferOffsetPair scratchBuffer,
+        BufferOffsetPair resultBuffer
+    ) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
         IBuffer* dstBuffer,
         const CooperativeVectorMatrixDesc* dstDescs,
@@ -3262,6 +3302,12 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureSizes* outSizes
+    ) = 0;
+
+    // Query sizes for building a cluster acceleration structure.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(

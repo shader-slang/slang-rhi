@@ -753,6 +753,18 @@ void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructur
     baseObject->deserializeAccelerationStructure(dst, src);
 }
 
+void DebugCommandEncoder::buildClusterAccelerationStructure(
+    const ClusterAccelBuildDesc& desc,
+    BufferOffsetPair scratchBuffer,
+    BufferOffsetPair resultBuffer
+)
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    baseObject->buildClusterAccelerationStructure(desc, scratchBuffer, resultBuffer);
+}
+
 void DebugCommandEncoder::convertCooperativeVectorMatrix(
     IBuffer* dstBuffer,
     const CooperativeVectorMatrixDesc* dstDescs,
