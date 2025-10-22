@@ -70,6 +70,10 @@ public:
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureSizes* outSizes
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
