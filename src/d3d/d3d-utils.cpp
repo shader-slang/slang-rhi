@@ -2,7 +2,7 @@
 
 #include "core/common.h"
 
-#include <dxgi1_4.h>
+#include <dxgi1_6.h>
 #include <dxgidebug.h>
 #if SLANG_ENABLE_DXBC_SUPPORT
 #include <d3dcompiler.h>
@@ -341,6 +341,23 @@ ComPtr<IDXGIFactory> getDXGIFactory()
 
 Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>& outAdapters)
 {
+    ComPtr<IDXGIFactory6> dxgiFactory6;
+    dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory6.writeRef()));
+    if (dxgiFactory6)
+    {
+        UINT i = 0;
+        ComPtr<IDXGIAdapter4> adapter;
+        while (dxgiFactory6->EnumAdapterByGpuPreference(
+                   i,
+                   DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+                   IID_PPV_ARGS(adapter.writeRef())
+               ) != DXGI_ERROR_NOT_FOUND)
+        {
+            outAdapters.push_back(ComPtr<IDXGIAdapter>(static_cast<IDXGIAdapter*>(adapter.get())));
+            ++i;
+        }
+        return SLANG_OK;
+    }
     ComPtr<IDXGIFactory1> dxgiFactory1;
     dxgiFactory->QueryInterface(IID_PPV_ARGS(dxgiFactory1.writeRef()));
     if (dxgiFactory1)
