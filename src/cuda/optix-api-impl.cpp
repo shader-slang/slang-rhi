@@ -896,7 +896,6 @@ public:
 
         OptixClusterAccelBuildInput buildInput = {};
         OptixClusterAccelBuildModeDesc buildMode = {};
-        buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_GET_SIZES;
         buildMode.getSize.tempBuffer = 0;
         buildMode.getSize.tempBufferSizeInBytes = 0;
         buildMode.getSize.outputSizesBuffer = 0;
@@ -907,6 +906,8 @@ public:
         case ClusterAccelBuildOp::CLASFromTriangles:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
+            // For CLAS sizing, use IMPLICIT_DESTINATIONS to obtain total buffer sizes
+            buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
             if (desc.trianglesLimits.maxArgCount == 0 ||
                 desc.trianglesLimits.maxTriangleCountPerArg == 0 ||
                 desc.trianglesLimits.maxVertexCountPerArg == 0 ||
@@ -926,6 +927,8 @@ public:
         case ClusterAccelBuildOp::BLASFromCLAS:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
+            // For BLAS sizing, use IMPLICIT_DESTINATIONS
+            buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
             if (desc.clustersLimits.maxArgCount == 0 ||
                 desc.clustersLimits.maxTotalClusterCount == 0 ||
                 desc.clustersLimits.maxClusterCountPerArg == 0)
@@ -946,7 +949,25 @@ public:
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
             optixClusterAccelComputeMemoryUsage(m_deviceContext, buildMode.mode, &buildInput, &sizes), m_device);
 
-        outSizes->resultSize = sizes.outputSizeInBytes;
+        // Reserve space for output handles (8 bytes per arg) at the start of the result buffer
+        // Ensure the subsequent output region remains 128B aligned
+        uint64_t handlesBytes = 0;
+        switch (desc.op)
+        {
+        case ClusterAccelBuildOp::CLASFromTriangles:
+            handlesBytes = uint64_t(desc.trianglesLimits.maxArgCount) * 8u;
+            break;
+        case ClusterAccelBuildOp::BLASFromCLAS:
+            handlesBytes = uint64_t(desc.clustersLimits.maxArgCount) * 8u;
+            break;
+        default: break;
+        }
+
+        // Align handle table + padding to 128 so outputBuffer stays aligned
+        auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
+        uint64_t handlesPad128 = alignUp(handlesBytes, 128);
+
+        outSizes->resultSize = sizes.outputSizeInBytes + handlesPad128;
         outSizes->scratchSize = sizes.tempSizeInBytes;
         return SLANG_OK;
 #endif
@@ -1108,12 +1129,26 @@ public:
             return;
         }
 
-        mode.implicitDest.outputBuffer = resultBuffer.getDeviceAddress();
+        // Place output handles at the beginning of resultBuffer, and outputs after a 128B-aligned handle table
+        uint64_t handlesBytes = 0;
+        switch (desc.op)
+        {
+        case ClusterAccelBuildOp::CLASFromTriangles:
+            handlesBytes = uint64_t(desc.trianglesLimits.maxArgCount) * 8u;
+            break;
+        case ClusterAccelBuildOp::BLASFromCLAS:
+            handlesBytes = uint64_t(desc.clustersLimits.maxArgCount) * 8u;
+            break;
+        default: break;
+        }
+        auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
+        uint64_t handlesPad128 = alignUp(handlesBytes, 128);
+        mode.implicitDest.outputBuffer = resultBuffer.getDeviceAddress() + handlesPad128;
         mode.implicitDest.outputBufferSizeInBytes = outputSize;
         mode.implicitDest.tempBuffer = scratchBuffer.getDeviceAddress();
         mode.implicitDest.tempBufferSizeInBytes = scratchSize;
         mode.implicitDest.outputHandlesBuffer = resultBuffer.getDeviceAddress();
-        mode.implicitDest.outputHandlesStrideInBytes = 8;
+        mode.implicitDest.outputHandlesStrideInBytes = 0; // 0 -> 8 per OptiX spec
 
         switch (desc.op)
         {
@@ -1122,6 +1157,8 @@ public:
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
             buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
             if (desc.trianglesLimits.maxArgCount == 0 ||
+                desc.trianglesLimits.maxTriangleCountPerArg == 0 ||
+                desc.trianglesLimits.maxVertexCountPerArg == 0 ||
                 desc.trianglesLimits.maxUniqueSbtIndexCountPerArg == 0)
             {
                 m_device->printError("Cluster CLAS build: trianglesLimits must be provided");
@@ -1129,8 +1166,10 @@ public:
             }
             buildInput.triangles.maxArgCount = desc.trianglesLimits.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
-            buildInput.triangles.maxUniqueSbtIndexCountPerArg =
-                desc.trianglesLimits.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.trianglesLimits.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.trianglesLimits.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.trianglesLimits.maxVertexCountPerArg;
+            buildInput.triangles.maxSbtIndexValue = desc.trianglesLimits.maxUniqueSbtIndexCountPerArg ? (desc.trianglesLimits.maxUniqueSbtIndexCountPerArg - 1) : 0;
             break;
         }
         case ClusterAccelBuildOp::BLASFromCLAS:
@@ -1153,7 +1192,7 @@ public:
             return;
         }
 
-        // args are already device side, pass through; desc.argsStride and argCount come from RHI desc
+        // args are already device side, pass through with natural stride (0) and argsCount null to use maxArgCount
         optixClusterAccelBuild(
             m_deviceContext,
             stream,
@@ -1161,7 +1200,7 @@ public:
             &buildInput,
             desc.argsBuffer.getDeviceAddress(),
             0,
-            desc.argsStride
+            0
         );
 #endif
     }
