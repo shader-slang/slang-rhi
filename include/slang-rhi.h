@@ -1455,6 +1455,24 @@ struct ClusterAccelSizes
     uint64_t scratchSize = 0;
 };
 
+struct ClusterAccelLimitsTriangles
+{
+    /// Optional upper bound on args provided; 0 means unspecified
+    uint32_t maxArgCount = 0;
+    uint32_t maxTriangleCountPerArg = 0;
+    uint32_t maxVertexCountPerArg = 0;
+    uint32_t maxUniqueSbtIndexCountPerArg = 0;
+    uint32_t positionTruncateBitCount = 0;
+};
+
+struct ClusterAccelLimitsClusters
+{
+    /// Optional upper bound on args provided; 0 means unspecified
+    uint32_t maxArgCount = 0;
+    uint32_t maxTotalClusterCount = 0;
+    uint32_t maxClusterCountPerArg = 0;
+};
+
 struct ClusterAccelBuildDesc
 {
     /// Operation to perform.
@@ -1469,6 +1487,10 @@ struct ClusterAccelBuildDesc
 
     /// Host-side extension chain.
     const void* next = nullptr;
+
+    /// Optional per-op limits/hints to assist backends (0 means unspecified)
+    ClusterAccelLimitsTriangles trianglesLimits = {};
+    ClusterAccelLimitsClusters clustersLimits = {};
 };
 
 struct AccelerationStructureDesc
