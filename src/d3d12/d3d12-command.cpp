@@ -110,6 +110,7 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
 
     enum class BindMode
     {
@@ -1357,6 +1358,12 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
     cmd.callback(cmd.userData);
+}
+
+void CommandRecorder::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(buildClusterAccelerationStructure);
 }
 
 void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)

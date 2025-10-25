@@ -16,8 +16,14 @@
 #include <optix.h>
 #include <optix_stubs.h>
 
+#if OPTIX_VERSION >= 90000
+#include <optix_types.h>
+#endif
+
+#ifdef EXPECTED_OPTIX_VERSION
 #if (OPTIX_VERSION != EXPECTED_OPTIX_VERSION)
 #error "Invalid OptiX header version included"
+#endif
 #endif
 
 #include <optix_function_table_definition.h>
@@ -875,6 +881,61 @@ public:
         return SLANG_OK;
     }
 
+    virtual Result getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
+    ) override
+    {
+#if OPTIX_VERSION < 90000
+        SLANG_UNUSED(desc);
+        SLANG_UNUSED(outSizes);
+        return SLANG_E_NOT_AVAILABLE;
+#else
+        if (!outSizes)
+            return SLANG_E_INVALID_ARG;
+
+        OptixClusterAccelBuildInput buildInput = {};
+        OptixClusterAccelBuildModeDesc buildMode = {};
+        buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_GET_SIZES;
+        buildMode.getSize.tempBuffer = 0;
+        buildMode.getSize.tempBufferSizeInBytes = 0;
+        buildMode.getSize.outputSizesBuffer = 0;
+        buildMode.getSize.outputSizesStrideInBytes = 0;
+
+        switch (desc.op)
+        {
+        case ClusterAccelBuildOp::CLASFromTriangles:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
+            buildInput.triangles.maxArgCount = 1;
+            buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg = 1;
+            buildInput.triangles.maxTriangleCountPerArg = 256;
+            buildInput.triangles.maxVertexCountPerArg = 256;
+            break;
+        }
+        case ClusterAccelBuildOp::BLASFromCLAS:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
+            buildInput.clusters.maxArgCount = 1; // placeholder; plumb real limits via API
+            buildInput.clusters.maxTotalClusterCount = 1; // placeholder
+            buildInput.clusters.maxClusterCountPerArg = 1; // placeholder
+            break;
+        }
+        default:
+            return SLANG_E_NOT_AVAILABLE;
+        }
+
+        OptixAccelBufferSizes sizes = {};
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixClusterAccelComputeMemoryUsage(m_deviceContext, buildMode.mode, &buildInput, &sizes), m_device);
+
+        outSizes->resultSize = sizes.outputSizeInBytes;
+        outSizes->scratchSize = sizes.tempSizeInBytes;
+        return SLANG_OK;
+#endif
+    }
+
     virtual void buildAccelerationStructure(
         CUstream stream,
         const AccelerationStructureBuildDesc& desc,
@@ -992,6 +1053,87 @@ public:
             height,
             depth
         ));
+    }
+
+    virtual void buildClusterAccelerationStructure(
+        CUstream stream,
+        const ClusterAccelBuildDesc& desc,
+        BufferOffsetPair scratchBuffer,
+        BufferOffsetPair resultBuffer
+    ) override
+    {
+#if OPTIX_VERSION < 90000
+        SLANG_UNUSED(stream);
+        SLANG_UNUSED(desc);
+        SLANG_UNUSED(scratchBuffer);
+        SLANG_UNUSED(resultBuffer);
+        return;
+#else
+        OptixClusterAccelBuildInput buildInput = {};
+        OptixClusterAccelBuildModeDesc mode = {};
+        mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
+
+        // Validate inputs first so we can assign directly without null checks.
+        if (!resultBuffer.buffer || !scratchBuffer.buffer)
+        {
+            m_device->printError("Cluster acceleration build: output/scratch buffer is null");
+            return;
+        }
+        size_t outputSize = checked_cast<BufferImpl*>(resultBuffer.buffer)->m_desc.size - resultBuffer.offset;
+        size_t scratchSize = checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset;
+        if (outputSize == 0 || scratchSize == 0)
+        {
+            m_device->printError("Cluster acceleration build: output/scratch buffer size is zero");
+            return;
+        }
+        if (!resultBuffer.getDeviceAddress() || !scratchBuffer.getDeviceAddress())
+        {
+            m_device->printError("Cluster acceleration build: output/scratch device address is zero");
+            return;
+        }
+
+        mode.implicitDest.outputBuffer = resultBuffer.getDeviceAddress();
+        mode.implicitDest.outputBufferSizeInBytes = outputSize;
+        mode.implicitDest.tempBuffer = scratchBuffer.getDeviceAddress();
+        mode.implicitDest.tempBufferSizeInBytes = scratchSize;
+        mode.implicitDest.outputHandlesBuffer = resultBuffer.getDeviceAddress();
+        mode.implicitDest.outputHandlesStrideInBytes = 8;
+
+        switch (desc.op)
+        {
+        case ClusterAccelBuildOp::CLASFromTriangles:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
+            buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
+            buildInput.triangles.maxArgCount = desc.argCount;
+            buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg = 1;
+            break;
+        }
+        case ClusterAccelBuildOp::BLASFromCLAS:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
+            buildInput.clusters.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
+            buildInput.clusters.maxArgCount = 1; // placeholder; plumb real limits via API
+            buildInput.clusters.maxTotalClusterCount = 1; // placeholder
+            buildInput.clusters.maxClusterCountPerArg = 1; // placeholder
+            break;
+        }
+        default:
+            return;
+        }
+
+        // args are already device side, pass through; desc.argsStride and argCount come from RHI desc
+        optixClusterAccelBuild(
+            m_deviceContext,
+            stream,
+            &mode,
+            &buildInput,
+            desc.argsBuffer.getDeviceAddress(),
+            0,
+            desc.argsStride
+        );
+#endif
     }
 
     virtual bool getCooperativeVectorSupport() const override

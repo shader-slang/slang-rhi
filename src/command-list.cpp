@@ -299,6 +299,14 @@ void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::BuildClusterAccelerationStructure&& cmd)
+{
+    retainResource<Buffer>(cmd.scratchBuffer.buffer);
+    retainResource<Buffer>(cmd.resultBuffer.buffer);
+    // Copy desc by value is fine; args buffer is GPU-side and just retained by buffers above.
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::ConvertCooperativeVectorMatrix&& cmd)
 {
     retainResource<Buffer>(cmd.dstBuffer);

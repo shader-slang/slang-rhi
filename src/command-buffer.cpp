@@ -846,10 +846,11 @@ void CommandEncoder::buildClusterAccelerationStructure(
     BufferOffsetPair resultBuffer
 )
 {
-    SLANG_UNUSED(desc);
-    SLANG_UNUSED(scratchBuffer);
-    SLANG_UNUSED(resultBuffer);
-    // Not implemented in the generic encoder; backends may override.
+    commands::BuildClusterAccelerationStructure cmd;
+    cmd.desc = desc;
+    cmd.scratchBuffer = scratchBuffer;
+    cmd.resultBuffer = resultBuffer;
+    m_commandList->write(std::move(cmd));
 }
 
 void CommandEncoder::convertCooperativeVectorMatrix(
