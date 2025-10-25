@@ -349,6 +349,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             addFeature(Feature::AccelerationStructureSpheres);
             addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+            // OptiX 9+ exposes the Cluster Acceleration Structure API; surface as a device feature.
+            addFeature(Feature::ClusterAccelerationStructure);
         }
         addCapability(Capability::_raygen);
         addCapability(Capability::_intersection);
