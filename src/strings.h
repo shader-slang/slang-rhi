@@ -265,6 +265,7 @@
 #define S_CommandEncoder_uploadTextureData "uploadTextureData"
 #define S_CommandEncoder_resolveQuery "resolveQuery"
 #define S_CommandEncoder_buildAccelerationStructure "buildAccelerationStructure"
+#define S_CommandEncoder_buildClusterAccelerationStructure "buildClusterAccelerationStructure"
 #define S_CommandEncoder_copyAccelerationStructure "copyAccelerationStructure"
 #define S_CommandEncoder_queryAccelerationStructureProperties "queryAccelerationStructureProperties"
 #define S_CommandEncoder_serializeAccelerationStructure "serializeAccelerationStructure"

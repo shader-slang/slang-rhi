@@ -73,6 +73,12 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
+    /// Get the sizes required for building a cluster acceleration structure or GAS-from-CLAS.
+    virtual Result getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
+    ) = 0;
+
     /// Build an acceleration structure.
     virtual void buildAccelerationStructure(
         CUstream stream,
@@ -103,6 +109,14 @@ public:
         uint32_t width,
         uint32_t height,
         uint32_t depth
+    ) = 0;
+
+    /// Build a cluster acceleration structure or GAS from clusters.
+    virtual void buildClusterAccelerationStructure(
+        CUstream stream,
+        const ClusterAccelBuildDesc& desc,
+        BufferOffsetPair scratchBuffer,
+        BufferOffsetPair resultBuffer
     ) = 0;
 };
 
