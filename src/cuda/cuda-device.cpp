@@ -349,6 +349,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             addFeature(Feature::AccelerationStructureSpheres);
             addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+            addFeature(Feature::ClusterAccelerationStructure);
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
