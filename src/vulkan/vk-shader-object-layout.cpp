@@ -144,11 +144,14 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             auto vkDescriptorType = _mapDescriptorType(slangDescriptorType);
             VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
             vkBindingRangeDesc.binding =
-                offset.binding +
-                (uint32_t
-                )typeLayout->getDescriptorSetDescriptorRangeIndexOffset(slangDescriptorSetIndex, descriptorRangeIndex);
-            vkBindingRangeDesc.descriptorCount = (uint32_t
-            )typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(slangDescriptorSetIndex, descriptorRangeIndex);
+                offset.binding + (uint32_t)typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
+                                     slangDescriptorSetIndex,
+                                     descriptorRangeIndex
+                                 );
+            vkBindingRangeDesc.descriptorCount = (uint32_t)typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
+                slangDescriptorSetIndex,
+                descriptorRangeIndex
+            );
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 

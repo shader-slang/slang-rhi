@@ -66,7 +66,6 @@ public:
         SubObjectRangeOffset() {}
 
         SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout);
-
     };
 
     /// Stride information for a sub-object range
@@ -75,7 +74,6 @@ public:
         SubObjectRangeStride() {}
 
         SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout);
-
     };
 
     /// Information about a sub-objecrt range
@@ -365,10 +363,7 @@ public:
             {
             }
 
-            void operator+=(const BindingRegisterOffsetPair& other)
-            {
-                primary += other.primary;
-            }
+            void operator+=(const BindingRegisterOffsetPair& other) { primary += other.primary; }
         };
         /// Add a new descriptor set to the layout being computed.
         ///

@@ -87,10 +87,7 @@ struct BindingOffset : SimpleBindingOffset
     void operator+=(const SimpleBindingOffset& offset) { SimpleBindingOffset::operator+=(offset); }
 
     /// Add any values in the given `offset`
-    void operator+=(const BindingOffset& offset)
-    {
-        SimpleBindingOffset::operator+=(offset);
-    }
+    void operator+=(const BindingOffset& offset) { SimpleBindingOffset::operator+=(offset); }
 };
 
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
@@ -137,7 +134,6 @@ public:
             : BindingOffset(varLayout)
         {
         }
-
     };
 
     /// Stride information for a sub-object range
@@ -145,10 +141,7 @@ public:
     {
         SubObjectRangeStride() {}
 
-        SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
-        {
-        }
-
+        SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout) {}
     };
 
     /// Information about a logical binding range as reported by Slang reflection
@@ -429,7 +422,6 @@ public:
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         std::vector<EntryPointInfo> m_entryPoints;
-
     };
 
     uint32_t findEntryPointIndex(VkShaderStageFlags stage);

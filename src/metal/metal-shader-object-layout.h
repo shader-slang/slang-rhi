@@ -86,7 +86,6 @@ public:
         SubObjectRangeOffset() {}
 
         SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout);
-
     };
 
     /// Stride information for a sub-object range
@@ -95,7 +94,6 @@ public:
         SubObjectRangeStride() {}
 
         SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout);
-
     };
 
     /// Information about a logical binding range as reported by Slang reflection
