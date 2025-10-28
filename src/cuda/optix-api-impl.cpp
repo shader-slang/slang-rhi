@@ -538,6 +538,11 @@ public:
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
             optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
 
+        // Enable clustered geometry when requested (OptiX 9+).
+#if OPTIX_VERSION >= 90000
+        optixPipelineCompileOptions.allowClusteredGeometry = is_set(desc.flags, RayTracingPipelineFlags::EnableClusters) ? 1 : 0;
+#endif
+
         optixPipelineCompileOptions.allowOpacityMicromaps = 0;
 
         OptixModuleCompileOptions optixModuleCompileOptions = {};
