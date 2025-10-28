@@ -821,6 +821,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-ray-tracing-hitobject-intrinsics.cpp
         tests/test-ray-tracing-reorder.cpp
         tests/test-ray-tracing-sphere.cpp
+        tests/test-ray-tracing-clusters.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
