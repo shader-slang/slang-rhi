@@ -543,6 +543,34 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ms", ALL)
     test.checkQueryAndInvokeResults();
 }
 
+// CUDA disabled due to https://github.com/shader-slang/slang/issues/8836
+GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-front-face", ALL & ~CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingHitObjectIntrinsicsTest test;
+    test.init(device);
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderQueryHitKindFrontFace", "closestHitNOP", "missNOP");
+    test.checkQueryAndInvokeResults();
+}
+
+// CUDA disabled due to https://github.com/shader-slang/slang/issues/8836
+GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-back-face", ALL & ~CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingHitObjectIntrinsicsTest test;
+    test.init(device);
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderQueryHitKindBackFace", "closestHitNOP", "missNOP");
+    test.checkQueryAndInvokeResults();
+}
+
 // CUDA/OptiX is disabled because it only supports getting the ray origin in world space.
 // D3D12 is disabled due to https://github.com/shader-slang/slang/issues/8615
 GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-origin", ALL & ~CUDA & ~D3D12)

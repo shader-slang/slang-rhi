@@ -266,6 +266,62 @@ void missMakeQueryInvokeHit(inout RayPayload payload)
     payload.invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
+[shader("raygeneration")]
+void rayGenShaderQueryHitKindFrontFace()
+{
+    float3 tgt = {0.25, 0.25, 0.0};
+    float3 pos = {0.0, 0.0, 2.0};
+    float3 dir = tgt - pos;
+
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+#if (defined(__D3D12__) || defined(__VULKAN__))
+  resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
+#elif defined(__CUDA__)
+  // TODO: GetHitKind not implemented for OptiX target
+  resultBuffer[0].queryWasSuccess = 0;
+#else
+  resultBuffer[0].queryWasSuccess = 0;
+#endif
+
+    // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
+[shader("raygeneration")]
+void rayGenShaderQueryHitKindBackFace()
+{
+    float3 tgt = {0.25, 0.25, 1.0};
+    float3 pos = {0.0, 0.0, 0.0};
+    float3 dir = tgt - pos;
+
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+#if (defined(__D3D12__) || defined(__VULKAN__))
+  resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
+#elif defined(__CUDA__)
+  // TODO: GetHitKind not implemented for OptiX target
+  resultBuffer[0].queryWasSuccess = 0;
+#else
+  resultBuffer[0].queryWasSuccess = 0;
+#endif
+
+    // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
 #if !(defined(__CUDA__) || defined(__D3D12__))
 [shader("raygeneration")]
 void rayGenShaderQueryRayObjectOrigin()
