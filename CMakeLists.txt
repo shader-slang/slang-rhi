@@ -266,20 +266,35 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
     add_library(slang SHARED IMPORTED GLOBAL)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        if(EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-compiler.dll)
+            set(SLANG_LIBBASE slang-compiler)
+        else()
+            set(SLANG_LIBBASE slang)
+        endif()
         set_target_properties(slang PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-            IMPORTED_IMPLIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/slang.lib
-            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll
+            IMPORTED_IMPLIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/${SLANG_LIBBASE}.lib
+            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/bin/${SLANG_LIBBASE}.dll
         )
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        if(EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.so)
+            set(SLANG_LIBBASE slang-compiler)
+        else()
+            set(SLANG_LIBBASE slang)
+        endif()
         set_target_properties(slang PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang.so
+            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIBBASE}.so
         )
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        if(EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.dylib)
+            set(SLANG_LIBBASE slang-compiler)
+        else()
+            set(SLANG_LIBBASE slang)
+        endif()
         set_target_properties(slang PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang.dylib
+            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIBBASE}.dylib
         )
     endif()
 
@@ -287,6 +302,7 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll .)
+        copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-compiler.dll .)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-glslang.dll .)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-llvm.dll .)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll .)
