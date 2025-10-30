@@ -325,4 +325,146 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
 }
 
 
+GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
+{
+    requireClusterAccelOrSkip(device);
+
+    struct Float3 { float x, y, z; };
+    const Float3 vertices[6] = {{0,0,0},{1,0,0},{0,1,0}, {2,0,0},{3,0,0},{2,1,0}};
+    const uint32_t indices[6] = {0,1,2, 0,1,2};
+
+    BufferDesc vDesc = {};
+    vDesc.size = sizeof(vertices);
+    vDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+    vDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    ComPtr<IBuffer> vbuf = device->createBuffer(vDesc, vertices);
+
+    BufferDesc iDesc = {};
+    iDesc.size = sizeof(indices);
+    iDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+    iDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    ComPtr<IBuffer> ibuf = device->createBuffer(iDesc, indices);
+
+    OptixClusterAccelBuildInputTrianglesArgs triArgs[2] = {};
+    for (int i = 0; i < 2; i++)
+    {
+        triArgs[i].clusterId = (unsigned)i;
+        triArgs[i].clusterFlags = OPTIX_CLUSTER_ACCEL_CLUSTER_FLAG_NONE;
+        triArgs[i].triangleCount = 1;
+        triArgs[i].vertexCount = 3;
+        triArgs[i].positionTruncateBitCount = 0;
+        triArgs[i].indexFormat = OPTIX_CLUSTER_ACCEL_INDICES_FORMAT_32BIT;
+        triArgs[i].opacityMicromapIndexFormat = 0;
+        triArgs[i].basePrimitiveInfo = {};
+        triArgs[i].indexBufferStrideInBytes = 0;
+        triArgs[i].vertexBufferStrideInBytes = sizeof(Float3);
+        triArgs[i].primitiveInfoBufferStrideInBytes = 0;
+        triArgs[i].opacityMicromapIndexBufferStrideInBytes = 0;
+        triArgs[i].indexBuffer = (CUdeviceptr)ibuf->getDeviceAddress() + (i * 3 * sizeof(uint32_t));
+        triArgs[i].vertexBuffer = (CUdeviceptr)vbuf->getDeviceAddress() + (i * 3 * sizeof(Float3));
+    }
+
+    BufferDesc argsDesc = {};
+    argsDesc.size = sizeof(triArgs);
+    argsDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+    argsDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    ComPtr<IBuffer> args = device->createBuffer(argsDesc, &triArgs[0]);
+
+    ClusterAccelBuildDesc clasDesc = {};
+    clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
+    clasDesc.argsBuffer = BufferOffsetPair(args, 0);
+    clasDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
+    clasDesc.argCount = 2;
+    clasDesc.trianglesLimits.maxArgCount = 2;
+    clasDesc.trianglesLimits.maxTriangleCountPerArg = 1;
+    clasDesc.trianglesLimits.maxVertexCountPerArg = 3;
+    clasDesc.trianglesLimits.maxUniqueSbtIndexCountPerArg = 1;
+
+    // Scratch sizing (used for both get-sizes and explicit build)
+    ClusterAccelSizes clasSizes = {};
+    CHECK_CALL(device->getClusterAccelerationStructureSizes(clasDesc, &clasSizes));
+
+    BufferDesc scratchDesc = {};
+    scratchDesc.size = clasSizes.scratchSize;
+    scratchDesc.usage = BufferUsage::UnorderedAccess;
+    scratchDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> clasScratch = device->createBuffer(scratchDesc);
+
+    // Step 1: GET_SIZES to produce per-CLAS sizes
+    uint32_t zeroSizes[2] = {0,0};
+    BufferDesc sizesDesc = {};
+    sizesDesc.size = sizeof(uint32_t) * 2;
+    sizesDesc.usage = BufferUsage::UnorderedAccess;
+    sizesDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> sizesBuf = device->createBuffer(sizesDesc, zeroSizes);
+
+    clasDesc.mode = ClusterAccelBuildDesc::BuildMode::GetSizes;
+    clasDesc.modeDesc.getSizes.outputSizesBuffer = sizesBuf->getDeviceAddress();
+    clasDesc.modeDesc.getSizes.outputSizesStrideInBytes = 0; // 0 -> 4
+
+    // Build with GET_SIZES; result buffer unused, provide a small dummy
+    BufferDesc dummyOutDesc = {};
+    dummyOutDesc.size = 256;
+    dummyOutDesc.usage = BufferUsage::AccelerationStructure;
+    dummyOutDesc.defaultState = ResourceState::AccelerationStructure;
+    ComPtr<IBuffer> dummyOut = device->createBuffer(dummyOutDesc);
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto enc = queue->createCommandEncoder();
+    enc->buildClusterAccelerationStructure(clasDesc, BufferOffsetPair(clasScratch, 0), BufferOffsetPair(dummyOut, 0));
+    queue->submit(enc->finish());
+    queue->waitOnHost();
+
+    uint32_t sizesHost[2] = {};
+    CHECK_CALL(device->readBuffer(sizesBuf, 0, sizeof(sizesHost), &sizesHost[0]));
+    CHECK_GT(sizesHost[0], 0);
+    CHECK_GT(sizesHost[1], 0);
+
+    // Step 2: allocate per-CLAS destinations in a single arena and create destAddresses array
+    auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
+    const uint64_t align128 = 128;
+    uint64_t off0 = 0;
+    uint64_t off1 = alignUp(uint64_t(sizesHost[0]), align128);
+    uint64_t totalArena = off1 + alignUp(uint64_t(sizesHost[1]), align128);
+
+    BufferDesc arenaDesc = {};
+    arenaDesc.size = totalArena;
+    arenaDesc.usage = BufferUsage::AccelerationStructure;
+    arenaDesc.defaultState = ResourceState::AccelerationStructure;
+    ComPtr<IBuffer> arena = device->createBuffer(arenaDesc);
+
+    uint64_t destAddrsHost[2] = {
+        arena->getDeviceAddress() + off0,
+        arena->getDeviceAddress() + off1,
+    };
+    BufferDesc destAddrDesc = {};
+    destAddrDesc.size = sizeof(destAddrsHost);
+    destAddrDesc.usage = BufferUsage::UnorderedAccess;
+    destAddrDesc.defaultState = ResourceState::UnorderedAccess;
+    ComPtr<IBuffer> destAddrBuf = device->createBuffer(destAddrDesc, destAddrsHost);
+
+    // Step 3: Explicit build, alias handles to destAddresses array
+    clasDesc.mode = ClusterAccelBuildDesc::BuildMode::Explicit;
+    clasDesc.modeDesc.explicitDest.destAddressesBuffer = destAddrBuf->getDeviceAddress();
+    clasDesc.modeDesc.explicitDest.destAddressesStrideInBytes = 0; // 0 -> 8
+    clasDesc.modeDesc.explicitDest.outputHandlesBuffer = 0;        // alias to destAddresses per spec
+    clasDesc.modeDesc.explicitDest.outputHandlesStrideInBytes = 0; // 0->8
+    clasDesc.modeDesc.explicitDest.outputSizesBuffer = 0;
+    clasDesc.modeDesc.explicitDest.outputSizesStrideInBytes = 0;
+
+    enc = queue->createCommandEncoder();
+    enc->buildClusterAccelerationStructure(clasDesc, BufferOffsetPair(clasScratch, 0), BufferOffsetPair(dummyOut, 0));
+    queue->submit(enc->finish());
+    queue->waitOnHost();
+
+    uint64_t handles[2] = {};
+    CHECK_CALL(device->readBuffer(destAddrBuf, 0, sizeof(handles), &handles[0]));
+    CHECK_NE(handles[0], 0);
+    CHECK_NE(handles[1], 0);
+    // Aliasing semantics: handles should match the destination addresses we provided
+    CHECK_EQ(handles[0], destAddrsHost[0]);
+    CHECK_EQ(handles[1], destAddrsHost[1]);
+}
+
+
 
