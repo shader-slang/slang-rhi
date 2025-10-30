@@ -1485,12 +1485,45 @@ struct ClusterAccelBuildDesc
     /// Number of arg records to consume from argsBuffer.
     uint32_t argCount = 0;
 
-    /// Host-side extension chain.
+    /// Host-side extension chain (reserved for future use). Not used by current implementations.
     const void* next = nullptr;
 
     /// Optional per-op limits/hints to assist backends (0 means unspecified)
     ClusterAccelLimitsTriangles trianglesLimits = {};
     ClusterAccelLimitsClusters clustersLimits = {};
+
+    // Build mode and associated parameters. Defaults to Implicit when unspecified.
+    enum class BuildMode : uint32_t { Implicit = 0, Explicit = 1, GetSizes = 2 };
+    BuildMode mode = BuildMode::Implicit;
+
+    struct ImplicitDesc
+    {
+        DeviceAddress outputHandlesBuffer = 0;     // 0 -> use front of result buffer
+        uint32_t      outputHandlesStrideInBytes = 0; // 0 -> 8
+        DeviceAddress outputSizesBuffer = 0;
+        uint32_t      outputSizesStrideInBytes = 0;   // 0 -> 4
+    };
+    struct ExplicitDesc
+    {
+        DeviceAddress destAddressesBuffer = 0;        // required
+        uint32_t      destAddressesStrideInBytes = 0;  // 0 -> 8
+        DeviceAddress outputHandlesBuffer = 0;         // 0 -> alias destAddresses
+        uint32_t      outputHandlesStrideInBytes = 0;  // 0 -> 8
+        DeviceAddress outputSizesBuffer = 0;
+        uint32_t      outputSizesStrideInBytes = 0;    // 0 -> 4
+    };
+    struct GetSizesDesc
+    {
+        DeviceAddress outputSizesBuffer = 0;           // required
+        uint32_t      outputSizesStrideInBytes = 0;    // 0 -> 4
+    };
+
+    union
+    {
+        ImplicitDesc implicit;
+        ExplicitDesc explicitDest;
+        GetSizesDesc getSizes;
+    } modeDesc = {};
 };
 
 struct AccelerationStructureDesc

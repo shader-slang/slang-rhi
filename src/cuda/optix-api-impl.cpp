@@ -1134,26 +1134,67 @@ public:
             return;
         }
 
-        // Place output handles at the beginning of resultBuffer, and outputs after a 128B-aligned handle table
-        uint64_t handlesBytes = 0;
-        switch (desc.op)
+        // Read first-class build mode and fields
+        switch (desc.mode)
         {
-        case ClusterAccelBuildOp::CLASFromTriangles:
-            handlesBytes = uint64_t(desc.trianglesLimits.maxArgCount) * 8u;
+        case ClusterAccelBuildDesc::BuildMode::Explicit:
+        {
+            mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_EXPLICIT_DESTINATIONS;
+            mode.explicitDest.tempBuffer = scratchBuffer.getDeviceAddress();
+            mode.explicitDest.tempBufferSizeInBytes = scratchSize;
+            mode.explicitDest.destAddressesBuffer = desc.modeDesc.explicitDest.destAddressesBuffer;
+            mode.explicitDest.destAddressesStrideInBytes = desc.modeDesc.explicitDest.destAddressesStrideInBytes;
+            // Handles buffer: alias to destAddresses if not provided
+            mode.explicitDest.outputHandlesBuffer = desc.modeDesc.explicitDest.outputHandlesBuffer ? desc.modeDesc.explicitDest.outputHandlesBuffer : desc.modeDesc.explicitDest.destAddressesBuffer;
+            mode.explicitDest.outputHandlesStrideInBytes = desc.modeDesc.explicitDest.outputHandlesStrideInBytes;
+            mode.explicitDest.outputSizesBuffer = desc.modeDesc.explicitDest.outputSizesBuffer;
+            mode.explicitDest.outputSizesStrideInBytes = desc.modeDesc.explicitDest.outputSizesStrideInBytes;
             break;
-        case ClusterAccelBuildOp::BLASFromCLAS:
-            handlesBytes = uint64_t(desc.clustersLimits.maxArgCount) * 8u;
-            break;
-        default: break;
         }
-        auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
-        uint64_t handlesPad128 = alignUp(handlesBytes, 128);
-        mode.implicitDest.outputBuffer = resultBuffer.getDeviceAddress() + handlesPad128;
-        mode.implicitDest.outputBufferSizeInBytes = outputSize;
-        mode.implicitDest.tempBuffer = scratchBuffer.getDeviceAddress();
-        mode.implicitDest.tempBufferSizeInBytes = scratchSize;
-        mode.implicitDest.outputHandlesBuffer = resultBuffer.getDeviceAddress();
-        mode.implicitDest.outputHandlesStrideInBytes = 0; // 0 -> 8 per OptiX spec
+        case ClusterAccelBuildDesc::BuildMode::GetSizes:
+        {
+            mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_GET_SIZES;
+            mode.getSize.outputSizesBuffer = desc.modeDesc.getSizes.outputSizesBuffer;
+            mode.getSize.outputSizesStrideInBytes = desc.modeDesc.getSizes.outputSizesStrideInBytes;
+            mode.getSize.tempBuffer = scratchBuffer.getDeviceAddress();
+            mode.getSize.tempBufferSizeInBytes = scratchSize;
+            break;
+        }
+        case ClusterAccelBuildDesc::BuildMode::Implicit:
+        default:
+        {
+            mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
+            break;
+        }
+        }
+
+        if (mode.mode == OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS)
+        {
+            // Place output handles at the beginning of resultBuffer, and outputs after a 128B-aligned handle table
+            uint64_t handlesBytes = 0;
+            switch (desc.op)
+            {
+            case ClusterAccelBuildOp::CLASFromTriangles:
+                handlesBytes = uint64_t(desc.trianglesLimits.maxArgCount) * 8u;
+                break;
+            case ClusterAccelBuildOp::BLASFromCLAS:
+                handlesBytes = uint64_t(desc.clustersLimits.maxArgCount) * 8u;
+                break;
+            default: break;
+            }
+            auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
+            uint64_t handlesPad128 = alignUp(handlesBytes, 128);
+            mode.implicitDest.outputBuffer = resultBuffer.getDeviceAddress() + handlesPad128;
+            mode.implicitDest.outputBufferSizeInBytes = outputSize;
+            mode.implicitDest.tempBuffer = scratchBuffer.getDeviceAddress();
+            mode.implicitDest.tempBufferSizeInBytes = scratchSize;
+            // If user provided an explicit handles buffer, use it; otherwise use front of result buffer
+            mode.implicitDest.outputHandlesBuffer = desc.modeDesc.implicit.outputHandlesBuffer ? desc.modeDesc.implicit.outputHandlesBuffer : resultBuffer.getDeviceAddress();
+            mode.implicitDest.outputHandlesStrideInBytes = desc.modeDesc.implicit.outputHandlesStrideInBytes; // 0 -> 8
+            // Optional sizes buffer
+            mode.implicitDest.outputSizesBuffer = desc.modeDesc.implicit.outputSizesBuffer;
+            mode.implicitDest.outputSizesStrideInBytes = desc.modeDesc.implicit.outputSizesStrideInBytes;
+        }
 
         switch (desc.op)
         {
