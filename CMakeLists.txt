@@ -266,35 +266,35 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
     add_library(slang SHARED IMPORTED GLOBAL)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        if(EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-compiler.dll)
-            set(SLANG_LIBBASE slang-compiler)
+        set(PLATFORM_SLANG_LIB_DIR "${SLANG_RHI_SLANG_BINARY_DIR}/bin")
+        set(PLATFORM_SLANG_LIB_PREFIX "")
+        set(PLATFORM_SLANG_LIB_SUFFIX "dll")
+    else()
+        set(PLATFORM_SLANG_LIB_DIR "${SLANG_RHI_SLANG_BINARY_DIR}/lib")
+        set(PLATFORM_SLANG_LIB_PREFIX "lib")
+        if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+            set(PLATFORM_SLANG_LIB_SUFFIX "dylib")
         else()
-            set(SLANG_LIBBASE slang)
+            set(PLATFORM_SLANG_LIB_SUFFIX "so")
         endif()
+    endif()
+
+    if(EXISTS ${PLATFORM_SLANG_LIB_DIR}/${PLATFORM_SLANG_LIB_PREFIX}slang-compiler.${PLATFORM_SLANG_LIB_SUFFIX})
+        set(SLANG_LIBBASE slang-compiler)
+    else()
+        set(SLANG_LIBBASE slang)
+    endif()
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set_target_properties(slang PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
             IMPORTED_IMPLIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/${SLANG_LIBBASE}.lib
             IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/bin/${SLANG_LIBBASE}.dll
         )
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        if(EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.so)
-            set(SLANG_LIBBASE slang-compiler)
-        else()
-            set(SLANG_LIBBASE slang)
-        endif()
+    else()
         set_target_properties(slang PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIBBASE}.so
-        )
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        if(EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.dylib)
-            set(SLANG_LIBBASE slang-compiler)
-        else()
-            set(SLANG_LIBBASE slang)
-        endif()
-        set_target_properties(slang PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-            IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIBBASE}.dylib
+            IMPORTED_LOCATION "${PLATFORM_SLANG_LIB_DIR}/lib${SLANG_LIBBASE}.${PLATFORM_SLANG_LIB_SUFFIX}"
         )
     endif()
 
