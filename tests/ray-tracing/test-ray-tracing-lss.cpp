@@ -37,7 +37,7 @@ struct RayTracingLssTestBase
         slangSession = device->getSlangSession();
 
         ComPtr<slang::IBlob> diagnosticsBlob;
-        slang::IModule* module = slangSession->loadModule("test-ray-tracing-lss", diagnosticsBlob.writeRef());
+        slang::IModule* module = slangSession->loadModule("ray-tracing/test-ray-tracing-lss", diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         if (!module)
             return SLANG_FAIL;
