@@ -263,7 +263,7 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 unset(SLANG_RHI_SLANG_BINARY_DIR)
 if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
-    function(add_library_slang)
+    function(slang_rhi_add_library_slang)
         add_library(slang SHARED IMPORTED GLOBAL)
 
         if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -300,7 +300,7 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
         endif()
     endfunction()
 
-    add_library_slang()
+    slang_rhi_add_library_slang()
 
     target_link_libraries(slang-rhi PUBLIC slang)
 
