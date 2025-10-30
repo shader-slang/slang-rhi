@@ -1115,24 +1115,7 @@ public:
         OptixClusterAccelBuildModeDesc mode = {};
         mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
 
-        // Validate inputs first so we can assign directly without null checks.
-        if (!resultBuffer.buffer || !scratchBuffer.buffer)
-        {
-            m_device->printError("Cluster acceleration build: output/scratch buffer is null");
-            return;
-        }
-        size_t outputSize = checked_cast<BufferImpl*>(resultBuffer.buffer)->m_desc.size - resultBuffer.offset;
-        size_t scratchSize = checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset;
-        if (outputSize == 0 || scratchSize == 0)
-        {
-            m_device->printError("Cluster acceleration build: output/scratch buffer size is zero");
-            return;
-        }
-        if (!resultBuffer.getDeviceAddress() || !scratchBuffer.getDeviceAddress())
-        {
-            m_device->printError("Cluster acceleration build: output/scratch device address is zero");
-            return;
-        }
+        // Buffers are provided via desc.modeDesc; call-site buffers are unused.
 
         // Read first-class build mode and fields
         switch (desc.mode)
@@ -1140,8 +1123,8 @@ public:
         case ClusterAccelBuildDesc::BuildMode::Explicit:
         {
             mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_EXPLICIT_DESTINATIONS;
-            mode.explicitDest.tempBuffer = scratchBuffer.getDeviceAddress();
-            mode.explicitDest.tempBufferSizeInBytes = scratchSize;
+            mode.explicitDest.tempBuffer = desc.modeDesc.explicitDest.tempBuffer;
+            mode.explicitDest.tempBufferSizeInBytes = desc.modeDesc.explicitDest.tempBufferSizeInBytes;
             mode.explicitDest.destAddressesBuffer = desc.modeDesc.explicitDest.destAddressesBuffer;
             mode.explicitDest.destAddressesStrideInBytes = desc.modeDesc.explicitDest.destAddressesStrideInBytes;
             // Handles buffer: alias to destAddresses if not provided
@@ -1156,8 +1139,8 @@ public:
             mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_GET_SIZES;
             mode.getSize.outputSizesBuffer = desc.modeDesc.getSizes.outputSizesBuffer;
             mode.getSize.outputSizesStrideInBytes = desc.modeDesc.getSizes.outputSizesStrideInBytes;
-            mode.getSize.tempBuffer = scratchBuffer.getDeviceAddress();
-            mode.getSize.tempBufferSizeInBytes = scratchSize;
+            mode.getSize.tempBuffer = desc.modeDesc.getSizes.tempBuffer;
+            mode.getSize.tempBufferSizeInBytes = desc.modeDesc.getSizes.tempBufferSizeInBytes;
             break;
         }
         case ClusterAccelBuildDesc::BuildMode::Implicit:
@@ -1170,26 +1153,12 @@ public:
 
         if (mode.mode == OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS)
         {
-            // Place output handles at the beginning of resultBuffer, and outputs after a 128B-aligned handle table
-            uint64_t handlesBytes = 0;
-            switch (desc.op)
-            {
-            case ClusterAccelBuildOp::CLASFromTriangles:
-                handlesBytes = uint64_t(desc.trianglesLimits.maxArgCount) * 8u;
-                break;
-            case ClusterAccelBuildOp::BLASFromCLAS:
-                handlesBytes = uint64_t(desc.clustersLimits.maxArgCount) * 8u;
-                break;
-            default: break;
-            }
-            auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
-            uint64_t handlesPad128 = alignUp(handlesBytes, 128);
-            mode.implicitDest.outputBuffer = resultBuffer.getDeviceAddress() + handlesPad128;
-            mode.implicitDest.outputBufferSizeInBytes = outputSize;
-            mode.implicitDest.tempBuffer = scratchBuffer.getDeviceAddress();
-            mode.implicitDest.tempBufferSizeInBytes = scratchSize;
+            mode.implicitDest.outputBuffer = desc.modeDesc.implicit.outputBuffer;
+            mode.implicitDest.outputBufferSizeInBytes = desc.modeDesc.implicit.outputBufferSizeInBytes;
+            mode.implicitDest.tempBuffer = desc.modeDesc.implicit.tempBuffer;
+            mode.implicitDest.tempBufferSizeInBytes = desc.modeDesc.implicit.tempBufferSizeInBytes;
             // If user provided an explicit handles buffer, use it; otherwise use front of result buffer
-            mode.implicitDest.outputHandlesBuffer = desc.modeDesc.implicit.outputHandlesBuffer ? desc.modeDesc.implicit.outputHandlesBuffer : resultBuffer.getDeviceAddress();
+            mode.implicitDest.outputHandlesBuffer = desc.modeDesc.implicit.outputHandlesBuffer;
             mode.implicitDest.outputHandlesStrideInBytes = desc.modeDesc.implicit.outputHandlesStrideInBytes; // 0 -> 8
             // Optional sizes buffer
             mode.implicitDest.outputSizesBuffer = desc.modeDesc.implicit.outputSizesBuffer;
