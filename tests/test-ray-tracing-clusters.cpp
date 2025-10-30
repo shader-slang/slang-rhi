@@ -145,6 +145,17 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
 
     auto queue = device->getQueue(QueueType::Graphics);
     auto enc = queue->createCommandEncoder();
+    // Implicit: set required buffers in desc
+    auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
+    uint64_t handlesBytes = uint64_t(1) * 8u;
+    uint64_t handlesPad128 = alignUp(handlesBytes, 128);
+    clasDesc.mode = ClusterAccelBuildDesc::BuildMode::Implicit;
+    clasDesc.modeDesc.implicit.outputHandlesBuffer = (DeviceAddress)clasResult->getDeviceAddress();
+    clasDesc.modeDesc.implicit.outputHandlesStrideInBytes = 0; // 0->8
+    clasDesc.modeDesc.implicit.outputBuffer = (DeviceAddress)clasResult->getDeviceAddress() + handlesPad128;
+    clasDesc.modeDesc.implicit.outputBufferSizeInBytes = resultDesc.size;
+    clasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)clasScratch->getDeviceAddress();
+    clasDesc.modeDesc.implicit.tempBufferSizeInBytes = scratchDesc.size;
     enc->buildClusterAccelerationStructure(clasDesc, BufferOffsetPair(clasScratch, 0), BufferOffsetPair(clasResult, 0));
     queue->submit(enc->finish());
     queue->waitOnHost();
@@ -189,6 +200,16 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
     ComPtr<IBuffer> blasScratch = device->createBuffer(blasScratchDesc);
 
     enc = queue->createCommandEncoder();
+    // Implicit: set required buffers in desc for BLAS
+    uint64_t blasHandlesBytes = uint64_t(1) * 8u;
+    uint64_t blasHandlesPad128 = alignUp(blasHandlesBytes, 128);
+    blasDesc.mode = ClusterAccelBuildDesc::BuildMode::Implicit;
+    blasDesc.modeDesc.implicit.outputHandlesBuffer = (DeviceAddress)blasResult->getDeviceAddress();
+    blasDesc.modeDesc.implicit.outputHandlesStrideInBytes = 0;
+    blasDesc.modeDesc.implicit.outputBuffer = (DeviceAddress)blasResult->getDeviceAddress() + blasHandlesPad128;
+    blasDesc.modeDesc.implicit.outputBufferSizeInBytes = blasResultDesc.size;
+    blasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)blasScratch->getDeviceAddress();
+    blasDesc.modeDesc.implicit.tempBufferSizeInBytes = blasScratchDesc.size;
     enc->buildClusterAccelerationStructure(blasDesc, BufferOffsetPair(blasScratch, 0), BufferOffsetPair(blasResult, 0));
     queue->submit(enc->finish());
     queue->waitOnHost();
@@ -270,6 +291,17 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
 
     auto queue = device->getQueue(QueueType::Graphics);
     auto enc = queue->createCommandEncoder();
+    // Implicit: set required buffers in desc
+    auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
+    uint64_t handlesBytes = uint64_t(2) * 8u;
+    uint64_t handlesPad128 = alignUp(handlesBytes, 128);
+    clasDesc.mode = ClusterAccelBuildDesc::BuildMode::Implicit;
+    clasDesc.modeDesc.implicit.outputHandlesBuffer = (DeviceAddress)clasResult->getDeviceAddress();
+    clasDesc.modeDesc.implicit.outputHandlesStrideInBytes = 0; // 0->8
+    clasDesc.modeDesc.implicit.outputBuffer = (DeviceAddress)clasResult->getDeviceAddress() + handlesPad128;
+    clasDesc.modeDesc.implicit.outputBufferSizeInBytes = resultDesc.size;
+    clasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)clasScratch->getDeviceAddress();
+    clasDesc.modeDesc.implicit.tempBufferSizeInBytes = scratchDesc.size;
     enc->buildClusterAccelerationStructure(clasDesc, BufferOffsetPair(clasScratch, 0), BufferOffsetPair(clasResult, 0));
     queue->submit(enc->finish());
     queue->waitOnHost();
@@ -315,6 +347,16 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     ComPtr<IBuffer> blasScratch = device->createBuffer(blasScratchDesc);
 
     enc = queue->createCommandEncoder();
+    // Implicit: set required buffers in desc for BLAS
+    uint64_t blasHandlesBytes = uint64_t(1) * 8u;
+    uint64_t blasHandlesPad128 = alignUp(blasHandlesBytes, 128);
+    blasDesc.mode = ClusterAccelBuildDesc::BuildMode::Implicit;
+    blasDesc.modeDesc.implicit.outputHandlesBuffer = (DeviceAddress)blasResult->getDeviceAddress();
+    blasDesc.modeDesc.implicit.outputHandlesStrideInBytes = 0;
+    blasDesc.modeDesc.implicit.outputBuffer = (DeviceAddress)blasResult->getDeviceAddress() + blasHandlesPad128;
+    blasDesc.modeDesc.implicit.outputBufferSizeInBytes = blasResultDesc.size;
+    blasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)blasScratch->getDeviceAddress();
+    blasDesc.modeDesc.implicit.tempBufferSizeInBytes = blasScratchDesc.size;
     enc->buildClusterAccelerationStructure(blasDesc, BufferOffsetPair(blasScratch, 0), BufferOffsetPair(blasResult, 0));
     queue->submit(enc->finish());
     queue->waitOnHost();
@@ -401,6 +443,9 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
     clasDesc.mode = ClusterAccelBuildDesc::BuildMode::GetSizes;
     clasDesc.modeDesc.getSizes.outputSizesBuffer = sizesBuf->getDeviceAddress();
     clasDesc.modeDesc.getSizes.outputSizesStrideInBytes = 0; // 0 -> 4
+    // Required temp for GetSizes
+    clasDesc.modeDesc.getSizes.tempBuffer = clasScratch->getDeviceAddress();
+    clasDesc.modeDesc.getSizes.tempBufferSizeInBytes = scratchDesc.size;
 
     // Build with GET_SIZES; result buffer unused, provide a small dummy
     BufferDesc dummyOutDesc = {};

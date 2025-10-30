@@ -954,25 +954,8 @@ public:
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
             optixClusterAccelComputeMemoryUsage(m_deviceContext, buildMode.mode, &buildInput, &sizes), m_device);
 
-        // Reserve space for output handles (8 bytes per arg) at the start of the result buffer
-        // Ensure the subsequent output region remains 128B aligned
-        uint64_t handlesBytes = 0;
-        switch (desc.op)
-        {
-        case ClusterAccelBuildOp::CLASFromTriangles:
-            handlesBytes = uint64_t(desc.trianglesLimits.maxArgCount) * 8u;
-            break;
-        case ClusterAccelBuildOp::BLASFromCLAS:
-            handlesBytes = uint64_t(desc.clustersLimits.maxArgCount) * 8u;
-            break;
-        default: break;
-        }
-
-        // Align handle table + padding to 128 so outputBuffer stays aligned
-        auto alignUp = [](uint64_t v, uint64_t a) { return (v + (a - 1)) & ~(a - 1); };
-        uint64_t handlesPad128 = alignUp(handlesBytes, 128);
-
-        outSizes->resultSize = sizes.outputSizeInBytes + handlesPad128;
+        // Report only the payload output size; handles storage is specified separately in the desc
+        outSizes->resultSize = sizes.outputSizeInBytes;
         outSizes->scratchSize = sizes.tempSizeInBytes;
         return SLANG_OK;
 #endif
@@ -1157,7 +1140,7 @@ public:
             mode.implicitDest.outputBufferSizeInBytes = desc.modeDesc.implicit.outputBufferSizeInBytes;
             mode.implicitDest.tempBuffer = desc.modeDesc.implicit.tempBuffer;
             mode.implicitDest.tempBufferSizeInBytes = desc.modeDesc.implicit.tempBufferSizeInBytes;
-            // If user provided an explicit handles buffer, use it; otherwise use front of result buffer
+            // Handles buffer is required and provided in the desc
             mode.implicitDest.outputHandlesBuffer = desc.modeDesc.implicit.outputHandlesBuffer;
             mode.implicitDest.outputHandlesStrideInBytes = desc.modeDesc.implicit.outputHandlesStrideInBytes; // 0 -> 8
             // Optional sizes buffer
