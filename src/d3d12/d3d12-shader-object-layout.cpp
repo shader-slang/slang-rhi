@@ -25,15 +25,9 @@ inline bool isBindingRangeRootParameter(
 }
 
 
-ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
-{
-    // Pending layout APIs have been removed - no additional offset needed
-}
+ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout) {}
 
-ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
-{
-    // Pending layout APIs have been removed - no stride needed
-}
+ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout) {}
 
 Result ShaderObjectLayoutImpl::createForElementType(
     Device* device,

@@ -13,13 +13,11 @@ static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(
 ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
     : BindingOffset(varLayout)
 {
-    // Pending layout APIs have been removed - no additional offset needed
 }
 
 ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
     : BindingOffset(typeLayout)
 {
-    // Pending layout APIs have been removed - no stride needed
 }
 
 Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutReflection* typeLayout)
@@ -145,7 +143,6 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     for (SlangInt r = 0; r < subObjectRangeCount; ++r)
     {
         SlangInt bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(r);
-        auto& bindingRange = m_bindingRanges[bindingRangeIndex];
 
         auto slangBindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
@@ -193,6 +190,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             // Pending data layout APIs have been removed.
             // Interface-type ranges now have no additional layout information.
             // Sub-object layout remains nullptr for interface types.
+            break;
         }
         subObjectRange.layout = subObjectLayout;
 

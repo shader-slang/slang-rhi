@@ -5,13 +5,11 @@ namespace rhi::d3d11 {
 ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
     : BindingOffset(varLayout)
 {
-    // Pending layout APIs have been removed - no additional offset needed
 }
 
 ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
     : BindingOffset(typeLayout)
 {
-    // Pending layout APIs have been removed - no stride needed
 }
 
 Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutReflection* typeLayout)
