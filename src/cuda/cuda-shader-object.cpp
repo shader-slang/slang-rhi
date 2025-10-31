@@ -224,8 +224,8 @@ Result BindingDataBuilder::writeObjectData(
                 // As a result, the offset for the first object in the range
                 // will come from the `pending` part of the range's offset.
                 //
-                SimpleBindingOffset objOffset = rangeOffset.pending;
-                SimpleBindingOffset objStride = rangeStride.pending;
+                SimpleBindingOffset objOffset = rangeOffset;
+                SimpleBindingOffset objStride = rangeStride;
 
                 for (uint32_t i = 0; i < count; ++i)
                 {

@@ -86,9 +86,6 @@ public:
         SubObjectRangeOffset() {}
 
         SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout);
-
-        /// The offset for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Stride information for a sub-object range
@@ -97,9 +94,6 @@ public:
         SubObjectRangeStride() {}
 
         SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout);
-
-        /// The stride for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Information about a logical binding range as reported by Slang reflection

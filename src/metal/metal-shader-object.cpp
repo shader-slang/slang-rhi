@@ -89,18 +89,9 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData->usedRWResourceCount = 0;
     m_bindingData->usedRWResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedRWResourceCapacity);
 
-    // When binding an entire root shader object, we need to deal with
-    // the way that specialization might have allocated space for "pending"
-    // parameter data after all the primary parameters.
-    //
-    // We start by initializing an offset that will store zeros for the
-    // primary data, an the computed offset from the specialized layout
-    // for pending data.
+    // Initialize binding offset for shader parameters.
     //
     BindingOffset offset;
-#if 0
-    offset.pending = layout->getPendingDataOffset();
-#endif
 
     // Note: We could *almost* call `bindAsConstantBuffer()` here to bind
     // the state of the root object itself, but there is an important
@@ -332,13 +323,8 @@ Result BindingDataBuilder::bindAsValue(
             //
             if (subObjectLayout)
             {
-                // The data for objects in this range will always be bound into
-                // the "pending" allocation for the parent block/buffer/object.
-                // As a result, the offset for the first object in the range
-                // will come from the `pending` part of the range's offset.
-                //
-                SimpleBindingOffset objOffset = rangeOffset.pending;
-                SimpleBindingOffset objStride = rangeStride.pending;
+                SimpleBindingOffset objOffset = {};
+                SimpleBindingOffset objStride = {};
 
                 for (Index i = 0; i < count; ++i)
                 {
