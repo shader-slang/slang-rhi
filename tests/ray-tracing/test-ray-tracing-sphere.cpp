@@ -105,7 +105,8 @@ struct RayTracingSphereIntersectionTest
         std::vector<const char*> raygenNames = {"rayGenShader"};
 
         // OptiX requires an intersection shader for non-triangle geometry.
-        const char* intersectionName = device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
+        const char* intersectionName =
+            device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames = {
             {"closestHitShader", intersectionName},
@@ -114,7 +115,14 @@ struct RayTracingSphereIntersectionTest
 
         createResultTexture();
 
-        RayTracingTestPipeline pipeline(device, "ray-tracing/test-ray-tracing-sphere", raygenNames, hitGroupProgramNames, missNames, RayTracingPipelineFlags::EnableSpheres);
+        RayTracingTestPipeline pipeline(
+            device,
+            "ray-tracing/test-ray-tracing-sphere",
+            raygenNames,
+            hitGroupProgramNames,
+            missNames,
+            RayTracingPipelineFlags::EnableSpheres
+        );
         renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS);
 
         ExpectedPixel expectedPixels[] = {
@@ -165,27 +173,33 @@ struct RayTracingSphereIntrinsicsTest
 
     void init(IDevice* device_) { this->device = device_; }
 
-    void run(
-        const char* raygenName,
-        const char* closestHitName
-    )
+    void run(const char* raygenName, const char* closestHitName)
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
         SingleSphereBlas blas(device, queue);
         Tlas tlas(device, queue, blas.BLAS);
 
-        const char* intersectionName = device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
+        const char* intersectionName =
+            device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames = {
             {closestHitName, intersectionName},
         };
         std::vector<const char*> missNames = {"missNOP"};
 
-        size_t resultSize = device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
+        size_t resultSize =
+            device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
         ResultBuffer resultBuf(device, resultSize);
 
-        RayTracingTestPipeline pipeline(device, "ray-tracing/test-ray-tracing-sphere", {raygenName}, hitGroupProgramNames, missNames, RayTracingPipelineFlags::EnableSpheres);
+        RayTracingTestPipeline pipeline(
+            device,
+            "ray-tracing/test-ray-tracing-sphere",
+            {raygenName},
+            hitGroupProgramNames,
+            missNames,
+            RayTracingPipelineFlags::EnableSpheres
+        );
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.TLAS);
 
         ComPtr<ISlangBlob> resultBlob;

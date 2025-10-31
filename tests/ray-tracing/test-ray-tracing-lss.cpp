@@ -165,7 +165,8 @@ struct RayTracingLssIntrinsicsTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        const size_t resultSize = device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
+        const size_t resultSize =
+            device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
         ResultBuffer resultBuf(device, resultSize);
 
         SingleSegmentLssBlas blas(device, queue);

@@ -10,7 +10,7 @@
 // - a TLAS with a single instance
 // - a pipeline
 // - a straightforward shader table
-// 
+//
 // This header provides classes and functions that provide these common building blocks.
 
 namespace rhi::testing {
@@ -384,11 +384,19 @@ struct LssBlas
     ComPtr<IBuffer> positionBuffer;
     ComPtr<IBuffer> radiusBuffer;
     ComPtr<IBuffer> indexBuffer;
- 
+
     ComPtr<IBuffer> BLASBuffer;
     ComPtr<IAccelerationStructure> BLAS;
 
-    LssBlas(IDevice* device, ICommandQueue* queue, int segmentCount, const Vertex* positionData, const float* radiusData, int primitiveCount, const unsigned* indexData)
+    LssBlas(
+        IDevice* device,
+        ICommandQueue* queue,
+        int segmentCount,
+        const Vertex* positionData,
+        const float* radiusData,
+        int primitiveCount,
+        const unsigned* indexData
+    )
     {
         BufferDesc positionBufferDesc;
         positionBufferDesc.size = segmentCount * sizeof(Vertex);
