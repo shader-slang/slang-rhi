@@ -1,44 +1,12 @@
 #include "testing.h"
+#include "test-ray-tracing-common.h"
 
 #include <slang-rhi/acceleration-structure-utils.h>
 
 using namespace rhi;
 using namespace rhi::testing;
 
-struct Vertex
-{
-    float position[3];
-};
-
-static const int kVertexCount = 9;
-static const Vertex kVertexData[kVertexCount] = {
-    // Triangle 1
-    {0.f, 0.f, 1.f},
-    {1.f, 0.f, 1.f},
-    {0.f, 1.f, 1.f},
-
-    // Triangle 2
-    {0.f, 0.f, 1.f},
-    {0.f, 1.f, 1.f},
-    {-1.f, 0.f, 1.f},
-
-    // Triangle 3
-    {0.f, 0.f, 1.f},
-    {1.f, 0.f, 1.f},
-    {0.f, -1.f, 1.f},
-};
-static const int kIndexCount = 9;
-static const uint32_t kIndexData[kIndexCount] = {
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-};
+namespace {
 
 struct ExpectedPixel
 {
@@ -54,71 +22,62 @@ struct ExpectedPixel
         }                                                                                                              \
     }
 
-struct RayTracingTriangleIntersection
+struct RayTracingTriangleIntersectionTest
 {
     IDevice* device;
 
-    ComPtr<ICommandQueue> queue;
-
-    ComPtr<IRayTracingPipeline> raytracingPipeline;
-    ComPtr<IBuffer> vertexBuffer;
-    ComPtr<IBuffer> indexBuffer;
-    ComPtr<IBuffer> transformBuffer;
-    ComPtr<IBuffer> instanceBuffer;
-    ComPtr<IBuffer> BLASBuffer;
-    ComPtr<IAccelerationStructure> BLAS;
-    ComPtr<IBuffer> TLASBuffer;
-    ComPtr<IAccelerationStructure> TLAS;
-    ComPtr<ITexture> resultTexture;
-    ComPtr<IShaderTable> shaderTable;
-
-    uint32_t width = 128;
-    uint32_t height = 128;
-
     void init(IDevice* device_) { this->device = device_; }
 
-    // Load and compile shader code from source.
-    Result loadShaderProgram(IShaderProgram** outProgram)
+    const uint32_t width = 128;
+    const uint32_t height = 128;
+
+    ComPtr<ITexture> resultTexture;
+
+    void run(unsigned rgIdx, span<ExpectedPixel> expectedPixels)
     {
-        ComPtr<slang::ISession> slangSession;
-        slangSession = device->getSlangSession();
+        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        ComPtr<slang::IBlob> diagnosticsBlob;
-        slang::IModule* module = slangSession->loadModule("ray-tracing/test-ray-tracing", diagnosticsBlob.writeRef());
-        diagnoseIfNeeded(diagnosticsBlob);
-        if (!module)
-            return SLANG_FAIL;
+        ThreeTriangleBlas blas(device, queue);
+        Tlas tlas(device, queue, blas.BLAS);
 
-        std::vector<slang::IComponentType*> componentTypes;
-        componentTypes.push_back(module);
-        ComPtr<slang::IEntryPoint> entryPoint;
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("rayGenShaderIdx0", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("rayGenShaderIdx1", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShaderIdx0", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("missShaderIdx1", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShaderIdx0", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
-        SLANG_RETURN_ON_FAIL(module->findEntryPointByName("closestHitShaderIdx1", entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
+        std::vector<const char*> raygenNames = {"rayGenShaderIdx0", "rayGenShaderIdx1"};
+        std::vector<HitGroupProgramNames> hitGroupProgramNames = {
+            {"closestHitShaderIdx0", nullptr},
+            {"closestHitShaderIdx1", nullptr},
+        };
+        std::vector<const char*> missNames = {"missShaderIdx0", "missShaderIdx1"};
 
-        ComPtr<slang::IComponentType> linkedProgram;
-        Result result = slangSession->createCompositeComponentType(
-            componentTypes.data(),
-            componentTypes.size(),
-            linkedProgram.writeRef(),
-            diagnosticsBlob.writeRef()
-        );
-        SLANG_RETURN_ON_FAIL(result);
+        createResultTexture();
 
-        ShaderProgramDesc programDesc = {};
-        programDesc.slangGlobalScope = linkedProgram;
-        SLANG_RETURN_ON_FAIL(device->createShaderProgram(programDesc, outProgram));
+        RayTracingTestPipeline
+            pipeline(device, "ray-tracing/test-ray-tracing", raygenNames, hitGroupProgramNames, missNames);
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS, rgIdx);
 
-        return SLANG_OK;
+        checkTestResults(expectedPixels);
+    }
+
+    void renderFrame(
+        ICommandQueue* queue,
+        IRayTracingPipeline* pipeline,
+        IShaderTable* shaderTable,
+        IAccelerationStructure* TLAS,
+        unsigned rgIdx
+    )
+    {
+        auto commandEncoder = queue->createCommandEncoder();
+
+        auto passEncoder = commandEncoder->beginRayTracingPass();
+        auto rootObject = passEncoder->bindPipeline(pipeline, shaderTable);
+        auto cursor = ShaderCursor(rootObject);
+        uint32_t dims[2] = {width, height};
+        cursor["dims"].setData(dims, sizeof(dims));
+        cursor["resultTexture"].setBinding(resultTexture);
+        cursor["sceneBVH"].setBinding(TLAS);
+        passEncoder->dispatchRays(rgIdx, width, height, 1);
+        passEncoder->end();
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
     }
 
     void createResultTexture()
@@ -133,194 +92,6 @@ struct RayTracingTriangleIntersection
         resultTextureDesc.defaultState = ResourceState::UnorderedAccess;
         resultTextureDesc.format = Format::RGBA32Float;
         resultTexture = device->createTexture(resultTextureDesc);
-    }
-
-    void createRequiredResources()
-    {
-        queue = device->getQueue(QueueType::Graphics);
-
-        BufferDesc vertexBufferDesc;
-        vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
-        vertexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
-        vertexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
-        vertexBuffer = device->createBuffer(vertexBufferDesc, &kVertexData[0]);
-        REQUIRE(vertexBuffer != nullptr);
-
-        BufferDesc indexBufferDesc;
-        indexBufferDesc.size = kIndexCount * sizeof(int32_t);
-        indexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
-        indexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
-        indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
-        REQUIRE(indexBuffer != nullptr);
-
-        BufferDesc transformBufferDesc;
-        transformBufferDesc.size = sizeof(float) * 12;
-        transformBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
-        transformBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
-        float transformData[12] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
-        transformBuffer = device->createBuffer(transformBufferDesc, &transformData);
-        REQUIRE(transformBuffer != nullptr);
-
-        createResultTexture();
-
-        // Build bottom level acceleration structure.
-        {
-            AccelerationStructureBuildInput buildInput = {};
-            buildInput.type = AccelerationStructureBuildInputType::Triangles;
-            buildInput.triangles.vertexBuffers[0] = vertexBuffer;
-            buildInput.triangles.vertexBufferCount = 1;
-            buildInput.triangles.vertexFormat = Format::RGB32Float;
-            buildInput.triangles.vertexCount = kVertexCount;
-            buildInput.triangles.vertexStride = sizeof(Vertex);
-            buildInput.triangles.indexBuffer = indexBuffer;
-            buildInput.triangles.indexFormat = IndexFormat::Uint32;
-            buildInput.triangles.indexCount = kIndexCount;
-            buildInput.triangles.preTransformBuffer = transformBuffer;
-            buildInput.triangles.flags = AccelerationStructureGeometryFlags::Opaque;
-            AccelerationStructureBuildDesc buildDesc = {};
-            buildDesc.inputs = &buildInput;
-            buildDesc.inputCount = 1;
-            buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction;
-
-            // Query buffer size for acceleration structure build.
-            AccelerationStructureSizes sizes;
-            REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
-
-            // Allocate buffers for acceleration structure.
-            BufferDesc scratchBufferDesc;
-            scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
-            scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-            scratchBufferDesc.size = sizes.scratchSize;
-            ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
-
-            // Build acceleration structure.
-            ComPtr<IQueryPool> compactedSizeQuery;
-            QueryPoolDesc queryPoolDesc;
-            queryPoolDesc.count = 1;
-            queryPoolDesc.type = QueryType::AccelerationStructureCompactedSize;
-            REQUIRE_CALL(device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));
-
-            ComPtr<IAccelerationStructure> draftAS;
-            AccelerationStructureDesc draftCreateDesc;
-            draftCreateDesc.size = sizes.accelerationStructureSize;
-            REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
-
-            compactedSizeQuery->reset();
-
-            auto commandEncoder = queue->createCommandEncoder();
-            AccelerationStructureQueryDesc compactedSizeQueryDesc = {};
-            compactedSizeQueryDesc.queryPool = compactedSizeQuery;
-            compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
-            commandEncoder
-                ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-            queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
-
-            uint64_t compactedSize = 0;
-            compactedSizeQuery->getResult(0, 1, &compactedSize);
-            AccelerationStructureDesc createDesc;
-            createDesc.size = compactedSize;
-            device->createAccelerationStructure(createDesc, BLAS.writeRef());
-
-            commandEncoder = queue->createCommandEncoder();
-            commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
-            queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
-        }
-
-        // Build top level acceleration structure.
-        {
-            AccelerationStructureInstanceDescType nativeInstanceDescType =
-                getAccelerationStructureInstanceDescType(device);
-            Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
-
-            std::vector<AccelerationStructureInstanceDescGeneric> genericInstanceDescs;
-            genericInstanceDescs.resize(1);
-            float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
-            memcpy(&genericInstanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
-            genericInstanceDescs[0].instanceID = 0;
-            genericInstanceDescs[0].instanceMask = 0xFF;
-            genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
-            genericInstanceDescs[0].flags = AccelerationStructureInstanceFlags::TriangleFacingCullDisable;
-            genericInstanceDescs[0].accelerationStructure = BLAS->getHandle();
-
-            std::vector<uint8_t> nativeInstanceDescs(genericInstanceDescs.size() * nativeInstanceDescSize);
-            convertAccelerationStructureInstanceDescs(
-                genericInstanceDescs.size(),
-                nativeInstanceDescType,
-                nativeInstanceDescs.data(),
-                nativeInstanceDescSize,
-                genericInstanceDescs.data(),
-                sizeof(AccelerationStructureInstanceDescGeneric)
-            );
-
-            BufferDesc instanceBufferDesc;
-            instanceBufferDesc.size = nativeInstanceDescs.size();
-            instanceBufferDesc.usage = BufferUsage::ShaderResource;
-            instanceBufferDesc.defaultState = ResourceState::ShaderResource;
-            instanceBuffer = device->createBuffer(instanceBufferDesc, nativeInstanceDescs.data());
-            REQUIRE(instanceBuffer != nullptr);
-
-            AccelerationStructureBuildInput buildInput = {};
-            buildInput.type = AccelerationStructureBuildInputType::Instances;
-            buildInput.instances.instanceBuffer = instanceBuffer;
-            buildInput.instances.instanceCount = 1;
-            buildInput.instances.instanceStride = nativeInstanceDescSize;
-            AccelerationStructureBuildDesc buildDesc = {};
-            buildDesc.inputs = &buildInput;
-            buildDesc.inputCount = 1;
-
-            // Query buffer size for acceleration structure build.
-            AccelerationStructureSizes sizes;
-            REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
-
-            BufferDesc scratchBufferDesc;
-            scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
-            scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-            scratchBufferDesc.size = sizes.scratchSize;
-            ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
-
-            AccelerationStructureDesc createDesc;
-            createDesc.size = sizes.accelerationStructureSize;
-            REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
-
-            auto commandEncoder = queue->createCommandEncoder();
-            commandEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
-            queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
-        }
-
-        const char* hitgroupNames[] = {"hitgroupA", "hitgroupB"};
-
-        ComPtr<IShaderProgram> rayTracingProgram;
-        REQUIRE_CALL(loadShaderProgram(rayTracingProgram.writeRef()));
-        RayTracingPipelineDesc rtpDesc = {};
-        rtpDesc.program = rayTracingProgram;
-        rtpDesc.hitGroupCount = 2;
-        HitGroupDesc hitGroups[2];
-        hitGroups[0].closestHitEntryPoint = "closestHitShaderIdx0";
-        hitGroups[0].hitGroupName = hitgroupNames[0];
-        hitGroups[1].closestHitEntryPoint = "closestHitShaderIdx1";
-        hitGroups[1].hitGroupName = hitgroupNames[1];
-        rtpDesc.hitGroups = hitGroups;
-        rtpDesc.maxRayPayloadSize = 64;
-        rtpDesc.maxAttributeSizeInBytes = 8;
-        rtpDesc.maxRecursion = 2;
-        REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));
-        REQUIRE(raytracingPipeline != nullptr);
-
-        const char* raygenNames[] = {"rayGenShaderIdx0", "rayGenShaderIdx1"};
-        const char* missNames[] = {"missShaderIdx0", "missShaderIdx1"};
-
-        ShaderTableDesc shaderTableDesc = {};
-        shaderTableDesc.program = rayTracingProgram;
-        shaderTableDesc.hitGroupCount = 2;
-        shaderTableDesc.hitGroupNames = hitgroupNames;
-        shaderTableDesc.rayGenShaderCount = 2;
-        shaderTableDesc.rayGenShaderEntryPointNames = raygenNames;
-        shaderTableDesc.missShaderCount = 2;
-        shaderTableDesc.missShaderEntryPointNames = missNames;
-        REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
     }
 
     void checkTestResults(span<ExpectedPixel> expectedPixels)
@@ -349,94 +120,29 @@ struct RayTracingTriangleIntersection
     }
 };
 
-struct RayTracingTriangleIntersectionRaygenIdx0 : RayTracingTriangleIntersection
-{
-    void renderFrame()
-    {
-        auto commandEncoder = queue->createCommandEncoder();
-
-        auto passEncoder = commandEncoder->beginRayTracingPass();
-        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
-        auto cursor = ShaderCursor(rootObject);
-        uint32_t dims[2] = {width, height};
-        cursor["dims"].setData(dims, sizeof(dims));
-        cursor["resultTexture"].setBinding(resultTexture);
-        cursor["sceneBVH"].setBinding(TLAS);
-        passEncoder->dispatchRays(0, width, height, 1);
-        passEncoder->end();
-
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
-    }
-
-    void run()
-    {
-        createRequiredResources();
-        renderFrame();
-
-        ExpectedPixel expectedPixels[] = {
-            EXPECTED_PIXEL(64, 64, 1.f, 0.f, 0.f, 1.f), // Triangle 1
-            EXPECTED_PIXEL(63, 64, 0.f, 1.f, 0.f, 1.f), // Triangle 2
-            EXPECTED_PIXEL(64, 63, 0.f, 0.f, 1.f, 1.f), // Triangle 3
-            EXPECTED_PIXEL(63, 63, 1.f, 1.f, 1.f, 1.f), // Miss
-            // Corners should all be misses
-            EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss
-            EXPECTED_PIXEL(127, 0, 1.f, 1.f, 1.f, 1.f),   // Miss
-            EXPECTED_PIXEL(127, 127, 1.f, 1.f, 1.f, 1.f), // Miss
-            EXPECTED_PIXEL(0, 127, 1.f, 1.f, 1.f, 1.f),   // Miss
-        };
-        checkTestResults(expectedPixels);
-    }
-};
-
-struct RayTracingTriangleIntersectionRaygenIdx1 : RayTracingTriangleIntersection
-{
-    void renderFrame()
-    {
-        auto commandEncoder = queue->createCommandEncoder();
-
-        auto passEncoder = commandEncoder->beginRayTracingPass();
-        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
-        auto cursor = ShaderCursor(rootObject);
-        uint32_t dims[2] = {width, height};
-        cursor["dims"].setData(dims, sizeof(dims));
-        cursor["resultTexture"].setBinding(resultTexture);
-        cursor["sceneBVH"].setBinding(TLAS);
-        passEncoder->dispatchRays(1, width, height, 1);
-        passEncoder->end();
-
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
-    }
-
-    void run()
-    {
-        createRequiredResources();
-        renderFrame();
-
-        ExpectedPixel expectedPixels[] = {
-            EXPECTED_PIXEL(64, 64, 0.f, 1.f, 1.f, 1.f), // Triangle 1
-            EXPECTED_PIXEL(63, 64, 1.f, 0.f, 1.f, 1.f), // Triangle 2
-            EXPECTED_PIXEL(64, 63, 1.f, 1.f, 0.f, 1.f), // Triangle 3
-            EXPECTED_PIXEL(63, 63, 0.f, 0.f, 0.f, 1.f), // Miss
-            // Corners should all be misses
-            EXPECTED_PIXEL(0, 0, 0.f, 0.f, 0.f, 1.f),     // Miss
-            EXPECTED_PIXEL(127, 0, 0.f, 0.f, 0.f, 1.f),   // Miss
-            EXPECTED_PIXEL(127, 127, 0.f, 0.f, 0.f, 1.f), // Miss
-            EXPECTED_PIXEL(0, 127, 0.f, 0.f, 0.f, 1.f),   // Miss
-        };
-        checkTestResults(expectedPixels);
-    }
-};
+} // namespace
 
 GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
-    RayTracingTriangleIntersectionRaygenIdx0 test;
+    ExpectedPixel expectedPixels[] = {
+        EXPECTED_PIXEL(64, 64, 1.f, 0.f, 0.f, 1.f), // Triangle 1
+        EXPECTED_PIXEL(63, 64, 0.f, 1.f, 0.f, 1.f), // Triangle 2
+        EXPECTED_PIXEL(64, 63, 0.f, 0.f, 1.f, 1.f), // Triangle 3
+        EXPECTED_PIXEL(63, 63, 1.f, 1.f, 1.f, 1.f), // Miss
+        // Corners should all be misses
+        EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss
+        EXPECTED_PIXEL(127, 0, 1.f, 1.f, 1.f, 1.f),   // Miss
+        EXPECTED_PIXEL(127, 127, 1.f, 1.f, 1.f, 1.f), // Miss
+        EXPECTED_PIXEL(0, 127, 1.f, 1.f, 1.f, 1.f),   // Miss
+    };
+
+
+    RayTracingTriangleIntersectionTest test;
     test.init(device);
-    test.run();
+    test.run(0, expectedPixels);
 }
 
 GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
@@ -444,7 +150,20 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
-    RayTracingTriangleIntersectionRaygenIdx1 test;
+    ExpectedPixel expectedPixels[] = {
+        EXPECTED_PIXEL(64, 64, 0.f, 1.f, 1.f, 1.f), // Triangle 1
+        EXPECTED_PIXEL(63, 64, 1.f, 0.f, 1.f, 1.f), // Triangle 2
+        EXPECTED_PIXEL(64, 63, 1.f, 1.f, 0.f, 1.f), // Triangle 3
+        EXPECTED_PIXEL(63, 63, 0.f, 0.f, 0.f, 1.f), // Miss
+        // Corners should all be misses
+        EXPECTED_PIXEL(0, 0, 0.f, 0.f, 0.f, 1.f),     // Miss
+        EXPECTED_PIXEL(127, 0, 0.f, 0.f, 0.f, 1.f),   // Miss
+        EXPECTED_PIXEL(127, 127, 0.f, 0.f, 0.f, 1.f), // Miss
+        EXPECTED_PIXEL(0, 127, 0.f, 0.f, 0.f, 1.f),   // Miss
+    };
+
+
+    RayTracingTriangleIntersectionTest test;
     test.init(device);
-    test.run();
+    test.run(1, expectedPixels);
 }

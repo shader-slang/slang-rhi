@@ -1,261 +1,12 @@
 #include "testing.h"
+#include "test-ray-tracing-common.h"
 
 #include <slang-rhi/acceleration-structure-utils.h>
 
 using namespace rhi;
 using namespace rhi::testing;
 
-struct float3
-{
-    float x, y, z;
-};
-
-struct RayTracingSphereTestBase
-{
-    IDevice* device;
-
-    ComPtr<ICommandQueue> queue;
-
-    ComPtr<IRayTracingPipeline> raytracingPipeline;
-    ComPtr<IBuffer> positionBuffer;
-    ComPtr<IBuffer> radiusBuffer;
-    ComPtr<IBuffer> transformBuffer;
-    ComPtr<IBuffer> instanceBuffer;
-    ComPtr<IBuffer> BLASBuffer;
-    ComPtr<IAccelerationStructure> BLAS;
-    ComPtr<IBuffer> TLASBuffer;
-    ComPtr<IAccelerationStructure> TLAS;
-    ComPtr<IShaderTable> shaderTable;
-
-    void init(IDevice* device_) { this->device = device_; }
-
-    // Load and compile shader code from source.
-    Result loadShaderProgram(span<const char*> entryPointNames, IShaderProgram** outProgram)
-    {
-        ComPtr<slang::ISession> slangSession;
-        slangSession = device->getSlangSession();
-
-        ComPtr<slang::IBlob> diagnosticsBlob;
-        slang::IModule* module = slangSession->loadModule("ray-tracing/test-ray-tracing-sphere", diagnosticsBlob.writeRef());
-        diagnoseIfNeeded(diagnosticsBlob);
-        if (!module)
-            return SLANG_FAIL;
-
-        std::vector<slang::IComponentType*> componentTypes;
-        componentTypes.push_back(module);
-
-        ComPtr<slang::IEntryPoint> entryPoint;
-        for (const char* entryPointName : entryPointNames)
-        {
-            SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, entryPoint.writeRef()));
-            componentTypes.push_back(entryPoint);
-        }
-
-        ComPtr<slang::IComponentType> linkedProgram;
-        Result result = slangSession->createCompositeComponentType(
-            componentTypes.data(),
-            componentTypes.size(),
-            linkedProgram.writeRef(),
-            diagnosticsBlob.writeRef()
-        );
-        SLANG_RETURN_ON_FAIL(result);
-
-        ShaderProgramDesc programDesc = {};
-        programDesc.slangGlobalScope = linkedProgram;
-        SLANG_RETURN_ON_FAIL(device->createShaderProgram(programDesc, outProgram));
-
-        return SLANG_OK;
-    }
-
-    void createRequiredResources(
-        unsigned sphereCount,
-        const float3* positions,
-        const float* radii,
-        const char* raygenName,
-        const char* closestHitName,
-        const char* missName
-    )
-    {
-        queue = device->getQueue(QueueType::Graphics);
-
-        BufferDesc positionBufferDesc;
-        positionBufferDesc.size = sphereCount * sizeof(float3);
-        positionBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
-        positionBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
-        positionBuffer = device->createBuffer(positionBufferDesc, positions);
-        REQUIRE(positionBuffer != nullptr);
-
-        BufferDesc radiusBufferDesc;
-        radiusBufferDesc.size = sphereCount * sizeof(float);
-        radiusBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
-        radiusBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
-        radiusBuffer = device->createBuffer(radiusBufferDesc, radii);
-        REQUIRE(radiusBuffer != nullptr);
-
-        // Build bottom level acceleration structure.
-        {
-            AccelerationStructureBuildInput buildInput = {};
-            buildInput.type = AccelerationStructureBuildInputType::Spheres;
-            buildInput.spheres.vertexBufferCount = 1;
-            buildInput.spheres.vertexCount = sphereCount;
-            buildInput.spheres.vertexPositionBuffers[0] = positionBuffer;
-            buildInput.spheres.vertexPositionFormat = Format::RGB32Float;
-            buildInput.spheres.vertexPositionStride = sizeof(float3);
-            buildInput.spheres.vertexRadiusBuffers[0] = radiusBuffer;
-            buildInput.spheres.vertexRadiusFormat = Format::R32Float;
-            buildInput.spheres.vertexRadiusStride = sizeof(float);
-            buildInput.spheres.flags = AccelerationStructureGeometryFlags::Opaque;
-
-            AccelerationStructureBuildDesc buildDesc = {};
-            buildDesc.inputs = &buildInput;
-            buildDesc.inputCount = 1;
-            buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction;
-
-            // Query buffer size for acceleration structure build.
-            AccelerationStructureSizes sizes;
-            REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
-
-            // Allocate buffers for acceleration structure.
-            BufferDesc scratchBufferDesc;
-            scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
-            scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-            scratchBufferDesc.size = sizes.scratchSize;
-            ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
-
-            // Build acceleration structure.
-            ComPtr<IQueryPool> compactedSizeQuery;
-            QueryPoolDesc queryPoolDesc;
-            queryPoolDesc.count = 1;
-            queryPoolDesc.type = QueryType::AccelerationStructureCompactedSize;
-            REQUIRE_CALL(device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));
-
-            ComPtr<IAccelerationStructure> draftAS;
-            AccelerationStructureDesc draftCreateDesc;
-            draftCreateDesc.size = sizes.accelerationStructureSize;
-            REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
-
-            compactedSizeQuery->reset();
-
-            auto commandEncoder = queue->createCommandEncoder();
-            AccelerationStructureQueryDesc compactedSizeQueryDesc = {};
-            compactedSizeQueryDesc.queryPool = compactedSizeQuery;
-            compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
-            commandEncoder
-                ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-            queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
-
-            uint64_t compactedSize = 0;
-            compactedSizeQuery->getResult(0, 1, &compactedSize);
-            AccelerationStructureDesc createDesc;
-            createDesc.size = compactedSize;
-            device->createAccelerationStructure(createDesc, BLAS.writeRef());
-
-            commandEncoder = queue->createCommandEncoder();
-            commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
-            queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
-        }
-
-        // Build top level acceleration structure.
-        {
-            AccelerationStructureInstanceDescType nativeInstanceDescType =
-                getAccelerationStructureInstanceDescType(device);
-            Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
-
-            std::vector<AccelerationStructureInstanceDescGeneric> genericInstanceDescs;
-            genericInstanceDescs.resize(1);
-            float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
-            memcpy(&genericInstanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
-            genericInstanceDescs[0].instanceID = 0;
-            genericInstanceDescs[0].instanceMask = 0xFF;
-            genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
-            genericInstanceDescs[0].accelerationStructure = BLAS->getHandle();
-
-            std::vector<uint8_t> nativeInstanceDescs(genericInstanceDescs.size() * nativeInstanceDescSize);
-            convertAccelerationStructureInstanceDescs(
-                genericInstanceDescs.size(),
-                nativeInstanceDescType,
-                nativeInstanceDescs.data(),
-                nativeInstanceDescSize,
-                genericInstanceDescs.data(),
-                sizeof(AccelerationStructureInstanceDescGeneric)
-            );
-
-            BufferDesc instanceBufferDesc;
-            instanceBufferDesc.size = nativeInstanceDescs.size();
-            instanceBufferDesc.usage = BufferUsage::ShaderResource;
-            instanceBufferDesc.defaultState = ResourceState::ShaderResource;
-            instanceBuffer = device->createBuffer(instanceBufferDesc, nativeInstanceDescs.data());
-            REQUIRE(instanceBuffer != nullptr);
-
-            AccelerationStructureBuildInput buildInput = {};
-            buildInput.type = AccelerationStructureBuildInputType::Instances;
-            buildInput.instances.instanceBuffer = instanceBuffer;
-            buildInput.instances.instanceCount = 1;
-            buildInput.instances.instanceStride = nativeInstanceDescSize;
-            AccelerationStructureBuildDesc buildDesc = {};
-            buildDesc.inputs = &buildInput;
-            buildDesc.inputCount = 1;
-
-            // Query buffer size for acceleration structure build.
-            AccelerationStructureSizes sizes;
-            REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
-
-            BufferDesc scratchBufferDesc;
-            scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
-            scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
-            scratchBufferDesc.size = sizes.scratchSize;
-            ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
-
-            AccelerationStructureDesc createDesc;
-            createDesc.size = sizes.accelerationStructureSize;
-            REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
-
-            auto commandEncoder = queue->createCommandEncoder();
-            commandEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
-            queue->submit(commandEncoder->finish());
-            queue->waitOnHost();
-        }
-
-        const char* hitgroupNames[] = {"hitgroup"};
-
-        const char* entryPointNames[] = {raygenName, missName, closestHitName};
-
-        ComPtr<IShaderProgram> rayTracingProgram;
-        REQUIRE_CALL(loadShaderProgram(entryPointNames, rayTracingProgram.writeRef()));
-
-        HitGroupDesc hitGroups[1];
-        hitGroups[0].hitGroupName = hitgroupNames[0];
-        hitGroups[0].closestHitEntryPoint = closestHitName;
-
-        // We must specify an explicit intersection shader for all non-triangle geometry in OptiX.
-        if (device->getDeviceType() == DeviceType::CUDA)
-            hitGroups[0].intersectionEntryPoint = "__builtin_intersection__sphere";
-
-        RayTracingPipelineDesc rtpDesc = {};
-        rtpDesc.program = rayTracingProgram;
-        rtpDesc.hitGroupCount = 1;
-        rtpDesc.hitGroups = hitGroups;
-        rtpDesc.maxRayPayloadSize = 64;
-        rtpDesc.maxAttributeSizeInBytes = 8;
-        rtpDesc.maxRecursion = 2;
-        rtpDesc.flags = RayTracingPipelineFlags::EnableSpheres;
-        REQUIRE_CALL(device->createRayTracingPipeline(rtpDesc, raytracingPipeline.writeRef()));
-        REQUIRE(raytracingPipeline != nullptr);
-
-        ShaderTableDesc shaderTableDesc = {};
-        shaderTableDesc.program = rayTracingProgram;
-        shaderTableDesc.hitGroupCount = 1;
-        shaderTableDesc.hitGroupNames = hitgroupNames;
-        shaderTableDesc.rayGenShaderCount = 1;
-        shaderTableDesc.rayGenShaderEntryPointNames = &raygenName;
-        shaderTableDesc.missShaderCount = 1;
-        shaderTableDesc.missShaderEntryPointNames = &missName;
-        REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
-    }
-};
-
+namespace {
 struct ExpectedPixel
 {
     uint32_t pos[2];
@@ -271,22 +22,16 @@ struct ExpectedPixel
     }
 
 // Test that the ray tracing pipeline can perform sphere intersection.
-struct RayTracingSphereIntersectionTest : public RayTracingSphereTestBase
+struct RayTracingSphereIntersectionTest
 {
-    static constexpr int kSphereCount = 3;
+    IDevice* device;
 
-    static constexpr float3 kPositions[kSphereCount] = {
-        {-0.5f, -0.5f, 3.0f},
-        {0.5, -0.5f, 3.0f},
-        {0.0f, 0.5f, 3.0f},
-    };
-
-    static constexpr float kRadii[kSphereCount] = {0.4f, 0.2f, 0.6f};
+    void init(IDevice* device_) { this->device = device_; }
 
     ComPtr<ITexture> resultTexture;
 
-    uint32_t width = 128;
-    uint32_t height = 128;
+    const uint32_t width = 128;
+    const uint32_t height = 128;
 
     void createResultTexture()
     {
@@ -327,12 +72,17 @@ struct RayTracingSphereIntersectionTest : public RayTracingSphereTestBase
         }
     }
 
-    void renderFrame()
+    void renderFrame(
+        ICommandQueue* queue,
+        IRayTracingPipeline* pipeline,
+        IShaderTable* shaderTable,
+        IAccelerationStructure* TLAS
+    )
     {
         auto commandEncoder = queue->createCommandEncoder();
 
         auto passEncoder = commandEncoder->beginRayTracingPass();
-        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
+        auto rootObject = passEncoder->bindPipeline(pipeline, shaderTable);
         auto cursor = ShaderCursor(rootObject);
         uint32_t dims[2] = {width, height};
         cursor["dims"].setData(dims, sizeof(dims));
@@ -347,9 +97,25 @@ struct RayTracingSphereIntersectionTest : public RayTracingSphereTestBase
 
     void run()
     {
-        createRequiredResources(kSphereCount, kPositions, kRadii, "rayGenShader", "closestHitShader", "missShader");
+        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+        ThreeSphereBlas blas(device, queue);
+        Tlas tlas(device, queue, blas.BLAS);
+
+        std::vector<const char*> raygenNames = {"rayGenShader"};
+
+        // OptiX requires an intersection shader for non-triangle geometry.
+        const char* intersectionName = device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
+
+        std::vector<HitGroupProgramNames> hitGroupProgramNames = {
+            {"closestHitShader", intersectionName},
+        };
+        std::vector<const char*> missNames = {"missShader"};
+
         createResultTexture();
-        renderFrame();
+
+        RayTracingTestPipeline pipeline(device, "ray-tracing/test-ray-tracing-sphere", raygenNames, hitGroupProgramNames, missNames, RayTracingPipelineFlags::EnableSpheres);
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS);
 
         ExpectedPixel expectedPixels[] = {
             EXPECTED_PIXEL(32, 32, 1.f, 0.f, 0.f, 1.f), // Sphere 1
@@ -365,6 +131,7 @@ struct RayTracingSphereIntersectionTest : public RayTracingSphereTestBase
         checkTestResults(expectedPixels);
     }
 };
+} // namespace
 
 GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL)
 {
@@ -378,6 +145,7 @@ GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL)
     test.run();
 }
 
+namespace {
 struct TestResult
 {
     int isSphereHit;
@@ -391,38 +159,47 @@ struct TestResultCudaAligned
     float spherePositionAndRadius[4];
 };
 
-struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
+struct RayTracingSphereIntrinsicsTest
 {
-    static constexpr int kSphereCount = 1;
+    IDevice* device;
 
-    static constexpr float3 kPositions[kSphereCount] = {
-        {0.0f, 0.0f, -3.0f},
-    };
+    void init(IDevice* device_) { this->device = device_; }
 
-    static constexpr float kRadii[kSphereCount] = {2.0f};
-
-    ComPtr<IBuffer> resultBuffer;
-
-    void createResultBuffer()
+    void run(
+        const char* raygenName,
+        const char* closestHitName
+    )
     {
-        const size_t resultSize =
-            device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
+        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        BufferDesc resultBufferDesc = {};
-        resultBufferDesc.size = resultSize;
-        resultBufferDesc.elementSize = resultSize;
-        resultBufferDesc.memoryType = MemoryType::DeviceLocal;
-        resultBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
-        resultBuffer = device->createBuffer(resultBufferDesc);
-        REQUIRE(resultBuffer != nullptr);
+        SingleSphereBlas blas(device, queue);
+        Tlas tlas(device, queue, blas.BLAS);
+
+        const char* intersectionName = device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
+
+        std::vector<HitGroupProgramNames> hitGroupProgramNames = {
+            {closestHitName, intersectionName},
+        };
+        std::vector<const char*> missNames = {"missNOP"};
+
+        size_t resultSize = device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
+        ResultBuffer resultBuf(device, resultSize);
+
+        RayTracingTestPipeline pipeline(device, "ray-tracing/test-ray-tracing-sphere", {raygenName}, hitGroupProgramNames, missNames, RayTracingPipelineFlags::EnableSpheres);
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.TLAS);
+
+        ComPtr<ISlangBlob> resultBlob;
+        resultBuf.getFromDevice(resultBlob.writeRef());
+
+        if (device->getDeviceType() == DeviceType::CUDA)
+            checkTestResults<TestResultCudaAligned>(resultBlob);
+        else
+            checkTestResults<TestResult>(resultBlob);
     }
 
     template<typename T>
-    void checkTestResults()
+    void checkTestResults(ISlangBlob* resultBlob)
     {
-        ComPtr<ISlangBlob> resultBlob;
-        REQUIRE_CALL(device->readBuffer(resultBuffer, 0, sizeof(T), resultBlob.writeRef()));
-
         const T* result = reinterpret_cast<const T*>(resultBlob->getBufferPointer());
         CHECK_EQ(result->isSphereHit, 1);
         CHECK_EQ(result->spherePositionAndRadius[0], 0.0f);
@@ -430,39 +207,8 @@ struct RayTracingSphereIntrinsicsTest : public RayTracingSphereTestBase
         CHECK_EQ(result->spherePositionAndRadius[2], -3.0f);
         CHECK_EQ(result->spherePositionAndRadius[3], 2.0f);
     }
-
-    void checkTestResults()
-    {
-        if (device->getDeviceType() == DeviceType::CUDA)
-            checkTestResults<TestResultCudaAligned>();
-        else
-            checkTestResults<TestResult>();
-    }
-
-    void renderFrame()
-    {
-        auto commandEncoder = queue->createCommandEncoder();
-
-        auto passEncoder = commandEncoder->beginRayTracingPass();
-        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
-        auto cursor = ShaderCursor(rootObject);
-        cursor["resultBuffer"].setBinding(resultBuffer);
-        cursor["sceneBVH"].setBinding(TLAS);
-        passEncoder->dispatchRays(0, 1, 1, 1);
-        passEncoder->end();
-
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
-    }
-
-    void run(const char* raygenName, const char* closestHitName)
-    {
-        createRequiredResources(kSphereCount, kPositions, kRadii, raygenName, closestHitName, "missNOP");
-        createResultBuffer();
-        renderFrame();
-        checkTestResults();
-    }
 };
+} // namespace
 
 GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
 {

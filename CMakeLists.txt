@@ -800,6 +800,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/ray-tracing/test-ray-tracing.cpp
+        tests/ray-tracing/test-ray-tracing-common.cpp
         tests/ray-tracing/test-ray-tracing-lss.cpp
         tests/ray-tracing/test-ray-tracing-hitobject-intrinsics.cpp
         tests/ray-tracing/test-ray-tracing-reorder.cpp
