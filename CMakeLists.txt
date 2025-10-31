@@ -261,41 +261,37 @@ endif()
 set(SLANG_RHI_SLANG_INCLUDE_DIR ${SLANG_RHI_SLANG_INCLUDE_DIR} CACHE STRING "Slang include directory")
 set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang binary directory")
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
-unset(SLANG_RHI_SLANG_BINARY_DIR)
 if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
     function(slang_rhi_add_library_slang)
         add_library(slang SHARED IMPORTED GLOBAL)
 
-        if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-            set(slang_lib_dir "${SLANG_RHI_SLANG_BINARY_DIR}/bin")
-            set(slang_lib_prefix "")
-            set(slang_lib_suffix "dll")
+        # Slang renamed the compiler library from slang to slang-compiler in v2025.21
+        # Detect if the old or new library name is used.
+        if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-compiler.dll)
+            set(SLANG_LIB_NAME slang-compiler)
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.so)
+            set(SLANG_LIB_NAME slang-compiler)
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.dylib)
+            set(SLANG_LIB_NAME slang-compiler)
         else()
-            set(slang_lib_dir "${SLANG_RHI_SLANG_BINARY_DIR}/lib")
-            set(slang_lib_prefix "lib")
-            if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-                set(slang_lib_suffix "dylib")
-            else()
-                set(slang_lib_suffix "so")
-            endif()
-        endif()
-
-        if(EXISTS ${slang_lib_dir}/${slang_lib_prefix}slang-compiler.${slang_lib_suffix})
-            set(SLANG_LIBBASE slang-compiler)
-        else()
-            set(SLANG_LIBBASE slang)
+            set(SLANG_LIB_NAME slang)
         endif()
 
         if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
             set_target_properties(slang PROPERTIES
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-                IMPORTED_IMPLIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/${SLANG_LIBBASE}.lib
-                IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/bin/${SLANG_LIBBASE}.dll
+                IMPORTED_IMPLIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/${SLANG_LIB_NAME}.lib
+                IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/bin/${SLANG_LIB_NAME}.dll
             )
-        else()
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             set_target_properties(slang PROPERTIES
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
-                IMPORTED_LOCATION "${slang_lib_dir}/lib${SLANG_LIBBASE}.${slang_lib_suffix}"
+                IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.so
+            )
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+            set_target_properties(slang PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
+                IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.dylib
             )
         endif()
     endfunction()
