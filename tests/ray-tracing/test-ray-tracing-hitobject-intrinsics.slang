@@ -266,6 +266,106 @@ void missMakeQueryInvokeHit(inout RayPayload payload)
     payload.invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
+[shader("raygeneration")]
+void rayGenShaderQueryHitKindFrontFace()
+{
+    float3 tgt = {0.25, 0.25, 0.0};
+    float3 pos = {0.0, 0.0, 2.0};
+    float3 dir = tgt - pos;
+
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+#if (defined(__D3D12__) || defined(__VULKAN__))
+  resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
+#elif defined(__CUDA__)
+  // TODO: GetHitKind not implemented for OptiX target
+  resultBuffer[0].queryWasSuccess = 0;
+#else
+  resultBuffer[0].queryWasSuccess = 0;
+#endif
+
+    // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
+// TODO: Slang fails with an internal error when an empty struct is passed to ReportHit
+struct HitKindAttributes { int dummy; };
+
+[shader("raygeneration")]
+void rayGenShaderQueryHitKindBackFace()
+{
+    float3 tgt = {0.25, 0.25, 1.0};
+    float3 pos = {0.0, 0.0, 0.0};
+    float3 dir = tgt - pos;
+
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+#if (defined(__D3D12__) || defined(__VULKAN__))
+  resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
+#elif defined(__CUDA__)
+  // TODO: GetHitKind not implemented for OptiX target
+  resultBuffer[0].queryWasSuccess = 0;
+#else
+  resultBuffer[0].queryWasSuccess = 0;
+#endif
+
+    // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
+static const uint CUSTOM_HIT_KIND = 13;
+
+[shader("raygeneration")]
+void rayGenShaderQueryHitKindCustom()
+{
+    float3 tgt = {0.0, 0.0, 1.0};
+    float3 pos = {0.0, 0.0, 0.0};
+    float3 dir = tgt - pos;
+
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+#if (defined(__D3D12__) || defined(__VULKAN__))
+  resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == CUSTOM_HIT_KIND;
+#elif defined(__CUDA__)
+  // TODO: GetHitKind not implemented for OptiX target
+  resultBuffer[0].queryWasSuccess = 0;
+#else
+  resultBuffer[0].queryWasSuccess = 0;
+#endif
+
+    // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
+[shader("intersection")]
+void intersectionReportHitWithKind()
+{
+#if defined(__CUDA__)
+    ReportHitOptix( 1.0, CUSTOM_HIT_KIND, 0 );
+#else
+    HitKindAttributes h = { 0 };
+    ReportHit( 1.0, CUSTOM_HIT_KIND, h );
+#endif
+}
+
 #if !(defined(__CUDA__) || defined(__D3D12__))
 [shader("raygeneration")]
 void rayGenShaderQueryRayObjectOrigin()

@@ -84,8 +84,6 @@ uniform RWStructuredBuffer<Result> resultBuffer;
 [shader("raygeneration")]
 void rayGenSphereIntrinsics()
 {
-    float3 spherePos = {0.0f, 0.0f, 1.0f};
-
     // Trace the ray.
     RayDesc ray;
     ray.Origin = {0.0f, 0.0f, 0.0f};
@@ -111,8 +109,6 @@ void closestHitSphereIntrinsics(inout RayPayloadIntrinsics payload, in BuiltInTr
 [shader("raygeneration")]
 void rayGenSphereIntrinsicsHitObject()
 {
-    float3 spherePos = {0.0f, 0.0f, 1.0f};
-
     // Trace the ray.
     RayDesc ray;
     ray.Origin = {0.0f, 0.0f, 0.0f};
