@@ -666,7 +666,11 @@ struct RayTracingTestPipeline
         for (const HitGroupProgramNames& programName : programNames)
         {
             programsToLoad.push_back(programName.closesthit);
-            if (programName.intersection && strcmp(programName.intersection, "__builtin_intersection__sphere") != 0)
+
+            // Don't attempt to load builtin intersection shaders.
+            const char* builtinPrefix = "__builtin_intersection";
+            if (programName.intersection &&
+                strncmp(programName.intersection, builtinPrefix, strlen(builtinPrefix)) != 0)
                 programsToLoad.push_back(programName.intersection);
         }
 

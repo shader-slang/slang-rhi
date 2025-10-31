@@ -41,11 +41,15 @@ struct RayTracingLssTest
 
         createResultTexture();
 
+        // OptiX requires an intersection shader for non-triangle geometry.
+        const char* intersectionName =
+            device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__linear_swept_spheres" : nullptr;
+
         RayTracingTestPipeline pipeline(
             device,
             "ray-tracing/test-ray-tracing-lss",
             {"rayGenShader"},
-            {{"closestHitShader", nullptr}},
+            {{"closestHitShader", intersectionName}},
             {"missShader"},
             RayTracingPipelineFlags::EnableLinearSweptSpheres
         );
@@ -172,11 +176,15 @@ struct RayTracingLssIntrinsicsTest
         SingleSegmentLssBlas blas(device, queue);
         Tlas tlas(device, queue, blas.BLAS);
 
+        // OptiX requires an intersection shader for non-triangle geometry.
+        const char* intersectionName =
+            device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__linear_swept_spheres" : nullptr;
+
         RayTracingTestPipeline pipeline(
             device,
             "ray-tracing/test-ray-tracing-lss",
             {raygenName},
-            {{closestHitName, nullptr}},
+            {{closestHitName, intersectionName}},
             {"missNOP"},
             RayTracingPipelineFlags::EnableLinearSweptSpheres
         );
