@@ -54,24 +54,13 @@ struct SimpleBindingOffset
     }
 };
 
-// While a "simple" binding offset representation will work in many cases,
-// once we need to deal with layout for programs with interface-type parameters
-// that have been statically specialized, we also need to track the offset
-// for where to bind any "pending" data that arises from the process of static
-// specialization.
-//
-// In order to conveniently track both the "primary" and "pending" offset information,
-// we will define a more complete `BindingOffset` type that combines simple
-// binding offsets for the primary and pending parts.
+// The BindingOffset type provides offset information for binding shader parameters
+// in WGPU. The pending data layout functionality has been removed.
 
 /// A representation of the offset at which to bind a shader parameter or sub-object
 struct BindingOffset : SimpleBindingOffset
 {
-    // Offsets for "primary" data are stored directly in the `BindingOffset`
-    // via the inheritance from `SimpleBindingOffset`.
-
-    /// Offset for any "pending" data
-    SimpleBindingOffset pending;
+    // Binding offset information is stored via inheritance from `SimpleBindingOffset`.
 
     /// Create a default (zero) offset
     BindingOffset() {}
@@ -85,7 +74,6 @@ struct BindingOffset : SimpleBindingOffset
     /// Create an offset based on offset information in the given Slang `varLayout`
     BindingOffset(slang::VariableLayoutReflection* varLayout)
         : SimpleBindingOffset(varLayout)
-        , pending(varLayout->getPendingDataLayout())
     {
     }
 
@@ -93,11 +81,7 @@ struct BindingOffset : SimpleBindingOffset
     void operator+=(const SimpleBindingOffset& offset) { SimpleBindingOffset::operator+=(offset); }
 
     /// Add any values in the given `offset`
-    void operator+=(const BindingOffset& offset)
-    {
-        SimpleBindingOffset::operator+=(offset);
-        pending += offset.pending;
-    }
+    void operator+=(const BindingOffset& offset) { SimpleBindingOffset::operator+=(offset); }
 };
 
 class ShaderObjectLayoutImpl : public ShaderObjectLayout
@@ -152,14 +136,7 @@ public:
         SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout)
             : BindingOffset(varLayout)
         {
-            if (auto pendingLayout = varLayout->getPendingDataLayout())
-            {
-                pendingOrdinaryData = (uint32_t)pendingLayout->getOffset(SLANG_PARAMETER_CATEGORY_UNIFORM);
-            }
         }
-
-        /// The offset for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Stride information for a sub-object range
@@ -167,16 +144,7 @@ public:
     {
         SubObjectRangeStride() {}
 
-        SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout)
-        {
-            if (auto pendingLayout = typeLayout->getPendingDataTypeLayout())
-            {
-                pendingOrdinaryData = (uint32_t)pendingLayout->getStride();
-            }
-        }
-
-        /// The stride for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
+        SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout) {}
     };
 
     /// Information about a logical binding range as reported by Slang reflection
@@ -384,7 +352,6 @@ public:
     WGPUPipelineLayout m_pipelineLayout = nullptr;
     static_vector<WGPUBindGroupLayout, kMaxDescriptorSets> m_bindGroupLayouts;
 
-    SimpleBindingOffset m_pendingDataOffset;
     DeviceImpl* m_device = nullptr;
 
     ~RootShaderObjectLayoutImpl();
@@ -423,9 +390,6 @@ protected:
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         std::vector<EntryPointInfo> m_entryPoints;
-
-        /// Offset to apply to "pending" data from this object, sub-objects, and entry points
-        SimpleBindingOffset m_pendingDataOffset;
     };
 
     Result _init(const Builder* builder);
