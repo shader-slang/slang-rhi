@@ -1082,23 +1082,19 @@ public:
 
     virtual void buildClusterAccelerationStructure(
         CUstream stream,
-        const ClusterAccelBuildDesc& desc,
-        BufferOffsetPair scratchBuffer,
-        BufferOffsetPair resultBuffer
+        const ClusterAccelBuildDesc& desc
     ) override
     {
 #if OPTIX_VERSION < 90000
         SLANG_UNUSED(stream);
         SLANG_UNUSED(desc);
-        SLANG_UNUSED(scratchBuffer);
-        SLANG_UNUSED(resultBuffer);
         return;
 #else
         OptixClusterAccelBuildInput buildInput = {};
         OptixClusterAccelBuildModeDesc mode = {};
         mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
 
-        // Buffers are provided via desc.modeDesc; call-site buffers are unused.
+        // Buffers are provided via desc.modeDesc; no external buffers are passed.
 
         // Read first-class build mode and fields
         switch (desc.mode)

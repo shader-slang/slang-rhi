@@ -114,9 +114,7 @@ public:
     /// Build a cluster acceleration structure or GAS from clusters.
     virtual void buildClusterAccelerationStructure(
         CUstream stream,
-        const ClusterAccelBuildDesc& desc,
-        BufferOffsetPair scratchBuffer,
-        BufferOffsetPair resultBuffer
+        const ClusterAccelBuildDesc& desc
     ) = 0;
     /// Check if cooperative vector support is available.
     virtual bool getCooperativeVectorSupport() const = 0;

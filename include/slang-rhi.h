@@ -2523,9 +2523,7 @@ public:
 
     // Build a cluster acceleration structure.
     virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(
-        const ClusterAccelBuildDesc& desc,
-        BufferOffsetPair scratchBuffer,
-        BufferOffsetPair resultBuffer
+        const ClusterAccelBuildDesc& desc
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(

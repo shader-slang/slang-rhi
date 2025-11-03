@@ -351,9 +351,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(
-        const ClusterAccelBuildDesc& desc,
-        BufferOffsetPair scratchBuffer,
-        BufferOffsetPair resultBuffer
+        const ClusterAccelBuildDesc& desc
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(

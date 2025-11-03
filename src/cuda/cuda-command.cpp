@@ -597,9 +597,7 @@ void CommandExecutor::cmdBuildClusterAccelerationStructure(const commands::Build
 
     m_device->m_ctx.optixContext->buildClusterAccelerationStructure(
         m_stream,
-        cmd.desc,
-        cmd.scratchBuffer,
-        cmd.resultBuffer
+        cmd.desc
     );
 }
 

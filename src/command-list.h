@@ -290,8 +290,6 @@ struct DeserializeAccelerationStructure
 struct BuildClusterAccelerationStructure
 {
     ClusterAccelBuildDesc desc;
-    BufferOffsetPair scratchBuffer;
-    BufferOffsetPair resultBuffer;
 };
 
 struct ConvertCooperativeVectorMatrix
