@@ -111,7 +111,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-rg", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderMakeQueryInvokeNOP",
         {"closestHitNOP"},
         {"missNOP"}
@@ -132,7 +132,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-ch", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderInvokeCH",
         {"closestHitMakeQueryInvokeNOP"},
         {"missNOP"}
@@ -153,7 +153,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-ms", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderInvokeMS",
         {"closestHitNOP"},
         {"missMakeQueryInvokeNOP"}
@@ -174,7 +174,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-rg", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderMakeQueryInvokeMiss",
         {"closestHitNOP"},
         {"missInvoke"}
@@ -195,7 +195,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-ch", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderInvokeCH",
         {"closestHitMakeQueryInvokeMiss"},
         {"missInvoke"}
@@ -216,7 +216,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-miss-ms", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderInvokeMS",
         {"closestHitNOP"},
         {"missMakeQueryInvokeMiss", "missInvoke"}
@@ -237,7 +237,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-rg", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderTraceQueryInvokeHit",
         {"closestHitInvoke"},
         {"missNOP"}
@@ -258,7 +258,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ch", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderInvokeCH",
         {"closestHitMakeQueryInvokeHit", "closestHitInvoke"},
         {"missNOP"}
@@ -279,7 +279,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ms", ALL)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderInvokeMS",
         {"closestHitNOP", "closestHitInvoke"},
         {"missMakeQueryInvokeHit"}
@@ -301,7 +301,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-front-face", ALL & ~CUDA)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderQueryHitKindFrontFace",
         {"closestHitNOP"},
         {"missNOP"}
@@ -323,7 +323,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-back-face", ALL & ~CUDA)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderQueryHitKindBackFace",
         {"closestHitNOP"},
         {"missNOP"}
@@ -344,7 +344,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-custom", ALL & ~CUDA)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderQueryHitKindCustom",
         {{"closestHitNOP", "intersectionReportHitWithKind"}},
         {"missNOP"}
@@ -367,7 +367,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-origin", ALL & ~CUDA &
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderQueryRayObjectOrigin",
         {"closestHitNOP"},
         {"missNOP"}
@@ -393,7 +393,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-ray-object-direction", ALL & ~CUD
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics",
+        "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderQueryRayObjectDirection",
         {"closestHitNOP"},
         {"missNOP"}
@@ -429,7 +429,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-hit", ALL | DontCreateDevice)
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
     test.run(
-        "ray-tracing/test-ray-tracing-hitobject-intrinsics-make-hit",
+        "test-ray-tracing-hitobject-intrinsics-make-hit",
         "rayGenShaderMakeQueryInvokeHit",
         {"closestHitInvoke"},
         {"missNOP"}

@@ -43,7 +43,7 @@ struct RayTracingTriangleReorderTest
 
         RayTracingTestPipeline pipeline(
             device,
-            "ray-tracing/test-ray-tracing-reorder",
+            "test-ray-tracing-reorder",
             {raygenName},
             {{"closestHitShader", nullptr}},
             {"missShader"}

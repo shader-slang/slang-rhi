@@ -6,7 +6,6 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-namespace {
 struct ExpectedPixel
 {
     uint32_t pos[2];
@@ -22,7 +21,7 @@ struct ExpectedPixel
     }
 
 // Test that the ray tracing pipeline can perform sphere intersection.
-struct RayTracingSphereIntersectionTest
+struct RayTracingLssTest
 {
     IDevice* device;
 
@@ -30,8 +29,47 @@ struct RayTracingSphereIntersectionTest
 
     ComPtr<ITexture> resultTexture;
 
-    const uint32_t width = 128;
-    const uint32_t height = 128;
+    uint32_t width = 128;
+    uint32_t height = 128;
+
+    void run()
+    {
+        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+        TwoSegmentLssBlas blas(device, queue);
+        Tlas tlas(device, queue, blas.BLAS);
+
+        createResultTexture();
+
+        // OptiX requires an intersection shader for non-triangle geometry.
+        const char* intersectionName =
+            device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__linear_swept_spheres" : nullptr;
+
+        RayTracingTestPipeline pipeline(
+            device,
+            "test-ray-tracing-lss",
+            {"rayGenShader"},
+            {{"closestHitShader", intersectionName}},
+            {"missShader"},
+            RayTracingPipelineFlags::EnableLinearSweptSpheres
+        );
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS);
+
+        ExpectedPixel expectedPixels[] = {
+            EXPECTED_PIXEL(32, 32, 1.f, 0.f, 0.f, 1.f), // Segment 1, top left
+            EXPECTED_PIXEL(96, 32, 0.f, 1.f, 0.f, 1.f), // Segment 2, top right
+
+            // Corners should all be misses
+            EXPECTED_PIXEL(0, 0, 1.f, 1.0f, 1.0f, 1.0f),     // Miss
+            EXPECTED_PIXEL(127, 0, 1.f, 1.0f, 1.0f, 1.0f),   // Miss
+            EXPECTED_PIXEL(127, 127, 1.f, 1.0f, 1.0f, 1.0f), // Miss
+            EXPECTED_PIXEL(0, 127, 1.f, 1.0f, 1.0f, 1.0f),   // Miss
+
+            // Center between segments should be a miss
+            EXPECTED_PIXEL(64, 32, 1.f, 1.0f, 1.0f, 1.0f),
+        };
+        checkTestResults(expectedPixels);
+    }
 
     void createResultTexture()
     {
@@ -53,7 +91,7 @@ struct RayTracingSphereIntersectionTest
         SubresourceLayout layout;
         REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, resultBlob.writeRef(), &layout));
 #if 0 // for debugging only
-        writeImage("test-ray-tracing-sphere-intersection.hdr", resultBlob, width, height, layout.rowPitch, layout.colPitch);
+        writeImage("test-ray-tracing-lss-intersection.hdr", resultBlob, width, height, layout.rowPitch, layout.colPitch);
 #endif
 
         for (const auto& ep : expectedPixels)
@@ -74,7 +112,7 @@ struct RayTracingSphereIntersectionTest
 
     void renderFrame(
         ICommandQueue* queue,
-        IRayTracingPipeline* pipeline,
+        IRayTracingPipeline* raytracingPipeline,
         IShaderTable* shaderTable,
         IAccelerationStructure* TLAS
     )
@@ -82,7 +120,7 @@ struct RayTracingSphereIntersectionTest
         auto commandEncoder = queue->createCommandEncoder();
 
         auto passEncoder = commandEncoder->beginRayTracingPass();
-        auto rootObject = passEncoder->bindPipeline(pipeline, shaderTable);
+        auto rootObject = passEncoder->bindPipeline(raytracingPipeline, shaderTable);
         auto cursor = ShaderCursor(rootObject);
         uint32_t dims[2] = {width, height};
         cursor["dims"].setData(dims, sizeof(dims));
@@ -94,80 +132,34 @@ struct RayTracingSphereIntersectionTest
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
-
-    void run()
-    {
-        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
-
-        ThreeSphereBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
-
-        std::vector<const char*> raygenNames = {"rayGenShader"};
-
-        // OptiX requires an intersection shader for non-triangle geometry.
-        const char* intersectionName =
-            device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
-
-        std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-            {"closestHitShader", intersectionName},
-        };
-        std::vector<const char*> missNames = {"missShader"};
-
-        createResultTexture();
-
-        RayTracingTestPipeline pipeline(
-            device,
-            "ray-tracing/test-ray-tracing-sphere",
-            raygenNames,
-            hitGroupProgramNames,
-            missNames,
-            RayTracingPipelineFlags::EnableSpheres
-        );
-        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS);
-
-        ExpectedPixel expectedPixels[] = {
-            EXPECTED_PIXEL(32, 32, 1.f, 0.f, 0.f, 1.f), // Sphere 1
-            EXPECTED_PIXEL(96, 32, 0.f, 1.f, 0.f, 1.f), // Sphere 2
-            EXPECTED_PIXEL(64, 96, 0.f, 0.f, 1.f, 1.f), // Sphere 3
-
-            // Corners should all be misses
-            EXPECTED_PIXEL(0, 0, 1.f, 1.0f, 1.0f, 1.0f),     // Miss
-            EXPECTED_PIXEL(127, 0, 1.f, 1.0f, 1.0f, 1.0f),   // Miss
-            EXPECTED_PIXEL(127, 127, 1.f, 1.0f, 1.0f, 1.0f), // Miss
-            EXPECTED_PIXEL(0, 127, 1.f, 1.0f, 1.0f, 1.0f),   // Miss
-        };
-        checkTestResults(expectedPixels);
-    }
 };
-} // namespace
 
-GPU_TEST_CASE("ray-tracing-sphere-intersection", ALL)
+GPU_TEST_CASE("ray-tracing-lss-intersection", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
-    if (!device->hasFeature(Feature::AccelerationStructureSpheres))
-        SKIP("acceleration structure spheres not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
+        SKIP("acceleration structure linear swept spheres not supported");
 
-    RayTracingSphereIntersectionTest test;
+    RayTracingLssTest test;
     test.init(device);
     test.run();
 }
 
-namespace {
 struct TestResult
 {
-    int isSphereHit;
-    float spherePositionAndRadius[4];
+    int isLssHit;
+    float lssPositionsAndRadii[8];
 };
 
 struct TestResultCudaAligned
 {
-    int isSphereHit;
+    int isLssHit;
     int pad[3];
-    float spherePositionAndRadius[4];
+    float lssPositionsAndRadii[8];
 };
 
-struct RayTracingSphereIntrinsicsTest
+struct RayTracingLssIntrinsicsTest
 {
     IDevice* device;
 
@@ -177,28 +169,24 @@ struct RayTracingSphereIntrinsicsTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        SingleSphereBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
-
-        const char* intersectionName =
-            device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
-
-        std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-            {closestHitName, intersectionName},
-        };
-        std::vector<const char*> missNames = {"missNOP"};
-
-        size_t resultSize =
+        const size_t resultSize =
             device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
         ResultBuffer resultBuf(device, resultSize);
 
+        SingleSegmentLssBlas blas(device, queue);
+        Tlas tlas(device, queue, blas.BLAS);
+
+        // OptiX requires an intersection shader for non-triangle geometry.
+        const char* intersectionName =
+            device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__linear_swept_spheres" : nullptr;
+
         RayTracingTestPipeline pipeline(
             device,
-            "ray-tracing/test-ray-tracing-sphere",
+            "test-ray-tracing-lss",
             {raygenName},
-            hitGroupProgramNames,
-            missNames,
-            RayTracingPipelineFlags::EnableSpheres
+            {{closestHitName, intersectionName}},
+            {"missNOP"},
+            RayTracingPipelineFlags::EnableLinearSweptSpheres
         );
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.TLAS);
 
@@ -215,36 +203,47 @@ struct RayTracingSphereIntrinsicsTest
     void checkTestResults(ISlangBlob* resultBlob)
     {
         const T* result = reinterpret_cast<const T*>(resultBlob->getBufferPointer());
-        CHECK_EQ(result->isSphereHit, 1);
-        CHECK_EQ(result->spherePositionAndRadius[0], 0.0f);
-        CHECK_EQ(result->spherePositionAndRadius[1], 0.0f);
-        CHECK_EQ(result->spherePositionAndRadius[2], -3.0f);
-        CHECK_EQ(result->spherePositionAndRadius[3], 2.0f);
+
+        CHECK_EQ(result->isLssHit, 1);
+
+        // Left endcap position
+        CHECK_EQ(result->lssPositionsAndRadii[0], -0.5f);
+        CHECK_EQ(result->lssPositionsAndRadii[1], 0.0f);
+        CHECK_EQ(result->lssPositionsAndRadii[2], -3.0f);
+
+        // Left endcap radius
+        CHECK_EQ(result->lssPositionsAndRadii[3], 0.5f);
+
+        // Right endcap position
+        CHECK_EQ(result->lssPositionsAndRadii[4], 0.5f);
+        CHECK_EQ(result->lssPositionsAndRadii[5], 0.0f);
+        CHECK_EQ(result->lssPositionsAndRadii[6], -3.0f);
+
+        // Right endcap radius
+        CHECK_EQ(result->lssPositionsAndRadii[7], 0.5f);
     }
 };
-} // namespace
 
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics", ALL)
+GPU_TEST_CASE("ray-tracing-lss-intrinsics", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
-    if (!device->hasFeature(Feature::AccelerationStructureSpheres))
-        SKIP("acceleration structure spheres not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
+        SKIP("acceleration structure linear swept spheres not supported");
 
-    RayTracingSphereIntrinsicsTest test;
+    RayTracingLssIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenSphereIntrinsics", "closestHitSphereIntrinsics");
+    test.run("rayGenLssIntrinsics", "closestHitLssIntrinsics");
 }
 
-// Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/8128
-GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL & ~D3D12)
+GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
-    if (!device->hasFeature(Feature::AccelerationStructureSpheres))
-        SKIP("acceleration structure spheres not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
+        SKIP("acceleration structure linear swept spheres not supported");
 
-    RayTracingSphereIntrinsicsTest test;
+    RayTracingLssIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenSphereIntrinsicsHitObject", "closestHitNOP");
+    test.run("rayGenLssIntrinsicsHitObject", "closestHitNOP");
 }

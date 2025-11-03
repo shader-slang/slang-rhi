@@ -50,7 +50,7 @@ struct RayTracingTriangleIntersectionTest
         createResultTexture();
 
         RayTracingTestPipeline
-            pipeline(device, "ray-tracing/test-ray-tracing", raygenNames, hitGroupProgramNames, missNames);
+            pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames);
         renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS, rgIdx);
 
         checkTestResults(expectedPixels);
