@@ -258,52 +258,77 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     case BindingType::BufferWithCounter:
     {
         Buffer* buffer = checked_cast<Buffer*>(binding.resource.get());
-        if (!buffer)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::Buffer;
-        slot.resource = buffer;
-        if (binding.type == BindingType::BufferWithCounter)
-            slot.resource2 = checked_cast<Buffer*>(binding.resource2.get());
-        slot.format = buffer->m_desc.format;
-        slot.bufferRange = buffer->resolveBufferRange(binding.bufferRange);
+        if (buffer)
+        {
+            slot.type = BindingType::Buffer;
+            slot.resource = buffer;
+            if (binding.type == BindingType::BufferWithCounter)
+                slot.resource2 = checked_cast<Buffer*>(binding.resource2.get());
+            slot.format = buffer->m_desc.format;
+            slot.bufferRange = buffer->resolveBufferRange(binding.bufferRange);
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     case BindingType::Texture:
     {
         TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
-        if (!textureView)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::Texture;
-        slot.resource = textureView;
+        if (textureView)
+        {
+            slot.type = BindingType::Texture;
+            slot.resource = textureView;
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     case BindingType::Sampler:
     {
         Sampler* sampler = checked_cast<Sampler*>(binding.resource.get());
-        if (!sampler)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::Sampler;
-        slot.resource = sampler;
+        if (sampler)
+        {
+            slot.type = BindingType::Sampler;
+            slot.resource = sampler;
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     case BindingType::AccelerationStructure:
     {
         AccelerationStructure* accelerationStructure = checked_cast<AccelerationStructure*>(binding.resource.get());
-        if (!accelerationStructure)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::AccelerationStructure;
-        slot.resource = accelerationStructure;
+        if (accelerationStructure)
+        {
+            slot.type = BindingType::AccelerationStructure;
+            slot.resource = accelerationStructure;
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     case BindingType::CombinedTextureSampler:
     {
         TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
         Sampler* sampler = checked_cast<Sampler*>(binding.resource2.get());
-        if (!textureView || !sampler)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::CombinedTextureSampler;
-        slot.resource = textureView;
-        slot.resource2 = sampler;
+        if (textureView && sampler)
+        {
+            slot.type = BindingType::CombinedTextureSampler;
+            slot.resource = textureView;
+            slot.resource2 = sampler;
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     default:
