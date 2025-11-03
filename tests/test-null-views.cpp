@@ -125,16 +125,34 @@ GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
         auto passEncoder = commandEncoder->beginComputePass();
         IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor(rootObject);
-        cursor["buffer2"].setBinding(buffer);
-        cursor["rwBuffer2"].setBinding(rwBuffer);
-        cursor["structuredBuffer2"].setBinding(structuredBuffer);
-        cursor["rwStructuredBuffer2"].setBinding(rwStructuredBuffer);
-        cursor["texture2"].setBinding(texture);
-        cursor["rwTexture2"].setBinding(rwTexture);
-        cursor["textureArray2"].setBinding(textureArray);
-        cursor["rwTextureArray2"].setBinding(rwTextureArray);
-        cursor["samplerState2"].setBinding(sampler);
-        cursor["result"].setBinding(result);
+        REQUIRE_CALL(cursor["buffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
+        REQUIRE_CALL(cursor["buffer2"].setBinding(buffer));
+        // "buffer3" not set explicitly
+        REQUIRE_CALL(cursor["rwBuffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
+        REQUIRE_CALL(cursor["rwBuffer2"].setBinding(rwBuffer));
+        // "rwBuffer3" not set explicitly
+        REQUIRE_CALL(cursor["structuredBuffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
+        REQUIRE_CALL(cursor["structuredBuffer2"].setBinding(structuredBuffer));
+        // "structuredBuffer3" not set explicitly
+        REQUIRE_CALL(cursor["rwStructuredBuffer1"].setBinding(static_cast<IBuffer*>(nullptr)));
+        REQUIRE_CALL(cursor["rwStructuredBuffer2"].setBinding(rwStructuredBuffer));
+        // "rwStructuredBuffer3" not set explicitly
+        REQUIRE_CALL(cursor["texture1"].setBinding(static_cast<ITexture*>(nullptr)));
+        REQUIRE_CALL(cursor["texture2"].setBinding(texture));
+        // "texture3" not set explicitly
+        REQUIRE_CALL(cursor["rwTexture1"].setBinding(static_cast<ITexture*>(nullptr)));
+        REQUIRE_CALL(cursor["rwTexture2"].setBinding(rwTexture));
+        // "rwTexture3" not set explicitly
+        REQUIRE_CALL(cursor["textureArray1"].setBinding(static_cast<ITexture*>(nullptr)));
+        REQUIRE_CALL(cursor["textureArray2"].setBinding(textureArray));
+        // "textureArray3" not set explicitly
+        REQUIRE_CALL(cursor["rwTextureArray1"].setBinding(static_cast<ITexture*>(nullptr)));
+        REQUIRE_CALL(cursor["rwTextureArray2"].setBinding(rwTextureArray));
+        // "rwTextureArray3" not set explicitly
+        REQUIRE_CALL(cursor["samplerState1"].setBinding(static_cast<ISampler*>(nullptr)));
+        REQUIRE_CALL(cursor["samplerState2"].setBinding(sampler));
+        // "samplerState3" not set explicitly
+        REQUIRE_CALL(cursor["result"].setBinding(result));
 
         passEncoder->dispatchCompute(1, 1, 1);
         passEncoder->end();
