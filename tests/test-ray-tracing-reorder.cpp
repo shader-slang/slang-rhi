@@ -41,13 +41,8 @@ struct RayTracingTriangleReorderTest
 
         createResultTexture();
 
-        RayTracingTestPipeline pipeline(
-            device,
-            "test-ray-tracing-reorder",
-            {raygenName},
-            {{"closestHitShader", nullptr}},
-            {"missShader"}
-        );
+        RayTracingTestPipeline
+            pipeline(device, "test-ray-tracing-reorder", {raygenName}, {{"closestHitShader", nullptr}}, {"missShader"});
         renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS);
 
         ExpectedPixel expectedPixels[] = {

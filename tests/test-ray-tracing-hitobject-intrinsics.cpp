@@ -110,12 +110,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-nop-rg", ALL)
     RayTracingSingleTriangleTest test;
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
-    test.run(
-        "test-ray-tracing-hitobject-intrinsics",
-        "rayGenShaderMakeQueryInvokeNOP",
-        {"closestHitNOP"},
-        {"missNOP"}
-    );
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderMakeQueryInvokeNOP", {"closestHitNOP"}, {"missNOP"});
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     checkQueryAndInvokeResult(resultBlob);
