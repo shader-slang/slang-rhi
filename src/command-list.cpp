@@ -301,9 +301,7 @@ void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
 
 void CommandList::write(commands::BuildClusterAccelerationStructure&& cmd)
 {
-    retainResource<Buffer>(cmd.scratchBuffer.buffer);
-    retainResource<Buffer>(cmd.resultBuffer.buffer);
-    // Copy desc by value is fine; args buffer is GPU-side and just retained by buffers above.
+    // Copy desc by value is fine; buffers are passed via device addresses in desc.
     writeCommand(std::move(cmd));
 }
 

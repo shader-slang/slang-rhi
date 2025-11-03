@@ -156,7 +156,7 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
     clasDesc.modeDesc.implicit.outputBufferSizeInBytes = resultDesc.size;
     clasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)clasScratch->getDeviceAddress();
     clasDesc.modeDesc.implicit.tempBufferSizeInBytes = scratchDesc.size;
-    enc->buildClusterAccelerationStructure(clasDesc, BufferOffsetPair(clasScratch, 0), BufferOffsetPair(clasResult, 0));
+    enc->buildClusterAccelerationStructure(clasDesc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
@@ -210,7 +210,7 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
     blasDesc.modeDesc.implicit.outputBufferSizeInBytes = blasResultDesc.size;
     blasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)blasScratch->getDeviceAddress();
     blasDesc.modeDesc.implicit.tempBufferSizeInBytes = blasScratchDesc.size;
-    enc->buildClusterAccelerationStructure(blasDesc, BufferOffsetPair(blasScratch, 0), BufferOffsetPair(blasResult, 0));
+    enc->buildClusterAccelerationStructure(blasDesc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
@@ -302,7 +302,7 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     clasDesc.modeDesc.implicit.outputBufferSizeInBytes = resultDesc.size;
     clasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)clasScratch->getDeviceAddress();
     clasDesc.modeDesc.implicit.tempBufferSizeInBytes = scratchDesc.size;
-    enc->buildClusterAccelerationStructure(clasDesc, BufferOffsetPair(clasScratch, 0), BufferOffsetPair(clasResult, 0));
+    enc->buildClusterAccelerationStructure(clasDesc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
@@ -357,7 +357,7 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     blasDesc.modeDesc.implicit.outputBufferSizeInBytes = blasResultDesc.size;
     blasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)blasScratch->getDeviceAddress();
     blasDesc.modeDesc.implicit.tempBufferSizeInBytes = blasScratchDesc.size;
-    enc->buildClusterAccelerationStructure(blasDesc, BufferOffsetPair(blasScratch, 0), BufferOffsetPair(blasResult, 0));
+    enc->buildClusterAccelerationStructure(blasDesc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
@@ -456,7 +456,7 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
 
     auto queue = device->getQueue(QueueType::Graphics);
     auto enc = queue->createCommandEncoder();
-    enc->buildClusterAccelerationStructure(clasDesc, BufferOffsetPair(clasScratch, 0), BufferOffsetPair(dummyOut, 0));
+    enc->buildClusterAccelerationStructure(clasDesc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
@@ -498,7 +498,7 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
     clasDesc.modeDesc.explicitDest.outputSizesStrideInBytes = 0;
 
     enc = queue->createCommandEncoder();
-    enc->buildClusterAccelerationStructure(clasDesc, BufferOffsetPair(clasScratch, 0), BufferOffsetPair(dummyOut, 0));
+    enc->buildClusterAccelerationStructure(clasDesc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 

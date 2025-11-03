@@ -841,15 +841,11 @@ void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* ds
 }
 
 void CommandEncoder::buildClusterAccelerationStructure(
-    const ClusterAccelBuildDesc& desc,
-    BufferOffsetPair scratchBuffer,
-    BufferOffsetPair resultBuffer
+    const ClusterAccelBuildDesc& desc
 )
 {
     commands::BuildClusterAccelerationStructure cmd;
     cmd.desc = desc;
-    cmd.scratchBuffer = scratchBuffer;
-    cmd.resultBuffer = resultBuffer;
     m_commandList->write(std::move(cmd));
 }
 
