@@ -585,7 +585,7 @@ ComPtr<IDevice> createTestingDevice(
 #if SLANG_RHI_ENABLE_OPTIX
     deviceDesc.requiredOptixVersion = options().optixVersion;
     // Setup OptiX headers
-    std::string optixIncludeStr;
+    static std::string optixIncludeStr;
     if (deviceType == DeviceType::CUDA)
     {
         slang::CompilerOptionEntry optixSearchPath;
