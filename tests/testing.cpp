@@ -585,28 +585,54 @@ ComPtr<IDevice> createTestingDevice(
 #if SLANG_RHI_ENABLE_OPTIX
     deviceDesc.requiredOptixVersion = options().optixVersion;
     // Setup OptiX headers
+    std::string optixIncludeStr;
     if (deviceType == DeviceType::CUDA)
     {
         slang::CompilerOptionEntry optixSearchPath;
         optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
         optixSearchPath.value.stringValue0 = "nvrtc";
+
+        // Try to locate OptiX headers from the following locations:
+        // - SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR (set at cmake configure time)
+        // - <exe path>/optix (where exe path is the directory containing the test executable)
+        // - ./optix (current working directory)
+        auto findOptixDir = []() -> std::filesystem::path
+        {
+            std::vector<std::filesystem::path> candidatePaths{
+                SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR,
+                std::filesystem::path(exePath()).parent_path() / "optix",
+                std::filesystem::current_path() / "optix",
+            };
+            for (const auto& path : candidatePaths)
+                if (std::filesystem::exists(path / "9_0" / "optix.h"))
+                    return path;
+            return {};
+        };
+
+        std::filesystem::path optixDir = findOptixDir();
+        if (optixDir.empty())
+        {
+            FAIL("OptiX headers not found");
+        }
+
         if (deviceDesc.requiredOptixVersion == 0 || deviceDesc.requiredOptixVersion == 90000)
         {
-            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/9_0";
+            optixIncludeStr = "-I" + (optixDir / "9_0").string();
         }
         else if (deviceDesc.requiredOptixVersion == 80100)
         {
-            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/8_1";
+            optixIncludeStr = "-I" + (optixDir / "8_1").string();
         }
         else if (deviceDesc.requiredOptixVersion == 80000)
         {
-            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/8_0";
+            optixIncludeStr = "-I" + (optixDir / "8_0").string();
         }
         else
         {
             FAIL("Unsupported OptiX version");
         }
+        optixSearchPath.value.stringValue1 = optixIncludeStr.c_str();
         compilerOptions.push_back(optixSearchPath);
     }
 #endif
@@ -751,6 +777,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
+    desc.requiredOptixVersion = options().optixVersion;
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
     if (SLANG_FAILED(createResult))
