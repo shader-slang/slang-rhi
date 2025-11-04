@@ -76,7 +76,7 @@ struct RayTracingSphereIntersectionTest
         ICommandQueue* queue,
         IRayTracingPipeline* pipeline,
         IShaderTable* shaderTable,
-        IAccelerationStructure* TLAS
+        IAccelerationStructure* tlas
     )
     {
         auto commandEncoder = queue->createCommandEncoder();
@@ -87,7 +87,7 @@ struct RayTracingSphereIntersectionTest
         uint32_t dims[2] = {width, height};
         cursor["dims"].setData(dims, sizeof(dims));
         cursor["resultTexture"].setBinding(resultTexture);
-        cursor["sceneBVH"].setBinding(TLAS);
+        cursor["sceneBVH"].setBinding(tlas);
         passEncoder->dispatchRays(0, width, height, 1);
         passEncoder->end();
 
@@ -99,8 +99,8 @@ struct RayTracingSphereIntersectionTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        ThreeSphereBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
+        ThreeSphereBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
 
         std::vector<const char*> raygenNames = {"rayGenShader"};
 
@@ -123,7 +123,7 @@ struct RayTracingSphereIntersectionTest
             missNames,
             RayTracingPipelineFlags::EnableSpheres
         );
-        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS);
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.tlas);
 
         ExpectedPixel expectedPixels[] = {
             EXPECTED_PIXEL(32, 32, 1.f, 0.f, 0.f, 1.f), // Sphere 1
@@ -177,8 +177,8 @@ struct RayTracingSphereIntrinsicsTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        SingleSphereBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
+        SingleSphereBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
 
         const char* intersectionName =
             device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
@@ -200,7 +200,7 @@ struct RayTracingSphereIntrinsicsTest
             missNames,
             RayTracingPipelineFlags::EnableSpheres
         );
-        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.TLAS);
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
 
         ComPtr<ISlangBlob> resultBlob;
         resultBuf.getFromDevice(resultBlob.writeRef());

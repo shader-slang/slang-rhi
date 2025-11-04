@@ -36,8 +36,8 @@ struct RayTracingLssTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        TwoSegmentLssBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
+        TwoSegmentLssBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
 
         createResultTexture();
 
@@ -53,7 +53,7 @@ struct RayTracingLssTest
             {"missShader"},
             RayTracingPipelineFlags::EnableLinearSweptSpheres
         );
-        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS);
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.tlas);
 
         ExpectedPixel expectedPixels[] = {
             EXPECTED_PIXEL(32, 32, 1.f, 0.f, 0.f, 1.f), // Segment 1, top left
@@ -114,7 +114,7 @@ struct RayTracingLssTest
         ICommandQueue* queue,
         IRayTracingPipeline* raytracingPipeline,
         IShaderTable* shaderTable,
-        IAccelerationStructure* TLAS
+        IAccelerationStructure* tlas
     )
     {
         auto commandEncoder = queue->createCommandEncoder();
@@ -125,7 +125,7 @@ struct RayTracingLssTest
         uint32_t dims[2] = {width, height};
         cursor["dims"].setData(dims, sizeof(dims));
         cursor["resultTexture"].setBinding(resultTexture);
-        cursor["sceneBVH"].setBinding(TLAS);
+        cursor["sceneBVH"].setBinding(tlas);
         passEncoder->dispatchRays(0, width, height, 1);
         passEncoder->end();
 
@@ -173,8 +173,8 @@ struct RayTracingLssIntrinsicsTest
             device->getDeviceType() == DeviceType::CUDA ? sizeof(TestResultCudaAligned) : sizeof(TestResult);
         ResultBuffer resultBuf(device, resultSize);
 
-        SingleSegmentLssBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
+        SingleSegmentLssBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
 
         // OptiX requires an intersection shader for non-triangle geometry.
         const char* intersectionName =
@@ -188,7 +188,7 @@ struct RayTracingLssIntrinsicsTest
             {"missNOP"},
             RayTracingPipelineFlags::EnableLinearSweptSpheres
         );
-        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.TLAS);
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
 
         ComPtr<ISlangBlob> resultBlob;
         resultBuf.getFromDevice(resultBlob.writeRef());

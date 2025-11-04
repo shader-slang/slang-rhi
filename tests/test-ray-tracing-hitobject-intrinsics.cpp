@@ -36,15 +36,15 @@ struct RayTracingSingleTriangleTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        SingleTriangleBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
+        SingleTriangleBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames;
         for (const char* closestHitName : closestHitNames)
             hitGroupProgramNames.push_back({closestHitName, /*intersection=*/nullptr});
 
         RayTracingTestPipeline pipeline(device, filepath, {raygenName}, hitGroupProgramNames, missNames);
-        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.TLAS);
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
     }
 
     ComPtr<ISlangBlob> getTestResult()
@@ -74,11 +74,11 @@ struct RayTracingSingleCustomGeometryTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        SingleCustomGeometryBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
+        SingleCustomGeometryBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
 
         RayTracingTestPipeline pipeline(device, filepath, {raygenName}, hitGroupProgramNames, missNames);
-        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.TLAS);
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
 
         ComPtr<ISlangBlob> resultBlob;
         resultBuf.getFromDevice(resultBlob.writeRef());

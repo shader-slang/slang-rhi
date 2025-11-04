@@ -37,8 +37,8 @@ struct RayTracingTriangleIntersectionTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        ThreeTriangleBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
+        ThreeTriangleBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
 
         std::vector<const char*> raygenNames = {"rayGenShaderIdx0", "rayGenShaderIdx1"};
         std::vector<HitGroupProgramNames> hitGroupProgramNames = {
@@ -50,7 +50,7 @@ struct RayTracingTriangleIntersectionTest
         createResultTexture();
 
         RayTracingTestPipeline pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames);
-        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS, rgIdx);
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.tlas, rgIdx);
 
         checkTestResults(expectedPixels);
     }
@@ -59,7 +59,7 @@ struct RayTracingTriangleIntersectionTest
         ICommandQueue* queue,
         IRayTracingPipeline* pipeline,
         IShaderTable* shaderTable,
-        IAccelerationStructure* TLAS,
+        IAccelerationStructure* tlas,
         unsigned rgIdx
     )
     {
@@ -71,7 +71,7 @@ struct RayTracingTriangleIntersectionTest
         uint32_t dims[2] = {width, height};
         cursor["dims"].setData(dims, sizeof(dims));
         cursor["resultTexture"].setBinding(resultTexture);
-        cursor["sceneBVH"].setBinding(TLAS);
+        cursor["sceneBVH"].setBinding(tlas);
         passEncoder->dispatchRays(rgIdx, width, height, 1);
         passEncoder->end();
 

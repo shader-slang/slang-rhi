@@ -50,7 +50,7 @@ void launchPipeline(
     IRayTracingPipeline* pipeline,
     IShaderTable* shaderTable,
     IBuffer* resultBuffer,
-    IAccelerationStructure* TLAS
+    IAccelerationStructure* tlas
 )
 {
     auto commandEncoder = queue->createCommandEncoder();
@@ -59,7 +59,7 @@ void launchPipeline(
     auto rootObject = passEncoder->bindPipeline(pipeline, shaderTable);
     auto cursor = ShaderCursor(rootObject);
     cursor["resultBuffer"].setBinding(resultBuffer);
-    cursor["sceneBVH"].setBinding(TLAS);
+    cursor["sceneBVH"].setBinding(tlas);
     passEncoder->dispatchRays(0, 1, 1, 1);
     passEncoder->end();
 

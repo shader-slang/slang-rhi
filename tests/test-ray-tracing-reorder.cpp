@@ -36,14 +36,14 @@ struct RayTracingTriangleReorderTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        ThreeTriangleBlas blas(device, queue);
-        Tlas tlas(device, queue, blas.BLAS);
+        ThreeTriangleBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
 
         createResultTexture();
 
         RayTracingTestPipeline
             pipeline(device, "test-ray-tracing-reorder", {raygenName}, {{"closestHitShader", nullptr}}, {"missShader"});
-        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.TLAS);
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.tlas);
 
         ExpectedPixel expectedPixels[] = {
             EXPECTED_PIXEL(64, 64, 1.f, 0.f, 0.f, 1.f), // Triangle 1
@@ -63,7 +63,7 @@ struct RayTracingTriangleReorderTest
         ICommandQueue* queue,
         IRayTracingPipeline* pipeline,
         IShaderTable* shaderTable,
-        IAccelerationStructure* TLAS
+        IAccelerationStructure* tlas
     )
     {
         auto commandEncoder = queue->createCommandEncoder();
@@ -74,7 +74,7 @@ struct RayTracingTriangleReorderTest
         uint32_t dims[2] = {width, height};
         cursor["dims"].setData(dims, sizeof(dims));
         cursor["resultTexture"].setBinding(resultTexture);
-        cursor["sceneBVH"].setBinding(TLAS);
+        cursor["sceneBVH"].setBinding(tlas);
         passEncoder->dispatchRays(0, width, height, 1);
         passEncoder->end();
 

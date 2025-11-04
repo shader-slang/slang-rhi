@@ -19,15 +19,15 @@ struct Vertex
     float position[3];
 };
 
-struct TriangleBlas
+struct TriangleBLAS
 {
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<IBuffer> indexBuffer;
 
-    ComPtr<IBuffer> BLASBuffer;
-    ComPtr<IAccelerationStructure> BLAS;
+    ComPtr<IBuffer> blasBuffer;
+    ComPtr<IAccelerationStructure> blas;
 
-    TriangleBlas(
+    TriangleBLAS(
         IDevice* device,
         ICommandQueue* queue,
         int vertexCount,
@@ -105,16 +105,16 @@ struct TriangleBlas
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, BLAS.writeRef());
+        device->createAccelerationStructure(createDesc, blas.writeRef());
 
         commandEncoder = queue->createCommandEncoder();
-        commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
+        commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 };
 
-struct SingleTriangleBlas : public TriangleBlas
+struct SingleTriangleBLAS : public TriangleBLAS
 {
     static const int kVertexCount = 3;
     inline static const Vertex kVertexData[kVertexCount] = {
@@ -126,13 +126,13 @@ struct SingleTriangleBlas : public TriangleBlas
     static const int kIndexCount = 3;
     inline static const uint32_t kIndexData[kIndexCount] = {0, 1, 2};
 
-    SingleTriangleBlas(IDevice* device, ICommandQueue* queue)
-        : TriangleBlas(device, queue, kVertexCount, &kVertexData[0], kIndexCount, &kIndexData[0])
+    SingleTriangleBLAS(IDevice* device, ICommandQueue* queue)
+        : TriangleBLAS(device, queue, kVertexCount, &kVertexData[0], kIndexCount, &kIndexData[0])
     {
     }
 };
 
-struct ThreeTriangleBlas : public TriangleBlas
+struct ThreeTriangleBLAS : public TriangleBLAS
 {
     static const int kVertexCount = 9;
     inline static const Vertex kVertexData[kVertexCount] = {
@@ -165,21 +165,21 @@ struct ThreeTriangleBlas : public TriangleBlas
         8,
     };
 
-    ThreeTriangleBlas(IDevice* device, ICommandQueue* queue)
-        : TriangleBlas(device, queue, kVertexCount, &kVertexData[0], kIndexCount, &kIndexData[0])
+    ThreeTriangleBLAS(IDevice* device, ICommandQueue* queue)
+        : TriangleBLAS(device, queue, kVertexCount, &kVertexData[0], kIndexCount, &kIndexData[0])
     {
     }
 };
 
-struct SphereBlas
+struct SphereBLAS
 {
     ComPtr<IBuffer> positionBuffer;
     ComPtr<IBuffer> radiusBuffer;
 
-    ComPtr<IBuffer> BLASBuffer;
-    ComPtr<IAccelerationStructure> BLAS;
+    ComPtr<IBuffer> blasBuffer;
+    ComPtr<IAccelerationStructure> blas;
 
-    SphereBlas(
+    SphereBLAS(
         IDevice* device,
         ICommandQueue* queue,
         int sphereCount,
@@ -256,16 +256,16 @@ struct SphereBlas
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, BLAS.writeRef());
+        device->createAccelerationStructure(createDesc, blas.writeRef());
 
         commandEncoder = queue->createCommandEncoder();
-        commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
+        commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 };
 
-struct SingleSphereBlas : public SphereBlas
+struct SingleSphereBLAS : public SphereBLAS
 {
     static const int kSphereCount = 1;
     inline static const Vertex kSphereData[kSphereCount] = {
@@ -274,13 +274,13 @@ struct SingleSphereBlas : public SphereBlas
 
     inline static const float kRadiusData[kSphereCount] = {2.f};
 
-    SingleSphereBlas(IDevice* device, ICommandQueue* queue)
-        : SphereBlas(device, queue, kSphereCount, kSphereData, kRadiusData)
+    SingleSphereBLAS(IDevice* device, ICommandQueue* queue)
+        : SphereBLAS(device, queue, kSphereCount, kSphereData, kRadiusData)
     {
     }
 };
 
-struct ThreeSphereBlas : public SphereBlas
+struct ThreeSphereBLAS : public SphereBLAS
 {
     static const int kSphereCount = 3;
 
@@ -292,13 +292,13 @@ struct ThreeSphereBlas : public SphereBlas
 
     inline static const float kRadiusData[kSphereCount] = {0.4f, 0.2f, 0.6f};
 
-    ThreeSphereBlas(IDevice* device, ICommandQueue* queue)
-        : SphereBlas(device, queue, kSphereCount, kSphereData, kRadiusData)
+    ThreeSphereBLAS(IDevice* device, ICommandQueue* queue)
+        : SphereBLAS(device, queue, kSphereCount, kSphereData, kRadiusData)
     {
     }
 };
 
-struct SingleCustomGeometryBlas
+struct SingleCustomGeometryBLAS
 {
     static const int kAabbCount = 1;
     inline static const AccelerationStructureAABB kAabbData[kAabbCount] = {
@@ -307,10 +307,10 @@ struct SingleCustomGeometryBlas
 
     ComPtr<IBuffer> aabbBuffer;
 
-    ComPtr<IBuffer> BLASBuffer;
-    ComPtr<IAccelerationStructure> BLAS;
+    ComPtr<IBuffer> blasBuffer;
+    ComPtr<IAccelerationStructure> blas;
 
-    SingleCustomGeometryBlas(IDevice* device, ICommandQueue* queue)
+    SingleCustomGeometryBLAS(IDevice* device, ICommandQueue* queue)
     {
         BufferDesc aabbBufferDesc;
         aabbBufferDesc.size = sizeof(AccelerationStructureAABB);
@@ -370,25 +370,25 @@ struct SingleCustomGeometryBlas
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, BLAS.writeRef());
+        device->createAccelerationStructure(createDesc, blas.writeRef());
 
         commandEncoder = queue->createCommandEncoder();
-        commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
+        commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 };
 
-struct LssBlas
+struct LssBLAS
 {
     ComPtr<IBuffer> positionBuffer;
     ComPtr<IBuffer> radiusBuffer;
     ComPtr<IBuffer> indexBuffer;
 
-    ComPtr<IBuffer> BLASBuffer;
-    ComPtr<IAccelerationStructure> BLAS;
+    ComPtr<IBuffer> blasBuffer;
+    ComPtr<IAccelerationStructure> blas;
 
-    LssBlas(
+    LssBLAS(
         IDevice* device,
         ICommandQueue* queue,
         int segmentCount,
@@ -480,16 +480,16 @@ struct LssBlas
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, BLAS.writeRef());
+        device->createAccelerationStructure(createDesc, blas.writeRef());
 
         commandEncoder = queue->createCommandEncoder();
-        commandEncoder->copyAccelerationStructure(BLAS, draftAS, AccelerationStructureCopyMode::Compact);
+        commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
 };
 
-struct SingleSegmentLssBlas : public LssBlas
+struct SingleSegmentLssBLAS : public LssBLAS
 {
     static constexpr int kVertexCount = 2;
     static constexpr int kPrimitiveCount = 1;
@@ -504,13 +504,13 @@ struct SingleSegmentLssBlas : public LssBlas
     static inline constexpr unsigned kIndices[kPrimitiveCount] = {0};
 
 
-    SingleSegmentLssBlas(IDevice* device, ICommandQueue* queue)
-        : LssBlas(device, queue, kVertexCount, kPositions, kRadii, kPrimitiveCount, kIndices)
+    SingleSegmentLssBLAS(IDevice* device, ICommandQueue* queue)
+        : LssBLAS(device, queue, kVertexCount, kPositions, kRadii, kPrimitiveCount, kIndices)
     {
     }
 };
 
-struct TwoSegmentLssBlas : public LssBlas
+struct TwoSegmentLssBLAS : public LssBLAS
 {
     static constexpr int kVertexCount = 3;
     static constexpr int kPrimitiveCount = 2;
@@ -526,19 +526,19 @@ struct TwoSegmentLssBlas : public LssBlas
     static inline constexpr unsigned kIndices[kPrimitiveCount] = {0, 1};
 
 
-    TwoSegmentLssBlas(IDevice* device, ICommandQueue* queue)
-        : LssBlas(device, queue, kVertexCount, kPositions, kRadii, kPrimitiveCount, kIndices)
+    TwoSegmentLssBLAS(IDevice* device, ICommandQueue* queue)
+        : LssBLAS(device, queue, kVertexCount, kPositions, kRadii, kPrimitiveCount, kIndices)
     {
     }
 };
 
-struct Tlas
+struct TLAS
 {
     ComPtr<IBuffer> instanceBuffer;
-    ComPtr<IBuffer> TLASBuffer;
-    ComPtr<IAccelerationStructure> TLAS;
+    ComPtr<IBuffer> tlasBuffer;
+    ComPtr<IAccelerationStructure> tlas;
 
-    Tlas(IDevice* device, ICommandQueue* queue, IAccelerationStructure* BLAS)
+    TLAS(IDevice* device, ICommandQueue* queue, IAccelerationStructure* blas)
     {
         AccelerationStructureInstanceDescType nativeInstanceDescType = getAccelerationStructureInstanceDescType(device);
         Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
@@ -550,7 +550,7 @@ struct Tlas
         genericInstanceDescs[0].instanceID = 0;
         genericInstanceDescs[0].instanceMask = 0xFF;
         genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
-        genericInstanceDescs[0].accelerationStructure = BLAS->getHandle();
+        genericInstanceDescs[0].accelerationStructure = blas->getHandle();
 
         std::vector<uint8_t> nativeInstanceDescs(genericInstanceDescs.size() * nativeInstanceDescSize);
         convertAccelerationStructureInstanceDescs(
@@ -590,10 +590,10 @@ struct Tlas
 
         AccelerationStructureDesc createDesc;
         createDesc.size = sizes.accelerationStructureSize;
-        REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
 
         auto commandEncoder = queue->createCommandEncoder();
-        commandEncoder->buildAccelerationStructure(buildDesc, TLAS, nullptr, scratchBuffer, 0, nullptr);
+        commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
     }
@@ -728,7 +728,7 @@ void launchPipeline(
     IRayTracingPipeline* pipeline,
     IShaderTable* shaderTable,
     IBuffer* resultBuffer,
-    IAccelerationStructure* TLAS
+    IAccelerationStructure* tlas
 );
 
 } // namespace rhi::testing
