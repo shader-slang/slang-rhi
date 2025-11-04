@@ -27,6 +27,9 @@ std::string getCurrentTestCaseName()
 
 int main(int argc, const char** argv)
 {
+    // Store path to the executable.
+    rhi::testing::exePath() = argv[0];
+
     rhi::testing::cleanupTestTempDirectories();
 
 #if SLANG_RHI_DEBUG
