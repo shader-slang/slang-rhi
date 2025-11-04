@@ -25,10 +25,15 @@ void shaderObjectSetBinding(
     case slang::BindingType::MutableTypedBuffer:
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(slot.resource.get());
-        void* dataPtr = (uint8_t*)buffer->m_cudaMemory + slot.bufferRange.offset;
-        size_t dataSize = slot.bufferRange.size;
-        if (buffer->m_desc.elementSize > 1)
-            dataSize /= buffer->m_desc.elementSize;
+        void* dataPtr = nullptr;
+        size_t dataSize = 0;
+        if (buffer)
+        {
+            dataPtr = (uint8_t*)buffer->m_cudaMemory + slot.bufferRange.offset;
+            dataSize = slot.bufferRange.size;
+            if (buffer->m_desc.elementSize > 1)
+                dataSize /= buffer->m_desc.elementSize;
+        }
         memcpy(dst + offset.uniformOffset, &dataPtr, sizeof(dataPtr));
         memcpy(dst + offset.uniformOffset + 8, &dataSize, sizeof(dataSize));
         break;
@@ -36,21 +41,33 @@ void shaderObjectSetBinding(
     case slang::BindingType::Texture:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-        uint64_t handle = textureView->getTexObject();
+        uint64_t handle = 0;
+        if (textureView)
+        {
+            handle = textureView->getTexObject();
+        }
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
     case slang::BindingType::MutableTexture:
     {
         TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
-        uint64_t handle = textureView->getSurfObject();
+        uint64_t handle = 0;
+        if (textureView)
+        {
+            handle = textureView->getSurfObject();
+        }
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
     case slang::BindingType::RayTracingAccelerationStructure:
     {
         AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
-        uint64_t handle = as->m_handle;
+        uint64_t handle = 0;
+        if (as)
+        {
+            handle = as->m_handle;
+        }
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
@@ -224,8 +241,8 @@ Result BindingDataBuilder::writeObjectData(
                 // As a result, the offset for the first object in the range
                 // will come from the `pending` part of the range's offset.
                 //
-                SimpleBindingOffset objOffset = rangeOffset.pending;
-                SimpleBindingOffset objStride = rangeStride.pending;
+                SimpleBindingOffset objOffset = rangeOffset;
+                SimpleBindingOffset objStride = rangeStride;
 
                 for (uint32_t i = 0; i < count; ++i)
                 {

@@ -47,16 +47,9 @@ void computeMain()
 #endif
     result[2] = structuredBuffer2[0];
     result[3] = rwStructuredBuffer2[0];
-#if !defined(__CUDA__)
     result[4] = texture2.Load(int3(0));
     result[5] = rwTexture2.Load(int2(0));
     result[6] = textureArray2.Load(int4(0));
     result[7] = rwTextureArray2.Load(int3(0));
-#else
-    result[4] = 5.0;
-    result[5] = 6.0;
-    result[6] = 7.0;
-    result[7] = 8.0;
-#endif
     result[8] = texture2.SampleLevel(samplerState2, float2(0), 0.f);
 }

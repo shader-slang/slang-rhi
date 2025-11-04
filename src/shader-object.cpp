@@ -258,52 +258,77 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     case BindingType::BufferWithCounter:
     {
         Buffer* buffer = checked_cast<Buffer*>(binding.resource.get());
-        if (!buffer)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::Buffer;
-        slot.resource = buffer;
-        if (binding.type == BindingType::BufferWithCounter)
-            slot.resource2 = checked_cast<Buffer*>(binding.resource2.get());
-        slot.format = buffer->m_desc.format;
-        slot.bufferRange = buffer->resolveBufferRange(binding.bufferRange);
+        if (buffer)
+        {
+            slot.type = BindingType::Buffer;
+            slot.resource = buffer;
+            if (binding.type == BindingType::BufferWithCounter)
+                slot.resource2 = checked_cast<Buffer*>(binding.resource2.get());
+            slot.format = buffer->m_desc.format;
+            slot.bufferRange = buffer->resolveBufferRange(binding.bufferRange);
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     case BindingType::Texture:
     {
         TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
-        if (!textureView)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::Texture;
-        slot.resource = textureView;
+        if (textureView)
+        {
+            slot.type = BindingType::Texture;
+            slot.resource = textureView;
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     case BindingType::Sampler:
     {
         Sampler* sampler = checked_cast<Sampler*>(binding.resource.get());
-        if (!sampler)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::Sampler;
-        slot.resource = sampler;
+        if (sampler)
+        {
+            slot.type = BindingType::Sampler;
+            slot.resource = sampler;
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     case BindingType::AccelerationStructure:
     {
         AccelerationStructure* accelerationStructure = checked_cast<AccelerationStructure*>(binding.resource.get());
-        if (!accelerationStructure)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::AccelerationStructure;
-        slot.resource = accelerationStructure;
+        if (accelerationStructure)
+        {
+            slot.type = BindingType::AccelerationStructure;
+            slot.resource = accelerationStructure;
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     case BindingType::CombinedTextureSampler:
     {
         TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
         Sampler* sampler = checked_cast<Sampler*>(binding.resource2.get());
-        if (!textureView || !sampler)
-            return SLANG_E_INVALID_ARG;
-        slot.type = BindingType::CombinedTextureSampler;
-        slot.resource = textureView;
-        slot.resource2 = sampler;
+        if (textureView && sampler)
+        {
+            slot.type = BindingType::CombinedTextureSampler;
+            slot.resource = textureView;
+            slot.resource2 = sampler;
+        }
+        else
+        {
+            slot = {};
+        }
         break;
     }
     default:
@@ -589,89 +614,6 @@ Result ShaderObject::writeOrdinaryData(void* destData, Size destSize, ShaderObje
 {
     SLANG_RHI_ASSERT(m_data.size() <= destSize);
     std::memcpy(destData, m_data.data(), m_data.size());
-
-    // In the case where this object has any sub-objects of
-    // existential/interface type, we need to recurse on those objects
-    // that need to write their state into an appropriate "pending" allocation.
-    //
-    // Note: Any values that could fit into the "payload" included
-    // in the existential-type field itself will have already been
-    // written as part of `setObject()`. This loop only needs to handle
-    // those sub-objects that do not "fit."
-    //
-    // An implementers looking at this code might wonder if things could be changed
-    // so that *all* writes related to sub-objects for interface-type fields could
-    // be handled in this one location, rather than having some in `setObject()` and
-    // others handled here.
-    //
-    uint32_t subObjectRangeCount = specializedLayout->getSubObjectRangeCount();
-    for (uint32_t subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount; subObjectRangeIndex++)
-    {
-        const ShaderObjectLayout::SubObjectRangeInfo& subObjectRangeInfo =
-            specializedLayout->getSubObjectRange(subObjectRangeIndex);
-        const ShaderObjectLayout::BindingRangeInfo& bindingRangeInfo =
-            specializedLayout->getBindingRange(subObjectRangeInfo.bindingRangeIndex);
-
-        // We only need to handle sub-object ranges for interface/existential-type fields,
-        // because fields of constant-buffer or parameter-block type are responsible for
-        // the ordinary/uniform data of their own existential/interface-type sub-objects.
-        //
-        if (bindingRangeInfo.bindingType != slang::BindingType::ExistentialValue)
-            continue;
-
-        // Each sub-object range represents a single "leaf" field, but might be nested
-        // under zero or more outer arrays, such that the number of existential values
-        // in the same range can be one or more.
-        //
-        uint32_t count = bindingRangeInfo.count;
-
-        // We are not concerned with the case where the existential value(s) in the range
-        // git into the payload part of the leaf field.
-        //
-        // In the case where the value didn't fit, the Slang layout strategy would have
-        // considered the requirements of the value as a "pending" allocation, and would
-        // allocate storage for the ordinary/uniform part of that pending allocation inside
-        // of the parent object's type layout.
-        //
-        // Here we assume that the Slang reflection API can provide us with a single byte
-        // offset and stride for the location of the pending data allocation in the
-        // specialized type layout, which will store the values for this sub-object range.
-        //
-        // TODO: The reflection API functions we are assuming here haven't been implemented
-        // yet, so the functions being called here are stubs.
-        //
-        // TODO: It might not be that a single sub-object range can reliably map to a single
-        // contiguous array with a single stride; we need to carefully consider what the
-        // layout logic does for complex cases with multiple layers of nested arrays and
-        // structures.
-        //
-        uint32_t subObjectRangePendingDataOffset = subObjectRangeInfo.pendingOrdinaryDataOffset;
-        uint32_t subObjectRangePendingDataStride = subObjectRangeInfo.pendingOrdinaryDataStride;
-
-        // If the range doesn't actually need/use the "pending" allocation at all, then
-        // we need to detect that case and skip such ranges.
-        //
-        // TODO: This should probably be handled on a per-object basis by caching a "does it
-        // fit?" bit as part of the information for bound sub-objects, given that we already
-        // compute the "does it fit?" status as part of `setObject()`.
-        //
-        if (subObjectRangePendingDataOffset == 0)
-            continue;
-
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            ShaderObject* subObject = m_objects[bindingRangeInfo.subObjectIndex + i];
-            ShaderObjectLayout* subObjectLayout = specializedLayout->getSubObjectRangeLayout(subObjectRangeIndex);
-
-            uint64_t subObjectOffset = subObjectRangePendingDataOffset + i * subObjectRangePendingDataStride;
-
-            SLANG_RETURN_ON_FAIL(subObject->writeOrdinaryData(
-                (uint8_t*)destData + subObjectOffset,
-                destSize - subObjectOffset,
-                subObjectLayout
-            ));
-        }
-    }
     return SLANG_OK;
 }
 

@@ -104,9 +104,6 @@ public:
     {
         /// The index of the binding range that corresponds to this sub-object range
         uint32_t bindingRangeIndex;
-
-        uint32_t pendingOrdinaryDataOffset;
-        uint32_t pendingOrdinaryDataStride;
     };
 
     struct EntryPointInfo
