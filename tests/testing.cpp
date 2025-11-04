@@ -777,6 +777,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
+    desc.requiredOptixVersion = options().optixVersion;
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
     if (SLANG_FAILED(createResult))
