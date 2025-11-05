@@ -31,6 +31,14 @@ IFence* Fence::getInterface(const Guid& guid)
     return nullptr;
 }
 
+Fence::Fence(Device* device, const FenceDesc& desc)
+    : DeviceChild(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+}
+
+
 // ----------------------------------------------------------------------------
 // Buffer
 // ----------------------------------------------------------------------------
@@ -42,17 +50,19 @@ IResource* Buffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
+Buffer::Buffer(Device* device, const BufferDesc& desc)
+    : Resource(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+}
+
 BufferRange Buffer::resolveBufferRange(const BufferRange& range)
 {
     BufferRange resolved = range;
     resolved.offset = min(resolved.offset, m_desc.size);
     resolved.size = min(resolved.size, m_desc.size - resolved.offset);
     return resolved;
-}
-
-BufferDesc& Buffer::getDesc()
-{
-    return m_desc;
 }
 
 Result Buffer::getNativeHandle(NativeHandle* outHandle)
@@ -133,7 +143,6 @@ Result calcSubresourceRegionLayout(
     return SLANG_OK;
 }
 
-
 // ----------------------------------------------------------------------------
 // Texture
 // ----------------------------------------------------------------------------
@@ -143,6 +152,13 @@ IResource* Texture::getInterface(const Guid& guid)
     if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == ITexture::getTypeGuid())
         return static_cast<ITexture*>(this);
     return nullptr;
+}
+
+Texture::Texture(Device* device, const TextureDesc& desc)
+    : Resource(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
 }
 
 SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
@@ -166,11 +182,6 @@ bool Texture::isEntireTexture(const SubresourceRange& range)
         return false;
     }
     return true;
-}
-
-TextureDesc& Texture::getDesc()
-{
-    return m_desc;
 }
 
 Result Texture::getNativeHandle(NativeHandle* outHandle)
@@ -216,6 +227,13 @@ ITextureView* TextureView::getInterface(const Guid& guid)
     return nullptr;
 }
 
+TextureView::TextureView(Device* device, const TextureViewDesc& desc)
+    : Resource(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+}
+
 Result TextureView::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
@@ -237,6 +255,13 @@ ISampler* Sampler::getInterface(const Guid& guid)
     if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == ISampler::getTypeGuid())
         return static_cast<ISampler*>(this);
     return nullptr;
+}
+
+Sampler::Sampler(Device* device, const SamplerDesc& desc)
+    : Resource(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
 }
 
 const SamplerDesc& Sampler::getDesc()
@@ -266,6 +291,13 @@ IAccelerationStructure* AccelerationStructure::getInterface(const Guid& guid)
         guid == IAccelerationStructure::getTypeGuid())
         return static_cast<IAccelerationStructure*>(this);
     return nullptr;
+}
+
+AccelerationStructure::AccelerationStructure(Device* device, const AccelerationStructureDesc& desc)
+    : Resource(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
 }
 
 AccelerationStructureHandle AccelerationStructure::getHandle()
@@ -301,9 +333,23 @@ IQueryPool* QueryPool::getInterface(const Guid& guid)
     return nullptr;
 }
 
+QueryPool::QueryPool(Device* device, const QueryPoolDesc& desc)
+    : DeviceChild(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+}
+
 // ----------------------------------------------------------------------------
 // ShaderTable
 // ----------------------------------------------------------------------------
+
+IShaderTable* ShaderTable::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderTable::getTypeGuid())
+        return static_cast<IShaderTable*>(this);
+    return nullptr;
+}
 
 ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
     : DeviceChild(device)
