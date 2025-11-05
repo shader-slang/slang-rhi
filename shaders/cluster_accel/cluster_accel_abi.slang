@@ -7,7 +7,7 @@
 namespace cluster_abi {
     #define ABI_U32 uint
     #define ABI_U64 uint64_t
-    #include <cluster_accel_abi.common.inc>
+    #include <cluster_accel/cluster_accel_abi.common.inc>
     #undef ABI_U32
     #undef ABI_U64
 }

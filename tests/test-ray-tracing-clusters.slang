@@ -1,5 +1,5 @@
 // Test shaders for clusters build-and-shoot
-#include "cluster_accel_abi.slang"
+#include "../shaders/cluster_accel/cluster_accel_abi.slang"
 
 RaytracingAccelerationStructure tlas;
 RWTexture2D<float4> resultTexture;

@@ -97,8 +97,8 @@ static inline TrianglesArgs makeTrianglesArgs(
     ABI_U32  vertexCount,
     ABI_U64  indexBuffer,
     ABI_U64  vertexBuffer,
-    ABI_U32  vertexStrideBytes /*=0*/,
-    ABI_U32  indexFormat /*=4*/)
+    ABI_U32  vertexStrideBytes,
+    ABI_U32  indexFormat)
 {
     TrianglesArgs a = {};
     a.clusterId    = clusterId;
@@ -116,12 +116,12 @@ static inline TrianglesArgs makeTrianglesArgs(
     return a;
 }
 
-static inline ClustersArgs makeClustersArgs(ABI_U32 count, ABI_U64 handleTableBase, ABI_U32 strideBytes)
+static inline ClustersArgs makeClustersArgs(ABI_U32 count, ABI_U64 handlesBuffer, ABI_U32 strideBytes)
 {
     ClustersArgs a = {};
     a.clusterHandlesCount = count;
     a.clusterHandlesBufferStrideInBytes = strideBytes;
-    a.clusterHandlesBuffer = handleTableBase;
+    a.clusterHandlesBuffer = handlesBuffer;
     return a;
 }
 
