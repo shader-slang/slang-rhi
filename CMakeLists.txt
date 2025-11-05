@@ -317,6 +317,10 @@ if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
     target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
 endif()
 
+# Export shared shader directory to consumers (normalized to forward slashes)
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/shaders" SLANG_RHI_SHADERS_DIR_PATH)
+target_compile_definitions(slang-rhi INTERFACE SLANG_RHI_SHADERS_DIR="${SLANG_RHI_SHADERS_DIR_PATH}")
+
 # Fetch & setup DirectXShaderCompiler
 if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     message(STATUS "Fetching DirectXShaderCompiler ...")
@@ -851,7 +855,6 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         PRIVATE
         SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
-        SLANG_RHI_SHADERS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders"
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
         SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
         SLANG_RHI_BUILD_TESTS_WITH_GLFW=$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>
