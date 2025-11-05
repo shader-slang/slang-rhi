@@ -28,6 +28,7 @@
 namespace rhi {
 
 class Device;
+class Sampler;
 class CommandEncoder;
 class CommandList;
 
@@ -152,6 +153,7 @@ public:
 public:
     TextureDesc m_desc;
     StructHolder m_descHolder;
+    RefPtr<Sampler> m_sampler;
     NativeHandle m_sharedHandle;
 };
 

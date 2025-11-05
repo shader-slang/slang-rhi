@@ -268,14 +268,21 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
 
-    auto& samplerSettings = tex->m_defaultSamplerSettings;
-    samplerSettings = {};
-    samplerSettings.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.filterMode = CU_TR_FILTER_MODE_LINEAR;
-    samplerSettings.maxAnisotropy = 1;
-    samplerSettings.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    if (desc.sampler)
+    {
+        tex->m_defaultSamplerSettings = checked_cast<SamplerImpl*>(desc.sampler)->m_samplerSettings;
+    }
+    else
+    {
+        auto& samplerSettings = tex->m_defaultSamplerSettings;
+        samplerSettings = {};
+        samplerSettings.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.filterMode = CU_TR_FILTER_MODE_LINEAR;
+        samplerSettings.maxAnisotropy = 1;
+        samplerSettings.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    }
 
     // The size of the element/texel in bytes
     const FormatInfo& formatInfo = getFormatInfo(desc.format);

@@ -975,6 +975,8 @@ static const uint32_t kAllLayers = 0xffffffff;
 static const uint32_t kAllMips = 0xffffffff;
 static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
 
+class ISampler;
+
 struct TextureDesc
 {
     StructType structType = StructType::TextureDesc;
@@ -1004,6 +1006,10 @@ struct TextureDesc
     ResourceState defaultState = ResourceState::Undefined;
 
     const ClearValue* optimalClearValue = nullptr;
+
+    // Default sampler to use when sampling this texture.
+    // Currently only used for CUDA textures.
+    ISampler* sampler = nullptr;
 
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;

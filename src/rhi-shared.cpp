@@ -159,6 +159,7 @@ Texture::Texture(Device* device, const TextureDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
+    m_sampler = checked_cast<Sampler*>(desc.sampler);
 }
 
 SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
