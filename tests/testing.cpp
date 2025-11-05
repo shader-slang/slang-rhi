@@ -737,7 +737,16 @@ const char* getTestsDir()
 
 std::vector<const char*> getSlangSearchPaths()
 {
-    return {getTestsDir()};
+    static std::string testsDir = getTestsDir();
+    static std::string shadersDir = (std::filesystem::path(testsDir).parent_path() / "shaders").string();
+    std::vector<const char*> paths;
+    paths.push_back(testsDir.c_str());
+    paths.push_back(shadersDir.c_str());
+#ifdef SLANG_RHI_SHADERS_DIR
+    static const char* cmakeShadersDir = SLANG_RHI_SHADERS_DIR;
+    paths.push_back(cmakeShadersDir);
+#endif
+    return paths;
 }
 
 #if ENABLE_RENDERDOC

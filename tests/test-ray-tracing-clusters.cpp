@@ -1,6 +1,6 @@
 #include "testing.h"
 #include <slang-rhi/acceleration-structure-utils.h>
-#include "cluster_accel_abi_host.h"
+#include <slang-rhi/cluster_accel_abi_host.h>
 
 using namespace rhi;
 using namespace rhi::testing;
