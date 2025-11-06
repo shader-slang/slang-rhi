@@ -294,7 +294,7 @@ static Result loadProgram(
         SLANG_RETURN_ON_FAIL(result);
 
         programToUse = linkedProgram.get();
-        if(outSlangReflection)
+        if (outSlangReflection)
             *outSlangReflection = linkedProgram->getLayout();
     }
 
@@ -333,7 +333,15 @@ Result loadAndLinkProgram(
     slang::ProgramLayout** outSlangReflection
 )
 {
-    return loadProgram(device, slangSession, shaderModuleName, entryPointNames, true, outShaderProgram, outSlangReflection);
+    return loadProgram(
+        device,
+        slangSession,
+        shaderModuleName,
+        entryPointNames,
+        true,
+        outShaderProgram,
+        outSlangReflection
+    );
 }
 
 Result loadAndLinkProgram(

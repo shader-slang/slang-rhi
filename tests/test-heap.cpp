@@ -224,18 +224,14 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA | Vulkan)
     ComputePipelineDesc pipelineDesc = {};
 
     ComPtr<IShaderProgram> initPtrShaderProgram;
-    REQUIRE_CALL(
-        loadProgram(device, "test-pointer-init", {"computeMain"}, initPtrShaderProgram)
-    );
+    REQUIRE_CALL(loadProgram(device, "test-pointer-init", {"computeMain"}, initPtrShaderProgram));
 
     pipelineDesc.program = initPtrShaderProgram.get();
     ComPtr<IComputePipeline> initPtrpipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, initPtrpipeline.writeRef()));
 
     ComPtr<IShaderProgram> copyPtrShaderProgram;
-    REQUIRE_CALL(
-        loadProgram(device, "test-pointer-copy", {"computeMain"}, copyPtrShaderProgram)
-    );
+    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", {"computeMain"}, copyPtrShaderProgram));
     pipelineDesc.program = copyPtrShaderProgram.get();
     ComPtr<IComputePipeline> copyPtrpipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, copyPtrpipeline.writeRef()));

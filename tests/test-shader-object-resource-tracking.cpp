@@ -6,9 +6,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("shader-object-resource-tracking", ALL & ~CPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(
-        loadProgram(device, "test-shader-object-resource-tracking", {"computeMain"}, shaderProgram)
-    );
+    REQUIRE_CALL(loadProgram(device, "test-shader-object-resource-tracking", {"computeMain"}, shaderProgram));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

@@ -183,9 +183,7 @@ struct RenderSurfaceTest : SurfaceTest
         REQUIRE(vertexBuffer);
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(
-            loadProgram(device, "test-surface-render", {"vertexMain", "fragmentMain"}, shaderProgram)
-        );
+        REQUIRE_CALL(loadProgram(device, "test-surface-render", {"vertexMain", "fragmentMain"}, shaderProgram));
 
         ColorTargetDesc colorTarget = {};
         colorTarget.format = getSurfaceFormat();

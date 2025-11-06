@@ -523,9 +523,13 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
     {
         ComPtr<IShaderProgram> shaderProgram;
 
-        REQUIRE_CALL(
-            loadAndLinkProgram(device, "test-shader-cache-specialization", {"computeMain"}, shaderProgram, &slangReflection)
-        );
+        REQUIRE_CALL(loadAndLinkProgram(
+            device,
+            "test-shader-cache-specialization",
+            {"computeMain"},
+            shaderProgram,
+            &slangReflection
+        ));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -732,12 +736,7 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     void createGraphicsPipeline()
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(
-            device,
-            "test-shader-cache-graphics",
-            {"vertexMain", "fragmentMain"},
-            shaderProgram
-        ));
+        REQUIRE_CALL(loadProgram(device, "test-shader-cache-graphics", {"vertexMain", "fragmentMain"}, shaderProgram));
 
         ColorTargetDesc target;
         target.format = format;

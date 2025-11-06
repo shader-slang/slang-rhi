@@ -333,9 +333,7 @@ struct RenderTargetTests : TextureTest
         REQUIRE(inputLayout != nullptr);
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(
-            loadProgram(device, "test-texture-types", {"vertexMain", "fragmentMain"}, shaderProgram)
-        );
+        REQUIRE_CALL(loadProgram(device, "test-texture-types", {"vertexMain", "fragmentMain"}, shaderProgram));
 
         ColorTargetDesc target;
         target.format = textureInfo->format;

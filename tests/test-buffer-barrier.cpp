@@ -37,8 +37,12 @@ GPU_TEST_CASE("buffer-barrier", ALL)
 {
     Shader programA;
     Shader programB;
-    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", {"computeA"}, programA.program, &programA.reflection));
-    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", {"computeB"}, programB.program, &programB.reflection));
+    REQUIRE_CALL(
+        loadAndLinkProgram(device, "test-buffer-barrier", {"computeA"}, programA.program, &programA.reflection)
+    );
+    REQUIRE_CALL(
+        loadAndLinkProgram(device, "test-buffer-barrier", {"computeB"}, programB.program, &programB.reflection)
+    );
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
     REQUIRE_CALL(device->createComputePipeline(programA.pipelineDesc, programA.pipeline.writeRef()));
@@ -150,8 +154,12 @@ GPU_TEST_CASE("buffer-global-barrier", D3D12 | Vulkan)
 {
     Shader programA;
     Shader programB;
-    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", {"computeA"}, programA.program, &programA.reflection));
-    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", {"computeB"}, programB.program, &programB.reflection));
+    REQUIRE_CALL(
+        loadAndLinkProgram(device, "test-buffer-barrier", {"computeA"}, programA.program, &programA.reflection)
+    );
+    REQUIRE_CALL(
+        loadAndLinkProgram(device, "test-buffer-barrier", {"computeB"}, programB.program, &programB.reflection)
+    );
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
     REQUIRE_CALL(device->createComputePipeline(programA.pipelineDesc, programA.pipeline.writeRef()));
