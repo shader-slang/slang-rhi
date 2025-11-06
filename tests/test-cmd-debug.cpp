@@ -12,7 +12,7 @@ GPU_TEST_CASE("cmd-debug", ALL)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-cmd-debug", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-cmd-debug", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

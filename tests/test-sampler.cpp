@@ -79,7 +79,7 @@ struct SamplerTest
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-sampler", "sampleTexture", slangReflection));
+        REQUIRE_CALL(loadProgram(device, shaderProgram, "test-sampler", {"sampleTexture"}, &slangReflection));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

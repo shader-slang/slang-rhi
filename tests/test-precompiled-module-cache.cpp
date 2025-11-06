@@ -136,7 +136,7 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
     SLANG_CHECK(upToDate); // The module should be up-to-date.
 
     REQUIRE_CALL(
-        loadComputeProgram(device, slangSession, shaderProgram, "precompiled-module", "computeMain", slangReflection)
+        loadProgram(device, shaderProgram, "precompiled-module", {"computeMain"}, &slangReflection, slangSession)
     );
 
     ComputePipelineDesc pipelineDesc = {};

@@ -7,7 +7,7 @@ GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-compute-trivial", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-compute-trivial", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

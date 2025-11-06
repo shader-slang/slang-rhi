@@ -14,7 +14,7 @@ static void setUpAndRunShader(
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "trivial-copy", entryPoint, slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "trivial-copy", {entryPoint}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

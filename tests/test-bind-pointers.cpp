@@ -10,7 +10,7 @@ GPU_TEST_CASE("bind-pointers-single-copy", Vulkan | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-pointer-copy", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-pointer-copy", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -72,7 +72,7 @@ GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-pointer-copy", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-pointer-copy", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

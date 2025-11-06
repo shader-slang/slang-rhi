@@ -121,13 +121,12 @@ struct BaseResolveResourceTest
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(loadGraphicsProgram(
+        REQUIRE_CALL(loadProgram(
             device,
             shaderProgram,
             "test-resolve-resource-shader",
-            "vertexMain",
-            "fragmentMain",
-            slangReflection
+            {"vertexMain", "fragmentMain"},
+            &slangReflection
         ));
 
 

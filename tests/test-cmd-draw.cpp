@@ -140,7 +140,7 @@ public:
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(
-            loadGraphicsProgram(device, shaderProgram, "test-cmd-draw", "vertexMain", "fragmentMain", slangReflection)
+            loadProgram(device, shaderProgram, "test-cmd-draw", {"vertexMain", "fragmentMain"}, &slangReflection)
         );
 
         ColorTargetDesc colorTarget;

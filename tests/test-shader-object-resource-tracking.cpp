@@ -7,13 +7,9 @@ GPU_TEST_CASE("shader-object-resource-tracking", ALL & ~CPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(
-        device,
-        shaderProgram,
-        "test-shader-object-resource-tracking",
-        "computeMain",
-        slangReflection
-    ));
+    REQUIRE_CALL(
+        loadProgram(device, shaderProgram, "test-shader-object-resource-tracking", {"computeMain"}, &slangReflection)
+    );
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

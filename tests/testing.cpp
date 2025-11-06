@@ -238,29 +238,40 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
     }
 }
 
-Result loadComputeProgram(
+Result loadProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
-    const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
+    std::vector<const char*> entryPointNames,
+    slang::ProgramLayout** slangReflection,
+    slang::ISession* slangSession
 )
 {
-    ComPtr<slang::ISession> slangSession;
-    SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
+    ComPtr<slang::ISession> ownedSlangSession;
+    if (!slangSession)
+    {
+        SLANG_RETURN_ON_FAIL(device->getSlangSession(ownedSlangSession.writeRef()));
+        slangSession = ownedSlangSession.get();
+    }
+
     ComPtr<slang::IBlob> diagnosticsBlob;
     slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
         return SLANG_FAIL;
 
-    ComPtr<slang::IEntryPoint> computeEntryPoint;
-    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, computeEntryPoint.writeRef()));
-
     std::vector<slang::IComponentType*> componentTypes;
     componentTypes.push_back(module);
-    componentTypes.push_back(computeEntryPoint);
 
+    // Find all entry points
+    for (const char* entryPointName : entryPointNames)
+    {
+        ComPtr<slang::IEntryPoint> entryPoint;
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, entryPoint.writeRef()));
+        componentTypes.push_back(entryPoint);
+    }
+
+    // Create composite component type
     ComPtr<slang::IComponentType> composedProgram;
     Result result = slangSession->createCompositeComponentType(
         componentTypes.data(),
@@ -271,56 +282,21 @@ Result loadComputeProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
+    // Conditionally link if reflection is needed
+    slang::IComponentType* programToUse = composedProgram.get();
     ComPtr<slang::IComponentType> linkedProgram;
-    result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
 
-    slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
-}
+    if (slangReflection)
+    {
+        result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
+        diagnoseIfNeeded(diagnosticsBlob);
+        SLANG_RETURN_ON_FAIL(result);
 
-Result loadComputeProgram(
-    IDevice* device,
-    slang::ISession* slangSession,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    const char* shaderModuleName,
-    const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
-)
-{
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
+        programToUse = linkedProgram.get();
+        *slangReflection = linkedProgram->getLayout();
+    }
 
-    ComPtr<slang::IEntryPoint> computeEntryPoint;
-    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, computeEntryPoint.writeRef()));
-
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-    componentTypes.push_back(computeEntryPoint);
-
-    ComPtr<slang::IComponentType> composedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        componentTypes.data(),
-        componentTypes.size(),
-        composedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    ComPtr<slang::IComponentType> linkedProgram;
-    result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    outShaderProgram = device->createShaderProgram(programToUse, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
@@ -363,55 +339,6 @@ Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& out
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
-}
-
-Result loadGraphicsProgram(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    const char* shaderModuleName,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    slang::ProgramLayout*& slangReflection
-)
-{
-    ComPtr<slang::ISession> slangSession;
-    SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
-
-    ComPtr<slang::IEntryPoint> vertexEntryPoint;
-    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(vertexEntryPointName, vertexEntryPoint.writeRef()));
-
-    ComPtr<slang::IEntryPoint> fragmentEntryPoint;
-    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(fragmentEntryPointName, fragmentEntryPoint.writeRef()));
-
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-    componentTypes.push_back(vertexEntryPoint);
-    componentTypes.push_back(fragmentEntryPoint);
-
-    ComPtr<slang::IComponentType> composedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        componentTypes.data(),
-        componentTypes.size(),
-        composedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    ComPtr<slang::IComponentType> linkedProgram;
-    result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    slangReflection = linkedProgram->getLayout();
     outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;

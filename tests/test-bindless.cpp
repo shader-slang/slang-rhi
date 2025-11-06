@@ -13,7 +13,7 @@ GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan)
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-bindless-buffers", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-bindless-buffers", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -191,7 +191,7 @@ GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-bindless-textures", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-bindless-textures", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

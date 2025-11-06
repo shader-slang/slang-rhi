@@ -79,34 +79,19 @@ struct GpuTestContext
 /// Helper function for print out diagnostic messages output by Slang compiler.
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob);
 
-/// Loads a compute shader module and produces a `IShaderProgram`.
-Result loadComputeProgram(
+/// Loads a shader program with one or more entry points.
+/// If slangReflection is provided, the program will be linked and reflection data will be stored.
+/// If slangReflection is nullptr, the program will not be linked (useful for ray tracing).
+Result loadProgram(
     IDevice* device,
     ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
-    const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
-);
-
-Result loadComputeProgram(
-    IDevice* device,
-    slang::ISession* slangSession,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    const char* shaderModuleName,
-    const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
+    std::vector<const char*> entryPointNames,
+    slang::ProgramLayout** slangReflection = nullptr,
+    slang::ISession* slangSession = nullptr
 );
 
 Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source);
-
-Result loadGraphicsProgram(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    const char* shaderModuleName,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    slang::ProgramLayout*& slangReflection
-);
 
 Result loadRenderProgramFromSource(
     IDevice* device,

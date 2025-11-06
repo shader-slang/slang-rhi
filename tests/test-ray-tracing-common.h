@@ -626,13 +626,6 @@ struct ResultBuffer
     }
 };
 
-Result loadShaderPrograms(
-    IDevice* device,
-    const char* moduleName,
-    const std::vector<const char*>& programNames,
-    IShaderProgram** outProgram
-);
-
 struct HitGroupProgramNames
 {
     const char* closesthit = nullptr;
@@ -677,7 +670,7 @@ struct RayTracingTestPipeline
         for (const char* missName : missNames)
             programsToLoad.push_back(missName);
 
-        REQUIRE_CALL(loadShaderPrograms(device, filepath, programsToLoad, rayTracingProgram.writeRef()));
+        REQUIRE_CALL(loadProgram(device, rayTracingProgram, filepath, programsToLoad, nullptr));
 
         std::vector<std::string> hitgroupNames;
         for (unsigned int i = 0; i < programNames.size(); i++)

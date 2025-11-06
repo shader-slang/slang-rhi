@@ -80,7 +80,7 @@ struct CombinedTextureSamplerTest
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(
-            loadComputeProgram(device, shaderProgram, "test-combined-texture-sampler", "sampleTexture", slangReflection)
+            loadProgram(device, shaderProgram, "test-combined-texture-sampler", {"sampleTexture"}, &slangReflection)
         );
 
         ComputePipelineDesc pipelineDesc = {};

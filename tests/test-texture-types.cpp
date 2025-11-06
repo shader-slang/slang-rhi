@@ -117,7 +117,7 @@ struct TextureAccessTest : TextureTest
     {
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-texture-types", entryPoint, slangReflection));
+        REQUIRE_CALL(loadProgram(device, shaderProgram, "test-texture-types", {entryPoint}, &slangReflection));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -335,14 +335,9 @@ struct RenderTargetTests : TextureTest
 
         ComPtr<IShaderProgram> shaderProgram;
         slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(loadGraphicsProgram(
-            device,
-            shaderProgram,
-            "test-texture-types",
-            "vertexMain",
-            "fragmentMain",
-            slangReflection
-        ));
+        REQUIRE_CALL(
+            loadProgram(device, shaderProgram, "test-texture-types", {"vertexMain", "fragmentMain"}, &slangReflection)
+        );
 
         ColorTargetDesc target;
         target.format = textureInfo->format;

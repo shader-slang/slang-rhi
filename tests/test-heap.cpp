@@ -16,7 +16,7 @@ void runCopyBufferShader(IDevice* device, IBuffer* src, IBuffer* dst)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-buffer-copy", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-buffer-copy", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -43,7 +43,7 @@ void runInitPointerShader(IDevice* device, uint32_t val, DeviceAddress dst, uint
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-pointer-init", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-pointer-init", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -70,7 +70,7 @@ void runCopyPointerShader(IDevice* device, DeviceAddress src, DeviceAddress dst,
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-pointer-copy", "computeMain", slangReflection));
+    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-pointer-copy", {"computeMain"}, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -229,7 +229,7 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA | Vulkan)
     ComPtr<IShaderProgram> initPtrShaderProgram;
     slang::ProgramLayout* initPtrSlangReflection = nullptr;
     REQUIRE_CALL(
-        loadComputeProgram(device, initPtrShaderProgram, "test-pointer-init", "computeMain", initPtrSlangReflection)
+        loadProgram(device, initPtrShaderProgram, "test-pointer-init", {"computeMain"}, &initPtrSlangReflection)
     );
 
     pipelineDesc.program = initPtrShaderProgram.get();
@@ -239,7 +239,7 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA | Vulkan)
     ComPtr<IShaderProgram> copyPtrShaderProgram;
     slang::ProgramLayout* copyPtrSlangReflection = nullptr;
     REQUIRE_CALL(
-        loadComputeProgram(device, copyPtrShaderProgram, "test-pointer-copy", "computeMain", copyPtrSlangReflection)
+        loadProgram(device, copyPtrShaderProgram, "test-pointer-copy", {"computeMain"}, &copyPtrSlangReflection)
     );
     pipelineDesc.program = copyPtrShaderProgram.get();
     ComPtr<IComputePipeline> copyPtrpipeline;
