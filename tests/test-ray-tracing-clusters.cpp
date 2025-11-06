@@ -5,39 +5,6 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-// Minimal OptiX stand-ins to write device-args without depending on OptiX headers.
-using CUdeviceptr = unsigned long long;
-enum { OPTIX_CLUSTER_ACCEL_CLUSTER_FLAG_NONE = 0 };
-enum { OPTIX_CLUSTER_ACCEL_INDICES_FORMAT_32BIT = 4 };
-struct OptixClusterAccelPrimitiveInfo { unsigned int sbtIndex:24; unsigned int reserved:5; unsigned int primitiveFlags:3; };
-struct OptixClusterAccelBuildInputTrianglesArgs
-{
-    unsigned int clusterId;
-    unsigned int clusterFlags;
-    unsigned int triangleCount              : 9;
-    unsigned int vertexCount                : 9;
-    unsigned int positionTruncateBitCount   : 6;
-    unsigned int indexFormat                : 4;
-    unsigned int opacityMicromapIndexFormat : 4;
-    OptixClusterAccelPrimitiveInfo basePrimitiveInfo;
-    unsigned short indexBufferStrideInBytes;
-    unsigned short vertexBufferStrideInBytes;
-    unsigned short primitiveInfoBufferStrideInBytes;
-    unsigned short opacityMicromapIndexBufferStrideInBytes;
-    CUdeviceptr indexBuffer;
-    CUdeviceptr vertexBuffer;
-    CUdeviceptr primitiveInfoBuffer;
-    CUdeviceptr opacityMicromapArray;
-    CUdeviceptr opacityMicromapIndexBuffer;
-    CUdeviceptr instantiationBoundingBoxLimit;
-};
-struct OptixClusterAccelBuildInputClustersArgs
-{
-    unsigned int clusterHandlesCount;
-    unsigned int clusterHandlesBufferStrideInBytes;
-    CUdeviceptr  clusterHandlesBuffer;
-};
-
 struct Float3 { float x, y, z; };
 
 static void requireClusterAccelOrSkip(IDevice* device)
@@ -83,24 +50,24 @@ static ComPtr<IBuffer> createAccelStructureBuffer(IDevice* device, size_t size)
     return device->createBuffer(desc);
 }
 
-// Helper to create a simple OptiX TrianglesArgs with common defaults (no OMM, no primitive info, etc).
-static OptixClusterAccelBuildInputTrianglesArgs makeSimpleTrianglesArgs(
+// Helper to create a simple TrianglesArgs with common defaults (no OMM, no primitive info, etc).
+static cluster_abi::TrianglesArgs makeSimpleTrianglesArgs(
     uint32_t clusterId,
     uint32_t triangleCount,
     uint32_t vertexCount,
-    CUdeviceptr indexBuffer,
-    CUdeviceptr vertexBuffer,
+    uint64_t indexBuffer,
+    uint64_t vertexBuffer,
     uint32_t vertexStrideBytes = sizeof(Float3))
 {
-    OptixClusterAccelBuildInputTrianglesArgs args = {};  // zero-initializes all fields
-    args.clusterId = clusterId;
-    args.triangleCount = triangleCount;
-    args.vertexCount = vertexCount;
-    args.indexFormat = OPTIX_CLUSTER_ACCEL_INDICES_FORMAT_32BIT;
-    args.vertexBufferStrideInBytes = vertexStrideBytes;
-    args.indexBuffer = indexBuffer;
-    args.vertexBuffer = vertexBuffer;
-    return args;
+    return cluster_abi::makeTrianglesArgs(
+        clusterId,
+        triangleCount,
+        vertexCount,
+        indexBuffer,
+        vertexBuffer,
+        vertexStrideBytes,
+        /*indexFormat*/4  // 32-bit indices
+    );
 }
 
 // Result of building a cluster acceleration structure in implicit mode.
@@ -176,17 +143,18 @@ static BlasFromClasResult buildBlasFromClasImplicit(
 {
     BlasFromClasResult result;
 
-    OptixClusterAccelBuildInputClustersArgs clustersArgs = {};
-    clustersArgs.clusterHandlesCount = clusterCount;
-    clustersArgs.clusterHandlesBufferStrideInBytes = cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE;
-    clustersArgs.clusterHandlesBuffer = (CUdeviceptr)clusterHandlesBuffer;
+    cluster_abi::ClustersArgs clustersArgs = cluster_abi::makeClustersArgs(
+        clusterCount,
+        clusterHandlesBuffer,
+        cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE
+    );
 
     ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(clustersArgs), &clustersArgs);
 
     ClusterAccelBuildDesc blasDesc = {};
     blasDesc.op = ClusterAccelBuildOp::BLASFromCLAS;
     blasDesc.argsBuffer = BufferOffsetPair(argsBuffer, 0);
-    blasDesc.argsStride = sizeof(OptixClusterAccelBuildInputClustersArgs);
+    blasDesc.argsStride = sizeof(cluster_abi::ClustersArgs);
     blasDesc.argCount = 1;
     blasDesc.limits.limitsClusters.maxArgCount = 1;
     blasDesc.limits.limitsClusters.maxTotalClusterCount = clusterCount;
@@ -255,14 +223,14 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
     ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    OptixClusterAccelBuildInputTrianglesArgs triArgs = makeSimpleTrianglesArgs(
+    cluster_abi::TrianglesArgs triArgs = makeSimpleTrianglesArgs(
         0, 1, 3, ibuf->getDeviceAddress(), vbuf->getDeviceAddress());
     ComPtr<IBuffer> args = createAccelInputBuffer(device, sizeof(triArgs), &triArgs);
 
     ClusterAccelBuildDesc clasDesc = {};
     clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
     clasDesc.argsBuffer = BufferOffsetPair(args, 0);
-    clasDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
+    clasDesc.argsStride = sizeof(cluster_abi::TrianglesArgs);
     clasDesc.argCount = 1;
     clasDesc.limits.limitsTriangles.maxArgCount = 1;
     clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
@@ -288,7 +256,7 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    OptixClusterAccelBuildInputTrianglesArgs triArgs[2];
+    cluster_abi::TrianglesArgs triArgs[2];
     for (int i = 0; i < 2; i++)
     {
         triArgs[i] = makeSimpleTrianglesArgs(
@@ -302,7 +270,7 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     ClusterAccelBuildDesc clasDesc = {};
     clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
     clasDesc.argsBuffer = BufferOffsetPair(args, 0);
-    clasDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
+    clasDesc.argsStride = sizeof(cluster_abi::TrianglesArgs);
     clasDesc.argCount = 2;
     clasDesc.limits.limitsTriangles.maxArgCount = 2;
     clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
@@ -330,7 +298,7 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
     ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    OptixClusterAccelBuildInputTrianglesArgs triArgs[2];
+    cluster_abi::TrianglesArgs triArgs[2];
     for (int i = 0; i < 2; i++)
     {
         triArgs[i] = makeSimpleTrianglesArgs(
@@ -344,7 +312,7 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
     ClusterAccelBuildDesc clasDesc = {};
     clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
     clasDesc.argsBuffer = BufferOffsetPair(args, 0);
-    clasDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
+    clasDesc.argsStride = sizeof(cluster_abi::TrianglesArgs);
     clasDesc.argCount = 2;
     clasDesc.limits.limitsTriangles.maxArgCount = 2;
     clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
@@ -486,7 +454,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     const uint32_t clusterCount = 2;
 
     // Create one template from triangles (host-filled args)
-    OptixClusterAccelBuildInputTrianglesArgs trianglesArgs = makeSimpleTrianglesArgs(
+    cluster_abi::TrianglesArgs trianglesArgs = makeSimpleTrianglesArgs(
         /*clusterId*/0,
         /*triangleCount*/triPerCluster,
         /*vertexCount*/vtxPerCluster,
@@ -498,7 +466,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     ClusterAccelBuildDesc templatesFromTrianglesDesc = {};
     templatesFromTrianglesDesc.op = ClusterAccelBuildOp::TemplatesFromTriangles;
     templatesFromTrianglesDesc.argsBuffer = BufferOffsetPair(trianglesArgsBuffer, 0);
-    templatesFromTrianglesDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
+    templatesFromTrianglesDesc.argsStride = sizeof(cluster_abi::TrianglesArgs);
     templatesFromTrianglesDesc.argCount = 1;
     templatesFromTrianglesDesc.limits.limitsTriangles.maxArgCount = 1;
     templatesFromTrianglesDesc.limits.limitsTriangles.maxTriangleCountPerArg = triPerCluster;
