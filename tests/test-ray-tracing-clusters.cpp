@@ -188,9 +188,9 @@ static BlasFromClasResult buildBlasFromClasImplicit(
     blasDesc.argsBuffer = BufferOffsetPair(argsBuffer, 0);
     blasDesc.argsStride = sizeof(OptixClusterAccelBuildInputClustersArgs);
     blasDesc.argCount = 1;
-    blasDesc.clustersLimits.maxArgCount = 1;
-    blasDesc.clustersLimits.maxTotalClusterCount = clusterCount;
-    blasDesc.clustersLimits.maxClusterCountPerArg = clusterCount;
+    blasDesc.limits.limitsClusters.maxArgCount = 1;
+    blasDesc.limits.limitsClusters.maxTotalClusterCount = clusterCount;
+    blasDesc.limits.limitsClusters.maxClusterCountPerArg = clusterCount;
 
     ClusterAccelSizes sizes = {};
     REQUIRE_CALL(device->getClusterAccelerationStructureSizes(blasDesc, &sizes));
@@ -225,10 +225,10 @@ GPU_TEST_CASE("cluster-accel-sizes-optix", CUDA)
 
     ClusterAccelBuildDesc clasDesc = {};
     clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
-    clasDesc.trianglesLimits.maxArgCount = 1;
-    clasDesc.trianglesLimits.maxTriangleCountPerArg = 1;
-    clasDesc.trianglesLimits.maxVertexCountPerArg = 3;
-    clasDesc.trianglesLimits.maxUniqueSbtIndexCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxArgCount = 1;
+    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = 3;
+    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
     ClusterAccelSizes clasSizes = {};
     CHECK_CALL(device->getClusterAccelerationStructureSizes(clasDesc, &clasSizes));
     CHECK_GT(clasSizes.resultSize, 0);
@@ -236,9 +236,9 @@ GPU_TEST_CASE("cluster-accel-sizes-optix", CUDA)
 
     ClusterAccelBuildDesc blasDesc = {};
     blasDesc.op = ClusterAccelBuildOp::BLASFromCLAS;
-    blasDesc.clustersLimits.maxArgCount = 1;
-    blasDesc.clustersLimits.maxTotalClusterCount = 1;
-    blasDesc.clustersLimits.maxClusterCountPerArg = 1;
+    blasDesc.limits.limitsClusters.maxArgCount = 1;
+    blasDesc.limits.limitsClusters.maxTotalClusterCount = 1;
+    blasDesc.limits.limitsClusters.maxClusterCountPerArg = 1;
     ClusterAccelSizes blasSizes = {};
     CHECK_CALL(device->getClusterAccelerationStructureSizes(blasDesc, &blasSizes));
     CHECK_GT(blasSizes.resultSize, 0);
@@ -264,10 +264,10 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
     clasDesc.argsBuffer = BufferOffsetPair(args, 0);
     clasDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
     clasDesc.argCount = 1;
-    clasDesc.trianglesLimits.maxArgCount = 1;
-    clasDesc.trianglesLimits.maxTriangleCountPerArg = 1;
-    clasDesc.trianglesLimits.maxVertexCountPerArg = 3;
-    clasDesc.trianglesLimits.maxUniqueSbtIndexCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxArgCount = 1;
+    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = 3;
+    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
 
     auto queue = device->getQueue(QueueType::Graphics);
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasDesc, 1);
@@ -304,10 +304,10 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     clasDesc.argsBuffer = BufferOffsetPair(args, 0);
     clasDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
     clasDesc.argCount = 2;
-    clasDesc.trianglesLimits.maxArgCount = 2;
-    clasDesc.trianglesLimits.maxTriangleCountPerArg = 1;
-    clasDesc.trianglesLimits.maxVertexCountPerArg = 3;
-    clasDesc.trianglesLimits.maxUniqueSbtIndexCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxArgCount = 2;
+    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = 3;
+    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
 
     auto queue = device->getQueue(QueueType::Graphics);
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasDesc, 2);
@@ -346,10 +346,10 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
     clasDesc.argsBuffer = BufferOffsetPair(args, 0);
     clasDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
     clasDesc.argCount = 2;
-    clasDesc.trianglesLimits.maxArgCount = 2;
-    clasDesc.trianglesLimits.maxTriangleCountPerArg = 1;
-    clasDesc.trianglesLimits.maxVertexCountPerArg = 3;
-    clasDesc.trianglesLimits.maxUniqueSbtIndexCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxArgCount = 2;
+    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = 3;
+    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
 
     // Scratch sizing (used for both get-sizes and explicit build)
     ClusterAccelSizes clasSizes = {};
@@ -530,10 +530,10 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     clasDesc.argsBuffer = BufferOffsetPair(triArgsBuf, 0);
     clasDesc.argsStride = (uint32_t)sizeof(cluster_abi::TrianglesArgs);
     clasDesc.argCount = clusterCount;
-    clasDesc.trianglesLimits.maxArgCount = clusterCount;
-    clasDesc.trianglesLimits.maxTriangleCountPerArg = triPerCluster;
-    clasDesc.trianglesLimits.maxVertexCountPerArg = vtxPerCluster;
-    clasDesc.trianglesLimits.maxUniqueSbtIndexCountPerArg = 1;
+    clasDesc.limits.limitsTriangles.maxArgCount = clusterCount;
+    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = triPerCluster;
+    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = vtxPerCluster;
+    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
 
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasDesc, clusterCount);
     CHECK_NE(clasResult.handles[0], 0);

@@ -787,21 +787,21 @@ void DebugCommandEncoder::buildClusterAccelerationStructure(
     switch (desc.op)
     {
     case ClusterAccelBuildOp::CLASFromTriangles:
-        if (desc.trianglesLimits.maxArgCount == 0 ||
-            desc.trianglesLimits.maxTriangleCountPerArg == 0 ||
-            desc.trianglesLimits.maxVertexCountPerArg == 0 ||
-            desc.trianglesLimits.maxUniqueSbtIndexCountPerArg == 0)
+        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
         {
-            fail("Cluster CLAS build: trianglesLimits must be provided and non-zero");
+            fail("Cluster CLAS build: limitsTriangles must be provided and non-zero");
             return;
         }
         break;
     case ClusterAccelBuildOp::BLASFromCLAS:
-        if (desc.clustersLimits.maxArgCount == 0 ||
-            desc.clustersLimits.maxTotalClusterCount == 0 ||
-            desc.clustersLimits.maxClusterCountPerArg == 0)
+        if (desc.limits.limitsClusters.maxArgCount == 0 ||
+            desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
+            desc.limits.limitsClusters.maxClusterCountPerArg == 0)
         {
-            fail("Cluster BLAS build: clustersLimits must be provided and non-zero");
+            fail("Cluster BLAS build: limitsClusters must be provided and non-zero");
             return;
         }
         break;
