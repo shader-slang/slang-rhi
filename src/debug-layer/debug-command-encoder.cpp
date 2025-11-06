@@ -805,6 +805,26 @@ void DebugCommandEncoder::buildClusterAccelerationStructure(
             return;
         }
         break;
+    case ClusterAccelBuildOp::TemplatesFromTriangles:
+        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+        {
+            fail("Template build: limitsTriangles must be provided and non-zero");
+            return;
+        }
+        break;
+    case ClusterAccelBuildOp::CLASFromTemplates:
+        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+        {
+            fail("CLAS from template build: limitsTriangles must be provided and non-zero");
+            return;
+        }
+        break;
     default:
         break;
     }
