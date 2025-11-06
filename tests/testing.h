@@ -84,11 +84,34 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob);
 /// If slangReflection is nullptr, the program will not be linked (useful for ray tracing).
 Result loadProgram(
     IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ISession* slangSession,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    slang::ProgramLayout** slangReflection = nullptr,
-    slang::ISession* slangSession = nullptr
+    ComPtr<IShaderProgram>& outShaderProgram
+);
+
+Result loadProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram
+);
+
+Result loadAndLinkProgram(
+    IDevice* device,
+    slang::ISession* slangSession,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection = nullptr
+);
+
+Result loadAndLinkProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection = nullptr
 );
 
 Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source);

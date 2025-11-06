@@ -8,8 +8,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("buffer-resource-states", D3D12 | Vulkan)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-dummy", {"computeMain"}, &slangReflection));
+    REQUIRE_CALL(loadProgram(device, "test-dummy", {"computeMain"}, shaderProgram));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -63,8 +62,7 @@ GPU_TEST_CASE("buffer-resource-states", D3D12 | Vulkan)
 GPU_TEST_CASE("texture-resource-states", D3D12 | Vulkan)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-dummy", {"computeMain"}, &slangReflection));
+    REQUIRE_CALL(loadProgram(device, "test-dummy", {"computeMain"}, shaderProgram));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

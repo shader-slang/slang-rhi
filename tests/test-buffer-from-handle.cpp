@@ -6,8 +6,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-compute-trivial", {"computeMain"}, &slangReflection));
+    REQUIRE_CALL(loadProgram(device, "test-compute-trivial", {"computeMain"}, shaderProgram));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

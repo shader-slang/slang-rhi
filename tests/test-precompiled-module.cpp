@@ -116,7 +116,6 @@ static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompi
     std::string tempDirStr = tempDir.string();
 
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(precompileProgram(
         device,
         mixed ? "test-precompiled-module-imported" : "test-precompiled-module",
@@ -145,7 +144,7 @@ static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompi
     auto globalSession = slangSession->getGlobalSession();
     globalSession->createSession(sessionDesc, slangSession.writeRef());
     REQUIRE_CALL(
-        loadProgram(device, shaderProgram, "test-precompiled-module", {"computeMain"}, &slangReflection, slangSession)
+        loadAndLinkProgram(device, slangSession, "test-precompiled-module", {"computeMain"}, shaderProgram)
     );
 
     ComputePipelineDesc pipelineDesc = {};

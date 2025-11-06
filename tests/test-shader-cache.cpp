@@ -234,8 +234,7 @@ struct ShaderCacheTest
     void createComputePipeline(const char* moduleName, const char* entryPointName)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(loadProgram(device, shaderProgram, moduleName, {entryPointName}, &slangReflection));
+        REQUIRE_CALL(loadAndLinkProgram(device, moduleName, {entryPointName}, shaderProgram));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -525,7 +524,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         ComPtr<IShaderProgram> shaderProgram;
 
         REQUIRE_CALL(
-            loadProgram(device, shaderProgram, "test-shader-cache-specialization", {"computeMain"}, &slangReflection)
+            loadAndLinkProgram(device, "test-shader-cache-specialization", {"computeMain"}, shaderProgram, &slangReflection)
         );
 
         ComputePipelineDesc pipelineDesc = {};
@@ -733,13 +732,11 @@ struct ShaderCacheTestGraphics : ShaderCacheTest
     void createGraphicsPipeline()
     {
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadProgram(
             device,
-            shaderProgram,
             "test-shader-cache-graphics",
             {"vertexMain", "fragmentMain"},
-            &slangReflection
+            shaderProgram
         ));
 
         ColorTargetDesc target;

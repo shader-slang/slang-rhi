@@ -125,7 +125,6 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
 
     // Precompile a module.
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(precompileProgram(device, memoryFileSystem.get(), "precompiled-module-imported"));
 
     // Next, load the precompiled slang program.
@@ -136,7 +135,7 @@ void precompiledModuleCacheTestImpl(IDevice* device, UnitTestContext* context)
     SLANG_CHECK(upToDate); // The module should be up-to-date.
 
     REQUIRE_CALL(
-        loadProgram(device, shaderProgram, "precompiled-module", {"computeMain"}, &slangReflection, slangSession)
+        loadProgram(device, slangSession, "precompiled-module", {"computeMain"}, shaderProgram)
     );
 
     ComputePipelineDesc pipelineDesc = {};

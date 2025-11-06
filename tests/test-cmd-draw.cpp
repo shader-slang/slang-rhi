@@ -138,9 +138,8 @@ public:
         colorBuffer = createColorBuffer(device);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(
-            loadProgram(device, shaderProgram, "test-cmd-draw", {"vertexMain", "fragmentMain"}, &slangReflection)
+            loadProgram(device, "test-cmd-draw", {"vertexMain", "fragmentMain"}, shaderProgram)
         );
 
         ColorTargetDesc colorTarget;

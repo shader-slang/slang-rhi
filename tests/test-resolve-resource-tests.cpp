@@ -120,13 +120,12 @@ struct BaseResolveResourceTest
         vertexBuffer = createVertexBuffer(device);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection = nullptr;
         REQUIRE_CALL(loadProgram(
             device,
-            shaderProgram,
+            nullptr,
             "test-resolve-resource-shader",
             {"vertexMain", "fragmentMain"},
-            &slangReflection
+            shaderProgram
         ));
 
 

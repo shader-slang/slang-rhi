@@ -8,7 +8,7 @@ GPU_TEST_CASE("root-mutable-shader-object", WGPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-mutable-shader-object", {"computeMain"}, &slangReflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-mutable-shader-object", {"computeMain"}, shaderProgram, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

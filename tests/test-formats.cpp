@@ -65,8 +65,7 @@ struct TestFormats
         if (!pipeline)
         {
             ComPtr<IShaderProgram> shaderProgram;
-            slang::ProgramLayout* slangReflection = nullptr;
-            REQUIRE_CALL(loadProgram(device, shaderProgram, "test-formats", {entryPoint}, &slangReflection));
+            REQUIRE_CALL(loadProgram(device, "test-formats", {entryPoint}, shaderProgram));
 
             ComputePipelineDesc pipelineDesc = {};
             pipelineDesc.program = shaderProgram.get();
