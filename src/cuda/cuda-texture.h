@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cuda-base.h"
+#include "cuda-sampler.h"
 
 namespace rhi::cuda {
 
@@ -27,8 +28,12 @@ public:
     struct ViewKey
     {
         Format format;
+        SamplerSettings samplerSettings;
         SubresourceRange range;
-        bool operator==(const ViewKey& other) const { return format == other.format && range == other.range; }
+        bool operator==(const ViewKey& other) const
+        {
+            return format == other.format && samplerSettings == other.samplerSettings && range == other.range;
+        }
     };
 
     struct ViewKeyHasher
@@ -37,6 +42,19 @@ public:
         {
             size_t hash = 0;
             hash_combine(hash, key.format);
+            hash_combine(hash, key.samplerSettings.addressMode[0]);
+            hash_combine(hash, key.samplerSettings.addressMode[1]);
+            hash_combine(hash, key.samplerSettings.addressMode[2]);
+            hash_combine(hash, key.samplerSettings.filterMode);
+            hash_combine(hash, key.samplerSettings.maxAnisotropy);
+            hash_combine(hash, key.samplerSettings.mipmapFilterMode);
+            hash_combine(hash, key.samplerSettings.mipmapLevelBias);
+            hash_combine(hash, key.samplerSettings.minMipmapLevelClamp);
+            hash_combine(hash, key.samplerSettings.maxMipmapLevelClamp);
+            hash_combine(hash, key.samplerSettings.borderColor[0]);
+            hash_combine(hash, key.samplerSettings.borderColor[1]);
+            hash_combine(hash, key.samplerSettings.borderColor[2]);
+            hash_combine(hash, key.samplerSettings.borderColor[3]);
             hash_combine(hash, key.range.layer);
             hash_combine(hash, key.range.layerCount);
             hash_combine(hash, key.range.mip);
@@ -58,12 +76,13 @@ public:
         }
     };
 
+    SamplerSettings m_defaultSamplerSettings;
     RefPtr<TextureViewImpl> m_defaultView;
     std::mutex m_mutex;
     std::unordered_map<ViewKey, CUtexObject, ViewKeyHasher> m_texObjects;
     std::unordered_map<SubresourceRange, CUsurfObject, SubresourceRangeHasher> m_surfObjects;
 
-    CUtexObject getTexObject(Format format, const SubresourceRange& range);
+    CUtexObject getTexObject(Format format, const SamplerSettings& samplerSettings, const SubresourceRange& range);
     CUsurfObject getSurfObject(const SubresourceRange& range);
 };
 
@@ -85,8 +104,14 @@ public:
     CUtexObject getTexObject()
     {
         if (!m_cudaTexObj)
-            m_cudaTexObj = m_texture->getTexObject(m_desc.format, m_desc.subresourceRange);
+            m_cudaTexObj =
+                m_texture->getTexObject(m_desc.format, m_texture->m_defaultSamplerSettings, m_desc.subresourceRange);
         return m_cudaTexObj;
+    }
+
+    CUtexObject getTexObjectWithSamplerSettings(const SamplerSettings& samplerSettings)
+    {
+        return m_texture->getTexObject(m_desc.format, samplerSettings, m_desc.subresourceRange);
     }
 
     CUsurfObject getSurfObject()

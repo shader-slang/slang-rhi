@@ -39,6 +39,12 @@ inline Options& options()
     return opts;
 }
 
+inline std::string& exePath()
+{
+    static std::string path;
+    return path;
+}
+
 /// Get name of running test suite (note: defined in main.cpp).
 std::string getCurrentTestSuiteName();
 

@@ -109,7 +109,7 @@ endif()
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.19" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2025.21.1" CACHE STRING "Slang version to fetch")
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -792,6 +792,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-cmd-query.cpp
         tests/test-cmd-upload-buffer.cpp
         tests/test-cmd-upload-texture.cpp
+        tests/test-combined-texture-sampler.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
@@ -816,6 +817,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing.cpp
+        tests/test-ray-tracing-common.cpp
         tests/test-ray-tracing-lss.cpp
         tests/test-ray-tracing-hitobject-intrinsics.cpp
         tests/test-ray-tracing-reorder.cpp

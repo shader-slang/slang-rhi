@@ -60,6 +60,18 @@ void shaderObjectSetBinding(
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
+    case slang::BindingType::CombinedTextureSampler:
+    {
+        TextureViewImpl* textureView = checked_cast<TextureViewImpl*>(slot.resource.get());
+        SamplerImpl* sampler = checked_cast<SamplerImpl*>(slot.resource2.get());
+        uint64_t handle = 0;
+        if (textureView && sampler)
+        {
+            handle = textureView->getTexObjectWithSamplerSettings(sampler->m_samplerSettings);
+        }
+        memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
+        break;
+    }
     case slang::BindingType::RayTracingAccelerationStructure:
     {
         AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
