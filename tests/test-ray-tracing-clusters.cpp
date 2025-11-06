@@ -482,60 +482,64 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, vertices.size() * sizeof(Float3), vertices.data());
     ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, indices.size() * sizeof(uint32_t), indices.data());
 
-    // Device-written args buffer for two clusters (needs UAV access for compute write)
+    // Build flow: TemplatesFromTriangles (1) -> CLASFromTemplates (2 instances)
     const uint32_t clusterCount = 2;
-    BufferDesc argsDesc = {};
-    argsDesc.size = uint64_t(clusterCount) * sizeof(cluster_abi::TrianglesArgs);
-    argsDesc.usage = BufferUsage::AccelerationStructureBuildInput | BufferUsage::UnorderedAccess;
-    argsDesc.defaultState = ResourceState::UnorderedAccess;
-    ComPtr<IBuffer> triArgsBuf = device->createBuffer(argsDesc);
 
-    // Compute: write TrianglesArgs on device
-    ComPtr<IShaderProgram> computeProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, computeProgram, "test-ray-tracing-clusters", "write_tri_args", slangReflection));
-    ComputePipelineDesc cdesc = {};
-    cdesc.program = computeProgram;
-    ComPtr<IComputePipeline> cpipeline;
-    REQUIRE_CALL(device->createComputePipeline(cdesc, cpipeline.writeRef()));
+    // Create one template from triangles (host-filled args)
+    OptixClusterAccelBuildInputTrianglesArgs trianglesArgs = makeSimpleTrianglesArgs(
+        /*clusterId*/0,
+        /*triangleCount*/triPerCluster,
+        /*vertexCount*/vtxPerCluster,
+        /*indexBuffer*/ibuf->getDeviceAddress(),
+        /*vertexBuffer*/vbuf->getDeviceAddress(),
+        /*vertexStrideBytes*/(uint32_t)sizeof(Float3));
+    ComPtr<IBuffer> trianglesArgsBuffer = createAccelInputBuffer(device, sizeof(trianglesArgs), &trianglesArgs);
+
+    ClusterAccelBuildDesc templatesFromTrianglesDesc = {};
+    templatesFromTrianglesDesc.op = ClusterAccelBuildOp::TemplatesFromTriangles;
+    templatesFromTrianglesDesc.argsBuffer = BufferOffsetPair(trianglesArgsBuffer, 0);
+    templatesFromTrianglesDesc.argsStride = sizeof(OptixClusterAccelBuildInputTrianglesArgs);
+    templatesFromTrianglesDesc.argCount = 1;
+    templatesFromTrianglesDesc.limits.limitsTriangles.maxArgCount = 1;
+    templatesFromTrianglesDesc.limits.limitsTriangles.maxTriangleCountPerArg = triPerCluster;
+    templatesFromTrianglesDesc.limits.limitsTriangles.maxVertexCountPerArg = vtxPerCluster;
+    templatesFromTrianglesDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
 
     auto queue = device->getQueue(QueueType::Graphics);
-    auto enc = queue->createCommandEncoder();
+    ClasImplicitBuildResult templatesImplicitResult = buildClasImplicit(device, queue, templatesFromTrianglesDesc, /*handleCount*/1);
+    CHECK_NE(templatesImplicitResult.handles[0], 0);
+
+    // Instantiate the template twice via CLASFromTemplates
+    cluster_abi::TemplatesArgs templateInstantiationArgs[2] = {};
+    uint64_t templateHandle = templatesImplicitResult.handles[0];
+    uint64_t vertexBaseAddress = vbuf->getDeviceAddress();
+    uint32_t vertexStrideInBytes = (uint32_t)sizeof(Float3);
+    // Note: For a large number of clusters, we could populate these args with a compute
+    // kernel. For two clusters, host-side filling is ok.
+    for (uint32_t i = 0; i < clusterCount; ++i)
     {
-        auto cpass = enc->beginComputePass();
-        auto root = cpass->bindPipeline(cpipeline);
-        ShaderCursor cur(root);
-        cur["g_tri_args"].setBinding(triArgsBuf);
-        uint64_t idxAddr = ibuf->getDeviceAddress();
-        uint64_t vtxAddr = vbuf->getDeviceAddress();
-        uint32_t vtxStride = (uint32_t)sizeof(Float3);
-        uint32_t vtxOffsetElemsPerCluster = vertCount;
-        cur["g_index_buffer"].setData(&idxAddr, sizeof(idxAddr));
-        cur["g_vertex_buffer"].setData(&vtxAddr, sizeof(vtxAddr));
-        cur["g_vertex_stride_bytes"].setData(&vtxStride, sizeof(vtxStride));
-        cur["g_triangle_count"].setData(&triPerCluster, sizeof(triPerCluster));
-        cur["g_vertex_count"].setData(&vtxPerCluster, sizeof(vtxPerCluster));
-        cur["g_vertex_offset_elems_per_cluster"].setData(&vtxOffsetElemsPerCluster, sizeof(vtxOffsetElemsPerCluster));
-        cur["g_cluster_count"].setData(&clusterCount, sizeof(clusterCount));
-        cpass->dispatchCompute(2, 1, 1);
-        cpass->end();
+        uint64_t vertexAddress = vertexBaseAddress + uint64_t(i) * uint64_t(vtxPerCluster) * uint64_t(vertexStrideInBytes);
+        templateInstantiationArgs[i] = cluster_abi::makeTemplatesArgs(
+            /*clusterTemplate*/templateHandle,
+            /*vertexBuffer*/vertexAddress,
+            /*vertexStrideInBytes*/vertexStrideInBytes,
+            /*clusterIdOffset*/i,
+            /*sbtIndexOffset*/0);
     }
-    enc->globalBarrier();
-    queue->submit(enc->finish());
-    queue->waitOnHost();
+    ComPtr<IBuffer> templateInstantiationArgsBuffer = createAccelInputBuffer(device, sizeof(templateInstantiationArgs), &templateInstantiationArgs[0]);
 
-    // Build CLAS (implicit mode) using device-written args
-    ClusterAccelBuildDesc clasDesc = {};
-    clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
-    clasDesc.argsBuffer = BufferOffsetPair(triArgsBuf, 0);
-    clasDesc.argsStride = (uint32_t)sizeof(cluster_abi::TrianglesArgs);
-    clasDesc.argCount = clusterCount;
-    clasDesc.limits.limitsTriangles.maxArgCount = clusterCount;
-    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = triPerCluster;
-    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = vtxPerCluster;
-    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
+    ClusterAccelBuildDesc clasFromTemplates = {};
+    clasFromTemplates.op = ClusterAccelBuildOp::CLASFromTemplates;
+    clasFromTemplates.argsBuffer = BufferOffsetPair(templateInstantiationArgsBuffer, 0);
+    clasFromTemplates.argsStride = (uint32_t)sizeof(cluster_abi::TemplatesArgs);
+    clasFromTemplates.argCount = clusterCount;
+    // Reuse triangle-related limits (per API contract)
+    clasFromTemplates.limits.limitsTriangles.maxArgCount = clusterCount;
+    clasFromTemplates.limits.limitsTriangles.maxTriangleCountPerArg = triPerCluster;
+    clasFromTemplates.limits.limitsTriangles.maxVertexCountPerArg = vtxPerCluster;
+    clasFromTemplates.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
 
-    ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasDesc, clusterCount);
+    ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasFromTemplates, clusterCount);
     CHECK_NE(clasResult.handles[0], 0);
     CHECK_NE(clasResult.handles[1], 0);
 
@@ -593,7 +597,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
 
     queue = device->getQueue(QueueType::Graphics);
-    enc = queue->createCommandEncoder();
+    auto enc = queue->createCommandEncoder();
     enc->buildAccelerationStructure(tlasBuildDesc, TLAS, nullptr, tlasScratch, 0, nullptr);
     queue->submit(enc->finish());
     queue->waitOnHost();
