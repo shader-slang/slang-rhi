@@ -4,26 +4,38 @@
 // -------------------------------------------------------------------------------------------------
 // Constants
 // -------------------------------------------------------------------------------------------------
-static const ABI_U32 CLUSTER_HANDLE_BYTE_STRIDE = 8;   // implicit handles are 8 bytes each
-static const ABI_U32 CLUSTER_OUTPUT_ALIGNMENT   = 128; // outputs begin at 128B-aligned offset after handle table
+static const ABI_U32 CLUSTER_HANDLE_BYTE_STRIDE = 8;
+static const ABI_U32 CLUSTER_OUTPUT_ALIGNMENT   = 128;
 
 // Packed fields layout for TrianglesArgs::packed0 (bit positions)
+// bits [8:0]   = triangleCount
+// bits [23:9]  = vertexCount
+// bits [29:24] = indexFormat   (0=u16, 1=u32; others reserved)
+// bits [33:30] = ommIndexFormat (MVP: must be 0)
 static const ABI_U32 TRIANGLE_COUNT_SHIFT              = 0;
-static const ABI_U32 TRIANGLE_COUNT_MASK               = 0x1FFu;
+static const ABI_U32 TRIANGLE_COUNT_WIDTH              = 9;
+static const ABI_U32 TRIANGLE_COUNT_MASK               = ((1u << TRIANGLE_COUNT_WIDTH) - 1u);
 static const ABI_U32 VERTEX_COUNT_SHIFT                = 9;
-static const ABI_U32 VERTEX_COUNT_MASK                 = 0x1FFu;
+static const ABI_U32 VERTEX_COUNT_WIDTH                = 9;
+static const ABI_U32 VERTEX_COUNT_MASK                 = ((1u << VERTEX_COUNT_WIDTH) - 1u);
 static const ABI_U32 POSITION_TRUNCATE_BITS_SHIFT      = 18;
-static const ABI_U32 POSITION_TRUNCATE_BITS_MASK       = 0x3Fu;
+static const ABI_U32 POSITION_TRUNCATE_BITS_WIDTH      = 6;
+static const ABI_U32 POSITION_TRUNCATE_BITS_MASK       = ((1u << POSITION_TRUNCATE_BITS_WIDTH) - 1u);
 static const ABI_U32 INDEX_FORMAT_SHIFT                = 24;
-static const ABI_U32 INDEX_FORMAT_MASK                 = 0xFu;
+static const ABI_U32 INDEX_FORMAT_WIDTH                = 4;
+static const ABI_U32 INDEX_FORMAT_MASK                 = ((1u << INDEX_FORMAT_WIDTH) - 1u);
 static const ABI_U32 OMM_INDEX_FORMAT_SHIFT            = 28;
-static const ABI_U32 OMM_INDEX_FORMAT_MASK             = 0xFu;
+static const ABI_U32 OMM_INDEX_FORMAT_WIDTH            = 4;
+static const ABI_U32 OMM_INDEX_FORMAT_MASK             = ((1u << OMM_INDEX_FORMAT_WIDTH) - 1u);
 
 // PrimitiveInfo bit packing (matches 24-bit sbtIndex + 3-bit primitiveFlags)
 static const ABI_U32 PRIM_SBT_INDEX_SHIFT              = 0;
-static const ABI_U32 PRIM_SBT_INDEX_MASK               = 0xFFFFFFu;
-static const ABI_U32 PRIM_FLAGS_SHIFT                  = 24 + 5; // leave 5 reserved bits per vendor ABI
-static const ABI_U32 PRIM_FLAGS_MASK                   = 0x7u;
+static const ABI_U32 PRIM_SBT_INDEX_WIDTH              = 24;
+static const ABI_U32 PRIM_SBT_INDEX_MASK               = ((1u << PRIM_SBT_INDEX_WIDTH) - 1u);
+static const ABI_U32 PRIM_RESERVED_WIDTH               = 5;
+static const ABI_U32 PRIM_FLAGS_SHIFT                  = PRIM_SBT_INDEX_SHIFT + PRIM_SBT_INDEX_WIDTH + PRIM_RESERVED_WIDTH;
+static const ABI_U32 PRIM_FLAGS_WIDTH                  = 3;
+static const ABI_U32 PRIM_FLAGS_MASK                   = ((1u << PRIM_FLAGS_WIDTH) - 1u);
 
 // Helper to pack counts and formats into a single u32.
 static inline ABI_U32 packCountsAndFormats(
