@@ -1485,7 +1485,7 @@ struct ClusterAccelBuildDesc
     /// Number of arg records to consume from argsBuffer.
     uint32_t argCount = 0;
 
-    /// Host-side extension chain (reserved for future use). Not used by current implementations.
+    /// Reserved for future extensions. Must be nullptr in the current implementation.
     const void* next = nullptr;
 
     /// Optional per-op limits/hints to assist backends (0 means unspecified)
@@ -1503,10 +1503,10 @@ struct ClusterAccelBuildDesc
         Size          outputBufferSizeInBytes = 0;
         DeviceAddress tempBuffer = 0;
         Size          tempBufferSizeInBytes = 0;
-        DeviceAddress outputHandlesBuffer = 0;     // 0 -> use front of result buffer
-        uint32_t      outputHandlesStrideInBytes = 0; // 0 -> 8
-        DeviceAddress outputSizesBuffer = 0;
-        uint32_t      outputSizesStrideInBytes = 0;   // 0 -> 4
+        DeviceAddress outputHandlesBuffer = 0;        // optional, defaults to front of result buffer if 0
+        uint32_t      outputHandlesStrideInBytes = 0; // optional, defaults to sizeof(uint64_t) if 0
+        DeviceAddress outputSizesBuffer = 0;          // optional
+        uint32_t      outputSizesStrideInBytes = 0;   // optional, defaults to sizeof(uint32_t) if 0
     };
     struct ExplicitDesc
     {
@@ -1514,19 +1514,19 @@ struct ClusterAccelBuildDesc
         DeviceAddress tempBuffer = 0;
         Size          tempBufferSizeInBytes = 0;
         DeviceAddress destAddressesBuffer = 0;        // required
-        uint32_t      destAddressesStrideInBytes = 0;  // 0 -> 8
-        DeviceAddress outputHandlesBuffer = 0;         // 0 -> alias destAddresses
-        uint32_t      outputHandlesStrideInBytes = 0;  // 0 -> 8
-        DeviceAddress outputSizesBuffer = 0;
-        uint32_t      outputSizesStrideInBytes = 0;    // 0 -> 4
+        uint32_t      destAddressesStrideInBytes = 0; // optional, defaults to sizeof(uint64_t) if 0
+        DeviceAddress outputHandlesBuffer = 0;        // optional, aliases destAddresses if 0
+        uint32_t      outputHandlesStrideInBytes = 0; // optional, defaults to sizeof(uint64_t) if 0
+        DeviceAddress outputSizesBuffer = 0;          // optional
+        uint32_t      outputSizesStrideInBytes = 0;   // optional, defaults to sizeof(uint32_t) if 0
     };
     struct GetSizesDesc
     {
         // Required temporary buffer for size queries
         DeviceAddress tempBuffer = 0;
         Size          tempBufferSizeInBytes = 0;
-        DeviceAddress outputSizesBuffer = 0;           // required
-        uint32_t      outputSizesStrideInBytes = 0;    // 0 -> 4
+        DeviceAddress outputSizesBuffer = 0;        // required
+        uint32_t      outputSizesStrideInBytes = 0; // optional, defaults to sizeof(uint32_t) if 0
     };
 
     union

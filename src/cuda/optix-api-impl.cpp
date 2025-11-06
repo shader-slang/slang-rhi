@@ -860,7 +860,7 @@ public:
         case ClusterAccelBuildOp::CLASFromTriangles:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
-            // For CLAS sizing, use IMPLICIT_DESTINATIONS to obtain total buffer sizes
+            // Sizing query uses IMPLICIT mode to get total required buffer sizes
             buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
             if (desc.trianglesLimits.maxArgCount == 0 ||
                 desc.trianglesLimits.maxTriangleCountPerArg == 0 ||
@@ -881,7 +881,7 @@ public:
         case ClusterAccelBuildOp::BLASFromCLAS:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
-            // For BLAS sizing, use IMPLICIT_DESTINATIONS
+            // Sizing query uses IMPLICIT mode to get total required buffer sizes
             buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
             if (desc.clustersLimits.maxArgCount == 0 ||
                 desc.clustersLimits.maxTotalClusterCount == 0 ||
@@ -901,7 +901,9 @@ public:
 
         OptixAccelBufferSizes sizes = {};
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-            optixClusterAccelComputeMemoryUsage(m_deviceContext, buildMode.mode, &buildInput, &sizes), m_device);
+            optixClusterAccelComputeMemoryUsage(m_deviceContext, buildMode.mode, &buildInput, &sizes),
+            m_device
+        );
 
         // Report only the payload output size; handles storage is specified separately in the desc
         outSizes->resultSize = sizes.outputSizeInBytes;
@@ -1041,11 +1043,8 @@ public:
 #else
         OptixClusterAccelBuildInput buildInput = {};
         OptixClusterAccelBuildModeDesc mode = {};
-        mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
 
-        // Buffers are provided via desc.modeDesc; no external buffers are passed.
-
-        // Read first-class build mode and fields
+        // Translate RHI build mode to OptiX mode descriptor
         switch (desc.mode)
         {
         case ClusterAccelBuildDesc::BuildMode::Explicit:
@@ -1055,8 +1054,10 @@ public:
             mode.explicitDest.tempBufferSizeInBytes = desc.modeDesc.explicitDest.tempBufferSizeInBytes;
             mode.explicitDest.destAddressesBuffer = desc.modeDesc.explicitDest.destAddressesBuffer;
             mode.explicitDest.destAddressesStrideInBytes = desc.modeDesc.explicitDest.destAddressesStrideInBytes;
-            // Handles buffer: alias to destAddresses if not provided
-            mode.explicitDest.outputHandlesBuffer = desc.modeDesc.explicitDest.outputHandlesBuffer ? desc.modeDesc.explicitDest.outputHandlesBuffer : desc.modeDesc.explicitDest.destAddressesBuffer;
+            // If no separate handles buffer is provided, use the destination addresses buffer
+            mode.explicitDest.outputHandlesBuffer = desc.modeDesc.explicitDest.outputHandlesBuffer
+                                                         ? desc.modeDesc.explicitDest.outputHandlesBuffer
+                                                         : desc.modeDesc.explicitDest.destAddressesBuffer;
             mode.explicitDest.outputHandlesStrideInBytes = desc.modeDesc.explicitDest.outputHandlesStrideInBytes;
             mode.explicitDest.outputSizesBuffer = desc.modeDesc.explicitDest.outputSizesBuffer;
             mode.explicitDest.outputSizesStrideInBytes = desc.modeDesc.explicitDest.outputSizesStrideInBytes;
@@ -1085,10 +1086,8 @@ public:
             mode.implicitDest.outputBufferSizeInBytes = desc.modeDesc.implicit.outputBufferSizeInBytes;
             mode.implicitDest.tempBuffer = desc.modeDesc.implicit.tempBuffer;
             mode.implicitDest.tempBufferSizeInBytes = desc.modeDesc.implicit.tempBufferSizeInBytes;
-            // Handles buffer is required and provided in the desc
             mode.implicitDest.outputHandlesBuffer = desc.modeDesc.implicit.outputHandlesBuffer;
-            mode.implicitDest.outputHandlesStrideInBytes = desc.modeDesc.implicit.outputHandlesStrideInBytes; // 0 -> 8
-            // Optional sizes buffer
+            mode.implicitDest.outputHandlesStrideInBytes = desc.modeDesc.implicit.outputHandlesStrideInBytes;
             mode.implicitDest.outputSizesBuffer = desc.modeDesc.implicit.outputSizesBuffer;
             mode.implicitDest.outputSizesStrideInBytes = desc.modeDesc.implicit.outputSizesStrideInBytes;
         }
@@ -1135,7 +1134,7 @@ public:
             return;
         }
 
-        // args are already device side, pass through with natural stride (0) and argsCount null to use maxArgCount
+        // Pass device-side args buffer directly to OptiX with stride 0 (tightly packed) and count 0 (use maxArgCount)
         optixClusterAccelBuild(
             m_deviceContext,
             stream,
