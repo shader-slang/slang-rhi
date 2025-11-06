@@ -661,6 +661,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     if (device->getDeviceType() == DeviceType::CUDA)
     {
         // Map (stripIndex, cellCoord) -> linear index into the ids image buffer.
+        // Strategy: convert logical strip/cell coords → world space → NDC UV → pixel coords.
         // - stripIndex: 0 = lower strip center (y=0), 1 = upper strip center (y=kStripHeight+kStripGap)
         // - cellCoord: cellIndex + uWithinCell, e.g., 1.6 means cell 1 at 60% across
         auto makeProbeIndex = [&](uint32_t stripIndex, float cellCoord) -> uint64_t {
