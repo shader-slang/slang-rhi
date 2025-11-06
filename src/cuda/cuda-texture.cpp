@@ -175,13 +175,17 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
     return SLANG_OK;
 }
 
-CUtexObject TextureImpl::getTexObject(Format format, const SubresourceRange& range)
+CUtexObject TextureImpl::getTexObject(
+    Format format,
+    const SamplerSettings& samplerSettings,
+    const SubresourceRange& range
+)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    ViewKey key = {format, range};
+    ViewKey key = {format, samplerSettings, range};
     CUtexObject& texObject = m_texObjects[key];
     if (texObject)
         return texObject;
@@ -199,12 +203,20 @@ CUtexObject TextureImpl::getTexObject(Format format, const SubresourceRange& ran
         resDesc.res.mipmap.hMipmappedArray = m_cudaMipMappedArray;
     }
 
-    // TODO provide a way to set these parameters
     CUDA_TEXTURE_DESC texDesc = {};
-    texDesc.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
-    texDesc.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
-    texDesc.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
-    texDesc.filterMode = CU_TR_FILTER_MODE_LINEAR;
+    texDesc.addressMode[0] = samplerSettings.addressMode[0];
+    texDesc.addressMode[1] = samplerSettings.addressMode[1];
+    texDesc.addressMode[2] = samplerSettings.addressMode[2];
+    texDesc.filterMode = samplerSettings.filterMode;
+    texDesc.maxAnisotropy = samplerSettings.maxAnisotropy;
+    texDesc.mipmapFilterMode = samplerSettings.mipmapFilterMode;
+    texDesc.mipmapLevelBias = samplerSettings.mipmapLevelBias;
+    texDesc.minMipmapLevelClamp = samplerSettings.minMipmapLevelClamp;
+    texDesc.maxMipmapLevelClamp = samplerSettings.maxMipmapLevelClamp;
+    texDesc.borderColor[0] = samplerSettings.borderColor[0];
+    texDesc.borderColor[1] = samplerSettings.borderColor[1];
+    texDesc.borderColor[2] = samplerSettings.borderColor[2];
+    texDesc.borderColor[3] = samplerSettings.borderColor[3];
     texDesc.flags = CU_TRSF_NORMALIZED_COORDINATES;
     const FormatMapping& mapping = getFormatMapping(format);
     if (mapping.flags & FLAG_INT)
@@ -255,6 +267,15 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     TextureDesc desc = fixupTextureDesc(desc_);
 
     RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
+
+    auto& samplerSettings = tex->m_defaultSamplerSettings;
+    samplerSettings = {};
+    samplerSettings.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
+    samplerSettings.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
+    samplerSettings.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
+    samplerSettings.filterMode = CU_TR_FILTER_MODE_LINEAR;
+    samplerSettings.maxAnisotropy = 1;
+    samplerSettings.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
 
     // The size of the element/texel in bytes
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
