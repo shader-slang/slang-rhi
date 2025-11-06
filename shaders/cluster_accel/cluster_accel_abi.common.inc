@@ -95,6 +95,18 @@ struct TrianglesArgs
     ABI_U64  instantiationBoundingBoxLimit;
 };
 
+// Args for CLAS instantiation from Templates.
+// Matches OptiX OptixClusterAccelBuildInputTemplatesArgs layout.
+struct TemplatesArgs
+{
+    ABI_U32  clusterIdOffset;     // added to template's baseClusterId
+    ABI_U32  sbtIndexOffset;      // added to template's base SBT index
+    ABI_U64  clusterTemplate;     // opaque template handle/device address
+    ABI_U64  vertexBuffer;        // optional in GET_SIZES (can be 0 to query worst-case size)
+    ABI_U32  vertexStrideInBytes;
+    ABI_U32  reserved;
+};
+
 struct ClustersArgs
 {
     ABI_U32  clusterHandlesCount;
@@ -125,6 +137,23 @@ static inline TrianglesArgs makeTrianglesArgs(
     a.opacityMicromapArray = 0;
     a.opacityMicromapIndexBuffer = 0;
     a.instantiationBoundingBoxLimit = 0;
+    return a;
+}
+
+static inline TemplatesArgs makeTemplatesArgs(
+    ABI_U64 clusterTemplate,
+    ABI_U64 vertexBuffer,
+    ABI_U32 vertexStrideInBytes,
+    ABI_U32 clusterIdOffset,
+    ABI_U32 sbtIndexOffset)
+{
+    TemplatesArgs a = {};
+    a.clusterIdOffset = clusterIdOffset;
+    a.sbtIndexOffset = sbtIndexOffset;
+    a.clusterTemplate = clusterTemplate;
+    a.vertexBuffer = vertexBuffer;                 // may be 0 in GET_SIZES mode
+    a.vertexStrideInBytes = vertexStrideInBytes;   // ignored if vertexBuffer is 0
+    a.reserved = 0;
     return a;
 }
 
