@@ -913,20 +913,20 @@ public:
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
             // Sizing query uses IMPLICIT mode to get total required buffer sizes
             buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
-            if (desc.trianglesLimits.maxArgCount == 0 ||
-                desc.trianglesLimits.maxTriangleCountPerArg == 0 ||
-                desc.trianglesLimits.maxVertexCountPerArg == 0 ||
-                desc.trianglesLimits.maxUniqueSbtIndexCountPerArg == 0)
+            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
             {
-                m_device->printError("Cluster CLAS sizing: trianglesLimits must be provided");
+                m_device->printError("Cluster CLAS sizing: limitsTriangles must be provided");
                 return SLANG_E_INVALID_ARG;
             }
-            buildInput.triangles.maxArgCount = desc.trianglesLimits.maxArgCount;
+            buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
             buildInput.triangles.maxUniqueSbtIndexCountPerArg =
-                desc.trianglesLimits.maxUniqueSbtIndexCountPerArg;
-            buildInput.triangles.maxTriangleCountPerArg = desc.trianglesLimits.maxTriangleCountPerArg;
-            buildInput.triangles.maxVertexCountPerArg = desc.trianglesLimits.maxVertexCountPerArg;
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.limits.limitsTriangles.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.limits.limitsTriangles.maxVertexCountPerArg;
             break;
         }
         case ClusterAccelBuildOp::BLASFromCLAS:
@@ -934,16 +934,16 @@ public:
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
             // Sizing query uses IMPLICIT mode to get total required buffer sizes
             buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
-            if (desc.clustersLimits.maxArgCount == 0 ||
-                desc.clustersLimits.maxTotalClusterCount == 0 ||
-                desc.clustersLimits.maxClusterCountPerArg == 0)
+            if (desc.limits.limitsClusters.maxArgCount == 0 ||
+                desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
+                desc.limits.limitsClusters.maxClusterCountPerArg == 0)
             {
-                m_device->printError("Cluster BLAS sizing: clustersLimits must be provided");
+                m_device->printError("Cluster BLAS sizing: limitsClusters must be provided");
                 return SLANG_E_INVALID_ARG;
             }
-            buildInput.clusters.maxArgCount = desc.clustersLimits.maxArgCount;
-            buildInput.clusters.maxTotalClusterCount = desc.clustersLimits.maxTotalClusterCount;
-            buildInput.clusters.maxClusterCountPerArg = desc.clustersLimits.maxClusterCountPerArg;
+            buildInput.clusters.maxArgCount = desc.limits.limitsClusters.maxArgCount;
+            buildInput.clusters.maxTotalClusterCount = desc.limits.limitsClusters.maxTotalClusterCount;
+            buildInput.clusters.maxClusterCountPerArg = desc.limits.limitsClusters.maxClusterCountPerArg;
             break;
         }
         default:
@@ -1149,36 +1149,36 @@ public:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
             buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
-            if (desc.trianglesLimits.maxArgCount == 0 ||
-                desc.trianglesLimits.maxTriangleCountPerArg == 0 ||
-                desc.trianglesLimits.maxVertexCountPerArg == 0 ||
-                desc.trianglesLimits.maxUniqueSbtIndexCountPerArg == 0)
+            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
             {
-                m_device->printError("Cluster CLAS build: trianglesLimits must be provided");
+                m_device->printError("Cluster CLAS build: limitsTriangles must be provided");
                 return;
             }
-            buildInput.triangles.maxArgCount = desc.trianglesLimits.maxArgCount;
+            buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
-            buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.trianglesLimits.maxUniqueSbtIndexCountPerArg;
-            buildInput.triangles.maxTriangleCountPerArg = desc.trianglesLimits.maxTriangleCountPerArg;
-            buildInput.triangles.maxVertexCountPerArg = desc.trianglesLimits.maxVertexCountPerArg;
-            buildInput.triangles.maxSbtIndexValue = desc.trianglesLimits.maxUniqueSbtIndexCountPerArg ? (desc.trianglesLimits.maxUniqueSbtIndexCountPerArg - 1) : 0;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.limits.limitsTriangles.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.limits.limitsTriangles.maxVertexCountPerArg;
+            buildInput.triangles.maxSbtIndexValue = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg ? (desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg - 1) : 0;
             break;
         }
         case ClusterAccelBuildOp::BLASFromCLAS:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
             buildInput.clusters.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
-            if (desc.clustersLimits.maxArgCount == 0 ||
-                desc.clustersLimits.maxTotalClusterCount == 0 ||
-                desc.clustersLimits.maxClusterCountPerArg == 0)
+            if (desc.limits.limitsClusters.maxArgCount == 0 ||
+                desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
+                desc.limits.limitsClusters.maxClusterCountPerArg == 0)
             {
-                m_device->printError("Cluster BLAS build: clustersLimits must be provided");
+                m_device->printError("Cluster BLAS build: limitsClusters must be provided");
                 return;
             }
-            buildInput.clusters.maxArgCount = desc.clustersLimits.maxArgCount;
-            buildInput.clusters.maxTotalClusterCount = desc.clustersLimits.maxTotalClusterCount;
-            buildInput.clusters.maxClusterCountPerArg = desc.clustersLimits.maxClusterCountPerArg;
+            buildInput.clusters.maxArgCount = desc.limits.limitsClusters.maxArgCount;
+            buildInput.clusters.maxTotalClusterCount = desc.limits.limitsClusters.maxTotalClusterCount;
+            buildInput.clusters.maxClusterCountPerArg = desc.limits.limitsClusters.maxClusterCountPerArg;
             break;
         }
         default:

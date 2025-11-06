@@ -1457,19 +1457,25 @@ struct ClusterAccelSizes
 
 struct ClusterAccelLimitsTriangles
 {
-    /// Optional upper bound on args provided; 0 means unspecified
+    /// Required for CLASFromTriangles and TemplatesFromTriangles operations; must be non-zero.
     uint32_t maxArgCount = 0;
+    /// Required; maximum number of triangles in a single cluster.
     uint32_t maxTriangleCountPerArg = 0;
+    /// Required; maximum number of vertices in a single cluster.
     uint32_t maxVertexCountPerArg = 0;
+    /// Required; maximum number of unique SBT indices within a single cluster.
     uint32_t maxUniqueSbtIndexCountPerArg = 0;
+    /// Optional; minimum number of mantissa bits to truncate from vertex positions (0 means no truncation).
     uint32_t positionTruncateBitCount = 0;
 };
 
 struct ClusterAccelLimitsClusters
 {
-    /// Optional upper bound on args provided; 0 means unspecified
+    /// Required for BLASFromCLAS operation; must be non-zero.
     uint32_t maxArgCount = 0;
+    /// Required; total number of cluster handles across all args.
     uint32_t maxTotalClusterCount = 0;
+    /// Required; maximum number of cluster handles per arg.
     uint32_t maxClusterCountPerArg = 0;
 };
 
@@ -1488,9 +1494,16 @@ struct ClusterAccelBuildDesc
     /// Reserved for future extensions. Must be nullptr in the current implementation.
     const void* next = nullptr;
 
-    /// Optional per-op limits/hints to assist backends (0 means unspecified)
-    ClusterAccelLimitsTriangles trianglesLimits = {};
-    ClusterAccelLimitsClusters clustersLimits = {};
+    /// Per-operation limits. The active member is determined by the 'op' field.
+    /// - CLASFromTriangles: use limitsTriangles
+    /// - BLASFromCLAS: use limitsClusters
+    /// - TemplatesFromTriangles: use limitsTriangles
+    /// - CLASFromTemplates: use limitsTriangles (reuses triangle limits, matching all backends)
+    union
+    {
+        ClusterAccelLimitsTriangles limitsTriangles;
+        ClusterAccelLimitsClusters limitsClusters;
+    } limits = {};
 
     // Build mode and associated parameters. Defaults to Implicit when unspecified.
     enum class BuildMode : uint32_t { Implicit = 0, Explicit = 1, GetSizes = 2 };
