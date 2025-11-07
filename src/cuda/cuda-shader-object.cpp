@@ -229,31 +229,6 @@ Result BindingDataBuilder::writeObjectData(
             }
         }
         break;
-#if 0
-        case slang::BindingType::ExistentialValue:
-            // We can only bind information for existential-typed sub-object
-            // ranges if we have a static type that we are able to specialize to.
-            //
-            if (subObjectLayout)
-            {
-                // The data for objects in this range will always be bound into
-                // the "pending" allocation for the parent block/buffer/object.
-                // As a result, the offset for the first object in the range
-                // will come from the `pending` part of the range's offset.
-                //
-                SimpleBindingOffset objOffset = rangeOffset;
-                SimpleBindingOffset objStride = rangeStride;
-
-                for (uint32_t i = 0; i < count; ++i)
-                {
-                    ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
-                    bindAsValue(subObject, BindingOffset(objOffset), subObjectLayout);
-
-                    objOffset += objStride;
-                }
-            }
-            break;
-#endif
         default:
             break;
         }

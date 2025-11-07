@@ -64,16 +64,12 @@ public:
     struct SubObjectRangeOffset : BindingOffset
     {
         SubObjectRangeOffset() {}
-
-        SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout);
     };
 
     /// Stride information for a sub-object range
     struct SubObjectRangeStride : BindingOffset
     {
         SubObjectRangeStride() {}
-
-        SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout);
     };
 
     /// Information about a sub-objecrt range
@@ -352,19 +348,6 @@ public:
             }
         };
 
-        struct BindingRegisterOffsetPair
-        {
-            BindingRegisterOffset primary;
-
-            BindingRegisterOffsetPair() {}
-
-            BindingRegisterOffsetPair(slang::VariableLayoutReflection* varLayout)
-                : primary(varLayout)
-            {
-            }
-
-            void operator+=(const BindingRegisterOffsetPair& other) { primary += other.primary; }
-        };
         /// Add a new descriptor set to the layout being computed.
         ///
         /// Note that a "descriptor set" in the layout may amount to
@@ -449,15 +432,15 @@ public:
         void addAsConstantBuffer(
             slang::TypeLayoutReflection* typeLayout,
             uint32_t physicalDescriptorSetIndex,
-            BindingRegisterOffsetPair containerOffset,
-            BindingRegisterOffsetPair elementOffset
+            BindingRegisterOffset containerOffset,
+            BindingRegisterOffset elementOffset
         );
 
         void addAsValue(
             slang::TypeLayoutReflection* typeLayout,
             uint32_t physicalDescriptorSetIndex,
-            BindingRegisterOffsetPair containerOffset,
-            BindingRegisterOffsetPair elementOffset
+            BindingRegisterOffset containerOffset,
+            BindingRegisterOffset elementOffset
         );
 
         D3D12_ROOT_SIGNATURE_DESC1& build();

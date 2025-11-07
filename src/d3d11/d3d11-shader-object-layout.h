@@ -60,15 +60,9 @@ struct SimpleBindingOffset
     }
 };
 
-// While a "simple" binding offset representation will work in many cases,
-// once we need to deal with layout for programs with interface-type parameters
-// that have been statically specialized.
-
 /// A representation of the offset at which to bind a shader parameter or sub-object
 struct BindingOffset : SimpleBindingOffset
 {
-
-
     /// Create a default (zero) offset
     BindingOffset() {}
 
