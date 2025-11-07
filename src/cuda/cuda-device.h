@@ -145,7 +145,6 @@ public:
         AccelerationStructureSizes* outSizes
     ) override;
 
-    // Cluster acceleration sizes (OptiX)
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
         const ClusterAccelBuildDesc& desc,
         ClusterAccelSizes* outSizes
