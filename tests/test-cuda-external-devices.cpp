@@ -24,7 +24,7 @@ void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool exp
 {
     SLANG_CUDA_CTX_SCOPE(device);
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", {"computeMain"}, shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

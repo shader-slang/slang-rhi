@@ -32,7 +32,7 @@ GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadAndLinkProgram(device, "test-sampler-array", {"computeMain"}, shaderProgram, &slangReflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-sampler-array", "computeMain", shaderProgram, &slangReflection));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

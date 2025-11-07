@@ -259,7 +259,7 @@ struct ComputeSurfaceTest : SurfaceTest
     void initResources() override
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-surface-compute", {"computeMain"}, shaderProgram));
+        REQUIRE_CALL(loadProgram(device, "test-surface-compute", "computeMain", shaderProgram));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

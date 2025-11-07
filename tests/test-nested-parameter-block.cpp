@@ -33,7 +33,7 @@ GPU_TEST_CASE("nested-parameter-block", ALL)
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(
-        loadAndLinkProgram(device, "test-nested-parameter-block", {"computeMain"}, shaderProgram, &slangReflection)
+        loadAndLinkProgram(device, "test-nested-parameter-block", "computeMain", shaderProgram, &slangReflection)
     );
 
     ComputePipelineDesc pipelineDesc = {};
@@ -130,7 +130,7 @@ GPU_TEST_CASE("nested-parameter-block-2", ALL)
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(
-        loadAndLinkProgram(device, "test-nested-parameter-block", {"computeMain"}, shaderProgram, &slangReflection)
+        loadAndLinkProgram(device, "test-nested-parameter-block", "computeMain", shaderProgram, &slangReflection)
     );
 
     ComputePipelineDesc pipelineDesc = {};

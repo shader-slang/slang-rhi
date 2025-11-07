@@ -116,7 +116,7 @@ struct TextureAccessTest : TextureTest
     void submitShaderWork(const char* entryPoint)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-texture-types", {entryPoint}, shaderProgram));
+        REQUIRE_CALL(loadProgram(device, "test-texture-types", entryPoint, shaderProgram));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
