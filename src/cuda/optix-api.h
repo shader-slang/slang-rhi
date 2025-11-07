@@ -73,7 +73,7 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
-    /// Get the sizes required for building a cluster acceleration structure or GAS-from-CLAS.
+    /// Get the sizes required for building a cluster acceleration structure or BLAS-from-CLAS.
     virtual Result getClusterAccelerationStructureSizes(
         const ClusterAccelBuildDesc& desc,
         ClusterAccelSizes* outSizes
@@ -111,7 +111,7 @@ public:
         uint32_t depth
     ) = 0;
 
-    /// Build a cluster acceleration structure or GAS from clusters.
+    /// Build a cluster acceleration structure or BLAS-from-CLAS.
     virtual void buildClusterAccelerationStructure(
         CUstream stream,
         const ClusterAccelBuildDesc& desc
