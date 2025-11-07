@@ -13,7 +13,7 @@ static void setUpAndRunShader(
 )
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "trivial-copy", {entryPoint}, shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "trivial-copy", entryPoint, shaderProgram));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

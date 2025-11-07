@@ -234,7 +234,7 @@ struct ShaderCacheTest
     void createComputePipeline(const char* moduleName, const char* entryPointName)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadAndLinkProgram(device, moduleName, {entryPointName}, shaderProgram));
+        REQUIRE_CALL(loadAndLinkProgram(device, moduleName, entryPointName, shaderProgram));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -526,7 +526,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
         REQUIRE_CALL(loadAndLinkProgram(
             device,
             "test-shader-cache-specialization",
-            {"computeMain"},
+            "computeMain",
             shaderProgram,
             &slangReflection
         ));

@@ -108,7 +108,7 @@ struct TestTextureViews
         if (!pipeline)
         {
             ComPtr<IShaderProgram> shaderProgram;
-            REQUIRE_CALL(loadProgram(device, "test-texture-view-3d", {entryPointName.c_str()}, shaderProgram));
+            REQUIRE_CALL(loadProgram(device, "test-texture-view-3d", entryPointName.c_str(), shaderProgram));
 
             ComputePipelineDesc pipelineDesc = {};
             pipelineDesc.program = shaderProgram.get();
