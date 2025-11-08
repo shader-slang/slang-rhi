@@ -451,6 +451,34 @@ GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
         CHECK(samplerLinearHandle.type == DescriptorHandleType::Sampler);
     }
 
+    ComPtr<IBuffer> texture2Dbuffer;
+    ComPtr<ITexture> bufferTexture2Ds[2];
+    ComPtr<ITextureView> bufferTexture2DViews[2];
+    DescriptorHandle bufferTexture2DHandles[2] = {};
+    {
+        for (int i = 0; i < 2; ++i)
+        {
+            TextureDesc desc = {};
+            desc.type = TextureType::Texture2D;
+            desc.size = {2, 2, 1};
+            desc.format = Format::R32Float;
+            desc.usage = TextureUsage::ShaderResource;
+            float data[4] = {7.f + i, 8.f + i, 9.f + i, 10.f + i};
+            SubresourceData subresourceData[] = {{data, 8, 0}};
+            REQUIRE_CALL(device->createTexture(desc, subresourceData, bufferTexture2Ds[i].writeRef()));
+            REQUIRE_CALL(bufferTexture2Ds[i]->createView({}, bufferTexture2DViews[i].writeRef()));
+            REQUIRE_CALL(bufferTexture2DViews[i]->getDescriptorHandle(DescriptorHandleAccess::Read, &bufferTexture2DHandles[i]));
+            CHECK(bufferTexture2DHandles[i].type == DescriptorHandleType::Texture);
+        }
+
+        BufferDesc desc = {};
+        desc.size = 16;
+        desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        uint64_t data[2] = {bufferTexture2DHandles[0].value, bufferTexture2DHandles[1].value};
+        REQUIRE_CALL(device->createBuffer(desc, data, texture2Dbuffer.writeRef()));
+    }
+
+
     ComPtr<IBuffer> result;
     {
         BufferDesc desc = {};
@@ -479,6 +507,10 @@ GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
         cursor["rwTexture2DArray"].setDescriptorHandle(rwTexture2DArrayHandle);
         cursor["samplerPoint"].setDescriptorHandle(samplerPointHandle);
         cursor["samplerLinear"].setDescriptorHandle(samplerLinearHandle);
+        if (device->getDeviceType() != rhi::DeviceType::CUDA)
+        {
+            cursor["texture2DbufferOfHandlesBlock"]["texture2DbufferOfHandles"].setBinding(texture2Dbuffer);
+        }
         cursor["result"].setBinding(result);
 
         passEncoder->dispatchCompute(1, 1, 1);
@@ -550,6 +582,9 @@ GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
             4.f,
             5.f,
             8.f,
+            // // Texture2DbufferOfHandles
+            7.f,
+            11.f,
         }
     );
 

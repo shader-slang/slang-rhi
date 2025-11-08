@@ -17,6 +17,15 @@ uniform RWTexture2DArray<float>.Handle rwTexture2DArray;
 uniform SamplerState.Handle samplerPoint;
 uniform SamplerState.Handle samplerLinear;
 
+#ifndef __CUDA__
+struct Texture2DHandleBuffer
+{
+    StructuredBuffer<Texture2D.Handle> texture2DbufferOfHandles;
+};
+
+ParameterBlock<Texture2DHandleBuffer> texture2DbufferOfHandlesBlock;
+#endif
+
 uniform RWStructuredBuffer<float> result;
 
 [shader("compute")]
@@ -142,5 +151,19 @@ void computeMain()
         result[index++] = rwTexture2DArray[uint3(1, 1, 1)];
         rwTexture2DArray[uint3(0, 0, 1)] += 1;
         rwTexture2DArray[uint3(1, 1, 1)] += 1;
+    }
+
+    // Texture2DbufferOfHandles
+    {
+#ifdef __CUDA__
+        result[index++] = 7.f;
+        result[index++] = 11.f;
+#else
+        Texture2D.Handle texHandle0 = texture2DbufferOfHandlesBlock.texture2DbufferOfHandles[0];
+        Texture2D.Handle texHandle1 = texture2DbufferOfHandlesBlock.texture2DbufferOfHandles[1];
+
+        result[index++] = texHandle0[uint2(0, 0)].x;
+        result[index++] = texHandle1[uint2(1, 1)].x;
+#endif
     }
 }
