@@ -24,11 +24,6 @@ inline bool isBindingRangeRootParameter(
     return isRootParameter;
 }
 
-
-ShaderObjectLayoutImpl::SubObjectRangeOffset::SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout) {}
-
-ShaderObjectLayoutImpl::SubObjectRangeStride::SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout) {}
-
 Result ShaderObjectLayoutImpl::createForElementType(
     Device* device,
     slang::ISession* session,
@@ -234,33 +229,18 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         // know the appropraite type/layout of sub-object to allocate.
         //
         RefPtr<ShaderObjectLayoutImpl> subObjectLayout;
-        if (slangBindingType == slang::BindingType::ExistentialValue)
-        {
-            // Interface-type ranges are no longer supported after pending data removal.
-        }
-        else
-        {
-            createForElementType(
-                m_device,
-                m_session,
-                slangLeafTypeLayout->getElementTypeLayout(),
-                subObjectLayout.writeRef()
-            );
-        }
+        createForElementType(
+            m_device,
+            m_session,
+            slangLeafTypeLayout->getElementTypeLayout(),
+            subObjectLayout.writeRef()
+        );
 
         SubObjectRangeInfo subObjectRange;
         subObjectRange.bindingRangeIndex = bindingRangeIndex;
         subObjectRange.layout = subObjectLayout;
 
-        // The Slang reflection API stors offset information for sub-object ranges,
-        // and we care about *some* of that information: in particular, we need
-        // the offset of sub-objects in terms of uniform/ordinary data for the
-        // for handling sub-object offset computations.
-        //
-        subObjectRange.offset = SubObjectRangeOffset(typeLayout->getSubObjectRangeOffset(r));
-        subObjectRange.stride = SubObjectRangeStride(slangLeafTypeLayout);
-
-        // The remaining offset information is computed based on the counters
+        // The offset information is computed based on the counters
         // we are generating here, which depend only on the in-memory layout
         // decisions being made in our implementation. Remember that the
         // `register` and `space` values coming from DXBC/DXIL do *not*
@@ -635,9 +615,9 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
     uint32_t physicalDescriptorSetIndex
 )
 {
-    BindingRegisterOffsetPair offset(varLayout);
+    BindingRegisterOffset offset(varLayout);
     auto elementOffset = offset;
-    elementOffset.primary.spaceOffset = 0;
+    elementOffset.spaceOffset = 0;
     addAsValue(varLayout->getTypeLayout(), physicalDescriptorSetIndex, offset, elementOffset);
 }
 
@@ -661,19 +641,19 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
 void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsConstantBuffer(
     slang::TypeLayoutReflection* typeLayout,
     uint32_t physicalDescriptorSetIndex,
-    BindingRegisterOffsetPair offsetForChildrenThatNeedNewSpace,
-    BindingRegisterOffsetPair offsetForOrdinaryChildren
+    BindingRegisterOffset offsetForChildrenThatNeedNewSpace,
+    BindingRegisterOffset offsetForOrdinaryChildren
 )
 {
     if (typeLayout->getSize(SLANG_PARAMETER_CATEGORY_UNIFORM) != 0)
     {
         auto descriptorRangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-        auto& offsetForRangeType = offsetForOrdinaryChildren.primary.offsetForRangeType[descriptorRangeType];
+        auto& offsetForRangeType = offsetForOrdinaryChildren.offsetForRangeType[descriptorRangeType];
         addDescriptorRange(
             physicalDescriptorSetIndex,
             descriptorRangeType,
             offsetForRangeType,
-            offsetForOrdinaryChildren.primary.spaceOffset,
+            offsetForOrdinaryChildren.spaceOffset,
             1,
             false
         );
@@ -686,8 +666,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsConstantBuffer(
 void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
     slang::TypeLayoutReflection* typeLayout,
     uint32_t physicalDescriptorSetIndex,
-    BindingRegisterOffsetPair inContainerOffset,
-    BindingRegisterOffsetPair inElementOffset
+    BindingRegisterOffset inContainerOffset,
+    BindingRegisterOffset inElementOffset
 )
 {
     // Our first task is to add the binding ranges for stuff that is
@@ -718,13 +698,7 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
         // For binding ranges that don't represent sub-objects, we will add
         // all of the descriptor ranges they encompass to the root signature.
         //
-        addBindingRange(
-            typeLayout,
-            physicalDescriptorSetIndex,
-            inContainerOffset.primary,
-            inElementOffset.primary,
-            bindingRangeIndex
-        );
+        addBindingRange(typeLayout, physicalDescriptorSetIndex, inContainerOffset, inElementOffset, bindingRangeIndex);
     }
 
     // Next we need to recursively include everything bound via sub-objects
@@ -736,13 +710,12 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
 
         auto subObjectTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
 
-        BindingRegisterOffsetPair subObjectRangeContainerOffset = inContainerOffset;
+        BindingRegisterOffset subObjectRangeContainerOffset = inContainerOffset;
         subObjectRangeContainerOffset +=
-            BindingRegisterOffsetPair(typeLayout->getSubObjectRangeOffset(subObjectRangeIndex));
-        BindingRegisterOffsetPair subObjectRangeElementOffset = inElementOffset;
-        subObjectRangeElementOffset +=
-            BindingRegisterOffsetPair(typeLayout->getSubObjectRangeOffset(subObjectRangeIndex));
-        subObjectRangeElementOffset.primary.spaceOffset = inElementOffset.primary.spaceOffset;
+            BindingRegisterOffset(typeLayout->getSubObjectRangeOffset(subObjectRangeIndex));
+        BindingRegisterOffset subObjectRangeElementOffset = inElementOffset;
+        subObjectRangeElementOffset += BindingRegisterOffset(typeLayout->getSubObjectRangeOffset(subObjectRangeIndex));
+        subObjectRangeElementOffset.spaceOffset = inElementOffset.spaceOffset;
 
         switch (bindingType)
         {
@@ -757,11 +730,11 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
             auto elementTypeLayout = elementVarLayout->getTypeLayout();
             SLANG_RHI_ASSERT(elementTypeLayout);
 
-            BindingRegisterOffsetPair containerOffset = subObjectRangeContainerOffset;
-            containerOffset += BindingRegisterOffsetPair(containerVarLayout);
+            BindingRegisterOffset containerOffset = subObjectRangeContainerOffset;
+            containerOffset += BindingRegisterOffset(containerVarLayout);
 
-            BindingRegisterOffsetPair elementOffset = subObjectRangeElementOffset;
-            elementOffset += BindingRegisterOffsetPair(elementVarLayout);
+            BindingRegisterOffset elementOffset = subObjectRangeElementOffset;
+            elementOffset += BindingRegisterOffset(elementVarLayout);
 
             addAsConstantBuffer(elementTypeLayout, physicalDescriptorSetIndex, containerOffset, elementOffset);
             break;
@@ -777,8 +750,8 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
             auto elementTypeLayout = elementVarLayout->getTypeLayout();
             SLANG_RHI_ASSERT(elementTypeLayout);
 
-            BindingRegisterOffsetPair subDescriptorSetOffset;
-            subDescriptorSetOffset.primary.spaceOffset = subObjectRangeContainerOffset.primary.spaceOffset;
+            BindingRegisterOffset subDescriptorSetOffset;
+            subDescriptorSetOffset.spaceOffset = subObjectRangeContainerOffset.spaceOffset;
 
             auto subPhysicalDescriptorSetIndex = addDescriptorSet();
 
@@ -790,10 +763,10 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addAsValue(
             // The space offset of the current parameter block can be obtained from the
             // `containerVarLayout`, and the space offset of any sub ParameterBlocks
             // are obatined from `elementVarLayout`.
-            BindingRegisterOffsetPair offsetForChildrenThatNeedNewSpace = subDescriptorSetOffset;
-            offsetForChildrenThatNeedNewSpace += BindingRegisterOffsetPair(elementVarLayout);
-            BindingRegisterOffsetPair offsetForOrindaryChildren = subDescriptorSetOffset;
-            offsetForOrindaryChildren += BindingRegisterOffsetPair(containerVarLayout);
+            BindingRegisterOffset offsetForChildrenThatNeedNewSpace = subDescriptorSetOffset;
+            offsetForChildrenThatNeedNewSpace += BindingRegisterOffset(elementVarLayout);
+            BindingRegisterOffset offsetForOrindaryChildren = subDescriptorSetOffset;
+            offsetForOrindaryChildren += BindingRegisterOffset(containerVarLayout);
 
             addAsConstantBuffer(
                 elementTypeLayout,
