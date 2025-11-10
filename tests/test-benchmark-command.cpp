@@ -20,7 +20,7 @@ GPU_TEST_CASE("benchmark-command", ALL)
         SKIP("no support for parameter blocks");
 
     Shader shader;
-    REQUIRE_CALL(loadComputeProgram(device, shader.program, "test-benchmark-command", "addkernel", shader.reflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-benchmark-command", "addkernel", shader.program, &shader.reflection));
     shader.pipelineDesc.program = shader.program.get();
     REQUIRE_CALL(device->createComputePipeline(shader.pipelineDesc, shader.pipeline.writeRef()));
 

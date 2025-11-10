@@ -79,34 +79,92 @@ struct GpuTestContext
 /// Helper function for print out diagnostic messages output by Slang compiler.
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob);
 
-/// Loads a compute shader module and produces a `IShaderProgram`.
-Result loadComputeProgram(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    const char* shaderModuleName,
-    const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
-);
-
-Result loadComputeProgram(
+/// Load a shader program without linking.
+/// @param device The device to create the shader program with.
+/// @param slangSession The Slang session to use for loading the module.
+/// @param shaderModuleName The name of the shader module to load.
+/// @param entryPointNames The names of the entry points to include in the program.
+/// @param outShaderProgram The resulting shader program.
+/// @return SLANG_OK on success, or an error code on failure.
+Result loadProgram(
     IDevice* device,
     slang::ISession* slangSession,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram
+);
+
+/// Overload accepting a single entry point name instead of a vector.
+Result loadProgram(
+    IDevice* device,
+    slang::ISession* slangSession,
     const char* shaderModuleName,
     const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
+    ComPtr<IShaderProgram>& outShaderProgram
+);
+
+/// Overload using the device's default Slang session.
+Result loadProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram
+);
+
+/// Overload using the device's default Slang session and accepting a single entry point name.
+Result loadProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    ComPtr<IShaderProgram>& outShaderProgram
+);
+
+/// Load and link a shader program.
+/// @param device The device to create the shader program with.
+/// @param slangSession The Slang session to use for loading the module.
+/// @param shaderModuleName The name of the shader module to load.
+/// @param entryPointNames The names of the entry points to include in the program.
+/// @param outShaderProgram The resulting shader program.
+/// @param outSlangReflection Optional output parameter to receive the program layout after linking.
+/// @return SLANG_OK on success, or an error code on failure.
+Result loadAndLinkProgram(
+    IDevice* device,
+    slang::ISession* slangSession,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection = nullptr
+);
+
+/// Overload accepting a single entry point name instead of a vector.
+Result loadAndLinkProgram(
+    IDevice* device,
+    slang::ISession* slangSession,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection = nullptr
+);
+
+/// Overload using the device's default Slang session.
+Result loadAndLinkProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection = nullptr
+);
+
+/// Overload using the device's default Slang session and accepting a single entry point name.
+Result loadAndLinkProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection = nullptr
 );
 
 Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source);
-
-Result loadGraphicsProgram(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    const char* shaderModuleName,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    slang::ProgramLayout*& slangReflection
-);
 
 Result loadRenderProgramFromSource(
     IDevice* device,

@@ -37,8 +37,8 @@ GPU_TEST_CASE("buffer-barrier", ALL)
 {
     Shader programA;
     Shader programB;
-    REQUIRE_CALL(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
-    REQUIRE_CALL(loadComputeProgram(device, programB.program, "test-buffer-barrier", "computeB", programB.reflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", "computeA", programA.program, &programA.reflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", "computeB", programB.program, &programB.reflection));
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
     REQUIRE_CALL(device->createComputePipeline(programA.pipelineDesc, programA.pipeline.writeRef()));
@@ -92,8 +92,8 @@ GPU_TEST_CASE("buffer-no-barrier-race-condition", ALL)
 {
     Shader programA;
     Shader programB;
-    REQUIRE_CALL(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
-    REQUIRE_CALL(loadComputeProgram(device, programB.program, "test-buffer-barrier", "computeB", programB.reflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", "computeA", programA.program, &programA.reflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", "computeB", programB.program, &programB.reflection));
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
     REQUIRE_CALL(device->createComputePipeline(programA.pipelineDesc, programA.pipeline.writeRef()));
@@ -150,8 +150,8 @@ GPU_TEST_CASE("buffer-global-barrier", D3D12 | Vulkan)
 {
     Shader programA;
     Shader programB;
-    REQUIRE_CALL(loadComputeProgram(device, programA.program, "test-buffer-barrier", "computeA", programA.reflection));
-    REQUIRE_CALL(loadComputeProgram(device, programB.program, "test-buffer-barrier", "computeB", programB.reflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", "computeA", programA.program, &programA.reflection));
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-buffer-barrier", "computeB", programB.program, &programB.reflection));
     programA.pipelineDesc.program = programA.program.get();
     programB.pipelineDesc.program = programB.program.get();
     REQUIRE_CALL(device->createComputePipeline(programA.pipelineDesc, programA.pipeline.writeRef()));

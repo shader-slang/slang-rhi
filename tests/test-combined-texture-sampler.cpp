@@ -78,10 +78,7 @@ struct CombinedTextureSamplerTest
         REQUIRE_CALL(createTestTexture(device, texture.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(
-            loadComputeProgram(device, shaderProgram, "test-combined-texture-sampler", "sampleTexture", slangReflection)
-        );
+        REQUIRE_CALL(loadProgram(device, "test-combined-texture-sampler", "sampleTexture", shaderProgram));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
