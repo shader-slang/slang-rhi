@@ -120,15 +120,9 @@ struct BaseResolveResourceTest
         vertexBuffer = createVertexBuffer(device);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(loadGraphicsProgram(
-            device,
-            shaderProgram,
-            "test-resolve-resource-shader",
-            "vertexMain",
-            "fragmentMain",
-            slangReflection
-        ));
+        REQUIRE_CALL(
+            loadProgram(device, nullptr, "test-resolve-resource-shader", {"vertexMain", "fragmentMain"}, shaderProgram)
+        );
 
 
         ColorTargetDesc target;

@@ -29,7 +29,7 @@ GPU_TEST_CASE("root-shader-parameter", ALL)
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
     REQUIRE_CALL(
-        loadComputeProgram(device, shaderProgram, "test-root-shader-parameter", "computeMain", slangReflection)
+        loadAndLinkProgram(device, "test-root-shader-parameter", "computeMain", shaderProgram, &slangReflection)
     );
 
     ComputePipelineDesc pipelineDesc = {};

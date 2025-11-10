@@ -62,7 +62,7 @@ struct TestRecord
     float expectedColor[4];
 };
 
-struct SamplerTest
+struct CombinedTextureSamplerTest
 {
     static constexpr size_t kMaxRecords = 32;
 
@@ -78,7 +78,7 @@ struct SamplerTest
         REQUIRE_CALL(createTestTexture(device, texture.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-sampler", "sampleTexture", shaderProgram));
+        REQUIRE_CALL(loadProgram(device, "test-combined-texture-sampler", "sampleTexture", shaderProgram));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -110,8 +110,7 @@ struct SamplerTest
         IComputePassEncoder* passEncoder = encoder->beginComputePass();
         IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor(rootObject);
-        cursor["texture"].setBinding(texture);
-        cursor["sampler"].setBinding(sampler);
+        cursor["texture"].setBinding(Binding(texture, sampler));
         cursor["inputs"].setBinding(inputBuffer);
         cursor["results"].setBinding(resultBuffer);
         cursor["count"].setData((uint32_t)testRecords.size());
@@ -140,18 +139,21 @@ struct SamplerTest
     }
 };
 
-static void testSampler(IDevice* device, const SamplerDesc& samplerDesc, span<TestRecord> testRecords)
+static void testCombinedTextureSampler(IDevice* device, const SamplerDesc& samplerDesc, span<TestRecord> testRecords)
 {
     ComPtr<ISampler> sampler;
     REQUIRE_CALL(device->createSampler(samplerDesc, sampler.writeRef()));
 
-    SamplerTest test;
+    CombinedTextureSamplerTest test;
     test.init(device);
     test.check(sampler, testRecords);
 }
 
-GPU_TEST_CASE("sampler-filter-point", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("combined-texture-sampler-filter-point", ALL)
 {
+    if (!device->hasFeature(Feature::CombinedTextureSampler))
+        SKIP("Combined texture sampler not supported");
+
     SamplerDesc desc = {};
     desc.minFilter = TextureFilteringMode::Point;
     desc.magFilter = TextureFilteringMode::Point;
@@ -175,11 +177,14 @@ GPU_TEST_CASE("sampler-filter-point", D3D11 | D3D12 | Vulkan | Metal | WGPU)
         {0.99f, 0.99f, 0.f, {0.f, 0.f, 0.f, 1.f}},
     };
 
-    testSampler(device, desc, testRecords);
+    testCombinedTextureSampler(device, desc, testRecords);
 }
 
-GPU_TEST_CASE("sampler-filter-linear", D3D11 | D3D12 | Vulkan | Metal | WGPU)
+GPU_TEST_CASE("combined-texture-sampler-filter-linear", ALL)
 {
+    if (!device->hasFeature(Feature::CombinedTextureSampler))
+        SKIP("Combined texture sampler not supported");
+
     SamplerDesc desc = {};
     desc.minFilter = TextureFilteringMode::Linear;
     desc.magFilter = TextureFilteringMode::Linear;
@@ -205,81 +210,5 @@ GPU_TEST_CASE("sampler-filter-linear", D3D11 | D3D12 | Vulkan | Metal | WGPU)
         {0.5f, 0.5f, 0.f, {0.25f, 0.25f, 0.25f, 0.25f}},
     };
 
-    testSampler(device, desc, testRecords);
-}
-
-GPU_TEST_CASE("sampler-border-black-transparent", D3D11 | D3D12 | Vulkan | Metal)
-{
-    SamplerDesc desc = {};
-    desc.addressU = TextureAddressingMode::ClampToBorder;
-    desc.addressV = TextureAddressingMode::ClampToBorder;
-    desc.addressW = TextureAddressingMode::ClampToBorder;
-
-    TestRecord testRecords[] = {
-        // outside of texture
-        {-0.5f, -0.5f, 0.f, {0.f, 0.f, 0.f, 0.f}},
-    };
-
-    testSampler(device, desc, testRecords);
-}
-
-GPU_TEST_CASE("sampler-border-black-opaque", D3D11 | D3D12 | Vulkan | Metal)
-{
-    SamplerDesc desc = {};
-    desc.addressU = TextureAddressingMode::ClampToBorder;
-    desc.addressV = TextureAddressingMode::ClampToBorder;
-    desc.addressW = TextureAddressingMode::ClampToBorder;
-    desc.borderColor[0] = 0.f;
-    desc.borderColor[1] = 0.f;
-    desc.borderColor[2] = 0.f;
-    desc.borderColor[3] = 1.f;
-
-
-    TestRecord testRecords[] = {
-        // outside of texture
-        {-0.5f, -0.5f, 0.f, {0.f, 0.f, 0.f, 1.f}},
-    };
-
-    testSampler(device, desc, testRecords);
-}
-
-GPU_TEST_CASE("sampler-border-white-opaque", D3D11 | D3D12 | Vulkan | Metal)
-{
-    SamplerDesc desc = {};
-    desc.addressU = TextureAddressingMode::ClampToBorder;
-    desc.addressV = TextureAddressingMode::ClampToBorder;
-    desc.addressW = TextureAddressingMode::ClampToBorder;
-    desc.borderColor[0] = 1.f;
-    desc.borderColor[1] = 1.f;
-    desc.borderColor[2] = 1.f;
-    desc.borderColor[3] = 1.f;
-
-    TestRecord testRecords[] = {
-        // outside of texture
-        {-0.5f, -0.5f, 0.f, {1.f, 1.f, 1.f, 1.f}},
-    };
-
-    testSampler(device, desc, testRecords);
-}
-
-GPU_TEST_CASE("sampler-border-custom-color", D3D11 | D3D12 | Vulkan | Metal)
-{
-    if (!device->hasFeature(Feature::CustomBorderColor))
-        SKIP("Custom border color not supported");
-
-    SamplerDesc desc = {};
-    desc.addressU = TextureAddressingMode::ClampToBorder;
-    desc.addressV = TextureAddressingMode::ClampToBorder;
-    desc.addressW = TextureAddressingMode::ClampToBorder;
-    desc.borderColor[0] = 0.25f;
-    desc.borderColor[1] = 0.5f;
-    desc.borderColor[2] = 0.75f;
-    desc.borderColor[3] = 1.f;
-
-    TestRecord testRecords[] = {
-        // outside of texture
-        {-0.5f, -0.5f, 0.f, {0.25f, 0.5f, 0.75f, 1.f}},
-    };
-
-    testSampler(device, desc, testRecords);
+    testCombinedTextureSampler(device, desc, testRecords);
 }

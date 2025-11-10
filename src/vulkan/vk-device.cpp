@@ -1274,6 +1274,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     addFeature(Feature::Surface);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
     for (auto feature : availableFeatures)
     {

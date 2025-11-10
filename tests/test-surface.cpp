@@ -183,15 +183,7 @@ struct RenderSurfaceTest : SurfaceTest
         REQUIRE(vertexBuffer);
 
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(loadGraphicsProgram(
-            device,
-            shaderProgram,
-            "test-surface-render",
-            "vertexMain",
-            "fragmentMain",
-            slangReflection
-        ));
+        REQUIRE_CALL(loadProgram(device, "test-surface-render", {"vertexMain", "fragmentMain"}, shaderProgram));
 
         ColorTargetDesc colorTarget = {};
         colorTarget.format = getSurfaceFormat();
@@ -267,8 +259,7 @@ struct ComputeSurfaceTest : SurfaceTest
     void initResources() override
     {
         ComPtr<IShaderProgram> shaderProgram;
-        slang::ProgramLayout* slangReflection = nullptr;
-        REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-surface-compute", "computeMain", slangReflection));
+        REQUIRE_CALL(loadProgram(device, "test-surface-compute", "computeMain", shaderProgram));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

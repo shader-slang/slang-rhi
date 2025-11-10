@@ -13,7 +13,7 @@ GPU_TEST_CASE("mutable-shader-object", ALL)
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadComputeProgram(device, shaderProgram, "test-mutable-shader-object", "computeMain", slangReflection)
+    REQUIRE_CALL(loadAndLinkProgram(device, "test-mutable-shader-object", "computeMain", shaderProgram, &slangReflection)
     );
 
     ComputePipelineDesc pipelineDesc = {};

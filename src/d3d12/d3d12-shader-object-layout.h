@@ -64,22 +64,12 @@ public:
     struct SubObjectRangeOffset : BindingOffset
     {
         SubObjectRangeOffset() {}
-
-        SubObjectRangeOffset(slang::VariableLayoutReflection* varLayout);
-
-        /// The offset for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Stride information for a sub-object range
     struct SubObjectRangeStride : BindingOffset
     {
         SubObjectRangeStride() {}
-
-        SubObjectRangeStride(slang::TypeLayoutReflection* typeLayout);
-
-        /// The strid for "pending" ordinary data related to this range
-        uint32_t pendingOrdinaryData = 0;
     };
 
     /// Information about a sub-objecrt range
@@ -358,25 +348,6 @@ public:
             }
         };
 
-        struct BindingRegisterOffsetPair
-        {
-            BindingRegisterOffset primary;
-            BindingRegisterOffset pending;
-
-            BindingRegisterOffsetPair() {}
-
-            BindingRegisterOffsetPair(slang::VariableLayoutReflection* varLayout)
-                : primary(varLayout)
-                , pending(varLayout->getPendingDataLayout())
-            {
-            }
-
-            void operator+=(const BindingRegisterOffsetPair& other)
-            {
-                primary += other.primary;
-                pending += other.pending;
-            }
-        };
         /// Add a new descriptor set to the layout being computed.
         ///
         /// Note that a "descriptor set" in the layout may amount to
@@ -461,15 +432,15 @@ public:
         void addAsConstantBuffer(
             slang::TypeLayoutReflection* typeLayout,
             uint32_t physicalDescriptorSetIndex,
-            BindingRegisterOffsetPair containerOffset,
-            BindingRegisterOffsetPair elementOffset
+            BindingRegisterOffset containerOffset,
+            BindingRegisterOffset elementOffset
         );
 
         void addAsValue(
             slang::TypeLayoutReflection* typeLayout,
             uint32_t physicalDescriptorSetIndex,
-            BindingRegisterOffsetPair containerOffset,
-            BindingRegisterOffsetPair elementOffset
+            BindingRegisterOffset containerOffset,
+            BindingRegisterOffset elementOffset
         );
 
         D3D12_ROOT_SIGNATURE_DESC1& build();

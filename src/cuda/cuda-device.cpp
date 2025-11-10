@@ -321,6 +321,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Supports surface/swapchain (implemented in Vulkan).
     addFeature(Feature::Surface);
 #endif
+    addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
     addFeature(Feature::RealtimeClock);
     // Not clear how to detect half support on CUDA. For now we'll assume we have it

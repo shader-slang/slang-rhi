@@ -269,7 +269,6 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData->pushConstantCount = 0;
 
     BindingOffset offset = {};
-    offset.pending = specializedLayout->getPendingDataOffset();
 
     // Note: the operations here are quite similar to what `bindAsParameterBlock` does.
     // The key difference in practice is that we do *not* make use of the adjustment
@@ -352,8 +351,7 @@ Result BindingDataBuilder::bindAsEntryPoint(
         // We expect that the size of the range as reflected matches the
         // amount of ordinary data stored on this object.
         //
-        // TODO: This would not be the case if specialization for interface-type
-        // parameters led to the entry point having "pending" ordinary data.
+        // Note: Entry points with ordinary data are handled uniformly now.
         //
         SLANG_RHI_ASSERT(pushConstantRange.size == shaderObject->m_data.size());
 
@@ -628,27 +626,8 @@ Result BindingDataBuilder::bindAsValue(
             //
             if (subObjectLayout)
             {
-                // Second, the offset where we want to start binding for existential-type
-                // ranges is a bit different, because we don't wnat to bind at the "primary"
-                // offset that got passed down, but instead at the "pending" offset.
-                //
-                // For the purposes of nested binding, what used to be the pending offset
-                // will now be used as the primary offset.
-                //
-                SimpleBindingOffset objOffset = rangeOffset.pending;
-                SimpleBindingOffset objStride = rangeStride.pending;
-                for (uint32_t i = 0; i < count; ++i)
-                {
-                    // An existential-type sub-object is always bound just as a value,
-                    // which handles its nested bindings and descriptor sets, but
-                    // does not deal with ordianry data. The ordinary data should
-                    // have been handled as part of the buffer for a parent object
-                    // already.
-                    //
-                    ShaderObject* subObject = shaderObject->m_objects[subObjectIndex + i];
-                    SLANG_RETURN_ON_FAIL(bindAsValue(subObject, BindingOffset(objOffset), subObjectLayout));
-                    objOffset += objStride;
-                }
+                // Interface-typed sub-object ranges are no longer supported
+                // after pending data layout APIs have been removed.
             }
             break;
         case slang::BindingType::RawBuffer:
@@ -706,13 +685,8 @@ Result BindingDataBuilder::bindAsParameterBlock(
     offset.bindingSet = m_bindingData->descriptorSetCount;
     offset.binding = 0;
 
-    // TODO: We should also be writing to `offset.pending` here,
-    // because any resource/sampler bindings related to "pending"
-    // data should *also* be writing into the chosen set.
-    //
-    // The challenge here is that we need to compute the right
-    // value for `offset.pending.binding`, so that it writes after
-    // all the other bindings.
+    // Note: Interface-type binding handling has been simplified
+    // now that pending data layout APIs have been removed.
 
     // Writing the bindings for a parameter block is relatively easy:
     // we just need to allocate the descriptor set(s) needed for this

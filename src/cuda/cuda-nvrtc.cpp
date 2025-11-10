@@ -58,6 +58,12 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
             {
                 outPaths.push_back(path);
             }
+            // Since CUDA 13.0, cuda dll have been moved to bin\x64
+            std::filesystem::path pathX64 = version / "bin" / "x64";
+            if (std::find(outPaths.begin(), outPaths.end(), pathX64) == outPaths.end())
+            {
+                outPaths.push_back(pathX64);
+            }
         }
     }
 }

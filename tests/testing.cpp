@@ -238,29 +238,42 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
     }
 }
 
-Result loadComputeProgram(
+
+static Result loadProgram(
     IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ISession* slangSession,
     const char* shaderModuleName,
-    const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
+    std::vector<const char*> entryPointNames,
+    bool performLinking,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection
 )
 {
-    ComPtr<slang::ISession> slangSession;
-    SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
+    ComPtr<slang::ISession> ownedSlangSession;
+    if (!slangSession)
+    {
+        SLANG_RETURN_ON_FAIL(device->getSlangSession(ownedSlangSession.writeRef()));
+        slangSession = ownedSlangSession.get();
+    }
+
     ComPtr<slang::IBlob> diagnosticsBlob;
     slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     if (!module)
         return SLANG_FAIL;
 
-    ComPtr<slang::IEntryPoint> computeEntryPoint;
-    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, computeEntryPoint.writeRef()));
-
     std::vector<slang::IComponentType*> componentTypes;
     componentTypes.push_back(module);
-    componentTypes.push_back(computeEntryPoint);
 
+    // Find all entry points
+    for (const char* entryPointName : entryPointNames)
+    {
+        ComPtr<slang::IEntryPoint> entryPoint;
+        SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, entryPoint.writeRef()));
+        componentTypes.push_back(entryPoint);
+    }
+
+    // Create composite component type
     ComPtr<slang::IComponentType> composedProgram;
     Result result = slangSession->createCompositeComponentType(
         componentTypes.data(),
@@ -271,58 +284,138 @@ Result loadComputeProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
+    slang::IComponentType* programToUse = composedProgram.get();
     ComPtr<slang::IComponentType> linkedProgram;
-    result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
 
-    slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    if (performLinking)
+    {
+        result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
+        diagnoseIfNeeded(diagnosticsBlob);
+        SLANG_RETURN_ON_FAIL(result);
+
+        programToUse = linkedProgram.get();
+        if (outSlangReflection)
+            *outSlangReflection = linkedProgram->getLayout();
+    }
+
+    outShaderProgram = device->createShaderProgram(programToUse, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-Result loadComputeProgram(
+Result loadProgram(
     IDevice* device,
     slang::ISession* slangSession,
-    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
-    const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram
 )
 {
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
+    return loadProgram(device, slangSession, shaderModuleName, entryPointNames, false, outShaderProgram, nullptr);
+}
 
-    ComPtr<slang::IEntryPoint> computeEntryPoint;
-    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, computeEntryPoint.writeRef()));
-
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-    componentTypes.push_back(computeEntryPoint);
-
-    ComPtr<slang::IComponentType> composedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        componentTypes.data(),
-        componentTypes.size(),
-        composedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
+Result loadProgram(
+    IDevice* device,
+    slang::ISession* slangSession,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    ComPtr<IShaderProgram>& outShaderProgram
+)
+{
+    return loadProgram(
+        device,
+        slangSession,
+        shaderModuleName,
+        std::vector<const char*>{entryPointName},
+        outShaderProgram
     );
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
+}
 
-    ComPtr<slang::IComponentType> linkedProgram;
-    result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
+Result loadProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram
+)
+{
+    return loadProgram(device, nullptr, shaderModuleName, entryPointNames, false, outShaderProgram, nullptr);
+}
 
-    slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+Result loadProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    ComPtr<IShaderProgram>& outShaderProgram
+)
+{
+    return loadProgram(device, shaderModuleName, std::vector<const char*>{entryPointName}, outShaderProgram);
+}
+
+Result loadAndLinkProgram(
+    IDevice* device,
+    slang::ISession* slangSession,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection
+)
+{
+    return loadProgram(
+        device,
+        slangSession,
+        shaderModuleName,
+        entryPointNames,
+        true,
+        outShaderProgram,
+        outSlangReflection
+    );
+}
+
+Result loadAndLinkProgram(
+    IDevice* device,
+    slang::ISession* slangSession,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection
+)
+{
+    return loadAndLinkProgram(
+        device,
+        slangSession,
+        shaderModuleName,
+        std::vector<const char*>{entryPointName},
+        outShaderProgram,
+        outSlangReflection
+    );
+}
+
+Result loadAndLinkProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    std::vector<const char*> entryPointNames,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection
+)
+{
+    return loadProgram(device, nullptr, shaderModuleName, entryPointNames, true, outShaderProgram, outSlangReflection);
+}
+
+Result loadAndLinkProgram(
+    IDevice* device,
+    const char* shaderModuleName,
+    const char* entryPointName,
+    ComPtr<IShaderProgram>& outShaderProgram,
+    slang::ProgramLayout** outSlangReflection
+)
+{
+    return loadAndLinkProgram(
+        device,
+        shaderModuleName,
+        std::vector<const char*>{entryPointName},
+        outShaderProgram,
+        outSlangReflection
+    );
 }
 
 Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source)
@@ -363,55 +456,6 @@ Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& out
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
-}
-
-Result loadGraphicsProgram(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    const char* shaderModuleName,
-    const char* vertexEntryPointName,
-    const char* fragmentEntryPointName,
-    slang::ProgramLayout*& slangReflection
-)
-{
-    ComPtr<slang::ISession> slangSession;
-    SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    slang::IModule* module = slangSession->loadModule(shaderModuleName, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
-
-    ComPtr<slang::IEntryPoint> vertexEntryPoint;
-    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(vertexEntryPointName, vertexEntryPoint.writeRef()));
-
-    ComPtr<slang::IEntryPoint> fragmentEntryPoint;
-    SLANG_RETURN_ON_FAIL(module->findEntryPointByName(fragmentEntryPointName, fragmentEntryPoint.writeRef()));
-
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-    componentTypes.push_back(vertexEntryPoint);
-    componentTypes.push_back(fragmentEntryPoint);
-
-    ComPtr<slang::IComponentType> composedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        componentTypes.data(),
-        componentTypes.size(),
-        composedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    ComPtr<slang::IComponentType> linkedProgram;
-    result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    slangReflection = linkedProgram->getLayout();
     outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
@@ -585,28 +629,54 @@ ComPtr<IDevice> createTestingDevice(
 #if SLANG_RHI_ENABLE_OPTIX
     deviceDesc.requiredOptixVersion = options().optixVersion;
     // Setup OptiX headers
+    std::string optixIncludeStr;
     if (deviceType == DeviceType::CUDA)
     {
         slang::CompilerOptionEntry optixSearchPath;
         optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
         optixSearchPath.value.stringValue0 = "nvrtc";
+
+        // Try to locate OptiX headers from the following locations:
+        // - SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR (set at cmake configure time)
+        // - <exe path>/optix (where exe path is the directory containing the test executable)
+        // - ./optix (current working directory)
+        auto findOptixDir = []() -> std::filesystem::path
+        {
+            std::vector<std::filesystem::path> candidatePaths{
+                SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR,
+                std::filesystem::path(exePath()).parent_path() / "optix",
+                std::filesystem::current_path() / "optix",
+            };
+            for (const auto& path : candidatePaths)
+                if (std::filesystem::exists(path / "9_0" / "optix.h"))
+                    return path;
+            return {};
+        };
+
+        std::filesystem::path optixDir = findOptixDir();
+        if (optixDir.empty())
+        {
+            FAIL("OptiX headers not found");
+        }
+
         if (deviceDesc.requiredOptixVersion == 0 || deviceDesc.requiredOptixVersion == 90000)
         {
-            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/9_0";
+            optixIncludeStr = "-I" + (optixDir / "9_0").string();
         }
         else if (deviceDesc.requiredOptixVersion == 80100)
         {
-            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/8_1";
+            optixIncludeStr = "-I" + (optixDir / "8_1").string();
         }
         else if (deviceDesc.requiredOptixVersion == 80000)
         {
-            optixSearchPath.value.stringValue1 = "-I" SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR "/8_0";
+            optixIncludeStr = "-I" + (optixDir / "8_0").string();
         }
         else
         {
             FAIL("Unsupported OptiX version");
         }
+        optixSearchPath.value.stringValue1 = optixIncludeStr.c_str();
         compilerOptions.push_back(optixSearchPath);
     }
 #endif
@@ -751,6 +821,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
+    desc.requiredOptixVersion = options().optixVersion;
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
     if (SLANG_FAILED(createResult))
