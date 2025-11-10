@@ -253,11 +253,6 @@ Result BindingDataBuilder::bindAsValue(
         }
         break;
 
-        case slang::BindingType::ExistentialValue:
-            // Interface-typed sub-object ranges are no longer supported
-            // now that pending data layout APIs have been removed.
-            break;
-
         default:
             break;
         }
