@@ -10,12 +10,11 @@ using namespace rhi::testing;
 // with additional compiler options. Here we will specify a DownstreamArg compiler option to define
 // the value of DOWNSTREAM_VALUE when running dxc.
 //
-static Result loadProgram(
+static Result loadTestProgram(
     IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
-    slang::ProgramLayout*& slangReflection
+    IShaderProgram** outShaderProgram
 )
 {
     ComPtr<slang::ISession> slangSession;
@@ -53,17 +52,18 @@ static Result loadProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+    ShaderProgramDesc shaderProgramDesc = {};
+    shaderProgramDesc.slangGlobalScope = linkedProgram;
+    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    return result;
 }
 
 // Test only works for D3D12 backend using dxc compiler.
 GPU_TEST_CASE("link-time-options", D3D12)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, "test-link-time-options", "computeMain", slangReflection));
+    REQUIRE_CALL(loadTestProgram(device, "test-link-time-options", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
