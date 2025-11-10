@@ -149,13 +149,11 @@ public:
                 typeLayout = typeLayout->getElementTypeLayout();
                 return typeLayout;
             case slang::TypeReflection::Kind::Resource:
-            {
                 if (typeLayout->getResourceShape() != SLANG_STRUCTURED_BUFFER)
-                    break;
+                    return typeLayout;
                 SLANG_RHI_ASSERT(outContainerType == ShaderObjectContainerType::None);
                 outContainerType = ShaderObjectContainerType::StructuredBuffer;
                 typeLayout = typeLayout->getElementTypeLayout();
-            }
                 return typeLayout;
             case slang::TypeReflection::Kind::ConstantBuffer:
             case slang::TypeReflection::Kind::ParameterBlock:
