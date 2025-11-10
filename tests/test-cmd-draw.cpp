@@ -138,7 +138,7 @@ public:
         colorBuffer = createColorBuffer(device);
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-cmd-draw", {"vertexMain", "fragmentMain"}, shaderProgram));
+        REQUIRE_CALL(loadProgram(device, "test-cmd-draw", {"vertexMain", "fragmentMain"}, shaderProgram.writeRef()));
 
         ColorTargetDesc colorTarget;
         colorTarget.format = format;

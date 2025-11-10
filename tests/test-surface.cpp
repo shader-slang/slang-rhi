@@ -183,7 +183,9 @@ struct RenderSurfaceTest : SurfaceTest
         REQUIRE(vertexBuffer);
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-surface-render", {"vertexMain", "fragmentMain"}, shaderProgram));
+        REQUIRE_CALL(
+            loadProgram(device, "test-surface-render", {"vertexMain", "fragmentMain"}, shaderProgram.writeRef())
+        );
 
         ColorTargetDesc colorTarget = {};
         colorTarget.format = getSurfaceFormat();
@@ -259,7 +261,7 @@ struct ComputeSurfaceTest : SurfaceTest
     void initResources() override
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-surface-compute", "computeMain", shaderProgram));
+        REQUIRE_CALL(loadProgram(device, "test-surface-compute", "computeMain", shaderProgram.writeRef()));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

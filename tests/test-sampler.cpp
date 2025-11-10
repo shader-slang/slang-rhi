@@ -78,7 +78,7 @@ struct SamplerTest
         REQUIRE_CALL(createTestTexture(device, texture.writeRef()));
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-sampler", "sampleTexture", shaderProgram));
+        REQUIRE_CALL(loadProgram(device, "test-sampler", "sampleTexture", shaderProgram.writeRef()));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

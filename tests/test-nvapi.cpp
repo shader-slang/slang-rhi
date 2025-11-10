@@ -12,7 +12,7 @@ GPU_TEST_CASE("nvapi-implicit", D3D12 | DontCreateDevice)
         SKIP("Device does not support NVAPI");
 
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-nvapi-implicit", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-nvapi-implicit", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -78,7 +78,7 @@ GPU_TEST_CASE("nvapi-explicit", D3D12 | DontCreateDevice)
         SKIP("Device does not support NVAPI");
 
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-nvapi-explicit", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-nvapi-explicit", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

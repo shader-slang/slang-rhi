@@ -567,7 +567,7 @@ struct TexelData {
         // printf("Shader source:\n%s\n", source.c_str());
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadComputeProgramFromSource(m_device, shaderProgram, source));
+        REQUIRE_CALL(loadComputeProgramFromSource(m_device, source, shaderProgram.writeRef()));
 
         ComPtr<IComputePipeline> pipeline;
         ComputePipelineDesc pipelineDesc = {};
@@ -745,7 +745,7 @@ struct TexelData {
         // printf("Shader source:\n%s\n", source.c_str());
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadComputeProgramFromSource(m_device, shaderProgram, source));
+        REQUIRE_CALL(loadComputeProgramFromSource(m_device, source, shaderProgram.writeRef()));
 
         ComPtr<IComputePipeline> pipeline;
         ComputePipelineDesc pipelineDesc = {};

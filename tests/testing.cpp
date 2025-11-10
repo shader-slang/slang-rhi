@@ -245,7 +245,7 @@ static Result loadProgram(
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
     bool performLinking,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection
 )
 {
@@ -298,9 +298,11 @@ static Result loadProgram(
             *outSlangReflection = linkedProgram->getLayout();
     }
 
-    outShaderProgram = device->createShaderProgram(programToUse, diagnosticsBlob.writeRef());
+    ShaderProgramDesc shaderProgramDesc = {};
+    shaderProgramDesc.slangGlobalScope = programToUse;
+    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+    return result;
 }
 
 Result loadProgram(
@@ -308,7 +310,7 @@ Result loadProgram(
     slang::ISession* slangSession,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    ComPtr<IShaderProgram>& outShaderProgram
+    IShaderProgram** outShaderProgram
 )
 {
     return loadProgram(device, slangSession, shaderModuleName, entryPointNames, false, outShaderProgram, nullptr);
@@ -319,7 +321,7 @@ Result loadProgram(
     slang::ISession* slangSession,
     const char* shaderModuleName,
     const char* entryPointName,
-    ComPtr<IShaderProgram>& outShaderProgram
+    IShaderProgram** outShaderProgram
 )
 {
     return loadProgram(
@@ -335,7 +337,7 @@ Result loadProgram(
     IDevice* device,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    ComPtr<IShaderProgram>& outShaderProgram
+    IShaderProgram** outShaderProgram
 )
 {
     return loadProgram(device, nullptr, shaderModuleName, entryPointNames, false, outShaderProgram, nullptr);
@@ -345,7 +347,7 @@ Result loadProgram(
     IDevice* device,
     const char* shaderModuleName,
     const char* entryPointName,
-    ComPtr<IShaderProgram>& outShaderProgram
+    IShaderProgram** outShaderProgram
 )
 {
     return loadProgram(device, shaderModuleName, std::vector<const char*>{entryPointName}, outShaderProgram);
@@ -356,7 +358,7 @@ Result loadAndLinkProgram(
     slang::ISession* slangSession,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection
 )
 {
@@ -376,7 +378,7 @@ Result loadAndLinkProgram(
     slang::ISession* slangSession,
     const char* shaderModuleName,
     const char* entryPointName,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection
 )
 {
@@ -394,7 +396,7 @@ Result loadAndLinkProgram(
     IDevice* device,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection
 )
 {
@@ -405,7 +407,7 @@ Result loadAndLinkProgram(
     IDevice* device,
     const char* shaderModuleName,
     const char* entryPointName,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection
 )
 {
@@ -418,7 +420,7 @@ Result loadAndLinkProgram(
     );
 }
 
-Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source)
+Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IShaderProgram** outShaderProgram)
 {
     auto slangSession = device->getSlangSession();
     slang::IModule* module = nullptr;
@@ -456,17 +458,19 @@ Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& out
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    ShaderProgramDesc shaderProgramDesc = {};
+    shaderProgramDesc.slangGlobalScope = linkedProgram;
+    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+    return result;
 }
 
 Result loadRenderProgramFromSource(
     IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
     std::string_view source,
     const char* vertexEntryPointName,
-    const char* fragmentEntryPointName
+    const char* fragmentEntryPointName,
+    IShaderProgram** outShaderProgram
 )
 {
     auto slangSession = device->getSlangSession();
@@ -506,9 +510,11 @@ Result loadRenderProgramFromSource(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    outShaderProgram = device->createShaderProgram(linkedProgram, diagnosticsBlob.writeRef());
+    ShaderProgramDesc shaderProgramDesc = {};
+    shaderProgramDesc.slangGlobalScope = linkedProgram;
+    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+    return result;
 }
 
 const char* deviceTypeToString(DeviceType deviceType)

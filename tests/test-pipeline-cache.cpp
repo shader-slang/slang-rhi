@@ -182,7 +182,7 @@ struct PipelineCacheTestCompute : PipelineCacheTest
     void createComputePipeline(std::string_view shaderSource)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadComputeProgramFromSource(device, shaderProgram, shaderSource));
+        REQUIRE_CALL(loadComputeProgramFromSource(device, shaderSource, shaderProgram.writeRef()));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -295,7 +295,9 @@ struct PipelineCacheTestRender : PipelineCacheTest
     void createRenderPipeline(std::string_view shaderSource)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadRenderProgramFromSource(device, shaderProgram, shaderSource, "vertexMain", "fragmentMain"));
+        REQUIRE_CALL(
+            loadRenderProgramFromSource(device, shaderSource, "vertexMain", "fragmentMain", shaderProgram.writeRef())
+        );
 
         RenderPipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();

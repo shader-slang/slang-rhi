@@ -65,7 +65,7 @@ struct TestFormats
         if (!pipeline)
         {
             ComPtr<IShaderProgram> shaderProgram;
-            REQUIRE_CALL(loadProgram(device, "test-formats", entryPoint, shaderProgram));
+            REQUIRE_CALL(loadProgram(device, "test-formats", entryPoint, shaderProgram.writeRef()));
 
             ComputePipelineDesc pipelineDesc = {};
             pipelineDesc.program = shaderProgram.get();

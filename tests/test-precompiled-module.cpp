@@ -143,7 +143,9 @@ static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompi
     sessionDesc.searchPathCount = SLANG_COUNT_OF(searchPaths);
     auto globalSession = slangSession->getGlobalSession();
     globalSession->createSession(sessionDesc, slangSession.writeRef());
-    REQUIRE_CALL(loadAndLinkProgram(device, slangSession, "test-precompiled-module", "computeMain", shaderProgram));
+    REQUIRE_CALL(
+        loadAndLinkProgram(device, slangSession, "test-precompiled-module", "computeMain", shaderProgram.writeRef())
+    );
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

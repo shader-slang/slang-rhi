@@ -30,7 +30,7 @@ inline ComPtr<ITexture> createTexture(IDevice* device, float value)
 GPU_TEST_CASE("shader-object-large", D3D12 | Vulkan)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-shader-object-large", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-shader-object-large", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
