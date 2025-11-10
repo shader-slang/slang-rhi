@@ -113,6 +113,7 @@ enum class DeviceType
     x(CustomBorderColor,                        "custom-border-color"                           ) \
     x(FragmentShadingRate,                      "fragment-shading-rate"                         ) \
     x(SamplerFeedback,                          "sampler-feedback"                              ) \
+    x(CombinedTextureSampler,                   "combined-texture-sampler"                      ) \
     /* Ray tracing features */                                                                    \
     x(AccelerationStructure,                    "acceleration-structure"                        ) \
     x(AccelerationStructureSpheres,             "acceleration-structure-spheres"                ) \

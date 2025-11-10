@@ -45,12 +45,7 @@ public:
     IFence* getInterface(const Guid& guid);
 
 public:
-    Fence(Device* device, const FenceDesc& desc)
-        : DeviceChild(device)
-        , m_desc(desc)
-    {
-        m_descHolder.holdString(m_desc.label);
-    }
+    Fence(Device* device, const FenceDesc& desc);
 
 protected:
     FenceDesc m_desc;
@@ -74,17 +69,12 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Buffer(Device* device, const BufferDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
-    {
-        m_descHolder.holdString(m_desc.label);
-    }
+    Buffer(Device* device, const BufferDesc& desc);
 
     BufferRange resolveBufferRange(const BufferRange& range);
 
     // IBuffer interface
-    virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
@@ -125,12 +115,7 @@ public:
     IResource* getInterface(const Guid& guid);
 
 public:
-    Texture(Device* device, const TextureDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
-    {
-        m_descHolder.holdString(m_desc.label);
-    }
+    Texture(Device* device, const TextureDesc& desc);
 
     SubresourceRange resolveSubresourceRange(const SubresourceRange& range);
     bool isEntireTexture(const SubresourceRange& range);
@@ -147,7 +132,7 @@ public:
     );
 
     // ITexture interface
-    virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override { return m_desc; };
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createView(
@@ -177,12 +162,7 @@ public:
     ITextureView* getInterface(const Guid& guid);
 
 public:
-    TextureView(Device* device, const TextureViewDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
-    {
-        m_descHolder.holdString(m_desc.label);
-    }
+    TextureView(Device* device, const TextureViewDesc& desc);
 
     // ITextureView interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -204,12 +184,7 @@ public:
     ISampler* getInterface(const Guid& guid);
 
 public:
-    Sampler(Device* device, const SamplerDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
-    {
-        m_descHolder.holdString(m_desc.label);
-    }
+    Sampler(Device* device, const SamplerDesc& desc);
 
     // ISampler interface
     virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override;
@@ -230,12 +205,7 @@ public:
     IAccelerationStructure* getInterface(const Guid& guid);
 
 public:
-    AccelerationStructure(Device* device, const AccelerationStructureDesc& desc)
-        : Resource(device)
-        , m_desc(desc)
-    {
-        m_descHolder.holdString(m_desc.label);
-    }
+    AccelerationStructure(Device* device, const AccelerationStructureDesc& desc);
 
     // IAccelerationStructure interface
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
@@ -260,12 +230,7 @@ public:
     IQueryPool* getInterface(const Guid& guid);
 
 public:
-    QueryPool(Device* device, const QueryPoolDesc& desc)
-        : DeviceChild(device)
-        , m_desc(desc)
-    {
-        m_descHolder.holdString(m_desc.label);
-    }
+    QueryPool(Device* device, const QueryPoolDesc& desc);
 
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override { return SLANG_OK; }
@@ -280,6 +245,13 @@ static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_A
 class ShaderTable : public IShaderTable, public DeviceChild
 {
 public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    IShaderTable* getInterface(const Guid& guid);
+
+public:
+    ShaderTable(Device* device, const ShaderTableDesc& desc);
+
+public:
     std::vector<std::string> m_shaderGroupNames;
     std::vector<ShaderRecordOverwrite> m_recordOverwrites;
 
@@ -287,16 +259,6 @@ public:
     uint32_t m_missShaderCount;
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
-
-    SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IShaderTable* getInterface(const Guid& guid)
-    {
-        if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderTable::getTypeGuid())
-            return static_cast<IShaderTable*>(this);
-        return nullptr;
-    }
-
-    ShaderTable(Device* device, const ShaderTableDesc& desc);
 };
 
 class Surface : public ISurface, public ComObject
