@@ -349,6 +349,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             addFeature(Feature::AccelerationStructureSpheres);
             addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+            if (m_ctx.optixContext->getCooperativeVectorSupport())
+            {
+                addFeature(Feature::CooperativeVector);
+            }
         }
         addCapability(Capability::_raygen);
         addCapability(Capability::_intersection);
@@ -606,6 +610,32 @@ Result DeviceImpl::createAccelerationStructure(
     result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
+}
+
+Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
+{
+    if (!hasFeature(Feature::CooperativeVector))
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if (m_cooperativeVectorProperties.empty())
+    {
+#define ADD_PROPERTIES(inputType, inputInterpretation, matrixInterpretation, biasInterpretation, resultType)           \
+    m_cooperativeVectorProperties.push_back({                                                                          \
+        CooperativeVectorComponentType::inputType,                                                                     \
+        CooperativeVectorComponentType::inputInterpretation,                                                           \
+        CooperativeVectorComponentType::matrixInterpretation,                                                          \
+        CooperativeVectorComponentType::biasInterpretation,                                                            \
+        CooperativeVectorComponentType::resultType,                                                                    \
+        false /* transpose */                                                                                          \
+    })
+        // OptiX has hardcoded support for these cooperative vector types.
+        ADD_PROPERTIES(Float16, Float16, Float16, Float16, Float16);
+        ADD_PROPERTIES(Float16, FloatE4M3, FloatE4M3, Float16, Float16);
+        ADD_PROPERTIES(Float16, FloatE5M2, FloatE5M2, Float16, Float16);
+#undef ADD_PROPERTIES
+    }
+    return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)

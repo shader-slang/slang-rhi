@@ -53,6 +53,9 @@ public:
     /// Get the underlying OptiX device context.
     virtual void* getOptixDeviceContext() const = 0;
 
+    /// Check if cooperative vector support is available.
+    virtual bool getCooperativeVectorSupport() const = 0;
+
     /// Create a new OptiX pipeline.
     virtual Result createPipeline(
         const RayTracingPipelineDesc& desc,

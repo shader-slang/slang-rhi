@@ -440,6 +440,23 @@ public:
 
     virtual void* getOptixDeviceContext() const override { return m_deviceContext; }
 
+    virtual bool getCooperativeVectorSupport() const override
+    {
+#if OPTIX_VERSION >= 90000
+        unsigned int coopVecSupport = 0;
+        if (optixDeviceContextGetProperty(
+                m_deviceContext,
+                OPTIX_DEVICE_PROPERTY_COOP_VEC,
+                &coopVecSupport,
+                sizeof(coopVecSupport)
+            ) == OPTIX_SUCCESS)
+        {
+            return coopVecSupport & OPTIX_DEVICE_PROPERTY_COOP_VEC_FLAG_STANDARD;
+        }
+#endif
+        return false;
+    }
+
     virtual Result createPipeline(
         const RayTracingPipelineDesc& desc,
         ShaderCompilationReporter* shaderCompilationReporter,
