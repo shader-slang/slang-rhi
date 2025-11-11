@@ -15,7 +15,7 @@ using namespace rhi::testing;
 void runCopyBufferShader(IDevice* device, IBuffer* src, IBuffer* dst)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-buffer-copy", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-buffer-copy", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -41,7 +41,7 @@ void runCopyBufferShader(IDevice* device, IBuffer* src, IBuffer* dst)
 void runInitPointerShader(IDevice* device, uint32_t val, DeviceAddress dst, uint32_t numElements)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-pointer-init", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-pointer-init", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -67,7 +67,7 @@ void runInitPointerShader(IDevice* device, uint32_t val, DeviceAddress dst, uint
 void runCopyPointerShader(IDevice* device, DeviceAddress src, DeviceAddress dst, uint32_t numElements)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -224,14 +224,14 @@ GPU_TEST_CASE("heap-pointer-stress-test", CUDA | Vulkan)
     ComputePipelineDesc pipelineDesc = {};
 
     ComPtr<IShaderProgram> initPtrShaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-pointer-init", "computeMain", initPtrShaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-pointer-init", "computeMain", initPtrShaderProgram.writeRef()));
 
     pipelineDesc.program = initPtrShaderProgram.get();
     ComPtr<IComputePipeline> initPtrpipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, initPtrpipeline.writeRef()));
 
     ComPtr<IShaderProgram> copyPtrShaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", copyPtrShaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", copyPtrShaderProgram.writeRef()));
     pipelineDesc.program = copyPtrShaderProgram.get();
     ComPtr<IComputePipeline> copyPtrpipeline;
     REQUIRE_CALL(device->createComputePipeline(pipelineDesc, copyPtrpipeline.writeRef()));

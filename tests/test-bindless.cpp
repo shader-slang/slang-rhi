@@ -12,7 +12,7 @@ GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan)
     }
 
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-bindless-buffers", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-bindless-buffers", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -189,7 +189,7 @@ GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
     }
 
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-bindless-textures", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-bindless-textures", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

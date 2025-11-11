@@ -670,7 +670,7 @@ struct RayTracingTestPipeline
         for (const char* missName : missNames)
             programsToLoad.push_back(missName);
 
-        REQUIRE_CALL(loadProgram(device, filepath, programsToLoad, rayTracingProgram));
+        REQUIRE_CALL(loadProgram(device, filepath, programsToLoad, rayTracingProgram.writeRef()));
 
         std::vector<std::string> hitgroupNames;
         for (unsigned int i = 0; i < programNames.size(); i++)

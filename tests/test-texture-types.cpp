@@ -116,7 +116,7 @@ struct TextureAccessTest : TextureTest
     void submitShaderWork(const char* entryPoint)
     {
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-texture-types", entryPoint, shaderProgram));
+        REQUIRE_CALL(loadProgram(device, "test-texture-types", entryPoint, shaderProgram.writeRef()));
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -333,7 +333,9 @@ struct RenderTargetTests : TextureTest
         REQUIRE(inputLayout != nullptr);
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(loadProgram(device, "test-texture-types", {"vertexMain", "fragmentMain"}, shaderProgram));
+        REQUIRE_CALL(
+            loadProgram(device, "test-texture-types", {"vertexMain", "fragmentMain"}, shaderProgram.writeRef())
+        );
 
         ColorTargetDesc target;
         target.format = textureInfo->format;

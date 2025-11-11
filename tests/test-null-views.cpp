@@ -9,7 +9,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("null-views", ALL & ~(D3D11 | CPU | WGPU))
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-null-views", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-null-views", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

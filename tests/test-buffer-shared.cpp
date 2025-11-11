@@ -46,7 +46,7 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(dstDevice, "test-compute-trivial", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(dstDevice, "test-compute-trivial", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

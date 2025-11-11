@@ -28,9 +28,13 @@ GPU_TEST_CASE("root-shader-parameter", ALL)
 
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(
-        loadAndLinkProgram(device, "test-root-shader-parameter", "computeMain", shaderProgram, &slangReflection)
-    );
+    REQUIRE_CALL(loadAndLinkProgram(
+        device,
+        "test-root-shader-parameter",
+        "computeMain",
+        shaderProgram.writeRef(),
+        &slangReflection
+    ));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

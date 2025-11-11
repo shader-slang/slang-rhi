@@ -3,11 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-static Result loadProgram(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    slang::ProgramLayout*& slangReflection
-)
+static Result loadTestProgram(IDevice* device, IShaderProgram** outShaderProgram)
 {
     const char* moduleInterfaceSrc = R"(
         interface IBase : IDifferentiable
@@ -92,17 +88,18 @@ static Result loadProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+    ShaderProgramDesc shaderProgramDesc = {};
+    shaderProgramDesc.slangGlobalScope = linkedProgram;
+    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    return result;
 }
 
 // TODO(testing): CUDA crashes
 GPU_TEST_CASE("link-time-type", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | DontCacheDevice)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, slangReflection));
+    REQUIRE_CALL(loadTestProgram(device, shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

@@ -3,13 +3,13 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-static Result loadProgram(
+static Result loadTestProgram(
     IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
     const char* shaderModuleName,
     const char* entryPointName,
-    slang::ProgramLayout*& slangReflection,
-    const char* additionalModuleSource
+    const char* additionalModuleSource,
+    IShaderProgram** outShaderProgram,
+    slang::ProgramLayout** outSlangReflection = nullptr
 )
 {
     ComPtr<slang::ISession> slangSession;
@@ -47,28 +47,34 @@ static Result loadProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+    ShaderProgramDesc shaderProgramDesc = {};
+    shaderProgramDesc.slangGlobalScope = linkedProgram;
+    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    if (outSlangReflection)
+    {
+        *outSlangReflection = linkedProgram->getLayout();
+    }
+    return result;
 }
 
 GPU_TEST_CASE("link-time-constant", ALL)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadProgram(
+    REQUIRE_CALL(loadTestProgram(
         device,
-        shaderProgram,
         "test-link-time-constant",
         "computeMain",
-        slangReflection,
         R"(
             export static const uint numthread = 4;
             export static const bool constBool = true;
             export static const int constInt = -2;
             export static const uint constUint = 3;
             export static const float constFloat = 4.0;
-        )"
+        )",
+        shaderProgram.writeRef(),
+        &slangReflection
     ));
 
     SlangUInt threadGroupSizes[3];

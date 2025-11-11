@@ -3,12 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-static Result loadProgram(
-    IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
-    slang::ProgramLayout*& slangReflection,
-    bool linkSpecialization = false
-)
+static Result loadTestProgram(IDevice* device, bool linkSpecialization, IShaderProgram** outShaderProgram)
 {
     const char* moduleInterfaceSrc = R"(
         interface IFoo
@@ -92,9 +87,11 @@ static Result loadProgram(
     diagnoseIfNeeded(diagnosticsBlob);
     SLANG_RETURN_ON_FAIL(result);
 
-    slangReflection = linkedProgram->getLayout();
-    outShaderProgram = device->createShaderProgram(linkedProgram);
-    return outShaderProgram ? SLANG_OK : SLANG_FAIL;
+    ShaderProgramDesc shaderProgramDesc = {};
+    shaderProgramDesc.slangGlobalScope = linkedProgram;
+    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    return result;
 }
 
 GPU_TEST_CASE("link-time-default", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU | DontCacheDevice)
@@ -102,8 +99,7 @@ GPU_TEST_CASE("link-time-default", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU |
     // Create pipeline without linking a specialization override module, so we should
     // see the default value of `extern Foo`.
     ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadProgram(device, shaderProgram, slangReflection, false));
+    REQUIRE_CALL(loadTestProgram(device, false, shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -113,7 +109,7 @@ GPU_TEST_CASE("link-time-default", D3D11 | D3D12 | Vulkan | Metal | CPU | WGPU |
     // Create pipeline with a specialization override module linked in, so we should
     // see the result of using `Bar` for `extern Foo`.
     ComPtr<IShaderProgram> shaderProgram1;
-    REQUIRE_CALL(loadProgram(device, shaderProgram1, slangReflection, true));
+    REQUIRE_CALL(loadTestProgram(device, true, shaderProgram1.writeRef()));
 
     ComputePipelineDesc pipelineDesc1 = {};
     pipelineDesc1.program = shaderProgram1.get();

@@ -91,7 +91,7 @@ Result loadProgram(
     slang::ISession* slangSession,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    ComPtr<IShaderProgram>& outShaderProgram
+    IShaderProgram** outShaderProgram
 );
 
 /// Overload accepting a single entry point name instead of a vector.
@@ -100,7 +100,7 @@ Result loadProgram(
     slang::ISession* slangSession,
     const char* shaderModuleName,
     const char* entryPointName,
-    ComPtr<IShaderProgram>& outShaderProgram
+    IShaderProgram** outShaderProgram
 );
 
 /// Overload using the device's default Slang session.
@@ -108,7 +108,7 @@ Result loadProgram(
     IDevice* device,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    ComPtr<IShaderProgram>& outShaderProgram
+    IShaderProgram** outShaderProgram
 );
 
 /// Overload using the device's default Slang session and accepting a single entry point name.
@@ -116,7 +116,7 @@ Result loadProgram(
     IDevice* device,
     const char* shaderModuleName,
     const char* entryPointName,
-    ComPtr<IShaderProgram>& outShaderProgram
+    IShaderProgram** outShaderProgram
 );
 
 /// Load and link a shader program.
@@ -132,7 +132,7 @@ Result loadAndLinkProgram(
     slang::ISession* slangSession,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection = nullptr
 );
 
@@ -142,7 +142,7 @@ Result loadAndLinkProgram(
     slang::ISession* slangSession,
     const char* shaderModuleName,
     const char* entryPointName,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection = nullptr
 );
 
@@ -151,7 +151,7 @@ Result loadAndLinkProgram(
     IDevice* device,
     const char* shaderModuleName,
     std::vector<const char*> entryPointNames,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection = nullptr
 );
 
@@ -160,18 +160,18 @@ Result loadAndLinkProgram(
     IDevice* device,
     const char* shaderModuleName,
     const char* entryPointName,
-    ComPtr<IShaderProgram>& outShaderProgram,
+    IShaderProgram** outShaderProgram,
     slang::ProgramLayout** outSlangReflection = nullptr
 );
 
-Result loadComputeProgramFromSource(IDevice* device, ComPtr<IShaderProgram>& outShaderProgram, std::string_view source);
+Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IShaderProgram** outShaderProgram);
 
 Result loadRenderProgramFromSource(
     IDevice* device,
-    ComPtr<IShaderProgram>& outShaderProgram,
     std::string_view source,
     const char* vertexEntryPointName,
-    const char* fragmentEntryPointName
+    const char* fragmentEntryPointName,
+    IShaderProgram** outShaderProgram
 );
 
 template<typename T>

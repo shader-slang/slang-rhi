@@ -25,11 +25,15 @@ inline bool isEqual(const CompilationReport* a, const CompilationReport* b)
 inline ComPtr<IShaderProgram> createShaderProgram(IDevice* device)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadComputeProgramFromSource(device, shaderProgram, R"(
+    REQUIRE_CALL(loadComputeProgramFromSource(
+        device,
+        R"(
     [shader("compute")]
     [numthreads(1, 1, 1)]
     void computeMain() {}
-    )"));
+    )",
+        shaderProgram.writeRef()
+    ));
     return shaderProgram;
 }
 

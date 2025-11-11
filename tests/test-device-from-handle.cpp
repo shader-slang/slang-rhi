@@ -24,7 +24,7 @@ GPU_TEST_CASE("device-from-handle", D3D12 | Vulkan | CUDA)
     CHECK_CALL(getRHI()->createDevice(newDeviceDesc, newDevice.writeRef()));
 
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(newDevice, "test-compute-trivial", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(newDevice, "test-compute-trivial", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

@@ -120,9 +120,13 @@ struct BaseResolveResourceTest
         vertexBuffer = createVertexBuffer(device);
 
         ComPtr<IShaderProgram> shaderProgram;
-        REQUIRE_CALL(
-            loadProgram(device, nullptr, "test-resolve-resource-shader", {"vertexMain", "fragmentMain"}, shaderProgram)
-        );
+        REQUIRE_CALL(loadProgram(
+            device,
+            nullptr,
+            "test-resolve-resource-shader",
+            {"vertexMain", "fragmentMain"},
+            shaderProgram.writeRef()
+        ));
 
 
         ColorTargetDesc target;

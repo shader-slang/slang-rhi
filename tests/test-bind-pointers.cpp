@@ -9,7 +9,7 @@ using namespace rhi::testing;
 GPU_TEST_CASE("bind-pointers-single-copy", Vulkan | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
@@ -70,7 +70,7 @@ GPU_TEST_CASE("bind-pointers-single-copy", Vulkan | CUDA)
 GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

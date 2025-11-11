@@ -11,7 +11,7 @@ static const MarkerColor BLUE = {0.f, 0.f, 1.f};
 GPU_TEST_CASE("cmd-debug", ALL)
 {
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(loadProgram(device, "test-cmd-debug", "computeMain", shaderProgram));
+    REQUIRE_CALL(loadProgram(device, "test-cmd-debug", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();

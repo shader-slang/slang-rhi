@@ -7,7 +7,9 @@ GPU_TEST_CASE("compute-smoke", ALL)
 {
     ComPtr<IShaderProgram> shaderProgram;
     slang::ProgramLayout* slangReflection = nullptr;
-    REQUIRE_CALL(loadAndLinkProgram(device, "test-compute-smoke", "computeMain", shaderProgram, &slangReflection));
+    REQUIRE_CALL(
+        loadAndLinkProgram(device, "test-compute-smoke", "computeMain", shaderProgram.writeRef(), &slangReflection)
+    );
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
