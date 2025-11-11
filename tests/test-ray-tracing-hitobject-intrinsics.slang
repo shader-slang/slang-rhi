@@ -43,7 +43,7 @@ void rayGenShaderMakeQueryInvokeNOP()
 
     // Invoking a NOP shouldn't have an effect, but we do it anyway to make sure it doesn't crash.
     RayPayload payload = {};
-    HitObject.Invoke(sceneBVH, hitObjectNOP, payload);
+    HitObject.Invoke(hitObjectNOP, payload);
     resultBuffer[0].invokeWasSuccess = 1;
 }
 
@@ -76,7 +76,7 @@ void closestHitMakeQueryInvokeNOP(inout RayPayload payload, in BuiltInTriangleIn
 
     // Invoking a NOP shouldn't have an effect, but we do it anyway to make sure it doesn't crash.
     RayPayload hitObjPayload = {};
-    HitObject.Invoke(sceneBVH, hitObjectNOP, hitObjPayload);
+    HitObject.Invoke(hitObjectNOP, hitObjPayload);
 
     payload.invokeWasSuccess = 1;
 }
@@ -110,7 +110,7 @@ void missMakeQueryInvokeNOP(inout RayPayload payload)
 
     // Invoking a NOP shouldn't have an effect, but we do it anyway to make sure it doesn't crash.
     RayPayload hitObjPayload = {};
-    HitObject.Invoke(sceneBVH, hitObjectNOP, hitObjPayload);
+    HitObject.Invoke(hitObjectNOP, hitObjPayload);
 
     payload.invokeWasSuccess = 1;
 }
@@ -134,7 +134,7 @@ void rayGenShaderMakeQueryInvokeMiss()
     resultBuffer[0].queryWasSuccess = hitObjectMiss.IsMiss();
 
     RayPayload payloadMiss = {};
-    HitObject.Invoke(sceneBVH, hitObjectMiss, payloadMiss);
+    HitObject.Invoke(hitObjectMiss, payloadMiss);
     resultBuffer[0].invokeWasSuccess = payloadMiss.invokeWasSuccess;
 }
 
@@ -163,7 +163,7 @@ void closestHitMakeQueryInvokeMiss(inout RayPayload payload, in BuiltInTriangleI
     payload.queryWasSuccess = hitObjectMiss.IsMiss();
 
     RayPayload payloadMiss = {};
-    HitObject.Invoke(sceneBVH, hitObjectMiss, payloadMiss);
+    HitObject.Invoke(hitObjectMiss, payloadMiss);
     payload.invokeWasSuccess = payloadMiss.invokeWasSuccess;
 }
 
@@ -188,7 +188,7 @@ void missMakeQueryInvokeMiss(inout RayPayload payload)
     payload.queryWasSuccess = hitObjectMiss.IsMiss();
 
     RayPayload payloadMiss = {};
-    HitObject.Invoke(sceneBVH, hitObjectMiss, payloadMiss);
+    HitObject.Invoke(hitObjectMiss, payloadMiss);
     payload.invokeWasSuccess = payloadMiss.invokeWasSuccess;
 }
 
@@ -210,7 +210,7 @@ void rayGenShaderTraceQueryInvokeHit()
     resultBuffer[0].queryWasSuccess = hitObjectHit.IsHit();
 
     RayPayload payloadHit = {};
-    HitObject.Invoke(sceneBVH, hitObjectHit, payloadHit);
+    HitObject.Invoke(hitObjectHit, payloadHit);
     resultBuffer[0].invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
@@ -239,7 +239,7 @@ void closestHitMakeQueryInvokeHit(inout RayPayload payload, in BuiltInTriangleIn
     payload.queryWasSuccess = hitObjectHit.IsHit();
 
     RayPayload payloadHit = {};
-    HitObject.Invoke(sceneBVH, hitObjectHit, payloadHit);
+    HitObject.Invoke(hitObjectHit, payloadHit);
     payload.invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
@@ -262,7 +262,7 @@ void missMakeQueryInvokeHit(inout RayPayload payload)
     payload.queryWasSuccess = hitObjectHit.IsHit();
 
     RayPayload payloadHit = {};
-    HitObject.Invoke(sceneBVH, hitObjectHit, payloadHit);
+    HitObject.Invoke(hitObjectHit, payloadHit);
     payload.invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 

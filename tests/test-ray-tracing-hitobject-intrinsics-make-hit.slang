@@ -74,7 +74,7 @@ void rayGenShaderMakeQueryInvokeHit()
     resultBuffer[0].queryWasSuccess = hitObjectFromMake.IsHit();
 
     RayPayload payloadHit = {};
-    HitObject.Invoke(sceneBVH, hitObjectFromMake, payloadHit);
+    HitObject.Invoke(hitObjectFromMake, payloadHit);
 
     resultBuffer[0].invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
