@@ -471,7 +471,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         CU_LAUNCH_PARAM_BUFFER_POINTER,
         (void*)entryPointData.data,
         CU_LAUNCH_PARAM_BUFFER_SIZE,
-        (void*)&computePipeline->m_paramBufferSize,
+        (void*)&entryPointData.size,
         CU_LAUNCH_PARAM_END,
     };
 
