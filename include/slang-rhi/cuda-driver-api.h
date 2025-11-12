@@ -878,7 +878,7 @@ CUDA_SYM(CUresult (*cuModuleLoadData)(CUmodule*, const void*));
 CUDA_SYM(CUresult (*cuModuleLoadDataEx)(CUmodule*, const void*, unsigned int, CUjit_option*, void** optionValues));
 CUDA_SYM(CUresult (*cuModuleUnload)(CUmodule));
 CUDA_SYM(CUresult (*cuFuncGetAttribute)(int*, CUfunction_attribute, CUfunction));
-CUDA_SYM(CUresult (*cuFuncGetParamInfo)(CUfunction, size_t, size_t*, size_t*));
+// CUDA_SYM(CUresult (*cuFuncGetParamInfo)(CUfunction, size_t, size_t*, size_t*));
 CUDA_SYM(CUresult (*cuLaunchKernel)(CUfunction, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, CUstream, void **, void **));
 CUDA_SYM(CUresult (*cuMipmappedArrayGetLevel)(CUarray*, CUmipmappedArray, unsigned int));
 CUDA_SYM(CUresult (*cuArrayCreate)(CUarray*, const CUDA_ARRAY_DESCRIPTOR*)); // v2
