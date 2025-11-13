@@ -112,6 +112,7 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
 
     void prepareSetRenderState(const commands::SetRenderState& cmd);
 
@@ -1222,6 +1223,12 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
     copyInfo.dst = checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_vkHandle;
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
     m_api.vkCmdCopyMemoryToAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
+}
+
+void CommandRecorder::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_CommandEncoder_buildClusterAccelerationStructure);
 }
 
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)

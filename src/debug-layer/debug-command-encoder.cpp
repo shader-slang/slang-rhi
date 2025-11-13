@@ -753,6 +753,167 @@ void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructur
     baseObject->deserializeAccelerationStructure(dst, src);
 }
 
+void DebugCommandEncoder::buildClusterAccelerationStructure(
+    const ClusterAccelBuildDesc& desc
+)
+{
+    SLANG_RHI_API_FUNC;
+    requireOpen();
+    requireNoPass();
+    // Validate required fields based on build mode and operation.
+    auto fail = [&](const char* message) {
+        if (ctx && ctx->debugCallback)
+            ctx->debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, message);
+    };
+
+    // Args validation (required for GET_SIZES mode too)
+    if (desc.argCount == 0)
+    {
+        fail("Cluster build: argCount must be > 0");
+        return;
+    }
+    if (desc.argsStride == 0)
+    {
+        fail("Cluster build: argsStride must be > 0");
+        return;
+    }
+    if (!desc.argsBuffer.buffer)
+    {
+        fail("Cluster build: argsBuffer must be provided");
+        return;
+    }
+
+    // Per-op limits are required
+    switch (desc.op)
+    {
+    case ClusterAccelBuildOp::CLASFromTriangles:
+        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+        {
+            fail("Cluster CLAS build: limitsTriangles must be provided and non-zero");
+            return;
+        }
+        break;
+    case ClusterAccelBuildOp::BLASFromCLAS:
+        if (desc.limits.limitsClusters.maxArgCount == 0 ||
+            desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
+            desc.limits.limitsClusters.maxClusterCountPerArg == 0)
+        {
+            fail("Cluster BLAS build: limitsClusters must be provided and non-zero");
+            return;
+        }
+        break;
+    case ClusterAccelBuildOp::TemplatesFromTriangles:
+        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+        {
+            fail("Template build: limitsTriangles must be provided and non-zero");
+            return;
+        }
+        break;
+    case ClusterAccelBuildOp::CLASFromTemplates:
+        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+            desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+        {
+            fail("CLAS from template build: limitsTriangles must be provided and non-zero");
+            return;
+        }
+        break;
+    default:
+        break;
+    }
+
+    // Mode-specific validation
+    switch (desc.mode)
+    {
+    case ClusterAccelBuildDesc::BuildMode::Implicit:
+        if (desc.modeDesc.implicit.outputBuffer == 0 || desc.modeDesc.implicit.outputBufferSizeInBytes == 0)
+        {
+            fail("Cluster build (Implicit): outputBuffer and size are required");
+            return;
+        }
+        if (desc.modeDesc.implicit.tempBuffer == 0 || desc.modeDesc.implicit.tempBufferSizeInBytes == 0)
+        {
+            fail("Cluster build (Implicit): tempBuffer and size are required");
+            return;
+        }
+        if (desc.modeDesc.implicit.outputHandlesBuffer == 0)
+        {
+            fail("Cluster build (Implicit): outputHandlesBuffer is required");
+            return;
+        }
+        if (desc.modeDesc.implicit.outputHandlesStrideInBytes != 0 &&
+            desc.modeDesc.implicit.outputHandlesStrideInBytes < 8)
+        {
+            fail("Cluster build (Implicit): outputHandlesStrideInBytes must be 0 or >= 8");
+            return;
+        }
+        if (desc.modeDesc.implicit.outputSizesStrideInBytes != 0 &&
+            desc.modeDesc.implicit.outputSizesStrideInBytes < 4)
+        {
+            fail("Cluster build (Implicit): outputSizesStrideInBytes must be 0 or >= 4");
+            return;
+        }
+        break;
+    case ClusterAccelBuildDesc::BuildMode::Explicit:
+        if (desc.modeDesc.explicitDest.tempBuffer == 0 || desc.modeDesc.explicitDest.tempBufferSizeInBytes == 0)
+        {
+            fail("Cluster build (Explicit): tempBuffer and size are required");
+            return;
+        }
+        if (desc.modeDesc.explicitDest.destAddressesBuffer == 0)
+        {
+            fail("Cluster build (Explicit): destAddressesBuffer is required");
+            return;
+        }
+        if (desc.modeDesc.explicitDest.destAddressesStrideInBytes != 0 &&
+            desc.modeDesc.explicitDest.destAddressesStrideInBytes < 8)
+        {
+            fail("Cluster build (Explicit): destAddressesStrideInBytes must be 0 or >= 8");
+            return;
+        }
+        if (desc.modeDesc.explicitDest.outputHandlesStrideInBytes != 0 &&
+            desc.modeDesc.explicitDest.outputHandlesStrideInBytes < 8)
+        {
+            fail("Cluster build (Explicit): outputHandlesStrideInBytes must be 0 or >= 8");
+            return;
+        }
+        if (desc.modeDesc.explicitDest.outputSizesStrideInBytes != 0 &&
+            desc.modeDesc.explicitDest.outputSizesStrideInBytes < 4)
+        {
+            fail("Cluster build (Explicit): outputSizesStrideInBytes must be 0 or >= 4");
+            return;
+        }
+        break;
+    case ClusterAccelBuildDesc::BuildMode::GetSizes:
+        if (desc.modeDesc.getSizes.tempBuffer == 0 || desc.modeDesc.getSizes.tempBufferSizeInBytes == 0)
+        {
+            fail("Cluster build (GetSizes): tempBuffer and size are required");
+            return;
+        }
+        if (desc.modeDesc.getSizes.outputSizesBuffer == 0)
+        {
+            fail("Cluster build (GetSizes): outputSizesBuffer is required");
+            return;
+        }
+        if (desc.modeDesc.getSizes.outputSizesStrideInBytes != 0 &&
+            desc.modeDesc.getSizes.outputSizesStrideInBytes < 4)
+        {
+            fail("Cluster build (GetSizes): outputSizesStrideInBytes must be 0 or >= 4");
+            return;
+        }
+        break;
+    }
+
+    baseObject->buildClusterAccelerationStructure(desc);
+}
+
 void DebugCommandEncoder::convertCooperativeVectorMatrix(
     const ConvertCooperativeVectorMatrixDesc* infos,
     uint32_t infoCount

@@ -16,8 +16,14 @@
 #include <optix.h>
 #include <optix_stubs.h>
 
+#if OPTIX_VERSION >= 90000
+#include <optix_types.h>
+#endif
+
+#ifdef EXPECTED_OPTIX_VERSION
 #if (OPTIX_VERSION != EXPECTED_OPTIX_VERSION)
 #error "Invalid OptiX header version included"
+#endif
 #endif
 
 #include <optix_function_table_definition.h>
@@ -481,6 +487,11 @@ public:
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
             optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
 
+        // Enable clustered geometry when requested (OptiX 9+).
+#if OPTIX_VERSION >= 90000
+        optixPipelineCompileOptions.allowClusteredGeometry = is_set(desc.flags, RayTracingPipelineFlags::EnableClusters) ? 1 : 0;
+#endif
+
         optixPipelineCompileOptions.allowOpacityMicromaps = 0;
 
         OptixModuleCompileOptions optixModuleCompileOptions = {};
@@ -824,6 +835,123 @@ public:
         return SLANG_OK;
     }
 
+    virtual Result getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
+    ) override
+    {
+#if OPTIX_VERSION < 90000
+        SLANG_UNUSED(desc);
+        SLANG_UNUSED(outSizes);
+        return SLANG_E_NOT_AVAILABLE;
+#else
+        if (!outSizes)
+            return SLANG_E_INVALID_ARG;
+
+        OptixClusterAccelBuildInput buildInput = {};
+        OptixClusterAccelBuildModeDesc buildMode = {};
+        buildMode.getSize.tempBuffer = 0;
+        buildMode.getSize.tempBufferSizeInBytes = 0;
+        buildMode.getSize.outputSizesBuffer = 0;
+        buildMode.getSize.outputSizesStrideInBytes = 0;
+
+        switch (desc.op)
+        {
+        case ClusterAccelBuildOp::CLASFromTriangles:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
+            // Sizing query uses IMPLICIT mode to get total required buffer sizes
+            buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
+            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+            {
+                m_device->printError("Cluster CLAS sizing: limitsTriangles must be provided");
+                return SLANG_E_INVALID_ARG;
+            }
+            buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
+            buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg =
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.limits.limitsTriangles.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.limits.limitsTriangles.maxVertexCountPerArg;
+            break;
+        }
+        case ClusterAccelBuildOp::BLASFromCLAS:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
+            // Sizing query uses IMPLICIT mode to get total required buffer sizes
+            buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
+            if (desc.limits.limitsClusters.maxArgCount == 0 ||
+                desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
+                desc.limits.limitsClusters.maxClusterCountPerArg == 0)
+            {
+                m_device->printError("Cluster BLAS sizing: limitsClusters must be provided");
+                return SLANG_E_INVALID_ARG;
+            }
+            buildInput.clusters.maxArgCount = desc.limits.limitsClusters.maxArgCount;
+            buildInput.clusters.maxTotalClusterCount = desc.limits.limitsClusters.maxTotalClusterCount;
+            buildInput.clusters.maxClusterCountPerArg = desc.limits.limitsClusters.maxClusterCountPerArg;
+            break;
+        }
+        case ClusterAccelBuildOp::TemplatesFromTriangles:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_TEMPLATES_FROM_TRIANGLES;
+            buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
+            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+            {
+                m_device->printError("Template sizing: limitsTriangles must be provided");
+                return SLANG_E_INVALID_ARG;
+            }
+            buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
+            buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg =
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.limits.limitsTriangles.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.limits.limitsTriangles.maxVertexCountPerArg;
+            break;
+        }
+        case ClusterAccelBuildOp::CLASFromTemplates:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TEMPLATES;
+            buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
+            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+            {
+                m_device->printError("CLAS from template sizing: limitsTriangles must be provided");
+                return SLANG_E_INVALID_ARG;
+            }
+            buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
+            buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg =
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.limits.limitsTriangles.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.limits.limitsTriangles.maxVertexCountPerArg;
+            break;
+        }
+        default:
+            return SLANG_E_NOT_AVAILABLE;
+        }
+
+        OptixAccelBufferSizes sizes = {};
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixClusterAccelComputeMemoryUsage(m_deviceContext, buildMode.mode, &buildInput, &sizes),
+            m_device
+        );
+
+        // Report only the payload output size; handles storage is specified separately in the desc
+        outSizes->resultSize = sizes.outputSizeInBytes;
+        outSizes->scratchSize = sizes.tempSizeInBytes;
+        return SLANG_OK;
+#endif
+    }
+
     virtual void buildAccelerationStructure(
         CUstream stream,
         const AccelerationStructureBuildDesc& desc,
@@ -941,6 +1069,162 @@ public:
             height,
             depth
         ));
+    }
+
+    virtual void buildClusterAccelerationStructure(
+        CUstream stream,
+        const ClusterAccelBuildDesc& desc
+    ) override
+    {
+#if OPTIX_VERSION < 90000
+        SLANG_UNUSED(stream);
+        SLANG_UNUSED(desc);
+        return;
+#else
+        OptixClusterAccelBuildInput buildInput = {};
+        OptixClusterAccelBuildModeDesc mode = {};
+
+        // Translate RHI build mode to OptiX mode descriptor
+        switch (desc.mode)
+        {
+        case ClusterAccelBuildDesc::BuildMode::Explicit:
+        {
+            mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_EXPLICIT_DESTINATIONS;
+            mode.explicitDest.tempBuffer = desc.modeDesc.explicitDest.tempBuffer;
+            mode.explicitDest.tempBufferSizeInBytes = desc.modeDesc.explicitDest.tempBufferSizeInBytes;
+            mode.explicitDest.destAddressesBuffer = desc.modeDesc.explicitDest.destAddressesBuffer;
+            mode.explicitDest.destAddressesStrideInBytes = desc.modeDesc.explicitDest.destAddressesStrideInBytes;
+            // If no separate handles buffer is provided, use the destination addresses buffer
+            mode.explicitDest.outputHandlesBuffer = desc.modeDesc.explicitDest.outputHandlesBuffer
+                                                         ? desc.modeDesc.explicitDest.outputHandlesBuffer
+                                                         : desc.modeDesc.explicitDest.destAddressesBuffer;
+            mode.explicitDest.outputHandlesStrideInBytes = desc.modeDesc.explicitDest.outputHandlesStrideInBytes;
+            mode.explicitDest.outputSizesBuffer = desc.modeDesc.explicitDest.outputSizesBuffer;
+            mode.explicitDest.outputSizesStrideInBytes = desc.modeDesc.explicitDest.outputSizesStrideInBytes;
+            break;
+        }
+        case ClusterAccelBuildDesc::BuildMode::GetSizes:
+        {
+            mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_GET_SIZES;
+            mode.getSize.outputSizesBuffer = desc.modeDesc.getSizes.outputSizesBuffer;
+            mode.getSize.outputSizesStrideInBytes = desc.modeDesc.getSizes.outputSizesStrideInBytes;
+            mode.getSize.tempBuffer = desc.modeDesc.getSizes.tempBuffer;
+            mode.getSize.tempBufferSizeInBytes = desc.modeDesc.getSizes.tempBufferSizeInBytes;
+            break;
+        }
+        case ClusterAccelBuildDesc::BuildMode::Implicit:
+        default:
+        {
+            mode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
+            break;
+        }
+        }
+
+        if (mode.mode == OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS)
+        {
+            mode.implicitDest.outputBuffer = desc.modeDesc.implicit.outputBuffer;
+            mode.implicitDest.outputBufferSizeInBytes = desc.modeDesc.implicit.outputBufferSizeInBytes;
+            mode.implicitDest.tempBuffer = desc.modeDesc.implicit.tempBuffer;
+            mode.implicitDest.tempBufferSizeInBytes = desc.modeDesc.implicit.tempBufferSizeInBytes;
+            mode.implicitDest.outputHandlesBuffer = desc.modeDesc.implicit.outputHandlesBuffer;
+            mode.implicitDest.outputHandlesStrideInBytes = desc.modeDesc.implicit.outputHandlesStrideInBytes;
+            mode.implicitDest.outputSizesBuffer = desc.modeDesc.implicit.outputSizesBuffer;
+            mode.implicitDest.outputSizesStrideInBytes = desc.modeDesc.implicit.outputSizesStrideInBytes;
+        }
+
+        switch (desc.op)
+        {
+        case ClusterAccelBuildOp::CLASFromTriangles:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
+            buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
+            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+            {
+                m_device->printError("Cluster CLAS build: limitsTriangles must be provided");
+                return;
+            }
+            buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
+            buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.limits.limitsTriangles.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.limits.limitsTriangles.maxVertexCountPerArg;
+            buildInput.triangles.maxSbtIndexValue = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg ? (desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg - 1) : 0;
+            break;
+        }
+        case ClusterAccelBuildOp::BLASFromCLAS:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
+            buildInput.clusters.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
+            if (desc.limits.limitsClusters.maxArgCount == 0 ||
+                desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
+                desc.limits.limitsClusters.maxClusterCountPerArg == 0)
+            {
+                m_device->printError("Cluster BLAS build: limitsClusters must be provided");
+                return;
+            }
+            buildInput.clusters.maxArgCount = desc.limits.limitsClusters.maxArgCount;
+            buildInput.clusters.maxTotalClusterCount = desc.limits.limitsClusters.maxTotalClusterCount;
+            buildInput.clusters.maxClusterCountPerArg = desc.limits.limitsClusters.maxClusterCountPerArg;
+            break;
+        }
+        case ClusterAccelBuildOp::TemplatesFromTriangles:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_TEMPLATES_FROM_TRIANGLES;
+            buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
+            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+            {
+                m_device->printError("Template build: limitsTriangles must be provided");
+                return;
+            }
+            buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
+            buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.limits.limitsTriangles.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.limits.limitsTriangles.maxVertexCountPerArg;
+            buildInput.triangles.maxSbtIndexValue = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg ? (desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg - 1) : 0;
+            break;
+        }
+        case ClusterAccelBuildOp::CLASFromTemplates:
+        {
+            buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TEMPLATES;
+            buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
+            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
+                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
+                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
+            {
+                m_device->printError("CLAS from template build: limitsTriangles must be provided");
+                return;
+            }
+            buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
+            buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+            buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
+            buildInput.triangles.maxTriangleCountPerArg = desc.limits.limitsTriangles.maxTriangleCountPerArg;
+            buildInput.triangles.maxVertexCountPerArg = desc.limits.limitsTriangles.maxVertexCountPerArg;
+            buildInput.triangles.maxSbtIndexValue = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg ? (desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg - 1) : 0;
+            break;
+        }
+        default:
+            return;
+        }
+
+        // Pass device-side args buffer directly to OptiX with stride 0 (tightly packed) and count 0 (use maxArgCount)
+        optixClusterAccelBuild(
+            m_deviceContext,
+            stream,
+            &mode,
+            &buildInput,
+            desc.argsBuffer.getDeviceAddress(),
+            0,
+            0
+        );
+#endif
     }
 };
 

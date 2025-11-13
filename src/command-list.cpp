@@ -299,6 +299,12 @@ void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::BuildClusterAccelerationStructure&& cmd)
+{
+    // Copy desc by value is fine; buffers are passed via device addresses in desc.
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::ConvertCooperativeVectorMatrix&& cmd)
 {
     if (cmd.descs && cmd.descCount > 0)

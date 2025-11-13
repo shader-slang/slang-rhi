@@ -258,6 +258,10 @@ public:
         BufferOffsetPair src
     ) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(
+        const ClusterAccelBuildDesc& desc
+    ) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount

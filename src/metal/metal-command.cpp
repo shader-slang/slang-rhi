@@ -100,6 +100,7 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
 
     MTL::RenderCommandEncoder* getRenderCommandEncoder(MTL::RenderPassDescriptor* renderPassDesc);
     MTL::ComputeCommandEncoder* getComputeCommandEncoder();
@@ -880,6 +881,12 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
     cmd.callback(cmd.userData);
+}
+
+void CommandRecorder::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_CommandEncoder_buildClusterAccelerationStructure);
 }
 
 MTL::RenderCommandEncoder* CommandRecorder::getRenderCommandEncoder(MTL::RenderPassDescriptor* renderPassDesc)

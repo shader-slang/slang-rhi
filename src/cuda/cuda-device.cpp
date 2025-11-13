@@ -349,6 +349,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             addFeature(Feature::AccelerationStructureSpheres);
             addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+            // OptiX 9+ exposes the Cluster Acceleration Structure API; surface as a device feature.
+            addFeature(Feature::ClusterAccelerationStructure);
         }
         addCapability(Capability::_raygen);
         addCapability(Capability::_intersection);
@@ -587,6 +589,20 @@ Result DeviceImpl::getAccelerationStructureSizes(
         return SLANG_E_NOT_AVAILABLE;
     }
     return m_ctx.optixContext->getAccelerationStructureSizes(desc, outSizes);
+}
+
+Result DeviceImpl::getClusterAccelerationStructureSizes(
+    const ClusterAccelBuildDesc& desc,
+    ClusterAccelSizes* outSizes
+)
+{
+    SLANG_CUDA_CTX_SCOPE(this);
+
+    if (!m_ctx.optixContext)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    return m_ctx.optixContext->getClusterAccelerationStructureSizes(desc, outSizes);
 }
 
 Result DeviceImpl::createAccelerationStructure(

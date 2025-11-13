@@ -64,6 +64,7 @@ public:
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
+    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
 };
 
 Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
@@ -285,6 +286,12 @@ void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::Deseri
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
+}
+
+void CommandExecutor::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_CommandEncoder_buildClusterAccelerationStructure);
 }
 
 void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
