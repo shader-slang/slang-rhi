@@ -104,6 +104,7 @@ public:
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
+    void cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
@@ -1230,6 +1231,34 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
     for (uint32_t i = 0; i < cmd.descCount; ++i)
     {
         infos.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
+    }
+    m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
+}
+
+void CommandRecorder::cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd)
+{
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dstBuffer);
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    short_vector<VkConvertCooperativeVectorMatrixInfoNV> infos;
+    for (uint32_t i = 0; i < cmd.matrixCount; ++i)
+    {
+        const CooperativeVectorMatrixDesc& dstDesc = cmd.dstDescs[i];
+        const CooperativeVectorMatrixDesc& srcDesc = cmd.srcDescs[i];
+        VkConvertCooperativeVectorMatrixInfoNV info = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
+        info.srcSize = srcDesc.size;
+        info.srcData.deviceAddress = srcBuffer->getDeviceAddress() + srcDesc.offset;
+        info.pDstSize = (size_t*)&dstDesc.size;
+        info.dstData.deviceAddress = dstBuffer->getDeviceAddress() + dstDesc.offset;
+        info.srcComponentType = translateCooperativeVectorComponentType(srcDesc.componentType);
+        info.dstComponentType = translateCooperativeVectorComponentType(dstDesc.componentType);
+        info.numRows = srcDesc.rowCount;
+        info.numColumns = srcDesc.colCount;
+        info.srcLayout = translateCooperativeVectorMatrixLayout(srcDesc.layout);
+        info.srcStride = srcDesc.rowColumnStride;
+        info.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
+        info.dstStride = dstDesc.rowColumnStride;
+        infos.push_back(info);
     }
     m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
 }

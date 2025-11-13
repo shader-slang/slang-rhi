@@ -71,6 +71,7 @@ public:
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
+    void cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
@@ -593,6 +594,18 @@ void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(S_CommandEncoder_convertCooperativeVectorMatrix);
+}
+
+void CommandExecutor::cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd)
+{
+    m_device->m_ctx.optixContext->convertCooperativeVectorMatrix(
+        m_stream,
+        cmd.dstBuffer->getDeviceAddress(),
+        cmd.dstDescs,
+        cmd.srcBuffer->getDeviceAddress(),
+        cmd.srcDescs,
+        cmd.matrixCount
+    );
 }
 
 void CommandExecutor::cmdSetBufferState(const commands::SetBufferState& cmd)

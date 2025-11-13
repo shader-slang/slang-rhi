@@ -102,6 +102,7 @@ public:
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
+    void cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
@@ -1256,6 +1257,46 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
     SLANG_RHI_NVAPI_CHECK(
         NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device->m_device, m_cmdList, descs.data(), descs.size())
     );
+#else
+    SLANG_UNUSED(cmd);
+#endif
+}
+
+void CommandRecorder::cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd)
+{
+#if SLANG_RHI_ENABLE_NVAPI
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dstBuffer);
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> nvDescs;
+    for (uint32_t i = 0; i < cmd.matrixCount; i++)
+    {
+        const CooperativeVectorMatrixDesc& dstDesc = cmd.dstDescs[i];
+        const CooperativeVectorMatrixDesc& srcDesc = cmd.srcDescs[i];
+        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
+        nvDesc.version = NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC_VER1;
+        nvDesc.srcSize = srcDesc.size;
+        nvDesc.srcData.bIsDeviceAlloc = true;
+        nvDesc.srcData.deviceAddress = srcBuffer->getDeviceAddress() + srcDesc.offset;
+        nvDesc.pDstSize = (size_t*)&dstDesc.size;
+        nvDesc.dstData.bIsDeviceAlloc = true;
+        nvDesc.dstData.deviceAddress = dstBuffer->getDeviceAddress() + dstDesc.offset;
+        nvDesc.srcComponentType = translateCooperativeVectorComponentType(srcDesc.componentType);
+        nvDesc.dstComponentType = translateCooperativeVectorComponentType(dstDesc.componentType);
+        nvDesc.numRows = srcDesc.rowCount;
+        nvDesc.numColumns = srcDesc.colCount;
+        nvDesc.srcLayout = translateCooperativeVectorMatrixLayout(srcDesc.layout);
+        nvDesc.srcStride = srcDesc.rowColumnStride;
+        nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
+        nvDesc.dstStride = dstDesc.rowColumnStride;
+        nvDescs.push_back(nvDesc);
+    }
+    SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(
+        m_device->m_device,
+        m_cmdList,
+        nvDescs.data(),
+        (NvU32)nvDescs.size()
+    ));
 #else
     SLANG_UNUSED(cmd);
 #endif

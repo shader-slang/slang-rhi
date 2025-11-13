@@ -840,6 +840,23 @@ void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* ds
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::convertCooperativeVectorMatrix(
+    IBuffer* dstBuffer,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    IBuffer* srcBuffer,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+)
+{
+    commands::ConvertCooperativeVectorMatrix2 cmd;
+    cmd.dstBuffer = checked_cast<Buffer*>(dstBuffer);
+    cmd.dstDescs = dstDescs;
+    cmd.srcBuffer = checked_cast<Buffer*>(srcBuffer);
+    cmd.srcDescs = srcDescs;
+    cmd.matrixCount = matrixCount;
+    m_commandList->write(std::move(cmd));
+}
+
 void CommandEncoder::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
 {
     commands::ConvertCooperativeVectorMatrix cmd;
