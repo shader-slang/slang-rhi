@@ -1856,6 +1856,7 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
     uint32_t matrixCount
 )
 {
+#if SLANG_RHI_ENABLE_NVAPI
     short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> nvDescs;
     for (uint32_t i = 0; i < matrixCount; ++i)
     {
@@ -1881,6 +1882,9 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
         NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device, nullptr, nvDescs.data(), (NvU32)nvDescs.size())
     );
     return SLANG_OK;
+#else
+    return SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
