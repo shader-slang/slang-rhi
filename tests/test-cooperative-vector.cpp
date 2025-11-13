@@ -225,7 +225,7 @@ public:
     {
     }
 
-    static constexpr size_t size_bytes() { return Rows * Cols * sizeof(T); }
+    static constexpr size_t sizeBytes() { return Rows * Cols * sizeof(T); }
 
     T& operator()(size_t r, size_t c) { return m_data[getIndex(r, c)]; }
     const T& operator()(size_t r, size_t c) const { return m_data[getIndex(r, c)]; }
@@ -268,7 +268,7 @@ GPU_TEST_CASE("cooperative-vector-convert-host-2", D3D12 | Vulkan | CUDA)
         for (size_t c = 0; c < 8; c++)
             inputMatrix1(r, c) = (float)(r * 8 + c);
 
-    matrix_in inputMatrix2(inputData + matrix_in::size_bytes());
+    matrix_in inputMatrix2(inputData + matrix_in::sizeBytes());
     for (size_t r = 0; r < 4; r++)
         for (size_t c = 0; c < 8; c++)
             inputMatrix2(r, c) = (float)(r * 8 + c + 100);
@@ -278,7 +278,7 @@ GPU_TEST_CASE("cooperative-vector-convert-host-2", D3D12 | Vulkan | CUDA)
     srcDesc1.colCount = 8;
     srcDesc1.componentType = CooperativeVectorComponentType::Float32;
     srcDesc1.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc1.size = matrix_in::size_bytes();
+    srcDesc1.size = matrix_in::sizeBytes();
     srcDesc1.offset = 0;
     srcDesc1.rowColumnStride = srcDesc1.colCount * sizeof(float);
 
@@ -287,8 +287,8 @@ GPU_TEST_CASE("cooperative-vector-convert-host-2", D3D12 | Vulkan | CUDA)
     srcDesc2.colCount = 8;
     srcDesc2.componentType = CooperativeVectorComponentType::Float32;
     srcDesc2.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc2.size = matrix_in::size_bytes();
-    srcDesc2.offset = matrix_in::size_bytes();
+    srcDesc2.size = matrix_in::sizeBytes();
+    srcDesc2.offset = matrix_in::sizeBytes();
     srcDesc2.rowColumnStride = srcDesc2.colCount * sizeof(float);
 
     CooperativeVectorMatrixDesc dstDesc1 = {};
@@ -296,7 +296,7 @@ GPU_TEST_CASE("cooperative-vector-convert-host-2", D3D12 | Vulkan | CUDA)
     dstDesc1.colCount = 8;
     dstDesc1.componentType = CooperativeVectorComponentType::Float32;
     dstDesc1.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc1.size = matrix_out::size_bytes();
+    dstDesc1.size = matrix_out::sizeBytes();
     dstDesc1.offset = 0;
     dstDesc1.rowColumnStride = dstDesc1.rowCount * sizeof(float);
 
@@ -305,8 +305,8 @@ GPU_TEST_CASE("cooperative-vector-convert-host-2", D3D12 | Vulkan | CUDA)
     dstDesc2.colCount = 8;
     dstDesc2.componentType = CooperativeVectorComponentType::Float32;
     dstDesc2.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc2.size = matrix_out::size_bytes();
-    dstDesc2.offset = matrix_out::size_bytes();
+    dstDesc2.size = matrix_out::sizeBytes();
+    dstDesc2.offset = matrix_out::sizeBytes();
     dstDesc2.rowColumnStride = dstDesc2.rowCount * sizeof(float);
 
     CooperativeVectorMatrixDesc srcDescs[] = {srcDesc1, srcDesc2};
@@ -324,7 +324,7 @@ GPU_TEST_CASE("cooperative-vector-convert-host-2", D3D12 | Vulkan | CUDA)
 
     matrix_out outputMatrix(outputData);
     CHECK(inputMatrix1 == outputMatrix);
-    matrix_out outputMatrix2(outputData + matrix_out::size_bytes());
+    matrix_out outputMatrix2(outputData + matrix_out::sizeBytes());
     CHECK(inputMatrix2 == outputMatrix2);
 };
 
@@ -344,7 +344,7 @@ GPU_TEST_CASE("cooperative-vector-convert-device-2", D3D12 | Vulkan | CUDA)
         for (size_t c = 0; c < 8; c++)
             inputMatrix1(r, c) = (float)(r * 8 + c);
 
-    matrix_in inputMatrix2(inputData + matrix_in::size_bytes());
+    matrix_in inputMatrix2(inputData + matrix_in::sizeBytes());
     for (size_t r = 0; r < 4; r++)
         for (size_t c = 0; c < 8; c++)
             inputMatrix2(r, c) = (float)(r * 8 + c + 100);
@@ -368,7 +368,7 @@ GPU_TEST_CASE("cooperative-vector-convert-device-2", D3D12 | Vulkan | CUDA)
     srcDesc1.colCount = 8;
     srcDesc1.componentType = CooperativeVectorComponentType::Float32;
     srcDesc1.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc1.size = matrix_in::size_bytes();
+    srcDesc1.size = matrix_in::sizeBytes();
     srcDesc1.offset = 0;
     srcDesc1.rowColumnStride = srcDesc1.colCount * sizeof(float);
 
@@ -377,8 +377,8 @@ GPU_TEST_CASE("cooperative-vector-convert-device-2", D3D12 | Vulkan | CUDA)
     srcDesc2.colCount = 8;
     srcDesc2.componentType = CooperativeVectorComponentType::Float32;
     srcDesc2.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc2.size = matrix_in::size_bytes();
-    srcDesc2.offset = matrix_in::size_bytes();
+    srcDesc2.size = matrix_in::sizeBytes();
+    srcDesc2.offset = matrix_in::sizeBytes();
     srcDesc2.rowColumnStride = srcDesc2.colCount * sizeof(float);
 
     CooperativeVectorMatrixDesc dstDesc1 = {};
@@ -386,7 +386,7 @@ GPU_TEST_CASE("cooperative-vector-convert-device-2", D3D12 | Vulkan | CUDA)
     dstDesc1.colCount = 8;
     dstDesc1.componentType = CooperativeVectorComponentType::Float32;
     dstDesc1.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc1.size = matrix_out::size_bytes();
+    dstDesc1.size = matrix_out::sizeBytes();
     dstDesc1.offset = 0;
     dstDesc1.rowColumnStride = dstDesc1.rowCount * sizeof(float);
 
@@ -395,8 +395,8 @@ GPU_TEST_CASE("cooperative-vector-convert-device-2", D3D12 | Vulkan | CUDA)
     dstDesc2.colCount = 8;
     dstDesc2.componentType = CooperativeVectorComponentType::Float32;
     dstDesc2.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc2.size = matrix_out::size_bytes();
-    dstDesc2.offset = matrix_out::size_bytes();
+    dstDesc2.size = matrix_out::sizeBytes();
+    dstDesc2.offset = matrix_out::sizeBytes();
     dstDesc2.rowColumnStride = dstDesc2.rowCount * sizeof(float);
 
     CooperativeVectorMatrixDesc srcDescs[] = {srcDesc1, srcDesc2};
@@ -414,6 +414,6 @@ GPU_TEST_CASE("cooperative-vector-convert-device-2", D3D12 | Vulkan | CUDA)
 
     matrix_out outputMatrix(outputData);
     CHECK(inputMatrix1 == outputMatrix);
-    matrix_out outputMatrix2(outputData + matrix_out::size_bytes());
+    matrix_out outputMatrix2(outputData + matrix_out::sizeBytes());
     CHECK(inputMatrix2 == outputMatrix2);
 };
