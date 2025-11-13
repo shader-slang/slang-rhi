@@ -1048,6 +1048,8 @@ public:
     ) const override
     {
 #if OPTIX_VERSION >= 90000
+        short_vector<OptixCoopVecMatrixDescription> optixDstLayers;
+        short_vector<OptixCoopVecMatrixDescription> optixSrcLayers;
         for (uint32_t i = 0; i < matrixCount; ++i)
         {
             const CooperativeVectorMatrixDesc& dstDesc = dstDescs[i];
@@ -1059,9 +1061,7 @@ public:
             optixDstLayer.layout = translateCoopVecMatrixLayout(dstDesc.layout);
             optixDstLayer.rowColumnStrideInBytes = dstDesc.rowColumnStride;
             optixDstLayer.sizeInBytes = dstDesc.size;
-            OptixNetworkDescription optixDstNetwork = {};
-            optixDstNetwork.layers = &optixDstLayer;
-            optixDstNetwork.numLayers = 1;
+            optixDstLayers.push_back(optixDstLayer);
 
             const CooperativeVectorMatrixDesc& srcDesc = srcDescs[i];
             OptixCoopVecMatrixDescription optixSrcLayer = {};
@@ -1072,25 +1072,32 @@ public:
             optixSrcLayer.layout = translateCoopVecMatrixLayout(srcDesc.layout);
             optixSrcLayer.rowColumnStrideInBytes = srcDesc.rowColumnStride;
             optixSrcLayer.sizeInBytes = srcDesc.size;
-            OptixNetworkDescription optixSrcNetwork = {};
-            optixSrcNetwork.layers = &optixSrcLayer;
-            optixSrcNetwork.numLayers = 1;
-
-            SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                optixCoopVecMatrixConvert(
-                    m_deviceContext,
-                    stream,
-                    1,
-                    &optixSrcNetwork,
-                    srcBuffer,
-                    0,
-                    &optixDstNetwork,
-                    dstBuffer,
-                    0
-                ),
-                m_device
-            );
+            optixSrcLayers.push_back(optixSrcLayer);
         }
+
+        OptixNetworkDescription optixDstNetwork = {};
+        optixDstNetwork.layers = optixDstLayers.data();
+        optixDstNetwork.numLayers = matrixCount;
+
+        OptixNetworkDescription optixSrcNetwork = {};
+        optixSrcNetwork.layers = optixSrcLayers.data();
+        optixSrcNetwork.numLayers = matrixCount;
+
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixCoopVecMatrixConvert(
+                m_deviceContext,
+                stream,
+                1,
+                &optixSrcNetwork,
+                srcBuffer,
+                0,
+                &optixDstNetwork,
+                dstBuffer,
+                0
+            ),
+            m_device
+        );
+
         return SLANG_OK;
 #endif
         return SLANG_E_NOT_AVAILABLE;
