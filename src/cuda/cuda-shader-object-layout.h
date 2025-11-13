@@ -71,6 +71,8 @@ public:
     struct EntryPointInfo : Super::EntryPointInfo
     {
         RefPtr<ShaderObjectLayoutImpl> layout;
+        // Size of the entry point parameter buffer passed to cuLaunchKernel.
+        size_t paramsSize = 0;
     };
 
     slang::ProgramLayout* m_programLayout = nullptr;

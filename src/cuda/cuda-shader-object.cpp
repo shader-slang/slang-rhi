@@ -122,6 +122,9 @@ Result BindingDataBuilder::bindAsRoot(
         SLANG_RETURN_ON_FAIL(writeObjectData(entryPoint, entryPointLayout, ConstantBufferMemType::EntryPoint, data));
         entryPointData.data = data.host;
         entryPointData.size = data.size;
+        // Adjust the entry point parameter buffer size to match what is expected by cuLaunchKernel.
+        SLANG_RHI_ASSERT(entryPointInfo.paramsSize <= entryPointData.size);
+        entryPointData.size = entryPointInfo.paramsSize;
     }
 
     outBindingData = m_bindingData;

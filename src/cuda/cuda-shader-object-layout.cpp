@@ -107,6 +107,23 @@ ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
     }
 }
 
+// Compute the size of the entry point parameters passed to cuLaunchKernel.
+// There is an issue in Slang where the entry point parameters seem to be treated as having C struct
+// layout rules. While this matches how CUDA expects parameters to be layed out, CUDA expects *NO* padding
+// at the end of the parameter buffer. Therefore we compute the size manually here.
+inline size_t computeEntryPointParamsSize(slang::EntryPointReflection* entryPointReflection)
+{
+    size_t paramsSize = 0;
+    for (unsigned int i = 0; i < entryPointReflection->getParameterCount(); ++i)
+    {
+        slang::VariableLayoutReflection* variableLayout = entryPointReflection->getParameterByIndex(i);
+        size_t offset = variableLayout->getOffset();
+        size_t size = variableLayout->getTypeLayout()->getSize();
+        paramsSize = std::max(paramsSize, offset + size);
+    }
+    return paramsSize;
+}
+
 RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout)
     : ShaderObjectLayoutImpl(device, programLayout->getSession(), programLayout->getGlobalParamsTypeLayout())
     , m_programLayout(programLayout)
@@ -119,6 +136,7 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::Pr
             programLayout->getSession(),
             programLayout->getEntryPointByIndex(i)->getTypeLayout()
         );
+        entryPointInfo.paramsSize = computeEntryPointParamsSize(programLayout->getEntryPointByIndex(i));
         m_entryPoints.push_back(entryPointInfo);
     }
 }
