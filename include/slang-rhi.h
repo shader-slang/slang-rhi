@@ -3334,6 +3334,10 @@ public:
         uint32_t* propertiesCount
     ) = 0;
 
+    /// Compute the size in bytes of a cooperative vector matrix with the given properties.
+    /// rowColumnStride of zero assumes tight packing.
+    /// rowColumnStride is ignored for optimal layouts.
+    /// The returned size is aligned to 64 bytes.
     virtual SLANG_NO_THROW Result SLANG_MCALL computeCooperativeVectorMatrixSize(
         uint32_t rowCount,
         uint32_t colCount,

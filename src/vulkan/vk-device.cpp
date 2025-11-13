@@ -14,6 +14,8 @@
 #include "vk-acceleration-structure.h"
 #include "vk-utils.h"
 
+#include "cooperative-vector-utils.h"
+
 #include "core/common.h"
 #include "core/short_vector.h"
 #include "core/static_vector.h"
@@ -1821,6 +1823,11 @@ Result DeviceImpl::computeCooperativeVectorMatrixSize(
         !m_api.vkConvertCooperativeVectorMatrixNV)
         return SLANG_E_NOT_AVAILABLE;
 
+    if (rowColumnStride == 0)
+    {
+        rowColumnStride = getTightRowColumnStride(rowCount, colCount, componentType, layout);
+    }
+
     VkConvertCooperativeVectorMatrixInfoNV info = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
     info.pDstSize = outSize;
     info.srcComponentType = translateCooperativeVectorComponentType(componentType);
@@ -1832,6 +1839,7 @@ Result DeviceImpl::computeCooperativeVectorMatrixSize(
     info.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     info.dstStride = rowColumnStride;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+    *outSize = math::calcAligned(*outSize, 64);
     return SLANG_OK;
 }
 

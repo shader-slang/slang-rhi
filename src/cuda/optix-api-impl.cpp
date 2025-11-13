@@ -1082,10 +1082,10 @@ public:
                     stream,
                     1,
                     &optixSrcNetwork,
-                    srcBuffer + srcDesc.offset,
+                    srcBuffer,
                     0,
                     &optixDstNetwork,
-                    dstBuffer + dstDesc.offset,
+                    dstBuffer,
                     0
                 ),
                 m_device

@@ -13,6 +13,8 @@
 #include "d3d12-input-layout.h"
 #include "d3d12-acceleration-structure.h"
 
+#include "cooperative-vector-utils.h"
+
 #include "core/short_vector.h"
 #include "core/string.h"
 
@@ -1820,6 +1822,11 @@ Result DeviceImpl::computeCooperativeVectorMatrixSize(
     if (!m_nvapiEnabled)
         return SLANG_E_NOT_AVAILABLE;
 
+    if (rowColumnStride == 0)
+    {
+        rowColumnStride = getTightRowColumnStride(rowCount, colCount, componentType, layout);
+    }
+
     NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
     nvDesc.version = NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC_VER1;
     nvDesc.pDstSize = outSize;
@@ -1832,6 +1839,7 @@ Result DeviceImpl::computeCooperativeVectorMatrixSize(
     nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     nvDesc.dstStride = rowColumnStride;
     SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc));
+    *outSize = math::calcAligned(*outSize, 64);
     return SLANG_OK;
 #else
     return SLANG_E_NOT_AVAILABLE;
