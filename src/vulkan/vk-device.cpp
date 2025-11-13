@@ -1808,6 +1808,69 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 
+Result DeviceImpl::computeCooperativeVectorMatrixSize(
+    uint32_t rowCount,
+    uint32_t colCount,
+    CooperativeVectorComponentType componentType,
+    CooperativeVectorMatrixLayout layout,
+    size_t rowColumnStride,
+    size_t* outSize
+)
+{
+    if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||
+        !m_api.vkConvertCooperativeVectorMatrixNV)
+        return SLANG_E_NOT_AVAILABLE;
+
+    VkConvertCooperativeVectorMatrixInfoNV info = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
+    info.pDstSize = outSize;
+    info.srcComponentType = translateCooperativeVectorComponentType(componentType);
+    info.dstComponentType = translateCooperativeVectorComponentType(componentType);
+    info.numRows = rowCount;
+    info.numColumns = colCount;
+    info.srcLayout = translateCooperativeVectorMatrixLayout(layout);
+    info.srcStride = rowColumnStride;
+    info.dstLayout = translateCooperativeVectorMatrixLayout(layout);
+    info.dstStride = rowColumnStride;
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+    return SLANG_OK;
+}
+
+Result DeviceImpl::convertCooperativeVectorMatrix(
+    void* dstBuffer,
+    size_t dstBufferSize,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    const void* srcBuffer,
+    size_t srcBufferSize,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+)
+{
+    if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||
+        !m_api.vkConvertCooperativeVectorMatrixNV)
+        return SLANG_E_NOT_AVAILABLE;
+
+    for (uint32_t i = 0; i < matrixCount; ++i)
+    {
+        const CooperativeVectorMatrixDesc& dstDesc = dstDescs[i];
+        const CooperativeVectorMatrixDesc& srcDesc = srcDescs[i];
+        VkConvertCooperativeVectorMatrixInfoNV info = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
+        info.srcSize = srcDesc.size;
+        info.srcData.hostAddress = (const uint8_t*)srcBuffer + srcDesc.offset;
+        info.pDstSize = (size_t*)&dstDesc.size;
+        info.dstData.hostAddress = (uint8_t*)dstBuffer + dstDesc.offset;
+        info.srcComponentType = translateCooperativeVectorComponentType(srcDesc.componentType);
+        info.dstComponentType = translateCooperativeVectorComponentType(dstDesc.componentType);
+        info.numRows = srcDesc.rowCount;
+        info.numColumns = srcDesc.colCount;
+        info.srcLayout = translateCooperativeVectorMatrixLayout(srcDesc.layout);
+        info.srcStride = srcDesc.rowColumnStride;
+        info.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
+        info.dstStride = dstDesc.rowColumnStride;
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+    }
+    return SLANG_OK;
+}
+
 Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
 {
     if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||

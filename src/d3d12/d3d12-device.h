@@ -199,6 +199,25 @@ public:
         uint32_t* propertiesCount
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL computeCooperativeVectorMatrixSize(
+        uint32_t rowCount,
+        uint32_t colCount,
+        CooperativeVectorComponentType componentType,
+        CooperativeVectorMatrixLayout layout,
+        size_t rowColumnStride,
+        size_t* outSize
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
+        void* dstBuffer,
+        size_t dstBufferSize,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        const void* srcBuffer,
+        size_t srcBufferSize,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount

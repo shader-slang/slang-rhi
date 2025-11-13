@@ -309,6 +309,23 @@ void CommandList::write(commands::ConvertCooperativeVectorMatrix&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::ConvertCooperativeVectorMatrix2&& cmd)
+{
+    retainResource<Buffer>(cmd.dstBuffer);
+    retainResource<Buffer>(cmd.srcBuffer);
+    if (cmd.dstDescs && cmd.matrixCount > 0)
+    {
+        cmd.dstDescs = (CooperativeVectorMatrixDesc*)
+            writeData(cmd.dstDescs, cmd.matrixCount * sizeof(CooperativeVectorMatrixDesc));
+    }
+    if (cmd.srcDescs && cmd.matrixCount > 0)
+    {
+        cmd.srcDescs = (CooperativeVectorMatrixDesc*)
+            writeData(cmd.srcDescs, cmd.matrixCount * sizeof(CooperativeVectorMatrixDesc));
+    }
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::SetBufferState&& cmd)
 {
     retainResource<Buffer>(cmd.buffer);

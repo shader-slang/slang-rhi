@@ -943,6 +943,44 @@ Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* prope
     }
 }
 
+Result Device::computeCooperativeVectorMatrixSize(
+    uint32_t rowCount,
+    uint32_t colCount,
+    CooperativeVectorComponentType componentType,
+    CooperativeVectorMatrixLayout layout,
+    size_t rowColumnStride,
+    size_t* outSize
+)
+{
+    SLANG_UNUSED(rowCount);
+    SLANG_UNUSED(colCount);
+    SLANG_UNUSED(componentType);
+    SLANG_UNUSED(layout);
+    SLANG_UNUSED(rowColumnStride);
+    SLANG_UNUSED(outSize);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::convertCooperativeVectorMatrix(
+    void* dstBuffer,
+    size_t dstBufferSize,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    const void* srcBuffer,
+    size_t srcBufferSize,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+)
+{
+    SLANG_UNUSED(dstBuffer);
+    SLANG_UNUSED(dstBufferSize);
+    SLANG_UNUSED(dstDescs);
+    SLANG_UNUSED(srcBuffer);
+    SLANG_UNUSED(srcBufferSize);
+    SLANG_UNUSED(srcDescs);
+    SLANG_UNUSED(matrixCount);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
 {
     SLANG_UNUSED(descs);

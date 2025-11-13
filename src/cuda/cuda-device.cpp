@@ -638,6 +638,53 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 
+Result DeviceImpl::computeCooperativeVectorMatrixSize(
+    uint32_t rowCount,
+    uint32_t colCount,
+    CooperativeVectorComponentType componentType,
+    CooperativeVectorMatrixLayout layout,
+    size_t rowColumnStride,
+    size_t* outSize
+)
+{
+    if (m_ctx.optixContext)
+    {
+        return m_ctx.optixContext
+            ->computeCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, outSize);
+    }
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result DeviceImpl::convertCooperativeVectorMatrix(
+    void* dstBuffer,
+    size_t dstBufferSize,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    const void* srcBuffer,
+    size_t srcBufferSize,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+)
+{
+    SLANG_CUDA_CTX_SCOPE(this);
+
+    if (m_ctx.optixContext)
+    {
+        CUdeviceptr dstPtr = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&dstPtr, dstBufferSize), this);
+        CUdeviceptr srcPtr = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&srcPtr, srcBufferSize), this);
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpyHtoD(srcPtr, srcBuffer, srcBufferSize), this);
+
+        Result result =
+            m_ctx.optixContext->convertCooperativeVectorMatrix(0, dstPtr, dstDescs, srcPtr, srcDescs, matrixCount);
+
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpyDtoH(dstBuffer, dstPtr, dstBufferSize), this);
+
+        return result;
+    }
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 {
     shaderObject->m_setBindingHook = shaderObjectSetBinding;

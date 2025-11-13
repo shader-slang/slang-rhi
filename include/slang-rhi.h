@@ -2161,6 +2161,7 @@ enum class CooperativeVectorMatrixLayout
     TrainingOptimal = 3,
 };
 
+// deprecated
 struct ConvertCooperativeVectorMatrixDesc
 {
     size_t srcSize;
@@ -2175,6 +2176,24 @@ struct ConvertCooperativeVectorMatrixDesc
     size_t srcStride;
     CooperativeVectorMatrixLayout dstLayout;
     size_t dstStride;
+};
+
+struct CooperativeVectorMatrixDesc
+{
+    /// Number of rows.
+    uint32_t rowCount;
+    /// Number of columns.
+    uint32_t colCount;
+    /// Component type of the matrix elements.
+    CooperativeVectorComponentType componentType;
+    /// Layout of the matrix.
+    CooperativeVectorMatrixLayout layout;
+    /// Size of the matrix (in bytes).
+    size_t size;
+    /// Offset from the start of the buffer (in bytes).
+    size_t offset;
+    /// Stride between rows or columns (in bytes).
+    size_t rowColumnStride;
 };
 
 struct CooperativeVectorProperties
@@ -2419,6 +2438,15 @@ public:
         BufferOffsetPair src
     ) = 0;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
+        IBuffer* dstBuffer,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        IBuffer* srcBuffer,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
+    ) = 0;
+
+    // deprecated
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount
@@ -3306,6 +3334,26 @@ public:
         uint32_t* propertiesCount
     ) = 0;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL computeCooperativeVectorMatrixSize(
+        uint32_t rowCount,
+        uint32_t colCount,
+        CooperativeVectorComponentType componentType,
+        CooperativeVectorMatrixLayout layout,
+        size_t rowColumnStride,
+        size_t* outSize
+    ) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
+        void* dstBuffer,
+        size_t dstBufferSize,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        const void* srcBuffer,
+        size_t srcBufferSize,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
+    ) = 0;
+
+    // deprecated
     virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount

@@ -53,9 +53,6 @@ public:
     /// Get the underlying OptiX device context.
     virtual void* getOptixDeviceContext() const = 0;
 
-    /// Check if cooperative vector support is available.
-    virtual bool getCooperativeVectorSupport() const = 0;
-
     /// Create a new OptiX pipeline.
     virtual Result createPipeline(
         const RayTracingPipelineDesc& desc,
@@ -107,6 +104,27 @@ public:
         uint32_t height,
         uint32_t depth
     ) = 0;
+
+    /// Check if cooperative vector support is available.
+    virtual bool getCooperativeVectorSupport() const = 0;
+
+    virtual Result computeCooperativeVectorMatrixSize(
+        uint32_t rowCount,
+        uint32_t colCount,
+        CooperativeVectorComponentType componentType,
+        CooperativeVectorMatrixLayout layout,
+        size_t rowColumnStride,
+        size_t* outSize
+    ) const = 0;
+
+    virtual Result convertCooperativeVectorMatrix(
+        CUstream stream,
+        CUdeviceptr dstBuffer,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        CUdeviceptr srcBuffer,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
+    ) const = 0;
 };
 
 /// Wrapper for OptiX shader binding table.

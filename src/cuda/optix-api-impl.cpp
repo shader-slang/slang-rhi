@@ -91,6 +91,57 @@ void reportOptixAssert(OptixResult result, const char* call, const char* file, i
         }                                                                                                              \
     }
 
+#if OPTIX_VERSION >= 90000
+
+inline OptixCoopVecElemType translateCoopVecElemType(CooperativeVectorComponentType type)
+{
+    switch (type)
+    {
+    case CooperativeVectorComponentType::Float16:
+        return OPTIX_COOP_VEC_ELEM_TYPE_FLOAT16;
+    case CooperativeVectorComponentType::Float32:
+        return OPTIX_COOP_VEC_ELEM_TYPE_FLOAT32;
+    case CooperativeVectorComponentType::Sint8:
+        return OPTIX_COOP_VEC_ELEM_TYPE_INT8;
+    case CooperativeVectorComponentType::Sint32:
+        return OPTIX_COOP_VEC_ELEM_TYPE_INT32;
+    case CooperativeVectorComponentType::Uint8:
+        return OPTIX_COOP_VEC_ELEM_TYPE_UINT8;
+    case CooperativeVectorComponentType::Uint32:
+        return OPTIX_COOP_VEC_ELEM_TYPE_UINT32;
+    case CooperativeVectorComponentType::FloatE4M3:
+        return OPTIX_COOP_VEC_ELEM_TYPE_FLOAT8_E4M3;
+    case CooperativeVectorComponentType::FloatE5M2:
+        return OPTIX_COOP_VEC_ELEM_TYPE_FLOAT8_E5M2;
+    case CooperativeVectorComponentType::Float64:
+    case CooperativeVectorComponentType::Sint16:
+    case CooperativeVectorComponentType::Sint64:
+    case CooperativeVectorComponentType::Uint16:
+    case CooperativeVectorComponentType::Uint64:
+    case CooperativeVectorComponentType::Sint8Packed:
+    case CooperativeVectorComponentType::Uint8Packed:
+        return OPTIX_COOP_VEC_ELEM_TYPE_UNKNOWN;
+    }
+    return OPTIX_COOP_VEC_ELEM_TYPE_UNKNOWN;
+}
+
+inline OptixCoopVecMatrixLayout translateCoopVecMatrixLayout(CooperativeVectorMatrixLayout layout)
+{
+    switch (layout)
+    {
+    case CooperativeVectorMatrixLayout::RowMajor:
+        return OPTIX_COOP_VEC_MATRIX_LAYOUT_ROW_MAJOR;
+    case CooperativeVectorMatrixLayout::ColumnMajor:
+        return OPTIX_COOP_VEC_MATRIX_LAYOUT_COLUMN_MAJOR;
+    case CooperativeVectorMatrixLayout::InferencingOptimal:
+        return OPTIX_COOP_VEC_MATRIX_LAYOUT_INFERENCING_OPTIMAL;
+    case CooperativeVectorMatrixLayout::TrainingOptimal:
+        return OPTIX_COOP_VEC_MATRIX_LAYOUT_TRAINING_OPTIMAL;
+    }
+    return OPTIX_COOP_VEC_MATRIX_LAYOUT_ROW_MAJOR;
+}
+
+#endif
 
 struct AccelerationStructureBuildDescConverter
 {
@@ -439,23 +490,6 @@ public:
     }
 
     virtual void* getOptixDeviceContext() const override { return m_deviceContext; }
-
-    virtual bool getCooperativeVectorSupport() const override
-    {
-#if OPTIX_VERSION >= 90000
-        unsigned int coopVecSupport = 0;
-        if (optixDeviceContextGetProperty(
-                m_deviceContext,
-                OPTIX_DEVICE_PROPERTY_COOP_VEC,
-                &coopVecSupport,
-                sizeof(coopVecSupport)
-            ) == OPTIX_SUCCESS)
-        {
-            return coopVecSupport & OPTIX_DEVICE_PROPERTY_COOP_VEC_FLAG_STANDARD;
-        }
-#endif
-        return false;
-    }
 
     virtual Result createPipeline(
         const RayTracingPipelineDesc& desc,
@@ -958,6 +992,108 @@ public:
             height,
             depth
         ));
+    }
+
+    virtual bool getCooperativeVectorSupport() const override
+    {
+#if OPTIX_VERSION >= 90000
+        unsigned int coopVecSupport = 0;
+        if (optixDeviceContextGetProperty(
+                m_deviceContext,
+                OPTIX_DEVICE_PROPERTY_COOP_VEC,
+                &coopVecSupport,
+                sizeof(coopVecSupport)
+            ) == OPTIX_SUCCESS)
+        {
+            return coopVecSupport & OPTIX_DEVICE_PROPERTY_COOP_VEC_FLAG_STANDARD;
+        }
+#endif
+        return false;
+    }
+
+    virtual Result computeCooperativeVectorMatrixSize(
+        uint32_t rowCount,
+        uint32_t colCount,
+        CooperativeVectorComponentType componentType,
+        CooperativeVectorMatrixLayout layout,
+        size_t rowColumnStride,
+        size_t* outSize
+    ) const override
+    {
+#if OPTIX_VERSION >= 90000
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixCoopVecMatrixComputeSize(
+                m_deviceContext,
+                rowCount,
+                colCount,
+                translateCoopVecElemType(componentType),
+                translateCoopVecMatrixLayout(layout),
+                rowColumnStride,
+                outSize
+            ),
+            m_device
+        );
+        return SLANG_OK;
+#endif
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    virtual Result convertCooperativeVectorMatrix(
+        CUstream stream,
+        CUdeviceptr dstBuffer,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        CUdeviceptr srcBuffer,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
+    ) const override
+    {
+#if OPTIX_VERSION >= 90000
+        for (uint32_t i = 0; i < matrixCount; ++i)
+        {
+            const CooperativeVectorMatrixDesc& dstDesc = dstDescs[i];
+            OptixCoopVecMatrixDescription optixDstLayer = {};
+            optixDstLayer.N = dstDesc.rowCount;
+            optixDstLayer.K = dstDesc.colCount;
+            optixDstLayer.offsetInBytes = dstDesc.offset;
+            optixDstLayer.elementType = translateCoopVecElemType(dstDesc.componentType);
+            optixDstLayer.layout = translateCoopVecMatrixLayout(dstDesc.layout);
+            optixDstLayer.rowColumnStrideInBytes = dstDesc.rowColumnStride;
+            optixDstLayer.sizeInBytes = dstDesc.size;
+            OptixNetworkDescription optixDstNetwork = {};
+            optixDstNetwork.layers = &optixDstLayer;
+            optixDstNetwork.numLayers = 1;
+
+            const CooperativeVectorMatrixDesc& srcDesc = srcDescs[i];
+            OptixCoopVecMatrixDescription optixSrcLayer = {};
+            optixSrcLayer.N = srcDesc.rowCount;
+            optixSrcLayer.K = srcDesc.colCount;
+            optixSrcLayer.offsetInBytes = srcDesc.offset;
+            optixSrcLayer.elementType = translateCoopVecElemType(srcDesc.componentType);
+            optixSrcLayer.layout = translateCoopVecMatrixLayout(srcDesc.layout);
+            optixSrcLayer.rowColumnStrideInBytes = srcDesc.rowColumnStride;
+            optixSrcLayer.sizeInBytes = srcDesc.size;
+            OptixNetworkDescription optixSrcNetwork = {};
+            optixSrcNetwork.layers = &optixSrcLayer;
+            optixSrcNetwork.numLayers = 1;
+
+            SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                optixCoopVecMatrixConvert(
+                    m_deviceContext,
+                    stream,
+                    1,
+                    &optixSrcNetwork,
+                    srcBuffer + srcDesc.offset,
+                    0,
+                    &optixDstNetwork,
+                    dstBuffer + dstDesc.offset,
+                    0
+                ),
+                m_device
+            );
+        }
+        return SLANG_OK;
+#endif
+        return SLANG_E_NOT_AVAILABLE;
     }
 };
 

@@ -259,6 +259,14 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
+        IBuffer* dstBuffer,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        IBuffer* srcBuffer,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
         const ConvertCooperativeVectorMatrixDesc* descs,
         uint32_t descCount
     ) override;
