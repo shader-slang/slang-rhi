@@ -61,6 +61,17 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         break;
     }
 #elif SLANG_LINUX_FAMILY
+
+#ifdef SLANG_ANDROID
+    case WindowHandleType::AndroidWindow:
+    {
+        VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo = {};
+        surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
+        surfaceCreateInfo.window = (ANativeWindow*)windowHandle.handleValues[0];
+        SLANG_VK_RETURN_ON_FAIL(api.vkCreateAndroidSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+        break;
+    }
+#else
     case WindowHandleType::XlibWindow:
     {
         VkXlibSurfaceCreateInfoKHR surfaceCreateInfo = {};
@@ -70,6 +81,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         SLANG_VK_RETURN_ON_FAIL(api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
         break;
     }
+#endif
+
 #endif
     default:
         return SLANG_E_INVALID_HANDLE;
