@@ -66,6 +66,11 @@ Result AccelerationStructureBuildDescConverter::convert(
         return SLANG_E_INVALID_ARG;
     }
 
+    if (buildDesc.motionOptions.keyCount > kMaxAccelerationStructureMotionKeyCount)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
     AccelerationStructureBuildInputType type = buildDesc.inputs[0].type;
     for (uint32_t i = 1; i < buildDesc.inputCount; ++i)
     {
@@ -120,7 +125,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
-            if (triangles.vertexBufferCount != 1)
+            if (triangles.vertexBufferCount > kMaxAccelerationStructureMotionKeyCount)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -160,7 +165,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
                 buildDesc.inputs[i].proceduralPrimitives;
-            if (proceduralPrimitives.aabbBufferCount != 1)
+            if (proceduralPrimitives.aabbBufferCount > kMaxAccelerationStructureMotionKeyCount)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -185,7 +190,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputSpheres& spheres = buildDesc.inputs[i].spheres;
-            if (spheres.vertexBufferCount != 1)
+            if (spheres.vertexBufferCount > kMaxAccelerationStructureMotionKeyCount)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -231,7 +236,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputLinearSweptSpheres& lss = buildDesc.inputs[i].linearSweptSpheres;
-            if (lss.vertexBufferCount != 1)
+            if (lss.vertexBufferCount > kMaxAccelerationStructureMotionKeyCount)
             {
                 return SLANG_E_INVALID_ARG;
             }

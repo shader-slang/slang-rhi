@@ -1295,7 +1295,7 @@ struct AccelerationStructureBuildInputInstances
     uint32_t instanceCount;
 };
 
-static const uint32_t kMaxAccelerationStructureMotionKeyCount = 2;
+inline constexpr uint32_t kMaxAccelerationStructureMotionKeyCount = 2;
 
 struct AccelerationStructureBuildInputTriangles
 {
