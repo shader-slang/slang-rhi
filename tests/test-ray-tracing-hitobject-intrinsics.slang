@@ -405,3 +405,46 @@ void rayGenShaderQueryRayObjectDirection()
     resultBuffer[0].rayDirection = hitobj.GetObjectRayDirection();
 }
 #endif
+
+[shader("raygeneration")]
+void rayGenShaderMakeMiss()
+{
+    // Create a miss hit object using MakeMiss
+    RayDesc ray;
+    ray.Origin = {0.0, 0.0, 0.0};
+    ray.Direction = {0.0, 0.0, -1.0};  // away from geometry
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+
+    HitObject hitObjectMiss = HitObject.MakeMiss(0, ray);
+
+    resultBuffer[0].queryWasSuccess = hitObjectMiss.IsMiss();
+
+    RayPayload payload = {};
+    HitObject.Invoke(sceneBVH, hitObjectMiss, payload);
+    resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
+}
+
+[shader("raygeneration")]
+void rayGenShaderMakeMotionMiss()
+{
+    RayDesc ray;
+    ray.Origin = {0.0, 0.0, 0.0};
+    ray.Direction = {0.0, 0.0, -1.0};
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+
+    float currentTime = 0.5;  // midpoint of motion
+    HitObject hitObjectMiss = HitObject.MakeMotionMiss(0, ray, currentTime);
+
+    const bool isMiss = hitObjectMiss.IsMiss();
+
+    // TODO: Enable this when https://github.com/shader-slang/slang/issues/9018 is fixed
+    // const bool timeIsCorrect = hitObjectMiss.GetCurrentTime() == currentTime;
+
+    resultBuffer[0].queryWasSuccess = isMiss/* && timeIsCorrect*/;
+
+    RayPayload payload = {};
+    HitObject.Invoke(sceneBVH, hitObjectMiss, payload);
+    resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
+}

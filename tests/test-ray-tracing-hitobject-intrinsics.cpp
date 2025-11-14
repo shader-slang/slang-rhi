@@ -92,6 +92,44 @@ struct RayTracingSingleCustomGeometryTest
     }
 };
 
+struct RayTracingSingleTriangleMotionTest
+{
+    IDevice* device;
+
+    void init(IDevice* device_) { this->device = device_; }
+
+    ResultBuffer resultBuf;
+
+    void createResultBuffer(size_t resultSize) { resultBuf = ResultBuffer(device, resultSize); }
+
+    void run(
+        const char* filepath,
+        const char* raygenName,
+        const std::vector<const char*>& closestHitNames,
+        const std::vector<const char*>& missNames
+    )
+    {
+        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+        SingleTriangleMotionBLAS blas(device, queue);
+        TLAS tlas(device, queue, blas.blas);
+
+        std::vector<HitGroupProgramNames> hitGroupProgramNames;
+        for (const char* closestHitName : closestHitNames)
+            hitGroupProgramNames.push_back({closestHitName, /*intersection=*/nullptr});
+
+        RayTracingTestPipeline pipeline(device, filepath, {raygenName}, hitGroupProgramNames, missNames);
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
+    }
+
+    ComPtr<ISlangBlob> getTestResult()
+    {
+        ComPtr<ISlangBlob> resultBlob;
+        resultBuf.getFromDevice(resultBlob.writeRef());
+        return resultBlob;
+    }
+};
+
 void checkQueryAndInvokeResult(ISlangBlob* resultBlob)
 {
     const TestResult* testResult = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
@@ -426,6 +464,74 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-hit", ALL | DontCreateDevice)
     test.run(
         "test-ray-tracing-hitobject-intrinsics-make-hit",
         "rayGenShaderMakeQueryInvokeHit",
+        {"closestHitInvoke"},
+        {"missNOP"}
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-make-miss", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderMakeMiss", {"closestHitNOP"}, {"missInvoke"});
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-make-motion-miss", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+    if (!device->hasFeature(Feature::RayTracingMotionBlur))
+        SKIP("ray tracing motion blur not supported");
+
+    RayTracingSingleTriangleMotionTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderMakeMotionMiss", {"closestHitNOP"}, {"missInvoke"});
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-make-motion-hit", ALL | DontCreateDevice)
+{
+    // Limit the shader model to SM 6.6 for this test, since the NVAPI headers don't support MakeHit
+    // for newer shader models.
+    DeviceExtraOptions extraOptions;
+    extraOptions.d3d12HighestShaderModel = 0x66; // SM 6.6
+    device = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
+    REQUIRE(device);
+
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+    if (!device->hasFeature(Feature::RayTracingMotionBlur))
+        SKIP("ray tracing motion blur not supported");
+
+    // Disabled under pre OptiX 9.0 due to https://github.com/shader-slang/slang/issues/8723
+    if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
+        SKIP("MakeHit not functional with specified OptiX version");
+
+    RayTracingSingleTriangleMotionTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics-make-hit",
+        "rayGenShaderMakeMotionHit",
         {"closestHitInvoke"},
         {"missNOP"}
     );

@@ -379,6 +379,120 @@ struct SingleCustomGeometryBLAS
     }
 };
 
+struct SingleTriangleMotionBLAS
+{
+    ComPtr<IBuffer> vertexBuffer0;
+    ComPtr<IBuffer> vertexBuffer1;
+    ComPtr<IBuffer> indexBuffer;
+
+    ComPtr<IBuffer> blasBuffer;
+    ComPtr<IAccelerationStructure> blas;
+
+    static const int kVertexCount = 3;
+    // First motion key (time=0.0)
+    inline static const Vertex kVertexData0[kVertexCount] = {
+        {0.f, 0.f, 1.f},
+        {1.f, 0.f, 1.f},
+        {0.f, 1.f, 1.f},
+    };
+
+    // Second motion key (time=1.0)
+    inline static const Vertex kVertexData1[kVertexCount] = {
+        {0.0f, 0.0f, 2.f},
+        {1.0f, 0.0f, 2.f},
+        {0.0f, 1.0f, 2.f},
+    };
+
+    static const int kIndexCount = 3;
+    inline static const uint32_t kIndexData[kIndexCount] = {0, 1, 2};
+
+    SingleTriangleMotionBLAS(IDevice* device, ICommandQueue* queue)
+    {
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
+        vertexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        vertexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+        vertexBuffer0 = device->createBuffer(vertexBufferDesc, &kVertexData0[0]);
+        REQUIRE(vertexBuffer0 != nullptr);
+
+        vertexBuffer1 = device->createBuffer(vertexBufferDesc, &kVertexData1[0]);
+        REQUIRE(vertexBuffer1 != nullptr);
+
+        BufferDesc indexBufferDesc;
+        indexBufferDesc.size = kIndexCount * sizeof(int32_t);
+        indexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        indexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+        indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
+        REQUIRE(indexBuffer != nullptr);
+
+        AccelerationStructureBuildInput buildInput = {};
+        buildInput.type = AccelerationStructureBuildInputType::Triangles;
+        buildInput.triangles.vertexBuffers[0] = vertexBuffer0;
+        buildInput.triangles.vertexBuffers[1] = vertexBuffer1;
+        buildInput.triangles.vertexBufferCount = 2;
+        buildInput.triangles.vertexFormat = Format::RGB32Float;
+        buildInput.triangles.vertexCount = kVertexCount;
+        buildInput.triangles.vertexStride = sizeof(Vertex);
+        buildInput.triangles.indexBuffer = indexBuffer;
+        buildInput.triangles.indexFormat = IndexFormat::Uint32;
+        buildInput.triangles.indexCount = kIndexCount;
+        buildInput.triangles.flags = AccelerationStructureGeometryFlags::Opaque;
+
+        AccelerationStructureBuildDesc buildDesc = {};
+        buildDesc.inputs = &buildInput;
+        buildDesc.inputCount = 1;
+        buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction;
+        buildDesc.motionOptions.keyCount = 2;
+        buildDesc.motionOptions.timeStart = 0.0f;
+        buildDesc.motionOptions.timeEnd = 1.0f;
+
+        // Query buffer size for acceleration structure build.
+        AccelerationStructureSizes sizes;
+        REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+        // Allocate buffers for acceleration structure.
+        BufferDesc scratchBufferDesc;
+        scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+        scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+        scratchBufferDesc.size = sizes.scratchSize;
+        ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+        // Build acceleration structure.
+        ComPtr<IQueryPool> compactedSizeQuery;
+        QueryPoolDesc queryPoolDesc;
+        queryPoolDesc.count = 1;
+        queryPoolDesc.type = QueryType::AccelerationStructureCompactedSize;
+        REQUIRE_CALL(device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));
+
+        ComPtr<IAccelerationStructure> draftAS;
+        AccelerationStructureDesc draftCreateDesc;
+        draftCreateDesc.size = sizes.accelerationStructureSize;
+        REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
+
+        compactedSizeQuery->reset();
+
+        auto commandEncoder = queue->createCommandEncoder();
+        AccelerationStructureQueryDesc compactedSizeQueryDesc = {};
+        compactedSizeQueryDesc.queryPool = compactedSizeQuery;
+        compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
+        commandEncoder
+            ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+
+        uint64_t compactedSize = 0;
+        compactedSizeQuery->getResult(0, 1, &compactedSize);
+        AccelerationStructureDesc createDesc;
+        createDesc.size = compactedSize;
+        device->createAccelerationStructure(createDesc, blas.writeRef());
+
+        commandEncoder = queue->createCommandEncoder();
+        commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+};
+
 struct LssBLAS
 {
     ComPtr<IBuffer> positionBuffer;
