@@ -881,6 +881,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
     endfunction()
 
     add_example(example-surface examples/surface/example-surface.cpp)
+    add_example(example-triangle examples/triangle/example-triangle.cpp)
 endif()
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
