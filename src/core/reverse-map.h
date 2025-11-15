@@ -15,7 +15,8 @@ auto reverseMap(Func func, From min, From max, From defaultValue = From(0))
         std::unordered_map<To, From> map;
         for (int i = int(min); i <= int(max); i++)
         {
-            map[func(From(i))] = From(i);
+            const To key = func(From(i)); // Fixed MSVC warning C4709: comma operator within a subscript expression
+            map[key] = From(i);
         }
         return map;
     }();
