@@ -83,7 +83,7 @@ public:
 
         // Load shader program
         ComPtr<IShaderProgram> shaderProgram;
-        // You'll need to create a shader file - see below for shader code
+        //Create the default shader code triangle with colors by default.
         const char* shaderSource = R"(
             struct VertexInput
             {
@@ -238,5 +238,6 @@ public:
         grey = (grey + (1.f / 60.f)) > 1.f ? 0.f : grey + (1.f / 60.f);
     }
 };
+
 
 EXAMPLE_MAIN(ExampleTriangle)
