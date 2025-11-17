@@ -13,6 +13,8 @@
 #include "d3d12-input-layout.h"
 #include "d3d12-acceleration-structure.h"
 
+#include "cooperative-vector-utils.h"
+
 #include "core/short_vector.h"
 #include "core/string.h"
 
@@ -830,7 +832,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 {
                     // TODO: for now we don't report support because NVAPI doesn't provide a reliable way to detect
                     // hardware/driver support.
-                    // addFeature(Feature::CooperativeVector);
+                    addFeature(Feature::CooperativeVector);
                 }
             }
         }
@@ -1802,6 +1804,84 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     }
 
     return Device::getCooperativeVectorProperties(properties, propertiesCount);
+#else
+    return SLANG_E_NOT_AVAILABLE;
+#endif
+}
+
+Result DeviceImpl::computeCooperativeVectorMatrixSize(
+    uint32_t rowCount,
+    uint32_t colCount,
+    CooperativeVectorComponentType componentType,
+    CooperativeVectorMatrixLayout layout,
+    size_t rowColumnStride,
+    size_t* outSize
+)
+{
+#if SLANG_RHI_ENABLE_NVAPI
+    if (!m_nvapiEnabled)
+        return SLANG_E_NOT_AVAILABLE;
+
+    if (rowColumnStride == 0)
+    {
+        rowColumnStride = getTightRowColumnStride(rowCount, colCount, componentType, layout);
+    }
+
+    NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
+    nvDesc.version = NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC_VER1;
+    nvDesc.pDstSize = outSize;
+    nvDesc.srcComponentType = translateCooperativeVectorComponentType(componentType);
+    nvDesc.dstComponentType = translateCooperativeVectorComponentType(componentType);
+    nvDesc.numRows = rowCount;
+    nvDesc.numColumns = colCount;
+    nvDesc.srcLayout = translateCooperativeVectorMatrixLayout(layout);
+    nvDesc.srcStride = rowColumnStride;
+    nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(layout);
+    nvDesc.dstStride = rowColumnStride;
+    SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc));
+    *outSize = math::calcAligned(*outSize, 64);
+    return SLANG_OK;
+#else
+    return SLANG_E_NOT_AVAILABLE;
+#endif
+}
+
+Result DeviceImpl::convertCooperativeVectorMatrix(
+    void* dstBuffer,
+    size_t dstBufferSize,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    const void* srcBuffer,
+    size_t srcBufferSize,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+)
+{
+#if SLANG_RHI_ENABLE_NVAPI
+    short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> nvDescs;
+    for (uint32_t i = 0; i < matrixCount; ++i)
+    {
+        const CooperativeVectorMatrixDesc& dstDesc = dstDescs[i];
+        const CooperativeVectorMatrixDesc& srcDesc = srcDescs[i];
+        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
+        nvDesc.version = NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC_VER1;
+        nvDesc.srcSize = srcDesc.size;
+        nvDesc.srcData.pHostAddress = (uint8_t*)srcBuffer + srcDesc.offset;
+        nvDesc.pDstSize = (size_t*)&dstDesc.size;
+        nvDesc.dstData.pHostAddress = (uint8_t*)dstBuffer + dstDesc.offset;
+        nvDesc.srcComponentType = translateCooperativeVectorComponentType(srcDesc.componentType);
+        nvDesc.dstComponentType = translateCooperativeVectorComponentType(dstDesc.componentType);
+        nvDesc.numRows = srcDesc.rowCount;
+        nvDesc.numColumns = srcDesc.colCount;
+        nvDesc.srcLayout = translateCooperativeVectorMatrixLayout(srcDesc.layout);
+        nvDesc.srcStride = srcDesc.rowColumnStride;
+        nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
+        nvDesc.dstStride = dstDesc.rowColumnStride;
+        nvDescs.push_back(nvDesc);
+    }
+    SLANG_RHI_NVAPI_RETURN_ON_FAIL(
+        NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device, nullptr, nvDescs.data(), (NvU32)nvDescs.size())
+    );
+    return SLANG_OK;
 #else
     return SLANG_E_NOT_AVAILABLE;
 #endif

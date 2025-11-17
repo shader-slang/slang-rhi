@@ -633,11 +633,11 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
 #if SLANG_RHI_ENABLE_OPTIX
-    deviceDesc.requiredOptixVersion = options().optixVersion;
     // Setup OptiX headers
     std::string optixIncludeStr;
     if (deviceType == DeviceType::CUDA)
     {
+        deviceDesc.requiredOptixVersion = options().optixVersion;
         slang::CompilerOptionEntry optixSearchPath;
         optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
@@ -827,7 +827,18 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
-    desc.requiredOptixVersion = options().optixVersion;
+#if SLANG_RHI_ENABLE_NVAPI
+    if (deviceType == DeviceType::D3D12)
+    {
+        desc.nvapiExtUavSlot = 999;
+    }
+#endif
+#if SLANG_RHI_ENABLE_OPTIX
+    if (deviceType == DeviceType::CUDA)
+    {
+        desc.requiredOptixVersion = options().optixVersion;
+    }
+#endif
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
     if (SLANG_FAILED(createResult))
