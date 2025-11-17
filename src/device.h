@@ -314,7 +314,7 @@ public:
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL computeCooperativeVectorMatrixSize(
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorMatrixSize(
         uint32_t rowCount,
         uint32_t colCount,
         CooperativeVectorComponentType componentType,

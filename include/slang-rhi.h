@@ -3315,7 +3315,7 @@ public:
     /// rowColumnStride of zero assumes tight packing.
     /// rowColumnStride is ignored for optimal layouts.
     /// The returned size is aligned to 64 bytes.
-    virtual SLANG_NO_THROW Result SLANG_MCALL computeCooperativeVectorMatrixSize(
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorMatrixSize(
         uint32_t rowCount,
         uint32_t colCount,
         CooperativeVectorComponentType componentType,

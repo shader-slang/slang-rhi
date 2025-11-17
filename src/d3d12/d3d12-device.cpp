@@ -1809,7 +1809,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
 #endif
 }
 
-Result DeviceImpl::computeCooperativeVectorMatrixSize(
+Result DeviceImpl::getCooperativeVectorMatrixSize(
     uint32_t rowCount,
     uint32_t colCount,
     CooperativeVectorComponentType componentType,

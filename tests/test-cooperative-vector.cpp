@@ -29,8 +29,7 @@ GPU_TEST_CASE("cooperative-vector-compute-matrix-size", D3D12 | Vulkan | CUDA)
     {
         size_t size = 0;
         REQUIRE_CALL(
-            device
-                ->computeCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, &size)
+            device->getCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, &size)
         );
         return size;
     };
