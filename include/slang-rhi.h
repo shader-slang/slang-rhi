@@ -2161,23 +2161,6 @@ enum class CooperativeVectorMatrixLayout
     TrainingOptimal = 3,
 };
 
-// deprecated
-struct ConvertCooperativeVectorMatrixDesc
-{
-    size_t srcSize;
-    DeviceOrHostAddressConst srcData;
-    size_t* dstSize;
-    DeviceOrHostAddress dstData;
-    CooperativeVectorComponentType srcComponentType;
-    CooperativeVectorComponentType dstComponentType;
-    uint32_t rowCount;
-    uint32_t colCount;
-    CooperativeVectorMatrixLayout srcLayout;
-    size_t srcStride;
-    CooperativeVectorMatrixLayout dstLayout;
-    size_t dstStride;
-};
-
 struct CooperativeVectorMatrixDesc
 {
     /// Number of rows.
@@ -2444,12 +2427,6 @@ public:
         IBuffer* srcBuffer,
         const CooperativeVectorMatrixDesc* srcDescs,
         uint32_t matrixCount
-    ) = 0;
-
-    // deprecated
-    virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
-        const ConvertCooperativeVectorMatrixDesc* descs,
-        uint32_t descCount
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) = 0;
@@ -3355,12 +3332,6 @@ public:
         size_t srcBufferSize,
         const CooperativeVectorMatrixDesc* srcDescs,
         uint32_t matrixCount
-    ) = 0;
-
-    // deprecated
-    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
-        const ConvertCooperativeVectorMatrixDesc* descs,
-        uint32_t descCount
     ) = 0;
 
     /// Report status of internal heaps used by the device.

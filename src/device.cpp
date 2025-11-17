@@ -981,13 +981,6 @@ Result Device::convertCooperativeVectorMatrix(
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result Device::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
-{
-    SLANG_UNUSED(descs);
-    SLANG_UNUSED(descCount);
-    return SLANG_E_NOT_AVAILABLE;
-}
-
 Result Device::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
 {
     if (!heapCount)

@@ -848,20 +848,12 @@ void CommandEncoder::convertCooperativeVectorMatrix(
     uint32_t matrixCount
 )
 {
-    commands::ConvertCooperativeVectorMatrix2 cmd;
+    commands::ConvertCooperativeVectorMatrix cmd;
     cmd.dstBuffer = checked_cast<Buffer*>(dstBuffer);
     cmd.dstDescs = dstDescs;
     cmd.srcBuffer = checked_cast<Buffer*>(srcBuffer);
     cmd.srcDescs = srcDescs;
     cmd.matrixCount = matrixCount;
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
-{
-    commands::ConvertCooperativeVectorMatrix cmd;
-    cmd.descs = descs;
-    cmd.descCount = descCount;
     m_commandList->write(std::move(cmd));
 }
 

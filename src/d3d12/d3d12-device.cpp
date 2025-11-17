@@ -1887,25 +1887,6 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
 #endif
 }
 
-Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
-{
-#if SLANG_RHI_ENABLE_NVAPI
-    if (!m_nvapiEnabled)
-        return SLANG_E_NOT_AVAILABLE;
-
-    for (uint32_t i = 0; i < descCount; ++i)
-    {
-        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc =
-            translateConvertCooperativeVectorMatrixDesc(descs[i], false);
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc));
-    }
-
-    return SLANG_OK;
-#else
-    return SLANG_E_NOT_AVAILABLE;
-#endif
-}
-
 void* DeviceImpl::loadProc(SharedLibraryHandle module, const char* name)
 {
     void* proc = findSymbolAddressByName(module, name);

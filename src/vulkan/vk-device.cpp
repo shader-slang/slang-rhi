@@ -1879,21 +1879,6 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
     return SLANG_OK;
 }
 
-Result DeviceImpl::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
-{
-    if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||
-        !m_api.vkConvertCooperativeVectorMatrixNV)
-        return SLANG_E_NOT_AVAILABLE;
-
-    for (uint32_t i = 0; i < descCount; ++i)
-    {
-        VkConvertCooperativeVectorMatrixInfoNV info = translateConvertCooperativeVectorMatrixDesc(descs[i]);
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
-    }
-
-    return SLANG_OK;
-}
-
 Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
     RefPtr<InputLayoutImpl> layout(new InputLayoutImpl);

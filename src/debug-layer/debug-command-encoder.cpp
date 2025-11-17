@@ -767,17 +767,6 @@ void DebugCommandEncoder::convertCooperativeVectorMatrix(
     baseObject->convertCooperativeVectorMatrix(dstBuffer, dstDescs, srcBuffer, srcDescs, matrixCount);
 }
 
-void DebugCommandEncoder::convertCooperativeVectorMatrix(
-    const ConvertCooperativeVectorMatrixDesc* infos,
-    uint32_t infoCount
-)
-{
-    SLANG_RHI_API_FUNC;
-    requireOpen();
-    requireNoPass();
-    baseObject->convertCooperativeVectorMatrix(infos, infoCount);
-}
-
 void DebugCommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
 {
     SLANG_RHI_API_FUNC;

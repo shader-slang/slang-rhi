@@ -1062,24 +1062,4 @@ CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperati
     }
 }
 
-VkConvertCooperativeVectorMatrixInfoNV translateConvertCooperativeVectorMatrixDesc(
-    const ConvertCooperativeVectorMatrixDesc& desc
-)
-{
-    VkConvertCooperativeVectorMatrixInfoNV info = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
-    info.srcSize = desc.srcSize;
-    info.srcData.deviceAddress = desc.srcData.deviceAddress;
-    info.pDstSize = desc.dstSize;
-    info.dstData.deviceAddress = desc.dstData.deviceAddress;
-    info.srcComponentType = translateCooperativeVectorComponentType(desc.srcComponentType);
-    info.dstComponentType = translateCooperativeVectorComponentType(desc.dstComponentType);
-    info.numRows = desc.rowCount;
-    info.numColumns = desc.colCount;
-    info.srcLayout = translateCooperativeVectorMatrixLayout(desc.srcLayout);
-    info.srcStride = desc.srcStride;
-    info.dstLayout = translateCooperativeVectorMatrixLayout(desc.dstLayout);
-    info.dstStride = desc.dstStride;
-    return info;
-}
-
 } // namespace rhi::vk

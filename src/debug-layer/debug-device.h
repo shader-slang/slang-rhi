@@ -176,10 +176,6 @@ public:
         const CooperativeVectorMatrixDesc* srcDescs,
         uint32_t matrixCount
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
-        const ConvertCooperativeVectorMatrixDesc* descs,
-        uint32_t descCount
-    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(
         const ShaderTableDesc& desc,
         IShaderTable** outTable

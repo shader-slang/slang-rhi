@@ -860,12 +860,6 @@ Result DebugDevice::convertCooperativeVectorMatrix(
     );
 }
 
-Result DebugDevice::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->convertCooperativeVectorMatrix(descs, descCount);
-}
-
 Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
 {
     SLANG_RHI_API_FUNC;
