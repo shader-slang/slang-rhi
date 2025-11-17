@@ -20,14 +20,14 @@
 
 using namespace rhi;
 
-//Define vertex structure
+// Define vertex structure
 struct Vertex
 {
     float position[3];
     float color[3];
 };
 
-//Create triangle vertex data
+// Create triangle vertex data
 static const Vertex kVertexData[3] = {
     {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}}, // Red
     {{+0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // Green
@@ -44,7 +44,7 @@ public:
 
     float grey = 0.5f;
 
-    const char* getName() const override { return "Surface"; }
+    const char* getName() const override { return "Triangle-Example"; }
 
     Result init(DeviceType deviceType) override
     {
@@ -55,8 +55,7 @@ public:
         queue = device->getQueue(QueueType::Graphics);
 
 
-
-        //Create vertex buffer
+        // Create vertex buffer
         BufferDesc vertexBufferDesc = {};
         vertexBufferDesc.size = sizeof(kVertexData);
         vertexBufferDesc.usage = BufferUsage::VertexBuffer;
@@ -83,7 +82,7 @@ public:
 
         // Load shader program
         ComPtr<IShaderProgram> shaderProgram;
-        //Create the default shader code triangle with colors by default.
+        // You'll need to create a shader file - see below for shader code
         const char* shaderSource = R"(
             struct VertexInput
             {
@@ -117,11 +116,11 @@ public:
         ComPtr<slang::ISession> slangSession;
         SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
 
-        //Compile shader in a module 
+        // Compile shader in a module
         ComPtr<slang::IBlob> diagnosticsBlob;
         slang::IModule* slangModule = slangSession->loadModuleFromSourceString(
-            "triangle-shader",        // module name
-            "triangle-shader.slang",  // virtual file name
+            "triangle-shader",       // module name
+            "triangle-shader.slang", // virtual file name
             shaderSource,
             diagnosticsBlob.writeRef()
         );
@@ -166,10 +165,7 @@ public:
         return SLANG_OK;
     }
 
-    virtual void shutdown() override 
-    { 
-        queue->waitOnHost(); 
-    }
+    virtual void shutdown() override { queue->waitOnHost(); }
 
     virtual void update() override {}
 
@@ -210,15 +206,9 @@ public:
 
         // Set render state
         RenderState renderState = {};
-        renderState.viewports[0] = Viewport::fromSize(
-            surface->getConfig()->width,
-            surface->getConfig()->height
-        );
+        renderState.viewports[0] = Viewport::fromSize(surface->getConfig()->width, surface->getConfig()->height);
         renderState.viewportCount = 1;
-        renderState.scissorRects[0] = ScissorRect::fromSize(
-            surface->getConfig()->width,
-            surface->getConfig()->height
-        );
+        renderState.scissorRects[0] = ScissorRect::fromSize(surface->getConfig()->width, surface->getConfig()->height);
         renderState.scissorRectCount = 1;
         renderState.vertexBuffers[0].buffer = vertexBuffer;
         renderState.vertexBufferCount = 1;
@@ -233,11 +223,8 @@ public:
         queue->submit(commandEncoder->finish());
         surface->present();
 
-
-
         grey = (grey + (1.f / 60.f)) > 1.f ? 0.f : grey + (1.f / 60.f);
     }
 };
-
 
 EXAMPLE_MAIN(ExampleTriangle)
