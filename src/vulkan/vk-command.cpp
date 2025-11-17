@@ -1229,6 +1229,10 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
     BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dstBuffer);
     BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
 
+    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(srcBuffer, ResourceState::ShaderResource);
+    commitBarriers();
+
     short_vector<VkConvertCooperativeVectorMatrixInfoNV> infos;
     for (uint32_t i = 0; i < cmd.matrixCount; ++i)
     {
@@ -1250,6 +1254,9 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
         infos.push_back(info);
     }
     m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
+
+    requireBufferState(dstBuffer, ResourceState::ShaderResource);
+    commitBarriers();
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)

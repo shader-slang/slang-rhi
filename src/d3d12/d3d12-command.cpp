@@ -1251,6 +1251,10 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
     BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dstBuffer);
     BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
 
+    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(srcBuffer, ResourceState::ShaderResource);
+    commitBarriers();
+
     short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> nvDescs;
     for (uint32_t i = 0; i < cmd.matrixCount; i++)
     {
@@ -1283,6 +1287,9 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
 #else
     SLANG_UNUSED(cmd);
 #endif
+
+    requireBufferState(dstBuffer, ResourceState::ShaderResource);
+    commitBarriers();
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
