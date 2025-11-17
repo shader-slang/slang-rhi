@@ -16,7 +16,7 @@ GPU_TEST_CASE("cooperative-vector-properties", D3D12 | Vulkan)
     CHECK(propertiesCount > 0);
 }
 
-GPU_TEST_CASE("cooperative-vector-compute-matrix-size", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
@@ -101,7 +101,7 @@ private:
     T* m_data;
 };
 
-GPU_TEST_CASE("cooperative-vector-convert-host-2", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("cooperative-vector-convert-matrix-host", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
@@ -177,7 +177,7 @@ GPU_TEST_CASE("cooperative-vector-convert-host-2", D3D12 | Vulkan | CUDA)
     CHECK(inputMatrix2 == outputMatrix2);
 };
 
-GPU_TEST_CASE("cooperative-vector-convert-device-2", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("cooperative-vector-convert-matrix-device", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
