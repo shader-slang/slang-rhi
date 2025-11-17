@@ -290,16 +290,17 @@ private:
             std::vector<rhi::CooperativeVectorProperties> properties(propertiesCount);
             device->getCooperativeVectorProperties(properties.data(), &propertiesCount);
             printf("Cooperative Vector Properties:\n");
-            printf("inputType inputInterpretation matrixInterpretation biasInterpretation resultType\n");
+            printf("inputType inputInterpretation matrixInterpretation biasInterpretation resultType transpose\n");
             for (const auto& prop : properties)
             {
                 printf(
-                    "%-9s %-19s %-20s %-18s %-10s\n",
+                    "%-9s %-19s %-20s %-18s %-10s %-10s\n",
                     rhi::enumToString(prop.inputType),
                     rhi::enumToString(prop.inputInterpretation),
                     rhi::enumToString(prop.matrixInterpretation),
                     rhi::enumToString(prop.biasInterpretation),
-                    rhi::enumToString(prop.resultType)
+                    rhi::enumToString(prop.resultType),
+                    prop.transpose ? "true" : "false"
                 );
             }
         }

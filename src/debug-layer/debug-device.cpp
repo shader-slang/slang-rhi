@@ -824,6 +824,42 @@ Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* 
     return baseObject->getCooperativeVectorProperties(properties, propertiesCount);
 }
 
+Result DebugDevice::computeCooperativeVectorMatrixSize(
+    uint32_t rowCount,
+    uint32_t colCount,
+    CooperativeVectorComponentType componentType,
+    CooperativeVectorMatrixLayout layout,
+    size_t rowColumnStride,
+    size_t* outSize
+)
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject
+        ->computeCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, outSize);
+}
+
+Result DebugDevice::convertCooperativeVectorMatrix(
+    void* dstBuffer,
+    size_t dstBufferSize,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    const void* srcBuffer,
+    size_t srcBufferSize,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+)
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->convertCooperativeVectorMatrix(
+        dstBuffer,
+        dstBufferSize,
+        dstDescs,
+        srcBuffer,
+        srcBufferSize,
+        srcDescs,
+        matrixCount
+    );
+}
+
 Result DebugDevice::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
 {
     SLANG_RHI_API_FUNC;
