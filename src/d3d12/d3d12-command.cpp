@@ -1284,12 +1284,12 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
         nvDescs.data(),
         (NvU32)nvDescs.size()
     ));
-#else
-    SLANG_UNUSED(cmd);
-#endif
 
     requireBufferState(dstBuffer, ResourceState::ShaderResource);
     commitBarriers();
+#else
+    SLANG_UNUSED(cmd);
+#endif
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
