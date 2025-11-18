@@ -1483,28 +1483,27 @@ struct ClusterAccelBuildDesc
     /// Operation to perform.
     ClusterAccelBuildOp op = ClusterAccelBuildOp::CLASFromTriangles;
 
-    /// Device buffer containing an array of op-specific device-args records written by kernels.
+    /// Device buffer containing an array of op-specific device-args records.
     BufferOffsetPair argsBuffer = {};
     /// Stride in bytes between consecutive arg records in argsBuffer.
     uint32_t argsStride = 0;
     /// Number of arg records to consume from argsBuffer.
     uint32_t argCount = 0;
 
-    /// Reserved for future extensions. Must be nullptr in the current implementation.
+    /// Reserved for future extensions.
     const void* next = nullptr;
 
     /// Per-operation limits. The active member is determined by the 'op' field.
     /// - CLASFromTriangles: use limitsTriangles
     /// - BLASFromCLAS: use limitsClusters
     /// - TemplatesFromTriangles: use limitsTriangles
-    /// - CLASFromTemplates: use limitsTriangles (reuses triangle limits, matching all backends)
+    /// - CLASFromTemplates: use limitsTriangles (same)
     union
     {
         ClusterAccelLimitsTriangles limitsTriangles;
         ClusterAccelLimitsClusters limitsClusters;
     } limits = {};
 
-    // Build mode and associated parameters. Defaults to Implicit when unspecified.
     enum class BuildMode { Implicit, Explicit, GetSizes };
     BuildMode mode = BuildMode::Implicit;
 
@@ -1515,10 +1514,10 @@ struct ClusterAccelBuildDesc
         Size          outputBufferSizeInBytes = 0;
         DeviceAddress tempBuffer = 0;
         Size          tempBufferSizeInBytes = 0;
-        DeviceAddress outputHandlesBuffer = 0;        // optional, defaults to front of result buffer if 0
-        uint32_t      outputHandlesStrideInBytes = 0; // optional, defaults to sizeof(uint64_t) if 0
+        DeviceAddress outputHandlesBuffer = 0;        // optional
+        uint32_t      outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
         DeviceAddress outputSizesBuffer = 0;          // optional
-        uint32_t      outputSizesStrideInBytes = 0;   // optional, defaults to sizeof(uint32_t) if 0
+        uint32_t      outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
     };
     struct ExplicitDesc
     {
@@ -1526,11 +1525,11 @@ struct ClusterAccelBuildDesc
         DeviceAddress tempBuffer = 0;
         Size          tempBufferSizeInBytes = 0;
         DeviceAddress destAddressesBuffer = 0;        // required
-        uint32_t      destAddressesStrideInBytes = 0; // optional, defaults to sizeof(uint64_t) if 0
+        uint32_t      destAddressesStrideInBytes = 0; // optional, defaults to natural stride
         DeviceAddress outputHandlesBuffer = 0;        // optional, aliases destAddresses if 0
-        uint32_t      outputHandlesStrideInBytes = 0; // optional, defaults to sizeof(uint64_t) if 0
+        uint32_t      outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
         DeviceAddress outputSizesBuffer = 0;          // optional
-        uint32_t      outputSizesStrideInBytes = 0;   // optional, defaults to sizeof(uint32_t) if 0
+        uint32_t      outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
     };
     struct GetSizesDesc
     {
@@ -1538,7 +1537,7 @@ struct ClusterAccelBuildDesc
         DeviceAddress tempBuffer = 0;
         Size          tempBufferSizeInBytes = 0;
         DeviceAddress outputSizesBuffer = 0;        // required
-        uint32_t      outputSizesStrideInBytes = 0; // optional, defaults to sizeof(uint32_t) if 0
+        uint32_t      outputSizesStrideInBytes = 0; // optional, defaults to natural stride
     };
 
     union
@@ -2533,7 +2532,6 @@ public:
         BufferOffsetPair src
     ) = 0;
 
-    // Build a cluster acceleration structure.
     virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(
         const ClusterAccelBuildDesc& desc
     ) = 0;
@@ -3381,7 +3379,6 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
-    // Query sizes for building a cluster acceleration structure.
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
         const ClusterAccelBuildDesc& desc,
         ClusterAccelSizes* outSizes
