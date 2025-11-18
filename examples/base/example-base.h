@@ -3,6 +3,7 @@
 #include "utils.h"
 
 #include <slang.h>
+#include <slang-rhi.h>
 
 #if SLANG_WINDOWS_FAMILY
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -14,7 +15,6 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
-#include <slang-rhi.h>
 #include <slang-rhi/glfw.h>
 
 #include <string>

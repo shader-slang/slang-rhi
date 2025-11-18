@@ -3,7 +3,7 @@
 #include <future>
 #include <memory>
 
-using namespace rhi;
+namespace rhi {
 
 // List of shaders to cycle through using the left/right arrow keys.
 static const std::vector<const char*> kShaders = {
@@ -214,4 +214,6 @@ public:
     int m_shaderIndex = 0;
 };
 
-EXAMPLE_MAIN(ExampleShaderToy)
+} // namespace rhi
+
+EXAMPLE_MAIN(rhi::ExampleShaderToy)

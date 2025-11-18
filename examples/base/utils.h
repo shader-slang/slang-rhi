@@ -7,8 +7,6 @@
 #include <limits>
 #include <vector>
 
-using namespace rhi;
-
 // ---------------------------------------------------------------------------------------
 // Asserts
 // ---------------------------------------------------------------------------------------
@@ -45,6 +43,8 @@ T divRoundUp(T x, T y)
 {
     return (x + (y - 1)) / y;
 }
+
+namespace rhi {
 
 // ---------------------------------------------------------------------------------------
 // Debug printer
@@ -474,6 +474,8 @@ private:
     ComPtr<IComputePipeline> m_blitComputePipeline;
     ComPtr<IRenderPipeline> m_blitRenderPipeline;
 };
+
+} // namespace rhi
 
 // ---------------------------------------------------------------------------------------
 // Threading

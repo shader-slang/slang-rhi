@@ -1,6 +1,6 @@
 #include "example-base.h"
 
-using namespace rhi;
+namespace rhi {
 
 // Define vertex structure
 struct Vertex
@@ -178,4 +178,6 @@ public:
     float m_grey = 0.5f;
 };
 
-EXAMPLE_MAIN(ExampleTriangle)
+} // namespace rhi
+
+EXAMPLE_MAIN(rhi::ExampleTriangle)
