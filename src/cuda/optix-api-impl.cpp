@@ -911,16 +911,7 @@ public:
         case ClusterAccelBuildOp::CLASFromTriangles:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
-            // Sizing query uses IMPLICIT mode to get total required buffer sizes
             buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
-            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
-            {
-                m_device->printError("Cluster CLAS sizing: limitsTriangles must be provided");
-                return SLANG_E_INVALID_ARG;
-            }
             buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
             buildInput.triangles.maxUniqueSbtIndexCountPerArg =
@@ -932,15 +923,7 @@ public:
         case ClusterAccelBuildOp::BLASFromCLAS:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
-            // Sizing query uses IMPLICIT mode to get total required buffer sizes
             buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
-            if (desc.limits.limitsClusters.maxArgCount == 0 ||
-                desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
-                desc.limits.limitsClusters.maxClusterCountPerArg == 0)
-            {
-                m_device->printError("Cluster BLAS sizing: limitsClusters must be provided");
-                return SLANG_E_INVALID_ARG;
-            }
             buildInput.clusters.maxArgCount = desc.limits.limitsClusters.maxArgCount;
             buildInput.clusters.maxTotalClusterCount = desc.limits.limitsClusters.maxTotalClusterCount;
             buildInput.clusters.maxClusterCountPerArg = desc.limits.limitsClusters.maxClusterCountPerArg;
@@ -950,14 +933,6 @@ public:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_TEMPLATES_FROM_TRIANGLES;
             buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
-            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
-            {
-                m_device->printError("Template sizing: limitsTriangles must be provided");
-                return SLANG_E_INVALID_ARG;
-            }
             buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
             buildInput.triangles.maxUniqueSbtIndexCountPerArg =
@@ -970,14 +945,6 @@ public:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TEMPLATES;
             buildMode.mode = OPTIX_CLUSTER_ACCEL_BUILD_MODE_IMPLICIT_DESTINATIONS;
-            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
-            {
-                m_device->printError("CLAS from template sizing: limitsTriangles must be provided");
-                return SLANG_E_INVALID_ARG;
-            }
             buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
             buildInput.triangles.maxUniqueSbtIndexCountPerArg =
@@ -1135,7 +1102,6 @@ public:
         OptixClusterAccelBuildInput buildInput = {};
         OptixClusterAccelBuildModeDesc mode = {};
 
-        // Translate RHI build mode to OptiX mode descriptor
         switch (desc.mode)
         {
         case ClusterAccelBuildDesc::BuildMode::Explicit:
@@ -1189,14 +1155,6 @@ public:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TRIANGLES;
             buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
-            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
-            {
-                m_device->printError("Cluster CLAS build: limitsTriangles must be provided");
-                return;
-            }
             buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
             buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
@@ -1209,13 +1167,6 @@ public:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_GASES_FROM_CLUSTERS;
             buildInput.clusters.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
-            if (desc.limits.limitsClusters.maxArgCount == 0 ||
-                desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
-                desc.limits.limitsClusters.maxClusterCountPerArg == 0)
-            {
-                m_device->printError("Cluster BLAS build: limitsClusters must be provided");
-                return;
-            }
             buildInput.clusters.maxArgCount = desc.limits.limitsClusters.maxArgCount;
             buildInput.clusters.maxTotalClusterCount = desc.limits.limitsClusters.maxTotalClusterCount;
             buildInput.clusters.maxClusterCountPerArg = desc.limits.limitsClusters.maxClusterCountPerArg;
@@ -1225,14 +1176,6 @@ public:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_TEMPLATES_FROM_TRIANGLES;
             buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
-            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
-            {
-                m_device->printError("Template build: limitsTriangles must be provided");
-                return;
-            }
             buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
             buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
@@ -1245,14 +1188,6 @@ public:
         {
             buildInput.type = OPTIX_CLUSTER_ACCEL_BUILD_TYPE_CLUSTERS_FROM_TEMPLATES;
             buildInput.triangles.flags = OPTIX_CLUSTER_ACCEL_BUILD_FLAG_NONE;
-            if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-                desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
-                desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
-            {
-                m_device->printError("CLAS from template build: limitsTriangles must be provided");
-                return;
-            }
             buildInput.triangles.maxArgCount = desc.limits.limitsTriangles.maxArgCount;
             buildInput.triangles.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
             buildInput.triangles.maxUniqueSbtIndexCountPerArg = desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg;
