@@ -638,7 +638,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 
-Result DeviceImpl::computeCooperativeVectorMatrixSize(
+Result DeviceImpl::getCooperativeVectorMatrixSize(
     uint32_t rowCount,
     uint32_t colCount,
     CooperativeVectorComponentType componentType,
@@ -650,7 +650,7 @@ Result DeviceImpl::computeCooperativeVectorMatrixSize(
     if (m_ctx.optixContext)
     {
         return m_ctx.optixContext
-            ->computeCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, outSize);
+            ->getCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, outSize);
     }
     return SLANG_E_NOT_AVAILABLE;
 }

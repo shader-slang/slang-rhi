@@ -104,7 +104,6 @@ public:
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
-    void cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
@@ -1227,18 +1226,12 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
 
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
-    short_vector<VkConvertCooperativeVectorMatrixInfoNV> infos;
-    for (uint32_t i = 0; i < cmd.descCount; ++i)
-    {
-        infos.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
-    }
-    m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
-}
-
-void CommandRecorder::cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd)
-{
     BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dstBuffer);
     BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(srcBuffer, ResourceState::ShaderResource);
+    commitBarriers();
 
     short_vector<VkConvertCooperativeVectorMatrixInfoNV> infos;
     for (uint32_t i = 0; i < cmd.matrixCount; ++i)
@@ -1261,6 +1254,9 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix2(const commands::Convert
         infos.push_back(info);
     }
     m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
+
+    requireBufferState(dstBuffer, ResourceState::ShaderResource);
+    commitBarriers();
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)

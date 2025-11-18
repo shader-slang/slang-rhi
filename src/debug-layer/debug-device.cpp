@@ -824,7 +824,7 @@ Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* 
     return baseObject->getCooperativeVectorProperties(properties, propertiesCount);
 }
 
-Result DebugDevice::computeCooperativeVectorMatrixSize(
+Result DebugDevice::getCooperativeVectorMatrixSize(
     uint32_t rowCount,
     uint32_t colCount,
     CooperativeVectorComponentType componentType,
@@ -835,7 +835,7 @@ Result DebugDevice::computeCooperativeVectorMatrixSize(
 {
     SLANG_RHI_API_FUNC;
     return baseObject
-        ->computeCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, outSize);
+        ->getCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, outSize);
 }
 
 Result DebugDevice::convertCooperativeVectorMatrix(
@@ -858,12 +858,6 @@ Result DebugDevice::convertCooperativeVectorMatrix(
         srcDescs,
         matrixCount
     );
-}
-
-Result DebugDevice::convertCooperativeVectorMatrix(const ConvertCooperativeVectorMatrixDesc* descs, uint32_t descCount)
-{
-    SLANG_RHI_API_FUNC;
-    return baseObject->convertCooperativeVectorMatrix(descs, descCount);
 }
 
 Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)

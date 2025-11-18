@@ -102,7 +102,6 @@ public:
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
-    void cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
@@ -1249,24 +1248,12 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
 #if SLANG_RHI_ENABLE_NVAPI
-    short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> descs;
-    for (uint32_t i = 0; i < cmd.descCount; i++)
-    {
-        descs.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i], true));
-    }
-    SLANG_RHI_NVAPI_CHECK(
-        NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device->m_device, m_cmdList, descs.data(), descs.size())
-    );
-#else
-    SLANG_UNUSED(cmd);
-#endif
-}
-
-void CommandRecorder::cmdConvertCooperativeVectorMatrix2(const commands::ConvertCooperativeVectorMatrix2& cmd)
-{
-#if SLANG_RHI_ENABLE_NVAPI
     BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dstBuffer);
     BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(srcBuffer, ResourceState::ShaderResource);
+    commitBarriers();
 
     short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> nvDescs;
     for (uint32_t i = 0; i < cmd.matrixCount; i++)
@@ -1297,6 +1284,9 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix2(const commands::Convert
         nvDescs.data(),
         (NvU32)nvDescs.size()
     ));
+
+    requireBufferState(dstBuffer, ResourceState::ShaderResource);
+    commitBarriers();
 #else
     SLANG_UNUSED(cmd);
 #endif

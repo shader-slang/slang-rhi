@@ -159,7 +159,7 @@ public:
         CooperativeVectorProperties* properties,
         uint32_t* propertiesCount
     ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL computeCooperativeVectorMatrixSize(
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorMatrixSize(
         uint32_t rowCount,
         uint32_t colCount,
         CooperativeVectorComponentType componentType,
@@ -175,10 +175,6 @@ public:
         size_t srcBufferSize,
         const CooperativeVectorMatrixDesc* srcDescs,
         uint32_t matrixCount
-    ) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
-        const ConvertCooperativeVectorMatrixDesc* descs,
-        uint32_t descCount
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(
         const ShaderTableDesc& desc,

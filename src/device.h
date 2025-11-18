@@ -314,7 +314,7 @@ public:
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL computeCooperativeVectorMatrixSize(
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorMatrixSize(
         uint32_t rowCount,
         uint32_t colCount,
         CooperativeVectorComponentType componentType,
@@ -332,12 +332,6 @@ public:
         size_t srcBufferSize,
         const CooperativeVectorMatrixDesc* srcDescs,
         uint32_t matrixCount
-    ) override;
-
-    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
-    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
-        const ConvertCooperativeVectorMatrixDesc* descs,
-        uint32_t descCount
     ) override;
 
     // Provides a default implementation that reports heaps from m_globalHeaps.

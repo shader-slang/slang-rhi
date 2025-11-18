@@ -42,7 +42,6 @@
     x(SerializeAccelerationStructure) \
     x(DeserializeAccelerationStructure) \
     x(ConvertCooperativeVectorMatrix) \
-    x(ConvertCooperativeVectorMatrix2) \
     x(SetBufferState) \
     x(SetTextureState) \
     x(GlobalBarrier) \
@@ -289,12 +288,6 @@ struct DeserializeAccelerationStructure
 
 struct ConvertCooperativeVectorMatrix
 {
-    const ConvertCooperativeVectorMatrixDesc* descs;
-    uint32_t descCount;
-};
-
-struct ConvertCooperativeVectorMatrix2
-{
     IBuffer* dstBuffer;
     const CooperativeVectorMatrixDesc* dstDescs;
     IBuffer* srcBuffer;
@@ -434,7 +427,6 @@ public:
     void write(commands::SerializeAccelerationStructure&& cmd);
     void write(commands::DeserializeAccelerationStructure&& cmd);
     void write(commands::ConvertCooperativeVectorMatrix&& cmd);
-    void write(commands::ConvertCooperativeVectorMatrix2&& cmd);
     void write(commands::SetBufferState&& cmd);
     void write(commands::SetTextureState&& cmd);
     void write(commands::GlobalBarrier&& cmd);

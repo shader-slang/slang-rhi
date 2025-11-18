@@ -108,7 +108,7 @@ public:
     /// Check if cooperative vector support is available.
     virtual bool getCooperativeVectorSupport() const = 0;
 
-    virtual Result computeCooperativeVectorMatrixSize(
+    virtual Result getCooperativeVectorMatrixSize(
         uint32_t rowCount,
         uint32_t colCount,
         CooperativeVectorComponentType componentType,

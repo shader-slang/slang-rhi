@@ -1011,7 +1011,7 @@ public:
         return false;
     }
 
-    virtual Result computeCooperativeVectorMatrixSize(
+    virtual Result getCooperativeVectorMatrixSize(
         uint32_t rowCount,
         uint32_t colCount,
         CooperativeVectorComponentType componentType,
