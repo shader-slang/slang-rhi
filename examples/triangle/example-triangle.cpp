@@ -1,21 +1,3 @@
-
-#include <slang.h>
-
-#if SLANG_WINDOWS_FAMILY
-#define GLFW_EXPOSE_NATIVE_WIN32
-#elif SLANG_LINUX_FAMILY
-#define GLFW_EXPOSE_NATIVE_X11
-#elif SLANG_APPLE_FAMILY
-#define GLFW_EXPOSE_NATIVE_COCOA
-#endif
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-
-#include <slang-rhi.h>
-#include <slang-rhi/glfw.h>
-
-#include <cstdio>
-
 #include "example-base.h"
 
 using namespace rhi;
@@ -34,183 +16,121 @@ static const Vertex kVertexData[3] = {
     {{+0.0f, +0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}, // Blue
 };
 
+// Simple example that renders a triangle.
 class ExampleTriangle : public ExampleBase
 {
 public:
-    ComPtr<ICommandQueue> queue;
-    ComPtr<IRenderPipeline> pipeline;
-    ComPtr<IBuffer> vertexBuffer;
-    ComPtr<IInputLayout> inputLayout;
-
-    float grey = 0.5f;
-
-    const char* getName() const override { return "Triangle-Example"; }
-
     Result init(DeviceType deviceType) override
     {
-        createDevice(deviceType);
-        createWindow();
-        createSurface();
+        SLANG_RETURN_ON_FAIL(
+            createDevice(deviceType, {Feature::Surface, Feature::Rasterization}, {}, m_device.writeRef())
+        );
+        SLANG_RETURN_ON_FAIL(createWindow(m_device, "Surface"));
+        SLANG_RETURN_ON_FAIL(createSurface(m_device, Format::Undefined, m_surface.writeRef()));
 
-        queue = device->getQueue(QueueType::Graphics);
-
+        SLANG_RETURN_ON_FAIL(m_device->getQueue(QueueType::Graphics, m_queue.writeRef()));
 
         // Create vertex buffer
         BufferDesc vertexBufferDesc = {};
         vertexBufferDesc.size = sizeof(kVertexData);
         vertexBufferDesc.usage = BufferUsage::VertexBuffer;
         vertexBufferDesc.defaultState = ResourceState::VertexBuffer;
-        vertexBufferDesc.label = "Triangle Vertex Buffer";
-        SLANG_RETURN_ON_FAIL(device->createBuffer(vertexBufferDesc, &kVertexData[0], vertexBuffer.writeRef()));
+        vertexBufferDesc.label = "Vertex Buffer";
+        SLANG_RETURN_ON_FAIL(m_device->createBuffer(vertexBufferDesc, kVertexData, m_vertexBuffer.writeRef()));
 
         // Create input layout
         VertexStreamDesc vertexStreams[] = {
             {sizeof(Vertex), InputSlotClass::PerVertex, 0},
         };
-
         InputElementDesc inputElements[] = {
             {"POSITION", 0, Format::RGB32Float, offsetof(Vertex, position), 0},
             {"COLOR", 0, Format::RGB32Float, offsetof(Vertex, color), 0},
         };
-
         InputLayoutDesc inputLayoutDesc = {};
-        inputLayoutDesc.inputElementCount = 2;
         inputLayoutDesc.inputElements = inputElements;
-        inputLayoutDesc.vertexStreamCount = 1;
+        inputLayoutDesc.inputElementCount = SLANG_COUNT_OF(inputElements);
         inputLayoutDesc.vertexStreams = vertexStreams;
-        SLANG_RETURN_ON_FAIL(device->createInputLayout(inputLayoutDesc, inputLayout.writeRef()));
+        inputLayoutDesc.vertexStreamCount = SLANG_COUNT_OF(vertexStreams);
+        SLANG_RETURN_ON_FAIL(m_device->createInputLayout(inputLayoutDesc, m_inputLayout.writeRef()));
 
-        // Load shader program
-        ComPtr<IShaderProgram> shaderProgram;
-        // You'll need to create a shader file - see below for shader code
-        const char* shaderSource = R"(
-            struct VertexInput
-            {
-                float3 position : POSITION;
-                float3 color : COLOR;
-            };
-
-            struct VertexOutput
-            {
-                float4 position : SV_Position;
-                float3 color : COLOR;
-            };
-
-            [shader("vertex")]
-            VertexOutput vertexMain(VertexInput input)
-            {
-                VertexOutput output;
-                output.position = float4(input.position, 1.0);
-                output.color = input.color;
-                return output;
-            }
-
-            [shader("fragment")]
-            float4 fragmentMain(VertexOutput input) : SV_Target
-            {
-                return float4(input.color, 1.0);
-            }
-        )";
-
-        // Get slang session from device
-        ComPtr<slang::ISession> slangSession;
-        SLANG_RETURN_ON_FAIL(device->getSlangSession(slangSession.writeRef()));
-
-        // Compile shader in a module
-        ComPtr<slang::IBlob> diagnosticsBlob;
-        slang::IModule* slangModule = slangSession->loadModuleFromSourceString(
-            "triangle-shader",       // module name
-            "triangle-shader.slang", // virtual file name
-            shaderSource,
-            diagnosticsBlob.writeRef()
+        // Create program
+        ComPtr<IShaderProgram> program;
+        SLANG_RETURN_ON_FAIL(
+            createProgram(m_device, "triangle.slang", {"vertexMain", "fragmentMain"}, program.writeRef())
         );
-        if (!slangModule)
-        {
-            if (diagnosticsBlob)
-                fprintf(stderr, "%s\n", (const char*)diagnosticsBlob->getBufferPointer());
-            return SLANG_FAIL;
-        }
-
-        ComPtr<slang::IEntryPoint> vertexEntryPoint;
-        slangModule->findEntryPointByName("vertexMain", vertexEntryPoint.writeRef());
-        ComPtr<slang::IEntryPoint> fragmentEntryPoint;
-        slangModule->findEntryPointByName("fragmentMain", fragmentEntryPoint.writeRef());
-
-        slang::IComponentType* componentTypes[] = {slangModule, vertexEntryPoint, fragmentEntryPoint};
-        ComPtr<slang::IComponentType> composedProgram;
-        slangSession->createCompositeComponentType(
-            componentTypes,
-            sizeof(componentTypes) / sizeof(componentTypes[0]),
-            composedProgram.writeRef(),
-            diagnosticsBlob.writeRef()
-        );
-
-        ShaderProgramDesc programDesc = {};
-        programDesc.slangGlobalScope = composedProgram;
-        SLANG_RETURN_ON_FAIL(device->createShaderProgram(programDesc, shaderProgram.writeRef()));
 
         // Create render pipeline
         ColorTargetDesc colorTarget = {};
-        colorTarget.format = surface->getInfo().preferredFormat;
-
+        colorTarget.format = m_surface->getInfo().preferredFormat;
         RenderPipelineDesc pipelineDesc = {};
-        pipelineDesc.program = shaderProgram;
-        pipelineDesc.inputLayout = inputLayout;
+        pipelineDesc.program = program;
+        pipelineDesc.inputLayout = m_inputLayout;
         pipelineDesc.targets = &colorTarget;
         pipelineDesc.targetCount = 1;
         pipelineDesc.depthStencil.depthTestEnable = false;
         pipelineDesc.depthStencil.depthWriteEnable = false;
-        SLANG_RETURN_ON_FAIL(device->createRenderPipeline(pipelineDesc, pipeline.writeRef()));
+        SLANG_RETURN_ON_FAIL(m_device->createRenderPipeline(pipelineDesc, m_renderPipeline.writeRef()));
 
         return SLANG_OK;
     }
 
-    virtual void shutdown() override { queue->waitOnHost(); }
-
-    virtual void update() override {}
-
-    virtual void draw() override
+    virtual void shutdown() override
     {
-        if (!surface->getConfig())
-            return;
+        m_queue->waitOnHost();
+        m_queue.setNull();
+        m_surface.setNull();
+        m_device.setNull();
+    }
 
-        // Wait for GPU to finish previous frame
-        queue->waitOnHost();
+    virtual Result update(double time) override { return SLANG_OK; }
 
-        ComPtr<ITexture> texture;
-        surface->acquireNextImage(texture.writeRef());
-        if (!texture)
-            return;
+    virtual Result draw() override
+    {
+        // Skip rendering if surface is not configured (eg. when window is minimized)
+        if (!m_surface->getConfig())
+        {
+            return SLANG_OK;
+        }
 
-        ComPtr<ITextureView> view = device->createTextureView(texture, {});
+        // Acquire next image from the surface
+        ComPtr<ITexture> image;
+        m_surface->acquireNextImage(image.writeRef());
+        if (!image)
+        {
+            return SLANG_OK;
+        }
 
-        auto commandEncoder = queue->createCommandEncoder();
+        uint32_t width = image->getDesc().size.width;
+        uint32_t height = image->getDesc().size.height;
+
+        // Start command encoding
+        ComPtr<ICommandEncoder> commandEncoder = m_queue->createCommandEncoder();
 
         // Setup render pass
         RenderPassColorAttachment colorAttachment = {};
-        colorAttachment.view = view;
+        colorAttachment.view = image->getDefaultView();
         colorAttachment.loadOp = LoadOp::Clear;
-        colorAttachment.clearValue[0] = grey;
-        colorAttachment.clearValue[1] = grey;
-        colorAttachment.clearValue[2] = grey;
+        colorAttachment.clearValue[0] = m_grey;
+        colorAttachment.clearValue[1] = m_grey;
+        colorAttachment.clearValue[2] = m_grey;
         colorAttachment.clearValue[3] = 1.0f;
 
         RenderPassDesc renderPass = {};
         renderPass.colorAttachments = &colorAttachment;
         renderPass.colorAttachmentCount = 1;
 
-        auto passEncoder = commandEncoder->beginRenderPass(renderPass);
+        IRenderPassEncoder* passEncoder = commandEncoder->beginRenderPass(renderPass);
 
         // Bind pipeline
-        passEncoder->bindPipeline(pipeline);
+        passEncoder->bindPipeline(m_renderPipeline);
 
         // Set render state
         RenderState renderState = {};
-        renderState.viewports[0] = Viewport::fromSize(surface->getConfig()->width, surface->getConfig()->height);
+        renderState.viewports[0] = Viewport::fromSize(width, height);
         renderState.viewportCount = 1;
-        renderState.scissorRects[0] = ScissorRect::fromSize(surface->getConfig()->width, surface->getConfig()->height);
+        renderState.scissorRects[0] = ScissorRect::fromSize(width, height);
         renderState.scissorRectCount = 1;
-        renderState.vertexBuffers[0].buffer = vertexBuffer;
+        renderState.vertexBuffers[0].buffer = m_vertexBuffer;
         renderState.vertexBufferCount = 1;
         passEncoder->setRenderState(renderState);
 
@@ -220,11 +140,42 @@ public:
         passEncoder->draw(drawArgs);
         passEncoder->end();
 
-        queue->submit(commandEncoder->finish());
-        surface->present();
+        // Submit command buffer
+        m_queue->submit(commandEncoder->finish());
 
-        grey = (grey + (1.f / 60.f)) > 1.f ? 0.f : grey + (1.f / 60.f);
+        m_grey = (m_grey + (1.f / 60.f)) > 1.f ? 0.f : m_grey + (1.f / 60.f);
+
+        // Present the surface
+        return m_surface->present();
     }
+
+    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
+    {
+        // Wait for GPU to be idle before resizing
+        m_device->getQueue(QueueType::Graphics)->waitOnHost();
+        // Configure or unconfigure the surface based on the new framebuffer size
+        if (framebufferWidth > 0 && framebufferHeight > 0)
+        {
+            SurfaceConfig surfaceConfig;
+            surfaceConfig.width = framebufferWidth;
+            surfaceConfig.height = framebufferHeight;
+            m_surface->configure(surfaceConfig);
+        }
+        else
+        {
+            m_surface->unconfigure();
+        }
+    }
+
+public:
+    ComPtr<IDevice> m_device;
+    ComPtr<ISurface> m_surface;
+    ComPtr<ICommandQueue> m_queue;
+    ComPtr<IBuffer> m_vertexBuffer;
+    ComPtr<IInputLayout> m_inputLayout;
+    ComPtr<IRenderPipeline> m_renderPipeline;
+
+    float m_grey = 0.5f;
 };
 
 EXAMPLE_MAIN(ExampleTriangle)

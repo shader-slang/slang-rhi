@@ -503,7 +503,9 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
     {
         m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
 
-        m_immediateContext->IASetInputLayout(m_renderPipeline->m_inputLayout->m_layout);
+        m_immediateContext->IASetInputLayout(
+            m_renderPipeline->m_inputLayout ? m_renderPipeline->m_inputLayout->m_layout : nullptr
+        );
         m_immediateContext->IASetPrimitiveTopology(m_renderPipeline->m_primitiveTopology);
         m_immediateContext->VSSetShader(m_renderPipeline->m_vertexShader, nullptr, 0);
         m_immediateContext->RSSetState(m_renderPipeline->m_rasterizerState);
