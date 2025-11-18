@@ -122,7 +122,6 @@ enum class DeviceType
     x(RayQuery,                                 "ray-query"                                     ) \
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
-    /* Cluster acceleration structure */                                                          \
     x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
@@ -1506,7 +1505,7 @@ struct ClusterAccelBuildDesc
     } limits = {};
 
     // Build mode and associated parameters. Defaults to Implicit when unspecified.
-    enum class BuildMode : uint32_t { Implicit = 0, Explicit = 1, GetSizes = 2 };
+    enum class BuildMode { Implicit, Explicit, GetSizes };
     BuildMode mode = BuildMode::Implicit;
 
     struct ImplicitDesc

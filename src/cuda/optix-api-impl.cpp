@@ -16,14 +16,8 @@
 #include <optix.h>
 #include <optix_stubs.h>
 
-#if OPTIX_VERSION >= 90000
-#include <optix_types.h>
-#endif
-
-#ifdef EXPECTED_OPTIX_VERSION
 #if (OPTIX_VERSION != EXPECTED_OPTIX_VERSION)
 #error "Invalid OptiX header version included"
-#endif
 #endif
 
 #include <optix_function_table_definition.h>
@@ -538,7 +532,6 @@ public:
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
             optixPipelineCompileOptions.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
 
-        // Enable clustered geometry when requested (OptiX 9+).
 #if OPTIX_VERSION >= 90000
         optixPipelineCompileOptions.allowClusteredGeometry = is_set(desc.flags, RayTracingPipelineFlags::EnableClusters) ? 1 : 0;
 #endif
@@ -963,7 +956,6 @@ public:
             m_device
         );
 
-        // Report only the payload output size; handles storage is specified separately in the desc
         outSizes->resultSize = sizes.outputSizeInBytes;
         outSizes->scratchSize = sizes.tempSizeInBytes;
         return SLANG_OK;
@@ -1089,6 +1081,23 @@ public:
         ));
     }
 
+    virtual bool getClusterAccelerationSupport() const override
+    {
+#if OPTIX_VERSION >= 90000
+        unsigned int clusterAccelSupport = 0;
+        if (optixDeviceContextGetProperty(
+                m_deviceContext,
+                OPTIX_DEVICE_PROPERTY_CLUSTER_ACCEL,
+                &clusterAccelSupport,
+                sizeof(clusterAccelSupport)
+            ) == OPTIX_SUCCESS)
+        {
+            return clusterAccelSupport & OPTIX_DEVICE_PROPERTY_CLUSTER_ACCEL_FLAG_STANDARD;
+        }
+#endif
+        return false;
+    }
+
     virtual void buildClusterAccelerationStructure(
         CUstream stream,
         const ClusterAccelBuildDesc& desc
@@ -1201,7 +1210,7 @@ public:
         }
 
         // Pass device-side args buffer directly to OptiX with stride 0 (tightly packed) and count 0 (use maxArgCount)
-        optixClusterAccelBuild(
+        SLANG_OPTIX_ASSERT_ON_FAIL( optixClusterAccelBuild(
             m_deviceContext,
             stream,
             &mode,
@@ -1209,7 +1218,7 @@ public:
             desc.argsBuffer.getDeviceAddress(),
             0,
             0
-        );
+        ) );
 #endif
     }
 

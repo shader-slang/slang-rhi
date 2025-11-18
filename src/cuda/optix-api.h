@@ -111,6 +111,9 @@ public:
         uint32_t depth
     ) = 0;
 
+    /// Check if cluster acceleration support is available.
+    virtual bool getClusterAccelerationSupport() const = 0;
+
     /// Build a cluster acceleration structure or BLAS-from-CLAS.
     virtual void buildClusterAccelerationStructure(
         CUstream stream,
