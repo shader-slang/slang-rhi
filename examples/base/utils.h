@@ -2,11 +2,12 @@
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
-using namespace rhi;
 
 #include <execution>
 #include <limits>
 #include <vector>
+
+using namespace rhi;
 
 // ---------------------------------------------------------------------------------------
 // Asserts
@@ -478,6 +479,8 @@ private:
 // Threading
 // ---------------------------------------------------------------------------------------
 
+// TODO: Not available on macOS
+#if 0
 template<typename T>
 struct ioterable
 {
@@ -544,3 +547,4 @@ void parallelForEach(std::vector<T>& vec, Func&& func)
         }
     );
 }
+#endif
