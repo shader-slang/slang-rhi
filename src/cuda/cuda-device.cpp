@@ -352,7 +352,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             if (m_ctx.optixContext->getClusterAccelerationSupport())
             {
                 addFeature(Feature::ClusterAccelerationStructure);
-            }   
+            }
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
@@ -597,10 +597,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return m_ctx.optixContext->getAccelerationStructureSizes(desc, outSizes);
 }
 
-Result DeviceImpl::getClusterAccelerationStructureSizes(
-    const ClusterAccelBuildDesc& desc,
-    ClusterAccelSizes* outSizes
-)
+Result DeviceImpl::getClusterAccelerationStructureSizes(const ClusterAccelBuildDesc& desc, ClusterAccelSizes* outSizes)
 {
     SLANG_CUDA_CTX_SCOPE(this);
 

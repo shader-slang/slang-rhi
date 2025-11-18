@@ -1504,40 +1504,45 @@ struct ClusterAccelBuildDesc
         ClusterAccelLimitsClusters limitsClusters;
     } limits = {};
 
-    enum class BuildMode { Implicit, Explicit, GetSizes };
+    enum class BuildMode
+    {
+        Implicit,
+        Explicit,
+        GetSizes
+    };
     BuildMode mode = BuildMode::Implicit;
 
     struct ImplicitDesc
     {
         // Required output and temporary buffers for implicit builds
         DeviceAddress outputBuffer = 0;
-        Size          outputBufferSizeInBytes = 0;
+        Size outputBufferSizeInBytes = 0;
         DeviceAddress tempBuffer = 0;
-        Size          tempBufferSizeInBytes = 0;
-        DeviceAddress outputHandlesBuffer = 0;        // optional
-        uint32_t      outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
-        DeviceAddress outputSizesBuffer = 0;          // optional
-        uint32_t      outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress outputHandlesBuffer = 0;   // optional
+        uint32_t outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputSizesBuffer = 0;     // optional
+        uint32_t outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
     };
     struct ExplicitDesc
     {
         // Required temporary buffer for explicit builds
         DeviceAddress tempBuffer = 0;
-        Size          tempBufferSizeInBytes = 0;
-        DeviceAddress destAddressesBuffer = 0;        // required
-        uint32_t      destAddressesStrideInBytes = 0; // optional, defaults to natural stride
-        DeviceAddress outputHandlesBuffer = 0;        // optional, aliases destAddresses if 0
-        uint32_t      outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
-        DeviceAddress outputSizesBuffer = 0;          // optional
-        uint32_t      outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress destAddressesBuffer = 0;   // required
+        uint32_t destAddressesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputHandlesBuffer = 0;   // optional, aliases destAddresses if 0
+        uint32_t outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputSizesBuffer = 0;     // optional
+        uint32_t outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
     };
     struct GetSizesDesc
     {
         // Required temporary buffer for size queries
         DeviceAddress tempBuffer = 0;
-        Size          tempBufferSizeInBytes = 0;
-        DeviceAddress outputSizesBuffer = 0;        // required
-        uint32_t      outputSizesStrideInBytes = 0; // optional, defaults to natural stride
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress outputSizesBuffer = 0;   // required
+        uint32_t outputSizesStrideInBytes = 0; // optional, defaults to natural stride
     };
 
     union
@@ -2532,9 +2537,7 @@ public:
         BufferOffsetPair src
     ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(
-        const ClusterAccelBuildDesc& desc
-    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(const ClusterAccelBuildDesc& desc) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
         IBuffer* dstBuffer,

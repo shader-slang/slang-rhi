@@ -753,9 +753,7 @@ void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructur
     baseObject->deserializeAccelerationStructure(dst, src);
 }
 
-void DebugCommandEncoder::buildClusterAccelerationStructure(
-    const ClusterAccelBuildDesc& desc
-)
+void DebugCommandEncoder::buildClusterAccelerationStructure(const ClusterAccelBuildDesc& desc)
 {
     SLANG_RHI_API_FUNC;
     requireOpen();
@@ -781,8 +779,7 @@ void DebugCommandEncoder::buildClusterAccelerationStructure(
     switch (desc.op)
     {
     case ClusterAccelBuildOp::CLASFromTriangles:
-        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+        if (desc.limits.limitsTriangles.maxArgCount == 0 || desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
             desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
             desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
         {
@@ -791,8 +788,7 @@ void DebugCommandEncoder::buildClusterAccelerationStructure(
         }
         break;
     case ClusterAccelBuildOp::BLASFromCLAS:
-        if (desc.limits.limitsClusters.maxArgCount == 0 ||
-            desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
+        if (desc.limits.limitsClusters.maxArgCount == 0 || desc.limits.limitsClusters.maxTotalClusterCount == 0 ||
             desc.limits.limitsClusters.maxClusterCountPerArg == 0)
         {
             RHI_VALIDATION_ERROR("Cluster BLAS build: limitsClusters must be provided and non-zero");
@@ -800,8 +796,7 @@ void DebugCommandEncoder::buildClusterAccelerationStructure(
         }
         break;
     case ClusterAccelBuildOp::TemplatesFromTriangles:
-        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+        if (desc.limits.limitsTriangles.maxArgCount == 0 || desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
             desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
             desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
         {
@@ -810,8 +805,7 @@ void DebugCommandEncoder::buildClusterAccelerationStructure(
         }
         break;
     case ClusterAccelBuildOp::CLASFromTemplates:
-        if (desc.limits.limitsTriangles.maxArgCount == 0 ||
-            desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
+        if (desc.limits.limitsTriangles.maxArgCount == 0 || desc.limits.limitsTriangles.maxTriangleCountPerArg == 0 ||
             desc.limits.limitsTriangles.maxVertexCountPerArg == 0 ||
             desc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg == 0)
         {
@@ -848,8 +842,7 @@ void DebugCommandEncoder::buildClusterAccelerationStructure(
             RHI_VALIDATION_ERROR("Cluster build (Implicit): outputHandlesStrideInBytes must be 0 or >= 8");
             return;
         }
-        if (desc.modeDesc.implicit.outputSizesStrideInBytes != 0 &&
-            desc.modeDesc.implicit.outputSizesStrideInBytes < 4)
+        if (desc.modeDesc.implicit.outputSizesStrideInBytes != 0 && desc.modeDesc.implicit.outputSizesStrideInBytes < 4)
         {
             RHI_VALIDATION_ERROR("Cluster build (Implicit): outputSizesStrideInBytes must be 0 or >= 4");
             return;
@@ -896,8 +889,7 @@ void DebugCommandEncoder::buildClusterAccelerationStructure(
             RHI_VALIDATION_ERROR("Cluster build (GetSizes): outputSizesBuffer is required");
             return;
         }
-        if (desc.modeDesc.getSizes.outputSizesStrideInBytes != 0 &&
-            desc.modeDesc.getSizes.outputSizesStrideInBytes < 4)
+        if (desc.modeDesc.getSizes.outputSizesStrideInBytes != 0 && desc.modeDesc.getSizes.outputSizesStrideInBytes < 4)
         {
             RHI_VALIDATION_ERROR("Cluster build (GetSizes): outputSizesStrideInBytes must be 0 or >= 4");
             return;

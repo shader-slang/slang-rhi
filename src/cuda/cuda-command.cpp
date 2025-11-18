@@ -595,10 +595,7 @@ void CommandExecutor::cmdBuildClusterAccelerationStructure(const commands::Build
     if (!m_device->m_ctx.optixContext)
         return;
 
-    m_device->m_ctx.optixContext->buildClusterAccelerationStructure(
-        m_stream,
-        cmd.desc
-    );
+    m_device->m_ctx.optixContext->buildClusterAccelerationStructure(m_stream, cmd.desc);
 }
 
 void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)

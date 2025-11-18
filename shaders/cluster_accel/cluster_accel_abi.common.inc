@@ -165,5 +165,3 @@ static inline ClustersArgs makeClustersArgs(ABI_U32 count, ABI_U64 handlesBuffer
     a.clusterHandlesBuffer = handlesBuffer;
     return a;
 }
-
-

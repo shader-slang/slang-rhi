@@ -6,7 +6,10 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-struct Float3 { float x, y, z; };
+struct Float3
+{
+    float x, y, z;
+};
 
 static void requireClusterAccelOrSkip(IDevice* device)
 {
@@ -54,7 +57,8 @@ static cluster_abi::TrianglesArgs makeSimpleTrianglesArgs(
     uint32_t vertexCount,
     uint64_t indexBuffer,
     uint64_t vertexBuffer,
-    uint32_t vertexStrideBytes = sizeof(Float3))
+    uint32_t vertexStrideBytes = sizeof(Float3)
+)
 {
     return cluster_abi::makeTrianglesArgs(
         clusterId,
@@ -63,7 +67,7 @@ static cluster_abi::TrianglesArgs makeSimpleTrianglesArgs(
         indexBuffer,
         vertexBuffer,
         vertexStrideBytes,
-        /*indexFormat*/4  // 32-bit indices
+        /*indexFormat*/ 4 // 32-bit indices
     );
 }
 
@@ -83,7 +87,8 @@ static ClasImplicitBuildResult buildClasImplicit(
     IDevice* device,
     ICommandQueue* queue,
     ClusterAccelBuildDesc buildDesc,
-    uint32_t handleCount)
+    uint32_t handleCount
+)
 {
     ClasImplicitBuildResult result;
 
@@ -93,7 +98,8 @@ static ClasImplicitBuildResult buildClasImplicit(
     // Allocate output buffer: handles region (aligned) + data region
     uint64_t handlesBytes = alignUp(
         uint64_t(handleCount) * uint64_t(cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE),
-        uint64_t(cluster_abi::CLUSTER_OUTPUT_ALIGNMENT));
+        uint64_t(cluster_abi::CLUSTER_OUTPUT_ALIGNMENT)
+    );
     result.outputBuffer = createAccelStructureBuffer(device, handlesBytes + sizes.resultSize);
     ComPtr<IBuffer> scratch = createUAVBuffer(device, sizes.scratchSize);
 
@@ -118,7 +124,8 @@ static ClasImplicitBuildResult buildClasImplicit(
         result.outputBuffer,
         result.handlesOffset,
         handleCount * sizeof(uint64_t),
-        result.handles.data()));
+        result.handles.data()
+    ));
 
     return result;
 }
@@ -136,15 +143,13 @@ static BlasFromClasResult buildBlasFromClasImplicit(
     IDevice* device,
     ICommandQueue* queue,
     DeviceAddress clusterHandlesBuffer,
-    uint32_t clusterCount)
+    uint32_t clusterCount
+)
 {
     BlasFromClasResult result;
 
-    cluster_abi::ClustersArgs clustersArgs = cluster_abi::makeClustersArgs(
-        clusterCount,
-        clusterHandlesBuffer,
-        cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE
-    );
+    cluster_abi::ClustersArgs clustersArgs =
+        cluster_abi::makeClustersArgs(clusterCount, clusterHandlesBuffer, cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE);
 
     ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(clustersArgs), &clustersArgs);
 
@@ -160,9 +165,8 @@ static BlasFromClasResult buildBlasFromClasImplicit(
     ClusterAccelSizes sizes = {};
     REQUIRE_CALL(device->getClusterAccelerationStructureSizes(blasDesc, &sizes));
 
-    uint64_t handlesBytes = alignUp(
-        uint64_t(cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE),
-        uint64_t(cluster_abi::CLUSTER_OUTPUT_ALIGNMENT));
+    uint64_t handlesBytes =
+        alignUp(uint64_t(cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE), uint64_t(cluster_abi::CLUSTER_OUTPUT_ALIGNMENT));
     result.outputBuffer = createAccelStructureBuffer(device, handlesBytes + sizes.resultSize);
     ComPtr<IBuffer> scratch = createUAVBuffer(device, sizes.scratchSize);
 
@@ -214,14 +218,14 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
 {
     requireClusterAccelOrSkip(device);
 
-    const Float3 vertices[3] = {{0.f,0.f,0.f},{1.f,0.f,0.f},{0.f,1.f,0.f}};
-    const uint32_t indices[3] = {0,1,2};
+    const Float3 vertices[3] = {{0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}};
+    const uint32_t indices[3] = {0, 1, 2};
 
     ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    cluster_abi::TrianglesArgs triArgs = makeSimpleTrianglesArgs(
-        0, 1, 3, ibuf->getDeviceAddress(), vbuf->getDeviceAddress());
+    cluster_abi::TrianglesArgs triArgs =
+        makeSimpleTrianglesArgs(0, 1, 3, ibuf->getDeviceAddress(), vbuf->getDeviceAddress());
     ComPtr<IBuffer> args = createAccelInputBuffer(device, sizeof(triArgs), &triArgs);
 
     ClusterAccelBuildDesc clasDesc = {};
@@ -238,8 +242,8 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasDesc, 1);
     CHECK_NE(clasResult.handles[0], 0);
 
-    BlasFromClasResult blasResult = buildBlasFromClasImplicit(
-        device, queue, clasResult.outputBuffer->getDeviceAddress(), 1);
+    BlasFromClasResult blasResult =
+        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), 1);
     CHECK_NE(blasResult.blasHandle, 0);
 }
 
@@ -247,8 +251,8 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
 {
     requireClusterAccelOrSkip(device);
 
-    const Float3 vertices[6] = {{0,0,0},{1,0,0},{0,1,0}, {2,0,0},{3,0,0},{2,1,0}};
-    const uint32_t indices[6] = {0,1,2, 0,1,2};
+    const Float3 vertices[6] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {2, 0, 0}, {3, 0, 0}, {2, 1, 0}};
+    const uint32_t indices[6] = {0, 1, 2, 0, 1, 2};
 
     ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
@@ -257,9 +261,12 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     for (int i = 0; i < 2; i++)
     {
         triArgs[i] = makeSimpleTrianglesArgs(
-            i, 1, 3,
+            i,
+            1,
+            3,
             ibuf->getDeviceAddress() + (i * 3 * sizeof(uint32_t)),
-            vbuf->getDeviceAddress() + (i * 3 * sizeof(Float3)));
+            vbuf->getDeviceAddress() + (i * 3 * sizeof(Float3))
+        );
     }
 
     ComPtr<IBuffer> args = createAccelInputBuffer(device, sizeof(triArgs), &triArgs[0]);
@@ -279,8 +286,8 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     CHECK_NE(clasResult.handles[0], 0);
     CHECK_NE(clasResult.handles[1], 0);
 
-    BlasFromClasResult blasResult = buildBlasFromClasImplicit(
-        device, queue, clasResult.outputBuffer->getDeviceAddress(), 2);
+    BlasFromClasResult blasResult =
+        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), 2);
     CHECK_NE(blasResult.blasHandle, 0);
 }
 
@@ -289,8 +296,8 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
 {
     requireClusterAccelOrSkip(device);
 
-    const Float3 vertices[6] = {{0,0,0},{1,0,0},{0,1,0}, {2,0,0},{3,0,0},{2,1,0}};
-    const uint32_t indices[6] = {0,1,2, 0,1,2};
+    const Float3 vertices[6] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {2, 0, 0}, {3, 0, 0}, {2, 1, 0}};
+    const uint32_t indices[6] = {0, 1, 2, 0, 1, 2};
 
     ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
@@ -299,9 +306,12 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
     for (int i = 0; i < 2; i++)
     {
         triArgs[i] = makeSimpleTrianglesArgs(
-            i, 1, 3,
+            i,
+            1,
+            3,
             ibuf->getDeviceAddress() + (i * 3 * sizeof(uint32_t)),
-            vbuf->getDeviceAddress() + (i * 3 * sizeof(Float3)));
+            vbuf->getDeviceAddress() + (i * 3 * sizeof(Float3))
+        );
     }
 
     ComPtr<IBuffer> args = createAccelInputBuffer(device, sizeof(triArgs), &triArgs[0]);
@@ -323,7 +333,7 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
     ComPtr<IBuffer> clasScratch = createUAVBuffer(device, clasSizes.scratchSize);
 
     // Step 1: GET_SIZES to produce per-CLAS sizes
-    uint32_t zeroSizes[2] = {0,0};
+    uint32_t zeroSizes[2] = {0, 0};
     ComPtr<IBuffer> sizesBuf = createUAVBuffer(device, sizeof(uint32_t) * 2, zeroSizes);
 
     clasDesc.mode = ClusterAccelBuildDesc::BuildMode::GetSizes;
@@ -384,8 +394,6 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
 }
 
 
-
-
 // Build two clusters with device-written TrianglesArgs and render two horizontal bands.
 GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
 {
@@ -439,8 +447,12 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
             uint32_t i2 = (j + 1) * vertW + i;
             uint32_t i3 = (j + 1) * vertW + (i + 1);
             // Two triangles per cell
-            indices.push_back(i0); indices.push_back(i1); indices.push_back(i3);
-            indices.push_back(i3); indices.push_back(i2); indices.push_back(i0);
+            indices.push_back(i0);
+            indices.push_back(i1);
+            indices.push_back(i3);
+            indices.push_back(i3);
+            indices.push_back(i2);
+            indices.push_back(i0);
         }
     }
 
@@ -452,12 +464,13 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
 
     // Create one template from triangles (host-filled args)
     cluster_abi::TrianglesArgs trianglesArgs = makeSimpleTrianglesArgs(
-        /*clusterId*/0,
-        /*triangleCount*/triPerCluster,
-        /*vertexCount*/vtxPerCluster,
-        /*indexBuffer*/ibuf->getDeviceAddress(),
-        /*vertexBuffer*/vbuf->getDeviceAddress(),
-        /*vertexStrideBytes*/(uint32_t)sizeof(Float3));
+        /*clusterId*/ 0,
+        /*triangleCount*/ triPerCluster,
+        /*vertexCount*/ vtxPerCluster,
+        /*indexBuffer*/ ibuf->getDeviceAddress(),
+        /*vertexBuffer*/ vbuf->getDeviceAddress(),
+        /*vertexStrideBytes*/ (uint32_t)sizeof(Float3)
+    );
     ComPtr<IBuffer> trianglesArgsBuffer = createAccelInputBuffer(device, sizeof(trianglesArgs), &trianglesArgs);
 
     ClusterAccelBuildDesc templatesFromTrianglesDesc = {};
@@ -471,7 +484,8 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     templatesFromTrianglesDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
 
     auto queue = device->getQueue(QueueType::Graphics);
-    ClasImplicitBuildResult templatesImplicitResult = buildClasImplicit(device, queue, templatesFromTrianglesDesc, /*handleCount*/1);
+    ClasImplicitBuildResult templatesImplicitResult =
+        buildClasImplicit(device, queue, templatesFromTrianglesDesc, /*handleCount*/ 1);
     CHECK_NE(templatesImplicitResult.handles[0], 0);
 
     // Instantiate the template twice via CLASFromTemplates
@@ -483,15 +497,18 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     // kernel. For two clusters, host-side filling is ok.
     for (uint32_t i = 0; i < clusterCount; ++i)
     {
-        uint64_t vertexAddress = vertexBaseAddress + uint64_t(i) * uint64_t(vtxPerCluster) * uint64_t(vertexStrideInBytes);
+        uint64_t vertexAddress =
+            vertexBaseAddress + uint64_t(i) * uint64_t(vtxPerCluster) * uint64_t(vertexStrideInBytes);
         templateInstantiationArgs[i] = cluster_abi::makeTemplatesArgs(
-            /*clusterTemplate*/templateHandle,
-            /*vertexBuffer*/vertexAddress,
-            /*vertexStrideInBytes*/vertexStrideInBytes,
-            /*clusterIdOffset*/i,
-            /*sbtIndexOffset*/0);
+            /*clusterTemplate*/ templateHandle,
+            /*vertexBuffer*/ vertexAddress,
+            /*vertexStrideInBytes*/ vertexStrideInBytes,
+            /*clusterIdOffset*/ i,
+            /*sbtIndexOffset*/ 0
+        );
     }
-    ComPtr<IBuffer> templateInstantiationArgsBuffer = createAccelInputBuffer(device, sizeof(templateInstantiationArgs), &templateInstantiationArgs[0]);
+    ComPtr<IBuffer> templateInstantiationArgsBuffer =
+        createAccelInputBuffer(device, sizeof(templateInstantiationArgs), &templateInstantiationArgs[0]);
 
     ClusterAccelBuildDesc clasFromTemplates = {};
     clasFromTemplates.op = ClusterAccelBuildOp::CLASFromTemplates;
@@ -509,8 +526,8 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     CHECK_NE(clasResult.handles[1], 0);
 
     // Build BLAS from CLAS handles
-    BlasFromClasResult blasResult = buildBlasFromClasImplicit(
-        device, queue, clasResult.outputBuffer->getDeviceAddress(), clusterCount);
+    BlasFromClasResult blasResult =
+        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), clusterCount);
     CHECK_NE(blasResult.blasHandle, 0);
 
     // Build TLAS from BLAS handle
@@ -531,7 +548,8 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
         nativeInstanceDescs.data(),
         nativeInstanceDescSize,
         genericInstanceDescs.data(),
-        sizeof(AccelerationStructureInstanceDescGeneric));
+        sizeof(AccelerationStructureInstanceDescGeneric)
+    );
 
     BufferDesc instanceBufferDesc = {};
     instanceBufferDesc.size = nativeInstanceDescs.size();
@@ -591,11 +609,19 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     constexpr const char* kHitGroup = "hit_group";
     components.push_back(module);
     ComPtr<slang::IEntryPoint> ep;
-    REQUIRE_CALL(module->findEntryPointByName(kRayGen, ep.writeRef())); components.push_back(ep);
-    REQUIRE_CALL(module->findEntryPointByName(kMiss, ep.writeRef())); components.push_back(ep);
-    REQUIRE_CALL(module->findEntryPointByName(kClosestHit, ep.writeRef())); components.push_back(ep);
+    REQUIRE_CALL(module->findEntryPointByName(kRayGen, ep.writeRef()));
+    components.push_back(ep);
+    REQUIRE_CALL(module->findEntryPointByName(kMiss, ep.writeRef()));
+    components.push_back(ep);
+    REQUIRE_CALL(module->findEntryPointByName(kClosestHit, ep.writeRef()));
+    components.push_back(ep);
     ComPtr<slang::IComponentType> composedProgram;
-    REQUIRE_CALL(slangSession->createCompositeComponentType(components.data(), (SlangInt)components.size(), composedProgram.writeRef(), diagnosticsBlob.writeRef()));
+    REQUIRE_CALL(slangSession->createCompositeComponentType(
+        components.data(),
+        (SlangInt)components.size(),
+        composedProgram.writeRef(),
+        diagnosticsBlob.writeRef()
+    ));
     diagnoseIfNeeded(diagnosticsBlob);
     ComPtr<slang::IComponentType> linkedProgram;
     REQUIRE_CALL(composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef()));
@@ -661,22 +687,28 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
         // Strategy: convert logical strip/cell coords → world space → NDC UV → pixel coords.
         // - stripIndex: 0 = lower strip center (y=0), 1 = upper strip center (y=kStripHeight+kStripGap)
         // - cellCoord: cellIndex + uWithinCell, e.g., 1.6 means cell 1 at 60% across
-        auto makeProbeIndex = [&](uint32_t stripIndex, float cellCoord) -> uint64_t {
+        auto makeProbeIndex = [&](uint32_t stripIndex, float cellCoord) -> uint64_t
+        {
             // World X in [kStripXMin, kStripXMin + kStripXSpan]
             float xWorld = kStripXMin + (cellCoord / float(kGridW)) * kStripXSpan;
             float xUv = (xWorld + 1.0f) * 0.5f;
             uint32_t col = (uint32_t)(xUv * float(width - 1) + 0.5f);
-            if (col >= width) col = width - 1;
+            if (col >= width)
+                col = width - 1;
 
             // World Y at the vertical center of the chosen strip
             float yWorld = (stripIndex == 0) ? 0.0f : (kStripHeight + kStripGap);
             float yUv = (yWorld + 1.0f) * 0.5f;
             uint32_t row = (uint32_t)(yUv * float(height - 1) + 0.5f);
-            if (row >= height) row = height - 1;
+            if (row >= height)
+                row = height - 1;
 
             return uint64_t(row) * uint64_t(width) + uint64_t(col);
         };
-        struct U2 { uint32_t x, y; } id0 = {}, id1 = {};
+        struct U2
+        {
+            uint32_t x, y;
+        } id0 = {}, id1 = {};
         uint64_t idx0 = makeProbeIndex(0, 1.6f);
         uint64_t idx1 = makeProbeIndex(1, 1.6f);
         CHECK_CALL(device->readBuffer(idsBuf, idx0 * sizeof(U2), sizeof(U2), &id0));
@@ -695,14 +727,15 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     SubresourceLayout layout;
     REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, image.writeRef(), &layout));
 
-    #if 0
+#if 0
     //debug
     writeImage( "test.hdr", image, width,  height, layout.rowPitch, layout.colPitch );
-    #endif
+#endif
 
 
     const uint8_t* base = (const uint8_t*)image->getBufferPointer();
-    auto isRowHit = [&](uint32_t y) {
+    auto isRowHit = [&](uint32_t y)
+    {
         const uint8_t* row = base + y * layout.rowPitch;
         for (uint32_t x = 0; x < width; ++x)
         {
@@ -719,7 +752,10 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     for (uint32_t y = 0; y < height; ++y)
     {
         bool hit = isRowHit(y);
-        if (hit) { stripHeight++; }
+        if (hit)
+        {
+            stripHeight++;
+        }
         if ((!hit || y == height - 1) && stripHeight > 0)
         {
             if (stripHeight >= kStripMinRows)

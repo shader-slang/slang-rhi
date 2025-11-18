@@ -79,5 +79,3 @@ void writeTriArgs(uint3 tid : SV_DispatchThreadID)
         /*indexFormat*/4
     );
 }
-
-

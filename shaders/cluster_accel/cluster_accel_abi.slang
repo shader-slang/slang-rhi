@@ -13,5 +13,3 @@ namespace cluster_abi {
 }
 
 #endif // CLUSTER_ACCEL_ABI_SLANG
-
-

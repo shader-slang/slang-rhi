@@ -115,10 +115,7 @@ public:
     virtual bool getClusterAccelerationSupport() const = 0;
 
     /// Build a cluster acceleration structure or BLAS-from-CLAS.
-    virtual void buildClusterAccelerationStructure(
-        CUstream stream,
-        const ClusterAccelBuildDesc& desc
-    ) = 0;
+    virtual void buildClusterAccelerationStructure(CUstream stream, const ClusterAccelBuildDesc& desc) = 0;
 
     /// Check if cooperative vector support is available.
     virtual bool getCooperativeVectorSupport() const = 0;
