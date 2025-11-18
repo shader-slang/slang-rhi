@@ -18,8 +18,7 @@ void missClusters(inout Payload payload)
 [shader("closesthit")]
 void closestHitClusters(inout Payload payload, BuiltInTriangleIntersectionAttributes attribs)
 {
-    // Write a constant color for "hit band" detection
-    payload.color = float3(1, 1, 1);
+    payload.color = float3(attribs.barycentrics, 0);
     uint2 pix = DispatchRaysIndex().xy;
     uint2 dims = DispatchRaysDimensions().xy;
     uint index = pix.y * dims.x + pix.x;

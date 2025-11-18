@@ -116,6 +116,7 @@ public:
         CUstream stream,
         const ClusterAccelBuildDesc& desc
     ) = 0;
+
     /// Check if cooperative vector support is available.
     virtual bool getCooperativeVectorSupport() const = 0;
 

@@ -1,4 +1,5 @@
 #include "testing.h"
+#include "texture-utils.h"
 #include <slang-rhi/acceleration-structure-utils.h>
 #include <slang-rhi/cluster_accel_abi_host.h>
 
@@ -9,10 +10,6 @@ struct Float3 { float x, y, z; };
 
 static void requireClusterAccelOrSkip(IDevice* device)
 {
-    if (device->getDeviceType() != DeviceType::CUDA)
-        SKIP("CUDA only test");
-    if (device->getInfo().optixVersion < 90000)
-        SKIP("requires OptiX 9+");
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
 }
@@ -187,7 +184,7 @@ static BlasFromClasResult buildBlasFromClasImplicit(
     return result;
 }
 
-GPU_TEST_CASE("cluster-accel-sizes-optix", CUDA)
+GPU_TEST_CASE("cluster-accel-sizes", CUDA)
 {
     requireClusterAccelOrSkip(device);
 
@@ -687,7 +684,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
 
         CHECK_EQ(id0.x, 0u);
         CHECK_EQ(id1.x, 1u);
-        
+
         // PrimitiveID resets per cluster. For cell c=1 and tri0, expected primitive index is 2*c = 2
         CHECK_EQ(id0.y, 2u);
         CHECK_EQ(id1.y, 2u);
@@ -697,6 +694,13 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     ComPtr<ISlangBlob> image;
     SubresourceLayout layout;
     REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, image.writeRef(), &layout));
+
+    #if 0
+    //debug
+    writeImage( "test.hdr", image, width,  height, layout.rowPitch, layout.colPitch );
+    #endif
+
+
     const uint8_t* base = (const uint8_t*)image->getBufferPointer();
     auto isRowHit = [&](uint32_t y) {
         const uint8_t* row = base + y * layout.rowPitch;
@@ -708,7 +712,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
         }
         return false;
     };
-  
+
     constexpr uint32_t kStripMinRows = 2;
     uint32_t stripCount = 0;
     uint32_t stripHeight = 0;
