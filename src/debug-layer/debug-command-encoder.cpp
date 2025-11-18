@@ -764,6 +764,27 @@ void DebugCommandEncoder::convertCooperativeVectorMatrix(
     SLANG_RHI_API_FUNC;
     requireOpen();
     requireNoPass();
+
+    if (!dstBuffer)
+    {
+        RHI_VALIDATION_ERROR("Destination buffer must be valid");
+        return;
+    }
+    if (!srcBuffer)
+    {
+        RHI_VALIDATION_ERROR("Source buffer must be valid");
+        return;
+    }
+
+    SLANG_RETURN_VOID_ON_FAIL(validateConvertCooperativeVectorMatrix(
+        ctx,
+        dstBuffer->getDesc().size,
+        dstDescs,
+        srcBuffer->getDesc().size,
+        srcDescs,
+        matrixCount
+    ));
+
     baseObject->convertCooperativeVectorMatrix(dstBuffer, dstDescs, srcBuffer, srcDescs, matrixCount);
 }
 
