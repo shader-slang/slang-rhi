@@ -1,21 +1,3 @@
-
-#include <slang.h>
-
-#if SLANG_WINDOWS_FAMILY
-#define GLFW_EXPOSE_NATIVE_WIN32
-#elif SLANG_LINUX_FAMILY
-#define GLFW_EXPOSE_NATIVE_X11
-#elif SLANG_APPLE_FAMILY
-#define GLFW_EXPOSE_NATIVE_COCOA
-#endif
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-
-#include <slang-rhi.h>
-#include <slang-rhi/glfw.h>
-
-#include <cstdio>
-
 #include "example-base.h"
 
 using namespace rhi;
