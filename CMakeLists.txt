@@ -882,6 +882,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
     endfunction()
 
+    add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
     add_example(example-surface examples/surface/example-surface.cpp)
     add_example(example-triangle examples/triangle/example-triangle.cpp)
 endif()
