@@ -72,7 +72,7 @@ public:
         return m_surface->present();
     }
 
-    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight)
+    virtual void onResize(int width, int height, int framebufferWidth, int framebufferHeight) override
     {
         // Wait for GPU to be idle before resizing
         m_device->getQueue(QueueType::Graphics)->waitOnHost();
