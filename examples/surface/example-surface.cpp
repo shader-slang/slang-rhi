@@ -1,6 +1,6 @@
 #include "example-base.h"
 
-namespace rhi {
+using namespace rhi;
 
 class ExampleSurface : public ExampleBase
 {
@@ -98,6 +98,4 @@ public:
     float m_grey = 0.5f;
 };
 
-} // namespace rhi
-
-EXAMPLE_MAIN(rhi::ExampleSurface)
+EXAMPLE_MAIN(ExampleSurface)
