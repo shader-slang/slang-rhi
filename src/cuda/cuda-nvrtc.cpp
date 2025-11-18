@@ -250,7 +250,10 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
 
     // Find CUDA include path (containing cuda_runtime.h)
     std::vector<std::filesystem::path> candidatePaths;
+    // CUDA previous to 13.0 had nvrtc.dll in <cuda path>/bin
     candidatePaths.push_back(m_impl->nvrtcPath.parent_path().parent_path() / "include");
+    // CUDA 13.0 and later have nvrtc.dll in <cuda path>/bin/<arch>
+    candidatePaths.push_back(m_impl->nvrtcPath.parent_path().parent_path().parent_path() / "include");
 #if SLANG_LINUX_FAMILY
     candidatePaths.push_back("/usr/include");
 #endif
