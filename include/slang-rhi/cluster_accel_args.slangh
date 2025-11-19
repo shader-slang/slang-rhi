@@ -2,8 +2,7 @@
 // Usable from both Slang and C++ (host).
 // C++ includers must include <cstdint> before including this file.
 
-#ifndef SLANG_RHI_CLUSTER_ACCEL_ARGS_SLANGH
-#define SLANG_RHI_CLUSTER_ACCEL_ARGS_SLANGH
+#pragma once
 
 namespace cluster_abi {
 
@@ -173,5 +172,3 @@ static inline ClustersArgs makeClustersArgs(uint32_t count, uint64_t handlesBuff
 }
 
 } // namespace cluster_abi
-
-#endif // SLANG_RHI_CLUSTER_ACCEL_ARGS_SLANGH

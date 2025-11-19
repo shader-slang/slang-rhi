@@ -1,7 +1,7 @@
 #include "testing.h"
 #include "texture-utils.h"
 #include <slang-rhi/acceleration-structure-utils.h>
-#include <slang-rhi/cluster_accel_args_host.h>
+#include <slang-rhi/cluster_accel_args.h>
 
 using namespace rhi;
 using namespace rhi::testing;
