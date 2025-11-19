@@ -448,3 +448,28 @@ void rayGenShaderMakeMotionMiss()
     HitObject.Invoke(sceneBVH, hitObjectMiss, payload);
     resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
 }
+
+[shader("raygeneration")]
+void rayGenShaderTraceMotionRay()
+{
+    // Trace a ray that should hit the triangle
+    float3 origin = {0.1, 0.1, 0.1};
+    float3 dir = {0.0, 0.0, 1.0};
+
+    RayDesc ray;
+    ray.Origin = origin;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    float currentTime = 0.5;  // midpoint of motion
+    RayPayload payload = { {} };
+    HitObject hitobj = HitObject.TraceMotionRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, currentTime, payload);
+
+    // Check if it's a hit
+    resultBuffer[0].queryWasSuccess = hitobj.IsHit() ? 1 : 0;
+
+    // Invoke the hit
+    RayPayload payloadInvoke = {};
+    HitObject.Invoke(sceneBVH, hitobj, payloadInvoke);
+    resultBuffer[0].invokeWasSuccess = payloadInvoke.invokeWasSuccess;
+}

@@ -396,11 +396,11 @@ struct SingleTriangleMotionBLAS
         {0.f, 1.f, 1.f},
     };
 
-    // Second motion key (time=1.0)
+    // Second motion key (time=1.0) - rotated 90 degrees around z-axis
     inline static const Vertex kVertexData1[kVertexCount] = {
-        {0.0f, 0.0f, 2.f},
-        {1.0f, 0.0f, 2.f},
-        {0.0f, 1.0f, 2.f},
+        {0.0f, 0.0f, 1.f},
+        {0.0f, 1.0f, 1.f},
+        {-1.0f, 0.0f, 1.f},
     };
 
     static const int kIndexCount = 3;
@@ -441,7 +441,7 @@ struct SingleTriangleMotionBLAS
         AccelerationStructureBuildDesc buildDesc = {};
         buildDesc.inputs = &buildInput;
         buildDesc.inputCount = 1;
-        buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction;
+        buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction | AccelerationStructureBuildFlags::CreateMotion;
         buildDesc.motionOptions.keyCount = 2;
         buildDesc.motionOptions.timeStart = 0.0f;
         buildDesc.motionOptions.timeEnd = 1.0f;
@@ -848,7 +848,7 @@ inline void launchPipeline(
     passEncoder->dispatchRays(0, 1, 1, 1);
     passEncoder->end();
 
-    queue->submit(commandEncoder->finish());
-    queue->waitOnHost();
+    REQUIRE_CALL( queue->submit(commandEncoder->finish()) );
+    REQUIRE_CALL( queue->waitOnHost() );
 }
 } // namespace rhi::testing

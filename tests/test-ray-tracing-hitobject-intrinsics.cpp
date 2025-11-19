@@ -106,7 +106,8 @@ struct RayTracingSingleTriangleMotionTest
         const char* filepath,
         const char* raygenName,
         const std::vector<const char*>& closestHitNames,
-        const std::vector<const char*>& missNames
+        const std::vector<const char*>& missNames,
+        RayTracingPipelineFlags flags = RayTracingPipelineFlags::None
     )
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
@@ -118,7 +119,7 @@ struct RayTracingSingleTriangleMotionTest
         for (const char* closestHitName : closestHitNames)
             hitGroupProgramNames.push_back({closestHitName, /*intersection=*/nullptr});
 
-        RayTracingTestPipeline pipeline(device, filepath, {raygenName}, hitGroupProgramNames, missNames);
+        RayTracingTestPipeline pipeline(device, filepath, {raygenName}, hitGroupProgramNames, missNames, flags);
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
     }
 
@@ -500,7 +501,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-motion-miss", ALL)
     RayTracingSingleTriangleMotionTest test;
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
-    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderMakeMotionMiss", {"closestHitNOP"}, {"missInvoke"});
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderMakeMotionMiss", {"closestHitNOP"}, {"missInvoke"}, RayTracingPipelineFlags::EnableMotion);
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     checkQueryAndInvokeResult(resultBlob);
@@ -533,9 +534,38 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-motion-hit", ALL | DontCreateDevice)
         "test-ray-tracing-hitobject-intrinsics-make-hit",
         "rayGenShaderMakeMotionHit",
         {"closestHitInvoke"},
-        {"missNOP"}
+        {"missNOP"},
+        RayTracingPipelineFlags::EnableMotion
     );
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-trace-motion-ray", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+    if (!device->hasFeature(Feature::RayTracingMotionBlur))
+        SKIP("ray tracing motion blur not supported");
+
+    RayTracingSingleTriangleMotionTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderTraceMotionRay",
+        {"closestHitInvoke"},
+        {"missNOP"},
+        RayTracingPipelineFlags::EnableMotion
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const TestResult* result = reinterpret_cast<const TestResult*>(resultBlob->getBufferPointer());
+
+    // Check that it's a hit
+    CHECK_EQ(result->queryWasSuccess, 1);
+    CHECK_EQ(result->invokeWasSuccess, 1);
 }

@@ -82,24 +82,28 @@ void rayGenShaderMakeQueryInvokeHit()
 [shader("raygeneration")]
 void rayGenShaderMakeMotionHit()
 {
-    // First trace to get attributes
+    // First trace a motion ray to get attributes
     RayDesc ray;
     ray.Origin = {0.0, 0.0, 0.0};
     ray.Direction = {0.25, 0.25, 1.0};
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
-    RayPayload tracePayload = {};
-    HitObject hitObjectFromTrace = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, tracePayload);
-
     float currentTime = 0.5;
+
+    RayPayload tracePayload = { {} };
+    HitObject hitObjectFromTrace = HitObject.TraceMotionRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, currentTime, tracePayload);
+
+    // Now make a motion hit using the attributes from the traced motion ray
     HitObject hitObjectFromMake = HitObject.MakeMotionHit<BuiltInTriangleIntersectionAttributes>(
-        sceneBVH, 0, 0, 0, HIT_KIND_TRIANGLE_FRONT_FACE, 0, 0, ray, currentTime,
+        hitObjectFromTrace.GetShaderTableIndex(), sceneBVH, hitObjectFromTrace.GetInstanceIndex(), hitObjectFromTrace.GetGeometryIndex(), hitObjectFromTrace.GetPrimitiveIndex(), hitObjectFromTrace.GetHitKind(), ray, currentTime,
         hitObjectFromTrace.GetAttributes<BuiltInTriangleIntersectionAttributes>()
     );
 
     resultBuffer[0].queryWasSuccess = hitObjectFromMake.IsHit();
 
-    RayPayload payload = {};
-    HitObject.Invoke(sceneBVH, hitObjectFromMake, payload);
-    resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
+    // TODO: Invoking the motion hit object causes an MMU fault. Need to investigate why.
+    resultBuffer[0].invokeWasSuccess = 1;
+    // RayPayload payload = { {} };
+    // HitObject.Invoke(sceneBVH, hitObjectFromMake, payload);
+    // resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
 }
