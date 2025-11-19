@@ -501,7 +501,13 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-motion-miss", ALL)
     RayTracingSingleTriangleMotionTest test;
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
-    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderMakeMotionMiss", {"closestHitNOP"}, {"missInvoke"}, RayTracingPipelineFlags::EnableMotion);
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderMakeMotionMiss",
+        {"closestHitNOP"},
+        {"missInvoke"},
+        RayTracingPipelineFlags::EnableMotion
+    );
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     checkQueryAndInvokeResult(resultBlob);

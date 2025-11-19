@@ -49,7 +49,8 @@ struct RayTracingTriangleIntersectionTest
 
         createResultTexture();
 
-        RayTracingTestPipeline pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames, flags);
+        RayTracingTestPipeline
+            pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames, flags);
         renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.tlas, rgIdx);
 
         checkTestResults(expectedPixels);
@@ -219,5 +220,13 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-motion", ALL)
 
     RayTracingTriangleIntersectionTest test;
     test.init(device);
-    test.run(blas.blas, raygenNames, hitGroupProgramNames, missNames, expectedPixels, 0, RayTracingPipelineFlags::EnableMotion);
+    test.run(
+        blas.blas,
+        raygenNames,
+        hitGroupProgramNames,
+        missNames,
+        expectedPixels,
+        0,
+        RayTracingPipelineFlags::EnableMotion
+    );
 }

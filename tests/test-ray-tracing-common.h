@@ -441,7 +441,8 @@ struct SingleTriangleMotionBLAS
         AccelerationStructureBuildDesc buildDesc = {};
         buildDesc.inputs = &buildInput;
         buildDesc.inputCount = 1;
-        buildDesc.flags = AccelerationStructureBuildFlags::AllowCompaction | AccelerationStructureBuildFlags::CreateMotion;
+        buildDesc.flags =
+            AccelerationStructureBuildFlags::AllowCompaction | AccelerationStructureBuildFlags::CreateMotion;
         buildDesc.motionOptions.keyCount = 2;
         buildDesc.motionOptions.timeStart = 0.0f;
         buildDesc.motionOptions.timeEnd = 1.0f;
@@ -848,7 +849,7 @@ inline void launchPipeline(
     passEncoder->dispatchRays(0, 1, 1, 1);
     passEncoder->end();
 
-    REQUIRE_CALL( queue->submit(commandEncoder->finish()) );
-    REQUIRE_CALL( queue->waitOnHost() );
+    REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
 }
 } // namespace rhi::testing

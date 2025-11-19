@@ -167,7 +167,7 @@ Result AccelerationStructureBuildDescConverter::convert(
                 // The vertexData points to a buffer containing vertex data for all motion keys
                 // laid out contiguously. We use the first vertex buffer address.
                 motionData.vertexData.deviceAddress = triangles.vertexBuffers[0].getDeviceAddress();
-                
+
                 // Chain the motion data to the triangles data via pNext
                 geometry.geometry.triangles.pNext = &motionData;
             }
