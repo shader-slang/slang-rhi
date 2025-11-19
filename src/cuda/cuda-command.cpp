@@ -591,6 +591,9 @@ void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::Deseri
 
 void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
+    if (!m_device->m_ctx.optixContext)
+        return;
+
     m_device->m_ctx.optixContext->convertCooperativeVectorMatrix(
         m_stream,
         cmd.dstBuffer->getDeviceAddress(),
