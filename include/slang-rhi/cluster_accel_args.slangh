@@ -175,5 +175,3 @@ static inline ClustersArgs makeClustersArgs(uint32_t count, uint64_t handlesBuff
 } // namespace cluster_abi
 
 #endif // SLANG_RHI_CLUSTER_ACCEL_ARGS_SLANGH
-
-

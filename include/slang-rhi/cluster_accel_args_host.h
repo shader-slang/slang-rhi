@@ -7,5 +7,3 @@
 #include "cluster_accel_args.slangh"
 
 #endif // SLANG_RHI_CLUSTER_ACCEL_ARGS_HOST_H
-
-
