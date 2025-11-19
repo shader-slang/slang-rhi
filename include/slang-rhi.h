@@ -1416,7 +1416,8 @@ enum class AccelerationStructureBuildFlags
     AllowCompaction = (1 << 1),
     PreferFastTrace = (1 << 2),
     PreferFastBuild = (1 << 3),
-    MinimizeMemory = (1 << 4)
+    MinimizeMemory = (1 << 4),
+    CreateMotion = (1 << 5)
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureBuildFlags);
 
@@ -1811,6 +1812,7 @@ enum class RayTracingPipelineFlags
     SkipProcedurals = (1 << 1),
     EnableSpheres = (1 << 2),
     EnableLinearSweptSpheres = (1 << 3),
+    EnableMotion = (1 << 4),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 

@@ -122,6 +122,12 @@ Result AccelerationStructureBuildDescConverter::convert(
     }
     case AccelerationStructureBuildInputType::Triangles:
     {
+        bool useMotion = is_set(buildDesc.flags, AccelerationStructureBuildFlags::CreateMotion);
+        if (useMotion)
+        {
+            motionTrianglesDatas.resize(buildDesc.inputCount);
+        }
+
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
@@ -153,6 +159,19 @@ Result AccelerationStructureBuildDescConverter::convert(
             geometry.geometry.triangles.transformData.deviceAddress =
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
 
+            if (useMotion)
+            {
+                VkAccelerationStructureGeometryMotionTrianglesDataNV& motionData = motionTrianglesDatas[i];
+                motionData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_MOTION_TRIANGLES_DATA_NV;
+                motionData.pNext = nullptr;
+                // The vertexData points to a buffer containing vertex data for all motion keys
+                // laid out contiguously. We use the first vertex buffer address.
+                motionData.vertexData.deviceAddress = triangles.vertexBuffers[0].getDeviceAddress();
+                
+                // Chain the motion data to the triangles data via pNext
+                geometry.geometry.triangles.pNext = &motionData;
+            }
+
             primitiveCounts[i] = max(triangles.vertexCount, triangles.indexCount) / 3;
         }
 
@@ -161,6 +180,12 @@ Result AccelerationStructureBuildDescConverter::convert(
     }
     case AccelerationStructureBuildInputType::ProceduralPrimitives:
     {
+        // Motion is only supported for triangles in Vulkan
+        if (is_set(buildDesc.flags, AccelerationStructureBuildFlags::CreateMotion))
+        {
+            return SLANG_E_NOT_AVAILABLE;
+        }
+
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
@@ -186,6 +211,12 @@ Result AccelerationStructureBuildDescConverter::convert(
     }
     case AccelerationStructureBuildInputType::Spheres:
     {
+        // Motion is only supported for triangles in Vulkan
+        if (is_set(buildDesc.flags, AccelerationStructureBuildFlags::CreateMotion))
+        {
+            return SLANG_E_NOT_AVAILABLE;
+        }
+
         spheresDatas.resize(buildDesc.inputCount);
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
@@ -232,6 +263,12 @@ Result AccelerationStructureBuildDescConverter::convert(
     }
     case AccelerationStructureBuildInputType::LinearSweptSpheres:
     {
+        // Motion is only supported for triangles in Vulkan
+        if (is_set(buildDesc.flags, AccelerationStructureBuildFlags::CreateMotion))
+        {
+            return SLANG_E_NOT_AVAILABLE;
+        }
+
         linearSweptSpheresDatas.resize(buildDesc.inputCount);
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
@@ -309,6 +346,10 @@ VkBuildAccelerationStructureFlagsKHR AccelerationStructureBuildDescConverter::tr
     if (is_set(flags, AccelerationStructureBuildFlags::PreferFastTrace))
     {
         result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    }
+    if (is_set(flags, AccelerationStructureBuildFlags::CreateMotion))
+    {
+        result |= VK_BUILD_ACCELERATION_STRUCTURE_MOTION_BIT_NV;
     }
     return result;
 }
