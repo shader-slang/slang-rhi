@@ -840,6 +840,13 @@ void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* ds
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::buildClusterAccelerationStructure(const ClusterAccelBuildDesc& desc)
+{
+    commands::BuildClusterAccelerationStructure cmd;
+    cmd.desc = desc;
+    m_commandList->write(std::move(cmd));
+}
+
 void CommandEncoder::convertCooperativeVectorMatrix(
     IBuffer* dstBuffer,
     const CooperativeVectorMatrixDesc* dstDescs,

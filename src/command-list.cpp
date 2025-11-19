@@ -299,6 +299,11 @@ void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::BuildClusterAccelerationStructure&& cmd)
+{
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::ConvertCooperativeVectorMatrix&& cmd)
 {
     retainResource<Buffer>(cmd.dstBuffer);

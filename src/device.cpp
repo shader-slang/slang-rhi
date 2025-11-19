@@ -776,6 +776,13 @@ Result Device::getAccelerationStructureSizes(
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::getClusterAccelerationStructureSizes(const ClusterAccelBuildDesc& desc, ClusterAccelSizes* outSizes)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outSizes);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Device::createAccelerationStructure(
     const AccelerationStructureDesc& desc,
     IAccelerationStructure** outAccelerationStructure

@@ -122,6 +122,7 @@ enum class DeviceType
     x(RayQuery,                                 "ray-query"                                     ) \
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
+    x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
     x(RealtimeClock,                            "realtime-clock"                                ) \
@@ -1438,6 +1439,120 @@ struct AccelerationStructureSizes
     uint64_t updateScratchSize = 0;
 };
 
+// Cluster Acceleration Structure (CLAS) API
+enum class ClusterAccelBuildOp
+{
+    CLASFromTriangles,
+    BLASFromCLAS,
+    TemplatesFromTriangles,
+    CLASFromTemplates,
+};
+
+struct ClusterAccelSizes
+{
+    uint64_t resultSize = 0;
+    uint64_t scratchSize = 0;
+};
+
+struct ClusterAccelLimitsTriangles
+{
+    /// Required for CLASFromTriangles and TemplatesFromTriangles operations; must be non-zero.
+    uint32_t maxArgCount = 0;
+    /// Required; maximum number of triangles in a single cluster.
+    uint32_t maxTriangleCountPerArg = 0;
+    /// Required; maximum number of vertices in a single cluster.
+    uint32_t maxVertexCountPerArg = 0;
+    /// Required; maximum number of unique SBT indices within a single cluster.
+    uint32_t maxUniqueSbtIndexCountPerArg = 0;
+    /// Optional; minimum number of mantissa bits to truncate from vertex positions (0 means no truncation).
+    uint32_t positionTruncateBitCount = 0;
+};
+
+struct ClusterAccelLimitsClusters
+{
+    /// Required for BLASFromCLAS operation; must be non-zero.
+    uint32_t maxArgCount = 0;
+    /// Required; total number of cluster handles across all args.
+    uint32_t maxTotalClusterCount = 0;
+    /// Required; maximum number of cluster handles per arg.
+    uint32_t maxClusterCountPerArg = 0;
+};
+
+struct ClusterAccelBuildDesc
+{
+    /// Operation to perform.
+    ClusterAccelBuildOp op = ClusterAccelBuildOp::CLASFromTriangles;
+
+    /// Device buffer containing an array of op-specific device-args records.
+    BufferOffsetPair argsBuffer = {};
+    /// Stride in bytes between consecutive arg records in argsBuffer.
+    uint32_t argsStride = 0;
+    /// Number of arg records to consume from argsBuffer.
+    uint32_t argCount = 0;
+
+    /// Reserved for future extensions.
+    const void* next = nullptr;
+
+    /// Per-operation limits. The active member is determined by the 'op' field.
+    /// - CLASFromTriangles: use limitsTriangles
+    /// - BLASFromCLAS: use limitsClusters
+    /// - TemplatesFromTriangles: use limitsTriangles
+    /// - CLASFromTemplates: use limitsTriangles (same)
+    union
+    {
+        ClusterAccelLimitsTriangles limitsTriangles;
+        ClusterAccelLimitsClusters limitsClusters;
+    } limits = {};
+
+    enum class BuildMode
+    {
+        Implicit,
+        Explicit,
+        GetSizes
+    };
+    BuildMode mode = BuildMode::Implicit;
+
+    struct ImplicitDesc
+    {
+        // Required output and temporary buffers for implicit builds
+        DeviceAddress outputBuffer = 0;
+        Size outputBufferSizeInBytes = 0;
+        DeviceAddress tempBuffer = 0;
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress outputHandlesBuffer = 0;   // optional
+        uint32_t outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputSizesBuffer = 0;     // optional
+        uint32_t outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
+    };
+    struct ExplicitDesc
+    {
+        // Required temporary buffer for explicit builds
+        DeviceAddress tempBuffer = 0;
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress destAddressesBuffer = 0;   // required
+        uint32_t destAddressesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputHandlesBuffer = 0;   // optional, aliases destAddresses if 0
+        uint32_t outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputSizesBuffer = 0;     // optional
+        uint32_t outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
+    };
+    struct GetSizesDesc
+    {
+        // Required temporary buffer for size queries
+        DeviceAddress tempBuffer = 0;
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress outputSizesBuffer = 0;   // required
+        uint32_t outputSizesStrideInBytes = 0; // optional, defaults to natural stride
+    };
+
+    union
+    {
+        ImplicitDesc implicit;
+        ExplicitDesc explicitDest;
+        GetSizesDesc getSizes;
+    } modeDesc = {};
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
@@ -1810,6 +1925,7 @@ enum class RayTracingPipelineFlags
     SkipProcedurals = (1 << 1),
     EnableSpheres = (1 << 2),
     EnableLinearSweptSpheres = (1 << 3),
+    EnableClusters = (1 << 4),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 
@@ -2420,6 +2536,8 @@ public:
         IAccelerationStructure* dst,
         BufferOffsetPair src
     ) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(const ClusterAccelBuildDesc& desc) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
         IBuffer* dstBuffer,
@@ -3262,6 +3380,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureSizes* outSizes
+    ) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
