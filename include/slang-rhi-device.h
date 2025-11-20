@@ -164,6 +164,8 @@ struct TriangleClusterArgs
     /// (optional) Address of an array of indices into the OMM array. Note that an additional OMM special index is
     /// reserved and can be used to turn off OMM for specific triangles.
     DeviceAddress opacityMicromapIndexBuffer;
+    /// TODO: Needed for OptiX. D3D12/Vulkan have a different struct adding this field but sharing all other fields.
+    DeviceAddress instantiationBoundingBoxLimit;
 };
 
 /// Arguments for instantiating cluster from template.
