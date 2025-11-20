@@ -79,6 +79,7 @@ void rayGenShaderMakeQueryInvokeHit()
     resultBuffer[0].invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
+#ifndef __CUDA__
 [shader("raygeneration")]
 void rayGenShaderMakeMotionHit()
 {
@@ -107,3 +108,4 @@ void rayGenShaderMakeMotionHit()
     // HitObject.Invoke(sceneBVH, hitObjectFromMake, payload);
     // resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
 }
+#endif // __CUDA__

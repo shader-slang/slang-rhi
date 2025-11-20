@@ -82,6 +82,7 @@ void closestHitShaderIdx1(inout RayPayload payload, in BuiltInTriangleIntersecti
     payload.color = color;
 }
 
+#ifndef __CUDA__
 [shader("raygeneration")]
 void rayGenShaderMotion()
 {
@@ -110,3 +111,4 @@ void closestHitShaderMotion(inout RayPayload payload, in BuiltInTriangleIntersec
     // Set color to green for motion hit
     payload.color = float4(0, 1, 0, 1);
 }
+#endif // __CUDA__
