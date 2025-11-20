@@ -821,6 +821,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-ray-tracing-hitobject-intrinsics.cpp
         tests/test-ray-tracing-reorder.cpp
         tests/test-ray-tracing-sphere.cpp
+        tests/test-ray-tracing-clusters.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
         # tests/test-root-mutable-shader-object.cpp
@@ -851,6 +852,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
         SLANG_RHI_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests"
         SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+        SLANG_RHI_INCLUDE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/include"
         SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
         SLANG_RHI_BUILD_TESTS_WITH_GLFW=$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>
         $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
@@ -876,11 +878,15 @@ if(SLANG_RHI_BUILD_EXAMPLES)
     function(add_example name source)
         add_executable(${name} ${source})
         target_compile_features(${name} PRIVATE cxx_std_17)
+        get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
+        target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
         target_include_directories(${name} PRIVATE examples/base)
         target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
     endfunction()
 
+    add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
     add_example(example-surface examples/surface/example-surface.cpp)
+    add_example(example-triangle examples/triangle/example-triangle.cpp)
 endif()
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})

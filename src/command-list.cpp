@@ -299,12 +299,24 @@ void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::BuildClusterAccelerationStructure&& cmd)
+{
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::ConvertCooperativeVectorMatrix&& cmd)
 {
-    if (cmd.descs && cmd.descCount > 0)
+    retainResource<Buffer>(cmd.dstBuffer);
+    retainResource<Buffer>(cmd.srcBuffer);
+    if (cmd.dstDescs && cmd.matrixCount > 0)
     {
-        cmd.descs = (ConvertCooperativeVectorMatrixDesc*)
-            writeData(cmd.descs, cmd.descCount * sizeof(ConvertCooperativeVectorMatrixDesc));
+        cmd.dstDescs = (CooperativeVectorMatrixDesc*)
+            writeData(cmd.dstDescs, cmd.matrixCount * sizeof(CooperativeVectorMatrixDesc));
+    }
+    if (cmd.srcDescs && cmd.matrixCount > 0)
+    {
+        cmd.srcDescs = (CooperativeVectorMatrixDesc*)
+            writeData(cmd.srcDescs, cmd.matrixCount * sizeof(CooperativeVectorMatrixDesc));
     }
     writeCommand(std::move(cmd));
 }

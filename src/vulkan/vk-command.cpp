@@ -103,6 +103,7 @@ public:
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
+    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
@@ -1224,14 +1225,45 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
     m_api.vkCmdCopyMemoryToAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
 }
 
+void CommandRecorder::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_CommandEncoder_buildClusterAccelerationStructure);
+}
+
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dstBuffer);
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(srcBuffer, ResourceState::ShaderResource);
+    commitBarriers();
+
     short_vector<VkConvertCooperativeVectorMatrixInfoNV> infos;
-    for (uint32_t i = 0; i < cmd.descCount; ++i)
+    for (uint32_t i = 0; i < cmd.matrixCount; ++i)
     {
-        infos.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i]));
+        const CooperativeVectorMatrixDesc& dstDesc = cmd.dstDescs[i];
+        const CooperativeVectorMatrixDesc& srcDesc = cmd.srcDescs[i];
+        VkConvertCooperativeVectorMatrixInfoNV info = {VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV};
+        info.srcSize = srcDesc.size;
+        info.srcData.deviceAddress = srcBuffer->getDeviceAddress() + srcDesc.offset;
+        info.pDstSize = (size_t*)&dstDesc.size;
+        info.dstData.deviceAddress = dstBuffer->getDeviceAddress() + dstDesc.offset;
+        info.srcComponentType = translateCooperativeVectorComponentType(srcDesc.componentType);
+        info.dstComponentType = translateCooperativeVectorComponentType(dstDesc.componentType);
+        info.numRows = srcDesc.rowCount;
+        info.numColumns = srcDesc.colCount;
+        info.srcLayout = translateCooperativeVectorMatrixLayout(srcDesc.layout);
+        info.srcStride = srcDesc.rowColumnStride;
+        info.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
+        info.dstStride = dstDesc.rowColumnStride;
+        infos.push_back(info);
     }
     m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
+
+    requireBufferState(dstBuffer, ResourceState::ShaderResource);
+    commitBarriers();
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)

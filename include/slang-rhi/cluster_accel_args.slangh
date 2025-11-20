@@ -1,0 +1,174 @@
+// Shared Args and constants for Cluster Acceleration.
+// Usable from both Slang and C++ (host).
+// C++ includers must include <cstdint> before including this file.
+
+#pragma once
+
+namespace cluster_abi {
+
+// -------------------------------------------------------------------------------------------------
+// Constants
+// -------------------------------------------------------------------------------------------------
+static const uint32_t CLUSTER_HANDLE_BYTE_STRIDE = 8;
+static const uint32_t CLUSTER_OUTPUT_ALIGNMENT   = 128;
+
+// Packed fields layout for TrianglesArgs::packed0 (bit positions)
+// bits [8:0]   = triangleCount
+// bits [23:9]  = vertexCount
+// bits [29:24] = indexFormat   (0=u16, 1=u32; others reserved)
+// bits [33:30] = ommIndexFormat (MVP: must be 0)
+static const uint32_t TRIANGLE_COUNT_SHIFT              = 0;
+static const uint32_t TRIANGLE_COUNT_WIDTH              = 9;
+static const uint32_t TRIANGLE_COUNT_MASK               = ((1u << TRIANGLE_COUNT_WIDTH) - 1u);
+static const uint32_t VERTEX_COUNT_SHIFT                = 9;
+static const uint32_t VERTEX_COUNT_WIDTH                = 9;
+static const uint32_t VERTEX_COUNT_MASK                 = ((1u << VERTEX_COUNT_WIDTH) - 1u);
+static const uint32_t POSITION_TRUNCATE_BITS_SHIFT      = 18;
+static const uint32_t POSITION_TRUNCATE_BITS_WIDTH      = 6;
+static const uint32_t POSITION_TRUNCATE_BITS_MASK       = ((1u << POSITION_TRUNCATE_BITS_WIDTH) - 1u);
+static const uint32_t INDEX_FORMAT_SHIFT                = 24;
+static const uint32_t INDEX_FORMAT_WIDTH                = 4;
+static const uint32_t INDEX_FORMAT_MASK                 = ((1u << INDEX_FORMAT_WIDTH) - 1u);
+static const uint32_t OMM_INDEX_FORMAT_SHIFT            = 28;
+static const uint32_t OMM_INDEX_FORMAT_WIDTH            = 4;
+static const uint32_t OMM_INDEX_FORMAT_MASK             = ((1u << OMM_INDEX_FORMAT_WIDTH) - 1u);
+
+// PrimitiveInfo bit packing (matches 24-bit sbtIndex + 3-bit primitiveFlags)
+static const uint32_t PRIM_SBT_INDEX_SHIFT              = 0;
+static const uint32_t PRIM_SBT_INDEX_WIDTH              = 24;
+static const uint32_t PRIM_SBT_INDEX_MASK               = ((1u << PRIM_SBT_INDEX_WIDTH) - 1u);
+static const uint32_t PRIM_RESERVED_WIDTH               = 5;
+static const uint32_t PRIM_FLAGS_SHIFT                  = PRIM_SBT_INDEX_SHIFT + PRIM_SBT_INDEX_WIDTH + PRIM_RESERVED_WIDTH;
+static const uint32_t PRIM_FLAGS_WIDTH                  = 3;
+static const uint32_t PRIM_FLAGS_MASK                   = ((1u << PRIM_FLAGS_WIDTH) - 1u);
+
+// Helper to pack counts and formats into a single u32.
+static inline uint32_t packCountsAndFormats(
+    uint32_t triangleCount,
+    uint32_t vertexCount,
+    uint32_t positionTruncateBitCount,
+    uint32_t indexFormat,
+    uint32_t opacityMicromapIndexFormat)
+{
+    uint32_t v = 0;
+    v |= (triangleCount              & TRIANGLE_COUNT_MASK)         << TRIANGLE_COUNT_SHIFT;
+    v |= (vertexCount                & VERTEX_COUNT_MASK)           << VERTEX_COUNT_SHIFT;
+    v |= (positionTruncateBitCount   & POSITION_TRUNCATE_BITS_MASK) << POSITION_TRUNCATE_BITS_SHIFT;
+    v |= (indexFormat                & INDEX_FORMAT_MASK)           << INDEX_FORMAT_SHIFT;
+    v |= (opacityMicromapIndexFormat & OMM_INDEX_FORMAT_MASK)       << OMM_INDEX_FORMAT_SHIFT;
+    return v;
+}
+
+// Helper to pack primitive info word.
+static inline uint32_t packPrimitiveInfo(uint32_t sbtIndex24, uint32_t primitiveFlags3)
+{
+    uint32_t v = 0;
+    v |= (sbtIndex24      & PRIM_SBT_INDEX_MASK) << PRIM_SBT_INDEX_SHIFT;
+    // 5-bit reserved region is kept zero
+    v |= (primitiveFlags3 & PRIM_FLAGS_MASK)     << PRIM_FLAGS_SHIFT;
+    return v;
+}
+
+// Pack two u16 strides into one u32 (low 16 / high 16)
+static inline uint32_t packStrides16(uint32_t low16, uint32_t high16)
+{
+    return (low16 & 0xFFFFu) | ((high16 & 0xFFFFu) << 16);
+}
+
+// -------------------------------------------------------------------------------------------------
+// Args structures (device layout)
+// -------------------------------------------------------------------------------------------------
+struct TrianglesArgs
+{
+    uint32_t  clusterId;
+    uint32_t  clusterFlags;
+
+    // Packed fields
+    uint32_t  packed0;        // counts + formats
+    uint32_t  primitiveInfo;  // sbtIndex + primitiveFlags (reserved bits zero)
+
+    // Two u32 of four u16 strides: (index, vertex) and (primitiveInfo, ommIndex)
+    uint32_t  strides01; // low16 = indexBufferStrideInBytes, high16 = vertexBufferStrideInBytes
+    uint32_t  strides23; // low16 = primitiveInfoBufferStrideInBytes, high16 = opacityMicromapIndexBufferStrideInBytes
+
+    // Device addresses (64-bit)
+    uint64_t  indexBuffer;
+    uint64_t  vertexBuffer;
+    uint64_t  primitiveInfoBuffer;
+    uint64_t  opacityMicromapArray;
+    uint64_t  opacityMicromapIndexBuffer;
+    uint64_t  instantiationBoundingBoxLimit;
+};
+
+// Args for CLAS instantiation from Templates.
+// Matches OptiX OptixClusterAccelBuildInputTemplatesArgs layout.
+struct TemplatesArgs
+{
+    uint32_t  clusterIdOffset;     // added to template's baseClusterId
+    uint32_t  sbtIndexOffset;      // added to template's base SBT index
+    uint64_t  clusterTemplate;     // opaque template handle/device address
+    uint64_t  vertexBuffer;        // optional in GET_SIZES (can be 0 to query worst-case size)
+    uint32_t  vertexStrideInBytes;
+    uint32_t  reserved;
+};
+
+struct ClustersArgs
+{
+    uint32_t  clusterHandlesCount;
+    uint32_t  clusterHandlesBufferStrideInBytes; // typically 8
+    uint64_t  clusterHandlesBuffer;              // base address of handle table
+};
+
+// Convenience initializers
+static inline TrianglesArgs makeTrianglesArgs(
+    uint32_t  clusterId,
+    uint32_t  triangleCount,
+    uint32_t  vertexCount,
+    uint64_t  indexBuffer,
+    uint64_t  vertexBuffer,
+    uint32_t  vertexStrideBytes,
+    uint32_t  indexFormat)
+{
+    TrianglesArgs a = {};
+    a.clusterId    = clusterId;
+    a.clusterFlags = 0;
+    a.packed0      = packCountsAndFormats(triangleCount, vertexCount, /*truncate*/0, indexFormat, /*ommIdxFmt*/0);
+    a.primitiveInfo = packPrimitiveInfo(/*sbtIndex*/0, /*primFlags*/0);
+    a.strides01    = packStrides16(/*index*/0, /*vertex*/vertexStrideBytes);
+    a.strides23    = packStrides16(/*primInfo*/0, /*ommIdx*/0);
+    a.indexBuffer  = indexBuffer;
+    a.vertexBuffer = vertexBuffer;
+    a.primitiveInfoBuffer = 0;
+    a.opacityMicromapArray = 0;
+    a.opacityMicromapIndexBuffer = 0;
+    a.instantiationBoundingBoxLimit = 0;
+    return a;
+}
+
+static inline TemplatesArgs makeTemplatesArgs(
+    uint64_t clusterTemplate,
+    uint64_t vertexBuffer,
+    uint32_t vertexStrideInBytes,
+    uint32_t clusterIdOffset,
+    uint32_t sbtIndexOffset)
+{
+    TemplatesArgs a = {};
+    a.clusterIdOffset = clusterIdOffset;
+    a.sbtIndexOffset = sbtIndexOffset;
+    a.clusterTemplate = clusterTemplate;
+    a.vertexBuffer = vertexBuffer;                 // may be 0 in GET_SIZES mode
+    a.vertexStrideInBytes = vertexStrideInBytes;   // ignored if vertexBuffer is 0
+    a.reserved = 0;
+    return a;
+}
+
+static inline ClustersArgs makeClustersArgs(uint32_t count, uint64_t handlesBuffer, uint32_t strideBytes)
+{
+    ClustersArgs a = {};
+    a.clusterHandlesCount = count;
+    a.clusterHandlesBufferStrideInBytes = strideBytes;
+    a.clusterHandlesBuffer = handlesBuffer;
+    return a;
+}
+
+} // namespace cluster_abi

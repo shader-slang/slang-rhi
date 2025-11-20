@@ -170,5 +170,13 @@ std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc);
 std::string createHeapLabel(const HeapDesc& desc);
 
 Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
+Result validateConvertCooperativeVectorMatrix(
+    DebugContext* ctx,
+    size_t dstBufferSize,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    size_t srcBufferSize,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+);
 
 } // namespace rhi::debug

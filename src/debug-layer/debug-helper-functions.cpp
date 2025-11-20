@@ -533,4 +533,167 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
     return valid ? SLANG_OK : SLANG_E_INVALID_ARG;
 }
 
+Result validateConvertCooperativeVectorMatrix(
+    DebugContext* ctx,
+    size_t dstBufferSize,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    size_t srcBufferSize,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+)
+{
+    if (!dstDescs)
+    {
+        RHI_VALIDATION_ERROR("Destination descriptions must be valid");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!srcDescs)
+    {
+        RHI_VALIDATION_ERROR("Source descriptions must be valid");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (matrixCount == 0)
+    {
+        RHI_VALIDATION_ERROR("Matrix count must be non-zero");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    bool valid = true;
+    size_t minDstBufferSize = 0;
+    size_t minSrcBufferSize = 0;
+    for (uint32_t i = 0; i < matrixCount; i++)
+    {
+        if (dstDescs[i].rowCount != srcDescs[i].rowCount)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowCount must match srcDescs[%d].rowCount", i, i);
+            valid = false;
+        }
+        if (dstDescs[i].colCount != srcDescs[i].colCount)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].colCount must match srcDescs[%d].colCount", i, i);
+            valid = false;
+        }
+
+        if (dstDescs[i].rowCount < 1 || dstDescs[i].rowCount > 128)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowCount must be in the range [1, 128]", i);
+            valid = false;
+        }
+        if (dstDescs[i].colCount < 1 || dstDescs[i].colCount > 128)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].colCount must be in the range [1, 128]", i);
+            valid = false;
+        }
+        if (dstDescs[i].size == 0)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].size must not be zero", i);
+            valid = false;
+        }
+        if (dstDescs[i].offset % 64 != 0)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].offset must be a multiple of 64 bytes", i);
+            valid = false;
+        }
+        switch (dstDescs[i].layout)
+        {
+        case CooperativeVectorMatrixLayout::RowMajor:
+        case CooperativeVectorMatrixLayout::ColumnMajor:
+            if (dstDescs[i].rowColumnStride == 0)
+            {
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "dstDescs[%d].rowColumnStride must must not be zero for row-major and column-major layouts"
+                    "layouts",
+                    i
+                );
+                valid = false;
+            }
+            break;
+        case CooperativeVectorMatrixLayout::InferencingOptimal:
+        case CooperativeVectorMatrixLayout::TrainingOptimal:
+            if (dstDescs[i].rowColumnStride != 0)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowColumnStride must be zero for optimal layouts", i);
+                valid = false;
+            }
+            break;
+        default:
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].layout is invalid", i);
+            valid = false;
+            break;
+        }
+
+        if (srcDescs[i].rowCount < 1 || srcDescs[i].rowCount > 128)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].rowCount must be in the range [1, 128]", i);
+            valid = false;
+        }
+        if (srcDescs[i].colCount < 1 || srcDescs[i].colCount > 128)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].colCount must be in the range [1, 128]", i);
+            valid = false;
+        }
+        if (srcDescs[i].size == 0)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].size must not be zero", i);
+            valid = false;
+        }
+        if (srcDescs[i].offset % 64 != 0)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].offset must be a multiple of 64 bytes", i);
+            valid = false;
+        }
+        switch (srcDescs[i].layout)
+        {
+        case CooperativeVectorMatrixLayout::RowMajor:
+        case CooperativeVectorMatrixLayout::ColumnMajor:
+            if (srcDescs[i].rowColumnStride == 0)
+            {
+                RHI_VALIDATION_ERROR_FORMAT(
+                    "srcDescs[%d].rowColumnStride must must not be zero for row-major and column-major layouts"
+                    "layouts",
+                    i
+                );
+                valid = false;
+            }
+            break;
+        case CooperativeVectorMatrixLayout::InferencingOptimal:
+        case CooperativeVectorMatrixLayout::TrainingOptimal:
+            if (srcDescs[i].rowColumnStride != 0)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].rowColumnStride must be zero for optimal layouts", i);
+                valid = false;
+            }
+            break;
+        default:
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].layout is invalid", i);
+            valid = false;
+            break;
+        }
+
+        minDstBufferSize = std::max(minDstBufferSize, dstDescs[i].offset + dstDescs[i].size);
+        minSrcBufferSize = std::max(minSrcBufferSize, srcDescs[i].offset + srcDescs[i].size);
+    }
+
+    if (dstBufferSize < minDstBufferSize)
+    {
+        RHI_VALIDATION_ERROR_FORMAT(
+            "Destination buffer size (%zu) is smaller than the required minimum size (%zu)",
+            dstBufferSize,
+            minDstBufferSize
+        );
+        valid = false;
+    }
+    if (srcBufferSize < minSrcBufferSize)
+    {
+        RHI_VALIDATION_ERROR_FORMAT(
+            "Source buffer size (%zu) is smaller than the required minimum size (%zu)",
+            srcBufferSize,
+            minSrcBufferSize
+        );
+        valid = false;
+    }
+
+    return valid ? SLANG_OK : SLANG_E_INVALID_ARG;
+}
+
 } // namespace rhi::debug

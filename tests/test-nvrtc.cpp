@@ -13,7 +13,7 @@ TEST_CASE("nvrtc")
     NVRTC nvrtc;
     if (nvrtc.initialize() != SLANG_OK)
     {
-        return;
+        SKIP("nvrtc not found");
     }
 
     SUBCASE("compile")

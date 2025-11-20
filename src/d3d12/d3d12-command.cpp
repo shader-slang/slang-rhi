@@ -101,6 +101,7 @@ public:
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
+    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
@@ -1245,17 +1246,54 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
     );
 }
 
+void CommandRecorder::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(buildClusterAccelerationStructure);
+}
+
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
 #if SLANG_RHI_ENABLE_NVAPI
-    short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> descs;
-    for (uint32_t i = 0; i < cmd.descCount; i++)
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dstBuffer);
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.srcBuffer);
+
+    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(srcBuffer, ResourceState::ShaderResource);
+    commitBarriers();
+
+    short_vector<NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC> nvDescs;
+    for (uint32_t i = 0; i < cmd.matrixCount; i++)
     {
-        descs.push_back(translateConvertCooperativeVectorMatrixDesc(cmd.descs[i], true));
+        const CooperativeVectorMatrixDesc& dstDesc = cmd.dstDescs[i];
+        const CooperativeVectorMatrixDesc& srcDesc = cmd.srcDescs[i];
+        NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC nvDesc = {};
+        nvDesc.version = NVAPI_CONVERT_COOPERATIVE_VECTOR_MATRIX_DESC_VER1;
+        nvDesc.srcSize = srcDesc.size;
+        nvDesc.srcData.bIsDeviceAlloc = true;
+        nvDesc.srcData.deviceAddress = srcBuffer->getDeviceAddress() + srcDesc.offset;
+        nvDesc.pDstSize = (size_t*)&dstDesc.size;
+        nvDesc.dstData.bIsDeviceAlloc = true;
+        nvDesc.dstData.deviceAddress = dstBuffer->getDeviceAddress() + dstDesc.offset;
+        nvDesc.srcComponentType = translateCooperativeVectorComponentType(srcDesc.componentType);
+        nvDesc.dstComponentType = translateCooperativeVectorComponentType(dstDesc.componentType);
+        nvDesc.numRows = srcDesc.rowCount;
+        nvDesc.numColumns = srcDesc.colCount;
+        nvDesc.srcLayout = translateCooperativeVectorMatrixLayout(srcDesc.layout);
+        nvDesc.srcStride = srcDesc.rowColumnStride;
+        nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
+        nvDesc.dstStride = dstDesc.rowColumnStride;
+        nvDescs.push_back(nvDesc);
     }
-    SLANG_RHI_NVAPI_CHECK(
-        NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(m_device->m_device, m_cmdList, descs.data(), descs.size())
-    );
+    SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_ConvertCooperativeVectorMatrixMultiple(
+        m_device->m_device,
+        m_cmdList,
+        nvDescs.data(),
+        (NvU32)nvDescs.size()
+    ));
+
+    requireBufferState(dstBuffer, ResourceState::ShaderResource);
+    commitBarriers();
 #else
     SLANG_UNUSED(cmd);
 #endif

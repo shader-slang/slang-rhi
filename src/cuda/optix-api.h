@@ -73,6 +73,12 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
+    /// Get the sizes required for building a cluster acceleration structure or BLAS-from-CLAS.
+    virtual Result getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
+    ) = 0;
+
     /// Build an acceleration structure.
     virtual void buildAccelerationStructure(
         CUstream stream,
@@ -104,6 +110,33 @@ public:
         uint32_t height,
         uint32_t depth
     ) = 0;
+
+    /// Check if cluster acceleration support is available.
+    virtual bool getClusterAccelerationSupport() const = 0;
+
+    /// Build a cluster acceleration structure or BLAS-from-CLAS.
+    virtual void buildClusterAccelerationStructure(CUstream stream, const ClusterAccelBuildDesc& desc) = 0;
+
+    /// Check if cooperative vector support is available.
+    virtual bool getCooperativeVectorSupport() const = 0;
+
+    virtual Result getCooperativeVectorMatrixSize(
+        uint32_t rowCount,
+        uint32_t colCount,
+        CooperativeVectorComponentType componentType,
+        CooperativeVectorMatrixLayout layout,
+        size_t rowColumnStride,
+        size_t* outSize
+    ) const = 0;
+
+    virtual Result convertCooperativeVectorMatrix(
+        CUstream stream,
+        CUdeviceptr dstBuffer,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        CUdeviceptr srcBuffer,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
+    ) const = 0;
 };
 
 /// Wrapper for OptiX shader binding table.

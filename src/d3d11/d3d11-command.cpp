@@ -82,6 +82,7 @@ public:
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
+    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
@@ -503,7 +504,9 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
     {
         m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
 
-        m_immediateContext->IASetInputLayout(m_renderPipeline->m_inputLayout->m_layout);
+        m_immediateContext->IASetInputLayout(
+            m_renderPipeline->m_inputLayout ? m_renderPipeline->m_inputLayout->m_layout : nullptr
+        );
         m_immediateContext->IASetPrimitiveTopology(m_renderPipeline->m_primitiveTopology);
         m_immediateContext->VSSetShader(m_renderPipeline->m_vertexShader, nullptr, 0);
         m_immediateContext->RSSetState(m_renderPipeline->m_rasterizerState);
@@ -838,6 +841,12 @@ void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::Deseri
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
+}
+
+void CommandExecutor::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_CommandEncoder_buildClusterAccelerationStructure);
 }
 
 void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)

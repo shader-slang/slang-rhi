@@ -41,6 +41,7 @@
     x(QueryAccelerationStructureProperties) \
     x(SerializeAccelerationStructure) \
     x(DeserializeAccelerationStructure) \
+    x(BuildClusterAccelerationStructure) \
     x(ConvertCooperativeVectorMatrix) \
     x(SetBufferState) \
     x(SetTextureState) \
@@ -286,10 +287,18 @@ struct DeserializeAccelerationStructure
     BufferOffsetPair src;
 };
 
+struct BuildClusterAccelerationStructure
+{
+    ClusterAccelBuildDesc desc;
+};
+
 struct ConvertCooperativeVectorMatrix
 {
-    const ConvertCooperativeVectorMatrixDesc* descs;
-    uint32_t descCount;
+    IBuffer* dstBuffer;
+    const CooperativeVectorMatrixDesc* dstDescs;
+    IBuffer* srcBuffer;
+    const CooperativeVectorMatrixDesc* srcDescs;
+    uint32_t matrixCount;
 };
 
 struct SetBufferState
@@ -423,6 +432,7 @@ public:
     void write(commands::QueryAccelerationStructureProperties&& cmd);
     void write(commands::SerializeAccelerationStructure&& cmd);
     void write(commands::DeserializeAccelerationStructure&& cmd);
+    void write(commands::BuildClusterAccelerationStructure&& cmd);
     void write(commands::ConvertCooperativeVectorMatrix&& cmd);
     void write(commands::SetBufferState&& cmd);
     void write(commands::SetTextureState&& cmd);

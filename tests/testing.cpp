@@ -633,11 +633,11 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
 #if SLANG_RHI_ENABLE_OPTIX
-    deviceDesc.requiredOptixVersion = options().optixVersion;
     // Setup OptiX headers
     std::string optixIncludeStr;
     if (deviceType == DeviceType::CUDA)
     {
+        deviceDesc.requiredOptixVersion = options().optixVersion;
         slang::CompilerOptionEntry optixSearchPath;
         optixSearchPath.name = slang::CompilerOptionName::DownstreamArgs;
         optixSearchPath.value.kind = slang::CompilerOptionValueKind::String;
@@ -737,7 +737,13 @@ const char* getTestsDir()
 
 std::vector<const char*> getSlangSearchPaths()
 {
-    return {getTestsDir()};
+    static std::string testsDir = getTestsDir();
+    std::vector<const char*> paths;
+    paths.push_back(testsDir.c_str());
+#ifdef SLANG_RHI_INCLUDE_DIR
+    paths.push_back(SLANG_RHI_INCLUDE_DIR);
+#endif
+    return paths;
 }
 
 #if ENABLE_RENDERDOC
@@ -827,7 +833,18 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
-    desc.requiredOptixVersion = options().optixVersion;
+#if SLANG_RHI_ENABLE_NVAPI
+    if (deviceType == DeviceType::D3D12)
+    {
+        desc.nvapiExtUavSlot = 999;
+    }
+#endif
+#if SLANG_RHI_ENABLE_OPTIX
+    if (deviceType == DeviceType::CUDA)
+    {
+        desc.requiredOptixVersion = options().optixVersion;
+    }
+#endif
 
     rhi::Result createResult = rhi::getRHI()->createDevice(desc, device.writeRef());
     if (SLANG_FAILED(createResult))

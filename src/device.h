@@ -242,6 +242,13 @@ public:
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
+    // without cluster acceleration support.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
+    ) override;
+
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without ray tracing support.
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
@@ -314,9 +321,24 @@ public:
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorMatrixSize(
+        uint32_t rowCount,
+        uint32_t colCount,
+        CooperativeVectorComponentType componentType,
+        CooperativeVectorMatrixLayout layout,
+        size_t rowColumnStride,
+        size_t* outSize
+    ) override;
+
+    // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
-        const ConvertCooperativeVectorMatrixDesc* descs,
-        uint32_t descCount
+        void* dstBuffer,
+        size_t dstBufferSize,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        const void* srcBuffer,
+        size_t srcBufferSize,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
     ) override;
 
     // Provides a default implementation that reports heaps from m_globalHeaps.

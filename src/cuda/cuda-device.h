@@ -145,9 +145,38 @@ public:
         AccelerationStructureSizes* outSizes
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
+        CooperativeVectorProperties* properties,
+        uint32_t* propertiesCount
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorMatrixSize(
+        uint32_t rowCount,
+        uint32_t colCount,
+        CooperativeVectorComponentType componentType,
+        CooperativeVectorMatrixLayout layout,
+        size_t rowColumnStride,
+        size_t* outSize
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
+        void* dstBuffer,
+        size_t dstBufferSize,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        const void* srcBuffer,
+        size_t srcBufferSize,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) override;

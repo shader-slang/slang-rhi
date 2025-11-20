@@ -123,6 +123,7 @@ enum class DeviceType
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
     x(RayTracingMotionBlur,                     "ray-tracing-motion-blur"                       ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
+    x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
     x(RealtimeClock,                            "realtime-clock"                                ) \
@@ -1440,6 +1441,120 @@ struct AccelerationStructureSizes
     uint64_t updateScratchSize = 0;
 };
 
+// Cluster Acceleration Structure (CLAS) API
+enum class ClusterAccelBuildOp
+{
+    CLASFromTriangles,
+    BLASFromCLAS,
+    TemplatesFromTriangles,
+    CLASFromTemplates,
+};
+
+struct ClusterAccelSizes
+{
+    uint64_t resultSize = 0;
+    uint64_t scratchSize = 0;
+};
+
+struct ClusterAccelLimitsTriangles
+{
+    /// Required for CLASFromTriangles and TemplatesFromTriangles operations; must be non-zero.
+    uint32_t maxArgCount = 0;
+    /// Required; maximum number of triangles in a single cluster.
+    uint32_t maxTriangleCountPerArg = 0;
+    /// Required; maximum number of vertices in a single cluster.
+    uint32_t maxVertexCountPerArg = 0;
+    /// Required; maximum number of unique SBT indices within a single cluster.
+    uint32_t maxUniqueSbtIndexCountPerArg = 0;
+    /// Optional; minimum number of mantissa bits to truncate from vertex positions (0 means no truncation).
+    uint32_t positionTruncateBitCount = 0;
+};
+
+struct ClusterAccelLimitsClusters
+{
+    /// Required for BLASFromCLAS operation; must be non-zero.
+    uint32_t maxArgCount = 0;
+    /// Required; total number of cluster handles across all args.
+    uint32_t maxTotalClusterCount = 0;
+    /// Required; maximum number of cluster handles per arg.
+    uint32_t maxClusterCountPerArg = 0;
+};
+
+struct ClusterAccelBuildDesc
+{
+    /// Operation to perform.
+    ClusterAccelBuildOp op = ClusterAccelBuildOp::CLASFromTriangles;
+
+    /// Device buffer containing an array of op-specific device-args records.
+    BufferOffsetPair argsBuffer = {};
+    /// Stride in bytes between consecutive arg records in argsBuffer.
+    uint32_t argsStride = 0;
+    /// Number of arg records to consume from argsBuffer.
+    uint32_t argCount = 0;
+
+    /// Reserved for future extensions.
+    const void* next = nullptr;
+
+    /// Per-operation limits. The active member is determined by the 'op' field.
+    /// - CLASFromTriangles: use limitsTriangles
+    /// - BLASFromCLAS: use limitsClusters
+    /// - TemplatesFromTriangles: use limitsTriangles
+    /// - CLASFromTemplates: use limitsTriangles (same)
+    union
+    {
+        ClusterAccelLimitsTriangles limitsTriangles;
+        ClusterAccelLimitsClusters limitsClusters;
+    } limits = {};
+
+    enum class BuildMode
+    {
+        Implicit,
+        Explicit,
+        GetSizes
+    };
+    BuildMode mode = BuildMode::Implicit;
+
+    struct ImplicitDesc
+    {
+        // Required output and temporary buffers for implicit builds
+        DeviceAddress outputBuffer = 0;
+        Size outputBufferSizeInBytes = 0;
+        DeviceAddress tempBuffer = 0;
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress outputHandlesBuffer = 0;   // optional
+        uint32_t outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputSizesBuffer = 0;     // optional
+        uint32_t outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
+    };
+    struct ExplicitDesc
+    {
+        // Required temporary buffer for explicit builds
+        DeviceAddress tempBuffer = 0;
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress destAddressesBuffer = 0;   // required
+        uint32_t destAddressesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputHandlesBuffer = 0;   // optional, aliases destAddresses if 0
+        uint32_t outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
+        DeviceAddress outputSizesBuffer = 0;     // optional
+        uint32_t outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
+    };
+    struct GetSizesDesc
+    {
+        // Required temporary buffer for size queries
+        DeviceAddress tempBuffer = 0;
+        Size tempBufferSizeInBytes = 0;
+        DeviceAddress outputSizesBuffer = 0;   // required
+        uint32_t outputSizesStrideInBytes = 0; // optional, defaults to natural stride
+    };
+
+    union
+    {
+        ImplicitDesc implicit;
+        ExplicitDesc explicitDest;
+        GetSizesDesc getSizes;
+    } modeDesc = {};
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
@@ -1812,7 +1927,8 @@ enum class RayTracingPipelineFlags
     SkipProcedurals = (1 << 1),
     EnableSpheres = (1 << 2),
     EnableLinearSweptSpheres = (1 << 3),
-    EnableMotion = (1 << 4),
+    EnableClusters = (1 << 4),
+    EnableMotion = (1 << 5),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 
@@ -2164,20 +2280,22 @@ enum class CooperativeVectorMatrixLayout
     TrainingOptimal = 3,
 };
 
-struct ConvertCooperativeVectorMatrixDesc
+struct CooperativeVectorMatrixDesc
 {
-    size_t srcSize;
-    DeviceOrHostAddressConst srcData;
-    size_t* dstSize;
-    DeviceOrHostAddress dstData;
-    CooperativeVectorComponentType srcComponentType;
-    CooperativeVectorComponentType dstComponentType;
+    /// Number of rows.
     uint32_t rowCount;
+    /// Number of columns.
     uint32_t colCount;
-    CooperativeVectorMatrixLayout srcLayout;
-    size_t srcStride;
-    CooperativeVectorMatrixLayout dstLayout;
-    size_t dstStride;
+    /// Component type of the matrix elements.
+    CooperativeVectorComponentType componentType;
+    /// Layout of the matrix.
+    CooperativeVectorMatrixLayout layout;
+    /// Size of the matrix (in bytes).
+    size_t size;
+    /// Offset from the start of the buffer (in bytes).
+    size_t offset;
+    /// Stride between rows or columns (in bytes).
+    size_t rowColumnStride;
 };
 
 struct CooperativeVectorProperties
@@ -2422,9 +2540,14 @@ public:
         BufferOffsetPair src
     ) = 0;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(const ClusterAccelBuildDesc& desc) = 0;
+
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
-        const ConvertCooperativeVectorMatrixDesc* descs,
-        uint32_t descCount
+        IBuffer* dstBuffer,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        IBuffer* srcBuffer,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) = 0;
@@ -3262,6 +3385,11 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
+        const ClusterAccelBuildDesc& desc,
+        ClusterAccelSizes* outSizes
+    ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
@@ -3309,9 +3437,27 @@ public:
         uint32_t* propertiesCount
     ) = 0;
 
+    /// Compute the size in bytes of a cooperative vector matrix with the given properties.
+    /// rowColumnStride of zero assumes tight packing.
+    /// rowColumnStride is ignored for optimal layouts.
+    /// The returned size is aligned to 64 bytes.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorMatrixSize(
+        uint32_t rowCount,
+        uint32_t colCount,
+        CooperativeVectorComponentType componentType,
+        CooperativeVectorMatrixLayout layout,
+        size_t rowColumnStride,
+        size_t* outSize
+    ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL convertCooperativeVectorMatrix(
-        const ConvertCooperativeVectorMatrixDesc* descs,
-        uint32_t descCount
+        void* dstBuffer,
+        size_t dstBufferSize,
+        const CooperativeVectorMatrixDesc* dstDescs,
+        const void* srcBuffer,
+        size_t srcBufferSize,
+        const CooperativeVectorMatrixDesc* srcDescs,
+        uint32_t matrixCount
     ) = 0;
 
     /// Report status of internal heaps used by the device.

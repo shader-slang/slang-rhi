@@ -349,6 +349,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             addFeature(Feature::AccelerationStructureSpheres);
             addFeature(Feature::AccelerationStructureLinearSweptSpheres);
+            if (m_ctx.optixContext->getClusterAccelerationSupport())
+            {
+                addFeature(Feature::ClusterAccelerationStructure);
+            }
+            if (m_ctx.optixContext->getCooperativeVectorSupport())
+            {
+                addFeature(Feature::CooperativeVector);
+            }
         }
         addCapability(Capability::_raygen);
         addCapability(Capability::_intersection);
@@ -589,6 +597,17 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return m_ctx.optixContext->getAccelerationStructureSizes(desc, outSizes);
 }
 
+Result DeviceImpl::getClusterAccelerationStructureSizes(const ClusterAccelBuildDesc& desc, ClusterAccelSizes* outSizes)
+{
+    SLANG_CUDA_CTX_SCOPE(this);
+
+    if (!m_ctx.optixContext)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    return m_ctx.optixContext->getClusterAccelerationStructureSizes(desc, outSizes);
+}
+
 Result DeviceImpl::createAccelerationStructure(
     const AccelerationStructureDesc& desc,
     IAccelerationStructure** outAccelerationStructure
@@ -606,6 +625,79 @@ Result DeviceImpl::createAccelerationStructure(
     result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
+}
+
+Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
+{
+    if (!hasFeature(Feature::CooperativeVector))
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if (m_cooperativeVectorProperties.empty())
+    {
+#define ADD_PROPERTIES(inputType, inputInterpretation, matrixInterpretation, biasInterpretation, resultType)           \
+    m_cooperativeVectorProperties.push_back({                                                                          \
+        CooperativeVectorComponentType::inputType,                                                                     \
+        CooperativeVectorComponentType::inputInterpretation,                                                           \
+        CooperativeVectorComponentType::matrixInterpretation,                                                          \
+        CooperativeVectorComponentType::biasInterpretation,                                                            \
+        CooperativeVectorComponentType::resultType,                                                                    \
+        false /* transpose */                                                                                          \
+    })
+        // OptiX has hardcoded support for these cooperative vector types.
+        ADD_PROPERTIES(Float16, Float16, Float16, Float16, Float16);
+        ADD_PROPERTIES(Float16, FloatE4M3, FloatE4M3, Float16, Float16);
+        ADD_PROPERTIES(Float16, FloatE5M2, FloatE5M2, Float16, Float16);
+#undef ADD_PROPERTIES
+    }
+    return Device::getCooperativeVectorProperties(properties, propertiesCount);
+}
+
+Result DeviceImpl::getCooperativeVectorMatrixSize(
+    uint32_t rowCount,
+    uint32_t colCount,
+    CooperativeVectorComponentType componentType,
+    CooperativeVectorMatrixLayout layout,
+    size_t rowColumnStride,
+    size_t* outSize
+)
+{
+    if (m_ctx.optixContext)
+    {
+        return m_ctx.optixContext
+            ->getCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride, outSize);
+    }
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result DeviceImpl::convertCooperativeVectorMatrix(
+    void* dstBuffer,
+    size_t dstBufferSize,
+    const CooperativeVectorMatrixDesc* dstDescs,
+    const void* srcBuffer,
+    size_t srcBufferSize,
+    const CooperativeVectorMatrixDesc* srcDescs,
+    uint32_t matrixCount
+)
+{
+    SLANG_CUDA_CTX_SCOPE(this);
+
+    if (m_ctx.optixContext)
+    {
+        CUdeviceptr dstPtr = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&dstPtr, dstBufferSize), this);
+        CUdeviceptr srcPtr = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&srcPtr, srcBufferSize), this);
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpyHtoD(srcPtr, srcBuffer, srcBufferSize), this);
+
+        Result result =
+            m_ctx.optixContext->convertCooperativeVectorMatrix(0, dstPtr, dstDescs, srcPtr, srcDescs, matrixCount);
+
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemcpyDtoH(dstBuffer, dstPtr, dstBufferSize), this);
+
+        return result;
+    }
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)

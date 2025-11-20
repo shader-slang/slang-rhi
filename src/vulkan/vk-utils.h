@@ -102,8 +102,5 @@ VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComp
 CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type);
 VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout);
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout);
-VkConvertCooperativeVectorMatrixInfoNV translateConvertCooperativeVectorMatrixDesc(
-    const ConvertCooperativeVectorMatrixDesc& desc
-);
 
 } // namespace rhi::vk
