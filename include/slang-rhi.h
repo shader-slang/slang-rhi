@@ -1,5 +1,6 @@
 #pragma once
 
+#include <slang-rhi-device.h>
 #include <slang-rhi-config.h>
 
 #include <slang-com-ptr.h>
@@ -53,7 +54,6 @@ using Slang::Guid;
 typedef SlangResult Result;
 
 // Had to move here, because Options needs types defined here
-typedef uint64_t DeviceAddress;
 typedef size_t Size;
 typedef size_t Offset;
 
@@ -1224,51 +1224,6 @@ struct AccelerationStructureInstanceDescGeneric
     AccelerationStructureHandle accelerationStructure;
 };
 
-/// Instance descriptor matching D3D12_RAYTRACING_INSTANCE_DESC.
-struct AccelerationStructureInstanceDescD3D12
-{
-    float Transform[3][4];
-    uint32_t InstanceID : 24;
-    uint32_t InstanceMask : 8;
-    uint32_t InstanceContributionToHitGroupIndex : 24;
-    uint32_t Flags : 8;
-    uint64_t AccelerationStructure;
-};
-
-/// Instance descriptor matching VkAccelerationStructureInstanceKHR.
-struct AccelerationStructureInstanceDescVulkan
-{
-    float transform[4][3];
-    uint32_t instanceCustomIndex : 24;
-    uint32_t mask : 8;
-    uint32_t instanceShaderBindingTableRecordOffset : 24;
-    uint32_t flags : 8;
-    uint64_t accelerationStructureReference;
-};
-
-/// Instance descriptor matching OptixInstance.
-struct AccelerationStructureInstanceDescOptix
-{
-    float transform[3][4];
-    uint32_t instanceId;
-    uint32_t sbtOffset;
-    uint32_t visibilityMask;
-    uint32_t flags;
-    uint64_t traversableHandle;
-    uint32_t pad[2];
-};
-
-/// Instance descriptor matching MTLAccelerationStructureUserIDInstanceDescriptor.
-struct AccelerationStructureInstanceDescMetal
-{
-    float transform[4][3];
-    uint32_t options;
-    uint32_t mask;
-    uint32_t intersectionFunctionTableOffset;
-    uint32_t accelerationStructureIndex;
-    uint32_t userID;
-};
-
 struct AccelerationStructureAABB
 {
     float minX;
@@ -2178,30 +2133,6 @@ struct DrawArguments
     uint32_t startVertexLocation = 0;
     uint32_t startInstanceLocation = 0;
     uint32_t startIndexLocation = 0;
-};
-
-struct IndirectDrawArguments
-{
-    uint32_t vertexCountPerInstance;
-    uint32_t instanceCount;
-    uint32_t startVertexLocation;
-    uint32_t startInstanceLocation;
-};
-
-struct IndirectDrawIndexedArguments
-{
-    uint32_t indexCountPerInstance;
-    uint32_t instanceCount;
-    uint32_t startIndexLocation;
-    int32_t baseVertexLocation;
-    uint32_t startInstanceLocation;
-};
-
-struct IndirectDispatchArguments
-{
-    uint32_t threadGroupCountX;
-    uint32_t threadGroupCountY;
-    uint32_t threadGroupCountZ;
 };
 
 struct SamplePosition
