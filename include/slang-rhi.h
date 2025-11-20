@@ -54,7 +54,6 @@ using Slang::Guid;
 typedef SlangResult Result;
 
 // Had to move here, because Options needs types defined here
-typedef uint64_t DeviceAddress;
 typedef size_t Size;
 typedef size_t Offset;
 

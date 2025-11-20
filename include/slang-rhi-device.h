@@ -8,7 +8,8 @@
 
 namespace rhi {
 
-typedef uint64_t GpuVirtualAddress;
+/// Virtual address in the GPU address space.
+typedef uint64_t DeviceAddress;
 
 struct IndirectDrawArguments
 {
@@ -42,7 +43,7 @@ struct AccelerationStructureInstanceDescD3D12
     uint32_t InstanceMask : 8;
     uint32_t InstanceContributionToHitGroupIndex : 24;
     uint32_t Flags : 8;
-    GpuVirtualAddress AccelerationStructure;
+    DeviceAddress AccelerationStructure;
 };
 
 /// Instance descriptor matching VkAccelerationStructureInstanceKHR.
