@@ -43,4 +43,14 @@ private:
     VkRayTracingLssPrimitiveEndCapsModeNV translateEndCapsMode(LinearSweptSpheresEndCapsMode mode);
 };
 
+VkBuildAccelerationStructureFlagsKHR translateClusterOperationFlags(ClusterOperationFlags flags);
+VkClusterAccelerationStructureTypeNV translateClusterOperationMoveType(ClusterOperationMoveType type);
+VkClusterAccelerationStructureInputInfoNV translateClusterOperationParams(
+    const ClusterOperationParams& params,
+    VkClusterAccelerationStructureClustersBottomLevelInputNV& bottomLevelInput,
+    VkClusterAccelerationStructureTriangleClusterInputNV& triangleClusterInput,
+    VkClusterAccelerationStructureMoveObjectsInputNV& moveObjectsInput
+);
+VkClusterAccelerationStructureOpModeNV translateClusterOperationMode(ClusterOperationMode mode);
+
 } // namespace rhi::vk

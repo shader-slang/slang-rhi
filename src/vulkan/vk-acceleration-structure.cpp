@@ -350,5 +350,120 @@ VkRayTracingLssPrimitiveEndCapsModeNV AccelerationStructureBuildDescConverter::t
     }
 }
 
+VkBuildAccelerationStructureFlagsKHR translateClusterOperationFlags(ClusterOperationFlags flags)
+{
+    VkBuildAccelerationStructureFlagsKHR result = 0;
+    if (is_set(flags, ClusterOperationFlags::FastTrace))
+    {
+        result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    }
+    if (is_set(flags, ClusterOperationFlags::FastBuild))
+    {
+        result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
+    }
+    if (is_set(flags, ClusterOperationFlags::AllowOMM))
+    {
+        result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_BIT_EXT;
+    }
+    return result;
+}
+
+VkClusterAccelerationStructureTypeNV translateClusterOperationMoveType(ClusterOperationMoveType type)
+{
+    switch (type)
+    {
+    case ClusterOperationMoveType::BottomLevel:
+        return VK_CLUSTER_ACCELERATION_STRUCTURE_TYPE_CLUSTERS_BOTTOM_LEVEL_NV;
+    case ClusterOperationMoveType::ClusterLevel:
+        return VK_CLUSTER_ACCELERATION_STRUCTURE_TYPE_TRIANGLE_CLUSTER_NV;
+    case ClusterOperationMoveType::Template:
+        return VK_CLUSTER_ACCELERATION_STRUCTURE_TYPE_TRIANGLE_CLUSTER_TEMPLATE_NV;
+    }
+    return VkClusterAccelerationStructureTypeNV(0);
+}
+
+VkClusterAccelerationStructureInputInfoNV translateClusterOperationParams(
+    const ClusterOperationParams& params,
+    VkClusterAccelerationStructureClustersBottomLevelInputNV& bottomLevelInput,
+    VkClusterAccelerationStructureTriangleClusterInputNV& triangleClusterInput,
+    VkClusterAccelerationStructureMoveObjectsInputNV& moveObjectsInput
+)
+{
+    VkClusterAccelerationStructureInputInfoNV info = {VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_INPUT_INFO_NV};
+
+    info.maxAccelerationStructureCount = params.maxArgCount;
+    info.flags = translateClusterOperationFlags(params.flags);
+    info.opMode = translateClusterOperationMode(params.mode);
+
+    switch (params.type)
+    {
+    case ClusterOperationType::CLASFromTriangles:
+        info.opType = VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_BUILD_TRIANGLE_CLUSTER_NV;
+        break;
+    case ClusterOperationType::BLASFromCLAS:
+        info.opType = VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_BUILD_CLUSTERS_BOTTOM_LEVEL_NV;
+        break;
+    case ClusterOperationType::TemplatesFromTriangles:
+        info.opType = VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_BUILD_TRIANGLE_CLUSTER_TEMPLATE_NV;
+        break;
+    case ClusterOperationType::CLASFromTemplates:
+        info.opType = VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_INSTANTIATE_TRIANGLE_CLUSTER_NV;
+        break;
+    case ClusterOperationType::MoveObjects:
+        info.opType = VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_MOVE_OBJECTS_NV;
+        break;
+    }
+
+    bottomLevelInput = {VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_CLUSTERS_BOTTOM_LEVEL_INPUT_NV};
+    triangleClusterInput = {VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_TRIANGLE_CLUSTER_INPUT_NV};
+    moveObjectsInput = {VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_MOVE_OBJECTS_INPUT_NV};
+
+    switch (info.opType)
+    {
+    case VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_MOVE_OBJECTS_NV:
+        moveObjectsInput.type = translateClusterOperationMoveType(params.move.type);
+        moveObjectsInput.noMoveOverlap = is_set(params.flags, ClusterOperationFlags::NoOverlap) ? VK_TRUE : VK_FALSE;
+        moveObjectsInput.maxMovedBytes = params.move.maxSize;
+        info.opInput.pMoveObjects = &moveObjectsInput;
+        break;
+    case VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_BUILD_CLUSTERS_BOTTOM_LEVEL_NV:
+        bottomLevelInput.maxTotalClusterCount = params.blas.maxTotalClasCount;
+        bottomLevelInput.maxClusterCountPerAccelerationStructure = params.blas.maxClasCount;
+        info.opInput.pClustersBottomLevel = &bottomLevelInput;
+        break;
+    case VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_BUILD_TRIANGLE_CLUSTER_NV:
+    case VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_BUILD_TRIANGLE_CLUSTER_TEMPLATE_NV:
+    case VK_CLUSTER_ACCELERATION_STRUCTURE_OP_TYPE_INSTANTIATE_TRIANGLE_CLUSTER_NV:
+        triangleClusterInput.maxGeometryIndexValue = params.clas.maxGeometryIndex;
+        triangleClusterInput.vertexFormat = getVkFormat(params.clas.vertexFormat);
+        triangleClusterInput.maxGeometryIndexValue = params.clas.maxGeometryIndex;
+        triangleClusterInput.maxClusterUniqueGeometryCount = params.clas.maxUniqueGeometryCount;
+        triangleClusterInput.maxClusterTriangleCount = params.clas.maxTriangleCount;
+        triangleClusterInput.maxClusterVertexCount = params.clas.maxVertexCount;
+        triangleClusterInput.maxTotalTriangleCount = params.clas.maxTotalTriangleCount;
+        triangleClusterInput.maxTotalVertexCount = params.clas.maxTotalVertexCount;
+        triangleClusterInput.minPositionTruncateBitCount = params.clas.minPositionTruncateBitCount;
+        info.opInput.pTriangleClusters = &triangleClusterInput;
+        break;
+    default:
+        break;
+    }
+
+    return info;
+}
+
+VkClusterAccelerationStructureOpModeNV translateClusterOperationMode(ClusterOperationMode mode)
+{
+    switch (mode)
+    {
+    case ClusterOperationMode::ImplicitDestinations:
+        return VK_CLUSTER_ACCELERATION_STRUCTURE_OP_MODE_IMPLICIT_DESTINATIONS_NV;
+    case ClusterOperationMode::ExplicitDestinations:
+        return VK_CLUSTER_ACCELERATION_STRUCTURE_OP_MODE_EXPLICIT_DESTINATIONS_NV;
+    case ClusterOperationMode::GetSizes:
+        return VK_CLUSTER_ACCELERATION_STRUCTURE_OP_MODE_COMPUTE_SIZES_NV;
+    }
+    return VkClusterAccelerationStructureOpModeNV(0);
+}
 
 } // namespace rhi::vk

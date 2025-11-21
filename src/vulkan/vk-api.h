@@ -249,6 +249,8 @@ protected:
     x(vkCreateAccelerationStructureKHR) \
     x(vkDestroyAccelerationStructureKHR) \
     x(vkGetAccelerationStructureBuildSizesKHR) \
+    x(vkCmdBuildClusterAccelerationStructureIndirectNV) \
+    x(vkGetClusterAccelerationStructureBuildSizesNV) \
     x(vkGetSemaphoreCounterValue) \
     x(vkGetSemaphoreCounterValueKHR) \
     x(vkSignalSemaphore) \
@@ -443,6 +445,11 @@ struct VulkanExtendedFeatures
     // Linear swept spheres features.
     VkPhysicalDeviceRayTracingLinearSweptSpheresFeaturesNV rayTracingLinearSweptSpheresFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_LINEAR_SWEPT_SPHERES_FEATURES_NV
+    };
+
+    // Cluster acceleration structure features.
+    VkPhysicalDeviceClusterAccelerationStructureFeaturesNV clusterAccelerationStructureFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CLUSTER_ACCELERATION_STRUCTURE_FEATURES_NV
     };
 
     // Cooperative matrix 1 features.
