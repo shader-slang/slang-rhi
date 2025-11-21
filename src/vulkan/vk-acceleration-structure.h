@@ -37,6 +37,7 @@ private:
     std::vector<VkAccelerationStructureGeometrySpheresDataNV> spheresDatas;
     std::vector<VkAccelerationStructureGeometryLinearSweptSpheresDataNV> linearSweptSpheresDatas;
     std::vector<VkAccelerationStructureGeometryMotionTrianglesDataNV> motionTrianglesDatas;
+    VkAccelerationStructureMotionInfoNV motionInfo;
 
     VkBuildAccelerationStructureFlagsKHR translateBuildFlags(AccelerationStructureBuildFlags flags);
     VkGeometryFlagsKHR translateGeometryFlags(AccelerationStructureGeometryFlags flags);

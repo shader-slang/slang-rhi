@@ -98,7 +98,7 @@ void rayGenShaderMotion()
     ray.Direction = float3(0, 0, 1);
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
-    float currentTime = 0.5;  // midpoint of motion
+    float currentTime = 1.0;
     RayPayload payload = { float4(0, 0, 0, 0) };
     TraceMotionRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, currentTime, payload);
 

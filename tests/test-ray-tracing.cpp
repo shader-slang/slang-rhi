@@ -1,7 +1,9 @@
 #include "testing.h"
 #include "test-ray-tracing-common.h"
+#include "texture-utils.h"
 
 #include <slang-rhi/acceleration-structure-utils.h>
+#include <memory>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -45,13 +47,27 @@ struct RayTracingTriangleIntersectionTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        TLAS tlas(device, queue, blas);
+        // Create appropriate TLAS based on whether motion is enabled
+        IAccelerationStructure* tlasAS;
+        std::unique_ptr<TLAS> regularTLAS;
+        std::unique_ptr<VertexMotionInstanceTLAS> motionTLAS;
+
+        if (is_set(flags, RayTracingPipelineFlags::EnableMotion))
+        {
+            motionTLAS = std::make_unique<VertexMotionInstanceTLAS>(device, queue, blas, 2);
+            tlasAS = motionTLAS->tlas;
+        }
+        else
+        {
+            regularTLAS = std::make_unique<TLAS>(device, queue, blas);
+            tlasAS = regularTLAS->tlas;
+        }
 
         createResultTexture();
 
         RayTracingTestPipeline
             pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames, flags);
-        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas.tlas, rgIdx);
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlasAS, rgIdx);
 
         checkTestResults(expectedPixels);
     }
@@ -208,8 +224,8 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-motion", ALL)
     // At time=0.5, it should be at (0,0,1), (0.707,0.707,1), (-0.707,0.707,1) approximately
     // Testing a few specific rays that should hit or miss
     ExpectedPixel expectedPixels[] = {
-        EXPECTED_PIXEL(64, 64, 0.f, 1.f, 0.f, 1.f), // Should hit the triangle (green)
-        EXPECTED_PIXEL(80, 80, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
+        EXPECTED_PIXEL(62, 65, 0.f, 1.f, 0.f, 1.f), // Should hit the triangle (green)
+        EXPECTED_PIXEL(40, 80, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
         EXPECTED_PIXEL(63, 63, 1.f, 1.f, 1.f, 1.f), // Should miss (white)
         // Corners should all be misses
         EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss

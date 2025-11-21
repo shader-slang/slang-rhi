@@ -714,6 +714,79 @@ struct TLAS
     }
 };
 
+struct VertexMotionInstanceTLAS
+{
+    ComPtr<IBuffer> instanceBuffer;
+    ComPtr<IBuffer> tlasBuffer;
+    ComPtr<IAccelerationStructure> tlas;
+
+    VertexMotionInstanceTLAS(IDevice* device, ICommandQueue* queue, IAccelerationStructure* blas, uint32_t motionKeyCount)
+    {
+        // Create a generic instance descriptor
+        AccelerationStructureInstanceDescGeneric genericInstance;
+        float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+        memcpy(&genericInstance.transform[0][0], transformMatrix, sizeof(float) * 12);
+        genericInstance.instanceID = 0;
+        genericInstance.instanceMask = 0xFF;
+        genericInstance.instanceContributionToHitGroupIndex = 0;
+        genericInstance.accelerationStructure = blas->getHandle();
+
+        // Convert to Vulkan format
+        AccelerationStructureInstanceDescVulkan vulkanInstance;
+        convertAccelerationStructureInstanceDesc(
+            AccelerationStructureInstanceDescType::Vulkan,
+            &vulkanInstance,
+            &genericInstance
+        );
+
+        // Wrap in motion instance structure
+        AccelerationStructureStaticMotionInstanceVulkan motionInstance;
+        motionInstance.type = 0; // VK_ACCELERATION_STRUCTURE_MOTION_INSTANCE_TYPE_STATIC_NV
+        motionInstance.flags = 0;
+        motionInstance.data.staticInstance = vulkanInstance;
+
+        // Create instance buffer with the motion instance
+        BufferDesc instanceBufferDesc;
+        instanceBufferDesc.size = sizeof(AccelerationStructureStaticMotionInstanceVulkan);
+        instanceBufferDesc.usage = BufferUsage::ShaderResource;
+        instanceBufferDesc.defaultState = ResourceState::ShaderResource;
+        instanceBuffer = device->createBuffer(instanceBufferDesc, &motionInstance);
+        REQUIRE(instanceBuffer != nullptr);
+
+        // Build TLAS with motion flags
+        AccelerationStructureBuildInput buildInput = {};
+        buildInput.type = AccelerationStructureBuildInputType::Instances;
+        buildInput.instances.instanceBuffer = instanceBuffer;
+        buildInput.instances.instanceCount = 1;
+        buildInput.instances.instanceStride = sizeof(AccelerationStructureStaticMotionInstanceVulkan);
+
+        AccelerationStructureBuildDesc buildDesc = {};
+        buildDesc.inputs = &buildInput;
+        buildDesc.inputCount = 1;
+        buildDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+        buildDesc.motionOptions.keyCount = motionKeyCount;
+
+        // Query buffer size for acceleration structure build.
+        AccelerationStructureSizes sizes;
+        REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+        BufferDesc scratchBufferDesc;
+        scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+        scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+        scratchBufferDesc.size = sizes.scratchSize;
+        ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+        AccelerationStructureDesc createDesc;
+        createDesc.size = sizes.accelerationStructureSize;
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
+
+        auto commandEncoder = queue->createCommandEncoder();
+        commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+};
+
 struct ResultBuffer
 {
     IDevice* device = nullptr;
