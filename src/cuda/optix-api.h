@@ -74,10 +74,7 @@ public:
     ) = 0;
 
     /// Get the sizes required for building a cluster acceleration structure or BLAS-from-CLAS.
-    virtual Result getClusterAccelerationStructureSizes(
-        const ClusterAccelBuildDesc& desc,
-        ClusterAccelSizes* outSizes
-    ) = 0;
+    virtual Result getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes) = 0;
 
     /// Build an acceleration structure.
     virtual void buildAccelerationStructure(
@@ -114,8 +111,8 @@ public:
     /// Check if cluster acceleration support is available.
     virtual bool getClusterAccelerationSupport() const = 0;
 
-    /// Build a cluster acceleration structure or BLAS-from-CLAS.
-    virtual void buildClusterAccelerationStructure(CUstream stream, const ClusterAccelBuildDesc& desc) = 0;
+    /// Execute cluster operations.
+    virtual void executeClusterOperation(CUstream stream, const ClusterOperationDesc& desc) = 0;
 
     /// Check if cooperative vector support is available.
     virtual bool getCooperativeVectorSupport() const = 0;

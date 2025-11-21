@@ -442,10 +442,11 @@ Result DebugDevice::getAccelerationStructureSizes(
     return baseObject->getAccelerationStructureSizes(desc, outSizes);
 }
 
-Result DebugDevice::getClusterAccelerationStructureSizes(const ClusterAccelBuildDesc& desc, ClusterAccelSizes* outSizes)
+Result DebugDevice::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     SLANG_RHI_API_FUNC;
-    return baseObject->getClusterAccelerationStructureSizes(desc, outSizes);
+    SLANG_RETURN_ON_FAIL(validateClusterOperationParams(ctx, params));
+    return baseObject->getClusterOperationSizes(params, outSizes);
 }
 
 Result DebugDevice::createAccelerationStructure(
