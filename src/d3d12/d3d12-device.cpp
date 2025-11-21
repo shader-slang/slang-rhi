@@ -822,6 +822,17 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 {
                     addFeature(Feature::ShaderExecutionReordering);
                 }
+                NVAPI_D3D12_RAYTRACING_CLUSTER_OPERATIONS_CAPS clusterOpsCaps;
+                if (NvAPI_D3D12_GetRaytracingCaps(
+                        m_device,
+                        NVAPI_D3D12_RAYTRACING_CAPS_TYPE_CLUSTER_OPERATIONS,
+                        &clusterOpsCaps,
+                        sizeof(clusterOpsCaps)
+                    ) == NVAPI_OK &&
+                    clusterOpsCaps == NVAPI_D3D12_RAYTRACING_CLUSTER_OPERATIONS_CAP_STANDARD)
+                {
+                    addFeature(Feature::ClusterAccelerationStructure);
+                }
 
                 // Check for cooperative vector support. NVAPI doesn't have a direct way to check for this,
                 // so we query the number of cooperative vector properties to determine if it is supported.
@@ -1747,6 +1758,33 @@ Result DeviceImpl::getAccelerationStructureSizes(
     outSizes->updateScratchSize = prebuildInfo.UpdateScratchDataSizeInBytes;
 
     return SLANG_OK;
+}
+
+Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
+{
+#if SLANG_RHI_ENABLE_NVAPI
+    if (!m_device5)
+        return SLANG_E_NOT_AVAILABLE;
+    if (!m_nvapiEnabled)
+        return SLANG_E_NOT_AVAILABLE;
+
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS inputs = translateClusterOperationParams(params);
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO info = {};
+    NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS infoParams = {};
+    infoParams.version = NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS_VER;
+    infoParams.pInput = &inputs;
+    infoParams.pInfo = &info;
+
+    SLANG_RHI_NVAPI_RETURN_ON_FAIL(
+        NvAPI_D3D12_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(m_device5, &infoParams)
+    );
+
+    outSizes->resultSize = info.resultDataMaxSizeInBytes;
+    outSizes->scratchSize = info.scratchDataSizeInBytes;
+
+    return SLANG_OK;
+#endif
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result DeviceImpl::createAccelerationStructure(

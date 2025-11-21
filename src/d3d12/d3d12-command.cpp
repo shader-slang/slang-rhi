@@ -1248,8 +1248,79 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
 
 void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
+#if SLANG_RHI_ENABLE_NVAPI
+    if (!m_device->m_nvapiEnabled)
+        return;
+
+    const ClusterOperationDesc& desc = cmd.desc;
+
+    if (desc.params.maxArgCount == 0)
+        return;
+
+    BufferImpl* argCountBuffer = checked_cast<BufferImpl*>(desc.argCountBuffer.buffer);
+    BufferImpl* argsBuffer = checked_cast<BufferImpl*>(desc.argsBuffer.buffer);
+    BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(desc.scratchBuffer.buffer);
+    BufferImpl* addressesBuffer = checked_cast<BufferImpl*>(desc.addressesBuffer.buffer);
+    BufferImpl* resultBuffer = checked_cast<BufferImpl*>(desc.resultBuffer.buffer);
+    BufferImpl* sizesBuffer = checked_cast<BufferImpl*>(desc.sizesBuffer.buffer);
+
+    requireBufferState(argsBuffer, ResourceState::ShaderResource);
+    if (argCountBuffer)
+        requireBufferState(argCountBuffer, ResourceState::ShaderResource);
+    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    if (addressesBuffer)
+        requireBufferState(addressesBuffer, ResourceState::UnorderedAccess);
+    if (resultBuffer)
+        requireBufferState(resultBuffer, ResourceState::AccelerationStructure);
+    if (sizesBuffer)
+        requireBufferState(sizesBuffer, ResourceState::UnorderedAccess);
+    commitBarriers();
+
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC nvapiDesc = {};
+    nvapiDesc.inputs = translateClusterOperationParams(desc.params);
+    nvapiDesc.addressResolutionFlags =
+        NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_ADDRESS_RESOLUTION_FLAG_NONE;
+
+    // Input buffers
+    if (desc.argCountBuffer)
+    {
+        nvapiDesc.indirectArgCount = desc.argCountBuffer.getDeviceAddress();
+    }
+    if (desc.argsBuffer)
+    {
+        nvapiDesc.indirectArgArray.StartAddress = desc.argsBuffer.getDeviceAddress();
+        nvapiDesc.indirectArgArray.StrideInBytes = desc.argsBufferStride;
+    }
+    nvapiDesc.batchScratchData = desc.scratchBuffer.getDeviceAddress();
+
+    // Input / output buffers
+    if (desc.addressesBuffer)
+    {
+        nvapiDesc.destinationAddressArray.StartAddress = desc.addressesBuffer.getDeviceAddress();
+        nvapiDesc.destinationAddressArray.StrideInBytes = desc.addressesBufferStride;
+    }
+
+    // Output buffers
+    if (desc.resultBuffer)
+    {
+        nvapiDesc.batchResultData = desc.resultBuffer.getDeviceAddress();
+    }
+    if (sizesBuffer)
+    {
+        nvapiDesc.resultSizeArray.StartAddress = desc.sizesBuffer.getDeviceAddress();
+        nvapiDesc.resultSizeArray.StrideInBytes = desc.sizesBufferStride;
+    }
+
+    NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS clusterOpParams = {};
+    clusterOpParams.version = NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER;
+    clusterOpParams.pDesc = &nvapiDesc;
+
+    SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_RaytracingExecuteMultiIndirectClusterOperation(m_cmdList4, &clusterOpParams));
+
+#else  // SLANG_RHI_ENABLE_NVAPI
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(executeClusterOperation);
+#endif // SLANG_RHI_ENABLE_NVAPI
 }
 
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)

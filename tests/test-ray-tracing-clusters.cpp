@@ -38,7 +38,7 @@ static ComPtr<IBuffer> createAccelStructureBuffer(IDevice* device, size_t size)
 {
     BufferDesc desc = {};
     desc.size = size;
-    desc.usage = BufferUsage::AccelerationStructure | BufferUsage::CopySource | BufferUsage::CopyDestination;
+    desc.usage = BufferUsage::AccelerationStructure;
     desc.defaultState = ResourceState::AccelerationStructure;
     return device->createBuffer(desc);
 }
@@ -67,10 +67,9 @@ static cluster::TriangleClusterArgs makeSimpleTriangleClusterArgs(
 // Result of building a cluster acceleration structure in implicit mode.
 struct ClasImplicitBuildResult
 {
-    ComPtr<IBuffer> outputBuffer;
+    ComPtr<IBuffer> resultBuffer;
+    ComPtr<IBuffer> handlesBuffer;
     std::vector<uint64_t> handles;
-    uint64_t handlesOffset = 0;
-    uint64_t dataOffset = 0;
 };
 
 // Build CLAS in implicit mode: allocate buffers, build, read back handles.
@@ -89,20 +88,18 @@ static ClasImplicitBuildResult buildClasImplicit(
     REQUIRE_CALL(device->getClusterOperationSizes(desc.params, &sizes));
 
     // Allocate output buffer: handles region (aligned) + data region
-    uint64_t handlesBytes = alignUp(
+    uint64_t handlesSize = alignUp(
         uint64_t(handleCount) * uint64_t(cluster::CLUSTER_HANDLE_BYTE_STRIDE),
         uint64_t(cluster::CLUSTER_OUTPUT_ALIGNMENT)
     );
-    result.outputBuffer = createAccelStructureBuffer(device, handlesBytes + sizes.resultSize);
+    result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
+    result.handlesBuffer = createUAVBuffer(device, handlesSize);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
-
-    result.handlesOffset = 0;
-    result.dataOffset = handlesBytes;
 
     desc.params.mode = ClusterOperationMode::ImplicitDestinations;
     desc.scratchBuffer = scratchBuffer;
-    desc.addressesBuffer = result.outputBuffer;
-    desc.resultBuffer = BufferOffsetPair(result.outputBuffer, handlesBytes);
+    desc.addressesBuffer = result.handlesBuffer;
+    desc.resultBuffer = result.resultBuffer;
 
     auto enc = queue->createCommandEncoder();
     enc->executeClusterOperation(desc);
@@ -110,12 +107,7 @@ static ClasImplicitBuildResult buildClasImplicit(
     queue->waitOnHost();
 
     result.handles.resize(handleCount);
-    REQUIRE_CALL(device->readBuffer(
-        result.outputBuffer,
-        result.handlesOffset,
-        handleCount * sizeof(uint64_t),
-        result.handles.data()
-    ));
+    REQUIRE_CALL(device->readBuffer(result.handlesBuffer, 0, handleCount * sizeof(uint64_t), result.handles.data()));
 
     return result;
 }
@@ -123,7 +115,8 @@ static ClasImplicitBuildResult buildClasImplicit(
 // Result of building a BLAS from CLAS handles in implicit mode.
 struct BlasFromClasResult
 {
-    ComPtr<IBuffer> outputBuffer;
+    ComPtr<IBuffer> resultBuffer;
+    ComPtr<IBuffer> handlesBuffer;
     uint64_t blasHandle = 0;
 };
 
@@ -157,21 +150,22 @@ static BlasFromClasResult buildBlasFromClasImplicit(
     ClusterOperationSizes sizes = {};
     REQUIRE_CALL(device->getClusterOperationSizes(desc.params, &sizes));
 
-    uint64_t handlesBytes =
+    uint64_t handlesSize =
         alignUp(uint64_t(cluster::CLUSTER_HANDLE_BYTE_STRIDE), uint64_t(cluster::CLUSTER_OUTPUT_ALIGNMENT));
-    result.outputBuffer = createAccelStructureBuffer(device, handlesBytes + sizes.resultSize);
+    result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
+    result.handlesBuffer = createUAVBuffer(device, handlesSize);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
 
     desc.scratchBuffer = scratchBuffer;
-    desc.addressesBuffer = result.outputBuffer;
-    desc.resultBuffer = BufferOffsetPair(result.outputBuffer, handlesBytes);
+    desc.addressesBuffer = result.handlesBuffer;
+    desc.resultBuffer = result.resultBuffer;
 
     auto enc = queue->createCommandEncoder();
     enc->executeClusterOperation(desc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
-    REQUIRE_CALL(device->readBuffer(result.outputBuffer, 0, sizeof(uint64_t), &result.blasHandle));
+    REQUIRE_CALL(device->readBuffer(result.handlesBuffer, 0, sizeof(uint64_t), &result.blasHandle));
 
     return result;
 }
@@ -237,7 +231,7 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", D3D12 | Vulkan | CUDA)
     CHECK_NE(clasResult.handles[0], 0);
 
     BlasFromClasResult blasResult =
-        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), 1);
+        buildBlasFromClasImplicit(device, queue, clasResult.handlesBuffer->getDeviceAddress(), 1);
     CHECK_NE(blasResult.blasHandle, 0);
 }
 
@@ -283,12 +277,12 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", D3D12 | Vulkan | CUDA)
     CHECK_NE(clasResult.handles[1], 0);
 
     BlasFromClasResult blasResult =
-        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), 2);
+        buildBlasFromClasImplicit(device, queue, clasResult.handlesBuffer->getDeviceAddress(), 2);
     CHECK_NE(blasResult.blasHandle, 0);
 }
 
 
-GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
+GPU_TEST_CASE("cluster-accel-explicit-two-clusters", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
@@ -518,7 +512,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", D3D12 | Vulkan | CUDA
 
     // Build BLAS from CLAS handles
     BlasFromClasResult blasResult =
-        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), clusterCount);
+        buildBlasFromClasImplicit(device, queue, clasResult.handlesBuffer->getDeviceAddress(), clusterCount);
     CHECK_NE(blasResult.blasHandle, 0);
 
     // Build TLAS from BLAS handle

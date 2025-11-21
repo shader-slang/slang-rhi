@@ -48,6 +48,18 @@ private:
     NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT translateIndexingMode(LinearSweptSpheresIndexingMode mode);
     NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE translateEndCapsMode(LinearSweptSpheresEndCapsMode mode);
 };
+
+NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAGS translateClusterOperationFlags(
+    ClusterOperationFlags flags
+);
+NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MOVE_TYPE translateClusterOperationMoveType(
+    ClusterOperationMoveType type
+);
+NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS translateClusterOperationParams(
+    const ClusterOperationParams& params
+);
+NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE translateClusterOperationMode(ClusterOperationMode mode);
+
 #endif // SLANG_RHI_ENABLE_NVAPI
 
 } // namespace rhi::d3d12
