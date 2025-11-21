@@ -57,6 +57,65 @@ struct AccelerationStructureInstanceDescVulkan
     uint64_t accelerationStructureReference;
 };
 
+/// Motion instance data union matching VkAccelerationStructureMotionInstanceDataNV.
+union AccelerationStructureMotionInstanceDataVulkan
+{
+    AccelerationStructureInstanceDescVulkan staticInstance;
+    // matrixMotionInstance and srtMotionInstance are defined separately below
+};
+
+/// Static motion instance descriptor matching VkAccelerationStructureMotionInstanceNV.
+struct AccelerationStructureStaticMotionInstanceVulkan
+{
+    uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
+    uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
+    AccelerationStructureMotionInstanceDataVulkan data;
+};
+
+/// Matrix motion instance descriptor matching VkAccelerationStructureMatrixMotionInstanceNV.
+struct AccelerationStructureMatrixMotionInstanceVulkan
+{
+    float transformT0[3][4];
+    float transformT1[3][4];
+    uint32_t instanceCustomIndex : 24;
+    uint32_t mask : 8;
+    uint32_t instanceShaderBindingTableRecordOffset : 24;
+    uint32_t flags : 8;
+    uint64_t accelerationStructureReference;
+};
+
+/// SRT (Scale-Rotation-Translation) transformation data matching VkSRTDataNV.
+struct SRTDataVulkan
+{
+    float sx;
+    float a;
+    float b;
+    float pvx;
+    float sy;
+    float c;
+    float pvz;
+    float sz;
+    float qx;
+    float qy;
+    float qz;
+    float qw;
+    float tx;
+    float ty;
+    float tz;
+};
+
+/// SRT motion instance descriptor matching VkAccelerationStructureSRTMotionInstanceNV.
+struct AccelerationStructureSRTMotionInstanceVulkan
+{
+    SRTDataVulkan transformT0;
+    SRTDataVulkan transformT1;
+    uint32_t instanceCustomIndex : 24;
+    uint32_t mask : 8;
+    uint32_t instanceShaderBindingTableRecordOffset : 24;
+    uint32_t flags : 8;
+    uint64_t accelerationStructureReference;
+};
+
 /// Instance descriptor matching OptixInstance.
 struct AccelerationStructureInstanceDescOptix
 {
