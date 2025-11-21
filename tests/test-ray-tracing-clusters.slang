@@ -6,8 +6,9 @@ RaytracingAccelerationStructure tlas;
 RWTexture2D<float4> resultTexture;
 RWStructuredBuffer<uint2> ids_buffer; // written at every pixel (clusterID, primitiveID)
 
+[raypayload]
 struct Payload {
-    float3 color;
+    float3 color : read(caller) : write(caller, closesthit, miss);
 }
 
 [shader("miss")]
