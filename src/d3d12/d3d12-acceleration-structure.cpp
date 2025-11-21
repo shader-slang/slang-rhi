@@ -511,6 +511,119 @@ NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE AccelerationStructureBuildDescConverterNV
     }
 }
 
+NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAGS translateClusterOperationFlags(
+    ClusterOperationFlags flags
+)
+{
+    unsigned int result = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_NONE;
+    if (is_set(flags, ClusterOperationFlags::FastTrace))
+    {
+        result |= NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE;
+    }
+    if (is_set(flags, ClusterOperationFlags::FastBuild))
+    {
+        result |= NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_BUILD;
+    }
+    if (is_set(flags, ClusterOperationFlags::NoOverlap))
+    {
+        result |= NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_NO_OVERLAP;
+    }
+    if (is_set(flags, ClusterOperationFlags::AllowOMM))
+    {
+        result |= NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_ALLOW_OMM;
+    }
+    return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAGS(result);
+}
+
+NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MOVE_TYPE translateClusterOperationMoveType(
+    ClusterOperationMoveType type
+)
+{
+    switch (type)
+    {
+    case ClusterOperationMoveType::BottomLevel:
+        return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MOVE_TYPE_BOTTOM_LEVEL_ACCELERATION_STRUCTURE;
+    case ClusterOperationMoveType::ClusterLevel:
+        return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MOVE_TYPE_CLUSTER_LEVEL_ACCELERATION_STRUCTURE;
+    case ClusterOperationMoveType::Template:
+        return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MOVE_TYPE_TEMPLATE;
+    }
+    return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MOVE_TYPE(0);
+}
+
+NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS translateClusterOperationParams(
+    const ClusterOperationParams& params
+)
+{
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS inputs = {};
+
+    inputs.maxArgCount = params.maxArgCount;
+    inputs.flags = translateClusterOperationFlags(params.flags);
+    inputs.mode = translateClusterOperationMode(params.mode);
+
+    switch (params.type)
+    {
+    case ClusterOperationType::CLASFromTriangles:
+        inputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES;
+        break;
+    case ClusterOperationType::BLASFromCLAS:
+        inputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS;
+        break;
+    case ClusterOperationType::TemplatesFromTriangles:
+        inputs.type =
+            NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES;
+        break;
+    case ClusterOperationType::CLASFromTemplates:
+        inputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_INSTANTIATE_CLUSTER_TEMPLATES;
+        break;
+    case ClusterOperationType::MoveObjects:
+        inputs.type = NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_MOVE_CLUSTER_OBJECT;
+        break;
+    }
+
+    switch (inputs.type)
+    {
+    case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_MOVE_CLUSTER_OBJECT:
+        inputs.movesDesc.type = translateClusterOperationMoveType(params.move.type);
+        inputs.movesDesc.maxBytesMoved = params.move.maxSize;
+        break;
+    case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS:
+        inputs.clasDesc.maxTotalClasCount = params.blas.maxTotalClasCount;
+        inputs.clasDesc.maxClasCountPerArg = params.blas.maxClasCount;
+        break;
+    case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES:
+    case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES:
+    case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_INSTANTIATE_CLUSTER_TEMPLATES:
+        inputs.trianglesDesc.vertexFormat = getVertexFormat(params.clas.vertexFormat);
+        inputs.trianglesDesc.maxGeometryIndexValue = params.clas.maxGeometryIndex;
+        inputs.trianglesDesc.maxUniqueGeometryCountPerArg = params.clas.maxUniqueGeometryCount;
+        inputs.trianglesDesc.maxTriangleCountPerArg = params.clas.maxTriangleCount;
+        inputs.trianglesDesc.maxVertexCountPerArg = params.clas.maxVertexCount;
+        inputs.trianglesDesc.maxTotalTriangleCount = params.clas.maxTotalTriangleCount;
+        inputs.trianglesDesc.maxTotalVertexCount = params.clas.maxTotalVertexCount;
+        inputs.trianglesDesc.minPositionTruncateBitCount = params.clas.minPositionTruncateBitCount;
+        break;
+    default:
+        break;
+    }
+
+    return inputs;
+}
+
+NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE translateClusterOperationMode(ClusterOperationMode mode)
+{
+    switch (mode)
+    {
+    case ClusterOperationMode::ImplicitDestinations:
+        return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_IMPLICIT_DESTINATIONS;
+    case ClusterOperationMode::ExplicitDestinations:
+        return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_EXPLICIT_DESTINATIONS;
+    case ClusterOperationMode::GetSizes:
+        return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_GET_SIZES;
+    }
+    return NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE(0);
+}
+
 #endif // SLANG_RHI_ENABLE_NVAPI
 
 } // namespace rhi::d3d12

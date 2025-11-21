@@ -840,9 +840,9 @@ void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* ds
     m_commandList->write(std::move(cmd));
 }
 
-void CommandEncoder::buildClusterAccelerationStructure(const ClusterAccelBuildDesc& desc)
+void CommandEncoder::executeClusterOperation(const ClusterOperationDesc& desc)
 {
-    commands::BuildClusterAccelerationStructure cmd;
+    commands::ExecuteClusterOperation cmd;
     cmd.desc = desc;
     m_commandList->write(std::move(cmd));
 }

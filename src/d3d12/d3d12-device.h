@@ -189,6 +189,12 @@ public:
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureSizes* outSizes
     ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
+        const ClusterOperationParams& params,
+        ClusterOperationSizes* outSizes
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure

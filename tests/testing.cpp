@@ -737,13 +737,9 @@ const char* getTestsDir()
 
 std::vector<const char*> getSlangSearchPaths()
 {
-    static std::string testsDir = getTestsDir();
-    std::vector<const char*> paths;
-    paths.push_back(testsDir.c_str());
-#ifdef SLANG_RHI_INCLUDE_DIR
-    paths.push_back(SLANG_RHI_INCLUDE_DIR);
-#endif
-    return paths;
+    return std::vector<const char*>{
+        SLANG_RHI_TESTS_DIR,
+    };
 }
 
 #if ENABLE_RENDERDOC

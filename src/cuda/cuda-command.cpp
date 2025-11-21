@@ -70,7 +70,7 @@ public:
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
-    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
+    void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
@@ -590,12 +590,12 @@ void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::Deseri
     NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
 }
 
-void CommandExecutor::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+void CommandExecutor::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     if (!m_device->m_ctx.optixContext)
         return;
 
-    m_device->m_ctx.optixContext->buildClusterAccelerationStructure(m_stream, cmd.desc);
+    m_device->m_ctx.optixContext->executeClusterOperation(m_stream, cmd.desc);
 }
 
 void CommandExecutor::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)

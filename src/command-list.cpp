@@ -299,8 +299,14 @@ void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
     writeCommand(std::move(cmd));
 }
 
-void CommandList::write(commands::BuildClusterAccelerationStructure&& cmd)
+void CommandList::write(commands::ExecuteClusterOperation&& cmd)
 {
+    retainResource<Buffer>(cmd.desc.argCountBuffer.buffer);
+    retainResource<Buffer>(cmd.desc.argsBuffer.buffer);
+    retainResource<Buffer>(cmd.desc.scratchBuffer.buffer);
+    retainResource<Buffer>(cmd.desc.addressesBuffer.buffer);
+    retainResource<Buffer>(cmd.desc.resultBuffer.buffer);
+    retainResource<Buffer>(cmd.desc.sizesBuffer.buffer);
     writeCommand(std::move(cmd));
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <slang-rhi-device.h>
 #include <slang-rhi-config.h>
 
 #include <slang-com-ptr.h>
@@ -53,7 +54,6 @@ using Slang::Guid;
 typedef SlangResult Result;
 
 // Had to move here, because Options needs types defined here
-typedef uint64_t DeviceAddress;
 typedef size_t Size;
 typedef size_t Offset;
 
@@ -1175,6 +1175,7 @@ struct BufferOffsetPair
     bool operator!=(const BufferOffsetPair& rhs) const { return !(*this == rhs); }
 
     DeviceAddress getDeviceAddress() const { return buffer->getDeviceAddress() + offset; }
+    size_t getSize() const { return buffer->getDesc().size - offset; }
 };
 
 /// Opaque unique handle to an acceleration structure.
@@ -1223,110 +1224,6 @@ struct AccelerationStructureInstanceDescGeneric
     uint32_t instanceContributionToHitGroupIndex : 24;
     AccelerationStructureInstanceFlags flags : 8;
     AccelerationStructureHandle accelerationStructure;
-};
-
-/// Instance descriptor matching D3D12_RAYTRACING_INSTANCE_DESC.
-struct AccelerationStructureInstanceDescD3D12
-{
-    float Transform[3][4];
-    uint32_t InstanceID : 24;
-    uint32_t InstanceMask : 8;
-    uint32_t InstanceContributionToHitGroupIndex : 24;
-    uint32_t Flags : 8;
-    uint64_t AccelerationStructure;
-};
-
-/// Instance descriptor matching VkAccelerationStructureInstanceKHR.
-struct AccelerationStructureInstanceDescVulkan
-{
-    float transform[4][3];
-    uint32_t instanceCustomIndex : 24;
-    uint32_t mask : 8;
-    uint32_t instanceShaderBindingTableRecordOffset : 24;
-    uint32_t flags : 8;
-    uint64_t accelerationStructureReference;
-};
-
-/// Instance descriptor matching OptixInstance.
-struct AccelerationStructureInstanceDescOptix
-{
-    float transform[3][4];
-    uint32_t instanceId;
-    uint32_t sbtOffset;
-    uint32_t visibilityMask;
-    uint32_t flags;
-    uint64_t traversableHandle;
-    uint32_t pad[2];
-};
-
-/// Instance descriptor matching MTLAccelerationStructureUserIDInstanceDescriptor.
-struct AccelerationStructureInstanceDescMetal
-{
-    float transform[4][3];
-    uint32_t options;
-    uint32_t mask;
-    uint32_t intersectionFunctionTableOffset;
-    uint32_t accelerationStructureIndex;
-    uint32_t userID;
-};
-
-/// SRT (Scale-Rotation-Translation) transformation data matching VkSRTDataNV.
-struct VkSRTDataNV
-{
-    float sx;
-    float a;
-    float b;
-    float pvx;
-    float sy;
-    float c;
-    float pvz;
-    float sz;
-    float qx;
-    float qy;
-    float qz;
-    float qw;
-    float tx;
-    float ty;
-    float tz;
-};
-
-/// Motion instance data union matching VkAccelerationStructureMotionInstanceDataNV.
-union AccelerationStructureMotionInstanceDataVulkan
-{
-    AccelerationStructureInstanceDescVulkan staticInstance;
-    // matrixMotionInstance and srtMotionInstance are defined separately below
-};
-
-/// Static motion instance descriptor matching VkAccelerationStructureMotionInstanceNV.
-struct AccelerationStructureStaticMotionInstanceVulkan
-{
-    uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
-    uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
-    AccelerationStructureMotionInstanceDataVulkan data;
-};
-
-/// Matrix motion instance descriptor matching VkAccelerationStructureMatrixMotionInstanceNV.
-struct AccelerationStructureMatrixMotionInstanceVulkan
-{
-    float transformT0[3][4];
-    float transformT1[3][4];
-    uint32_t instanceCustomIndex : 24;
-    uint32_t mask : 8;
-    uint32_t instanceShaderBindingTableRecordOffset : 24;
-    uint32_t flags : 8;
-    uint64_t accelerationStructureReference;
-};
-
-/// SRT motion instance descriptor matching VkAccelerationStructureSRTMotionInstanceNV.
-struct AccelerationStructureSRTMotionInstanceVulkan
-{
-    VkSRTDataNV transformT0;
-    VkSRTDataNV transformT1;
-    uint32_t instanceCustomIndex : 24;
-    uint32_t mask : 8;
-    uint32_t instanceShaderBindingTableRecordOffset : 24;
-    uint32_t flags : 8;
-    uint64_t accelerationStructureReference;
 };
 
 struct AccelerationStructureAABB
@@ -1500,120 +1397,6 @@ struct AccelerationStructureSizes
     uint64_t updateScratchSize = 0;
 };
 
-// Cluster Acceleration Structure (CLAS) API
-enum class ClusterAccelBuildOp
-{
-    CLASFromTriangles,
-    BLASFromCLAS,
-    TemplatesFromTriangles,
-    CLASFromTemplates,
-};
-
-struct ClusterAccelSizes
-{
-    uint64_t resultSize = 0;
-    uint64_t scratchSize = 0;
-};
-
-struct ClusterAccelLimitsTriangles
-{
-    /// Required for CLASFromTriangles and TemplatesFromTriangles operations; must be non-zero.
-    uint32_t maxArgCount = 0;
-    /// Required; maximum number of triangles in a single cluster.
-    uint32_t maxTriangleCountPerArg = 0;
-    /// Required; maximum number of vertices in a single cluster.
-    uint32_t maxVertexCountPerArg = 0;
-    /// Required; maximum number of unique SBT indices within a single cluster.
-    uint32_t maxUniqueSbtIndexCountPerArg = 0;
-    /// Optional; minimum number of mantissa bits to truncate from vertex positions (0 means no truncation).
-    uint32_t positionTruncateBitCount = 0;
-};
-
-struct ClusterAccelLimitsClusters
-{
-    /// Required for BLASFromCLAS operation; must be non-zero.
-    uint32_t maxArgCount = 0;
-    /// Required; total number of cluster handles across all args.
-    uint32_t maxTotalClusterCount = 0;
-    /// Required; maximum number of cluster handles per arg.
-    uint32_t maxClusterCountPerArg = 0;
-};
-
-struct ClusterAccelBuildDesc
-{
-    /// Operation to perform.
-    ClusterAccelBuildOp op = ClusterAccelBuildOp::CLASFromTriangles;
-
-    /// Device buffer containing an array of op-specific device-args records.
-    BufferOffsetPair argsBuffer = {};
-    /// Stride in bytes between consecutive arg records in argsBuffer.
-    uint32_t argsStride = 0;
-    /// Number of arg records to consume from argsBuffer.
-    uint32_t argCount = 0;
-
-    /// Reserved for future extensions.
-    const void* next = nullptr;
-
-    /// Per-operation limits. The active member is determined by the 'op' field.
-    /// - CLASFromTriangles: use limitsTriangles
-    /// - BLASFromCLAS: use limitsClusters
-    /// - TemplatesFromTriangles: use limitsTriangles
-    /// - CLASFromTemplates: use limitsTriangles (same)
-    union
-    {
-        ClusterAccelLimitsTriangles limitsTriangles;
-        ClusterAccelLimitsClusters limitsClusters;
-    } limits = {};
-
-    enum class BuildMode
-    {
-        Implicit,
-        Explicit,
-        GetSizes
-    };
-    BuildMode mode = BuildMode::Implicit;
-
-    struct ImplicitDesc
-    {
-        // Required output and temporary buffers for implicit builds
-        DeviceAddress outputBuffer = 0;
-        Size outputBufferSizeInBytes = 0;
-        DeviceAddress tempBuffer = 0;
-        Size tempBufferSizeInBytes = 0;
-        DeviceAddress outputHandlesBuffer = 0;   // optional
-        uint32_t outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
-        DeviceAddress outputSizesBuffer = 0;     // optional
-        uint32_t outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
-    };
-    struct ExplicitDesc
-    {
-        // Required temporary buffer for explicit builds
-        DeviceAddress tempBuffer = 0;
-        Size tempBufferSizeInBytes = 0;
-        DeviceAddress destAddressesBuffer = 0;   // required
-        uint32_t destAddressesStrideInBytes = 0; // optional, defaults to natural stride
-        DeviceAddress outputHandlesBuffer = 0;   // optional, aliases destAddresses if 0
-        uint32_t outputHandlesStrideInBytes = 0; // optional, defaults to natural stride
-        DeviceAddress outputSizesBuffer = 0;     // optional
-        uint32_t outputSizesStrideInBytes = 0;   // optional, defaults to natural stride
-    };
-    struct GetSizesDesc
-    {
-        // Required temporary buffer for size queries
-        DeviceAddress tempBuffer = 0;
-        Size tempBufferSizeInBytes = 0;
-        DeviceAddress outputSizesBuffer = 0;   // required
-        uint32_t outputSizesStrideInBytes = 0; // optional, defaults to natural stride
-    };
-
-    union
-    {
-        ImplicitDesc implicit;
-        ExplicitDesc explicitDest;
-        GetSizesDesc getSizes;
-    } modeDesc = {};
-};
-
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
@@ -1632,6 +1415,148 @@ public:
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
+};
+
+// Cluster Acceleration Structure API
+
+enum class ClusterOperationType : uint32_t
+{
+    MoveObjects,
+    CLASFromTriangles,
+    BLASFromCLAS,
+    TemplatesFromTriangles,
+    CLASFromTemplates,
+};
+
+enum class ClusterOperationMode : uint32_t
+{
+    ImplicitDestinations,
+    ExplicitDestinations,
+    GetSizes,
+};
+
+enum class ClusterOperationFlags : uint32_t
+{
+    None = 0,
+    FastTrace = (1 << 0),
+    FastBuild = (1 << 1),
+    NoOverlap = (1 << 2),
+    AllowOMM = (1 << 3),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(ClusterOperationFlags);
+
+enum class ClusterOperationMoveType : uint32_t
+{
+    BottomLevel,
+    ClusterLevel,
+    Template,
+};
+
+struct ClusterOperationMoveParams
+{
+    ClusterOperationMoveType type;
+    uint32_t maxSize = 0;
+};
+
+struct ClusterOperationClasBuildParams
+{
+    /// Vertex format used for position data.
+    Format vertexFormat = Format::RGB32Float;
+
+    /// Index of the last geometry in a single CLAS.
+    /// For OptiX, this is used to determine the maximum SBT record index.
+    uint32_t maxGeometryIndex = 0;
+
+    /// Maximum number of unique geometries in a single CLAS.
+    /// For OptiX, this is used to determine the unique number of SBT record indices.
+    uint32_t maxUniqueGeometryCount = 1;
+
+    /// Maximum number of triangles in a single CLAS.
+    uint32_t maxTriangleCount = 0;
+
+    /// Maximum number of vertices in a single CLAS.
+    uint32_t maxVertexCount = 0;
+
+    /// Maximum number of triangles summed over all CLAS (in the current cluster operation).
+    uint32_t maxTotalTriangleCount = 0;
+
+    /// Maximum number of vertices summed over all CLAS (in the current cluster operation).
+    uint32_t maxTotalVertexCount = 0;
+
+    /// Minimum number of bits to be truncated in vertex positions across all CLAS (in the current cluster operation).
+    uint32_t minPositionTruncateBitCount = 0;
+};
+
+struct ClusterOperationBlasBuildParams
+{
+    /// Maximum number of CLAS references in a single BLAS.
+    uint32_t maxClasCount = 0;
+
+    /// Maximum number of CLAS references summed over all BLAS (in the current cluster operation).
+    uint32_t maxTotalClasCount = 0;
+};
+
+// Params that can be used to getClusterOperationSizes on this shared struct before passing to
+// executeClusterOperation.
+struct ClusterOperationParams
+{
+    /// Maximum number of arguments (acceleration structures or templates) to build/instantiate/move.
+    uint32_t maxArgCount = 0;
+
+    /// Type of cluster operation to perform.
+    ClusterOperationType type = ClusterOperationType::CLASFromTriangles;
+    /// Mode of the cluster operation.
+    ClusterOperationMode mode = ClusterOperationMode::ImplicitDestinations;
+    /// Flags modifying the behavior of the cluster operation.
+    ClusterOperationFlags flags = ClusterOperationFlags::None;
+
+    /// Move operation parameters. Used when type is ClusterOperationType::MoveObjects.
+    ClusterOperationMoveParams move;
+    /// Build parameters for CLAS operations. Used when type is ClusterOperationType::CLASFromTriangles,
+    /// ClusterOperationType::TemplatesFromTriangles or ClusterOperationType::CLASFromTemplates.
+    ClusterOperationClasBuildParams clas;
+    /// Build parameters for BLAS operations. Used when type is ClusterOperationType::BLASFromCLAS.
+    ClusterOperationBlasBuildParams blas;
+};
+
+struct ClusterOperationDesc
+{
+    ClusterOperationParams params;
+
+    // Input buffers
+
+    /// Optional: Argument count buffer. If not set, argument count is taken from params.maxArgCount.
+    BufferOffsetPair argCountBuffer;
+    /// Required: Arguments buffer.
+    BufferOffsetPair argsBuffer;
+    /// Stride in bytes between entries in the arguments buffer.
+    uint64_t argsBufferStride = 0;
+
+    // Input/output buffers
+
+    /// Required: Scratch buffer for the operation.
+    BufferOffsetPair scratchBuffer;
+    /// Required: Addresses buffer for the output acceleration structures/templates.
+    BufferOffsetPair addressesBuffer;
+    /// Stride in bytes between entries in the addresses buffer.
+    size_t addressesBufferStride = 8;
+
+    // Output buffers
+
+    /// Result buffer for implicit builds.
+    /// This is required when mode is ClusterOperationMode::ImplicitDestinations.
+    BufferOffsetPair resultBuffer;
+    /// Sizes buffer for getting sizes of acceleration structures/templates.
+    /// This is required when mode is ClusterOperationMode::GetSizes.
+    BufferOffsetPair sizesBuffer;
+    /// Stride in bytes between entries in the sizes buffer.
+    size_t sizesBufferStride = 4;
+};
+
+struct ClusterOperationSizes
+{
+    uint64_t resultSize = 0;
+    uint64_t scratchSize = 0;
 };
 
 struct FenceDesc
@@ -2242,30 +2167,6 @@ struct DrawArguments
     uint32_t startIndexLocation = 0;
 };
 
-struct IndirectDrawArguments
-{
-    uint32_t vertexCountPerInstance;
-    uint32_t instanceCount;
-    uint32_t startVertexLocation;
-    uint32_t startInstanceLocation;
-};
-
-struct IndirectDrawIndexedArguments
-{
-    uint32_t indexCountPerInstance;
-    uint32_t instanceCount;
-    uint32_t startIndexLocation;
-    int32_t baseVertexLocation;
-    uint32_t startInstanceLocation;
-};
-
-struct IndirectDispatchArguments
-{
-    uint32_t threadGroupCountX;
-    uint32_t threadGroupCountY;
-    uint32_t threadGroupCountZ;
-};
-
 struct SamplePosition
 {
     int8_t x;
@@ -2599,7 +2500,7 @@ public:
         BufferOffsetPair src
     ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL buildClusterAccelerationStructure(const ClusterAccelBuildDesc& desc) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL executeClusterOperation(const ClusterOperationDesc& desc) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
         IBuffer* dstBuffer,
@@ -3444,9 +3345,9 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
-        const ClusterAccelBuildDesc& desc,
-        ClusterAccelSizes* outSizes
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
+        const ClusterOperationParams& params,
+        ClusterOperationSizes* outSizes
     ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(

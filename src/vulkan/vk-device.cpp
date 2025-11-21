@@ -536,6 +536,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderIntegerDotProductFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeVectorFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingLinearSweptSpheresFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.clusterAccelerationStructureFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix1Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.descriptorIndexingFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.mutableDescriptorTypeFeatures);
@@ -774,6 +775,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                     availableFeatures.push_back(Feature::AccelerationStructureLinearSweptSpheres);
                 }
             }
+
+            SIMPLE_EXTENSION_FEATURE(
+                extendedFeatures.clusterAccelerationStructureFeatures,
+                clusterAccelerationStructure,
+                VK_NV_CLUSTER_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+                { availableFeatures.push_back(Feature::ClusterAccelerationStructure); }
+            );
         }
 
         SIMPLE_EXTENSION_FEATURE(
@@ -1600,6 +1608,27 @@ Result DeviceImpl::getAccelerationStructureSizes(
     outSizes->accelerationStructureSize = sizeInfo.accelerationStructureSize;
     outSizes->scratchSize = sizeInfo.buildScratchSize;
     outSizes->updateScratchSize = sizeInfo.updateScratchSize;
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
+{
+    if (!m_api.vkGetClusterAccelerationStructureBuildSizesNV)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    VkClusterAccelerationStructureClustersBottomLevelInputNV bottomLevelInput;
+    VkClusterAccelerationStructureTriangleClusterInputNV triangleClusterInput;
+    VkClusterAccelerationStructureMoveObjectsInputNV moveObjectsInput;
+    VkClusterAccelerationStructureInputInfoNV info =
+        translateClusterOperationParams(params, bottomLevelInput, triangleClusterInput, moveObjectsInput);
+    VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+    m_api.vkGetClusterAccelerationStructureBuildSizesNV(m_device, &info, &sizeInfo);
+
+    outSizes->resultSize = sizeInfo.accelerationStructureSize;
+    outSizes->scratchSize = sizeInfo.buildScratchSize;
+
     return SLANG_OK;
 }
 

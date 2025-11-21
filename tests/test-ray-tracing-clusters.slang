@@ -1,12 +1,14 @@
 // Test shaders for clusters build-and-shoot
-#include <slang-rhi/cluster_accel_args.slangh>
+// Using relative path to allow Slang language server to find the file.
+#include "../include/slang-rhi-device.h"
 
 RaytracingAccelerationStructure tlas;
 RWTexture2D<float4> resultTexture;
 RWStructuredBuffer<uint2> ids_buffer; // written at every pixel (clusterID, primitiveID)
 
+[raypayload]
 struct Payload {
-    float3 color;
+    float3 color : read(caller) : write(caller, closesthit, miss);
 }
 
 [shader("miss")]
@@ -22,7 +24,14 @@ void closestHitClusters(inout Payload payload, BuiltInTriangleIntersectionAttrib
     uint2 pix = DispatchRaysIndex().xy;
     uint2 dims = DispatchRaysDimensions().xy;
     uint index = pix.y * dims.x + pix.x;
+#ifndef __VULKAN__
     ids_buffer[index] = uint2(GetClusterID(), PrimitiveIndex());
+#else
+    // Slang seems to have a bug with GetClusterID() on SPIR-V backend. We get:
+    // Operand 3 of Decorate requires one of these capabilities: RayTracingClusterAccelerationStructureNV
+    // OpDecorate % 46 BuiltIn ClusterIDNV
+    ids_buffer[index] = uint2(0, PrimitiveIndex());
+#endif
 }
 
 [shader("raygeneration")]
@@ -46,10 +55,7 @@ void rayGenClusters()
     resultTexture[pixel] = float4(payload.color, 1.f);
 }
 
-// --- Compute: write TrianglesArgs records on device ---
-using namespace cluster_abi;
-
-RWStructuredBuffer<TrianglesArgs> gTriArgs;
+RWStructuredBuffer<rhi::cluster::TriangleClusterArgs> gTriArgs;
 uniform uint64_t gIndexBuffer;
 uniform uint64_t gVertexBuffer;
 uniform uint      gVertexStrideBytes;
@@ -69,13 +75,14 @@ void writeTriArgs(uint3 tid : SV_DispatchThreadID)
     uint64_t indexAddr  = gIndexBuffer;
     uint64_t vertexAddr = gVertexBuffer + uint64_t(idx) * uint64_t(gVertexOffsetElemsPerCluster) * uint64_t(gVertexStrideBytes);
 
-    gTriArgs[idx] = makeTrianglesArgs(
-        /*clusterId*/idx,
-        /*triangleCount*/gTriangleCount,
-        /*vertexCount*/gVertexCount,
-        /*indexBuffer*/indexAddr,
-        /*vertexBuffer*/vertexAddr,
-        /*vertexStrideBytes*/gVertexStrideBytes,
-        /*indexFormat*/4
-    );
+    rhi::cluster::TriangleClusterArgs args = {};
+    args.clusterId = idx;
+    args.triangleCount = gTriangleCount;
+    args.vertexCount = gVertexCount;
+    args.vertexBufferStride = uint16_t(gVertexStrideBytes);
+    args.indexBuffer = indexAddr;
+    args.vertexBuffer = vertexAddr;
+    args.indexFormat = rhi::cluster::INDEX_FORMAT_32BIT;
+
+    gTriArgs[idx] = args;
 }

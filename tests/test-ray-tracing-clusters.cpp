@@ -1,7 +1,6 @@
 #include "testing.h"
 #include "texture-utils.h"
 #include <slang-rhi/acceleration-structure-utils.h>
-#include <slang-rhi/cluster_accel_args.h>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -10,12 +9,6 @@ struct Float3
 {
     float x, y, z;
 };
-
-static void requireClusterAccelOrSkip(IDevice* device)
-{
-    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
-        SKIP("cluster acceleration structure not supported");
-}
 
 static uint64_t alignUp(uint64_t v, uint64_t a)
 {
@@ -27,7 +20,7 @@ static ComPtr<IBuffer> createAccelInputBuffer(IDevice* device, size_t size, cons
 {
     BufferDesc desc = {};
     desc.size = size;
-    desc.usage = BufferUsage::AccelerationStructureBuildInput;
+    desc.usage = BufferUsage::AccelerationStructureBuildInput | BufferUsage::CopySource | BufferUsage::CopyDestination;
     desc.defaultState = ResourceState::AccelerationStructureBuildInput;
     return device->createBuffer(desc, data);
 }
@@ -36,7 +29,7 @@ static ComPtr<IBuffer> createUAVBuffer(IDevice* device, size_t size, const void*
 {
     BufferDesc desc = {};
     desc.size = size;
-    desc.usage = BufferUsage::UnorderedAccess;
+    desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource | BufferUsage::CopyDestination;
     desc.defaultState = ResourceState::UnorderedAccess;
     return device->createBuffer(desc, data);
 }
@@ -50,8 +43,8 @@ static ComPtr<IBuffer> createAccelStructureBuffer(IDevice* device, size_t size)
     return device->createBuffer(desc);
 }
 
-// Helper to create a simple TrianglesArgs with common defaults (no OMM, no primitive info, etc).
-static cluster_abi::TrianglesArgs makeSimpleTrianglesArgs(
+// Helper to create a simple TriangleClusterArgs with common defaults (no OMM, no primitive info, etc).
+static cluster::TriangleClusterArgs makeSimpleTriangleClusterArgs(
     uint32_t clusterId,
     uint32_t triangleCount,
     uint32_t vertexCount,
@@ -60,72 +53,61 @@ static cluster_abi::TrianglesArgs makeSimpleTrianglesArgs(
     uint32_t vertexStrideBytes = sizeof(Float3)
 )
 {
-    return cluster_abi::makeTrianglesArgs(
-        clusterId,
-        triangleCount,
-        vertexCount,
-        indexBuffer,
-        vertexBuffer,
-        vertexStrideBytes,
-        /*indexFormat*/ 4 // 32-bit indices
-    );
+    cluster::TriangleClusterArgs args = {};
+    args.clusterId = clusterId;
+    args.triangleCount = triangleCount;
+    args.vertexCount = vertexCount;
+    args.vertexBufferStride = uint16_t(vertexStrideBytes);
+    args.indexBuffer = indexBuffer;
+    args.vertexBuffer = vertexBuffer;
+    args.indexFormat = cluster::INDEX_FORMAT_32BIT;
+    return args;
 }
 
 // Result of building a cluster acceleration structure in implicit mode.
 struct ClasImplicitBuildResult
 {
-    ComPtr<IBuffer> outputBuffer;
+    ComPtr<IBuffer> resultBuffer;
+    ComPtr<IBuffer> handlesBuffer;
     std::vector<uint64_t> handles;
-    uint64_t handlesOffset = 0;
-    uint64_t dataOffset = 0;
 };
 
 // Build CLAS in implicit mode: allocate buffers, build, read back handles.
-// Takes a partially-filled ClusterAccelBuildDesc (op, argsBuffer, argsStride, argCount, limits).
+// Takes a partially-filled ClusterOperationDesc (op, argsBuffer, argsStride, argCount, limits).
 // Returns the output buffer and handle values.
 static ClasImplicitBuildResult buildClasImplicit(
     IDevice* device,
     ICommandQueue* queue,
-    ClusterAccelBuildDesc buildDesc,
+    ClusterOperationDesc desc,
     uint32_t handleCount
 )
 {
     ClasImplicitBuildResult result;
 
-    ClusterAccelSizes sizes = {};
-    REQUIRE_CALL(device->getClusterAccelerationStructureSizes(buildDesc, &sizes));
+    ClusterOperationSizes sizes = {};
+    REQUIRE_CALL(device->getClusterOperationSizes(desc.params, &sizes));
 
     // Allocate output buffer: handles region (aligned) + data region
-    uint64_t handlesBytes = alignUp(
-        uint64_t(handleCount) * uint64_t(cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE),
-        uint64_t(cluster_abi::CLUSTER_OUTPUT_ALIGNMENT)
+    uint64_t handlesSize = alignUp(
+        uint64_t(handleCount) * uint64_t(cluster::CLUSTER_HANDLE_BYTE_STRIDE),
+        uint64_t(cluster::CLUSTER_OUTPUT_ALIGNMENT)
     );
-    result.outputBuffer = createAccelStructureBuffer(device, handlesBytes + sizes.resultSize);
-    ComPtr<IBuffer> scratch = createUAVBuffer(device, sizes.scratchSize);
+    result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
+    result.handlesBuffer = createUAVBuffer(device, handlesSize);
+    ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
 
-    result.handlesOffset = 0;
-    result.dataOffset = handlesBytes;
-
-    buildDesc.mode = ClusterAccelBuildDesc::BuildMode::Implicit;
-    buildDesc.modeDesc.implicit.outputHandlesBuffer = (DeviceAddress)result.outputBuffer->getDeviceAddress();
-    buildDesc.modeDesc.implicit.outputHandlesStrideInBytes = 0;
-    buildDesc.modeDesc.implicit.outputBuffer = (DeviceAddress)result.outputBuffer->getDeviceAddress() + handlesBytes;
-    buildDesc.modeDesc.implicit.outputBufferSizeInBytes = handlesBytes + sizes.resultSize;
-    buildDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)scratch->getDeviceAddress();
-    buildDesc.modeDesc.implicit.tempBufferSizeInBytes = sizes.scratchSize;
+    desc.params.mode = ClusterOperationMode::ImplicitDestinations;
+    desc.scratchBuffer = scratchBuffer;
+    desc.addressesBuffer = result.handlesBuffer;
+    desc.resultBuffer = result.resultBuffer;
 
     auto enc = queue->createCommandEncoder();
-    enc->buildClusterAccelerationStructure(buildDesc);
+    enc->executeClusterOperation(desc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
     result.handles.resize(handleCount);
-    REQUIRE_CALL(device->readBuffer(
-        result.outputBuffer,
-        result.handlesOffset,
-        handleCount * sizeof(uint64_t),
-        result.handles.data()
-    ));
+    REQUIRE_CALL(device->readBuffer(result.handlesBuffer, 0, handleCount * sizeof(uint64_t), result.handles.data()));
 
     return result;
 }
@@ -133,7 +115,8 @@ static ClasImplicitBuildResult buildClasImplicit(
 // Result of building a BLAS from CLAS handles in implicit mode.
 struct BlasFromClasResult
 {
-    ComPtr<IBuffer> outputBuffer;
+    ComPtr<IBuffer> resultBuffer;
+    ComPtr<IBuffer> handlesBuffer;
     uint64_t blasHandle = 0;
 };
 
@@ -148,138 +131,145 @@ static BlasFromClasResult buildBlasFromClasImplicit(
 {
     BlasFromClasResult result;
 
-    cluster_abi::ClustersArgs clustersArgs =
-        cluster_abi::makeClustersArgs(clusterCount, clusterHandlesBuffer, cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE);
+    cluster::ClusterArgs args = {};
+    args.clusterHandlesCount = clusterCount;
+    args.clusterHandlesStride = cluster::CLUSTER_HANDLE_BYTE_STRIDE;
+    args.clusterHandlesBuffer = clusterHandlesBuffer;
 
-    ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(clustersArgs), &clustersArgs);
+    ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(args), &args);
 
-    ClusterAccelBuildDesc blasDesc = {};
-    blasDesc.op = ClusterAccelBuildOp::BLASFromCLAS;
-    blasDesc.argsBuffer = BufferOffsetPair(argsBuffer, 0);
-    blasDesc.argsStride = sizeof(cluster_abi::ClustersArgs);
-    blasDesc.argCount = 1;
-    blasDesc.limits.limitsClusters.maxArgCount = 1;
-    blasDesc.limits.limitsClusters.maxTotalClusterCount = clusterCount;
-    blasDesc.limits.limitsClusters.maxClusterCountPerArg = clusterCount;
+    ClusterOperationDesc desc = {};
+    desc.params.type = ClusterOperationType::BLASFromCLAS;
+    desc.params.mode = ClusterOperationMode::ImplicitDestinations;
+    desc.params.maxArgCount = 1;
+    desc.params.blas.maxClasCount = clusterCount;
+    desc.params.blas.maxTotalClasCount = clusterCount;
+    desc.argsBuffer = argsBuffer;
+    desc.argsBufferStride = sizeof(cluster::ClusterArgs);
 
-    ClusterAccelSizes sizes = {};
-    REQUIRE_CALL(device->getClusterAccelerationStructureSizes(blasDesc, &sizes));
+    ClusterOperationSizes sizes = {};
+    REQUIRE_CALL(device->getClusterOperationSizes(desc.params, &sizes));
 
-    uint64_t handlesBytes =
-        alignUp(uint64_t(cluster_abi::CLUSTER_HANDLE_BYTE_STRIDE), uint64_t(cluster_abi::CLUSTER_OUTPUT_ALIGNMENT));
-    result.outputBuffer = createAccelStructureBuffer(device, handlesBytes + sizes.resultSize);
-    ComPtr<IBuffer> scratch = createUAVBuffer(device, sizes.scratchSize);
+    uint64_t handlesSize =
+        alignUp(uint64_t(cluster::CLUSTER_HANDLE_BYTE_STRIDE), uint64_t(cluster::CLUSTER_OUTPUT_ALIGNMENT));
+    result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
+    result.handlesBuffer = createUAVBuffer(device, handlesSize);
+    ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
 
-    blasDesc.mode = ClusterAccelBuildDesc::BuildMode::Implicit;
-    blasDesc.modeDesc.implicit.outputHandlesBuffer = (DeviceAddress)result.outputBuffer->getDeviceAddress();
-    blasDesc.modeDesc.implicit.outputHandlesStrideInBytes = 0;
-    blasDesc.modeDesc.implicit.outputBuffer = (DeviceAddress)result.outputBuffer->getDeviceAddress() + handlesBytes;
-    blasDesc.modeDesc.implicit.outputBufferSizeInBytes = handlesBytes + sizes.resultSize;
-    blasDesc.modeDesc.implicit.tempBuffer = (DeviceAddress)scratch->getDeviceAddress();
-    blasDesc.modeDesc.implicit.tempBufferSizeInBytes = sizes.scratchSize;
+    desc.scratchBuffer = scratchBuffer;
+    desc.addressesBuffer = result.handlesBuffer;
+    desc.resultBuffer = result.resultBuffer;
 
     auto enc = queue->createCommandEncoder();
-    enc->buildClusterAccelerationStructure(blasDesc);
+    enc->executeClusterOperation(desc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
-    REQUIRE_CALL(device->readBuffer(result.outputBuffer, 0, sizeof(uint64_t), &result.blasHandle));
+    REQUIRE_CALL(device->readBuffer(result.handlesBuffer, 0, sizeof(uint64_t), &result.blasHandle));
 
     return result;
 }
 
-GPU_TEST_CASE("cluster-accel-sizes", CUDA)
+GPU_TEST_CASE("cluster-accel-sizes", D3D12 | Vulkan | CUDA)
 {
-    requireClusterAccelOrSkip(device);
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
 
-    ClusterAccelBuildDesc clasDesc = {};
-    clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
-    clasDesc.limits.limitsTriangles.maxArgCount = 1;
-    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
-    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = 3;
-    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
-    ClusterAccelSizes clasSizes = {};
-    CHECK_CALL(device->getClusterAccelerationStructureSizes(clasDesc, &clasSizes));
+    ClusterOperationDesc clasDesc = {};
+    clasDesc.params.type = ClusterOperationType::CLASFromTriangles;
+    clasDesc.params.maxArgCount = 1;
+    clasDesc.params.clas.maxTriangleCount = 1;
+    clasDesc.params.clas.maxVertexCount = 3;
+    clasDesc.params.clas.maxUniqueGeometryCount = 1;
+    clasDesc.params.clas.maxTotalTriangleCount = 1;
+    clasDesc.params.clas.maxTotalVertexCount = 3;
+
+    ClusterOperationSizes clasSizes = {};
+    CHECK_CALL(device->getClusterOperationSizes(clasDesc.params, &clasSizes));
     CHECK_GT(clasSizes.resultSize, 0);
     CHECK_GT(clasSizes.scratchSize, 0);
 
-    ClusterAccelBuildDesc blasDesc = {};
-    blasDesc.op = ClusterAccelBuildOp::BLASFromCLAS;
-    blasDesc.limits.limitsClusters.maxArgCount = 1;
-    blasDesc.limits.limitsClusters.maxTotalClusterCount = 1;
-    blasDesc.limits.limitsClusters.maxClusterCountPerArg = 1;
-    ClusterAccelSizes blasSizes = {};
-    CHECK_CALL(device->getClusterAccelerationStructureSizes(blasDesc, &blasSizes));
+    ClusterOperationDesc blasDesc = {};
+    blasDesc.params.type = ClusterOperationType::BLASFromCLAS;
+    blasDesc.params.maxArgCount = 1;
+    blasDesc.params.blas.maxClasCount = 1;
+    blasDesc.params.blas.maxTotalClasCount = 1;
+    ClusterOperationSizes blasSizes = {};
+    CHECK_CALL(device->getClusterOperationSizes(blasDesc.params, &blasSizes));
     CHECK_GT(blasSizes.resultSize, 0);
     CHECK_GT(blasSizes.scratchSize, 0);
 }
 
-GPU_TEST_CASE("cluster-accel-build-one-triangle", CUDA)
+GPU_TEST_CASE("cluster-accel-build-one-triangle", D3D12 | Vulkan | CUDA)
 {
-    requireClusterAccelOrSkip(device);
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
 
     const Float3 vertices[3] = {{0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}};
     const uint32_t indices[3] = {0, 1, 2};
 
-    ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
-    ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
+    ComPtr<IBuffer> vertexBuffer = createAccelInputBuffer(device, sizeof(vertices), vertices);
+    ComPtr<IBuffer> indexBuffer = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    cluster_abi::TrianglesArgs triArgs =
-        makeSimpleTrianglesArgs(0, 1, 3, ibuf->getDeviceAddress(), vbuf->getDeviceAddress());
-    ComPtr<IBuffer> args = createAccelInputBuffer(device, sizeof(triArgs), &triArgs);
+    cluster::TriangleClusterArgs triArgs =
+        makeSimpleTriangleClusterArgs(0, 1, 3, indexBuffer->getDeviceAddress(), vertexBuffer->getDeviceAddress());
+    ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(triArgs), &triArgs);
 
-    ClusterAccelBuildDesc clasDesc = {};
-    clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
-    clasDesc.argsBuffer = BufferOffsetPair(args, 0);
-    clasDesc.argsStride = sizeof(cluster_abi::TrianglesArgs);
-    clasDesc.argCount = 1;
-    clasDesc.limits.limitsTriangles.maxArgCount = 1;
-    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
-    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = 3;
-    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
+    ClusterOperationDesc clasDesc = {};
+    clasDesc.params.type = ClusterOperationType::CLASFromTriangles;
+    clasDesc.params.maxArgCount = 1;
+    clasDesc.argsBuffer = argsBuffer;
+    clasDesc.argsBufferStride = sizeof(cluster::TriangleClusterArgs);
+    clasDesc.params.clas.maxUniqueGeometryCount = 1;
+    clasDesc.params.clas.maxTriangleCount = 1;
+    clasDesc.params.clas.maxVertexCount = 3;
+    clasDesc.params.clas.maxTotalTriangleCount = 1;
+    clasDesc.params.clas.maxTotalVertexCount = 3;
 
     auto queue = device->getQueue(QueueType::Graphics);
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasDesc, 1);
     CHECK_NE(clasResult.handles[0], 0);
 
     BlasFromClasResult blasResult =
-        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), 1);
+        buildBlasFromClasImplicit(device, queue, clasResult.handlesBuffer->getDeviceAddress(), 1);
     CHECK_NE(blasResult.blasHandle, 0);
 }
 
-GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
+GPU_TEST_CASE("cluster-accel-batch-two-clusters", D3D12 | Vulkan | CUDA)
 {
-    requireClusterAccelOrSkip(device);
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
 
     const Float3 vertices[6] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {2, 0, 0}, {3, 0, 0}, {2, 1, 0}};
     const uint32_t indices[6] = {0, 1, 2, 0, 1, 2};
 
-    ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
-    ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
+    ComPtr<IBuffer> vertexBuffer = createAccelInputBuffer(device, sizeof(vertices), vertices);
+    ComPtr<IBuffer> indexBuffer = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    cluster_abi::TrianglesArgs triArgs[2];
+    cluster::TriangleClusterArgs triArgs[2];
     for (int i = 0; i < 2; i++)
     {
-        triArgs[i] = makeSimpleTrianglesArgs(
+        triArgs[i] = makeSimpleTriangleClusterArgs(
             i,
             1,
             3,
-            ibuf->getDeviceAddress() + (i * 3 * sizeof(uint32_t)),
-            vbuf->getDeviceAddress() + (i * 3 * sizeof(Float3))
+            indexBuffer->getDeviceAddress() + (i * 3 * sizeof(uint32_t)),
+            vertexBuffer->getDeviceAddress() + (i * 3 * sizeof(Float3))
         );
     }
 
-    ComPtr<IBuffer> args = createAccelInputBuffer(device, sizeof(triArgs), &triArgs[0]);
+    ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(triArgs), &triArgs[0]);
 
-    ClusterAccelBuildDesc clasDesc = {};
-    clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
-    clasDesc.argsBuffer = BufferOffsetPair(args, 0);
-    clasDesc.argsStride = sizeof(cluster_abi::TrianglesArgs);
-    clasDesc.argCount = 2;
-    clasDesc.limits.limitsTriangles.maxArgCount = 2;
-    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
-    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = 3;
-    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
+    ClusterOperationDesc clasDesc = {};
+    clasDesc.params.type = ClusterOperationType::CLASFromTriangles;
+    clasDesc.params.maxArgCount = 2;
+    clasDesc.params.clas.maxUniqueGeometryCount = 1;
+    clasDesc.params.clas.maxTriangleCount = 1;
+    clasDesc.params.clas.maxVertexCount = 3;
+    clasDesc.params.clas.maxTotalTriangleCount = 2;
+    clasDesc.params.clas.maxTotalVertexCount = 6;
+    clasDesc.argsBuffer = argsBuffer;
+    clasDesc.argsBufferStride = sizeof(cluster::TriangleClusterArgs);
 
     auto queue = device->getQueue(QueueType::Graphics);
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasDesc, 2);
@@ -287,80 +277,79 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", CUDA)
     CHECK_NE(clasResult.handles[1], 0);
 
     BlasFromClasResult blasResult =
-        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), 2);
+        buildBlasFromClasImplicit(device, queue, clasResult.handlesBuffer->getDeviceAddress(), 2);
     CHECK_NE(blasResult.blasHandle, 0);
 }
 
 
-GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
+GPU_TEST_CASE("cluster-accel-explicit-two-clusters", D3D12 | Vulkan | CUDA)
 {
-    requireClusterAccelOrSkip(device);
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
 
     const Float3 vertices[6] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {2, 0, 0}, {3, 0, 0}, {2, 1, 0}};
     const uint32_t indices[6] = {0, 1, 2, 0, 1, 2};
 
-    ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, sizeof(vertices), vertices);
-    ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, sizeof(indices), indices);
+    ComPtr<IBuffer> vertexBuffer = createAccelInputBuffer(device, sizeof(vertices), vertices);
+    ComPtr<IBuffer> indexBuffer = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    cluster_abi::TrianglesArgs triArgs[2];
+    cluster::TriangleClusterArgs triArgs[2];
     for (int i = 0; i < 2; i++)
     {
-        triArgs[i] = makeSimpleTrianglesArgs(
+        triArgs[i] = makeSimpleTriangleClusterArgs(
             i,
             1,
             3,
-            ibuf->getDeviceAddress() + (i * 3 * sizeof(uint32_t)),
-            vbuf->getDeviceAddress() + (i * 3 * sizeof(Float3))
+            indexBuffer->getDeviceAddress() + (i * 3 * sizeof(uint32_t)),
+            vertexBuffer->getDeviceAddress() + (i * 3 * sizeof(Float3))
         );
     }
 
-    ComPtr<IBuffer> args = createAccelInputBuffer(device, sizeof(triArgs), &triArgs[0]);
+    ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(triArgs), &triArgs[0]);
 
-    ClusterAccelBuildDesc clasDesc = {};
-    clasDesc.op = ClusterAccelBuildOp::CLASFromTriangles;
-    clasDesc.argsBuffer = BufferOffsetPair(args, 0);
-    clasDesc.argsStride = sizeof(cluster_abi::TrianglesArgs);
-    clasDesc.argCount = 2;
-    clasDesc.limits.limitsTriangles.maxArgCount = 2;
-    clasDesc.limits.limitsTriangles.maxTriangleCountPerArg = 1;
-    clasDesc.limits.limitsTriangles.maxVertexCountPerArg = 3;
-    clasDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
+    ClusterOperationDesc clasDesc = {};
+    clasDesc.params.type = ClusterOperationType::CLASFromTriangles;
+    clasDesc.params.maxArgCount = 2;
+    clasDesc.params.clas.maxUniqueGeometryCount = 1;
+    clasDesc.params.clas.maxTriangleCount = 1;
+    clasDesc.params.clas.maxVertexCount = 3;
+    clasDesc.params.clas.maxTotalTriangleCount = 2;
+    clasDesc.params.clas.maxTotalVertexCount = 6;
+    clasDesc.argsBuffer = argsBuffer;
+    clasDesc.argsBufferStride = sizeof(cluster::TriangleClusterArgs);
 
     // Scratch sizing (used for both get-sizes and explicit build)
-    ClusterAccelSizes clasSizes = {};
-    CHECK_CALL(device->getClusterAccelerationStructureSizes(clasDesc, &clasSizes));
+    ClusterOperationSizes clasSizes = {};
+    CHECK_CALL(device->getClusterOperationSizes(clasDesc.params, &clasSizes));
 
-    ComPtr<IBuffer> clasScratch = createUAVBuffer(device, clasSizes.scratchSize);
+    ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, clasSizes.scratchSize);
 
     // Step 1: GET_SIZES to produce per-CLAS sizes
     uint32_t zeroSizes[2] = {0, 0};
-    ComPtr<IBuffer> sizesBuf = createUAVBuffer(device, sizeof(uint32_t) * 2, zeroSizes);
+    ComPtr<IBuffer> sizesBuffer = createUAVBuffer(device, sizeof(uint32_t) * 2, zeroSizes);
 
-    clasDesc.mode = ClusterAccelBuildDesc::BuildMode::GetSizes;
-    clasDesc.modeDesc.getSizes.outputSizesBuffer = sizesBuf->getDeviceAddress();
-    clasDesc.modeDesc.getSizes.outputSizesStrideInBytes = 0; // 0 -> 4
-    // Required temp for GetSizes
-    clasDesc.modeDesc.getSizes.tempBuffer = clasScratch->getDeviceAddress();
-    clasDesc.modeDesc.getSizes.tempBufferSizeInBytes = clasSizes.scratchSize;
+    clasDesc.params.mode = ClusterOperationMode::GetSizes;
+    clasDesc.scratchBuffer = scratchBuffer;
+    clasDesc.sizesBuffer = sizesBuffer;
 
     // Build with GET_SIZES; result buffer unused, provide a small dummy
     ComPtr<IBuffer> dummyOut = createAccelStructureBuffer(device, 256);
 
     auto queue = device->getQueue(QueueType::Graphics);
     auto enc = queue->createCommandEncoder();
-    enc->buildClusterAccelerationStructure(clasDesc);
+    enc->executeClusterOperation(clasDesc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
     uint32_t sizesHost[2] = {};
-    CHECK_CALL(device->readBuffer(sizesBuf, 0, sizeof(sizesHost), &sizesHost[0]));
+    CHECK_CALL(device->readBuffer(sizesBuffer, 0, sizeof(sizesHost), &sizesHost[0]));
     CHECK_GT(sizesHost[0], 0);
     CHECK_GT(sizesHost[1], 0);
 
     // Step 2: allocate per-CLAS destinations in a single arena and create destAddresses array
     uint64_t off0 = 0;
-    uint64_t off1 = alignUp(uint64_t(sizesHost[0]), (uint64_t)cluster_abi::CLUSTER_OUTPUT_ALIGNMENT);
-    uint64_t totalArena = off1 + alignUp(uint64_t(sizesHost[1]), (uint64_t)cluster_abi::CLUSTER_OUTPUT_ALIGNMENT);
+    uint64_t off1 = alignUp(uint64_t(sizesHost[0]), (uint64_t)cluster::CLUSTER_OUTPUT_ALIGNMENT);
+    uint64_t totalArena = off1 + alignUp(uint64_t(sizesHost[1]), (uint64_t)cluster::CLUSTER_OUTPUT_ALIGNMENT);
 
     ComPtr<IBuffer> arena = createAccelStructureBuffer(device, totalArena);
 
@@ -371,16 +360,12 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
     ComPtr<IBuffer> destAddrBuf = createUAVBuffer(device, sizeof(destAddrsHost), destAddrsHost);
 
     // Step 3: Explicit build, alias handles to destAddresses array
-    clasDesc.mode = ClusterAccelBuildDesc::BuildMode::Explicit;
-    clasDesc.modeDesc.explicitDest.destAddressesBuffer = destAddrBuf->getDeviceAddress();
-    clasDesc.modeDesc.explicitDest.destAddressesStrideInBytes = 0; // 0 -> 8
-    clasDesc.modeDesc.explicitDest.outputHandlesBuffer = 0;        // alias to destAddresses per spec
-    clasDesc.modeDesc.explicitDest.outputHandlesStrideInBytes = 0; // 0->8
-    clasDesc.modeDesc.explicitDest.outputSizesBuffer = 0;
-    clasDesc.modeDesc.explicitDest.outputSizesStrideInBytes = 0;
+    clasDesc.params.mode = ClusterOperationMode::ExplicitDestinations;
+    clasDesc.addressesBuffer = destAddrBuf;
+    clasDesc.sizesBuffer = {};
 
     enc = queue->createCommandEncoder();
-    enc->buildClusterAccelerationStructure(clasDesc);
+    enc->executeClusterOperation(clasDesc);
     queue->submit(enc->finish());
     queue->waitOnHost();
 
@@ -394,10 +379,11 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", CUDA)
 }
 
 
-// Build two clusters with device-written TrianglesArgs and render two horizontal bands.
-GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
+// Build two clusters with device-written TriangleClusterArgs and render two horizontal bands.
+GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", D3D12 | Vulkan | CUDA)
 {
-    requireClusterAccelOrSkip(device);
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
 
     // Geometry: two horizontal strips (shared indices; per-cluster vertex base)
     constexpr uint32_t kGridW = 4;
@@ -456,32 +442,33 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
         }
     }
 
-    ComPtr<IBuffer> vbuf = createAccelInputBuffer(device, vertices.size() * sizeof(Float3), vertices.data());
-    ComPtr<IBuffer> ibuf = createAccelInputBuffer(device, indices.size() * sizeof(uint32_t), indices.data());
+    ComPtr<IBuffer> vertexBuffer = createAccelInputBuffer(device, vertices.size() * sizeof(Float3), vertices.data());
+    ComPtr<IBuffer> indexBuffer = createAccelInputBuffer(device, indices.size() * sizeof(uint32_t), indices.data());
 
     // Build flow: TemplatesFromTriangles (1) -> CLASFromTemplates (2 instances)
     const uint32_t clusterCount = 2;
 
     // Create one template from triangles (host-filled args)
-    cluster_abi::TrianglesArgs trianglesArgs = makeSimpleTrianglesArgs(
-        /*clusterId*/ 0,
-        /*triangleCount*/ triPerCluster,
-        /*vertexCount*/ vtxPerCluster,
-        /*indexBuffer*/ ibuf->getDeviceAddress(),
-        /*vertexBuffer*/ vbuf->getDeviceAddress(),
-        /*vertexStrideBytes*/ (uint32_t)sizeof(Float3)
+    cluster::TriangleClusterArgs triArgs = makeSimpleTriangleClusterArgs(
+        0,
+        triPerCluster,
+        vtxPerCluster,
+        indexBuffer->getDeviceAddress(),
+        vertexBuffer->getDeviceAddress(),
+        (uint32_t)sizeof(Float3)
     );
-    ComPtr<IBuffer> trianglesArgsBuffer = createAccelInputBuffer(device, sizeof(trianglesArgs), &trianglesArgs);
+    ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(triArgs), &triArgs);
 
-    ClusterAccelBuildDesc templatesFromTrianglesDesc = {};
-    templatesFromTrianglesDesc.op = ClusterAccelBuildOp::TemplatesFromTriangles;
-    templatesFromTrianglesDesc.argsBuffer = BufferOffsetPair(trianglesArgsBuffer, 0);
-    templatesFromTrianglesDesc.argsStride = sizeof(cluster_abi::TrianglesArgs);
-    templatesFromTrianglesDesc.argCount = 1;
-    templatesFromTrianglesDesc.limits.limitsTriangles.maxArgCount = 1;
-    templatesFromTrianglesDesc.limits.limitsTriangles.maxTriangleCountPerArg = triPerCluster;
-    templatesFromTrianglesDesc.limits.limitsTriangles.maxVertexCountPerArg = vtxPerCluster;
-    templatesFromTrianglesDesc.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
+    ClusterOperationDesc templatesFromTrianglesDesc = {};
+    templatesFromTrianglesDesc.params.type = ClusterOperationType::TemplatesFromTriangles;
+    templatesFromTrianglesDesc.params.maxArgCount = 1;
+    templatesFromTrianglesDesc.params.clas.maxUniqueGeometryCount = 1;
+    templatesFromTrianglesDesc.params.clas.maxTriangleCount = triPerCluster;
+    templatesFromTrianglesDesc.params.clas.maxVertexCount = vtxPerCluster;
+    templatesFromTrianglesDesc.params.clas.maxTotalTriangleCount = triPerCluster;
+    templatesFromTrianglesDesc.params.clas.maxTotalVertexCount = vtxPerCluster;
+    templatesFromTrianglesDesc.argsBuffer = argsBuffer;
+    templatesFromTrianglesDesc.argsBufferStride = sizeof(cluster::TriangleClusterArgs);
 
     auto queue = device->getQueue(QueueType::Graphics);
     ClasImplicitBuildResult templatesImplicitResult =
@@ -489,9 +476,9 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     CHECK_NE(templatesImplicitResult.handles[0], 0);
 
     // Instantiate the template twice via CLASFromTemplates
-    cluster_abi::TemplatesArgs templateInstantiationArgs[2] = {};
+    cluster::InstantiateTemplateArgs instantiateTemplateArgs[2] = {};
     uint64_t templateHandle = templatesImplicitResult.handles[0];
-    uint64_t vertexBaseAddress = vbuf->getDeviceAddress();
+    uint64_t vertexBaseAddress = vertexBuffer->getDeviceAddress();
     uint32_t vertexStrideInBytes = (uint32_t)sizeof(Float3);
     // Note: For a large number of clusters, we could populate these args with a compute
     // kernel. For two clusters, host-side filling is ok.
@@ -499,27 +486,25 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     {
         uint64_t vertexAddress =
             vertexBaseAddress + uint64_t(i) * uint64_t(vtxPerCluster) * uint64_t(vertexStrideInBytes);
-        templateInstantiationArgs[i] = cluster_abi::makeTemplatesArgs(
-            /*clusterTemplate*/ templateHandle,
-            /*vertexBuffer*/ vertexAddress,
-            /*vertexStrideInBytes*/ vertexStrideInBytes,
-            /*clusterIdOffset*/ i,
-            /*sbtIndexOffset*/ 0
-        );
+        cluster::InstantiateTemplateArgs& args = instantiateTemplateArgs[i];
+        args.clusterTemplate = templateHandle;
+        args.vertexBuffer = vertexAddress;
+        args.vertexBufferStride = vertexStrideInBytes;
+        args.clusterIdOffset = i;
     }
     ComPtr<IBuffer> templateInstantiationArgsBuffer =
-        createAccelInputBuffer(device, sizeof(templateInstantiationArgs), &templateInstantiationArgs[0]);
+        createAccelInputBuffer(device, sizeof(instantiateTemplateArgs), &instantiateTemplateArgs[0]);
 
-    ClusterAccelBuildDesc clasFromTemplates = {};
-    clasFromTemplates.op = ClusterAccelBuildOp::CLASFromTemplates;
-    clasFromTemplates.argsBuffer = BufferOffsetPair(templateInstantiationArgsBuffer, 0);
-    clasFromTemplates.argsStride = (uint32_t)sizeof(cluster_abi::TemplatesArgs);
-    clasFromTemplates.argCount = clusterCount;
-    // Reuse triangle-related limits (per API contract)
-    clasFromTemplates.limits.limitsTriangles.maxArgCount = clusterCount;
-    clasFromTemplates.limits.limitsTriangles.maxTriangleCountPerArg = triPerCluster;
-    clasFromTemplates.limits.limitsTriangles.maxVertexCountPerArg = vtxPerCluster;
-    clasFromTemplates.limits.limitsTriangles.maxUniqueSbtIndexCountPerArg = 1;
+    ClusterOperationDesc clasFromTemplates = {};
+    clasFromTemplates.params.type = ClusterOperationType::CLASFromTemplates;
+    clasFromTemplates.params.maxArgCount = clusterCount;
+    clasFromTemplates.params.clas.maxUniqueGeometryCount = 1;
+    clasFromTemplates.params.clas.maxTriangleCount = triPerCluster;
+    clasFromTemplates.params.clas.maxVertexCount = vtxPerCluster;
+    clasFromTemplates.params.clas.maxTotalTriangleCount = 2 * triPerCluster;
+    clasFromTemplates.params.clas.maxTotalVertexCount = 2 * vtxPerCluster;
+    clasFromTemplates.argsBuffer = templateInstantiationArgsBuffer;
+    clasFromTemplates.argsBufferStride = sizeof(cluster::InstantiateTemplateArgs);
 
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasFromTemplates, clusterCount);
     CHECK_NE(clasResult.handles[0], 0);
@@ -527,7 +512,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
 
     // Build BLAS from CLAS handles
     BlasFromClasResult blasResult =
-        buildBlasFromClasImplicit(device, queue, clasResult.outputBuffer->getDeviceAddress(), clusterCount);
+        buildBlasFromClasImplicit(device, queue, clasResult.handlesBuffer->getDeviceAddress(), clusterCount);
     CHECK_NE(blasResult.blasHandle, 0);
 
     // Build TLAS from BLAS handle
@@ -592,7 +577,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     texDesc.format = Format::RGBA32Float;
     texDesc.size.width = width;
     texDesc.size.height = height;
-    texDesc.usage = TextureUsage::UnorderedAccess;
+    texDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
     ComPtr<ITexture> resultTexture;
     REQUIRE_CALL(device->createTexture(texDesc, nullptr, resultTexture.writeRef()));
 
@@ -670,7 +655,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
         cursor["tlas"].setBinding(TLAS);
         BufferDesc idsDesc = {};
         idsDesc.size = uint64_t(width) * uint64_t(height) * sizeof(uint32_t) * 2;
-        idsDesc.usage = BufferUsage::UnorderedAccess;
+        idsDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
         idsDesc.defaultState = ResourceState::UnorderedAccess;
         idsBuf = device->createBuffer(idsDesc);
         cursor["ids_buffer"].setBinding(idsBuf);
@@ -728,10 +713,9 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", CUDA)
     REQUIRE_CALL(device->readTexture(resultTexture, 0, 0, image.writeRef(), &layout));
 
 #if 0
-    //debug
-    writeImage( "test.hdr", image, width,  height, layout.rowPitch, layout.colPitch );
+    // debug
+    writeImage("test.hdr", image, width, height, layout.rowPitch, layout.colPitch);
 #endif
-
 
     const uint8_t* base = (const uint8_t*)image->getBufferPointer();
     auto isRowHit = [&](uint32_t y)

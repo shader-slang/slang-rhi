@@ -170,6 +170,7 @@ std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc);
 std::string createHeapLabel(const HeapDesc& desc);
 
 Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
+Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationParams& params);
 Result validateConvertCooperativeVectorMatrix(
     DebugContext* ctx,
     size_t dstBufferSize,

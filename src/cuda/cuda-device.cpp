@@ -597,7 +597,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return m_ctx.optixContext->getAccelerationStructureSizes(desc, outSizes);
 }
 
-Result DeviceImpl::getClusterAccelerationStructureSizes(const ClusterAccelBuildDesc& desc, ClusterAccelSizes* outSizes)
+Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     SLANG_CUDA_CTX_SCOPE(this);
 
@@ -605,7 +605,7 @@ Result DeviceImpl::getClusterAccelerationStructureSizes(const ClusterAccelBuildD
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    return m_ctx.optixContext->getClusterAccelerationStructureSizes(desc, outSizes);
+    return m_ctx.optixContext->getClusterOperationSizes(params, outSizes);
 }
 
 Result DeviceImpl::createAccelerationStructure(

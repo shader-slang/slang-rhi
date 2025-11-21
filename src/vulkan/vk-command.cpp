@@ -103,7 +103,7 @@ public:
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
     void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
-    void cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd);
+    void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
@@ -1225,10 +1225,68 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
     m_api.vkCmdCopyMemoryToAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
 }
 
-void CommandRecorder::cmdBuildClusterAccelerationStructure(const commands::BuildClusterAccelerationStructure& cmd)
+void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_buildClusterAccelerationStructure);
+    if (!m_api.vkCmdBuildClusterAccelerationStructureIndirectNV)
+        return;
+
+    const ClusterOperationDesc& desc = cmd.desc;
+
+    if (desc.params.maxArgCount == 0)
+        return;
+
+    BufferImpl* argCountBuffer = checked_cast<BufferImpl*>(desc.argCountBuffer.buffer);
+    BufferImpl* argsBuffer = checked_cast<BufferImpl*>(desc.argsBuffer.buffer);
+    BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(desc.scratchBuffer.buffer);
+    BufferImpl* addressesBuffer = checked_cast<BufferImpl*>(desc.addressesBuffer.buffer);
+    BufferImpl* resultBuffer = checked_cast<BufferImpl*>(desc.resultBuffer.buffer);
+    BufferImpl* sizesBuffer = checked_cast<BufferImpl*>(desc.sizesBuffer.buffer);
+
+    requireBufferState(argsBuffer, ResourceState::ShaderResource);
+    if (argCountBuffer)
+        requireBufferState(argCountBuffer, ResourceState::ShaderResource);
+    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+    if (addressesBuffer)
+        requireBufferState(addressesBuffer, ResourceState::UnorderedAccess);
+    if (resultBuffer)
+        requireBufferState(resultBuffer, ResourceState::UnorderedAccess);
+    if (sizesBuffer)
+        requireBufferState(sizesBuffer, ResourceState::UnorderedAccess);
+    commitBarriers();
+
+    VkClusterAccelerationStructureClustersBottomLevelInputNV bottomLevelInput;
+    VkClusterAccelerationStructureTriangleClusterInputNV triangleClusterInput;
+    VkClusterAccelerationStructureMoveObjectsInputNV moveObjectsInput;
+
+    VkClusterAccelerationStructureCommandsInfoNV commandsInfo = {
+        VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_COMMANDS_INFO_NV
+    };
+    commandsInfo.input =
+        translateClusterOperationParams(desc.params, bottomLevelInput, triangleClusterInput, moveObjectsInput);
+    commandsInfo.scratchData = scratchBuffer->getDeviceAddress();
+    commandsInfo.dstImplicitData = desc.resultBuffer ? desc.resultBuffer.getDeviceAddress() : 0;
+    if (desc.addressesBuffer)
+    {
+        commandsInfo.dstAddressesArray.deviceAddress = desc.addressesBuffer.getDeviceAddress();
+        commandsInfo.dstAddressesArray.size = desc.addressesBuffer.getSize();
+        commandsInfo.dstAddressesArray.stride = desc.addressesBufferStride;
+    }
+    if (desc.sizesBuffer)
+    {
+        commandsInfo.dstSizesArray.deviceAddress = desc.sizesBuffer.getDeviceAddress();
+        commandsInfo.dstSizesArray.size = desc.sizesBuffer.getSize();
+        commandsInfo.dstSizesArray.stride = desc.sizesBufferStride;
+    }
+    if (desc.argsBuffer)
+    {
+        commandsInfo.srcInfosArray.deviceAddress = desc.argsBuffer.getDeviceAddress();
+        commandsInfo.srcInfosArray.size = desc.argsBuffer.getSize();
+        commandsInfo.srcInfosArray.stride = desc.argsBufferStride;
+    }
+    commandsInfo.srcInfosCount = desc.argCountBuffer ? desc.argCountBuffer.getDeviceAddress() : 0;
+    commandsInfo.addressResolutionFlags = VkClusterAccelerationStructureAddressResolutionFlagBitsNV(0);
+
+    m_api.vkCmdBuildClusterAccelerationStructureIndirectNV(m_cmdBuffer, &commandsInfo);
 }
 
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
