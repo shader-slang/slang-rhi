@@ -661,7 +661,7 @@ GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", D3D12 | Vulkan | CUDA
         cursor["tlas"].setBinding(TLAS);
         BufferDesc idsDesc = {};
         idsDesc.size = uint64_t(width) * uint64_t(height) * sizeof(uint32_t) * 2;
-        idsDesc.usage = BufferUsage::UnorderedAccess;
+        idsDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
         idsDesc.defaultState = ResourceState::UnorderedAccess;
         idsBuf = device->createBuffer(idsDesc);
         cursor["ids_buffer"].setBinding(idsBuf);
