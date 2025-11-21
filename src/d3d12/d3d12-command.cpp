@@ -1248,7 +1248,7 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
 
 void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
-#ifdef SLANG_RHI_ENABLE_NVAPI
+#if SLANG_RHI_ENABLE_NVAPI
     if (!m_device->m_nvapiEnabled)
         return;
 
