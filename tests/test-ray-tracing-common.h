@@ -98,19 +98,19 @@ struct TriangleBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -249,19 +249,19 @@ struct SphereBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -363,19 +363,19 @@ struct SingleCustomGeometryBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL( queue->submit(commandEncoder->finish()) );
+        REQUIRE_CALL( queue->waitOnHost() );
     }
 };
 
@@ -478,19 +478,19 @@ struct SingleTriangleMotionBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL( queue->submit(commandEncoder->finish()) );
+        REQUIRE_CALL( queue->waitOnHost() );
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL( device->createAccelerationStructure(createDesc, blas.writeRef()) );
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL( queue->submit(commandEncoder->finish()) );
+        REQUIRE_CALL( queue->waitOnHost() );
     }
 };
 
@@ -588,19 +588,19 @@ struct LssBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -709,8 +709,8 @@ struct TLAS
 
         auto commandEncoder = queue->createCommandEncoder();
         commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -782,8 +782,8 @@ struct VertexMotionInstanceTLAS
 
         auto commandEncoder = queue->createCommandEncoder();
         commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
