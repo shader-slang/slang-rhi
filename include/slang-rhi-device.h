@@ -58,7 +58,8 @@ struct AccelerationStructureInstanceDescVulkan
 };
 
 /// Motion instance data union matching VkAccelerationStructureMotionInstanceDataNV.
-union AccelerationStructureMotionInstanceDataVulkan
+// TODO: This should be a union with options for matrix or SRT motion, but using a union here causes compilation to fail (but only sometimes?)
+struct AccelerationStructureMotionInstanceDataVulkan
 {
     AccelerationStructureInstanceDescVulkan staticInstance;
     // matrixMotionInstance and srtMotionInstance are defined separately below
