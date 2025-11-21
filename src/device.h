@@ -243,9 +243,9 @@ public:
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without cluster acceleration support.
-    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterAccelerationStructureSizes(
-        const ClusterAccelBuildDesc& desc,
-        ClusterAccelSizes* outSizes
+    virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
+        const ClusterOperationParams& params,
+        ClusterOperationSizes* outSizes
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms

@@ -533,6 +533,131 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
     return valid ? SLANG_OK : SLANG_E_INVALID_ARG;
 }
 
+Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationParams& params)
+{
+    bool valid = true;
+    bool validateClasParams = false;
+    bool validateBlasParams = false;
+
+    switch (params.type)
+    {
+    case ClusterOperationType::MoveObjects:
+        if (ctx->deviceType == DeviceType::CUDA)
+        {
+            RHI_VALIDATION_ERROR("ClusterOperationType::MoveObjects is not supported on CUDA (OptiX limitation)");
+            valid = false;
+        }
+        break;
+    case ClusterOperationType::CLASFromTriangles:
+        validateClasParams = true;
+        break;
+    case ClusterOperationType::BLASFromCLAS:
+        validateBlasParams = true;
+        break;
+    case ClusterOperationType::TemplatesFromTriangles:
+        validateClasParams = true;
+        break;
+    case ClusterOperationType::CLASFromTemplates:
+        validateClasParams = true;
+        break;
+    default:
+        RHI_VALIDATION_ERROR("ClusterOperationParams::type is invalid");
+        valid = false;
+        break;
+    }
+
+    switch (params.mode)
+    {
+    case ClusterOperationMode::ImplicitDestinations:
+        break;
+    case ClusterOperationMode::ExplicitDestinations:
+        break;
+    case ClusterOperationMode::GetSizes:
+        break;
+    default:
+        RHI_VALIDATION_ERROR("ClusterOperationParams::mode is invalid");
+        valid = false;
+        break;
+    }
+
+    if (validateClasParams)
+    {
+        if (params.clas.maxGeometryIndex > cluster::MAX_CLUSTER_GEOMETRY_INDEX)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "ClusterOperationClasBuildParams::maxGeometryIndex (%d) cannot be greater than %d.",
+                params.clas.maxGeometryIndex,
+                cluster::MAX_CLUSTER_GEOMETRY_INDEX
+            );
+            valid = false;
+        }
+        if (params.clas.maxUniqueGeometryCount > params.clas.maxTriangleCount)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "ClusterOperationClasBuildParams::maxUniqueGeometryCount (%d) cannot be greater than "
+                "ClusterOperationClasBuildParams::maxTriangleCount (%d). Maximum 1 geometry per triangle.",
+                params.clas.maxUniqueGeometryCount,
+                params.clas.maxTriangleCount
+            );
+            valid = false;
+        }
+        if (params.clas.maxTriangleCount > cluster::MAX_CLUSTER_TRIANGLE_COUNT)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "ClusterOperationClasBuildParams::maxTriangleCount (%d) cannot be greater than %d.",
+                params.clas.maxTriangleCount,
+                cluster::MAX_CLUSTER_TRIANGLE_COUNT
+            );
+            valid = false;
+        }
+        if (params.clas.maxTriangleCount > params.clas.maxTotalTriangleCount)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "ClusterOperationClasBuildParams::maxTriangleCount (%d) cannot be greater than "
+                "ClusterOperationClasBuildParams::maxTotalTriangleCount (%d).",
+                params.clas.maxTriangleCount,
+                params.clas.maxTotalTriangleCount
+            );
+            valid = false;
+        }
+        if (params.clas.maxVertexCount > cluster::MAX_CLUSTER_VERTEX_COUNT)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "ClusterOperationClasBuildParams::maxVertexCount (%d) cannot be greater than %d.",
+                params.clas.maxVertexCount,
+                cluster::MAX_CLUSTER_VERTEX_COUNT
+            );
+            valid = false;
+        }
+        if (params.clas.maxVertexCount > params.clas.maxTotalVertexCount)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "ClusterOperationClasBuildParams::maxVertexCount (%d) cannot be greater than "
+                "ClusterOperationClasBuildParams::maxTotalVertexCount (%d).",
+                params.clas.maxVertexCount,
+                params.clas.maxTotalVertexCount
+            );
+            valid = false;
+        }
+    }
+
+    if (validateBlasParams)
+    {
+        if (params.blas.maxClasCount > params.blas.maxTotalClasCount)
+        {
+            RHI_VALIDATION_ERROR_FORMAT(
+                "ClusterOperationBlasBuildParams::maxClasCount (%d) cannot be greater than "
+                "ClusterOperationBlasBuildParams::maxTotalClasCount (%d).",
+                params.blas.maxClasCount,
+                params.blas.maxTotalClasCount
+            );
+            valid = false;
+        }
+    }
+
+    return valid ? SLANG_OK : SLANG_E_INVALID_ARG;
+}
+
 Result validateConvertCooperativeVectorMatrix(
     DebugContext* ctx,
     size_t dstBufferSize,

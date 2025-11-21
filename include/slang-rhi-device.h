@@ -88,6 +88,7 @@ namespace cluster {
 
 static constexpr uint32_t MAX_CLUSTER_TRIANGLE_COUNT = 256;
 static constexpr uint32_t MAX_CLUSTER_VERTEX_COUNT = 256;
+static constexpr uint32_t MAX_CLUSTER_GEOMETRY_INDEX = 16777215;
 
 static constexpr uint32_t CLUSTER_HANDLE_BYTE_STRIDE = 8;
 static constexpr uint32_t CLUSTER_OUTPUT_ALIGNMENT = 128;
@@ -132,7 +133,7 @@ struct TriangleClusterArgs
     /// The index format to use for the opacityMicromapIndexBuffer (see IndexFormat).
     uint32_t opacityMicromapIndexFormat : 4;
     /// The base geometry index (lower 24 bit) and base geometry flags (upper 8 bit, see GeometryFlags).
-    /// For OptiX, this represents the shader binding table index (sbtIndex).
+    /// For OptiX, this represents the SBT index (sbtIndex).
     uint32_t baseGeometryIndexAndFlags;
     /// The stride of the elements of indexBuffer, in bytes. If set to 0, will use index size as stride.
     uint16_t indexBufferStride;
@@ -182,7 +183,7 @@ struct InstantiateTemplateArgs
     /// geometry index that will be written to the triangles of the instantiated cluster, the resulting value may not
     /// exceed maxGeometryIndexValue both of this call, and the call used to construct the original cluster template
     /// referenced.
-    /// For OptiX, this represents the offset added to shader binding table index (sbtIndexOffset).
+    /// For OptiX, this represents the offset added to SBT index (sbtIndexOffset).
     uint32_t geometryIndexOffset;
     /// Address of a previously built cluster template to be instantiated.
     DeviceAddress clusterTemplate;
