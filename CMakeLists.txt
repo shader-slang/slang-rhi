@@ -119,7 +119,7 @@ set(SLANG_RHI_FETCH_SLANG_VERSION "2025.22" CACHE STRING "Slang version to fetch
 
 # DirectXShaderCompiler
 if(NOT DEFINED SLANG_RHI_DXC_URL)
-    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
+    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2505.1/dxc_2025_07_14.zip")
 endif()
 
 # WinPixEventRuntime
