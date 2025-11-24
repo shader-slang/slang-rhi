@@ -879,7 +879,16 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         add_executable(${name} ${source})
         target_compile_features(${name} PRIVATE cxx_std_17)
         get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
-        target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
+        target_compile_definitions(${name}
+            PRIVATE
+            EXAMPLE_DIR="${EXAMPLE_DIR}"
+            SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+            SLANG_RHI_NVAPI_INCLUDE_DIR="${SLANG_RHI_NVAPI_INCLUDE_DIR}"
+            SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR="${SLANG_RHI_OPTIX_DEVICE_HEADER_INCLUDE_DIR}"
+            $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
+            $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
+            $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
+        )
         target_include_directories(${name} PRIVATE examples/base)
         target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
     endfunction()
