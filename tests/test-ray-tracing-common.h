@@ -748,7 +748,7 @@ struct VertexMotionInstanceTLAS
         AccelerationStructureStaticMotionInstanceVulkan motionInstance;
         motionInstance.type = 0; // VK_ACCELERATION_STRUCTURE_MOTION_INSTANCE_TYPE_STATIC_NV
         motionInstance.flags = 0;
-        motionInstance.data.staticInstance = vulkanInstance;
+        motionInstance.staticInstance = vulkanInstance;
 
         // Create instance buffer with the motion instance
         BufferDesc instanceBufferDesc;

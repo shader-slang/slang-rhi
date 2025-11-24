@@ -57,25 +57,7 @@ struct AccelerationStructureInstanceDescVulkan
     uint64_t accelerationStructureReference;
 };
 
-/// Motion instance data union matching VkAccelerationStructureMotionInstanceDataNV.
-// TODO: This should be a union with options for matrix or SRT motion, but using a union here causes compilation to fail
-// (but only sometimes?)
-struct AccelerationStructureMotionInstanceDataVulkan
-{
-    AccelerationStructureInstanceDescVulkan staticInstance;
-    // matrixMotionInstance and srtMotionInstance are defined separately below
-};
-
-/// Static motion instance descriptor matching VkAccelerationStructureMotionInstanceNV.
-struct AccelerationStructureStaticMotionInstanceVulkan
-{
-    uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
-    uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
-    AccelerationStructureMotionInstanceDataVulkan data;
-};
-
-/// Matrix motion instance descriptor matching VkAccelerationStructureMatrixMotionInstanceNV.
-struct AccelerationStructureMatrixMotionInstanceVulkan
+struct AccelerationStructureMatrixMotionInstanceDescVulkan
 {
     float transformT0[3][4];
     float transformT1[3][4];
@@ -86,6 +68,7 @@ struct AccelerationStructureMatrixMotionInstanceVulkan
     uint64_t accelerationStructureReference;
 };
 
+/// Matrix motion instance descriptor matching VkAccelerationStructureMatrixMotionInstanceNV.
 /// SRT (Scale-Rotation-Translation) transformation data matching VkSRTDataNV.
 struct SRTDataVulkan
 {
@@ -107,7 +90,7 @@ struct SRTDataVulkan
 };
 
 /// SRT motion instance descriptor matching VkAccelerationStructureSRTMotionInstanceNV.
-struct AccelerationStructureSRTMotionInstanceVulkan
+struct AccelerationStructureSRTMotionInstanceDescVulkan
 {
     SRTDataVulkan transformT0;
     SRTDataVulkan transformT1;
@@ -116,6 +99,33 @@ struct AccelerationStructureSRTMotionInstanceVulkan
     uint32_t instanceShaderBindingTableRecordOffset : 24;
     uint32_t flags : 8;
     uint64_t accelerationStructureReference;
+};
+
+// The Vulkan headers define a union for the motion instance data, but Slang doesn't support unions,
+// so we have to use separate structs for each type of motion instance.
+
+/// Static motion instance descriptor matching VkAccelerationStructureMotionInstanceNV.
+struct AccelerationStructureStaticMotionInstanceVulkan
+{
+    uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
+    uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
+    AccelerationStructureInstanceDescVulkan staticInstance;
+    char padding[72];
+};
+
+struct AccelerationStructureMatrixMotionInstanceVulkan
+{
+    uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
+    uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
+    AccelerationStructureMatrixMotionInstanceDescVulkan matrixMotionInstance;
+    char padding[24];
+};
+
+struct AccelerationStructureSRTMotionInstanceVulkan
+{
+    uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
+    uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
+    AccelerationStructureSRTMotionInstanceDescVulkan srtMotionInstance;
 };
 
 /// Instance descriptor matching OptixInstance.
