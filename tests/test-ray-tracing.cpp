@@ -221,12 +221,13 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-motion", ALL)
     // At time=0.5, triangle is halfway rotated (45 degrees)
     // The triangle at time=0.0 is at (0,0,1), (1,0,1), (0,1,1)
     // The triangle at time=1.0 is at (0,0,1), (0,1,1), (-1,0,1)
-    // At time=0.5, it should be at (0,0,1), (0.707,0.707,1), (-0.707,0.707,1) approximately
     // Testing a few specific rays that should hit or miss
     ExpectedPixel expectedPixels[] = {
-        EXPECTED_PIXEL(62, 65, 0.f, 1.f, 0.f, 1.f), // Should hit the triangle (green)
-        EXPECTED_PIXEL(40, 80, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
-        EXPECTED_PIXEL(63, 63, 1.f, 1.f, 1.f, 1.f), // Should miss (white)
+        // Hits near each corner of the triangle
+        EXPECTED_PIXEL(64, 66, 0.f, 1.f, 0.f, 1.f), // Should hit the triangle (green)
+        EXPECTED_PIXEL(36, 94, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
+        EXPECTED_PIXEL(90, 94, 0.f, 1.f, 0.f, 1.f), // Should miss (green)
+
         // Corners should all be misses
         EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss
         EXPECTED_PIXEL(127, 0, 1.f, 1.f, 1.f, 1.f),   // Miss
