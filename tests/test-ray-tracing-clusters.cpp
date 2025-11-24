@@ -170,7 +170,7 @@ static BlasFromClasResult buildBlasFromClasImplicit(
     return result;
 }
 
-GPU_TEST_CASE("cluster-accel-sizes", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("ray-tracing-cluster-operation-sizes", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
@@ -200,7 +200,7 @@ GPU_TEST_CASE("cluster-accel-sizes", D3D12 | Vulkan | CUDA)
     CHECK_GT(blasSizes.scratchSize, 0);
 }
 
-GPU_TEST_CASE("cluster-accel-build-one-triangle", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("ray-tracing-cluster-build-one-cluster-implicit", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
@@ -235,7 +235,7 @@ GPU_TEST_CASE("cluster-accel-build-one-triangle", D3D12 | Vulkan | CUDA)
     CHECK_NE(blasResult.blasHandle, 0);
 }
 
-GPU_TEST_CASE("cluster-accel-batch-two-clusters", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-implicit", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
@@ -282,7 +282,7 @@ GPU_TEST_CASE("cluster-accel-batch-two-clusters", D3D12 | Vulkan | CUDA)
 }
 
 
-GPU_TEST_CASE("cluster-accel-explicit-two-clusters", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
@@ -380,7 +380,7 @@ GPU_TEST_CASE("cluster-accel-explicit-two-clusters", D3D12 | Vulkan | CUDA)
 
 
 // Build two clusters with device-written TriangleClusterArgs and render two horizontal bands.
-GPU_TEST_CASE("cluster-accel-build-and-shoot-device-args", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
