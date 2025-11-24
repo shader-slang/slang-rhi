@@ -24,3 +24,7 @@ This library is under active refactoring and development, and is not yet ready f
 - [WinPixEventRuntime](https://www.nuget.org/packages/WinPixEventRuntime) (MIT)
 - [D3D12 Memory Allocator](https://gpuopen.com/d3d12-memory-allocator) (MIT)
 - [Vulkan Memory Allocator](https://gpuopen.com/vulkan-memory-allocator) (MIT)
+
+The examples depend on the following additional third-party libraries:
+
+- [linalg](https://github.com/sgorsten/linalg) (MIT)
