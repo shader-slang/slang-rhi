@@ -24,14 +24,7 @@ void closestHitClusters(inout Payload payload, BuiltInTriangleIntersectionAttrib
     uint2 pix = DispatchRaysIndex().xy;
     uint2 dims = DispatchRaysDimensions().xy;
     uint index = pix.y * dims.x + pix.x;
-#ifndef __VULKAN__
     ids_buffer[index] = uint2(GetClusterID(), PrimitiveIndex());
-#else
-    // Slang seems to have a bug with GetClusterID() on SPIR-V backend. We get:
-    // Operand 3 of Decorate requires one of these capabilities: RayTracingClusterAccelerationStructureNV
-    // OpDecorate % 46 BuiltIn ClusterIDNV
-    ids_buffer[index] = uint2(0, PrimitiveIndex());
-#endif
 }
 
 [shader("raygeneration")]

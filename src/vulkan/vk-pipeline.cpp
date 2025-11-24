@@ -738,6 +738,16 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         createInfo.pNext = &createFlags2Info;
     }
 
+    VkRayTracingPipelineClusterAccelerationStructureCreateInfoNV clusterCreateInfo = {
+        VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CLUSTER_ACCELERATION_STRUCTURE_CREATE_INFO_NV
+    };
+    if (is_set(desc.flags, RayTracingPipelineFlags::EnableClusters))
+    {
+        clusterCreateInfo.allowClusterAccelerationStructure = VK_TRUE;
+        clusterCreateInfo.pNext = (void*)createInfo.pNext;
+        createInfo.pNext = &clusterCreateInfo;
+    }
+
     createInfo.stageCount = (uint32_t)program->m_stageCreateInfos.size();
     createInfo.pStages = program->m_stageCreateInfos.data();
 
