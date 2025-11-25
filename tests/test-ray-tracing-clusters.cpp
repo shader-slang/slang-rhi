@@ -44,7 +44,7 @@ static ComPtr<IBuffer> createAccelStructureBuffer(IDevice* device, size_t size)
 }
 
 // Helper to create a simple TriangleClusterArgs with common defaults (no OMM, no primitive info, etc).
-static cluster::TriangleClusterArgs makeSimpleTriangleClusterArgs(
+static TriangleClusterArgs makeSimpleTriangleClusterArgs(
     uint32_t clusterId,
     uint32_t triangleCount,
     uint32_t vertexCount,
@@ -53,14 +53,14 @@ static cluster::TriangleClusterArgs makeSimpleTriangleClusterArgs(
     uint32_t vertexStrideBytes = sizeof(Float3)
 )
 {
-    cluster::TriangleClusterArgs args = {};
+    TriangleClusterArgs args = {};
     args.clusterId = clusterId;
     args.triangleCount = triangleCount;
     args.vertexCount = vertexCount;
     args.vertexBufferStride = uint16_t(vertexStrideBytes);
     args.indexBuffer = indexBuffer;
     args.vertexBuffer = vertexBuffer;
-    args.indexFormat = cluster::INDEX_FORMAT_32BIT;
+    args.indexFormat = kClusterIndexFormat32bit;
     return args;
 }
 
@@ -88,10 +88,8 @@ static ClasImplicitBuildResult buildClasImplicit(
     REQUIRE_CALL(device->getClusterOperationSizes(desc.params, &sizes));
 
     // Allocate output buffer: handles region (aligned) + data region
-    uint64_t handlesSize = alignUp(
-        uint64_t(handleCount) * uint64_t(cluster::CLUSTER_HANDLE_BYTE_STRIDE),
-        uint64_t(cluster::CLUSTER_OUTPUT_ALIGNMENT)
-    );
+    uint64_t handlesSize =
+        alignUp(uint64_t(handleCount) * uint64_t(kClusterDefaultHandleStride), uint64_t(kClusterOutputAlignment));
     result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
     result.handlesBuffer = createUAVBuffer(device, handlesSize);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
@@ -131,9 +129,9 @@ static BlasFromClasResult buildBlasFromClasImplicit(
 {
     BlasFromClasResult result;
 
-    cluster::ClusterArgs args = {};
+    ClusterArgs args = {};
     args.clusterHandlesCount = clusterCount;
-    args.clusterHandlesStride = cluster::CLUSTER_HANDLE_BYTE_STRIDE;
+    args.clusterHandlesStride = kClusterDefaultHandleStride;
     args.clusterHandlesBuffer = clusterHandlesBuffer;
 
     ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(args), &args);
@@ -145,13 +143,12 @@ static BlasFromClasResult buildBlasFromClasImplicit(
     desc.params.blas.maxClasCount = clusterCount;
     desc.params.blas.maxTotalClasCount = clusterCount;
     desc.argsBuffer = argsBuffer;
-    desc.argsBufferStride = sizeof(cluster::ClusterArgs);
+    desc.argsBufferStride = sizeof(ClusterArgs);
 
     ClusterOperationSizes sizes = {};
     REQUIRE_CALL(device->getClusterOperationSizes(desc.params, &sizes));
 
-    uint64_t handlesSize =
-        alignUp(uint64_t(cluster::CLUSTER_HANDLE_BYTE_STRIDE), uint64_t(cluster::CLUSTER_OUTPUT_ALIGNMENT));
+    uint64_t handlesSize = alignUp(uint64_t(kClusterDefaultHandleStride), uint64_t(kClusterOutputAlignment));
     result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
     result.handlesBuffer = createUAVBuffer(device, handlesSize);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
@@ -211,7 +208,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-one-cluster-implicit", D3D12 | Vulkan |
     ComPtr<IBuffer> vertexBuffer = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> indexBuffer = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    cluster::TriangleClusterArgs triArgs =
+    TriangleClusterArgs triArgs =
         makeSimpleTriangleClusterArgs(0, 1, 3, indexBuffer->getDeviceAddress(), vertexBuffer->getDeviceAddress());
     ComPtr<IBuffer> argsBuffer = createAccelInputBuffer(device, sizeof(triArgs), &triArgs);
 
@@ -219,7 +216,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-one-cluster-implicit", D3D12 | Vulkan |
     clasDesc.params.type = ClusterOperationType::CLASFromTriangles;
     clasDesc.params.maxArgCount = 1;
     clasDesc.argsBuffer = argsBuffer;
-    clasDesc.argsBufferStride = sizeof(cluster::TriangleClusterArgs);
+    clasDesc.argsBufferStride = sizeof(TriangleClusterArgs);
     clasDesc.params.clas.maxUniqueGeometryCount = 1;
     clasDesc.params.clas.maxTriangleCount = 1;
     clasDesc.params.clas.maxVertexCount = 3;
@@ -246,7 +243,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-implicit", D3D12 | Vulkan 
     ComPtr<IBuffer> vertexBuffer = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> indexBuffer = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    cluster::TriangleClusterArgs triArgs[2];
+    TriangleClusterArgs triArgs[2];
     for (int i = 0; i < 2; i++)
     {
         triArgs[i] = makeSimpleTriangleClusterArgs(
@@ -269,7 +266,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-implicit", D3D12 | Vulkan 
     clasDesc.params.clas.maxTotalTriangleCount = 2;
     clasDesc.params.clas.maxTotalVertexCount = 6;
     clasDesc.argsBuffer = argsBuffer;
-    clasDesc.argsBufferStride = sizeof(cluster::TriangleClusterArgs);
+    clasDesc.argsBufferStride = sizeof(TriangleClusterArgs);
 
     auto queue = device->getQueue(QueueType::Graphics);
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasDesc, 2);
@@ -293,7 +290,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
     ComPtr<IBuffer> vertexBuffer = createAccelInputBuffer(device, sizeof(vertices), vertices);
     ComPtr<IBuffer> indexBuffer = createAccelInputBuffer(device, sizeof(indices), indices);
 
-    cluster::TriangleClusterArgs triArgs[2];
+    TriangleClusterArgs triArgs[2];
     for (int i = 0; i < 2; i++)
     {
         triArgs[i] = makeSimpleTriangleClusterArgs(
@@ -316,7 +313,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
     clasDesc.params.clas.maxTotalTriangleCount = 2;
     clasDesc.params.clas.maxTotalVertexCount = 6;
     clasDesc.argsBuffer = argsBuffer;
-    clasDesc.argsBufferStride = sizeof(cluster::TriangleClusterArgs);
+    clasDesc.argsBufferStride = sizeof(TriangleClusterArgs);
 
     // Scratch sizing (used for both get-sizes and explicit build)
     ClusterOperationSizes clasSizes = {};
@@ -348,8 +345,8 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
 
     // Step 2: allocate per-CLAS destinations in a single arena and create destAddresses array
     uint64_t off0 = 0;
-    uint64_t off1 = alignUp(uint64_t(sizesHost[0]), (uint64_t)cluster::CLUSTER_OUTPUT_ALIGNMENT);
-    uint64_t totalArena = off1 + alignUp(uint64_t(sizesHost[1]), (uint64_t)cluster::CLUSTER_OUTPUT_ALIGNMENT);
+    uint64_t off1 = alignUp(uint64_t(sizesHost[0]), (uint64_t)kClusterOutputAlignment);
+    uint64_t totalArena = off1 + alignUp(uint64_t(sizesHost[1]), (uint64_t)kClusterOutputAlignment);
 
     ComPtr<IBuffer> arena = createAccelStructureBuffer(device, totalArena);
 
@@ -449,7 +446,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     const uint32_t clusterCount = 2;
 
     // Create one template from triangles (host-filled args)
-    cluster::TriangleClusterArgs triArgs = makeSimpleTriangleClusterArgs(
+    TriangleClusterArgs triArgs = makeSimpleTriangleClusterArgs(
         0,
         triPerCluster,
         vtxPerCluster,
@@ -468,7 +465,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     templatesFromTrianglesDesc.params.clas.maxTotalTriangleCount = triPerCluster;
     templatesFromTrianglesDesc.params.clas.maxTotalVertexCount = vtxPerCluster;
     templatesFromTrianglesDesc.argsBuffer = argsBuffer;
-    templatesFromTrianglesDesc.argsBufferStride = sizeof(cluster::TriangleClusterArgs);
+    templatesFromTrianglesDesc.argsBufferStride = sizeof(TriangleClusterArgs);
 
     auto queue = device->getQueue(QueueType::Graphics);
     ClasImplicitBuildResult templatesImplicitResult =
@@ -476,7 +473,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     CHECK_NE(templatesImplicitResult.handles[0], 0);
 
     // Instantiate the template twice via CLASFromTemplates
-    cluster::InstantiateTemplateArgs instantiateTemplateArgs[2] = {};
+    InstantiateTemplateArgs instantiateTemplateArgs[2] = {};
     uint64_t templateHandle = templatesImplicitResult.handles[0];
     uint64_t vertexBaseAddress = vertexBuffer->getDeviceAddress();
     uint32_t vertexStrideInBytes = (uint32_t)sizeof(Float3);
@@ -486,7 +483,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     {
         uint64_t vertexAddress =
             vertexBaseAddress + uint64_t(i) * uint64_t(vtxPerCluster) * uint64_t(vertexStrideInBytes);
-        cluster::InstantiateTemplateArgs& args = instantiateTemplateArgs[i];
+        InstantiateTemplateArgs& args = instantiateTemplateArgs[i];
         args.clusterTemplate = templateHandle;
         args.vertexBuffer = vertexAddress;
         args.vertexBufferStride = vertexStrideInBytes;
@@ -504,7 +501,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     clasFromTemplates.params.clas.maxTotalTriangleCount = 2 * triPerCluster;
     clasFromTemplates.params.clas.maxTotalVertexCount = 2 * vtxPerCluster;
     clasFromTemplates.argsBuffer = templateInstantiationArgsBuffer;
-    clasFromTemplates.argsBufferStride = sizeof(cluster::InstantiateTemplateArgs);
+    clasFromTemplates.argsBufferStride = sizeof(InstantiateTemplateArgs);
 
     ClasImplicitBuildResult clasResult = buildClasImplicit(device, queue, clasFromTemplates, clusterCount);
     CHECK_NE(clasResult.handles[0], 0);
