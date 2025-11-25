@@ -682,7 +682,7 @@ public:
                 // Raygen entrypoint parameters are passed via the shader binding table.
                 // Figure out the entry point index and set up the payload type accordingly.
                 {
-                    uint32_t entryPointIndex = program->m_rootObjectLayout->getEntryPointIndex(module.entryPointName);
+                    int entryPointIndex = program->m_rootObjectLayout->getEntryPointIndex(module.entryPointName);
                     SLANG_RHI_ASSERT(entryPointIndex >= 0);
                     raygenEntryPointIndices.push_back(entryPointIndex);
                     size_t entryPointParamsSize =
