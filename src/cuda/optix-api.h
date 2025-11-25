@@ -18,8 +18,9 @@ class ShaderCompilationReporter;
 namespace rhi::cuda {
 class DeviceImpl;
 class AccelerationStructureImpl;
-class ShaderTableImpl;
 class RayTracingPipelineImpl;
+struct BindingDataImpl;
+class ShaderTableImpl;
 } // namespace rhi::cuda
 
 namespace rhi::cuda::optix {
@@ -99,8 +100,7 @@ public:
     virtual void dispatchRays(
         CUstream stream,
         Pipeline* pipeline,
-        CUdeviceptr pipelineParams,
-        size_t pipelineParamsSize,
+        BindingDataImpl* bindingData,
         ShaderBindingTable* shaderBindingTable,
         uint32_t rayGenShaderIndex,
         uint32_t width,

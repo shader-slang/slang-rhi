@@ -533,8 +533,7 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
     m_device->m_ctx.optixContext->dispatchRays(
         m_stream,
         m_rayTracingPipeline->m_optixPipeline,
-        bindingData->globalParams,
-        bindingData->globalParamsSize,
+        bindingData,
         m_shaderBindingTable,
         cmd.rayGenShaderIndex,
         cmd.width,

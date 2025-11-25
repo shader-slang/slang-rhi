@@ -4,6 +4,7 @@
 #include "cuda-acceleration-structure.h"
 #include "cuda-query.h"
 #include "cuda-shader-program.h"
+#include "cuda-shader-object.h"
 #include "cuda-shader-table.h"
 #include "cuda-pipeline.h"
 #include "cuda-utils.h"
@@ -1085,8 +1086,7 @@ public:
     virtual void dispatchRays(
         CUstream stream,
         Pipeline* pipeline,
-        CUdeviceptr pipelineParams,
-        size_t pipelineParamsSize,
+        BindingDataImpl* bindingData,
         ShaderBindingTable* shaderBindingTable,
         uint32_t rayGenShaderIndex,
         uint32_t width,
@@ -1102,8 +1102,8 @@ public:
         SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
             pipelineImpl->m_pipeline,
             stream,
-            pipelineParams,
-            pipelineParamsSize,
+            bindingData->globalParams,
+            bindingData->globalParamsSize,
             &sbt,
             width,
             height,
