@@ -10,8 +10,8 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     CUmodule m_module = nullptr;
     CUfunction m_function = nullptr;
-    std::string m_kernelName;
-    uint32_t m_kernelIndex = 0;
+    std::string m_entryPointName;
+    uint32_t m_entryPointIndex = 0;
     uint32_t m_threadGroupSize[3] = {1, 1, 1};
     CUdeviceptr m_globalParams = 0;
     size_t m_globalParamsSize = 0;

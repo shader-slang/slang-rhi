@@ -80,8 +80,8 @@ public:
 
     RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout);
 
-    int getKernelIndex(std::string_view kernelName);
-    void getKernelThreadGroupSize(int kernelIndex, uint32_t* threadGroupSizes);
+    int getEntryPointIndex(std::string_view entryPointName);
+    void getEntryPointThreadGroupSize(int entryPointIndex, uint32_t* threadGroupSizes);
 
     // ShaderObjectLayout interface
     virtual uint32_t getEntryPointCount() const override { return m_entryPoints.size(); }
