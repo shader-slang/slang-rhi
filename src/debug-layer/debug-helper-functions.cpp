@@ -582,12 +582,12 @@ Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationP
 
     if (validateClasParams)
     {
-        if (params.clas.maxGeometryIndex > cluster::MAX_CLUSTER_GEOMETRY_INDEX)
+        if (params.clas.maxGeometryIndex > kClusterMaxGeometryIndex)
         {
             RHI_VALIDATION_ERROR_FORMAT(
                 "ClusterOperationClasBuildParams::maxGeometryIndex (%d) cannot be greater than %d.",
                 params.clas.maxGeometryIndex,
-                cluster::MAX_CLUSTER_GEOMETRY_INDEX
+                kClusterMaxGeometryIndex
             );
             valid = false;
         }
@@ -601,12 +601,12 @@ Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationP
             );
             valid = false;
         }
-        if (params.clas.maxTriangleCount > cluster::MAX_CLUSTER_TRIANGLE_COUNT)
+        if (params.clas.maxTriangleCount > kClusterMaxTriangleCount)
         {
             RHI_VALIDATION_ERROR_FORMAT(
                 "ClusterOperationClasBuildParams::maxTriangleCount (%d) cannot be greater than %d.",
                 params.clas.maxTriangleCount,
-                cluster::MAX_CLUSTER_TRIANGLE_COUNT
+                kClusterMaxTriangleCount
             );
             valid = false;
         }
@@ -620,12 +620,12 @@ Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationP
             );
             valid = false;
         }
-        if (params.clas.maxVertexCount > cluster::MAX_CLUSTER_VERTEX_COUNT)
+        if (params.clas.maxVertexCount > kClusterMaxVertexCount)
         {
             RHI_VALIDATION_ERROR_FORMAT(
                 "ClusterOperationClasBuildParams::maxVertexCount (%d) cannot be greater than %d.",
                 params.clas.maxVertexCount,
-                cluster::MAX_CLUSTER_VERTEX_COUNT
+                kClusterMaxVertexCount
             );
             valid = false;
         }

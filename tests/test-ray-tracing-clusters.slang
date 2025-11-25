@@ -48,7 +48,7 @@ void rayGenClusters()
     resultTexture[pixel] = float4(payload.color, 1.f);
 }
 
-RWStructuredBuffer<rhi::cluster::TriangleClusterArgs> gTriArgs;
+RWStructuredBuffer<rhi::TriangleClusterArgs> gTriArgs;
 uniform uint64_t gIndexBuffer;
 uniform uint64_t gVertexBuffer;
 uniform uint      gVertexStrideBytes;
@@ -68,14 +68,14 @@ void writeTriArgs(uint3 tid : SV_DispatchThreadID)
     uint64_t indexAddr  = gIndexBuffer;
     uint64_t vertexAddr = gVertexBuffer + uint64_t(idx) * uint64_t(gVertexOffsetElemsPerCluster) * uint64_t(gVertexStrideBytes);
 
-    rhi::cluster::TriangleClusterArgs args = {};
+    rhi::TriangleClusterArgs args = {};
     args.clusterId = idx;
     args.triangleCount = gTriangleCount;
     args.vertexCount = gVertexCount;
     args.vertexBufferStride = uint16_t(gVertexStrideBytes);
     args.indexBuffer = indexAddr;
     args.vertexBuffer = vertexAddr;
-    args.indexFormat = rhi::cluster::INDEX_FORMAT_32BIT;
+    args.indexFormat = rhi::kClusterIndexFormat32bit;
 
     gTriArgs[idx] = args;
 }
