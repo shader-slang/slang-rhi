@@ -5,6 +5,7 @@
 #include "cuda-query.h"
 #include "cuda-shader-program.h"
 #include "cuda-shader-object.h"
+#include "cuda-shader-object-layout.h"
 #include "cuda-shader-table.h"
 #include "cuda-pipeline.h"
 #include "cuda-utils.h"
@@ -524,9 +525,11 @@ unsigned int AccelerationStructureBuildDescConverter::translateGeometryFlags(
 class PipelineImpl : public Pipeline
 {
 public:
+    RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     std::vector<OptixModule> m_modules;
     std::vector<OptixProgramGroup> m_programGroups;
     std::map<std::string, uint32_t> m_shaderGroupNameToIndex;
+    std::vector<uint32_t> m_raygenEntryPointIndices;
     OptixPipeline m_pipeline = nullptr;
 
     virtual ~PipelineImpl() override
@@ -552,7 +555,15 @@ class ShaderBindingTableImpl : public ShaderBindingTable
 public:
     CUdeviceptr m_buffer;
     OptixShaderBindingTable m_sbt;
-    size_t m_raygenRecordSize;
+
+    struct RaygenInfo
+    {
+        uint32_t entryPointIndex;
+        uint64_t sbtOffset;
+        size_t paramsSize;
+        size_t paramsSizeAligned;
+    };
+    short_vector<RaygenInfo> m_raygenInfos;
 
     ~ShaderBindingTableImpl() { SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer)); }
 };
@@ -633,13 +644,12 @@ public:
         optixModuleCompileOptions.numPayloadTypes = 0;
         optixModuleCompileOptions.payloadTypes = nullptr;
 
-        OptixProgramGroupOptions optixProgramGroupOptions = {};
-
         // Create optix modules & program groups
         std::vector<OptixModule> optixModules;
         std::map<std::string, uint32_t> entryPointNameToModuleIndex;
         std::vector<OptixProgramGroup> optixProgramGroups;
         std::map<std::string, uint32_t> shaderGroupNameToIndex;
+        std::vector<uint32_t> raygenEntryPointIndices;
         for (const auto& module : program->m_modules)
         {
             SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
@@ -658,6 +668,9 @@ public:
             entryPointNameToModuleIndex[module.entryPointName] = optixModules.size() - 1;
 
             OptixProgramGroupDesc optixProgramGroupDesc = {};
+            OptixProgramGroupOptions optixProgramGroupOptions = {};
+            OptixPayloadType optixPayloadType = {};
+            std::vector<unsigned int> payloadSemantics;
             std::string entryFunctionName;
             switch (module.stage)
             {
@@ -666,6 +679,25 @@ public:
                 optixProgramGroupDesc.raygen.module = optixModules.back();
                 entryFunctionName = "__raygen__" + module.entryPointName;
                 optixProgramGroupDesc.raygen.entryFunctionName = entryFunctionName.data();
+                // Raygen entrypoint parameters are passed via the shader binding table.
+                // Figure out the entry point index and set up the payload type accordingly.
+                {
+                    uint32_t entryPointIndex = program->m_rootObjectLayout->getEntryPointIndex(module.entryPointName);
+                    SLANG_RHI_ASSERT(entryPointIndex >= 0);
+                    raygenEntryPointIndices.push_back(entryPointIndex);
+                    size_t entryPointParamsSize =
+                        program->m_rootObjectLayout->getEntryPoint(entryPointIndex).paramsSize;
+                    if (entryPointParamsSize > 0)
+                    {
+                        optixPayloadType.numPayloadValues = entryPointParamsSize / 4;
+                        payloadSemantics.resize(
+                            optixPayloadType.numPayloadValues,
+                            OPTIX_PAYLOAD_SEMANTICS_TRACE_CALLER_READ
+                        );
+                        optixPayloadType.payloadSemantics = payloadSemantics.data();
+                        optixProgramGroupOptions.payloadType = &optixPayloadType;
+                    }
+                }
                 break;
             case SLANG_STAGE_MISS:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
@@ -741,6 +773,7 @@ public:
 
             OptixProgramGroupDesc optixProgramGroupDesc = {};
             optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+            OptixProgramGroupOptions optixProgramGroupOptions = {};
             std::string entryFunctionNameCH;
             std::string entryFunctionNameAH;
             std::string entryFunctionNameIS;
@@ -823,9 +856,11 @@ public:
         }
 
         RefPtr<PipelineImpl> pipeline = new PipelineImpl();
+        pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
         pipeline->m_modules = std::move(optixModules);
         pipeline->m_programGroups = std::move(optixProgramGroups);
         pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
+        pipeline->m_raygenEntryPointIndices = std::move(raygenEntryPointIndices);
         pipeline->m_pipeline = optixPipeline;
         returnRefPtr(outPipeline, pipeline);
         return SLANG_OK;
@@ -841,11 +876,24 @@ public:
 
         RefPtr<ShaderBindingTableImpl> shaderBindingTable = new ShaderBindingTableImpl();
 
-        shaderBindingTable->m_raygenRecordSize = sizeof(SbtRecord);
-
-        size_t tableSize = (shaderTable->m_rayGenShaderCount + shaderTable->m_missShaderCount +
+        // Calculate the size required for the shader binding table record headers.
+        // Reserve space for a dummy miss record if there are no miss shaders.
+        size_t tableSize = (shaderTable->m_rayGenShaderCount + max(shaderTable->m_missShaderCount, 1u) +
                             shaderTable->m_hitGroupCount + shaderTable->m_callableShaderCount) *
                            sizeof(SbtRecord);
+
+        // Calculate the size required for raygen entrypoint parameters and setup raygen infos.
+        // At dispatch time, we need to copy the entrypoint parameters to the shader binding table.
+        uint64_t sbtOffset = 0;
+        for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
+        {
+            uint32_t entryPointIndex = pipelineImpl->m_raygenEntryPointIndices[i];
+            size_t paramsSize = pipelineImpl->m_rootObjectLayout->getEntryPoint(entryPointIndex).paramsSize;
+            size_t paramsSizeAligned = math::calcAligned2(paramsSize, OPTIX_SBT_RECORD_ALIGNMENT);
+            tableSize += paramsSizeAligned;
+            shaderBindingTable->m_raygenInfos.push_back({entryPointIndex, sbtOffset, paramsSize, paramsSizeAligned});
+            sbtOffset += sizeof(SbtRecord) + paramsSizeAligned;
+        }
 
         auto hostBuffer = std::make_unique<uint8_t[]>(tableSize);
         std::memset(hostBuffer.get(), 0, tableSize);
@@ -874,7 +922,9 @@ public:
                     m_device
                 );
                 hostPtr += sizeof(SbtRecord);
+                hostPtr += shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
                 devicePtr += sizeof(SbtRecord);
+                devicePtr += shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
             }
         }
 
@@ -895,6 +945,16 @@ public:
                 hostPtr += sizeof(SbtRecord);
                 devicePtr += sizeof(SbtRecord);
             }
+        }
+        else
+        {
+            // OptiX validation complains if there are no miss records.
+            // To avoid this, we create a dummy miss record.
+            sbt.missRecordBase = devicePtr;
+            sbt.missRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.missRecordCount = 1;
+            hostPtr += sizeof(SbtRecord);
+            devicePtr += sizeof(SbtRecord);
         }
 
         if (shaderTable->m_hitGroupCount > 0)
@@ -1097,7 +1157,18 @@ public:
         PipelineImpl* pipelineImpl = checked_cast<PipelineImpl*>(pipeline);
         ShaderBindingTableImpl* shaderBindingTableImpl = checked_cast<ShaderBindingTableImpl*>(shaderBindingTable);
         OptixShaderBindingTable sbt = shaderBindingTableImpl->m_sbt;
-        sbt.raygenRecord += rayGenShaderIndex * shaderBindingTableImpl->m_raygenRecordSize;
+
+        // Copy raygen entrypoint parameters to the shader binding table.
+        SLANG_RHI_ASSERT(rayGenShaderIndex < shaderBindingTableImpl->m_raygenInfos.size());
+        const ShaderBindingTableImpl::RaygenInfo& info = shaderBindingTableImpl->m_raygenInfos[rayGenShaderIndex];
+        sbt.raygenRecord += info.sbtOffset;
+        SLANG_RHI_ASSERT(info.entryPointIndex < bindingData->entryPointCount);
+        SLANG_RHI_ASSERT(bindingData->entryPoints[info.entryPointIndex].size <= info.paramsSize);
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyHtoD(
+            sbt.raygenRecord + sizeof(SbtRecord),
+            bindingData->entryPoints[info.entryPointIndex].data,
+            bindingData->entryPoints[info.entryPointIndex].size
+        ));
 
         SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
             pipelineImpl->m_pipeline,
