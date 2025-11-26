@@ -344,12 +344,13 @@ static int main(int argc, const char** argv)
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     std::vector<DeviceType> deviceTypes = {
-        DeviceType::D3D11,
+        // DeviceType::D3D11,
         DeviceType::D3D12,
-        DeviceType::Vulkan,
-        DeviceType::Metal,
-        DeviceType::CPU,
         DeviceType::CUDA,
+        // DeviceType::Vulkan,
+        // DeviceType::Metal,
+        // DeviceType::CPU,
+        // DeviceType::CUDA,
         // Exclude for now as WGPU backend is not fully functional
         // DeviceType::WGPU,
     };
