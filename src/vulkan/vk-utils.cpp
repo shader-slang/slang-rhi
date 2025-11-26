@@ -222,6 +222,8 @@ VkPipelineCreateFlags2 translateRayTracingPipelineFlags2(RayTracingPipelineFlags
     if (is_set(flags, RayTracingPipelineFlags::EnableSpheres) ||
         is_set(flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
         vkFlags |= VK_PIPELINE_CREATE_2_RAY_TRACING_ALLOW_SPHERES_AND_LINEAR_SWEPT_SPHERES_BIT_NV;
+    if (is_set(flags, RayTracingPipelineFlags::EnableMotion))
+        vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_ALLOW_MOTION_BIT_NV;
 
     return vkFlags;
 }

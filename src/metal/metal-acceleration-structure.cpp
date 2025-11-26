@@ -75,6 +75,12 @@ Result AccelerationStructureBuildDescConverter::convert(
         return SLANG_E_INVALID_ARG;
     }
 
+    // Motion blur is not supported in Metal
+    if (is_set(buildDesc.flags, AccelerationStructureBuildFlags::CreateMotion))
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
     AccelerationStructureBuildInputType type = buildDesc.inputs[0].type;
     for (uint32_t i = 1; i < buildDesc.inputCount; ++i)
     {

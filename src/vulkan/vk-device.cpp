@@ -519,6 +519,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPipelineFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayQueryFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPositionFetchFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingMotionBlurFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingInvocationReorderFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.accelerationStructureFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.variablePointersFeatures);
@@ -981,6 +982,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::spvDemoteToHelperInvocationEXT);
             }
         );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.rayTracingMotionBlurFeatures,
+            rayTracingMotionBlur,
+            VK_NV_RAY_TRACING_MOTION_BLUR_EXTENSION_NAME,
+            {
+                availableFeatures.push_back(Feature::RayTracingMotionBlur);
+                availableCapabilities.push_back(Capability::SPV_NV_ray_tracing_motion_blur);
+                availableCapabilities.push_back(Capability::spvRayTracingMotionBlurNV);
+            }
+        )
 
 #undef SIMPLE_EXTENSION_FEATURE
 
