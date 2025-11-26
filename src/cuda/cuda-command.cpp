@@ -437,8 +437,8 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     ComputePipelineImpl* computePipeline = m_computePipeline;
     BindingDataImpl* bindingData = m_bindingData;
 
-    SLANG_RHI_ASSERT(computePipeline->m_kernelIndex < bindingData->entryPointCount);
-    const auto& entryPointData = bindingData->entryPoints[computePipeline->m_kernelIndex];
+    SLANG_RHI_ASSERT(computePipeline->m_entryPointIndex < bindingData->entryPointCount);
+    const auto& entryPointData = bindingData->entryPoints[computePipeline->m_entryPointIndex];
 
     // Copy global parameter data to the `SLANG_globalParams` symbol.
     if (computePipeline->m_globalParams)
@@ -453,7 +453,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
                 "Warning: Incorrect global parameter size (expected %llu, got %llu) for pipeline %s",
                 computePipeline->m_globalParamsSize,
                 bindingData->globalParamsSize,
-                computePipeline->m_kernelName.c_str()
+                computePipeline->m_entryPointName.c_str()
             );
             computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
         }
@@ -533,8 +533,7 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
     m_device->m_ctx.optixContext->dispatchRays(
         m_stream,
         m_rayTracingPipeline->m_optixPipeline,
-        bindingData->globalParams,
-        bindingData->globalParamsSize,
+        bindingData,
         m_shaderBindingTable,
         cmd.rayGenShaderIndex,
         cmd.width,
