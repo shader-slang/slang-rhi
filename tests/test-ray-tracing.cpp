@@ -277,3 +277,46 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-matrix-motion", ALL)
         RayTracingPipelineFlags::EnableMotion
     );
 }
+
+GPU_TEST_CASE("ray-tracing-triangle-intersection-srt-motion", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::RayTracingMotionBlur))
+        SKIP("ray tracing motion blur not supported");
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    SingleTriangleBLAS blas(device, queue);
+    SrtMotionInstanceTLAS tlas(device, queue, blas.blas, 2);
+
+    std::vector<const char*> raygenNames = {"rayGenShaderMotion"};
+    std::vector<HitGroupProgramNames> hitGroupProgramNames = {
+        {"closestHitShaderMotion", nullptr},
+    };
+    std::vector<const char*> missNames = {"missShaderIdx0"};
+
+    ExpectedPixel expectedPixels[] = {
+        // Hits near each corner of the triangle
+        EXPECTED_PIXEL(64, 66, 0.f, 1.f, 0.f, 1.f),  // Should hit the triangle (green)
+        EXPECTED_PIXEL(36, 94, 0.f, 1.f, 0.f, 1.f),  // Should hit (green)
+        EXPECTED_PIXEL(34, 120, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
+
+        // Corners should all be misses
+        EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss
+        EXPECTED_PIXEL(127, 0, 1.f, 1.f, 1.f, 1.f),   // Miss
+        EXPECTED_PIXEL(127, 127, 1.f, 1.f, 1.f, 1.f), // Miss
+        EXPECTED_PIXEL(0, 127, 1.f, 1.f, 1.f, 1.f),   // Miss
+    };
+
+    RayTracingTriangleIntersectionTest test;
+    test.init(device);
+    test.run(
+        tlas.tlas,
+        raygenNames,
+        hitGroupProgramNames,
+        missNames,
+        expectedPixels,
+        0,
+        RayTracingPipelineFlags::EnableMotion
+    );
+}

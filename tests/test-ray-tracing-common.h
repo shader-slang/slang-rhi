@@ -824,18 +824,94 @@ struct MatrixMotionInstanceTLAS
         memcpy(&matrixMotionInstance.transformT1[0][0], transformT1, sizeof(float) * 12);
 
         matrixMotionInstance.mask = 0xFF;
-        matrixMotionInstance.instanceCustomIndex = 0;
-        matrixMotionInstance.instanceShaderBindingTableRecordOffset = 0;
-        matrixMotionInstance.flags = 0;
         matrixMotionInstance.accelerationStructureReference = blas->getDeviceAddress();
 
         // Wrap in motion instance structure
         AccelerationStructureMatrixMotionInstanceVulkan motionInstance{};
         motionInstance.type = AccelerationStructureMotionInstanceTypeVulkan::Matrix;
-        motionInstance.flags = 0;
         motionInstance.matrixMotionInstance = matrixMotionInstance;
 
         memset(motionInstance.padding, 0, sizeof(motionInstance.padding));
+
+        // Create instance buffer with the motion instance
+        BufferDesc instanceBufferDesc;
+        instanceBufferDesc.size = sizeof(motionInstance);
+        instanceBufferDesc.usage = BufferUsage::ShaderResource;
+        instanceBufferDesc.defaultState = ResourceState::ShaderResource;
+        instanceBuffer = device->createBuffer(instanceBufferDesc, &motionInstance);
+        REQUIRE(instanceBuffer != nullptr);
+
+        // Build TLAS with motion flags
+        AccelerationStructureBuildInput buildInput = {};
+        buildInput.type = AccelerationStructureBuildInputType::Instances;
+        buildInput.instances.instanceBuffer = instanceBuffer;
+        buildInput.instances.instanceCount = 1;
+        buildInput.instances.instanceStride = sizeof(motionInstance);
+
+        AccelerationStructureBuildDesc buildDesc = {};
+        buildDesc.inputs = &buildInput;
+        buildDesc.inputCount = 1;
+        buildDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+        buildDesc.motionOptions.keyCount = motionKeyCount;
+        buildDesc.motionOptions.timeStart = 0.0f;
+        buildDesc.motionOptions.timeEnd = 1.0f;
+
+        // Query buffer size for acceleration structure build.
+        AccelerationStructureSizes sizes;
+        REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+        BufferDesc scratchBufferDesc;
+        scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+        scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+        scratchBufferDesc.size = sizes.scratchSize;
+        ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+        AccelerationStructureMotionInfo motionInfo{};
+        motionInfo.maxInstances = buildInput.instances.instanceCount;
+
+        AccelerationStructureDesc createDesc{};
+        createDesc.size = sizes.accelerationStructureSize;
+        createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+        createDesc.motionInfo = &motionInfo;
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
+
+        auto commandEncoder = queue->createCommandEncoder();
+        commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
+};
+
+struct SrtMotionInstanceTLAS
+{
+    ComPtr<IBuffer> instanceBuffer;
+    ComPtr<IBuffer> tlasBuffer;
+    ComPtr<IAccelerationStructure> tlas;
+
+    SrtMotionInstanceTLAS(IDevice* device, ICommandQueue* queue, IAccelerationStructure* blas, uint32_t motionKeyCount)
+    {
+        AccelerationStructureSRTMotionInstanceDescVulkan srtMotionInstance{};
+
+        // Identity SRT transform
+        srtMotionInstance.transformT0.sx = 1.0f;
+        srtMotionInstance.transformT0.sy = 1.0f;
+        srtMotionInstance.transformT0.sz = 1.0f;
+        srtMotionInstance.transformT0.qw = 1.0f;
+
+        // Translate -1.0 along X axis
+        srtMotionInstance.transformT1.sx = 1.0f;
+        srtMotionInstance.transformT1.sy = 1.0f;
+        srtMotionInstance.transformT1.sz = 1.0f;
+        srtMotionInstance.transformT1.qw = 1.0f;
+        srtMotionInstance.transformT1.tx = -1.0f;
+
+        srtMotionInstance.mask = 0xFF;
+        srtMotionInstance.accelerationStructureReference = blas->getDeviceAddress();
+
+        // Wrap in motion instance structure
+        AccelerationStructureSRTMotionInstanceVulkan motionInstance{};
+        motionInstance.type = AccelerationStructureMotionInstanceTypeVulkan::SRT;
+        motionInstance.srtMotionInstance = srtMotionInstance;
 
         // Create instance buffer with the motion instance
         BufferDesc instanceBufferDesc;
