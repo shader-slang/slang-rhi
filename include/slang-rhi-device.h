@@ -4,6 +4,7 @@
 
 #ifdef __cplusplus
 #include <cstdint>
+#include <cstddef>
 #endif
 
 namespace rhi {
@@ -46,6 +47,13 @@ struct AccelerationStructureInstanceDescD3D12
     DeviceAddress AccelerationStructure;
 };
 
+enum AccelerationStructureMotionInstanceTypeVulkan
+{
+    Static = 0,
+    Matrix = 1,
+    SRT = 2
+};
+
 /// Instance descriptor matching VkAccelerationStructureInstanceKHR.
 struct AccelerationStructureInstanceDescVulkan
 {
@@ -57,6 +65,7 @@ struct AccelerationStructureInstanceDescVulkan
     uint64_t accelerationStructureReference;
 };
 
+/// Instance descriptor matching VkAccelerationStructureMatrixMotionInstanceNV.
 struct AccelerationStructureMatrixMotionInstanceDescVulkan
 {
     float transformT0[3][4];
@@ -104,29 +113,41 @@ struct AccelerationStructureSRTMotionInstanceDescVulkan
 // The Vulkan headers define a union for the motion instance data, but Slang doesn't support unions,
 // so we have to use separate structs for each type of motion instance.
 
-/// Static motion instance descriptor matching VkAccelerationStructureMotionInstanceNV.
+/// Motion instances should be 160 bytes in size (152 byte payload + 8 byte padding for alignment).
+static constexpr size_t kVulkanMotionInstanceSize = 160;
+
 struct AccelerationStructureStaticMotionInstanceVulkan
 {
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureInstanceDescVulkan staticInstance;
-    char padding[72];
+    uint8_t padding[kVulkanMotionInstanceSize
+                    - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureInstanceDescVulkan))];
 };
+static_assert(sizeof(AccelerationStructureStaticMotionInstanceVulkan) == kVulkanMotionInstanceSize,
+              "Motion instance structs must match Vulkan stride");
 
 struct AccelerationStructureMatrixMotionInstanceVulkan
 {
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureMatrixMotionInstanceDescVulkan matrixMotionInstance;
-    char padding[24];
+    uint8_t padding[kVulkanMotionInstanceSize
+                    - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureMatrixMotionInstanceDescVulkan))];
 };
+static_assert(sizeof(AccelerationStructureMatrixMotionInstanceVulkan) == kVulkanMotionInstanceSize,
+              "Motion instance structs must match Vulkan stride");
 
 struct AccelerationStructureSRTMotionInstanceVulkan
 {
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureSRTMotionInstanceDescVulkan srtMotionInstance;
+    uint8_t padding[kVulkanMotionInstanceSize
+                    - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureSRTMotionInstanceDescVulkan))];
 };
+static_assert(sizeof(AccelerationStructureSRTMotionInstanceVulkan) == kVulkanMotionInstanceSize,
+              "Motion instance structs must match Vulkan stride");
 
 /// Instance descriptor matching OptixInstance.
 struct AccelerationStructureInstanceDescOptix
