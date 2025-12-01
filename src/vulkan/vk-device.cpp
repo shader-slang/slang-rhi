@@ -1649,10 +1649,22 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.defaultState = ResourceState::AccelerationStructure;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+    VkAccelerationStructureMotionInfoNV motionInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
     createInfo.offset = 0;
     createInfo.size = desc.size;
     createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
+    if (is_set(desc.flags, AccelerationStructureBuildFlags::CreateMotion))
+    {
+        createInfo.createFlags |= VK_ACCELERATION_STRUCTURE_CREATE_MOTION_BIT_NV;
+        if (desc.motionInfo)
+        {
+            motionInfo.pNext = nullptr;
+            motionInfo.maxInstances = desc.motionInfo->maxInstances ? desc.motionInfo->maxInstances : 1;
+            motionInfo.flags = desc.motionInfo->flags;
+            createInfo.pNext = &motionInfo;
+        }
+    }
     SLANG_VK_RETURN_ON_FAIL(
         m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle)
     );

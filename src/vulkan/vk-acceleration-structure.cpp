@@ -119,16 +119,6 @@ Result AccelerationStructureBuildDescConverter::convert(
 
         buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 
-        // Handle motion for TLAS
-        if (is_set(buildDesc.flags, AccelerationStructureBuildFlags::CreateMotion))
-        {
-            motionInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV;
-            motionInfo.pNext = nullptr;
-            motionInfo.maxInstances = buildDesc.motionOptions.keyCount;
-            motionInfo.flags = 0;
-            buildInfo.pNext = &motionInfo;
-        }
-
         break;
     }
     case AccelerationStructureBuildInputType::Triangles:

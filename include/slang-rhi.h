@@ -1378,6 +1378,12 @@ enum class AccelerationStructureBuildFlags
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureBuildFlags);
 
+struct AccelerationStructureMotionInfo
+{
+    uint32_t maxInstances = 0;
+    uint32_t flags = 0;
+};
+
 struct AccelerationStructureBuildDesc
 {
     /// List of build inputs. All inputs must be of the same type.
@@ -1403,6 +1409,8 @@ struct AccelerationStructureDesc
     const void* next = nullptr;
 
     uint64_t size;
+    AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
+    AccelerationStructureMotionInfo* motionInfo = nullptr;
 
     const char* label = nullptr;
 };
