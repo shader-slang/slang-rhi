@@ -118,7 +118,6 @@ Result AccelerationStructureBuildDescConverter::convert(
         primitiveCounts[0] = instances.instanceCount;
 
         buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-
         break;
     }
     case AccelerationStructureBuildInputType::Triangles:
@@ -195,7 +194,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
                 buildDesc.inputs[i].proceduralPrimitives;
-            if (proceduralPrimitives.aabbBufferCount > 1)
+            if (proceduralPrimitives.aabbBufferCount != 1)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -226,7 +225,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputSpheres& spheres = buildDesc.inputs[i].spheres;
-            if (spheres.vertexBufferCount > 1)
+            if (spheres.vertexBufferCount != 1)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -278,7 +277,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputLinearSweptSpheres& lss = buildDesc.inputs[i].linearSweptSpheres;
-            if (lss.vertexBufferCount > 1)
+            if (lss.vertexBufferCount != 1)
             {
                 return SLANG_E_INVALID_ARG;
             }
