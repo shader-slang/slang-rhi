@@ -112,7 +112,7 @@ struct RayTracingSingleTriangleMotionTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        SingleTriangleMotionBLAS blas(device, queue);
+        SingleTriangleVertexMotionBLAS blas(device, queue);
         VertexMotionInstanceTLAS tlas(device, queue, blas.blas, 2);
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames;

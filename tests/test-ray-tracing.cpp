@@ -36,7 +36,7 @@ struct RayTracingTriangleIntersectionTest
     ComPtr<ITexture> resultTexture;
 
     void run(
-        IAccelerationStructure* blas,
+        IAccelerationStructure* tlas,
         const std::vector<const char*>& raygenNames,
         const std::vector<HitGroupProgramNames>& hitGroupProgramNames,
         const std::vector<const char*>& missNames,
@@ -47,27 +47,10 @@ struct RayTracingTriangleIntersectionTest
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
-        // Create appropriate TLAS based on whether motion is enabled
-        IAccelerationStructure* tlasAS;
-        std::unique_ptr<TLAS> regularTLAS;
-        std::unique_ptr<VertexMotionInstanceTLAS> motionTLAS;
-
-        if (is_set(flags, RayTracingPipelineFlags::EnableMotion))
-        {
-            motionTLAS = std::make_unique<VertexMotionInstanceTLAS>(device, queue, blas, 2);
-            tlasAS = motionTLAS->tlas;
-        }
-        else
-        {
-            regularTLAS = std::make_unique<TLAS>(device, queue, blas);
-            tlasAS = regularTLAS->tlas;
-        }
-
         createResultTexture();
 
-        RayTracingTestPipeline
-            pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames, flags);
-        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlasAS, rgIdx);
+        RayTracingTestPipeline pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames, flags);
+        renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas, rgIdx);
 
         checkTestResults(expectedPixels);
     }
@@ -145,6 +128,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     ThreeTriangleBLAS blas(device, queue);
+    TLAS tlas(device, queue, blas.blas);
 
     std::vector<const char*> raygenNames = {"rayGenShaderIdx0", "rayGenShaderIdx1"};
     std::vector<HitGroupProgramNames> hitGroupProgramNames = {
@@ -167,7 +151,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
 
     RayTracingTriangleIntersectionTest test;
     test.init(device);
-    test.run(blas.blas, raygenNames, hitGroupProgramNames, missNames, expectedPixels);
+    test.run(tlas.tlas, raygenNames, hitGroupProgramNames, missNames, expectedPixels);
 }
 
 GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
@@ -177,6 +161,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
     ThreeTriangleBLAS blas(device, queue);
+    TLAS tlas(device, queue, blas.blas);
 
     std::vector<const char*> raygenNames = {"rayGenShaderIdx0", "rayGenShaderIdx1"};
     std::vector<HitGroupProgramNames> hitGroupProgramNames = {
@@ -199,10 +184,10 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
 
     RayTracingTriangleIntersectionTest test;
     test.init(device);
-    test.run(blas.blas, raygenNames, hitGroupProgramNames, missNames, expectedPixels, 1);
+    test.run(tlas.tlas, raygenNames, hitGroupProgramNames, missNames, expectedPixels, 1);
 }
 
-GPU_TEST_CASE("ray-tracing-triangle-intersection-motion", ALL)
+GPU_TEST_CASE("ray-tracing-triangle-intersection-vertex-motion", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -210,7 +195,8 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-motion", ALL)
         SKIP("ray tracing motion blur not supported");
 
     ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
-    SingleTriangleMotionBLAS blas(device, queue);
+    SingleTriangleVertexMotionBLAS blas(device, queue);
+    VertexMotionInstanceTLAS tlas(device, queue, blas.blas, 2);
 
     std::vector<const char*> raygenNames = {"rayGenShaderMotion"};
     std::vector<HitGroupProgramNames> hitGroupProgramNames = {
@@ -226,7 +212,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-motion", ALL)
         // Hits near each corner of the triangle
         EXPECTED_PIXEL(64, 66, 0.f, 1.f, 0.f, 1.f), // Should hit the triangle (green)
         EXPECTED_PIXEL(36, 94, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
-        EXPECTED_PIXEL(90, 94, 0.f, 1.f, 0.f, 1.f), // Should miss (green)
+        EXPECTED_PIXEL(90, 94, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
 
         // Corners should all be misses
         EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss
@@ -238,7 +224,50 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-motion", ALL)
     RayTracingTriangleIntersectionTest test;
     test.init(device);
     test.run(
-        blas.blas,
+        tlas.tlas,
+        raygenNames,
+        hitGroupProgramNames,
+        missNames,
+        expectedPixels,
+        0,
+        RayTracingPipelineFlags::EnableMotion
+    );
+}
+
+GPU_TEST_CASE("ray-tracing-triangle-intersection-matrix-motion", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::RayTracingMotionBlur))
+        SKIP("ray tracing motion blur not supported");
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    SingleTriangleBLAS blas(device, queue);
+    MatrixMotionInstanceTLAS tlas(device, queue, blas.blas, 2);
+
+    std::vector<const char*> raygenNames = {"rayGenShaderMotion"};
+    std::vector<HitGroupProgramNames> hitGroupProgramNames = {
+        {"closestHitShaderMotion", nullptr},
+    };
+    std::vector<const char*> missNames = {"missShaderIdx0"};
+
+    ExpectedPixel expectedPixels[] = {
+        // Hits near each corner of the triangle
+        EXPECTED_PIXEL(64, 66, 0.f, 1.f, 0.f, 1.f), // Should hit the triangle (green)
+        EXPECTED_PIXEL(36, 94, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
+        EXPECTED_PIXEL(34, 120, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
+
+        // Corners should all be misses
+        EXPECTED_PIXEL(0, 0, 1.f, 1.f, 1.f, 1.f),     // Miss
+        EXPECTED_PIXEL(127, 0, 1.f, 1.f, 1.f, 1.f),   // Miss
+        EXPECTED_PIXEL(127, 127, 1.f, 1.f, 1.f, 1.f), // Miss
+        EXPECTED_PIXEL(0, 127, 1.f, 1.f, 1.f, 1.f),   // Miss
+    };
+
+    RayTracingTriangleIntersectionTest test;
+    test.init(device);
+    test.run(
+        tlas.tlas,
         raygenNames,
         hitGroupProgramNames,
         missNames,
