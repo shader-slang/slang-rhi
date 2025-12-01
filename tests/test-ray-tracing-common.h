@@ -820,9 +820,7 @@ struct MatrixMotionInstanceTLAS
         memcpy(&matrixMotionInstance.transformT0[0][0], transformT0, sizeof(float) * 12);
 
         // Translate -1.0 along X axis
-        float transformT1[] = {1.0f, 0.0f, 0.0f, -1.0f,
-                               0.0f, 1.0f, 0.0f,  0.0f,
-                               0.0f, 0.0f, 1.0f,  0.0f};
+        float transformT1[] = {1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
         memcpy(&matrixMotionInstance.transformT1[0][0], transformT1, sizeof(float) * 12);
 
         matrixMotionInstance.mask = 0xFF;

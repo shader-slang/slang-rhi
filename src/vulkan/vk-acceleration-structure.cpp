@@ -136,7 +136,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             {
                 return SLANG_E_INVALID_ARG;
             }
-            if( useMotion && triangles.vertexBufferCount < 2)
+            if (useMotion && triangles.vertexBufferCount < 2)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -164,7 +164,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             geometry.geometry.triangles.transformData.deviceAddress =
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
 
-            if(useMotion)
+            if (useMotion)
             {
                 VkAccelerationStructureGeometryMotionTrianglesDataNV& motionData = motionTrianglesDatas[i];
                 motionData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_MOTION_TRIANGLES_DATA_NV;

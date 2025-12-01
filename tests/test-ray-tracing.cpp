@@ -49,7 +49,8 @@ struct RayTracingTriangleIntersectionTest
 
         createResultTexture();
 
-        RayTracingTestPipeline pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames, flags);
+        RayTracingTestPipeline
+            pipeline(device, "test-ray-tracing", raygenNames, hitGroupProgramNames, missNames, flags);
         renderFrame(queue, pipeline.raytracingPipeline, pipeline.shaderTable, tlas, rgIdx);
 
         checkTestResults(expectedPixels);
@@ -253,8 +254,8 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-matrix-motion", ALL)
 
     ExpectedPixel expectedPixels[] = {
         // Hits near each corner of the triangle
-        EXPECTED_PIXEL(64, 66, 0.f, 1.f, 0.f, 1.f), // Should hit the triangle (green)
-        EXPECTED_PIXEL(36, 94, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
+        EXPECTED_PIXEL(64, 66, 0.f, 1.f, 0.f, 1.f),  // Should hit the triangle (green)
+        EXPECTED_PIXEL(36, 94, 0.f, 1.f, 0.f, 1.f),  // Should hit (green)
         EXPECTED_PIXEL(34, 120, 0.f, 1.f, 0.f, 1.f), // Should hit (green)
 
         // Corners should all be misses

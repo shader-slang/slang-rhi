@@ -121,33 +121,40 @@ struct AccelerationStructureStaticMotionInstanceVulkan
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureInstanceDescVulkan staticInstance;
-    uint8_t padding[kVulkanMotionInstanceSize
-                    - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureInstanceDescVulkan))];
+    uint8_t
+        padding[kVulkanMotionInstanceSize - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureInstanceDescVulkan))];
 };
-static_assert(sizeof(AccelerationStructureStaticMotionInstanceVulkan) == kVulkanMotionInstanceSize,
-              "Motion instance structs must match Vulkan stride");
+static_assert(
+    sizeof(AccelerationStructureStaticMotionInstanceVulkan) == kVulkanMotionInstanceSize,
+    "Motion instance structs must match Vulkan stride"
+);
 
 struct AccelerationStructureMatrixMotionInstanceVulkan
 {
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureMatrixMotionInstanceDescVulkan matrixMotionInstance;
-    uint8_t padding[kVulkanMotionInstanceSize
-                    - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureMatrixMotionInstanceDescVulkan))];
+    uint8_t padding
+        [kVulkanMotionInstanceSize -
+         (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureMatrixMotionInstanceDescVulkan))];
 };
-static_assert(sizeof(AccelerationStructureMatrixMotionInstanceVulkan) == kVulkanMotionInstanceSize,
-              "Motion instance structs must match Vulkan stride");
+static_assert(
+    sizeof(AccelerationStructureMatrixMotionInstanceVulkan) == kVulkanMotionInstanceSize,
+    "Motion instance structs must match Vulkan stride"
+);
 
 struct AccelerationStructureSRTMotionInstanceVulkan
 {
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureSRTMotionInstanceDescVulkan srtMotionInstance;
-    uint8_t padding[kVulkanMotionInstanceSize
-                    - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureSRTMotionInstanceDescVulkan))];
+    uint8_t padding
+        [kVulkanMotionInstanceSize - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureSRTMotionInstanceDescVulkan))];
 };
-static_assert(sizeof(AccelerationStructureSRTMotionInstanceVulkan) == kVulkanMotionInstanceSize,
-              "Motion instance structs must match Vulkan stride");
+static_assert(
+    sizeof(AccelerationStructureSRTMotionInstanceVulkan) == kVulkanMotionInstanceSize,
+    "Motion instance structs must match Vulkan stride"
+);
 
 /// Instance descriptor matching OptixInstance.
 struct AccelerationStructureInstanceDescOptix
