@@ -203,6 +203,15 @@ VkBool32 DeviceImpl::handleDebugMessage(
         return VK_FALSE;
     }
 
+    // Ignore: VUID-VkShaderModuleCreateInfo-pCode-08737:
+    // https://vulkan.lunarg.com/doc/view/1.4.321.1/windows/antora/spec/latest/chapters/shaders.html#VUID-VkShaderModuleCreateInfo-pCode-08737
+    // This validation error is triggered by incorrect SPIR-V outputted by Slang:
+    // https://github.com/shader-slang/slang/issues/9106
+    if (pCallbackData->messageIdNumber == -1520283006)
+    {
+        return VK_FALSE;
+    }
+
     DebugMessageType msgType = DebugMessageType::Info;
 
     const char* severity = "message";

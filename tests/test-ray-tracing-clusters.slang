@@ -24,14 +24,7 @@ void closestHitClusters(inout Payload payload, BuiltInTriangleIntersectionAttrib
     uint2 pix = DispatchRaysIndex().xy;
     uint2 dims = DispatchRaysDimensions().xy;
     uint index = pix.y * dims.x + pix.x;
-#ifndef __VULKAN__
     ids_buffer[index] = uint2(GetClusterID(), PrimitiveIndex());
-#else
-    // Slang seems to have a bug with GetClusterID() on SPIR-V backend. We get:
-    // Operand 3 of Decorate requires one of these capabilities: RayTracingClusterAccelerationStructureNV
-    // OpDecorate % 46 BuiltIn ClusterIDNV
-    ids_buffer[index] = uint2(0, PrimitiveIndex());
-#endif
 }
 
 [shader("raygeneration")]
@@ -55,7 +48,7 @@ void rayGenClusters()
     resultTexture[pixel] = float4(payload.color, 1.f);
 }
 
-RWStructuredBuffer<rhi::cluster::TriangleClusterArgs> gTriArgs;
+RWStructuredBuffer<rhi::TriangleClusterArgs> gTriArgs;
 uniform uint64_t gIndexBuffer;
 uniform uint64_t gVertexBuffer;
 uniform uint      gVertexStrideBytes;
@@ -75,14 +68,14 @@ void writeTriArgs(uint3 tid : SV_DispatchThreadID)
     uint64_t indexAddr  = gIndexBuffer;
     uint64_t vertexAddr = gVertexBuffer + uint64_t(idx) * uint64_t(gVertexOffsetElemsPerCluster) * uint64_t(gVertexStrideBytes);
 
-    rhi::cluster::TriangleClusterArgs args = {};
+    rhi::TriangleClusterArgs args = {};
     args.clusterId = idx;
     args.triangleCount = gTriangleCount;
     args.vertexCount = gVertexCount;
     args.vertexBufferStride = uint16_t(gVertexStrideBytes);
     args.indexBuffer = indexAddr;
     args.vertexBuffer = vertexAddr;
-    args.indexFormat = rhi::cluster::INDEX_FORMAT_32BIT;
+    args.indexFormat = rhi::kClusterIndexFormat32bit;
 
     gTriArgs[idx] = args;
 }

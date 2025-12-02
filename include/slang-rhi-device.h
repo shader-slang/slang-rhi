@@ -12,6 +12,10 @@ namespace rhi {
 /// Virtual address in the GPU address space.
 typedef uint64_t DeviceAddress;
 
+// ----------------------------------------------------------------------------
+// Indirect argument structures
+// ----------------------------------------------------------------------------
+
 struct IndirectDrawArguments
 {
     uint32_t vertexCountPerInstance;
@@ -35,6 +39,10 @@ struct IndirectDispatchArguments
     uint32_t threadGroupCountY;
     uint32_t threadGroupCountZ;
 };
+
+// ----------------------------------------------------------------------------
+// Acceleration structure instance descriptors
+// ----------------------------------------------------------------------------
 
 /// Instance descriptor matching D3D12_RAYTRACING_INSTANCE_DESC.
 struct AccelerationStructureInstanceDescD3D12
@@ -179,36 +187,34 @@ struct AccelerationStructureInstanceDescMetal
     uint32_t userID;
 };
 
-namespace cluster {
+// ----------------------------------------------------------------------------
+// Cluster operations
+// ----------------------------------------------------------------------------
 
-// -------------------------------------------------------------------------------------------------
-// Constants
-// -------------------------------------------------------------------------------------------------
+static constexpr uint32_t kClusterMaxTriangleCount = 256u;
+static constexpr uint32_t kClusterMaxVertexCount = 256u;
+static constexpr uint32_t kClusterMaxGeometryIndex = 16777215u;
 
-static constexpr uint32_t MAX_CLUSTER_TRIANGLE_COUNT = 256;
-static constexpr uint32_t MAX_CLUSTER_VERTEX_COUNT = 256;
-static constexpr uint32_t MAX_CLUSTER_GEOMETRY_INDEX = 16777215;
-
-static constexpr uint32_t CLUSTER_HANDLE_BYTE_STRIDE = 8;
-static constexpr uint32_t CLUSTER_OUTPUT_ALIGNMENT = 128;
+static constexpr uint32_t kClusterDefaultHandleStride = 8u;
+static constexpr uint32_t kClusterOutputAlignment = 128u;
 
 // Cluster flags.
-static constexpr uint32_t CLUSTER_FLAG_NONE = 0;
-static constexpr uint32_t CLUSTER_FLAG_ALLOW_DISABLE_OMMS = (1 << 0);
+static constexpr uint32_t kClusterFlagNone = 0u;
+static constexpr uint32_t kClusterFlagAllowDisableOOMs = (1u << 0);
 
-// Index formats.
-static constexpr uint32_t INDEX_FORMAT_8BIT = 1;
-static constexpr uint32_t INDEX_FORMAT_16BIT = 2;
-static constexpr uint32_t INDEX_FORMAT_32BIT = 4;
+// Cluster index formats.
+static constexpr uint32_t kClusterIndexFormat8bit = 1u;
+static constexpr uint32_t kClusterIndexFormat16bit = 2u;
+static constexpr uint32_t kClusterIndexFormat32bit = 4u;
 
 // Geometry flags.
-static constexpr uint32_t GEOMETRY_FLAG_NONE = 0;
+static constexpr uint32_t kClusterGeometryFlagNone = 0u;
 /// Disables front and back face culling for affected triangles (same behavior as non-cluster geometry).
-static constexpr uint32_t GEOMETRY_FLAG_CULL_DISABLE = (1 << 29);
+static constexpr uint32_t kClusterGeometryFlagCullDisable = (1u << 29);
 /// Disables any-hit shader invocations for affected triangles (same behavior as non-cluster geometry).
-static constexpr uint32_t GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION = (1 << 30);
+static constexpr uint32_t kClusterGeometryFlagNoDuplicateAnyHitInvocation = (1u << 30);
 /// Treats affected triangles as opaque geometry (same behavior as non-cluster geometry).
-static constexpr uint32_t GEOMETRY_FLAG_OPAQUE = (1 << 31);
+static constexpr uint32_t kClusterGeometryFlagOpaque = (1u << 31);
 
 /// Arguments for building a triangle cluster.
 /// Matches layout of:
@@ -219,19 +225,19 @@ struct TriangleClusterArgs
 {
     /// The user specified identifier to encode in the cluster.
     uint32_t clusterId;
-    /// The cluster flags (see ClusterFlags).
+    /// The cluster flags (see kClusterFlagXXX).
     uint32_t clusterFlags;
-    /// The number of triangles used by the cluster (max MAX_CLUSTER_TRIANGLE_COUNT).
+    /// The number of triangles used by the cluster, up to 256 (kClusterMaxTriangleCount).
     uint32_t triangleCount : 9;
-    /// The number of vertices used by the cluster. (max MAX_CLUSTER_VERTEX_COUNT).
+    /// The number of vertices used by the cluster, up to 256 (kClusterMaxVertexCount).
     uint32_t vertexCount : 9;
     /// The number of bits to truncate from the position values.
     uint32_t positionTruncateBitCount : 6;
-    /// The index format to use for the indexBuffer (see IndexFormat).
+    /// The index format to use for the indexBuffer (see kClusterIndexFormatXXX).
     uint32_t indexFormat : 4;
-    /// The index format to use for the opacityMicromapIndexBuffer (see IndexFormat).
+    /// The index format to use for the opacityMicromapIndexBuffer (see kClusterIndexFormatXXX).
     uint32_t opacityMicromapIndexFormat : 4;
-    /// The base geometry index (lower 24 bit) and base geometry flags (upper 8 bit, see GeometryFlags).
+    /// The base geometry index (lower 24 bit) and base geometry flags (upper 8 bit, see kClusterGeometryFlagXXX).
     /// For OptiX, this represents the SBT index (sbtIndex).
     uint32_t baseGeometryIndexAndFlags;
     /// The stride of the elements of indexBuffer, in bytes. If set to 0, will use index size as stride.
@@ -252,14 +258,11 @@ struct TriangleClusterArgs
     /// baseGeometryIndex. If non-zero, the geometry flags for each triangle will be the bitwise OR of the flags in the
     /// upper 8 bits of baseGeometryIndex and geometryIndexBuffer[triangleIndex]. Otherwise all triangles will have a
     /// geometry index equal to baseGeometryIndexAndFlags.
-    /// TODO: We need portable way for querying this
-    /// The number of unique elements may not exceed
-    /// NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUT_TRIANGLES_DESC::maxUniqueGeometryCountPerArg.
+    /// The number of unique elements may not exceed ClusterOperationClasBuildParams::maxUniqueGeometryCount.
     DeviceAddress geometryIndexAndFlagsBuffer;
     /// (optional) Address of a valid OMM array, if used
-    /// TODO: We need portable flags
-    /// NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_ALLOW_OMM must be set on this and all other
-    /// cluster operation calls interacting with the object(s) constructed.
+    /// ClusterOperationFlags::AllowOMM must be set on this and all other cluster operation calls interacting with the
+    /// object(s) constructed.
     DeviceAddress opacityMicromapArray;
     /// (optional) Address of an array of indices into the OMM array. Note that an additional OMM special index is
     /// reserved and can be used to turn off OMM for specific triangles.
@@ -287,10 +290,9 @@ struct InstantiateTemplateArgs
     /// Address of a previously built cluster template to be instantiated.
     DeviceAddress clusterTemplate;
     /// Vertex buffer with stride to use to fetch the vertex positions used for instantiation.
-    /// May be NULL only when used with NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_MODE_GET_SIZES, which
-    /// will cause the maximum size for all possible vertex inputs to be returned. If used, the memory pointed to must
-    /// be in state D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE.
-    DeviceAddress vertexBuffer; // optional in GET_SIZES (can be 0 to query worst-case size)
+    /// May be NULL only when used with ClusterOperationMode::GetSizes, which will cause the maximum size for all
+    /// possible vertex inputs to be returned.
+    DeviceAddress vertexBuffer;
     /// Stride of the vertexBuffer elements, in bytes.
     uint64_t vertexBufferStride;
 };
@@ -304,12 +306,10 @@ struct ClusterArgs
 {
     /// Number of clusters this acceleration structure will be built from.
     uint32_t clusterHandlesCount;
-    /// Stride of clusterHandlesBuffer elements, in bytes. Typically 8.
+    /// Stride of clusterHandlesBuffer elements, in bytes. Typically 8 (kClusterDefaultHandleStride).
     uint32_t clusterHandlesStride;
     /// Device memory containing the handles of the clusters.
     DeviceAddress clusterHandlesBuffer;
 };
-
-} // namespace cluster
 
 } // namespace rhi

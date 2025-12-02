@@ -678,7 +678,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         ));
 
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres) ||
-            is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
+            is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres) ||
+            is_set(desc.flags, RayTracingPipelineFlags::EnableClusters))
         {
             NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
             params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
@@ -687,6 +688,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
                 params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_LSS_SUPPORT;
             if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
                 params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_SPHERE_SUPPORT;
+            if (is_set(desc.flags, RayTracingPipelineFlags::EnableClusters))
+                params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT;
 
             // TODO: This sets global state!
             // Need to revisit if createRayTracingPipeline2 can get called from multiple threads.
