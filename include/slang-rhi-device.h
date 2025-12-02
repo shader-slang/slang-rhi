@@ -114,48 +114,47 @@ struct AccelerationStructureSRTMotionInstanceDescVulkan
 // The Vulkan headers define a union for the motion instance data, but Slang doesn't support unions,
 // so we have to use separate structs for each type of motion instance.
 
-/// Motion instances should be 160 bytes in size (152 byte payload + 8 byte padding for alignment).
-static constexpr size_t kVulkanMotionInstanceSize = 160;
-
 struct AccelerationStructureStaticMotionInstanceVulkan
 {
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureInstanceDescVulkan staticInstance;
-    uint8_t
-        padding[kVulkanMotionInstanceSize - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureInstanceDescVulkan))];
+    uint8_t padding[88];
 };
-static_assert(
-    sizeof(AccelerationStructureStaticMotionInstanceVulkan) == kVulkanMotionInstanceSize,
-    "Motion instance structs must match Vulkan stride"
-);
 
 struct AccelerationStructureMatrixMotionInstanceVulkan
 {
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureMatrixMotionInstanceDescVulkan matrixMotionInstance;
-    uint8_t padding
-        [kVulkanMotionInstanceSize -
-         (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureMatrixMotionInstanceDescVulkan))];
+    uint8_t padding[40];
 };
-static_assert(
-    sizeof(AccelerationStructureMatrixMotionInstanceVulkan) == kVulkanMotionInstanceSize,
-    "Motion instance structs must match Vulkan stride"
-);
 
 struct AccelerationStructureSRTMotionInstanceVulkan
 {
     uint32_t type;  // VkAccelerationStructureMotionInstanceTypeNV
     uint32_t flags; // VkAccelerationStructureMotionInstanceFlagsNV
     AccelerationStructureSRTMotionInstanceDescVulkan srtMotionInstance;
-    uint8_t padding
-        [kVulkanMotionInstanceSize - (sizeof(uint32_t) * 2 + sizeof(AccelerationStructureSRTMotionInstanceDescVulkan))];
+    uint8_t padding[8];
 };
+
+#ifdef __cplusplus
+/// Motion instances should be 160 bytes in size (152 byte payload + 8 byte padding for alignment).
+static constexpr size_t kVulkanMotionInstanceSize = 160;
+
+static_assert(
+    sizeof(AccelerationStructureStaticMotionInstanceVulkan) == kVulkanMotionInstanceSize,
+    "Motion instance structs must match Vulkan stride"
+);
+static_assert(
+    sizeof(AccelerationStructureMatrixMotionInstanceVulkan) == kVulkanMotionInstanceSize,
+    "Motion instance structs must match Vulkan stride"
+);
 static_assert(
     sizeof(AccelerationStructureSRTMotionInstanceVulkan) == kVulkanMotionInstanceSize,
     "Motion instance structs must match Vulkan stride"
 );
+#endif
 
 /// Instance descriptor matching OptixInstance.
 struct AccelerationStructureInstanceDescOptix
