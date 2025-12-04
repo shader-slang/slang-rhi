@@ -736,12 +736,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
                 {
                     availableFeatures.push_back(Feature::RayTracing);
-                    availableCapabilities.push_back(Capability::_raygen);
-                    availableCapabilities.push_back(Capability::_intersection);
-                    availableCapabilities.push_back(Capability::_anyhit);
-                    availableCapabilities.push_back(Capability::_closesthit);
-                    availableCapabilities.push_back(Capability::_callable);
-                    availableCapabilities.push_back(Capability::_miss);
                     availableCapabilities.push_back(Capability::SPV_KHR_ray_tracing);
                     availableCapabilities.push_back(Capability::spvRayTracingKHR);
                 }
@@ -827,11 +821,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             availableFeatures.push_back(Feature::MeshShader);
             availableCapabilities.push_back(Capability::SPV_EXT_mesh_shader);
             availableCapabilities.push_back(Capability::spvMeshShadingEXT);
-            availableCapabilities.push_back(Capability::_mesh);
-            if (extendedFeatures.meshShaderFeatures.taskShader)
-            {
-                availableCapabilities.push_back(Capability::_amplification);
-            }
         });
 
         SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {

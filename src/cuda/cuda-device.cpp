@@ -358,12 +358,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 addFeature(Feature::CooperativeVector);
             }
         }
-        addCapability(Capability::_raygen);
-        addCapability(Capability::_intersection);
-        addCapability(Capability::_anyhit);
-        addCapability(Capability::_closesthit);
-        addCapability(Capability::_callable);
-        addCapability(Capability::_miss);
     }
 
     // Initialize slang context

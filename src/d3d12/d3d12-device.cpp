@@ -580,10 +580,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     addFeature(Feature::TimestampQuery);
 
     addCapability(Capability::hlsl);
-    addCapability(Capability::vertex);
-    addCapability(Capability::fragment);
-    addCapability(Capability::compute);
-    addCapability(Capability::geometry);
 
     D3D12_FEATURE_DATA_SHADER_MODEL shaderModelData = {};
 
@@ -718,12 +714,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 addFeature(Feature::AccelerationStructure);
                 addFeature(Feature::RayTracing);
-                addCapability(Capability::_raygen);
-                addCapability(Capability::_intersection);
-                addCapability(Capability::_anyhit);
-                addCapability(Capability::_closesthit);
-                addCapability(Capability::_callable);
-                addCapability(Capability::_miss);
             }
             // Check ray query support
             if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
@@ -751,8 +741,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             if (options.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
             {
                 addFeature(Feature::MeshShader);
-                addCapability(Capability::_mesh);
-                addCapability(Capability::_amplification);
             }
             // Check sampler feedback support
             if (options.SamplerFeedbackTier >= D3D12_SAMPLER_FEEDBACK_TIER_1_0)
