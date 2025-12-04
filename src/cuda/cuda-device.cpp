@@ -330,6 +330,39 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::cuda);
 
+    // Detect supported compute capabilities
+    {
+        int major = 0, minor = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, m_ctx.device),
+            this
+        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
+            this
+        );
+        if (major >= 1)
+            addCapability(Capability::_cuda_sm_1_0);
+        if (major >= 2)
+            addCapability(Capability::_cuda_sm_2_0);
+        if (major >= 3)
+            addCapability(Capability::_cuda_sm_3_0);
+        if ((major == 3 && minor >= 5) || major > 3)
+            addCapability(Capability::_cuda_sm_3_5);
+        if (major >= 4)
+            addCapability(Capability::_cuda_sm_4_0);
+        if (major >= 5)
+            addCapability(Capability::_cuda_sm_5_0);
+        if (major >= 6)
+            addCapability(Capability::_cuda_sm_6_0);
+        if (major >= 7)
+            addCapability(Capability::_cuda_sm_7_0);
+        if (major >= 8)
+            addCapability(Capability::_cuda_sm_8_0);
+        if (major >= 9)
+            addCapability(Capability::_cuda_sm_9_0);
+    }
+
     optix::ContextDesc optixContextDesc = {};
     optixContextDesc.device = this;
     optixContextDesc.requiredOptixVersion = desc.requiredOptixVersion;
@@ -356,6 +389,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
+                // addCapability(Capability::optix_coopvec);
             }
         }
     }
