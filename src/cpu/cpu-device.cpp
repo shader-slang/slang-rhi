@@ -53,7 +53,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_SHADER_HOST_CALLABLE,
-        "sm_5_1",
+        nullptr,
         getCapabilities(),
         std::array{slang::PreprocessorMacroDesc{"__CPU__", "1"}}
     ));

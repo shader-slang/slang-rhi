@@ -1455,7 +1455,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
         SLANG_SPIRV,
-        "",
+        nullptr,
         getCapabilities(),
         std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}}
     ));
