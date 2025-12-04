@@ -1353,13 +1353,6 @@ struct AccelerationStructureBuildInput
     };
 };
 
-struct AccelerationStructureBuildInputMotionOptions
-{
-    uint32_t keyCount = 1;
-    float timeStart = 0.f;
-    float timeEnd = 1.f;
-};
-
 enum class AccelerationStructureBuildMode
 {
     Build,
@@ -1378,10 +1371,11 @@ enum class AccelerationStructureBuildFlags
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureBuildFlags);
 
-struct AccelerationStructureMotionInfo
+struct AccelerationStructureBuildInputMotionOptions
 {
-    uint32_t maxInstances = 0;
-    uint32_t flags = 0;
+    uint32_t keyCount = 1;
+    float timeStart = 0.f;
+    float timeEnd = 1.f;
 };
 
 struct AccelerationStructureBuildDesc
@@ -1403,6 +1397,14 @@ struct AccelerationStructureSizes
     uint64_t updateScratchSize = 0;
 };
 
+// NOTE: These options are required during creation (not building!) of motion-enabled acceleration
+// structures.
+struct AccelerationStructureMotionCreateInfo
+{
+    bool enabled = false;
+    uint32_t maxInstances = 0;
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
@@ -1410,7 +1412,8 @@ struct AccelerationStructureDesc
 
     uint64_t size;
     AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
-    AccelerationStructureMotionInfo* motionInfo = nullptr;
+
+    AccelerationStructureMotionCreateInfo motionInfo;
 
     const char* label = nullptr;
 };

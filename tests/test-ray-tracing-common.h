@@ -703,13 +703,13 @@ struct TLAS
         scratchBufferDesc.size = sizes.scratchSize;
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
-        AccelerationStructureMotionInfo motionInfo{};
-        motionInfo.maxInstances = buildInput.instances.instanceCount;
-
         AccelerationStructureDesc createDesc{};
         createDesc.size = sizes.accelerationStructureSize;
         createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
-        createDesc.motionInfo = &motionInfo;
+
+        createDesc.motionInfo.enabled = true;
+        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
+
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
 
         auto commandEncoder = queue->createCommandEncoder();
@@ -786,12 +786,12 @@ struct VertexMotionInstanceTLAS
         scratchBufferDesc.size = sizes.scratchSize;
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
-        AccelerationStructureMotionInfo motionInfo{};
-        motionInfo.maxInstances = buildInput.instances.instanceCount;
-
         AccelerationStructureDesc createDesc;
         createDesc.size = sizes.accelerationStructureSize;
-        createDesc.motionInfo = &motionInfo;
+
+        createDesc.motionInfo.enabled = true;
+        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
+
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
 
         auto commandEncoder = queue->createCommandEncoder();
@@ -866,13 +866,13 @@ struct MatrixMotionInstanceTLAS
         scratchBufferDesc.size = sizes.scratchSize;
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
-        AccelerationStructureMotionInfo motionInfo{};
-        motionInfo.maxInstances = buildInput.instances.instanceCount;
-
         AccelerationStructureDesc createDesc{};
         createDesc.size = sizes.accelerationStructureSize;
         createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
-        createDesc.motionInfo = &motionInfo;
+
+        createDesc.motionInfo.enabled = true;
+        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
+
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
 
         auto commandEncoder = queue->createCommandEncoder();
@@ -946,13 +946,13 @@ struct SrtMotionInstanceTLAS
         scratchBufferDesc.size = sizes.scratchSize;
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
-        AccelerationStructureMotionInfo motionInfo{};
-        motionInfo.maxInstances = buildInput.instances.instanceCount;
-
         AccelerationStructureDesc createDesc{};
         createDesc.size = sizes.accelerationStructureSize;
         createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
-        createDesc.motionInfo = &motionInfo;
+
+        createDesc.motionInfo.enabled = true;
+        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
+
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
 
         auto commandEncoder = queue->createCommandEncoder();

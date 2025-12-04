@@ -1666,11 +1666,19 @@ Result DeviceImpl::createAccelerationStructure(
     if (is_set(desc.flags, AccelerationStructureBuildFlags::CreateMotion))
     {
         createInfo.createFlags |= VK_ACCELERATION_STRUCTURE_CREATE_MOTION_BIT_NV;
-        if (desc.motionInfo)
+        if (desc.motionInfo.enabled)
         {
+            if (desc.motionInfo.maxInstances == 0)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+
             motionInfo.pNext = nullptr;
-            motionInfo.maxInstances = desc.motionInfo->maxInstances ? desc.motionInfo->maxInstances : 1;
-            motionInfo.flags = desc.motionInfo->flags;
+            motionInfo.maxInstances = desc.motionInfo.maxInstances;
+
+            // VK reserved this field but it isn't used yet.
+            motionInfo.flags = 0;
+
             createInfo.pNext = &motionInfo;
         }
     }
