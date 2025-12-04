@@ -629,8 +629,26 @@ ComPtr<IDevice> createTestingDevice(
         nvapiSearchPath.value.stringValue0 = "dxc";
         nvapiSearchPath.value.stringValue1 = "-I" SLANG_RHI_NVAPI_INCLUDE_DIR;
         compilerOptions.push_back(nvapiSearchPath);
+
+        // Add hlsl_nvapi capability for D3D12 HitObject tests
+        slang::CompilerOptionEntry nvapiCapabilityEntry = {};
+        nvapiCapabilityEntry.name = slang::CompilerOptionName::Capability;
+        nvapiCapabilityEntry.value.kind = slang::CompilerOptionValueKind::String;
+        nvapiCapabilityEntry.value.stringValue0 = "hlsl_nvapi";
+        compilerOptions.push_back(nvapiCapabilityEntry);
     }
 #endif
+
+    // Add NV SER capability for Vulkan HitObject tests
+    // This ensures NV extension is used instead of EXT for backward compatibility
+    if (deviceType == DeviceType::Vulkan)
+    {
+        slang::CompilerOptionEntry serCapabilityEntry = {};
+        serCapabilityEntry.name = slang::CompilerOptionName::Capability;
+        serCapabilityEntry.value.kind = slang::CompilerOptionValueKind::String;
+        serCapabilityEntry.value.stringValue0 = "spirv_nv";
+        compilerOptions.push_back(serCapabilityEntry);
+    }
 
 #if SLANG_RHI_ENABLE_OPTIX
     // Setup OptiX headers
