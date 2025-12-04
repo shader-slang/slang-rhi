@@ -671,7 +671,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_nvapiShaderExtension)
     {
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpace(
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(
             m_device,
             m_nvapiShaderExtension.uavSlot,
             m_nvapiShaderExtension.registerSpace
@@ -707,7 +707,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_nvapiShaderExtension)
     {
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpace(m_device, 0xffffffff, 0));
+        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(m_device, 0xffffffff, 0));
 
         // LSS support is global and has a perf impact on all pipelines, so we should disable it.
         if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
