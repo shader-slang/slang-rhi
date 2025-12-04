@@ -489,6 +489,19 @@ void Device::addCapability(Capability capability)
     m_capabilitySet[size_t(capability)] = true;
 }
 
+std::vector<Capability> Device::getCapabilities()
+{
+    std::vector<Capability> capabilities;
+    for (size_t i = 0; i < m_capabilitySet.size(); i++)
+    {
+        if (m_capabilitySet[i])
+        {
+            capabilities.push_back(Capability(i));
+        }
+    }
+    return capabilities;
+}
+
 Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     return SLANG_OK;
