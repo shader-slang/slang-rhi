@@ -49,6 +49,20 @@ public:
         slangSessionDesc.preprocessorMacroCount = preprocessorMacros.size();
 
         std::vector<slang::CompilerOptionEntry> compilerOptions;
+        for (Capability capability : capabilities)
+        {
+            const char* capabilityName = rhiGetInstance()->getCapabilityName(capability);
+            SlangCapabilityID capabilityID = globalSession->findCapability(capabilityName);
+            if (capabilityID == SLANG_CAPABILITY_UNKNOWN)
+            {
+                continue;
+            }
+            slang::CompilerOptionEntry entry = {};
+            entry.name = slang::CompilerOptionName::Capability;
+            entry.value.kind = slang::CompilerOptionValueKind::Int;
+            entry.value.intValue0 = capabilityID;
+            compilerOptions.push_back(entry);
+        }
         for (uint32_t i = 0; i < desc.compilerOptionEntryCount; i++)
         {
             compilerOptions.push_back(desc.compilerOptionEntries[i]);
