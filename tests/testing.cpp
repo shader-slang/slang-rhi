@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cctype>
 #include <ctime>
+#include <cstdlib>
 #include <filesystem>
 #include <map>
 #include <string>
@@ -732,13 +733,23 @@ void releaseCachedDevices()
 
 const char* getTestsDir()
 {
-    return SLANG_RHI_TESTS_DIR;
+    static const char* testsDir = []()
+    {
+        static char value[4096];
+        size_t len = 0;
+        if (::getenv_s(&len, value, sizeof(value), "SLANG_RHI_TESTS_DIR") == 0 && len > 0 && value[0] != '\0')
+        {
+            return static_cast<const char*>(value);
+        }
+        return SLANG_RHI_TESTS_DIR;
+    }();
+    return testsDir;
 }
 
 std::vector<const char*> getSlangSearchPaths()
 {
     return std::vector<const char*>{
-        SLANG_RHI_TESTS_DIR,
+        getTestsDir(),
     };
 }
 
