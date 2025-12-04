@@ -781,6 +781,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
                 {
                     availableFeatures.push_back(Feature::AccelerationStructureLinearSweptSpheres);
+                    availableCapabilities.push_back(Capability::SPV_NV_linear_swept_spheres);
+                    availableCapabilities.push_back(Capability::spvRayTracingLinearSweptSpheresGeometryNV);
                 }
             }
 
@@ -788,7 +790,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 extendedFeatures.clusterAccelerationStructureFeatures,
                 clusterAccelerationStructure,
                 VK_NV_CLUSTER_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-                { availableFeatures.push_back(Feature::ClusterAccelerationStructure); }
+                {
+                    availableFeatures.push_back(Feature::ClusterAccelerationStructure);
+                    availableCapabilities.push_back(Capability::SPV_NV_cluster_acceleration_structure);
+                    availableCapabilities.push_back(Capability::spvRayTracingClusterAccelerationStructureNV);
+                }
             );
         }
 
