@@ -138,7 +138,7 @@ endif()
 
 # NVAPI
 if(NOT DEFINED SLANG_RHI_NVAPI_URL)
-    set(SLANG_RHI_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/7cb76fce2f52de818b3da497af646af1ec16ce27.zip") # R575
+    set(SLANG_RHI_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/3d34a4faf095996663321646ebe003539a908f89.zip") # R580
 endif()
 
 # OptiX headers
