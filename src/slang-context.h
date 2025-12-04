@@ -17,6 +17,7 @@ public:
         const SlangDesc& desc,
         SlangCompileTarget compileTarget,
         const char* defaultProfileName,
+        span<const Capability> capabilities = {},
         span<const slang::PreprocessorMacroDesc> additionalPreprocessorMacros = {},
         span<const slang::CompilerOptionEntry> additionalCompilerOptions = {}
     )

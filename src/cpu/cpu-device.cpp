@@ -54,6 +54,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.slang,
         SLANG_SHADER_HOST_CALLABLE,
         "sm_5_1",
+        getCapabilities(),
         std::array{slang::PreprocessorMacroDesc{"__CPU__", "1"}}
     ));
 

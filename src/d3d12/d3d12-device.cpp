@@ -956,6 +956,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         desc.slang,
         compileTarget,
         profileName,
+        getCapabilities(),
         std::array{slang::PreprocessorMacroDesc{"__D3D12__", "1"}}
     ));
 

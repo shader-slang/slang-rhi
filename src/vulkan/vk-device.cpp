@@ -1446,10 +1446,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize slang context.
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext
-            .initialize(desc.slang, SLANG_SPIRV, "", std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}})
-    );
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
+        desc.slang,
+        SLANG_SPIRV,
+        "",
+        getCapabilities(),
+        std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}}
+    ));
 
     // Create default sampler.
     {

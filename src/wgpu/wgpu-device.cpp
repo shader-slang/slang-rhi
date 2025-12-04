@@ -298,9 +298,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     initializeFormatSupport();
 
     // Initialize slang context.
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext.initialize(desc.slang, SLANG_WGSL, "", std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}})
-    );
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
+        desc.slang,
+        SLANG_WGSL,
+        "",
+        getCapabilities(),
+        std::array{slang::PreprocessorMacroDesc{"__WGPU__", "1"}}
+    ));
 
     // Create queue.
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);

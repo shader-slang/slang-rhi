@@ -367,10 +367,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize slang context
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext
-            .initialize(desc.slang, SLANG_PTX, "sm_7_5", std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}})
-    );
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
+        desc.slang,
+        SLANG_PTX,
+        "sm_7_5",
+        getCapabilities(),
+        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}}
+    ));
 
     // Initialize format support table
     for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
