@@ -60,7 +60,6 @@
     x(_sm_6_9) \
     x(hlsl_nvapi) \
     x(hlsl_2018) \
-    x(hlsl_coopvec_poc) \
     x(_cuda_sm_1_0) \
     x(_cuda_sm_2_0) \
     x(_cuda_sm_3_0) \
