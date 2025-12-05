@@ -255,10 +255,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize slang context.
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext
-            .initialize(desc.slang, SLANG_METAL_LIB, "", std::array{slang::PreprocessorMacroDesc{"__METAL__", "1"}})
-    );
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
+        desc.slang,
+        SLANG_METAL_LIB,
+        nullptr,
+        getCapabilities(),
+        std::array{slang::PreprocessorMacroDesc{"__METAL__", "1"}}
+    ));
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(m_device.get()));
 

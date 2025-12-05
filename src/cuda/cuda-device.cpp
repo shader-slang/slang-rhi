@@ -15,6 +15,30 @@
 
 namespace rhi::cuda {
 
+struct ComputeCapabilityInfo
+{
+    int major;
+    int minor;
+    Capability capability;
+};
+
+// List of compute capabilities. This is in order from lowest to highest.
+// Note: This currently only contains versions exposed as a Slang capability.
+static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
+#define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
+    COMPUTE_CAPABILITY(1, 0),
+    COMPUTE_CAPABILITY(2, 0),
+    COMPUTE_CAPABILITY(3, 0),
+    COMPUTE_CAPABILITY(3, 5),
+    COMPUTE_CAPABILITY(4, 0),
+    COMPUTE_CAPABILITY(5, 0),
+    COMPUTE_CAPABILITY(6, 0),
+    COMPUTE_CAPABILITY(7, 0),
+    COMPUTE_CAPABILITY(8, 0),
+    COMPUTE_CAPABILITY(9, 0),
+#undef COMPUTE_CAPABILITY
+};
+
 inline int calcSMCountPerMultiProcessor(int major, int minor)
 {
     // Defines for GPU Architecture types (using the SM version to determine
@@ -330,6 +354,26 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::cuda);
 
+    // Detect supported compute capabilities
+    {
+        int major = 0, minor = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, m_ctx.device),
+            this
+        );
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
+            this
+        );
+        for (const auto& cc : kKnownComputeCapabilities)
+        {
+            if ((major == cc.major && minor >= cc.minor) || major > cc.major)
+            {
+                addCapability(cc.capability);
+            }
+        }
+    }
+
     optix::ContextDesc optixContextDesc = {};
     optixContextDesc.device = this;
     optixContextDesc.requiredOptixVersion = desc.requiredOptixVersion;
@@ -356,21 +400,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
+                // addCapability(Capability::optix_coopvec);
             }
         }
-        addCapability(Capability::_raygen);
-        addCapability(Capability::_intersection);
-        addCapability(Capability::_anyhit);
-        addCapability(Capability::_closesthit);
-        addCapability(Capability::_callable);
-        addCapability(Capability::_miss);
     }
 
     // Initialize slang context
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext
-            .initialize(desc.slang, SLANG_PTX, "sm_7_5", std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}})
-    );
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
+        desc.slang,
+        SLANG_PTX,
+        nullptr,
+        getCapabilities(),
+        std::array{slang::PreprocessorMacroDesc{"__CUDA__", "1"}}
+    ));
 
     // Initialize format support table
     for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)

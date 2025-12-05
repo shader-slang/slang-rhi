@@ -737,12 +737,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
                 {
                     availableFeatures.push_back(Feature::RayTracing);
-                    availableCapabilities.push_back(Capability::_raygen);
-                    availableCapabilities.push_back(Capability::_intersection);
-                    availableCapabilities.push_back(Capability::_anyhit);
-                    availableCapabilities.push_back(Capability::_closesthit);
-                    availableCapabilities.push_back(Capability::_callable);
-                    availableCapabilities.push_back(Capability::_miss);
                     availableCapabilities.push_back(Capability::SPV_KHR_ray_tracing);
                     availableCapabilities.push_back(Capability::spvRayTracingKHR);
                 }
@@ -782,6 +776,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 if (extendedFeatures.rayTracingLinearSweptSpheresFeatures.linearSweptSpheres)
                 {
                     availableFeatures.push_back(Feature::AccelerationStructureLinearSweptSpheres);
+                    availableCapabilities.push_back(Capability::SPV_NV_linear_swept_spheres);
+                    availableCapabilities.push_back(Capability::spvRayTracingLinearSweptSpheresGeometryNV);
                 }
             }
 
@@ -789,7 +785,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 extendedFeatures.clusterAccelerationStructureFeatures,
                 clusterAccelerationStructure,
                 VK_NV_CLUSTER_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-                { availableFeatures.push_back(Feature::ClusterAccelerationStructure); }
+                {
+                    availableFeatures.push_back(Feature::ClusterAccelerationStructure);
+                    availableCapabilities.push_back(Capability::SPV_NV_cluster_acceleration_structure);
+                    availableCapabilities.push_back(Capability::spvRayTracingClusterAccelerationStructureNV);
+                }
             );
         }
 
@@ -822,11 +822,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             availableFeatures.push_back(Feature::MeshShader);
             availableCapabilities.push_back(Capability::SPV_EXT_mesh_shader);
             availableCapabilities.push_back(Capability::spvMeshShadingEXT);
-            availableCapabilities.push_back(Capability::_mesh);
-            if (extendedFeatures.meshShaderFeatures.taskShader)
-            {
-                availableCapabilities.push_back(Capability::_amplification);
-            }
         });
 
         SIMPLE_EXTENSION_FEATURE(extendedFeatures.multiviewFeatures, multiview, VK_KHR_MULTIVIEW_EXTENSION_NAME, {
@@ -1458,10 +1453,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // Initialize slang context.
-    SLANG_RETURN_ON_FAIL(
-        m_slangContext
-            .initialize(desc.slang, SLANG_SPIRV, "", std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}})
-    );
+    SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
+        desc.slang,
+        SLANG_SPIRV,
+        nullptr,
+        getCapabilities(),
+        std::array{slang::PreprocessorMacroDesc{"__VULKAN__", "1"}}
+    ));
 
     // Create default sampler.
     {
