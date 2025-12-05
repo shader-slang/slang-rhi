@@ -73,6 +73,21 @@ void cleanupTestTempDirectories()
     remove_all(gTestTempDirectory);
 }
 
+const char* getEnvVariable(const char* name, const char* defaultValue = nullptr)
+{
+#if SLANG_WINDOWS_FAMILY
+    static char value[4096];
+    size_t len = 0;
+    if (::getenv_s(&len, value, sizeof(value), "SLANG_RHI_TESTS_DIR") == 0 && len > 0)
+        return static_cast<const char*>(value);
+    else
+        return defaultValue;
+#else
+    const char* value = ::getenv(name);
+    return value ? value : defaultValue;
+#endif
+}
+
 std::string readFile(std::string_view path)
 {
     std::ifstream file(std::string(path).c_str());
@@ -733,17 +748,8 @@ void releaseCachedDevices()
 
 const char* getTestsDir()
 {
-    static const char* testsDir = []()
-    {
-        static char value[4096];
-        size_t len = 0;
-        if (::getenv_s(&len, value, sizeof(value), "SLANG_RHI_TESTS_DIR") == 0 && len > 0 && value[0] != '\0')
-        {
-            return static_cast<const char*>(value);
-        }
-        return SLANG_RHI_TESTS_DIR;
-    }();
-    return testsDir;
+    const char* value = getEnvVariable("SLANG_RHI_TESTS_DIR");
+    return (value && value[0] != '\0') ? value : SLANG_RHI_TESTS_DIR;
 }
 
 std::vector<const char*> getSlangSearchPaths()
