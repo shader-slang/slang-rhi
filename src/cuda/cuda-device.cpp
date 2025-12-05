@@ -15,6 +15,30 @@
 
 namespace rhi::cuda {
 
+struct ComputeCapabilityInfo
+{
+    int major;
+    int minor;
+    Capability capability;
+};
+
+// List of compute capabilities. This is in order from lowest to highest.
+// Note: This currently only contains versions exposed as a Slang capability.
+static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
+#define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
+    COMPUTE_CAPABILITY(1, 0),
+    COMPUTE_CAPABILITY(2, 0),
+    COMPUTE_CAPABILITY(3, 0),
+    COMPUTE_CAPABILITY(3, 5),
+    COMPUTE_CAPABILITY(4, 0),
+    COMPUTE_CAPABILITY(5, 0),
+    COMPUTE_CAPABILITY(6, 0),
+    COMPUTE_CAPABILITY(7, 0),
+    COMPUTE_CAPABILITY(8, 0),
+    COMPUTE_CAPABILITY(9, 0),
+#undef COMPUTE_CAPABILITY
+};
+
 inline int calcSMCountPerMultiProcessor(int major, int minor)
 {
     // Defines for GPU Architecture types (using the SM version to determine
@@ -341,26 +365,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
             this
         );
-        if (major >= 1)
-            addCapability(Capability::_cuda_sm_1_0);
-        if (major >= 2)
-            addCapability(Capability::_cuda_sm_2_0);
-        if (major >= 3)
-            addCapability(Capability::_cuda_sm_3_0);
-        if ((major == 3 && minor >= 5) || major > 3)
-            addCapability(Capability::_cuda_sm_3_5);
-        if (major >= 4)
-            addCapability(Capability::_cuda_sm_4_0);
-        if (major >= 5)
-            addCapability(Capability::_cuda_sm_5_0);
-        if (major >= 6)
-            addCapability(Capability::_cuda_sm_6_0);
-        if (major >= 7)
-            addCapability(Capability::_cuda_sm_7_0);
-        if (major >= 8)
-            addCapability(Capability::_cuda_sm_8_0);
-        if (major >= 9)
-            addCapability(Capability::_cuda_sm_9_0);
+        for (const auto& cc : kKnownComputeCapabilities)
+        {
+            if ((major == cc.major && minor >= cc.minor) || major > cc.major)
+            {
+                addCapability(cc.capability);
+            }
+        }
     }
 
     optix::ContextDesc optixContextDesc = {};
