@@ -425,6 +425,7 @@ protected:
 
     void addFeature(Feature feature);
     void addCapability(Capability capability);
+    std::vector<Capability> getCapabilities();
 
 protected:
     std::array<bool, size_t(Feature::_Count)> m_featureSet;

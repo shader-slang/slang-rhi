@@ -70,6 +70,7 @@
     x(_cuda_sm_7_0) \
     x(_cuda_sm_8_0) \
     x(_cuda_sm_9_0) \
+    x(optix_coopvec) \
     x(vertex) \
     x(fragment) \
     x(compute) \
@@ -98,6 +99,7 @@
     x(SPV_KHR_quad_control) \
     x(SPV_KHR_fragment_shader_barycentric) \
     x(SPV_KHR_non_semantic_info) \
+    x(SPV_KHR_device_group) \
     x(SPV_KHR_ray_tracing) \
     x(SPV_KHR_ray_query) \
     x(SPV_KHR_ray_tracing_position_fetch) \
@@ -106,12 +108,18 @@
     x(SPV_KHR_subgroup_rotate) \
     x(SPV_NV_ray_tracing_motion_blur) \
     x(SPV_NV_shader_invocation_reorder) \
+    x(SPV_NV_cluster_acceleration_structure) \
+    x(SPV_NV_linear_swept_spheres) \
     x(SPV_NV_shader_image_footprint) \
     x(SPV_KHR_compute_shader_derivatives) \
     x(SPV_GOOGLE_user_type) \
     x(SPV_EXT_replicated_composites) \
+    x(SPV_KHR_vulkan_memory_model) \
     x(SPV_NV_cooperative_vector) \
     x(SPV_KHR_cooperative_matrix) \
+    x(SPV_NV_tensor_addressing) \
+    x(SPV_NV_cooperative_matrix2) \
+    x(spvDeviceGroup) \
     x(spvAtomicFloat32AddEXT) \
     x(spvAtomicFloat16AddEXT) \
     x(spvAtomicFloat64AddEXT) \
@@ -142,6 +150,8 @@
     x(spvRayQueryKHR) \
     x(spvRayQueryPositionFetchKHR) \
     x(spvShaderInvocationReorderNV) \
+    x(spvRayTracingClusterAccelerationStructureNV) \
+    x(spvRayTracingLinearSweptSpheresGeometryNV) \
     x(spvShaderClockKHR) \
     x(spvShaderNonUniformEXT) \
     x(spvShaderNonUniform) \
@@ -151,8 +161,16 @@
     x(spvCooperativeVectorNV) \
     x(spvCooperativeVectorTrainingNV) \
     x(spvCooperativeMatrixKHR) \
+    x(spvCooperativeMatrixReductionsNV) \
+    x(spvCooperativeMatrixConversionsNV) \
+    x(spvCooperativeMatrixPerElementOperationsNV) \
+    x(spvCooperativeMatrixTensorAddressingNV) \
+    x(spvCooperativeMatrixBlockLoadsNV) \
+    x(spvTensorAddressingNV) \
     x(spvMaximalReconvergenceKHR) \
     x(spvQuadControlKHR) \
+    x(spvVulkanMemoryModelKHR) \
+    x(spvVulkanMemoryModelDeviceScopeKHR) \
     x(_GL_EXT_buffer_reference) \
     x(_GL_EXT_buffer_reference_uvec2) \
     x(_GL_EXT_debug_printf) \
@@ -168,6 +186,7 @@
     x(_GL_EXT_shader_atomic_float_min_max) \
     x(_GL_EXT_shader_atomic_float2) \
     x(_GL_EXT_shader_atomic_int64) \
+    x(_GL_EXT_shader_explicit_arithmetic_types) \
     x(_GL_EXT_shader_explicit_arithmetic_types_int64) \
     x(_GL_EXT_shader_image_load_store) \
     x(_GL_EXT_shader_realtime_clock) \
@@ -175,6 +194,7 @@
     x(_GL_EXT_texture_shadow_lod) \
     x(_GL_EXT_maximal_reconvergence) \
     x(_GL_EXT_shader_quad_control) \
+    x(_GL_EXT_device_group) \
     x(_GL_ARB_derivative_control) \
     x(_GL_ARB_fragment_shader_interlock) \
     x(_GL_ARB_gpu_shader5) \
@@ -208,7 +228,9 @@
     x(_GL_NV_shader_atomic_fp16_vector) \
     x(_GL_NV_shader_invocation_reorder) \
     x(_GL_NV_shader_subgroup_partitioned) \
-    x(_GL_NV_shader_texture_footprint)
+    x(_GL_NV_shader_texture_footprint) \
+    x(_GL_NV_cluster_acceleration_structure) \
+    x(_GL_NV_cooperative_vector)
 // clang-format on
 
 namespace rhi {
