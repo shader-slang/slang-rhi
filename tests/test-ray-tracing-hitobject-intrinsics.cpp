@@ -41,7 +41,7 @@ struct RayTracingSingleTriangleTest
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames;
         for (const char* closestHitName : closestHitNames)
-            hitGroupProgramNames.push_back({closestHitName, /*intersection=*/nullptr});
+            hitGroupProgramNames.push_back({closestHitName, /*anyhit=*/nullptr, /*intersection=*/nullptr});
 
         RayTracingTestPipeline pipeline(device, filepath, {raygenName}, hitGroupProgramNames, missNames);
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
@@ -380,7 +380,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-custom", ALL & ~CUDA)
     test.run(
         "test-ray-tracing-hitobject-intrinsics",
         "rayGenShaderQueryHitKindCustom",
-        {{"closestHitNOP", "intersectionReportHitWithKind"}},
+        {{"closestHitNOP", /*anyhit=*/nullptr, "intersectionReportHitWithKind"}},
         {"missNOP"}
     );
 

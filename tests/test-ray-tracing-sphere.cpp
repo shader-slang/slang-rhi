@@ -109,7 +109,7 @@ struct RayTracingSphereIntersectionTest
             device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-            {"closestHitShader", intersectionName},
+            {"closestHitShader", /*anyhit=*/nullptr, intersectionName},
         };
         std::vector<const char*> missNames = {"missShader"};
 
@@ -184,7 +184,7 @@ struct RayTracingSphereIntrinsicsTest
             device->getDeviceType() == DeviceType::CUDA ? "__builtin_intersection__sphere" : nullptr;
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-            {closestHitName, intersectionName},
+            {closestHitName, /*anyhit=*/nullptr, intersectionName},
         };
         std::vector<const char*> missNames = {"missNOP"};
 
