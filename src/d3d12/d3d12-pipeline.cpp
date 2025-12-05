@@ -669,6 +669,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     subObjects.push_back(globalSignatureSubobject);
 
 #if SLANG_RHI_ENABLE_NVAPI
+    bool nvapiResetPipelineStateOptions = false;
     if (m_nvapiShaderExtension)
     {
         SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(
@@ -694,6 +695,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             // TODO: This sets global state!
             // Need to revisit if createRayTracingPipeline2 can get called from multiple threads.
             SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
+            nvapiResetPipelineStateOptions = true;
         }
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
@@ -709,8 +711,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     {
         SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(m_device, 0xffffffff, 0));
 
-        // LSS support is global and has a perf impact on all pipelines, so we should disable it.
-        if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
+        if (nvapiResetPipelineStateOptions)
         {
             NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
             params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
