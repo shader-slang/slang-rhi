@@ -653,14 +653,28 @@ struct TLAS
     ComPtr<IBuffer> tlasBuffer;
     ComPtr<IAccelerationStructure> tlas;
 
-    TLAS(IDevice* device, ICommandQueue* queue, IAccelerationStructure* blas)
+    TLAS(IDevice* device, ICommandQueue* queue, IAccelerationStructure* blas, const float* transform = nullptr)
     {
         AccelerationStructureInstanceDescType nativeInstanceDescType = getAccelerationStructureInstanceDescType(device);
         Size nativeInstanceDescSize = getAccelerationStructureInstanceDescSize(nativeInstanceDescType);
 
         std::vector<AccelerationStructureInstanceDescGeneric> genericInstanceDescs;
         genericInstanceDescs.resize(1);
-        float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+        static const float kIdentityTransform[12] = {
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+        };
+        const float* transformMatrix = transform ? transform : kIdentityTransform;
         memcpy(&genericInstanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
         genericInstanceDescs[0].instanceID = 0;
         genericInstanceDescs[0].instanceMask = 0xFF;
