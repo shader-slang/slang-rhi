@@ -98,19 +98,19 @@ struct TriangleBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -249,19 +249,19 @@ struct SphereBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -363,19 +363,134 @@ struct SingleCustomGeometryBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
+};
+
+struct SingleTriangleVertexMotionBLAS
+{
+    ComPtr<IBuffer> vertexBuffer0;
+    ComPtr<IBuffer> vertexBuffer1;
+    ComPtr<IBuffer> indexBuffer;
+
+    ComPtr<IBuffer> blasBuffer;
+    ComPtr<IAccelerationStructure> blas;
+
+    static const int kVertexCount = 3;
+    // First motion key (time=0.0)
+    inline static const Vertex kVertexData0[kVertexCount] = {
+        {0.f, 0.f, 1.f},
+        {1.f, 0.f, 1.f},
+        {0.f, 1.f, 1.f},
+    };
+
+    // Second motion key (time=1.0) - rotated 90 degrees around z-axis
+    inline static const Vertex kVertexData1[kVertexCount] = {
+        {0.0f, 0.0f, 1.f},
+        {0.0f, 1.0f, 1.f},
+        {-1.0f, 0.0f, 1.f},
+    };
+
+    static const int kIndexCount = 3;
+    inline static const uint32_t kIndexData[kIndexCount] = {0, 1, 2};
+
+    SingleTriangleVertexMotionBLAS(IDevice* device, ICommandQueue* queue)
+    {
+        BufferDesc vertexBufferDesc;
+        vertexBufferDesc.size = kVertexCount * sizeof(Vertex);
+        vertexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        vertexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+        vertexBuffer0 = device->createBuffer(vertexBufferDesc, &kVertexData0[0]);
+        REQUIRE(vertexBuffer0 != nullptr);
+
+        vertexBuffer1 = device->createBuffer(vertexBufferDesc, &kVertexData1[0]);
+        REQUIRE(vertexBuffer1 != nullptr);
+
+        BufferDesc indexBufferDesc;
+        indexBufferDesc.size = kIndexCount * sizeof(int32_t);
+        indexBufferDesc.usage = BufferUsage::AccelerationStructureBuildInput;
+        indexBufferDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
+        indexBuffer = device->createBuffer(indexBufferDesc, &kIndexData[0]);
+        REQUIRE(indexBuffer != nullptr);
+
+        AccelerationStructureBuildInput buildInput = {};
+        buildInput.type = AccelerationStructureBuildInputType::Triangles;
+        buildInput.triangles.vertexBuffers[0] = vertexBuffer0;
+        buildInput.triangles.vertexBuffers[1] = vertexBuffer1;
+        buildInput.triangles.vertexBufferCount = 2;
+        buildInput.triangles.vertexFormat = Format::RGB32Float;
+        buildInput.triangles.vertexCount = kVertexCount;
+        buildInput.triangles.vertexStride = sizeof(Vertex);
+        buildInput.triangles.indexBuffer = indexBuffer;
+        buildInput.triangles.indexFormat = IndexFormat::Uint32;
+        buildInput.triangles.indexCount = kIndexCount;
+        buildInput.triangles.flags = AccelerationStructureGeometryFlags::Opaque;
+
+        AccelerationStructureBuildDesc buildDesc = {};
+        buildDesc.inputs = &buildInput;
+        buildDesc.inputCount = 1;
+        buildDesc.flags =
+            AccelerationStructureBuildFlags::AllowCompaction | AccelerationStructureBuildFlags::CreateMotion;
+        buildDesc.motionOptions.keyCount = 2;
+        buildDesc.motionOptions.timeStart = 0.0f;
+        buildDesc.motionOptions.timeEnd = 1.0f;
+
+        // Query buffer size for acceleration structure build.
+        AccelerationStructureSizes sizes;
+        REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+        // Allocate buffers for acceleration structure.
+        BufferDesc scratchBufferDesc;
+        scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+        scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+        scratchBufferDesc.size = sizes.scratchSize;
+        ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+        // Build acceleration structure.
+        ComPtr<IQueryPool> compactedSizeQuery;
+        QueryPoolDesc queryPoolDesc;
+        queryPoolDesc.count = 1;
+        queryPoolDesc.type = QueryType::AccelerationStructureCompactedSize;
+        REQUIRE_CALL(device->createQueryPool(queryPoolDesc, compactedSizeQuery.writeRef()));
+
+        ComPtr<IAccelerationStructure> draftAS;
+        AccelerationStructureDesc draftCreateDesc;
+        draftCreateDesc.size = sizes.accelerationStructureSize;
+        REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
+
+        compactedSizeQuery->reset();
+
+        auto commandEncoder = queue->createCommandEncoder();
+        AccelerationStructureQueryDesc compactedSizeQueryDesc = {};
+        compactedSizeQueryDesc.queryPool = compactedSizeQuery;
+        compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
+        commandEncoder
+            ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+
+        uint64_t compactedSize = 0;
+        compactedSizeQuery->getResult(0, 1, &compactedSize);
+        AccelerationStructureDesc createDesc;
+        createDesc.size = compactedSize;
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
+
+        commandEncoder = queue->createCommandEncoder();
+        commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -473,19 +588,19 @@ struct LssBLAS
         compactedSizeQueryDesc.queryType = QueryType::AccelerationStructureCompactedSize;
         commandEncoder
             ->buildAccelerationStructure(buildDesc, draftAS, nullptr, scratchBuffer, 1, &compactedSizeQueryDesc);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
 
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
         createDesc.size = compactedSize;
-        device->createAccelerationStructure(createDesc, blas.writeRef());
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
         commandEncoder = queue->createCommandEncoder();
         commandEncoder->copyAccelerationStructure(blas, draftAS, AccelerationStructureCopyMode::Compact);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -588,14 +703,262 @@ struct TLAS
         scratchBufferDesc.size = sizes.scratchSize;
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
-        AccelerationStructureDesc createDesc;
+        AccelerationStructureDesc createDesc{};
         createDesc.size = sizes.accelerationStructureSize;
+        createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+
+        createDesc.motionInfo.enabled = true;
+        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
+
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
 
         auto commandEncoder = queue->createCommandEncoder();
         commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
+};
+
+struct VertexMotionInstanceTLAS
+{
+    ComPtr<IBuffer> instanceBuffer;
+    ComPtr<IBuffer> tlasBuffer;
+    ComPtr<IAccelerationStructure> tlas;
+
+    VertexMotionInstanceTLAS(
+        IDevice* device,
+        ICommandQueue* queue,
+        IAccelerationStructure* blas,
+        uint32_t motionKeyCount
+    )
+    {
+        // Create a generic instance descriptor
+        AccelerationStructureInstanceDescGeneric genericInstance;
+        float transformMatrix[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+        memcpy(&genericInstance.transform[0][0], transformMatrix, sizeof(float) * 12);
+        genericInstance.instanceID = 0;
+        genericInstance.instanceMask = 0xFF;
+        genericInstance.instanceContributionToHitGroupIndex = 0;
+        genericInstance.accelerationStructure = blas->getHandle();
+
+        // Convert to Vulkan format
+        AccelerationStructureInstanceDescVulkan vulkanInstance;
+        convertAccelerationStructureInstanceDesc(
+            AccelerationStructureInstanceDescType::Vulkan,
+            &vulkanInstance,
+            &genericInstance
+        );
+
+        // Wrap in motion instance structure
+        AccelerationStructureStaticMotionInstanceVulkan motionInstance;
+        motionInstance.type = AccelerationStructureMotionInstanceTypeVulkan::Static;
+        motionInstance.flags = 0;
+        motionInstance.staticInstance = vulkanInstance;
+
+        // Create instance buffer with the motion instance
+        BufferDesc instanceBufferDesc;
+        instanceBufferDesc.size = sizeof(AccelerationStructureStaticMotionInstanceVulkan);
+        instanceBufferDesc.usage = BufferUsage::ShaderResource;
+        instanceBufferDesc.defaultState = ResourceState::ShaderResource;
+        instanceBuffer = device->createBuffer(instanceBufferDesc, &motionInstance);
+        REQUIRE(instanceBuffer != nullptr);
+
+        // Build TLAS with motion flags
+        AccelerationStructureBuildInput buildInput = {};
+        buildInput.type = AccelerationStructureBuildInputType::Instances;
+        buildInput.instances.instanceBuffer = instanceBuffer;
+        buildInput.instances.instanceCount = 1;
+        buildInput.instances.instanceStride = sizeof(AccelerationStructureStaticMotionInstanceVulkan);
+
+        AccelerationStructureBuildDesc buildDesc = {};
+        buildDesc.inputs = &buildInput;
+        buildDesc.inputCount = 1;
+        buildDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+        buildDesc.motionOptions.keyCount = motionKeyCount;
+
+        // Query buffer size for acceleration structure build.
+        AccelerationStructureSizes sizes;
+        REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+        BufferDesc scratchBufferDesc;
+        scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+        scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+        scratchBufferDesc.size = sizes.scratchSize;
+        ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+        AccelerationStructureDesc createDesc;
+        createDesc.size = sizes.accelerationStructureSize;
+
+        createDesc.motionInfo.enabled = true;
+        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
+
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
+
+        auto commandEncoder = queue->createCommandEncoder();
+        commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
+};
+
+struct MatrixMotionInstanceTLAS
+{
+    ComPtr<IBuffer> instanceBuffer;
+    ComPtr<IBuffer> tlasBuffer;
+    ComPtr<IAccelerationStructure> tlas;
+
+    MatrixMotionInstanceTLAS(
+        IDevice* device,
+        ICommandQueue* queue,
+        IAccelerationStructure* blas,
+        uint32_t motionKeyCount
+    )
+    {
+        AccelerationStructureMatrixMotionInstanceDescVulkan matrixMotionInstance{};
+        // Identity transform
+        float transformT0[] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+        memcpy(&matrixMotionInstance.transformT0[0][0], transformT0, sizeof(float) * 12);
+
+        // Translate -1.0 along X axis
+        float transformT1[] = {1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+        memcpy(&matrixMotionInstance.transformT1[0][0], transformT1, sizeof(float) * 12);
+
+        matrixMotionInstance.mask = 0xFF;
+        matrixMotionInstance.accelerationStructureReference = blas->getDeviceAddress();
+
+        // Wrap in motion instance structure
+        AccelerationStructureMatrixMotionInstanceVulkan motionInstance{};
+        motionInstance.type = AccelerationStructureMotionInstanceTypeVulkan::Matrix;
+        motionInstance.matrixMotionInstance = matrixMotionInstance;
+
+        memset(motionInstance.padding, 0, sizeof(motionInstance.padding));
+
+        // Create instance buffer with the motion instance
+        BufferDesc instanceBufferDesc;
+        instanceBufferDesc.size = sizeof(motionInstance);
+        instanceBufferDesc.usage = BufferUsage::ShaderResource;
+        instanceBufferDesc.defaultState = ResourceState::ShaderResource;
+        instanceBuffer = device->createBuffer(instanceBufferDesc, &motionInstance);
+        REQUIRE(instanceBuffer != nullptr);
+
+        // Build TLAS with motion flags
+        AccelerationStructureBuildInput buildInput = {};
+        buildInput.type = AccelerationStructureBuildInputType::Instances;
+        buildInput.instances.instanceBuffer = instanceBuffer;
+        buildInput.instances.instanceCount = 1;
+        buildInput.instances.instanceStride = sizeof(motionInstance);
+
+        AccelerationStructureBuildDesc buildDesc = {};
+        buildDesc.inputs = &buildInput;
+        buildDesc.inputCount = 1;
+        buildDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+        buildDesc.motionOptions.keyCount = motionKeyCount;
+        buildDesc.motionOptions.timeStart = 0.0f;
+        buildDesc.motionOptions.timeEnd = 1.0f;
+
+        // Query buffer size for acceleration structure build.
+        AccelerationStructureSizes sizes;
+        REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+        BufferDesc scratchBufferDesc;
+        scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+        scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+        scratchBufferDesc.size = sizes.scratchSize;
+        ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+        AccelerationStructureDesc createDesc{};
+        createDesc.size = sizes.accelerationStructureSize;
+        createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+
+        createDesc.motionInfo.enabled = true;
+        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
+
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
+
+        auto commandEncoder = queue->createCommandEncoder();
+        commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
+};
+
+struct SrtMotionInstanceTLAS
+{
+    ComPtr<IBuffer> instanceBuffer;
+    ComPtr<IBuffer> tlasBuffer;
+    ComPtr<IAccelerationStructure> tlas;
+
+    SrtMotionInstanceTLAS(IDevice* device, ICommandQueue* queue, IAccelerationStructure* blas, uint32_t motionKeyCount)
+    {
+        AccelerationStructureSRTMotionInstanceDescVulkan srtMotionInstance{};
+
+        // Identity SRT transform
+        srtMotionInstance.transformT0.sx = 1.0f;
+        srtMotionInstance.transformT0.sy = 1.0f;
+        srtMotionInstance.transformT0.sz = 1.0f;
+        srtMotionInstance.transformT0.qw = 1.0f;
+
+        // Translate -1.0 along X axis
+        srtMotionInstance.transformT1.sx = 1.0f;
+        srtMotionInstance.transformT1.sy = 1.0f;
+        srtMotionInstance.transformT1.sz = 1.0f;
+        srtMotionInstance.transformT1.qw = 1.0f;
+        srtMotionInstance.transformT1.tx = -1.0f;
+
+        srtMotionInstance.mask = 0xFF;
+        srtMotionInstance.accelerationStructureReference = blas->getDeviceAddress();
+
+        // Wrap in motion instance structure
+        AccelerationStructureSRTMotionInstanceVulkan motionInstance{};
+        motionInstance.type = AccelerationStructureMotionInstanceTypeVulkan::SRT;
+        motionInstance.srtMotionInstance = srtMotionInstance;
+
+        // Create instance buffer with the motion instance
+        BufferDesc instanceBufferDesc;
+        instanceBufferDesc.size = sizeof(motionInstance);
+        instanceBufferDesc.usage = BufferUsage::ShaderResource;
+        instanceBufferDesc.defaultState = ResourceState::ShaderResource;
+        instanceBuffer = device->createBuffer(instanceBufferDesc, &motionInstance);
+        REQUIRE(instanceBuffer != nullptr);
+
+        // Build TLAS with motion flags
+        AccelerationStructureBuildInput buildInput = {};
+        buildInput.type = AccelerationStructureBuildInputType::Instances;
+        buildInput.instances.instanceBuffer = instanceBuffer;
+        buildInput.instances.instanceCount = 1;
+        buildInput.instances.instanceStride = sizeof(motionInstance);
+
+        AccelerationStructureBuildDesc buildDesc = {};
+        buildDesc.inputs = &buildInput;
+        buildDesc.inputCount = 1;
+        buildDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+        buildDesc.motionOptions.keyCount = motionKeyCount;
+        buildDesc.motionOptions.timeStart = 0.0f;
+        buildDesc.motionOptions.timeEnd = 1.0f;
+
+        // Query buffer size for acceleration structure build.
+        AccelerationStructureSizes sizes;
+        REQUIRE_CALL(device->getAccelerationStructureSizes(buildDesc, &sizes));
+
+        BufferDesc scratchBufferDesc;
+        scratchBufferDesc.usage = BufferUsage::UnorderedAccess;
+        scratchBufferDesc.defaultState = ResourceState::UnorderedAccess;
+        scratchBufferDesc.size = sizes.scratchSize;
+        ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
+
+        AccelerationStructureDesc createDesc{};
+        createDesc.size = sizes.accelerationStructureSize;
+        createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
+
+        createDesc.motionInfo.enabled = true;
+        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
+
+        REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
+
+        auto commandEncoder = queue->createCommandEncoder();
+        commandEncoder->buildAccelerationStructure(buildDesc, tlas, nullptr, scratchBuffer, 0, nullptr);
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
     }
 };
 
@@ -734,7 +1097,7 @@ inline void launchPipeline(
     passEncoder->dispatchRays(0, 1, 1, 1);
     passEncoder->end();
 
-    queue->submit(commandEncoder->finish());
-    queue->waitOnHost();
+    REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
 }
 } // namespace rhi::testing

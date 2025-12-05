@@ -121,6 +121,7 @@ enum class DeviceType
     x(RayTracing,                               "ray-tracing"                                   ) \
     x(RayQuery,                                 "ray-query"                                     ) \
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
+    x(RayTracingMotionBlur,                     "ray-tracing-motion-blur"                       ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
     x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
@@ -1251,7 +1252,7 @@ struct AccelerationStructureBuildInputInstances
     uint32_t instanceCount;
 };
 
-static const uint32_t kMaxAccelerationStructureMotionKeyCount = 2;
+inline constexpr uint32_t kMaxAccelerationStructureMotionKeyCount = 2;
 
 struct AccelerationStructureBuildInputTriangles
 {
@@ -1352,13 +1353,6 @@ struct AccelerationStructureBuildInput
     };
 };
 
-struct AccelerationStructureBuildInputMotionOptions
-{
-    uint32_t keyCount = 1;
-    float timeStart = 0.f;
-    float timeEnd = 1.f;
-};
-
 enum class AccelerationStructureBuildMode
 {
     Build,
@@ -1372,9 +1366,17 @@ enum class AccelerationStructureBuildFlags
     AllowCompaction = (1 << 1),
     PreferFastTrace = (1 << 2),
     PreferFastBuild = (1 << 3),
-    MinimizeMemory = (1 << 4)
+    MinimizeMemory = (1 << 4),
+    CreateMotion = (1 << 5)
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureBuildFlags);
+
+struct AccelerationStructureBuildInputMotionOptions
+{
+    uint32_t keyCount = 1;
+    float timeStart = 0.f;
+    float timeEnd = 1.f;
+};
 
 struct AccelerationStructureBuildDesc
 {
@@ -1395,12 +1397,23 @@ struct AccelerationStructureSizes
     uint64_t updateScratchSize = 0;
 };
 
+// NOTE: These options are required during creation (not building!) of motion-enabled acceleration
+// structures.
+struct AccelerationStructureMotionCreateInfo
+{
+    bool enabled = false;
+    uint32_t maxInstances = 0;
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
     const void* next = nullptr;
 
     uint64_t size;
+    AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
+
+    AccelerationStructureMotionCreateInfo motionInfo;
 
     const char* label = nullptr;
 };
@@ -1910,6 +1923,7 @@ enum class RayTracingPipelineFlags
     EnableSpheres = (1 << 2),
     EnableLinearSweptSpheres = (1 << 3),
     EnableClusters = (1 << 4),
+    EnableMotion = (1 << 5),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 

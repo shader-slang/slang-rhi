@@ -81,3 +81,34 @@ void closestHitShaderIdx1(inout RayPayload payload, in BuiltInTriangleIntersecti
     color[primitiveIndex] = 0;
     payload.color = color;
 }
+
+#ifndef __CUDA__
+[shader("raygeneration")]
+void rayGenShaderMotion()
+{
+    uint2 pixel = DispatchRaysIndex().xy;
+    if (any(pixel >= dims))
+        return;
+
+    float2 uv = float2(pixel) / float2(dims - 1);
+
+    // Trace the ray with motion blur.
+    RayDesc ray;
+    ray.Origin = float3(uv * 2.0 - 1.0, 0.0);
+    ray.Direction = float3(0, 0, 1);
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    float currentTime = 0.5; // midpoint of motion
+    RayPayload payload = { float4(0, 0, 0, 0) };
+    TraceMotionRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, currentTime, payload);
+
+    resultTexture[pixel] = payload.color;
+}
+
+[shader("closesthit")]
+void closestHitShaderMotion(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    // Set color to green for motion hit
+    payload.color = float4(0, 1, 0, 1);
+}
+#endif // __CUDA__

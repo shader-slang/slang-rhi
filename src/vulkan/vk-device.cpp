@@ -519,6 +519,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPipelineFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayQueryFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingPositionFetchFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingMotionBlurFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingInvocationReorderFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.accelerationStructureFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.variablePointersFeatures);
@@ -976,6 +977,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::spvDemoteToHelperInvocationEXT);
             }
         );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.rayTracingMotionBlurFeatures,
+            rayTracingMotionBlur,
+            VK_NV_RAY_TRACING_MOTION_BLUR_EXTENSION_NAME,
+            {
+                availableFeatures.push_back(Feature::RayTracingMotionBlur);
+                availableCapabilities.push_back(Capability::SPV_NV_ray_tracing_motion_blur);
+                availableCapabilities.push_back(Capability::spvRayTracingMotionBlurNV);
+            }
+        )
 
 #undef SIMPLE_EXTENSION_FEATURE
 
@@ -1644,10 +1656,30 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.defaultState = ResourceState::AccelerationStructure;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+    VkAccelerationStructureMotionInfoNV motionInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV};
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
     createInfo.offset = 0;
     createInfo.size = desc.size;
     createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
+    if (is_set(desc.flags, AccelerationStructureBuildFlags::CreateMotion))
+    {
+        createInfo.createFlags |= VK_ACCELERATION_STRUCTURE_CREATE_MOTION_BIT_NV;
+        if (desc.motionInfo.enabled)
+        {
+            if (desc.motionInfo.maxInstances == 0)
+            {
+                return SLANG_E_INVALID_ARG;
+            }
+
+            motionInfo.pNext = nullptr;
+            motionInfo.maxInstances = desc.motionInfo.maxInstances;
+
+            // VK reserved this field but it isn't used yet.
+            motionInfo.flags = 0;
+
+            createInfo.pNext = &motionInfo;
+        }
+    }
     SLANG_VK_RETURN_ON_FAIL(
         m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle)
     );
