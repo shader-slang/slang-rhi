@@ -49,7 +49,7 @@ struct RayTracingLssTest
             device,
             "test-ray-tracing-lss",
             {"rayGenShader"},
-            {{"closestHitShader", intersectionName}},
+            {{"closestHitShader", /*anyhit=*/nullptr, intersectionName}},
             {"missShader"},
             RayTracingPipelineFlags::EnableLinearSweptSpheres
         );
@@ -184,7 +184,7 @@ struct RayTracingLssIntrinsicsTest
             device,
             "test-ray-tracing-lss",
             {raygenName},
-            {{closestHitName, intersectionName}},
+            {{closestHitName, /*anyhit=*/nullptr, intersectionName}},
             {"missNOP"},
             RayTracingPipelineFlags::EnableLinearSweptSpheres
         );

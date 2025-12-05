@@ -33,7 +33,8 @@ struct TriangleBLAS
         int vertexCount,
         const Vertex* vertexData,
         int indexCount,
-        const uint32_t* indexData
+        const uint32_t* indexData,
+        bool enableAnyHit
     )
     {
         BufferDesc vertexBufferDesc;
@@ -60,7 +61,9 @@ struct TriangleBLAS
         buildInput.triangles.indexBuffer = indexBuffer;
         buildInput.triangles.indexFormat = IndexFormat::Uint32;
         buildInput.triangles.indexCount = indexCount;
-        buildInput.triangles.flags = AccelerationStructureGeometryFlags::Opaque;
+
+        if (!enableAnyHit)
+            buildInput.triangles.flags = AccelerationStructureGeometryFlags::Opaque;
 
         AccelerationStructureBuildDesc buildDesc = {};
         buildDesc.inputs = &buildInput;
@@ -126,8 +129,8 @@ struct SingleTriangleBLAS : public TriangleBLAS
     static const int kIndexCount = 3;
     inline static const uint32_t kIndexData[kIndexCount] = {0, 1, 2};
 
-    SingleTriangleBLAS(IDevice* device, ICommandQueue* queue)
-        : TriangleBLAS(device, queue, kVertexCount, &kVertexData[0], kIndexCount, &kIndexData[0])
+    SingleTriangleBLAS(IDevice* device, ICommandQueue* queue, bool enableAnyHit = false)
+        : TriangleBLAS(device, queue, kVertexCount, &kVertexData[0], kIndexCount, &kIndexData[0], enableAnyHit)
     {
     }
 };
@@ -166,7 +169,15 @@ struct ThreeTriangleBLAS : public TriangleBLAS
     };
 
     ThreeTriangleBLAS(IDevice* device, ICommandQueue* queue)
-        : TriangleBLAS(device, queue, kVertexCount, &kVertexData[0], kIndexCount, &kIndexData[0])
+        : TriangleBLAS(
+              device,
+              queue,
+              kVertexCount,
+              &kVertexData[0],
+              kIndexCount,
+              &kIndexData[0],
+              /*enableAnyHit=*/false
+          )
     {
     }
 };
@@ -1006,6 +1017,7 @@ struct ResultBuffer
 struct HitGroupProgramNames
 {
     const char* closesthit = nullptr;
+    const char* anyhit = nullptr;
     const char* intersection = nullptr;
 };
 
@@ -1035,7 +1047,11 @@ struct RayTracingTestPipeline
 
         for (const HitGroupProgramNames& programName : programNames)
         {
-            programsToLoad.push_back(programName.closesthit);
+            if (programName.closesthit)
+                programsToLoad.push_back(programName.closesthit);
+
+            if (programName.anyhit)
+                programsToLoad.push_back(programName.anyhit);
 
             // Don't attempt to load builtin intersection shaders.
             const char* builtinPrefix = "__builtin_intersection";
@@ -1064,6 +1080,7 @@ struct RayTracingTestPipeline
             HitGroupDesc hitGroup{};
             hitGroup.hitGroupName = hitgroupNamesCstr[i];
             hitGroup.closestHitEntryPoint = programNames[i].closesthit;
+            hitGroup.anyHitEntryPoint = programNames[i].anyhit;
             hitGroup.intersectionEntryPoint = programNames[i].intersection;
 
             hitGroups.push_back(hitGroup);
