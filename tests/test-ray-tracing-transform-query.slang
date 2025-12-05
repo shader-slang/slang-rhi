@@ -139,6 +139,25 @@ void rayGenShaderHitObjectGetWorldToObject()
     resultBuffer[0].matrix = matrix;
 }
 
+[shader("raygeneration")]
+void rayGenShaderHitObjectGetObjectToWorld()
+{
+    float3 origin = {0.0, 0.0, 0.0};
+    float3 dir = kTranslatedTrianglePos - origin;
+
+    RayDesc ray;
+    ray.Origin = origin;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+
+    RayPayload payload = {};
+    HitObject hit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+    MatrixData matrix = flattenFloat4x3(hit.GetObjectToWorld());
+    resultBuffer[0].matrix = matrix;
+}
+
 [shader("closesthit")]
 void closestHitObjectToWorld3x4(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {

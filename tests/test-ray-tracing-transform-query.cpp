@@ -234,3 +234,28 @@ GPU_TEST_CASE("ray-tracing-transform-hitobject-world-to-object", ALL & ~CUDA & ~
     const TransformResult* result = reinterpret_cast<const TransformResult*>(resultBlob->getBufferPointer());
     checkMatrix(result, kWorldToObject4x3);
 }
+
+// Disabled under CUDA/OptiX because it isn't implemented.
+// Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/9257
+GPU_TEST_CASE("ray-tracing-transform-hitobject-object-to-world", ALL & ~CUDA & ~D3D12)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TransformResult));
+    test.run(
+        "test-ray-tracing-transform-query",
+        "rayGenShaderHitObjectGetObjectToWorld",
+        {"closestHitNOP"},
+        {"missNOP"},
+        kInstanceTransform.data()
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const TransformResult* result = reinterpret_cast<const TransformResult*>(resultBlob->getBufferPointer());
+    checkMatrix(result, kObjectToWorld4x3);
+}
