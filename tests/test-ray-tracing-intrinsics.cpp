@@ -114,7 +114,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-origin", ALL)
 
     // OptiX only allows calling ObjectRayOrigin from any hit or intersection.
     const char* closestHitName = "closestHitWriteObjectRayOrigin";
-    const char* anyHitName = false;
+    const char* anyHitName = nullptr;
     if (device->getInfo().deviceType == DeviceType::CUDA)
     {
         closestHitName = nullptr;
@@ -159,7 +159,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-direction", ALL)
 
     // OptiX only allows calling ObjectRayDirection from any hit or intersection.
     const char* closestHitName = "closestHitWriteObjectRayDirection";
-    const char* anyHitName = false;
+    const char* anyHitName = nullptr;
     if (device->getInfo().deviceType == DeviceType::CUDA)
     {
         closestHitName = nullptr;
