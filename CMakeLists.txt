@@ -818,6 +818,8 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing-clusters.cpp
         tests/test-ray-tracing-hitobject-intrinsics.cpp
+        tests/test-ray-tracing-intrinsics.cpp
+        tests/test-ray-tracing-transform-query.cpp
         tests/test-ray-tracing-lss.cpp
         tests/test-ray-tracing-raygen-entrypoint.cpp
         tests/test-ray-tracing-reorder.cpp
