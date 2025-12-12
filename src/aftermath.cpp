@@ -140,7 +140,7 @@ static void resolveMarkerCallback(
 )
 {
     AftermathCrashDumper* dumper = reinterpret_cast<AftermathCrashDumper*>(pUserData);
-    const uint64_t hash = reinterpret_cast<const uint64_t>(pMarkerData);
+    uint64_t hash = reinterpret_cast<uint64_t>(pMarkerData);
     const std::string* marker = dumper->findMarker(hash);
     if (marker)
     {
