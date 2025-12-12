@@ -543,6 +543,10 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
                 writeAccelerationStructureDescriptor(device, descriptorSet, binding, i, as);
+                if (as)
+                {
+                    writeBufferState(this, as->m_buffer, ResourceState::AccelerationStructureRead);
+                }
             }
             break;
         }

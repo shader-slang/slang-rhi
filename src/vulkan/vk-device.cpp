@@ -1654,7 +1654,7 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.size = desc.size;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure;
-    bufferDesc.defaultState = ResourceState::AccelerationStructure;
+    bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
     VkAccelerationStructureCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
     VkAccelerationStructureMotionInfoNV motionInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MOTION_INFO_NV};

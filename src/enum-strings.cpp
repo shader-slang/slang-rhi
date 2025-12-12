@@ -265,8 +265,10 @@ const char* enumToString(ResourceState value)
         return S_ResourceState_ResolveSource;
     case ResourceState::ResolveDestination:
         return S_ResourceState_ResolveDestination;
-    case ResourceState::AccelerationStructure:
-        return S_ResourceState_AccelerationStructure;
+    case ResourceState::AccelerationStructureRead:
+        return S_ResourceState_AccelerationStructureRead;
+    case ResourceState::AccelerationStructureWrite:
+        return S_ResourceState_AccelerationStructureWrite;
     case ResourceState::AccelerationStructureBuildInput:
         return S_ResourceState_AccelerationStructureBuildInput;
     }

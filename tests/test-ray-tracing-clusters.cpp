@@ -34,12 +34,31 @@ static ComPtr<IBuffer> createUAVBuffer(IDevice* device, size_t size, const void*
     return device->createBuffer(desc, data);
 }
 
+static ComPtr<IBuffer> createHandlesBuffer(IDevice* device, size_t size, const void* data = nullptr)
+{
+    BufferDesc desc = {};
+    desc.size = size;
+    // Note: BufferUsage::AccelerationStructure is only needed for Vulkan.
+    desc.usage = BufferUsage::UnorderedAccess | BufferUsage::AccelerationStructure | BufferUsage::CopySource |
+                 BufferUsage::CopyDestination;
+    desc.defaultState = ResourceState::UnorderedAccess;
+    return device->createBuffer(desc, data);
+}
+
+static ComPtr<IBuffer> createArgCountBuffer(IDevice* device, uint32_t count)
+{
+    BufferDesc desc = {};
+    desc.size = sizeof(uint32_t);
+    desc.usage = BufferUsage::AccelerationStructureBuildInput | BufferUsage::CopySource | BufferUsage::CopyDestination;
+    desc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    return device->createBuffer(desc, &count);
+}
+
 static ComPtr<IBuffer> createAccelStructureBuffer(IDevice* device, size_t size)
 {
     BufferDesc desc = {};
     desc.size = size;
     desc.usage = BufferUsage::AccelerationStructure;
-    desc.defaultState = ResourceState::AccelerationStructure;
     return device->createBuffer(desc);
 }
 
@@ -91,10 +110,12 @@ static ClasImplicitBuildResult buildClasImplicit(
     uint64_t handlesSize =
         alignUp(uint64_t(handleCount) * uint64_t(kClusterDefaultHandleStride), uint64_t(kClusterOutputAlignment));
     result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
-    result.handlesBuffer = createUAVBuffer(device, handlesSize);
+    result.handlesBuffer = createHandlesBuffer(device, handlesSize);
+    ComPtr<IBuffer> argCountBuffer = createArgCountBuffer(device, handleCount);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
 
     desc.params.mode = ClusterOperationMode::ImplicitDestinations;
+    desc.argCountBuffer = argCountBuffer;
     desc.scratchBuffer = scratchBuffer;
     desc.addressesBuffer = result.handlesBuffer;
     desc.resultBuffer = result.resultBuffer;
@@ -150,9 +171,11 @@ static BlasFromClasResult buildBlasFromClasImplicit(
 
     uint64_t handlesSize = alignUp(uint64_t(kClusterDefaultHandleStride), uint64_t(kClusterOutputAlignment));
     result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
-    result.handlesBuffer = createUAVBuffer(device, handlesSize);
+    result.handlesBuffer = createHandlesBuffer(device, handlesSize);
+    ComPtr<IBuffer> argCountBuffer = createArgCountBuffer(device, 1);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
 
+    desc.argCountBuffer = argCountBuffer;
     desc.scratchBuffer = scratchBuffer;
     desc.addressesBuffer = result.handlesBuffer;
     desc.resultBuffer = result.resultBuffer;
@@ -319,6 +342,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
     ClusterOperationSizes clasSizes = {};
     CHECK_CALL(device->getClusterOperationSizes(clasDesc.params, &clasSizes));
 
+    ComPtr<IBuffer> argCountBuffer = createArgCountBuffer(device, 2);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, clasSizes.scratchSize);
 
     // Step 1: GET_SIZES to produce per-CLAS sizes
@@ -326,11 +350,13 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
     ComPtr<IBuffer> sizesBuffer = createUAVBuffer(device, sizeof(uint32_t) * 2, zeroSizes);
 
     clasDesc.params.mode = ClusterOperationMode::GetSizes;
+    clasDesc.argCountBuffer = argCountBuffer;
     clasDesc.scratchBuffer = scratchBuffer;
     clasDesc.sizesBuffer = sizesBuffer;
 
     // Build with GET_SIZES; result buffer unused, provide a small dummy
     ComPtr<IBuffer> dummyOut = createAccelStructureBuffer(device, 256);
+    clasDesc.resultBuffer = dummyOut;
 
     auto queue = device->getQueue(QueueType::Graphics);
     auto enc = queue->createCommandEncoder();
@@ -354,7 +380,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
         arena->getDeviceAddress() + off0,
         arena->getDeviceAddress() + off1,
     };
-    ComPtr<IBuffer> destAddrBuf = createUAVBuffer(device, sizeof(destAddrsHost), destAddrsHost);
+    ComPtr<IBuffer> destAddrBuf = createHandlesBuffer(device, sizeof(destAddrsHost), destAddrsHost);
 
     // Step 3: Explicit build, alias handles to destAddresses array
     clasDesc.params.mode = ClusterOperationMode::ExplicitDestinations;

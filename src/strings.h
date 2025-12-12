@@ -105,7 +105,8 @@
 #define S_ResourceState_CopyDestination "CopyDestination"
 #define S_ResourceState_ResolveSource "ResolveSource"
 #define S_ResourceState_ResolveDestination "ResolveDestination"
-#define S_ResourceState_AccelerationStructure "AccelerationStructure"
+#define S_ResourceState_AccelerationStructureRead "AccelerationStructureRead"
+#define S_ResourceState_AccelerationStructureWrite "AccelerationStructureWrite"
 #define S_ResourceState_AccelerationStructureBuildInput "AccelerationStructureBuildInput"
 
 // TextureFilteringMode

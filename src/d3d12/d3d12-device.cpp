@@ -1786,7 +1786,7 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.size = desc.size;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure;
-    bufferDesc.defaultState = ResourceState::AccelerationStructure;
+    bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
     result->m_descriptor = m_cpuCbvSrvUavHeap->allocate();
     if (!result->m_descriptor)

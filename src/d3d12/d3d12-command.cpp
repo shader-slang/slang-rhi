@@ -1148,6 +1148,121 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 {
     AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
     AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+    BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
+
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
+    if (src)
+        requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
+
+    for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
+    {
+        const AccelerationStructureBuildInput& input = cmd.desc.inputs[inputIndex];
+        switch (input.type)
+        {
+        case AccelerationStructureBuildInputType::Instances:
+            if (input.instances.instanceBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.instances.instanceBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            break;
+        case AccelerationStructureBuildInputType::Triangles:
+            for (uint32_t i = 0; i < input.triangles.vertexBufferCount; ++i)
+            {
+                if (input.triangles.vertexBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.triangles.vertexBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
+            if (input.triangles.indexBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.triangles.indexBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            if (input.triangles.preTransformBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.triangles.preTransformBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            break;
+        case AccelerationStructureBuildInputType::ProceduralPrimitives:
+            for (uint32_t i = 0; i < input.proceduralPrimitives.aabbBufferCount; ++i)
+            {
+                if (input.proceduralPrimitives.aabbBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.proceduralPrimitives.aabbBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
+            break;
+        case AccelerationStructureBuildInputType::Spheres:
+            for (uint32_t i = 0; i < input.spheres.vertexBufferCount; ++i)
+            {
+                if (input.spheres.vertexPositionBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.spheres.vertexPositionBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+                if (input.spheres.vertexRadiusBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.spheres.vertexRadiusBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
+            if (input.spheres.indexBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.spheres.indexBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            break;
+        case AccelerationStructureBuildInputType::LinearSweptSpheres:
+            for (uint32_t i = 0; i < input.linearSweptSpheres.vertexBufferCount; ++i)
+            {
+                if (input.linearSweptSpheres.vertexPositionBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.linearSweptSpheres.vertexPositionBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+                if (input.linearSweptSpheres.vertexRadiusBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.linearSweptSpheres.vertexRadiusBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
+            if (input.linearSweptSpheres.indexBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.linearSweptSpheres.indexBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            break;
+        }
+    }
+
+    commitBarriers();
 
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_device->m_nvapiEnabled)
@@ -1194,8 +1309,13 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
-    auto dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    auto src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
+    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+    commitBarriers();
+
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE copyMode;
     switch (cmd.mode)
     {
@@ -1228,7 +1348,13 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
 
 void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
-    auto src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dst.buffer);
+    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+
+    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+    commitBarriers();
+
     m_cmdList4->CopyRaytracingAccelerationStructure(
         cmd.dst.getDeviceAddress(),
         src->getDeviceAddress(),
@@ -1238,7 +1364,13 @@ void CommandRecorder::cmdSerializeAccelerationStructure(const commands::Serializ
 
 void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
-    auto dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.src.buffer);
+
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
+    requireBufferState(srcBuffer, ResourceState::ShaderResource);
+    commitBarriers();
+
     m_cmdList4->CopyRaytracingAccelerationStructure(
         dst->getDeviceAddress(),
         cmd.src.getDeviceAddress(),
@@ -1271,7 +1403,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     if (addressesBuffer)
         requireBufferState(addressesBuffer, ResourceState::UnorderedAccess);
     if (resultBuffer)
-        requireBufferState(resultBuffer, ResourceState::AccelerationStructure);
+        requireBufferState(resultBuffer, ResourceState::AccelerationStructureWrite);
     if (sizesBuffer)
         requireBufferState(sizesBuffer, ResourceState::UnorderedAccess);
     commitBarriers();
@@ -1524,77 +1656,70 @@ void CommandRecorder::commitBarriers()
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(bufferBarrier.buffer);
         D3D12_RESOURCE_BARRIER barrier = {};
-        bool isUAVBarrier =
-            (bufferBarrier.stateBefore == bufferBarrier.stateAfter &&
-             bufferBarrier.stateAfter == ResourceState::UnorderedAccess);
-        if (isUAVBarrier)
-        {
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-            barrier.UAV.pResource = buffer->m_resource;
-        }
-        else
+        D3D12_RESOURCE_STATES stateBefore = translateResourceState(bufferBarrier.stateBefore);
+        D3D12_RESOURCE_STATES stateAfter = translateResourceState(bufferBarrier.stateAfter);
+        // Acceleration structure buffers need to be treated specially.
+        // D3D12 doesn't allow to transition to/from D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE state.
+        // Instead, UAV barriers are used to synchronize accesses.
+        if (stateBefore != stateAfter &&
+            ((stateBefore & D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE) == 0) &&
+            ((stateAfter & D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE) == 0))
         {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition.pResource = buffer->m_resource;
-            barrier.Transition.StateBefore = translateResourceState(bufferBarrier.stateBefore);
-            barrier.Transition.StateAfter = translateResourceState(bufferBarrier.stateAfter);
-            barrier.Transition.Subresource = 0;
-            if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
-            {
-                continue;
-            }
+            barrier.Transition.StateBefore = stateBefore;
+            barrier.Transition.StateAfter = stateAfter;
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            barriers.push_back(barrier);
         }
-        barriers.push_back(barrier);
+        else if ((bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
+                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
+                 (bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead &&
+                  bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite) ||
+                 ((stateAfter & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0))
+        {
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            barrier.UAV.pResource = buffer->m_resource;
+            barriers.push_back(barrier);
+        }
     }
 
     for (const auto& textureBarrier : m_stateTracking.getTextureBarriers())
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(textureBarrier.texture);
         D3D12_RESOURCE_BARRIER barrier = {};
-        if (textureBarrier.entireTexture)
+        D3D12_RESOURCE_STATES stateBefore = translateResourceState(textureBarrier.stateBefore);
+        D3D12_RESOURCE_STATES stateAfter = translateResourceState(textureBarrier.stateAfter);
+        if (stateBefore != stateAfter)
         {
-            bool isUAVBarrier =
-                (textureBarrier.stateBefore == textureBarrier.stateAfter &&
-                 textureBarrier.stateAfter == ResourceState::UnorderedAccess);
-            if (isUAVBarrier)
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Transition.pResource = texture->m_resource;
+            barrier.Transition.StateBefore = stateBefore;
+            barrier.Transition.StateAfter = stateAfter;
+            if (textureBarrier.entireTexture)
             {
-                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-                barrier.UAV.pResource = texture->m_resource;
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                barriers.push_back(barrier);
             }
             else
             {
-                barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-                barrier.Transition.pResource = texture->m_resource;
-                barrier.Transition.StateBefore = translateResourceState(textureBarrier.stateBefore);
-                barrier.Transition.StateAfter = translateResourceState(textureBarrier.stateAfter);
-                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-                if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
+                uint32_t mipCount = texture->m_desc.mipCount;
+                uint32_t layerCount = texture->m_desc.getLayerCount();
+                DXGI_FORMAT d3dFormat = getMapFormat(texture->m_desc.format);
+                uint32_t planeCount = getPlaneSliceCount(d3dFormat);
+                for (uint32_t planeIndex = 0; planeIndex < planeCount; ++planeIndex)
                 {
-                    continue;
+                    barrier.Transition.Subresource =
+                        getSubresourceIndex(textureBarrier.mip, textureBarrier.layer, planeIndex, mipCount, layerCount);
+                    barriers.push_back(barrier);
                 }
             }
-            barriers.push_back(barrier);
         }
-        else
+        else if ((stateAfter & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0)
         {
-            uint32_t mipCount = texture->m_desc.mipCount;
-            uint32_t layerCount = texture->m_desc.getLayerCount();
-            DXGI_FORMAT d3dFormat = getMapFormat(texture->m_desc.format);
-            uint32_t planeCount = getPlaneSliceCount(d3dFormat);
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-            barrier.Transition.pResource = texture->m_resource;
-            barrier.Transition.StateBefore = translateResourceState(textureBarrier.stateBefore);
-            barrier.Transition.StateAfter = translateResourceState(textureBarrier.stateAfter);
-            if (barrier.Transition.StateBefore == barrier.Transition.StateAfter)
-            {
-                continue;
-            }
-            for (uint32_t planeIndex = 0; planeIndex < planeCount; ++planeIndex)
-            {
-                barrier.Transition.Subresource =
-                    getSubresourceIndex(textureBarrier.mip, textureBarrier.layer, planeIndex, mipCount, layerCount);
-                barriers.push_back(barrier);
-            }
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            barrier.UAV.pResource = texture->m_resource;
+            barriers.push_back(barrier);
         }
     }
 
