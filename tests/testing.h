@@ -317,6 +317,7 @@ const char* deviceTypeToString(DeviceType deviceType);
 struct DeviceExtraOptions
 {
     std::vector<const char*> searchPaths;
+    std::vector<slang::CompilerOptionEntry> compilerOptions;
     IPersistentCache* persistentShaderCache = nullptr;
     IPersistentCache* persistentPipelineCache = nullptr;
     bool enableCompilationReports = false;
@@ -326,6 +327,8 @@ struct DeviceExtraOptions
     // (default), uses automatic detection.
     // This value is passed to D3D12DeviceExtendedDesc::highestShaderModel.
     uint32_t d3d12HighestShaderModel = 0;
+
+    bool enableAftermath = false;
 };
 
 ComPtr<IDevice> createTestingDevice(
