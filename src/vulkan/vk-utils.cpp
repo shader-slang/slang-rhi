@@ -1,11 +1,19 @@
 #include "vk-utils.h"
 
+#include "aftermath.h"
 #include "core/common.h"
 
 namespace rhi::vk {
 
 void reportVulkanError(VkResult res)
 {
+    if (res == VK_ERROR_DEVICE_LOST)
+    {
+#if SLANG_RHI_ENABLE_AFTERMATH
+        AftermathCrashDumper::waitForDump();
+#endif
+        SLANG_RHI_ASSERT_FAILURE("Vulkan device lost");
+    }
     SLANG_RHI_ASSERT_FAILURE("Vulkan returned a failure");
 }
 

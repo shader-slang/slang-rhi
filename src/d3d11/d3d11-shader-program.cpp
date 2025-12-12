@@ -9,8 +9,34 @@ ShaderProgramImpl::ShaderProgramImpl(Device* device, const ShaderProgramDesc& de
 {
 }
 
+ShaderProgramImpl::~ShaderProgramImpl()
+{
+#if SLANG_RHI_ENABLE_AFTERMATH
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (device->m_aftermathCrashDumper)
+    {
+        for (const Module& module : m_modules)
+        {
+            device->m_aftermathCrashDumper->unregisterShader(reinterpret_cast<uint64_t>(module.code.get()));
+        }
+    }
+#endif
+}
+
 Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
 {
+#if SLANG_RHI_ENABLE_AFTERMATH
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (device->m_aftermathCrashDumper)
+    {
+        device->m_aftermathCrashDumper->registerShader(
+            reinterpret_cast<uint64_t>(kernelCode.get()),
+            DeviceType::D3D11,
+            kernelCode->getBufferPointer(),
+            kernelCode->getBufferSize()
+        );
+    }
+#endif
     m_modules.push_back({entryPointInfo->getStage(), kernelCode});
     return SLANG_OK;
 }

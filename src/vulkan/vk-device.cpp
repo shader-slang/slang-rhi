@@ -14,6 +14,7 @@
 #include "vk-acceleration-structure.h"
 #include "vk-utils.h"
 
+#include "aftermath.h"
 #include "cooperative-vector-utils.h"
 
 #include "core/common.h"
@@ -25,12 +26,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-#ifdef SLANG_RHI_NV_AFTERMATH
-#include "GFSDK_Aftermath.h"
-#include "GFSDK_Aftermath_Defines.h"
-#include "GFSDK_Aftermath_GpuCrashDump.h"
-#endif
 
 namespace rhi::vk {
 
@@ -1145,33 +1140,39 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     SLANG_RHI_ASSERT(queueFamilyIndex >= 0);
     m_queueFamilyIndex = queueFamilyIndex;
 
-#if defined(SLANG_RHI_NV_AFTERMATH)
+#if SLANG_RHI_ENABLE_AFTERMATH
     VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {};
 
+    if (desc.enableAftermath)
     {
-        // Enable NV_device_diagnostic_checkpoints extension to be able to
-        // use Aftermath event markers.
+        // Enable NV_device_diagnostic_checkpoints extension to be able to use Aftermath event markers.
         deviceExtensions.push_back(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
 
-        // Enable NV_device_diagnostics_config extension to configure Aftermath
-        // features.
+        // Enable NV_device_diagnostics_config extension to configure Aftermath features.
         deviceExtensions.push_back(VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
 
-        // Set up device creation info for Aftermath feature flag configuration.
-        VkDeviceDiagnosticsConfigFlagsNV aftermathFlags =
-            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV | // Enable automatic call stack
-                                                                               // checkpoints.
-            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV |     // Enable tracking of resources.
-            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV; // Generate debug information for shaders.
-        // Not available on the version of Vulkan currently building with.
-        // VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_ERROR_REPORTING_BIT_NV;  // Enable additional runtime shader error
-        // reporting.
+        VkDeviceDiagnosticsConfigFlagsNV aftermathFlags = 0;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableMarkers))
+            aftermathFlags |= VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableResourceTracking))
+            aftermathFlags |= VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV;
+        if (is_set(desc.aftermathFlags, AftermathFlags::GenerateShaderDebugInfo))
+            aftermathFlags |= VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableShaderErrorReporting))
+            aftermathFlags |= VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_ERROR_REPORTING_BIT_NV;
 
         aftermathInfo.sType = VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV;
         aftermathInfo.flags = aftermathFlags;
 
         aftermathInfo.pNext = deviceCreateInfo.pNext;
         deviceCreateInfo.pNext = &aftermathInfo;
+
+        m_aftermathCrashDumper = AftermathCrashDumper::getOrCreate();
+    }
+#else
+    if (desc.enableAftermath)
+    {
+        printWarning("Aftermath requested but not enabled in build.");
     }
 #endif
 

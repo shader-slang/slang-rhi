@@ -66,8 +66,4 @@ uint32_t getSubresourceIndex(
 
 Result reportLiveObjects();
 
-/// Call after a DXGI_ERROR_DEVICE_REMOVED/DXGI_ERROR_DEVICE_RESET on present, to wait for
-/// dumping to complete. Will return SLANG_OK if wait happened successfully
-Result waitForCrashDumpCompletion(HRESULT res);
-
 } // namespace rhi

@@ -18,6 +18,12 @@ ShaderProgramImpl::~ShaderProgramImpl()
     {
         if (module.shaderModule != VK_NULL_HANDLE)
         {
+#if SLANG_RHI_ENABLE_AFTERMATH
+            if (device->m_aftermathCrashDumper)
+            {
+                device->m_aftermathCrashDumper->unregisterShader(reinterpret_cast<uint64_t>(module.shaderModule));
+            }
+#endif
             device->m_api.vkDestroyShaderModule(device->m_device, module.shaderModule, nullptr);
         }
     }
@@ -141,6 +147,18 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     SLANG_VK_RETURN_ON_FAIL(
         device->m_api.vkCreateShaderModule(device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule)
     );
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (device->m_aftermathCrashDumper)
+    {
+        device->m_aftermathCrashDumper->registerShader(
+            reinterpret_cast<uint64_t>(module.shaderModule),
+            DeviceType::Vulkan,
+            module.code->getBufferPointer(),
+            module.code->getBufferSize()
+        );
+    }
+#endif
 
     stageCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     stageCreateInfo.stage = (VkShaderStageFlagBits)translateShaderStage(entryPointInfo->getStage());
