@@ -11,12 +11,6 @@
 // We will use the C standard library just for printing error messages.
 #include <cstdio>
 
-#if SLANG_RHI_ENABLE_AFTERMATH
-#include "GFSDK_Aftermath.h"
-#include "GFSDK_Aftermath_Defines.h"
-#include "GFSDK_Aftermath_GpuCrashDump.h"
-#endif
-
 namespace rhi {
 
 const FormatMapping& getFormatMapping(Format format)
@@ -516,57 +510,6 @@ Result reportLiveObjects()
 Result reportD3DLiveObjects()
 {
     return reportLiveObjects();
-}
-
-Result waitForCrashDumpCompletion(HRESULT res)
-{
-    // If it's not a device remove/reset then theres nothing to wait for
-    if (!(res == DXGI_ERROR_DEVICE_REMOVED || res == DXGI_ERROR_DEVICE_RESET))
-    {
-        return SLANG_OK;
-    }
-
-#if SLANG_RHI_NV_AFTERMATH
-    {
-        GFSDK_Aftermath_CrashDump_Status status = GFSDK_Aftermath_CrashDump_Status_Unknown;
-        if (GFSDK_Aftermath_GetCrashDumpStatus(&status) != GFSDK_Aftermath_Result_Success)
-        {
-            return SLANG_FAIL;
-        }
-
-        const auto startTick = Process::getClockTick();
-        const auto frequency = Process::getClockFrequency();
-
-        float timeOutInSecs = 1.0f;
-
-        uint64_t timeOutTicks = uint64_t(frequency * timeOutInSecs) + 1;
-
-        // Loop while Aftermath crash dump data collection has not finished or
-        // the application is still processing the crash dump data.
-        while (status != GFSDK_Aftermath_CrashDump_Status_CollectingDataFailed &&
-               status != GFSDK_Aftermath_CrashDump_Status_Finished &&
-               Process::getClockTick() - startTick < timeOutTicks)
-        {
-            // Sleep a couple of milliseconds and poll the status again.
-            Process::sleepCurrentThread(50);
-            if (GFSDK_Aftermath_GetCrashDumpStatus(&status) != GFSDK_Aftermath_Result_Success)
-            {
-                return SLANG_FAIL;
-            }
-        }
-
-        if (status == GFSDK_Aftermath_CrashDump_Status_Finished)
-        {
-            return SLANG_OK;
-        }
-        else
-        {
-            return SLANG_E_TIME_OUT;
-        }
-    }
-#endif
-
-    return SLANG_OK;
 }
 
 } // namespace rhi

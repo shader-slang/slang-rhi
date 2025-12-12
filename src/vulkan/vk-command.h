@@ -81,6 +81,10 @@ public:
     BindingCache m_bindingCache;
     uint64_t m_submissionID = 0;
 
+#if SLANG_RHI_ENABLE_AFTERMATH
+    AftermathMarkerTracker m_aftermathMarkerTracker;
+#endif
+
     CommandBufferImpl(Device* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
 

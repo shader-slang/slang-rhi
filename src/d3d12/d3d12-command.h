@@ -26,6 +26,10 @@ public:
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
+#if SLANG_RHI_ENABLE_AFTERMATH
+    GFSDK_Aftermath_ContextHandle m_aftermathContext;
+#endif
+
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
 
@@ -73,6 +77,11 @@ public:
     ConstantBufferPool m_constantBufferPool;
     BindingCache m_bindingCache;
     uint64_t m_submissionID = 0;
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    GFSDK_Aftermath_ContextHandle m_aftermathContext;
+    AftermathMarkerTracker m_aftermathMarkerTracker;
+#endif
 
     CommandBufferImpl(Device* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();

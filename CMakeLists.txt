@@ -564,6 +564,7 @@ target_compile_options(slang-rhi-warnings-as-errors INTERFACE
 target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
 
 target_sources(slang-rhi PRIVATE
+    src/aftermath.cpp
     src/command-buffer.cpp
     src/command-list.cpp
     src/cuda-driver-api.cpp
