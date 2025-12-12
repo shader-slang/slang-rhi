@@ -730,10 +730,6 @@ struct TLAS
 
         AccelerationStructureDesc createDesc{};
         createDesc.size = sizes.accelerationStructureSize;
-        createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
-
-        createDesc.motionInfo.enabled = true;
-        createDesc.motionInfo.maxInstances = buildInput.instances.instanceCount;
 
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
 
