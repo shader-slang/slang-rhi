@@ -508,6 +508,10 @@ Result BindingDataBuilder::bindAsValue(
                         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
                     );
                 }
+                if (as)
+                {
+                    writeBufferState(this, as->m_buffer, ResourceState::AccelerationStructureRead);
+                }
             }
             break;
         }

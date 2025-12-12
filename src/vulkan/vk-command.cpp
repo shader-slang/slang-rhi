@@ -129,13 +129,6 @@ public:
         uint32_t queryCount,
         const AccelerationStructureQueryDesc* queryDescs
     );
-
-    void accelerationStructureBarrier(
-        uint32_t accelerationStructureCount,
-        IAccelerationStructure* const* accelerationStructures,
-        AccessFlag srcAccess,
-        AccessFlag destAccess
-    );
 };
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
@@ -1148,12 +1141,128 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     if (converter.convert(cmd.desc, m_device->m_debugCallback) != SLANG_OK)
         return;
 
-    converter.buildInfo.dstAccelerationStructure = checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_vkHandle;
-    if (cmd.src)
+    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+    BufferImpl* scratchBuffer = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
+
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
+    converter.buildInfo.dstAccelerationStructure = dst->m_vkHandle;
+    if (src)
     {
-        converter.buildInfo.srcAccelerationStructure = checked_cast<AccelerationStructureImpl*>(cmd.src)->m_vkHandle;
+        requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+        converter.buildInfo.srcAccelerationStructure = src->m_vkHandle;
     }
+    requireBufferState(scratchBuffer, ResourceState::UnorderedAccess);
     converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
+
+    for (uint32_t inputIndex = 0; inputIndex < cmd.desc.inputCount; ++inputIndex)
+    {
+        const AccelerationStructureBuildInput& input = cmd.desc.inputs[inputIndex];
+        switch (input.type)
+        {
+        case AccelerationStructureBuildInputType::Instances:
+            if (input.instances.instanceBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.instances.instanceBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            break;
+        case AccelerationStructureBuildInputType::Triangles:
+            for (uint32_t i = 0; i < input.triangles.vertexBufferCount; ++i)
+            {
+                if (input.triangles.vertexBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.triangles.vertexBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
+            if (input.triangles.indexBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.triangles.indexBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            if (input.triangles.preTransformBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.triangles.preTransformBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            break;
+        case AccelerationStructureBuildInputType::ProceduralPrimitives:
+            for (uint32_t i = 0; i < input.proceduralPrimitives.aabbBufferCount; ++i)
+            {
+                if (input.proceduralPrimitives.aabbBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.proceduralPrimitives.aabbBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
+            break;
+        case AccelerationStructureBuildInputType::Spheres:
+            for (uint32_t i = 0; i < input.spheres.vertexBufferCount; ++i)
+            {
+                if (input.spheres.vertexPositionBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.spheres.vertexPositionBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+                if (input.spheres.vertexRadiusBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.spheres.vertexRadiusBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
+            if (input.spheres.indexBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.spheres.indexBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            break;
+        case AccelerationStructureBuildInputType::LinearSweptSpheres:
+            for (uint32_t i = 0; i < input.linearSweptSpheres.vertexBufferCount; ++i)
+            {
+                if (input.linearSweptSpheres.vertexPositionBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.linearSweptSpheres.vertexPositionBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+                if (input.linearSweptSpheres.vertexRadiusBuffers[i].buffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(input.linearSweptSpheres.vertexRadiusBuffers[i].buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
+            if (input.linearSweptSpheres.indexBuffer.buffer)
+            {
+                requireBufferState(
+                    checked_cast<BufferImpl*>(input.linearSweptSpheres.indexBuffer.buffer),
+                    ResourceState::AccelerationStructureBuildInput
+                );
+            }
+            break;
+        }
+    }
+
+    commitBarriers();
 
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos;
     rangeInfos.resize(converter.primitiveCounts.size());
@@ -1171,16 +1280,22 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
     if (cmd.propertyQueryCount)
     {
-        accelerationStructureBarrier(1, &cmd.dst, AccessFlag::Write, AccessFlag::Read);
         queryAccelerationStructureProperties(1, &cmd.dst, cmd.propertyQueryCount, cmd.queryDescs);
     }
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
+    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
+    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+    commitBarriers();
+
     VkCopyAccelerationStructureInfoKHR copyInfo = {VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
-    copyInfo.src = checked_cast<AccelerationStructureImpl*>(cmd.src)->m_vkHandle;
-    copyInfo.dst = checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_vkHandle;
+    copyInfo.dst = dst->m_vkHandle;
+    copyInfo.src = src->m_vkHandle;
     switch (cmd.mode)
     {
     case AccelerationStructureCopyMode::Clone:
@@ -1205,10 +1320,17 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
 
 void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dst.buffer);
+    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+
+    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
+    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
+    commitBarriers();
+
     VkCopyAccelerationStructureToMemoryInfoKHR copyInfo = {
         VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_TO_MEMORY_INFO_KHR
     };
-    copyInfo.src = checked_cast<AccelerationStructureImpl*>(cmd.src)->m_vkHandle;
+    copyInfo.src = src->m_vkHandle;
     copyInfo.dst.deviceAddress = cmd.dst.getDeviceAddress();
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_SERIALIZE_KHR;
     m_api.vkCmdCopyAccelerationStructureToMemoryKHR(m_cmdBuffer, &copyInfo);
@@ -1216,11 +1338,18 @@ void CommandRecorder::cmdSerializeAccelerationStructure(const commands::Serializ
 
 void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
+    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.src.buffer);
+
+    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
+    requireBufferState(srcBuffer, ResourceState::ShaderResource);
+    commitBarriers();
+
     VkCopyMemoryToAccelerationStructureInfoKHR copyInfo = {
         VK_STRUCTURE_TYPE_COPY_MEMORY_TO_ACCELERATION_STRUCTURE_INFO_KHR
     };
     copyInfo.src.deviceAddress = cmd.src.getDeviceAddress();
-    copyInfo.dst = checked_cast<AccelerationStructureImpl*>(cmd.dst)->m_vkHandle;
+    copyInfo.dst = dst->m_vkHandle;
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
     m_api.vkCmdCopyMemoryToAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
 }
@@ -1249,7 +1378,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     if (addressesBuffer)
         requireBufferState(addressesBuffer, ResourceState::UnorderedAccess);
     if (resultBuffer)
-        requireBufferState(resultBuffer, ResourceState::UnorderedAccess);
+        requireBufferState(resultBuffer, ResourceState::AccelerationStructureWrite);
     if (sizesBuffer)
         requireBufferState(sizesBuffer, ResourceState::UnorderedAccess);
     commitBarriers();
@@ -1605,10 +1734,16 @@ void CommandRecorder::queryAccelerationStructureProperties(
 {
     short_vector<VkAccelerationStructureKHR> vkHandles;
     vkHandles.resize(accelerationStructureCount);
-    for (uint32_t i = 0; i < accelerationStructureCount; i++)
+
+    for (uint32_t i = 0; i < accelerationStructureCount; ++i)
     {
+        AccelerationStructureImpl* asImpl = checked_cast<AccelerationStructureImpl*>(accelerationStructures[i]);
+        requireBufferState(asImpl->m_buffer, ResourceState::AccelerationStructureRead);
         vkHandles[i] = checked_cast<AccelerationStructureImpl*>(accelerationStructures[i])->m_vkHandle;
     }
+
+    commitBarriers();
+
     for (uint32_t i = 0; i < queryCount; i++)
     {
         VkQueryType queryType;
@@ -1642,59 +1777,6 @@ void CommandRecorder::queryAccelerationStructureProperties(
         );
     }
 }
-
-void CommandRecorder::accelerationStructureBarrier(
-    uint32_t accelerationStructureCount,
-    IAccelerationStructure* const* accelerationStructures,
-    AccessFlag srcAccess,
-    AccessFlag destAccess
-)
-{
-    short_vector<VkBufferMemoryBarrier> memBarriers;
-    memBarriers.resize(accelerationStructureCount);
-    for (uint32_t i = 0; i < accelerationStructureCount; i++)
-    {
-        memBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        memBarriers[i].pNext = nullptr;
-        memBarriers[i].dstAccessMask = translateAccelerationStructureAccessFlag(destAccess);
-        memBarriers[i].srcAccessMask = translateAccelerationStructureAccessFlag(srcAccess);
-        memBarriers[i].srcQueueFamilyIndex = m_device->m_queueFamilyIndex;
-        memBarriers[i].dstQueueFamilyIndex = m_device->m_queueFamilyIndex;
-
-        auto asImpl = checked_cast<AccelerationStructureImpl*>(accelerationStructures[i]);
-        memBarriers[i].buffer = asImpl->m_buffer->m_buffer.m_buffer;
-        memBarriers[i].offset = 0;
-        memBarriers[i].size = asImpl->m_buffer->m_desc.size;
-    }
-
-    VkPipelineStageFlagBits dstStageMask = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
-    if (m_device->m_api.m_extendedFeatures.rayQueryFeatures.rayQuery)
-    {
-        // for VUID-vkCmdPipelineBarrier-dstAccessMask-06257
-        // If the rayQuery feature is not enabled and a memory barrier dstAccessMask includes
-        // VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR, dstStageMask must not include any of the
-        // VK_PIPELINE_STAGE_*_SHADER_BIT stages except VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR
-        dstStageMask =
-            (VkPipelineStageFlagBits)(VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR |
-                                      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT |
-                                      VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-                                      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-                                      VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR);
-    }
-    m_device->m_api.vkCmdPipelineBarrier(
-        m_cmdBuffer,
-        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-        dstStageMask,
-        0,
-        0,
-        nullptr,
-        (uint32_t)memBarriers.size(),
-        memBarriers.data(),
-        0,
-        nullptr
-    );
-}
-
 
 // CommandQueueImpl
 

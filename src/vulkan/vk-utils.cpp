@@ -293,12 +293,12 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     case ResourceState::ResolveSource:
     case ResourceState::CopySource:
         return VK_ACCESS_TRANSFER_READ_BIT;
-    case ResourceState::AccelerationStructure:
-        return VkAccessFlagBits(
-            VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR
-        );
+    case ResourceState::AccelerationStructureRead:
+        return VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+    case ResourceState::AccelerationStructureWrite:
+        return VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:
-        return VkAccessFlagBits(VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR);
+        return VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
     case ResourceState::General:
         return VkAccessFlagBits(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
     default:
@@ -346,15 +346,14 @@ VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
                    : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     case ResourceState::General:
         return VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-    case ResourceState::AccelerationStructure:
+    case ResourceState::AccelerationStructureRead:
         return VkPipelineStageFlagBits(
-            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
-            VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR | VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR
         );
+    case ResourceState::AccelerationStructureWrite:
+        return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:
-        return VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR);
+        return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     default:
         SLANG_RHI_ASSERT_FAILURE("Unsupported");
         return VkPipelineStageFlagBits(0);

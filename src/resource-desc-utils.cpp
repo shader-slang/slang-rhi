@@ -13,7 +13,7 @@ inline ResourceState determineDefaultResourceState(BufferUsage usage)
         {BufferUsage::ShaderTable, ResourceState::ShaderResource},
         {BufferUsage::VertexBuffer, ResourceState::VertexBuffer},
         {BufferUsage::IndexBuffer, ResourceState::IndexBuffer},
-        {BufferUsage::AccelerationStructure, ResourceState::AccelerationStructure},
+        {BufferUsage::AccelerationStructure, ResourceState::AccelerationStructureRead},
         {BufferUsage::AccelerationStructureBuildInput, ResourceState::AccelerationStructureBuildInput},
         {BufferUsage::ConstantBuffer, ResourceState::ConstantBuffer},
         {BufferUsage::ShaderResource, ResourceState::ShaderResource},

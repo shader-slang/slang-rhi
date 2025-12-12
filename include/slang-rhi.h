@@ -511,7 +511,8 @@ enum class ResourceState
     CopyDestination,
     ResolveSource,
     ResolveDestination,
-    AccelerationStructure,
+    AccelerationStructureRead,
+    AccelerationStructureWrite,
     AccelerationStructureBuildInput,
 };
 
