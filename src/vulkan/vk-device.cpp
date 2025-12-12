@@ -843,6 +843,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableFeatures.push_back(Feature::ShaderExecutionReordering);
                 availableCapabilities.push_back(Capability::SPV_NV_shader_invocation_reorder);
                 availableCapabilities.push_back(Capability::spvShaderInvocationReorderNV);
+                availableCapabilities.push_back(Capability::spirv_nv);
             }
         );
 

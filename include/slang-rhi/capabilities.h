@@ -150,6 +150,7 @@
     x(spvRayQueryKHR) \
     x(spvRayQueryPositionFetchKHR) \
     x(spvShaderInvocationReorderNV) \
+    x(spirv_nv) \
     x(spvRayTracingClusterAccelerationStructureNV) \
     x(spvRayTracingLinearSweptSpheresGeometryNV) \
     x(spvShaderClockKHR) \
