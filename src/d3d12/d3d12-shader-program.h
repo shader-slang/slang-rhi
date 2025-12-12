@@ -22,6 +22,7 @@ public:
     std::vector<ShaderBinary> m_shaders;
 
     ShaderProgramImpl(Device* device, const ShaderProgramDesc& desc);
+    ~ShaderProgramImpl();
 
     virtual Result createShaderModule(
         slang::EntryPointReflection* entryPointInfo,

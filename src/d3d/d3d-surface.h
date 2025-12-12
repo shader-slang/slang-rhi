@@ -164,11 +164,13 @@ public:
 
         const auto res = m_swapChain->Present(m_config.vsync ? 1 : 0, 0);
 
+#if SLANG_RHI_ENABLE_AFTERMATH
         // We may want to wait for crash dump completion for some kinds of debugging scenarios
         if (res == DXGI_ERROR_DEVICE_REMOVED || res == DXGI_ERROR_DEVICE_RESET)
         {
-            waitForCrashDumpCompletion(res);
+            AftermathCrashDumper::waitForDump();
         }
+#endif
 
         return SLANG_FAILED(res) ? SLANG_FAIL : SLANG_OK;
     }

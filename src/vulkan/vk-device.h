@@ -224,6 +224,11 @@ public:
     RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
 
     VkSampler m_defaultSampler;
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    /// Aftermath crash dumper (null if Aftermath is not enabled).
+    AftermathCrashDumper* m_aftermathCrashDumper = nullptr;
+#endif
 };
 
 } // namespace rhi::vk

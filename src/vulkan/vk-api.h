@@ -271,6 +271,7 @@ protected:
     x(vkGetPipelineBinaryDataKHR) \
     x(vkGetPipelineKeyKHR) \
     x(vkReleaseCapturedPipelineDataKHR) \
+    x(vkCmdSetCheckpointNV) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
