@@ -22,11 +22,14 @@ void closestHitNOP(inout RayPayload payload, in BuiltInTriangleIntersectionAttri
     // NOP
 }
 
+// OptiX only allows calling ObjectRayOrigin from any hit or intersection.
+#if !defined(__CUDA__)
 [shader("closesthit")]
 void closestHitWriteObjectRayOrigin(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     payload.attribute = ObjectRayOrigin();
 }
+#endif
 
 [shader("anyhit")]
 void anyHitWriteObjectRayOrigin(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
@@ -40,11 +43,14 @@ void closestHitWriteWorldRayOrigin(inout RayPayload payload, in BuiltInTriangleI
     payload.attribute = WorldRayOrigin();
 }
 
+// OptiX only allows calling ObjectRayDirection from any hit or intersection.
+#if !defined(__CUDA__)
 [shader("closesthit")]
 void closestHitWriteObjectRayDirection(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     payload.attribute = ObjectRayDirection();
 }
+#endif
 
 [shader("anyhit")]
 void anyHitWriteObjectRayDirection(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
