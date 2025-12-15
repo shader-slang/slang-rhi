@@ -82,7 +82,7 @@ void closestHitShaderIdx1(inout RayPayload payload, in BuiltInTriangleIntersecti
     payload.color = color;
 }
 
-#ifndef __CUDA__
+#if !(defined(__CUDA__) || defined(__D3D12__))
 [shader("raygeneration")]
 void rayGenShaderMotion()
 {
@@ -104,7 +104,9 @@ void rayGenShaderMotion()
 
     resultTexture[pixel] = payload.color;
 }
+#endif // !(defined(__CUDA__) || defined(__D3D12__))
 
+#if !defined(__CUDA__)
 [shader("closesthit")]
 void closestHitShaderMotion(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {

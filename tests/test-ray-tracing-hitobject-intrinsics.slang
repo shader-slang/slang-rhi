@@ -425,6 +425,10 @@ void rayGenShaderMakeMiss()
     resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
 }
 
+// NOTE: We disable this code under D3D12 because it causes compilation to fail, but it's not clear
+// if it is failing due to a bug in the test or a bug in Slang. Revisit this if/when motion blur
+// support is added to the D3D12 backend.
+#if !defined(__D3D12__)
 [shader("raygeneration")]
 void rayGenShaderMakeMotionMiss()
 {
@@ -448,6 +452,7 @@ void rayGenShaderMakeMotionMiss()
     HitObject.Invoke(sceneBVH, hitObjectMiss, payload);
     resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
 }
+#endif
 
 [shader("raygeneration")]
 void rayGenShaderTraceMotionRay()
