@@ -58,7 +58,7 @@ private:
     };
 
     MarkerName m_markerName;
-    std::array<MarkerEntry, 16> m_entries;
+    std::array<MarkerEntry, 64> m_entries;
     size_t m_nextEntryIndex = 0;
 };
 
