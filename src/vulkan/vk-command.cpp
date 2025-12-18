@@ -2099,7 +2099,7 @@ CommandBufferImpl::~CommandBufferImpl()
 #if SLANG_RHI_ENABLE_AFTERMATH
     if (device->m_aftermathCrashDumper)
     {
-        device->m_aftermathCrashDumper->registerMarkerTracker(&m_aftermathMarkerTracker);
+        device->m_aftermathCrashDumper->unregisterMarkerTracker(&m_aftermathMarkerTracker);
     }
 #endif
     device->m_api.vkFreeCommandBuffers(device->m_api.m_device, m_commandPool, 1, &m_commandBuffer);
