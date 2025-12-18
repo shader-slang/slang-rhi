@@ -231,8 +231,8 @@ AftermathCrashDumper::Shader* AftermathCrashDumper::findShader(uint64_t hash)
                 GFSDK_Aftermath_GetShaderHashSpirv(GFSDK_Aftermath_Version_API, &spirv, &shaderHash);
                 shader.hash = shaderHash.hash;
             }
-        }
 #endif
+        }
         if (shader.hash == hash)
         {
             return &shader;
