@@ -85,6 +85,11 @@ if(SLANG_RHI_HAS_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     set(SLANG_RHI_HAS_AGILITY_SDK ON)
 endif()
 
+set(SLANG_RHI_HAS_AFTERMATH OFF)
+if(SLANG_RHI_HAS_CUDA AND (CMAKE_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_SYSTEM_NAME STREQUAL "Linux") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
+    set(SLANG_RHI_HAS_AFTERMATH ON)
+endif()
+
 set(SLANG_RHI_HAS_NVAPI OFF)
 if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
     set(SLANG_RHI_HAS_NVAPI ON)
@@ -101,6 +106,12 @@ cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_R
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_OPTIX "Enable OptiX support" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
+option(SLANG_RHI_ENABLE_AFTERMATH "Enable Aftermath support" OFF)
+
+# Check Aftermath availability
+if(SLANG_RHI_ENABLE_AFTERMATH AND NOT SLANG_RHI_HAS_AFTERMATH)
+    message(FATAL_ERROR "Aftermath SDK is not available on this platform")
+endif()
 
 # Enabled OptiX versions
 if(NOT DEFINED SLANG_RHI_OPTIX_VERSIONS)
@@ -134,6 +145,17 @@ endif()
 # If using a preview version of Agility SDK, set this to D3D12_PREVIEW_SDK_VERSION
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)
     set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_SDK_VERSION")
+endif()
+
+# Aftermath
+if(NOT DEFINED SLANG_RHI_AFTERMATH_URL)
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+        if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+            set(SLANG_RHI_AFTERMATH_URL "https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2025_5_0/windows/NVIDIA_Nsight_Aftermath_SDK_2025.5.0.25317.zip")
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            set(SLANG_RHI_AFTERMATH_URL "https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2025_5_0/linux/NVIDIA_Nsight_Aftermath_SDK_2025.5.0.25317.tgz")
+        endif()
+    endif()
 endif()
 
 # NVAPI
@@ -357,6 +379,24 @@ if(SLANG_RHI_ENABLE_AGILITY_SDK AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     target_link_libraries(slang-rhi PUBLIC slang-rhi-agility-sdk)
 endif()
 
+# Fetch & setup Aftermath
+if(SLANG_RHI_ENABLE_AFTERMATH)
+    message(STATUS "Fetching Aftermath SDK ...")
+    FetchPackage(aftermath_sdk URL ${SLANG_RHI_AFTERMATH_URL})
+    add_library(slang-rhi-aftermath SHARED IMPORTED)
+    target_include_directories(slang-rhi-aftermath INTERFACE ${aftermath_sdk_SOURCE_DIR}/include)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND EXISTS ${aftermath_sdk_SOURCE_DIR}/lib/x64/GFSDK_Aftermath_Lib.x64.dll)
+        set_property(TARGET slang-rhi-aftermath PROPERTY IMPORTED_LOCATION ${aftermath_sdk_SOURCE_DIR}/lib/x64/GFSDK_Aftermath_Lib.x64.dll)
+        set_property(TARGET slang-rhi-aftermath PROPERTY IMPORTED_IMPLIB ${aftermath_sdk_SOURCE_DIR}/lib/x64/GFSDK_Aftermath_Lib.x64.lib)
+        copy_file(${aftermath_sdk_SOURCE_DIR}/lib/x64/GFSDK_Aftermath_Lib.x64.dll .)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS ${aftermath_sdk_SOURCE_DIR}/lib/x64/libGFSDK_Aftermath_Lib.x64.so)
+        set_property(TARGET slang-rhi-aftermath PROPERTY IMPORTED_LOCATION ${aftermath_sdk_SOURCE_DIR}/lib/x64/libGFSDK_Aftermath_Lib.x64.so)
+    else()
+        message(FATAL_ERROR "Aftermath SDK not found for the current platform")
+    endif()
+    target_link_libraries(slang-rhi PUBLIC slang-rhi-aftermath)
+endif()
+
 # Fetch & setup NVAPI
 if(SLANG_RHI_ENABLE_NVAPI)
     message(STATUS "Fetching NVAPI ...")
@@ -529,6 +569,7 @@ target_compile_options(slang-rhi-warnings-as-errors INTERFACE
 target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
 
 target_sources(slang-rhi PRIVATE
+    src/aftermath.cpp
     src/command-buffer.cpp
     src/command-list.cpp
     src/cuda-driver-api.cpp
@@ -771,6 +812,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
+        tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless.cpp

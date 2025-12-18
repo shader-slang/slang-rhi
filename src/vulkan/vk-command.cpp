@@ -64,6 +64,10 @@ public:
     VkStridedDeviceAddressRegionKHR m_hitSBT;
     VkStridedDeviceAddressRegionKHR m_callableSBT;
 
+#if SLANG_RHI_ENABLE_AFTERMATH
+    AftermathMarkerTracker* m_aftermathMarkerTracker = nullptr;
+#endif
+
     CommandRecorder(DeviceImpl* device)
         : m_device(device)
         , m_api(device->m_api)
@@ -134,6 +138,14 @@ public:
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 {
     m_cmdBuffer = commandBuffer->m_commandBuffer;
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    // Enable aftermath marker tracking if aftermath is enabled and extension is available.
+    if (m_device->m_aftermathCrashDumper && m_api.vkCmdSetCheckpointNV)
+    {
+        m_aftermathMarkerTracker = &commandBuffer->m_aftermathMarkerTracker;
+    }
+#endif
 
     VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -1490,6 +1502,14 @@ void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (m_aftermathMarkerTracker)
+    {
+        uint64_t marker = m_aftermathMarkerTracker->pushGroup(cmd.name);
+        m_api.vkCmdSetCheckpointNV(m_cmdBuffer, (const void*)marker);
+    }
+#endif
+
     if (!m_api.vkCmdBeginDebugUtilsLabelEXT)
         return;
 
@@ -1504,6 +1524,13 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 
 void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (m_aftermathMarkerTracker)
+    {
+        m_aftermathMarkerTracker->popGroup();
+    }
+#endif
+
     if (!m_api.vkCmdEndDebugUtilsLabelEXT)
         return;
 
@@ -2057,11 +2084,24 @@ CommandBufferImpl::CommandBufferImpl(Device* device, CommandQueueImpl* queue)
     : CommandBuffer(device)
     , m_queue(queue)
 {
+#if SLANG_RHI_ENABLE_AFTERMATH
+    DeviceImpl* deviceImpl = getDevice<DeviceImpl>();
+    if (deviceImpl->m_aftermathCrashDumper)
+    {
+        deviceImpl->m_aftermathCrashDumper->registerMarkerTracker(&m_aftermathMarkerTracker);
+    }
+#endif
 }
 
 CommandBufferImpl::~CommandBufferImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (device->m_aftermathCrashDumper)
+    {
+        device->m_aftermathCrashDumper->unregisterMarkerTracker(&m_aftermathMarkerTracker);
+    }
+#endif
     device->m_api.vkFreeCommandBuffers(device->m_api.m_device, m_commandPool, 1, &m_commandBuffer);
     device->m_api.vkDestroyCommandPool(device->m_api.m_device, m_commandPool, nullptr);
     m_descriptorSetAllocator.close();

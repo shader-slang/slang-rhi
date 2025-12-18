@@ -12,13 +12,9 @@
 #include "d3d11-input-layout.h"
 #include "d3d11-command.h"
 
-#include "core/string.h"
+#include "aftermath.h"
 
-#if SLANG_RHI_ENABLE_AFTERMATH
-#include "GFSDK_Aftermath.h"
-#include "GFSDK_Aftermath_Defines.h"
-#include "GFSDK_Aftermath_GpuCrashDump.h"
-#endif
+#include "core/string.h"
 
 namespace rhi::d3d11 {
 
@@ -80,6 +76,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         printError("Failed to load symbol 'D3D11CreateDevice'\n");
         return SLANG_FAIL;
     }
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    // Aftermath crash dump needs to be enabled before device.
+    if (desc.enableAftermath)
+    {
+        AftermathCrashDumper::getOrCreate();
+    }
+#endif
 
     m_dxgiFactory = getDXGIFactory();
 
@@ -146,21 +150,44 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
 #if SLANG_RHI_ENABLE_AFTERMATH
-    if (desc.enableAftermath && adapter->isNVIDIA())
+    if (desc.enableAftermath)
     {
-        // Initialize Nsight Aftermath for this device.
-        // This combination of flags is not necessarily appropriate for real world usage
-        const uint32_t aftermathFlags =
-            GFSDK_Aftermath_FeatureFlags_EnableMarkers | GFSDK_Aftermath_FeatureFlags_CallStackCapturing |
-            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking | GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |
-            GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
+        // Initialize Aftermath for this device.
+        uint32_t aftermathFlags = 0;
+        if (is_set(desc.aftermathFlags, AftermathFlags::Minimum))
+            aftermathFlags = GFSDK_Aftermath_FeatureFlags_Minimum;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableMarkers))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableMarkers;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableResourceTracking))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableResourceTracking;
+        if (is_set(desc.aftermathFlags, AftermathFlags::CallStackCapturing))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_CallStackCapturing;
+        if (is_set(desc.aftermathFlags, AftermathFlags::GenerateShaderDebugInfo))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableShaderErrorReporting))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
 
-        auto initResult = GFSDK_Aftermath_DX11_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
+        GFSDK_Aftermath_Result initResult =
+            GFSDK_Aftermath_DX11_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
 
-        if (initResult != GFSDK_Aftermath_Result_Success)
+        if (GFSDK_Aftermath_SUCCEED(initResult))
         {
-            printWarning("Failed to initialize aftermath: %d\n", int(initResult));
+            initResult = GFSDK_Aftermath_DX11_CreateContextHandle(m_immediateContext, &m_aftermathContext);
         }
+
+        if (GFSDK_Aftermath_SUCCEED(initResult))
+        {
+            m_aftermathCrashDumper = AftermathCrashDumper::getOrCreate();
+        }
+        else
+        {
+            printWarning("Failed to initialize Aftermath: %d\n", int(initResult));
+        }
+    }
+#else
+    if (desc.enableAftermath)
+    {
+        printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
 

@@ -2954,6 +2954,21 @@ struct DeviceNativeHandles
     NativeHandle handles[3] = {};
 };
 
+enum class AftermathFlags
+{
+    None = 0,
+    Minimum = (1 << 0),
+    EnableMarkers = (1 << 1),
+    EnableResourceTracking = (1 << 2),
+    CallStackCapturing = (1 << 3),
+    GenerateShaderDebugInfo = (1 << 4),
+    EnableShaderErrorReporting = (1 << 5),
+
+    Default = EnableMarkers | EnableResourceTracking | CallStackCapturing | GenerateShaderDebugInfo |
+              EnableShaderErrorReporting,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(AftermathFlags);
+
 struct DeviceDesc
 {
     StructType structType = StructType::DeviceDesc;
@@ -2998,6 +3013,8 @@ struct DeviceDesc
     bool enableRayTracingValidation = false;
     /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
     bool enableAftermath = false;
+    /// Aftermath configuration.
+    AftermathFlags aftermathFlags = AftermathFlags::Default;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
 
@@ -3520,8 +3537,8 @@ public:
         return AdapterList(blob);
     }
 
-    /// Enable debug layers, if available
-    /// If this is called, it must be called before creating any devices
+    /// Enable debug layers, if available.
+    /// If this is called, it must be called before creating any devices.
     virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
 
     /// Creates a device.

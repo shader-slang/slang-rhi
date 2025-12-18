@@ -597,10 +597,17 @@ ComPtr<IDevice> createTestingDevice(
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
         deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
         deviceDesc.existingDeviceHandles = extraOptions->existingDeviceHandles;
+        deviceDesc.enableAftermath = extraOptions->enableAftermath;
     }
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
     std::vector<slang::CompilerOptionEntry> compilerOptions;
+
+    if (extraOptions)
+    {
+        for (const auto& option : extraOptions->compilerOptions)
+            compilerOptions.push_back(option);
+    }
 
     slang::CompilerOptionEntry emitSpirvDirectlyEntry;
     emitSpirvDirectlyEntry.name = slang::CompilerOptionName::EmitSpirvDirectly;

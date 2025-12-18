@@ -63,6 +63,11 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
+#if SLANG_RHI_ENABLE_AFTERMATH
+    GFSDK_Aftermath_ContextHandle m_aftermathContext = nullptr;
+    AftermathMarkerTracker* m_aftermathMarkerTracker = nullptr;
+#endif
+
     CommandRecorder(DeviceImpl* device)
         : m_device(device)
     {
@@ -134,6 +139,15 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList6>(m_cmdList6.writeRef());
     m_cbvSrvUavArena = &commandBuffer->m_cbvSrvUavArena;
     m_samplerArena = &commandBuffer->m_samplerArena;
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    // Enable aftermath marker tracking if aftermath is enabled.
+    if (m_device->m_aftermathCrashDumper)
+    {
+        m_aftermathContext = commandBuffer->m_aftermathContext;
+        m_aftermathMarkerTracker = &commandBuffer->m_aftermathMarkerTracker;
+    }
+#endif
 
     CommandList& commandList = commandBuffer->m_commandList;
 
@@ -1525,6 +1539,14 @@ void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 {
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (m_aftermathMarkerTracker)
+    {
+        uint64_t marker = m_aftermathMarkerTracker->pushGroup(cmd.name);
+        GFSDK_Aftermath_SetEventMarker(m_aftermathContext, (const void*)marker, 0);
+    }
+#endif
+
     auto beginEvent = m_device->m_BeginEventOnCommandList;
     if (beginEvent)
     {
@@ -1538,6 +1560,13 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
 
 void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
 {
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (m_aftermathMarkerTracker)
+    {
+        m_aftermathMarkerTracker->popGroup();
+    }
+#endif
+
     auto endEvent = m_device->m_EndEventOnCommandList;
     if (endEvent)
     {
@@ -1749,9 +1778,18 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_queueIndex = queueIndex;
     m_d3dDevice = device->m_device;
+
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (device->m_aftermathCrashDumper)
+    {
+        GFSDK_Aftermath_DX12_CreateContextHandle(m_d3dQueue, &m_aftermathContext);
+    }
+#endif
+
     SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_trackingFence.writeRef())));
     m_globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
@@ -1839,7 +1877,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
-        m_d3dQueue->Wait(fence->m_fence.get(), desc.waitFenceValues[i]);
+        SLANG_RETURN_ON_FAIL(m_d3dQueue->Wait(fence->m_fence.get(), desc.waitFenceValues[i]));
     }
 
     // Execute command lists.
@@ -1863,9 +1901,20 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(fence->m_fence.get(), desc.signalFenceValues[i]));
     }
 
-    m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID);
+    SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID));
 
     retireCommandBuffers();
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    // Check for device removal. When not using a swapchain, we cannot rely on present calls to detect device removal.
+    // This is a workaround to ensure we catch device removal in such scenarios.
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (device->m_aftermathCrashDumper && FAILED(m_d3dDevice->GetDeviceRemovedReason()))
+    {
+        AftermathCrashDumper::waitForDump();
+        SLANG_RHI_ASSERT_FAILURE("D3D12 device lost");
+    }
+#endif
 
     return SLANG_OK;
 }
@@ -1874,9 +1923,9 @@ Result CommandQueueImpl::waitOnHost()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_lastSubmittedID++;
-    m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID);
+    SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID));
     ResetEvent(m_globalWaitHandle);
-    m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle);
+    SLANG_RETURN_ON_FAIL(m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle));
     WaitForSingleObject(m_globalWaitHandle, INFINITE);
     device->flushValidationMessages();
     retireCommandBuffers();
@@ -1889,8 +1938,6 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     outHandle->value = (uint64_t)m_d3dQueue.get();
     return SLANG_OK;
 }
-
-// CommandEncoderImpl
 
 // CommandEncoderImpl
 
@@ -1960,9 +2007,25 @@ CommandBufferImpl::CommandBufferImpl(Device* device, CommandQueueImpl* queue)
     : CommandBuffer(device)
     , m_queue(queue)
 {
+#if SLANG_RHI_ENABLE_AFTERMATH
+    DeviceImpl* deviceImpl = getDevice<DeviceImpl>();
+    if (deviceImpl->m_aftermathCrashDumper)
+    {
+        deviceImpl->m_aftermathCrashDumper->registerMarkerTracker(&m_aftermathMarkerTracker);
+    }
+#endif
 }
 
-CommandBufferImpl::~CommandBufferImpl() {}
+CommandBufferImpl::~CommandBufferImpl()
+{
+#if SLANG_RHI_ENABLE_AFTERMATH
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (device->m_aftermathCrashDumper)
+    {
+        device->m_aftermathCrashDumper->unregisterMarkerTracker(&m_aftermathMarkerTracker);
+    }
+#endif
+}
 
 Result CommandBufferImpl::init()
 {
@@ -1978,6 +2041,13 @@ Result CommandBufferImpl::init()
         nullptr,
         IID_PPV_ARGS(m_d3dCommandList.writeRef())
     ));
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (device->m_aftermathCrashDumper)
+    {
+        GFSDK_Aftermath_DX12_CreateContextHandle(m_d3dCommandList, &m_aftermathContext);
+    }
+#endif
 
     ID3D12DescriptorHeap* heaps[] = {
         device->m_gpuCbvSrvUavHeap->getHeap(),

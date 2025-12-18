@@ -67,6 +67,11 @@ public:
     void* m_raytracingValidationHandle = nullptr;
 #endif
 
+#if SLANG_RHI_ENABLE_AFTERMATH
+    /// Aftermath crash dumper (null if Aftermath is not enabled).
+    AftermathCrashDumper* m_aftermathCrashDumper = nullptr;
+#endif
+
     // Command signatures required for indirect draws. These indicate the format of the indirect
     // as well as the command type to be used (DrawInstanced and DrawIndexedInstanced, in this
     // case).

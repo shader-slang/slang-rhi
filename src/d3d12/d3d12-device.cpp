@@ -13,16 +13,11 @@
 #include "d3d12-input-layout.h"
 #include "d3d12-acceleration-structure.h"
 
+#include "aftermath.h"
 #include "cooperative-vector-utils.h"
 
 #include "core/short_vector.h"
 #include "core/string.h"
-
-#ifdef SLANG_RHI_NV_AFTERMATH
-#include "GFSDK_Aftermath.h"
-#include "GFSDK_Aftermath_Defines.h"
-#include "GFSDK_Aftermath_GpuCrashDump.h"
-#endif
 
 #include <algorithm>
 
@@ -224,8 +219,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    // If Aftermath is enabled, we can't enable the D3D12 debug layer as well
-    if (isDebugLayersEnabled() && !desc.enableAftermath)
+    if (isDebugLayersEnabled())
     {
         m_D3D12GetDebugInterface = (PFN_D3D12_GET_DEBUG_INTERFACE)loadProc(d3dModule, "D3D12GetDebugInterface");
         if (m_D3D12GetDebugInterface)
@@ -285,6 +279,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
+#if SLANG_RHI_ENABLE_AFTERMATH
+    // Aftermath crash dump needs to be enabled before device.
+    if (desc.enableAftermath)
+    {
+        AftermathCrashDumper::getOrCreate();
+    }
+#endif
+
     m_dxgiFactory = getDXGIFactory();
     AdapterImpl* adapter = nullptr;
 
@@ -334,7 +336,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Query for ID3D12Device5 interface.
     m_device->QueryInterface<ID3D12Device5>(m_device5.writeRef());
 
-    if (m_dxDebug && isDebugLayersEnabled() && !desc.enableAftermath)
+    if (isDebugLayersEnabled() && m_dxDebug)
     {
         ComPtr<ID3D12InfoQueue> infoQueue;
         if (SLANG_SUCCEEDED(m_device->QueryInterface(infoQueue.writeRef())))
@@ -400,22 +402,47 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-#ifdef SLANG_RHI_NV_AFTERMATH
-    if (desc.enableAftermath && adapter->isNVIDIA())
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (desc.enableAftermath)
     {
-        // Initialize Nsight Aftermath for this device.
-        // This combination of flags is not necessarily appropraite for real world usage
-        const uint32_t aftermathFlags =
-            GFSDK_Aftermath_FeatureFlags_EnableMarkers | GFSDK_Aftermath_FeatureFlags_CallStackCapturing |
-            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking | GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |
-            GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
-
-        auto initResult = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
-
-        if (initResult != GFSDK_Aftermath_Result_Success)
+        if (isDebugLayersEnabled())
         {
-            printWarning("Failed to initialize aftermath: %d\n", int(initResult));
+            printWarning("Aftermath cannot be used with D3D12 debug layers enabled.");
         }
+        else
+        {
+            // Initialize Aftermath for this device.
+            uint32_t aftermathFlags = 0;
+            if (is_set(desc.aftermathFlags, AftermathFlags::Minimum))
+                aftermathFlags = GFSDK_Aftermath_FeatureFlags_Minimum;
+            if (is_set(desc.aftermathFlags, AftermathFlags::EnableMarkers))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableMarkers;
+            if (is_set(desc.aftermathFlags, AftermathFlags::EnableResourceTracking))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableResourceTracking;
+            if (is_set(desc.aftermathFlags, AftermathFlags::CallStackCapturing))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_CallStackCapturing;
+            if (is_set(desc.aftermathFlags, AftermathFlags::GenerateShaderDebugInfo))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo;
+            if (is_set(desc.aftermathFlags, AftermathFlags::EnableShaderErrorReporting))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
+
+            GFSDK_Aftermath_Result initResult =
+                GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
+
+            if (GFSDK_Aftermath_SUCCEED(initResult))
+            {
+                m_aftermathCrashDumper = AftermathCrashDumper::getOrCreate();
+            }
+            else
+            {
+                printWarning("Failed to initialize Aftermath: %d\n", int(initResult));
+            }
+        }
+    }
+#else
+    if (desc.enableAftermath)
+    {
+        printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
 
@@ -1174,6 +1201,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         if (desc.label)
         {
             texture->m_resource.setDebugName(desc.label);
+#if SLANG_RHI_ENABLE_AFTERMATH
+            // The driver keeps track the resource internally so we don't need to keep the handle.
+            GFSDK_Aftermath_ResourceHandle resourceHandle = {};
+            GFSDK_Aftermath_DX12_RegisterResource(texture->m_resource.getResource(), &resourceHandle);
+#endif
         }
     }
 
@@ -1262,6 +1294,11 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     if (desc.label)
     {
         buffer->m_resource.setDebugName(desc.label);
+#if SLANG_RHI_ENABLE_AFTERMATH
+        // The driver keeps track the resource internally so we don't need to keep the handle.
+        GFSDK_Aftermath_ResourceHandle resourceHandle = {};
+        GFSDK_Aftermath_DX12_RegisterResource(buffer->m_resource.getResource(), &resourceHandle);
+#endif
     }
 
     returnComPtr(outBuffer, buffer);
