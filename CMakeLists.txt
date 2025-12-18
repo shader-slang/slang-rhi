@@ -100,13 +100,18 @@ option(SLANG_RHI_ENABLE_CPU "Enable CPU backend" ON)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D11 "Enable D3D11 backend" ON "SLANG_RHI_HAS_D3D11" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D12 "Enable D3D12 backend" ON "SLANG_RHI_HAS_D3D12" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_AGILITY_SDK "Enable Agility SDK" ON "SLANG_RHI_HAS_AGILITY_SDK" OFF)
-cmake_dependent_option(SLANG_RHI_ENABLE_AFTERMATH "Enable Aftermath support" ON "SLANG_RHI_HAS_AFTERMATH" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_NVAPI "Enable NVAPI support" ON "SLANG_RHI_HAS_NVAPI" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_VULKAN "Enable Vulkan backend" ON "SLANG_RHI_HAS_VULKAN" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_RHI_HAS_METAL" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_OPTIX "Enable OptiX support" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
+option(SLANG_RHI_ENABLE_AFTERMATH "Enable Aftermath support" OFF)
+
+# Check Aftermath availability
+if(SLANG_RHI_ENABLE_AFTERMATH AND NOT SLANG_RHI_HAS_AFTERMATH)
+    message(FATAL_ERROR "Aftermath SDK is not available on this platform")
+endif()
 
 # Enabled OptiX versions
 if(NOT DEFINED SLANG_RHI_OPTIX_VERSIONS)
