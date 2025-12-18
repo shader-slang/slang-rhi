@@ -442,7 +442,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #else
     if (desc.enableAftermath)
     {
-        printWarning("Aftermath requested but not enabled in build.");
+        printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
 
