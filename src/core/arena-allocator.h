@@ -59,7 +59,7 @@ public:
     template<typename T>
     T* allocate(size_t count = 1)
     {
-        static_assert(std::is_pod_v<T>, "T must be POD");
+        static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
         return reinterpret_cast<T*>(allocate(count * sizeof(T), alignof(T)));
     }
 
