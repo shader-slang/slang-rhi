@@ -5,7 +5,11 @@
 #include "core/platform.h"
 
 #define WGPU_SKIP_DECLARATIONS
+#if defined(__EMSCRIPTEN__)
+#include <webgpu/webgpu.h>
+#else
 #include <dawn/webgpu.h>
+#endif
 
 // clang-format off
 
@@ -296,7 +300,9 @@ namespace rhi::wgpu {
 
 struct API
 {
+#if !defined(__EMSCRIPTEN__)
     SharedLibraryHandle m_module = nullptr;
+#endif
 
     ~API();
 

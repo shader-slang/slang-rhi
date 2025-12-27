@@ -78,7 +78,9 @@ private:
         uintptr_t begin;
         uintptr_t end;
     };
+#if INTPTR_MAX == INT64_MAX
     static_assert(sizeof(Page) == 32);
+#endif
 
     size_t m_pageSize;
     Page* m_pages = nullptr;

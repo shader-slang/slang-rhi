@@ -102,7 +102,23 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    if (handle.type != NativeHandleType::WGPUBuffer)
+    {
+        return SLANG_E_INVALID_HANDLE;
+    }
+
+    BufferDesc fixedDesc = fixupBufferDesc(desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(this, fixedDesc);
+    buffer->m_buffer = (WGPUBuffer)handle.value;
+    m_ctx.api.wgpuBufferAddRef(buffer->m_buffer);
+
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
+{
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)

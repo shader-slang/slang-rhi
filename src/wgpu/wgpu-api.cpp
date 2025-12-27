@@ -6,14 +6,24 @@ namespace rhi::wgpu {
 
 API::~API()
 {
+#if !defined(__EMSCRIPTEN__)
     if (m_module)
     {
         unloadSharedLibrary(m_module);
     }
+#endif
 }
 
 Result API::init()
 {
+#if defined(__EMSCRIPTEN__)
+    // On Emscripten, WebGPU functions are provided by the browser.
+    // Directly assign the global WebGPU function pointers.
+#define LOAD_PROC(name) wgpu##name = ::wgpu##name;
+    SLANG_RHI_WGPU_PROCS(LOAD_PROC)
+#undef LOAD_PROC
+    return SLANG_OK;
+#else
 #if SLANG_WINDOWS_FAMILY
     const char* libraryNames[] = {"dawn.dll", "webgpu_dawn.dll"};
 #elif SLANG_LINUX_FAMILY
@@ -45,6 +55,7 @@ Result API::init()
     SLANG_RHI_WGPU_PROCS(LOAD_PROC)
 #undef LOAD_PROC
     return SLANG_OK;
+#endif
 }
 
 } // namespace rhi::wgpu

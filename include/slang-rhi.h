@@ -2068,6 +2068,7 @@ enum class WindowHandleType
     HWND,
     NSWindow,
     XlibWindow,
+    WGPUCanvas,
 };
 
 struct WindowHandle
@@ -2095,6 +2096,13 @@ struct WindowHandle
         handle.type = WindowHandleType::XlibWindow;
         handle.handleValues[0] = (uint64_t)(xdisplay);
         handle.handleValues[1] = xwindow;
+        return handle;
+    }
+    static WindowHandle fromWGPUCanvas(const char* canvasSelector)
+    {
+        WindowHandle handle = {};
+        handle.type = WindowHandleType::WGPUCanvas;
+        handle.handleValues[0] = (uint64_t)(canvasSelector);
         return handle;
     }
 };
