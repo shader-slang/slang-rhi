@@ -12,6 +12,10 @@
 #include <cstdio>
 #include <vector>
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
+
 namespace rhi::wgpu {
 
 static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
@@ -31,9 +35,11 @@ static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
 {
     WGPUInstanceDescriptor instanceDesc = {};
+#if !defined(__EMSCRIPTEN__)
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
+#endif
     WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
     if (!instance)
     {
@@ -59,14 +65,22 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
 #elif SLANG_LINUX_FAMILY
     options.backendType = WGPUBackendType_Vulkan;
 #endif
+
+#if !defined(__EMSCRIPTEN__)
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     options.nextInChain = &togglesDesc.chain;
+#endif
 
     WGPUAdapter adapter = {};
     {
         WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
         WGPURequestAdapterCallbackInfo callbackInfo = {};
+#if defined(__EMSCRIPTEN__)
+        // On Emscripten, use AllowSpontaneous mode - callbacks fire during browser event loop
+        callbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
+#else
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#endif
         callbackInfo.callback = [](WGPURequestAdapterStatus status_,
                                    WGPUAdapter adapter_,
                                    WGPUStringView message,
@@ -79,6 +93,18 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = &adapter;
         WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
+#if defined(__EMSCRIPTEN__)
+        // Poll with wgpuInstanceProcessEvents and emscripten_sleep
+        while (status == WGPURequestAdapterStatus(0) && adapter == nullptr)
+        {
+            api.wgpuInstanceProcessEvents(instance);
+            emscripten_sleep(10);
+        }
+        if (status != WGPURequestAdapterStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
+#else
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
@@ -86,6 +112,7 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
         {
             return SLANG_FAIL;
         }
+#endif
     }
     if (!adapter)
     {
@@ -184,13 +211,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         deviceImpl->reportUncapturedError(type, message);
     };
     deviceDesc.uncapturedErrorCallbackInfo.userdata1 = this;
+#if !defined(__EMSCRIPTEN__)
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
+#endif
 
     {
         WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
         WGPURequestDeviceCallbackInfo callbackInfo = {};
+#if defined(__EMSCRIPTEN__)
+        callbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
+#else
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#endif
         callbackInfo.callback = [](WGPURequestDeviceStatus status_,
                                    WGPUDevice device,
                                    WGPUStringView message,
@@ -221,6 +254,18 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         deviceDesc.deviceLostCallbackInfo = deviceLostCallbackInfo;
 
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
+#if defined(__EMSCRIPTEN__)
+        // Poll with wgpuInstanceProcessEvents and emscripten_sleep
+        while (status == WGPURequestDeviceStatus(0) && m_ctx.device == nullptr)
+        {
+            m_ctx.api.wgpuInstanceProcessEvents(m_ctx.instance);
+            emscripten_sleep(10);
+        }
+        if (status != WGPURequestDeviceStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
+#else
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
@@ -229,6 +274,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         {
             return SLANG_FAIL;
         }
+#endif
     }
 
     // Query device limits.

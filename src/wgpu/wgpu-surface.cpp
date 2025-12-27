@@ -40,6 +40,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     WGPUSurfaceSourceXlibWindow descXlib = {};
 #elif SLANG_APPLE_FAMILY
     WGPUSurfaceSourceMetalLayer descMetal = {};
+#elif defined(__EMSCRIPTEN__)
+    WGPUSurfaceSourceCanvasHTMLSelector descCanvas = {};
 #endif
 
     switch (windowHandle.type)
@@ -64,6 +66,12 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         descXlib.display = (void*)windowHandle.handleValues[0];
         descXlib.window = (uint64_t)windowHandle.handleValues[1];
         desc.nextInChain = (WGPUChainedStruct*)&descXlib;
+        break;
+#elif defined(__EMSCRIPTEN__)
+    case WindowHandleType::WGPUCanvas:
+        descCanvas.chain.sType = WGPUSType_SurfaceSourceCanvasHTMLSelector;
+        descCanvas.selector = (const char*)windowHandle.handleValues[0];
+        desc.nextInChain = (WGPUChainedStruct*)&descCanvas;
         break;
 #endif
     default:
