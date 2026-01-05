@@ -8,7 +8,7 @@
 #elif SLANG_APPLE_FAMILY
 #define VK_USE_PLATFORM_METAL_EXT 1
 #elif SLANG_LINUX_FAMILY
-#ifdef SLANG_ANDROID
+#if SLANG_ANDROID
 #define VK_USE_PLATFORM_ANDROID_KHR 1
 #else
 #define VK_USE_PLATFORM_XLIB_KHR 1
@@ -196,7 +196,7 @@ protected:
     x(vkCreateMetalSurfaceEXT) \
     /* */
 #elif SLANG_LINUX_FAMILY
-    #ifdef SLANG_ANDROID
+    #if SLANG_ANDROID
         #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
             x(vkCreateAndroidSurfaceKHR) \
             /* */

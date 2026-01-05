@@ -309,7 +309,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #elif SLANG_APPLE_FAMILY
         instanceExtensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 #elif SLANG_LINUX_FAMILY
-#ifdef SLANG_ANDROID
+#if SLANG_ANDROID
         instanceExtensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
 #else
         instanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);

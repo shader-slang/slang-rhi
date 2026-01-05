@@ -62,7 +62,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     }
 #elif SLANG_LINUX_FAMILY
 
-#ifdef SLANG_ANDROID
+#if SLANG_ANDROID
     case WindowHandleType::AndroidWindow:
     {
         VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo = {};
