@@ -12,6 +12,15 @@ struct RayIntrinsicResult
 {
     float value[3];
     int32_t isHit;
+    uint32_t hitKind;
+    float rayTMin;
+    float rayTCurrent;
+    uint32_t rayFlags;
+    uint32_t geometryIndex;
+    float triangleVertices[9]; // 3 vertices × 3 components
+    float rayCurrentTime;
+    uint32_t instanceID;
+    uint32_t instanceIndex;
 };
 
 // clang-format off
@@ -94,6 +103,46 @@ struct RayTracingTriangleTest
 
         RayTracingTestPipeline
             pipeline(device, "test-ray-tracing-intrinsics", {raygenName}, hitGroupProgramNames, missNames);
+
+        launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
+    }
+
+    ComPtr<ISlangBlob> getTestResult()
+    {
+        ComPtr<ISlangBlob> resultBlob;
+        resultBuf.getFromDevice(resultBlob.writeRef());
+        return resultBlob;
+    }
+};
+
+struct RayTracingMotionBlurTriangleTest
+{
+    IDevice* device = nullptr;
+
+    void init(IDevice* device_) { device = device_; }
+
+    ResultBuffer resultBuf;
+
+    void createResultBuffer(size_t resultSize) { resultBuf = ResultBuffer(device, resultSize); }
+
+    void run(const char* raygenName, const char* closestHitName, const char* missName = "missNOPAttribute")
+    {
+        ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+        SingleTriangleVertexMotionBLAS blas(device, queue);
+        VertexMotionInstanceTLAS tlas(device, queue, blas.blas, 2);
+
+        std::vector<HitGroupProgramNames> hitGroupProgramNames = {{closestHitName, nullptr}};
+        std::vector<const char*> missNames = {missName};
+
+        RayTracingTestPipeline pipeline(
+            device,
+            "test-ray-tracing-intrinsics",
+            {raygenName},
+            hitGroupProgramNames,
+            missNames,
+            RayTracingPipelineFlags::EnableMotion
+        );
 
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
     }
@@ -246,4 +295,172 @@ GPU_TEST_CASE("ray-tracing-intrinsics-ignore-hit", ALL)
 
     // Verify we missed - isHit should be 0
     CHECK_EQ(result->isHit, 0);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-hit-kind", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderAttributeTest", "closestHitWriteHitKind");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // HIT_KIND_TRIANGLE_BACK_FACE = 0xFF
+    CHECK_EQ(result->hitKind, 0xFF);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-ray-tmin", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderAttributeTest", "closestHitWriteRayTMin");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Should match the TMin value set in the ray (0.001)
+    CHECK_EQ(result->rayTMin, 0.001f);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-ray-tcurrent", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderAttributeTest", "closestHitWriteRayTCurrent");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Should be greater than TMin and less than TMax
+    CHECK(result->rayTCurrent > 0.001f);
+    CHECK(result->rayTCurrent < 10000.0f);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-ray-flags", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderAttributeTest", "closestHitWriteRayFlags");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // RAY_FLAG_FORCE_OPAQUE = 0x01
+    CHECK_EQ(result->rayFlags, 0x01);
+}
+
+// OptiX doesn't support geometry index
+GPU_TEST_CASE("ray-tracing-intrinsics-geometry-index", ALL & ~CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderAttributeTest", "closestHitWriteGeometryIndex");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Single geometry BLAS, so geometry index should be 0
+    CHECK_EQ(result->geometryIndex, 0);
+}
+
+// Only supported for glsl and spirv backends
+GPU_TEST_CASE("ray-tracing-intrinsics-hit-triangle-vertex-position", Vulkan)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderAttributeTest", "closestHitWriteHitTriangleVertexPosition");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Verify all 3 vertices match SingleTriangleBLAS vertices
+    CHECK_EQ(result->triangleVertices[0], 0.0f);
+    CHECK_EQ(result->triangleVertices[1], 0.0f);
+    CHECK_EQ(result->triangleVertices[2], 1.0f);
+
+    CHECK_EQ(result->triangleVertices[3], 1.0f);
+    CHECK_EQ(result->triangleVertices[4], 0.0f);
+    CHECK_EQ(result->triangleVertices[5], 1.0f);
+
+    CHECK_EQ(result->triangleVertices[6], 0.0f);
+    CHECK_EQ(result->triangleVertices[7], 1.0f);
+    CHECK_EQ(result->triangleVertices[8], 1.0f);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-ray-current-time", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::RayTracingMotionBlur))
+        SKIP("ray tracing motion blur not supported");
+
+    RayTracingMotionBlurTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderMotionBlurAttributeTest", "closestHitWriteRayCurrentTime");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Motion blur enabled with currentTime = 0.5, should return that value
+    CHECK_EQ(result->rayCurrentTime, 0.5f);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-instance-id", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderAttributeTest", "closestHitWriteInstanceID");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Instance ID is set to 0xF00D in TLAS
+    CHECK_EQ(result->instanceID, 0xF00D);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-instance-index", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+    test.run("rayGenShaderAttributeTest", "closestHitWriteInstanceIndex");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Single instance in TLAS, so instance index should be 0
+    CHECK_EQ(result->instanceIndex, 0);
 }

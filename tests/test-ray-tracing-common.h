@@ -687,7 +687,7 @@ struct TLAS
         };
         const float* transformMatrix = transform ? transform : kIdentityTransform;
         memcpy(&genericInstanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
-        genericInstanceDescs[0].instanceID = 0;
+        genericInstanceDescs[0].instanceID = 0xF00D;
         genericInstanceDescs[0].instanceMask = 0xFF;
         genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
         genericInstanceDescs[0].accelerationStructure = blas->getHandle();
@@ -1086,7 +1086,7 @@ struct RayTracingTestPipeline
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = hitGroups.size();
         rtpDesc.hitGroups = hitGroups.data();
-        rtpDesc.maxRayPayloadSize = 64;
+        rtpDesc.maxRayPayloadSize = 128;
         rtpDesc.maxAttributeSizeInBytes = 8;
         rtpDesc.maxRecursion = 2;
         rtpDesc.flags = flags;
