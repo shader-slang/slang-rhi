@@ -11,6 +11,7 @@ namespace {
 struct RayIntrinsicResult
 {
     float value[3];
+    int32_t isHit;
 };
 
 // clang-format off
@@ -63,7 +64,7 @@ void checkFloat3(const float* actual, const std::array<float, 3>& expected)
     CHECK_EQ(actual[2], expected[2]);
 }
 
-struct RayTracingSingleTriangleTest
+struct RayTracingTriangleTest
 {
     IDevice* device = nullptr;
 
@@ -73,16 +74,23 @@ struct RayTracingSingleTriangleTest
 
     void createResultBuffer(size_t resultSize) { resultBuf = ResultBuffer(device, resultSize); }
 
-    void run(const char* raygenName, const char* closestHitName, const char* anyHitName = nullptr)
+    void run(
+        const char* raygenName,
+        const char* closestHitName,
+        const char* anyHitName = nullptr,
+        const char* missName = "missNOP",
+        bool applyInstanceTransform = false
+    )
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
         const bool enableAnyHit = anyHitName != nullptr;
         SingleTriangleBLAS blas(device, queue, enableAnyHit);
-        TLAS tlas(device, queue, blas.blas, kInstanceTransform.data());
+
+        TLAS tlas = TLAS(device, queue, blas.blas, applyInstanceTransform ? kInstanceTransform.data() : nullptr);
 
         std::vector<HitGroupProgramNames> hitGroupProgramNames = {{closestHitName, anyHitName}};
-        std::vector<const char*> missNames = {"missNOP"};
+        std::vector<const char*> missNames = {missName};
 
         RayTracingTestPipeline
             pipeline(device, "test-ray-tracing-intrinsics", {raygenName}, hitGroupProgramNames, missNames);
@@ -108,7 +116,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-origin", ALL)
     constexpr std::array<float, 3> kExpectedObjectRayOrigin =
         applyPointTransform(kWorldToObjectTransform, kRayOriginWorld);
 
-    RayTracingSingleTriangleTest test;
+    RayTracingTriangleTest test;
     test.init(device);
     test.createResultBuffer(sizeof(RayIntrinsicResult));
 
@@ -121,7 +129,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-origin", ALL)
         anyHitName = "anyHitWriteObjectRayOrigin";
     }
 
-    test.run("rayGenShaderObjectRayOrigin", closestHitName, anyHitName);
+    test.run("rayGenShaderObjectRayOrigin", closestHitName, anyHitName, "missNOP", /*applyInstanceTransform=*/true);
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
@@ -134,10 +142,16 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-origin", ALL)
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
-    RayTracingSingleTriangleTest test;
+    RayTracingTriangleTest test;
     test.init(device);
     test.createResultBuffer(sizeof(RayIntrinsicResult));
-    test.run("rayGenShaderWorldRayOrigin", "closestHitWriteWorldRayOrigin");
+    test.run(
+        "rayGenShaderWorldRayOrigin",
+        "closestHitWriteWorldRayOrigin",
+        nullptr,
+        "missNOP",
+        /*applyInstanceTransform=*/true
+    );
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
@@ -153,7 +167,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-direction", ALL)
     constexpr std::array<float, 3> kExpectedObjectRayDirection =
         applyVectorTransform(kWorldToObjectTransform, kWorldRayDirection);
 
-    RayTracingSingleTriangleTest test;
+    RayTracingTriangleTest test;
     test.init(device);
     test.createResultBuffer(sizeof(RayIntrinsicResult));
 
@@ -166,7 +180,7 @@ GPU_TEST_CASE("ray-tracing-intrinsics-object-ray-direction", ALL)
         anyHitName = "anyHitWriteObjectRayDirection";
     }
 
-    test.run("rayGenShaderObjectRayOrigin", closestHitName, anyHitName);
+    test.run("rayGenShaderObjectRayOrigin", closestHitName, anyHitName, "missNOP", /*applyInstanceTransform=*/true);
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
@@ -179,13 +193,57 @@ GPU_TEST_CASE("ray-tracing-intrinsics-world-ray-direction", ALL)
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
-    RayTracingSingleTriangleTest test;
+    RayTracingTriangleTest test;
     test.init(device);
     test.createResultBuffer(sizeof(RayIntrinsicResult));
-    test.run("rayGenShaderWorldRayDirection", "closestHitWriteWorldRayDirection");
+    test.run(
+        "rayGenShaderWorldRayDirection",
+        "closestHitWriteWorldRayDirection",
+        nullptr,
+        "missNOP",
+        /*applyInstanceTransform=*/true
+    );
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
 
     checkFloat3(result->value, kWorldRayDirection);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-accept-hit-and-end-search", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+
+    // The anyhit shader calls AcceptHitAndEndSearch, so closesthit should be invoked
+    test.run("rayGenShaderAnyhitTest", "closestHitSetHit", "anyhitAcceptAndEnd");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Verify closesthit was invoked - isHit should be 1
+    CHECK_EQ(result->isHit, 1);
+}
+
+GPU_TEST_CASE("ray-tracing-intrinsics-ignore-hit", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    RayTracingTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(RayIntrinsicResult));
+
+    // The anyhit shader calls IgnoreHit, so we should miss
+    test.run("rayGenShaderAnyhitTest", "closestHitSetHit", "anyhitIgnore");
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Verify we missed - isHit should be 0
+    CHECK_EQ(result->isHit, 0);
 }
