@@ -46,7 +46,7 @@ struct BindingDataBuilder
     /// The `ioOffset` parameter will be updated to reflect the constant buffer
     /// register consumed by the ordinary data buffer, if one was bound.
     ///
-    Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
+    Result bindOrdinaryDataBufferIfNeeded(
         ShaderObject* shaderObject,
         BindingOffset& ioOffset,
         ShaderObjectLayoutImpl* specializedLayout
