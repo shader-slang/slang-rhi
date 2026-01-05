@@ -575,3 +575,35 @@ GPU_TEST_CASE("ray-tracing-hitobject-trace-motion-ray", ALL)
     CHECK_EQ(result->queryWasSuccess, 1);
     CHECK_EQ(result->invokeWasSuccess, 1);
 }
+
+GPU_TEST_CASE("ray-tracing-hitobject-query-ray-desc", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderQueryRayDesc", {"closestHitNOP"}, {"missNOP"});
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-query-instance-id", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderQueryInstanceID", {"closestHitNOP"}, {"missNOP"});
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
