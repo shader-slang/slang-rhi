@@ -25,12 +25,8 @@ GPU_TEST_CASE("acceleration-structure-creation-with-validation", Vulkan)
         float position[3];
     };
 
-    std::vector<Vertex> kVertexData = {
-        {{-100.0f, 0, 100.0f}},
-        {{100.0f, 0, 100.0f}},
-        {{100.0f, 0, -100.0f}},
-        {{-100.0f, 0, -100.0f}}
-    };
+    std::vector<Vertex> kVertexData =
+        {{{-100.0f, 0, 100.0f}}, {{100.0f, 0, 100.0f}}, {{100.0f, 0, -100.0f}}, {{-100.0f, 0, -100.0f}}};
     const int kVertexCount = kVertexData.size();
 
     BufferDesc vertexBufferDesc = {};

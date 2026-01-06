@@ -596,7 +596,7 @@ ComPtr<IDevice> createTestingDevice(
         if (extraOptions->persistentPipelineCache)
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
         deviceDesc.validationMessageSeverityToEmit = extraOptions->validationMessageSeverityToEmit;
-        if(extraOptions->forceValidation)
+        if (extraOptions->forceValidation)
         {
             getRHI()->enableDebugLayers();
             deviceDesc.enableValidation = true;

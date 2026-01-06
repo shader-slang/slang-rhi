@@ -34,8 +34,7 @@ DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
     VkAccelerationStructureDeviceAddressInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
     info.accelerationStructure = m_vkHandle;
-    return (DeviceAddress)
-        m_api->vkGetAccelerationStructureDeviceAddressKHR(m_api->m_device, &info);
+    return (DeviceAddress)m_api->vkGetAccelerationStructureDeviceAddressKHR(m_api->m_device, &info);
 }
 
 AccelerationStructureHandle AccelerationStructureImpl::getHandle()

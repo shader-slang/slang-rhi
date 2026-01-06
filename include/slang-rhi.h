@@ -3032,7 +3032,8 @@ struct DeviceDesc
     /// Enable backend gpu-assisted-validation layer
     bool enableGPUAssistedValidation = false;
     /// Severity of validation to emit
-    ValidationMessageSeverity validationMessageSeverityToEmit = ValidationMessageSeverity::Error | ValidationMessageSeverity::Warning;
+    ValidationMessageSeverity validationMessageSeverityToEmit =
+        ValidationMessageSeverity::Error | ValidationMessageSeverity::Warning;
     /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
     bool enableAftermath = false;
     /// Aftermath configuration.

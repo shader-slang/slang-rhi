@@ -321,7 +321,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-            if(desc.enableGPUAssistedValidation)
+            if (desc.enableGPUAssistedValidation)
                 instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
@@ -344,7 +344,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             if (is_set(desc.validationMessageSeverityToEmit, ValidationMessageSeverity::Info))
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
 
-            if(desc.enableGPUAssistedValidation)
+            if (desc.enableGPUAssistedValidation)
             {
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
