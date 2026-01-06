@@ -1028,7 +1028,8 @@ struct RayTracingTestPipeline
         const std::vector<const char*>& raygenNames,
         const std::vector<HitGroupProgramNames>& programNames,
         const std::vector<const char*>& missNames,
-        RayTracingPipelineFlags flags = RayTracingPipelineFlags::None
+        RayTracingPipelineFlags flags = RayTracingPipelineFlags::None,
+        const ShaderRecordOverwrite* hitGroupSbtData = nullptr
     )
     {
         ComPtr<IShaderProgram> rayTracingProgram;
@@ -1098,6 +1099,7 @@ struct RayTracingTestPipeline
         shaderTableDesc.program = rayTracingProgram;
         shaderTableDesc.hitGroupCount = hitgroupNames.size();
         shaderTableDesc.hitGroupNames = hitgroupNamesCstr.data();
+        shaderTableDesc.hitGroupRecordOverwrites = hitGroupSbtData;
         shaderTableDesc.rayGenShaderCount = raygenNames.size();
         shaderTableDesc.rayGenShaderEntryPointNames = const_cast<const char**>(raygenNames.data());
         shaderTableDesc.missShaderCount = missNames.size();

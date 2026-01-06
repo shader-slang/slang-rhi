@@ -535,6 +535,7 @@ void rayGenShaderQueryInstanceID()
     resultBuffer[0].invokeWasSuccess = 1;
 }
 
+#if !defined(__VULKAN__)
 [shader("raygeneration")]
 void rayGenShaderSetAndGetShaderTableIndex()
 {
@@ -561,3 +562,65 @@ void rayGenShaderSetAndGetShaderTableIndex()
     // We don't need to invoke the hit object for this test
     resultBuffer[0].invokeWasSuccess = 1;
 }
+#endif
+
+#if defined(__D3D12__) || defined(__CUDA__)
+[shader("raygeneration")]
+void rayGenShaderLoadLocalRootTableConstant()
+{
+    float3 tgt = {0.25, 0.25, 1.0};
+    float3 pos = {0.0, 0.0, 0.0};
+    float3 dir = tgt - pos;
+
+    // Trace a ray directly at the triangle, guaranteeing a hit
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+    uint sbtValue = hitObjectHit.LoadLocalRootTableConstant(0);
+
+    // Check if the value matches what we set on the host
+    resultBuffer[0].queryWasSuccess = (sbtValue == 0xDEADBEEF) ? 1 : 0;
+
+    // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+#endif
+
+#if defined(__VULKAN__)
+// Define your shader record structure
+struct SbtRecord {
+    uint sbtValue;
+};
+
+[shader("raygeneration")]
+void rayGenShaderGetShaderRecordBufferHandle()
+{
+    float3 tgt = {0.25, 0.25, 1.0};
+    float3 pos = {0.0, 0.0, 0.0};
+    float3 dir = tgt - pos;
+
+    // Trace a ray directly at the triangle, guaranteeing a hit
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+    uint2 handle = hitObjectHit.GetShaderRecordBufferHandle();
+    ConstBufferPointer<SbtRecord> recordPtr = ConstBufferPointer<SbtRecord>(handle.toUInt64());
+    uint sbtValue = recordPtr.get().sbtValue;
+
+    // Check if the value matches what we set on the host
+    resultBuffer[0].queryWasSuccess = (sbtValue == 0xDEADBEEF) ? 1 : 0;
+
+    // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+#endif

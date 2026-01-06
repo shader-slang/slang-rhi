@@ -26,14 +26,81 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     auto& api = device->m_api;
     const auto& rtpProps = api.m_rayTracingPipelineProperties;
     uint32_t handleSize = rtpProps.shaderGroupHandleSize;
-    m_raygenTableSize = m_rayGenShaderCount * rtpProps.shaderGroupBaseAlignment;
-    m_missTableSize = (uint32_t)math::calcAligned2(m_missShaderCount * handleSize, rtpProps.shaderGroupBaseAlignment);
-    m_hitTableSize = (uint32_t)math::calcAligned2(m_hitGroupCount * handleSize, rtpProps.shaderGroupBaseAlignment);
-    m_callableTableSize =
-        (uint32_t)math::calcAligned2(m_callableShaderCount * handleSize, rtpProps.shaderGroupBaseAlignment);
+
+    const std::vector<ShaderRecordOverwrite>& recordOverwrites = m_recordOverwrites;
+
+    // Calculate the minimum required size for each record type based on overwrites
+    uint32_t raygenRecordSize = handleSize;
+    uint32_t missRecordSize = handleSize;
+    uint32_t hitGroupRecordSize = handleSize;
+    uint32_t callableRecordSize = handleSize;
+
+    size_t overwriteIndex = 0;
+
+    // Check raygen records
+    for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
+    {
+        const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
+        if (overwrite.size > 0)
+        {
+            uint32_t requiredSize = overwrite.offset + overwrite.size;
+            raygenRecordSize = max(raygenRecordSize, requiredSize);
+        }
+    }
+
+    // Check miss records
+    for (uint32_t i = 0; i < m_missShaderCount; i++)
+    {
+        const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
+        if (overwrite.size > 0)
+        {
+            uint32_t requiredSize = overwrite.offset + overwrite.size;
+            missRecordSize = max(missRecordSize, requiredSize);
+        }
+    }
+
+    // Check hit group records
+    for (uint32_t i = 0; i < m_hitGroupCount; i++)
+    {
+        const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
+        if (overwrite.size > 0)
+        {
+            uint32_t requiredSize = overwrite.offset + overwrite.size;
+            hitGroupRecordSize = max(hitGroupRecordSize, requiredSize);
+        }
+    }
+
+    // Check callable records
+    for (uint32_t i = 0; i < m_callableShaderCount; i++)
+    {
+        const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
+        if (overwrite.size > 0)
+        {
+            uint32_t requiredSize = overwrite.offset + overwrite.size;
+            callableRecordSize = max(callableRecordSize, requiredSize);
+        }
+    }
+
+    // Align all record sizes to shaderGroupBaseAlignment
+    raygenRecordSize = (uint32_t)math::calcAligned2(raygenRecordSize, rtpProps.shaderGroupBaseAlignment);
+    missRecordSize = (uint32_t)math::calcAligned2(missRecordSize, rtpProps.shaderGroupBaseAlignment);
+    hitGroupRecordSize = (uint32_t)math::calcAligned2(hitGroupRecordSize, rtpProps.shaderGroupBaseAlignment);
+    callableRecordSize = (uint32_t)math::calcAligned2(callableRecordSize, rtpProps.shaderGroupBaseAlignment);
+
+    // Store strides for use when dispatching rays
+    m_raygenRecordStride = raygenRecordSize;
+    m_missRecordStride = missRecordSize;
+    m_hitGroupRecordStride = hitGroupRecordSize;
+    m_callableRecordStride = callableRecordSize;
+
+    m_raygenTableSize = m_rayGenShaderCount * raygenRecordSize;
+    m_missTableSize = m_missShaderCount * missRecordSize;
+    m_hitTableSize = m_hitGroupCount * hitGroupRecordSize;
+    m_callableTableSize = m_callableShaderCount * callableRecordSize;
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
     auto tableData = std::make_unique<uint8_t[]>(tableSize);
+    memset(tableData.get(), 0, tableSize);
 
     std::vector<uint8_t> handles;
     auto handleCount = pipeline->m_shaderGroupCount;
@@ -51,60 +118,93 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
 
     uint8_t* subTablePtr = tableData.get();
     uint32_t shaderTableEntryCounter = 0;
+    size_t recordOverwriteIndex = 0;
 
-    // Each loop calculates the copy source and destination locations by fetching the name
-    // of the shader group from the list of shader group names and getting its corresponding
-    // index in the buffer of handles.
+    // Raygen records
     for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * rtpProps.shaderGroupBaseAlignment;
+        auto dstHandlePtr = subTablePtr + i * raygenRecordSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
         auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
         if (it == pipeline->m_shaderGroupNameToIndex.end())
+        {
+            recordOverwriteIndex++;
             continue;
+        }
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
-        memset(dstHandlePtr + handleSize, 0, rtpProps.shaderGroupBaseAlignment - handleSize);
+
+        // Apply shader record overwrite if present
+        const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
+        if (overwrite.size > 0)
+            memcpy(dstHandlePtr + overwrite.offset, overwrite.data, overwrite.size);
     }
     subTablePtr += m_raygenTableSize;
 
+    // Miss records
     for (uint32_t i = 0; i < m_missShaderCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * handleSize;
+        auto dstHandlePtr = subTablePtr + i * missRecordSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
         auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
         if (it == pipeline->m_shaderGroupNameToIndex.end())
+        {
+            recordOverwriteIndex++;
             continue;
+        }
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
+
+        // Apply shader record overwrite if present
+        const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
+        if (overwrite.size > 0)
+            memcpy(dstHandlePtr + overwrite.offset, overwrite.data, overwrite.size);
     }
     subTablePtr += m_missTableSize;
 
+    // Hit group records
     for (uint32_t i = 0; i < m_hitGroupCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * handleSize;
+        auto dstHandlePtr = subTablePtr + i * hitGroupRecordSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
         auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
         if (it == pipeline->m_shaderGroupNameToIndex.end())
+        {
+            recordOverwriteIndex++;
             continue;
+        }
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
+
+        // Apply shader record overwrite if present
+        const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
+        if (overwrite.size > 0)
+            memcpy(dstHandlePtr + overwrite.offset, overwrite.data, overwrite.size);
     }
     subTablePtr += m_hitTableSize;
 
+    // Callable records
     for (uint32_t i = 0; i < m_callableShaderCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * handleSize;
+        auto dstHandlePtr = subTablePtr + i * callableRecordSize;
         auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
         auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
         if (it == pipeline->m_shaderGroupNameToIndex.end())
+        {
+            recordOverwriteIndex++;
             continue;
+        }
         auto shaderGroupIndex = it->second;
         auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
         memcpy(dstHandlePtr, srcHandlePtr, handleSize);
+
+        // Apply shader record overwrite if present
+        const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
+        if (overwrite.size > 0)
+            memcpy(dstHandlePtr + overwrite.offset, overwrite.data, overwrite.size);
     }
     subTablePtr += m_callableTableSize;
 
