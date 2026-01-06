@@ -15,6 +15,11 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     DeviceImpl* device = getDevice<DeviceImpl>();
     if (device)
     {
+        if (m_descriptorHandle)
+        {
+            device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+        }
+
         device->m_api.vkDestroyAccelerationStructureKHR(device->m_api.m_device, m_vkHandle, nullptr);
     }
 }

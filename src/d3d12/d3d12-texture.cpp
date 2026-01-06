@@ -368,6 +368,19 @@ TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
 {
 }
 
+TextureViewImpl::~TextureViewImpl()
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    for (auto& handle : m_descriptorHandle)
+    {
+        if (handle)
+        {
+            device->m_bindlessDescriptorSet->freeHandle(handle);
+        }
+    }
+}
+
 Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();

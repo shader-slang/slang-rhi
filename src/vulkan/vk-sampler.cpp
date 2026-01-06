@@ -13,6 +13,11 @@ SamplerImpl::~SamplerImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    if (m_descriptorHandle)
+    {
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+    }
+
     device->m_api.vkDestroySampler(device->m_api.m_device, m_sampler, nullptr);
 }
 
