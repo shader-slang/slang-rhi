@@ -595,6 +595,15 @@ ComPtr<IDevice> createTestingDevice(
             deviceDesc.persistentShaderCache = extraOptions->persistentShaderCache;
         if (extraOptions->persistentPipelineCache)
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
+        deviceDesc.validationMessageSeverityToEmit = extraOptions->validationMessageSeverityToEmit;
+        if(extraOptions->forceValidation)
+        {
+            getRHI()->enableDebugLayers();
+            deviceDesc.enableValidation = true;
+            deviceDesc.enableRayTracingValidation = true;
+            deviceDesc.enableGPUAssistedValidation = true;
+            deviceDesc.debugCallback = &sDebugCallback;
+        }
         deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
         deviceDesc.existingDeviceHandles = extraOptions->existingDeviceHandles;
         deviceDesc.enableAftermath = extraOptions->enableAftermath;
