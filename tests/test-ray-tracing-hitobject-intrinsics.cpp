@@ -607,3 +607,26 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-instance-id", ALL)
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
     checkQueryAndInvokeResult(resultBlob);
 }
+
+// Not available in Vulkan
+// Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/9509
+GPU_TEST_CASE("ray-tracing-hitobject-set-and-get-shader-table-index", CUDA /*| D3D12*/)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderSetAndGetShaderTableIndex",
+        {"closestHitNOP"},
+        {"missNOP"}
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}

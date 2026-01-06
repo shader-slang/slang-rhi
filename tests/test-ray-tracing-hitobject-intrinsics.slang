@@ -534,3 +534,30 @@ void rayGenShaderQueryInstanceID()
     // We don't need to invoke the hit object for this test
     resultBuffer[0].invokeWasSuccess = 1;
 }
+
+[shader("raygeneration")]
+void rayGenShaderSetAndGetShaderTableIndex()
+{
+    float3 tgt = {0.25, 0.25, 1.0};
+    float3 pos = {0.0, 0.0, 0.0};
+    float3 dir = tgt - pos;
+
+    RayDesc ray;
+    ray.Origin = pos;
+    ray.Direction = dir;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+    RayPayload payload = { {} };
+    HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
+
+    // Set the shader table index to a dummy value.
+    uint shaderTableIndex = 0xF00D;
+    hitObjectHit.SetShaderTableIndex(shaderTableIndex);
+
+    // Check that the shader table index matches the expected value.
+    uint queriedShaderTableIndex = hitObjectHit.GetShaderTableIndex();
+    resultBuffer[0].queryWasSuccess = (shaderTableIndex == queriedShaderTableIndex) ? 1 : 0;
+
+    // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
