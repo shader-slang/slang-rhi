@@ -464,3 +464,49 @@ GPU_TEST_CASE("ray-tracing-intrinsics-instance-index", ALL)
     // Single instance in TLAS, so instance index should be 0
     CHECK_EQ(result->instanceIndex, 0);
 }
+
+// Callable shaders haven't been implemented for the CUDA/OptiX backend in Slang
+GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+    // Create a simple BLAS (not actually used, but needed for pipeline creation)
+    SingleTriangleBLAS blas(device, queue, false);
+
+    // Create TLAS
+    TLAS tlas(device, queue, blas.blas);
+
+    // Create result buffer
+    ResultBuffer resultBuf(device, sizeof(RayIntrinsicResult));
+
+    // Set up pipeline with callable shader
+    std::vector<const char*> raygenNames = {"rayGenShaderCallShaderTest"};
+    std::vector<HitGroupProgramNames> hitGroupProgramNames = {{"closestHitNOP", nullptr}};
+    std::vector<const char*> missNames = {"missNOP"};
+    std::vector<const char*> callableNames = {"callableWriteAttribute"};
+
+    RayTracingTestPipeline pipeline(
+        device,
+        "test-ray-tracing-intrinsics",
+        raygenNames,
+        hitGroupProgramNames,
+        missNames,
+        RayTracingPipelineFlags::None,
+        nullptr,
+        callableNames
+    );
+
+    // Launch pipeline
+    launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
+
+    // Verify results
+    ComPtr<ISlangBlob> resultBlob;
+    resultBuf.getFromDevice(resultBlob.writeRef());
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Check that callable shader wrote the expected value
+    checkFloat3(result->value, {1.0f, 2.0f, 3.0f});
+}

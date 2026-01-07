@@ -326,3 +326,27 @@ void rayGenShaderMotionBlurAttributeTest()
     resultBuffer[0] = result;
 }
 #endif
+
+#if !defined(__CUDA__)
+// Callable shader that writes a value to the payload
+[shader("callable")]
+void callableWriteAttribute(inout RayPayload payload)
+{
+    payload.attribute = float3(1.0, 2.0, 3.0);
+}
+
+// Raygen shader for CallShader test
+[shader("raygeneration")]
+void rayGenShaderCallShaderTest()
+{
+    RayPayload payload = {};
+
+    // Call the callable shader at index 0
+    CallShader(0, payload);
+
+    // Write result to buffer
+    Result result = {};
+    result.value = payload.attribute;
+    resultBuffer[0] = result;
+}
+#endif
