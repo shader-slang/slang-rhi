@@ -637,6 +637,9 @@ GPU_TEST_CASE("ray-tracing-hitobject-set-and-get-shader-table-index", CUDA /*| D
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
+    if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
+        SKIP("Set and get shader table index is not supported for CUDA with OptiX version less than 9.0");
+
     RayTracingSingleTriangleTest test;
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
