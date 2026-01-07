@@ -320,9 +320,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         {
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-            if (desc.enableGPUAssistedValidation)
-                instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
         VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -336,20 +333,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         const char* layerNames[] = {nullptr};
 
         VkValidationFeaturesEXT validationFeatures = {};
-        std::vector<VkValidationFeatureEnableEXT> enabledValidationFeatures = {};
+        VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
         if (enableValidationLayer)
         {
-            // GPU printf is only visible with `Info` message severity, it is a validation warning
-            // otherwise.
-            if (is_set(desc.validationMessageSeverityToEmit, ValidationMessageSeverity::Info))
-                enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
-
-            if (desc.enableGPUAssistedValidation)
-            {
-                enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
-                enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
-            }
-
             uint32_t layerCount;
             m_api.vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -370,10 +356,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 instanceCreateInfo.enabledLayerCount = SLANG_COUNT_OF(layerNames);
                 instanceCreateInfo.ppEnabledLayerNames = layerNames;
 
-                validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-                validationFeatures.enabledValidationFeatureCount = enabledValidationFeatures.size();
-                validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures.data();
-                instanceCreateInfo.pNext = &validationFeatures;
+                if (m_extendedDesc.enableDebugPrintf)
+                {
+                    // Include support for printf
+                    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+                    validationFeatures.enabledValidationFeatureCount = 1;
+                    validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
+                    instanceCreateInfo.pNext = &validationFeatures;
+                }
             }
         }
         uint32_t apiVersionsToTry[] = {
@@ -417,12 +407,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
         };
-        if (is_set(desc.validationMessageSeverityToEmit, ValidationMessageSeverity::Info))
-            messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
-        if (is_set(desc.validationMessageSeverityToEmit, ValidationMessageSeverity::Warning))
-            messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
-        if (is_set(desc.validationMessageSeverityToEmit, ValidationMessageSeverity::Error))
-            messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        messengerCreateInfo.messageSeverity =
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
         messengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                                           VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                           VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;

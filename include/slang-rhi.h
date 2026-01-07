@@ -178,16 +178,6 @@ enum class AccessFlag
     Write,
 };
 
-enum class ValidationMessageSeverity
-{
-    None = 0x0,
-    Info = 0x1,
-    Warning = 0x2,
-    Error = 0x4,
-    All = Info | Warning | Error,
-};
-SLANG_RHI_ENUM_CLASS_OPERATORS(ValidationMessageSeverity)
-
 class IPersistentCache;
 
 struct CompilationReport
@@ -3029,11 +3019,6 @@ struct DeviceDesc
     bool enableValidation = false;
     /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
     bool enableRayTracingValidation = false;
-    /// Enable backend gpu-assisted-validation layer
-    bool enableGPUAssistedValidation = false;
-    /// Severity of validation to emit
-    ValidationMessageSeverity validationMessageSeverityToEmit =
-        ValidationMessageSeverity::Error | ValidationMessageSeverity::Warning;
     /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
     bool enableAftermath = false;
     /// Aftermath configuration.

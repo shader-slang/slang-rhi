@@ -321,9 +321,6 @@ struct DeviceExtraOptions
     IPersistentCache* persistentShaderCache = nullptr;
     IPersistentCache* persistentPipelineCache = nullptr;
     bool enableCompilationReports = false;
-    bool forceValidation = false;
-    ValidationMessageSeverity validationMessageSeverityToEmit =
-        ValidationMessageSeverity::Error | ValidationMessageSeverity::Warning;
     DeviceNativeHandles existingDeviceHandles;
 
     // D3D12-specific (no effect for other devices): Limit the maximum shader model. When set to 0
