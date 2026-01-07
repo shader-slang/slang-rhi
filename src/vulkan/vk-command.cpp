@@ -1102,7 +1102,9 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         m_rayGenTableAddr = shaderTableAddr;
         m_raygenSBT.stride = m_shaderTable->m_raygenRecordStride;
         m_raygenSBT.deviceAddress = shaderTableAddr;
-        m_raygenSBT.size = m_shaderTable->m_raygenTableSize;
+        // For Vulkan, raygen SBT size must equal stride (only one raygen shader per dispatch)
+        // Multiple raygen shaders in the table are selected via deviceAddress offset at dispatch time
+        m_raygenSBT.size = m_shaderTable->m_raygenRecordStride;
 
         m_missSBT.deviceAddress = shaderTableAddr + m_shaderTable->m_raygenTableSize;
         m_missSBT.stride = m_shaderTable->m_missRecordStride;

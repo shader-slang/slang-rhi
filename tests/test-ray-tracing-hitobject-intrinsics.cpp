@@ -47,9 +47,9 @@ struct RayTracingSingleTriangleTest
 
         // Populate hit group SBT with test data
         // SBT record layout: [Shader Identifier / Record Header (32 bytes)] [Local Root Arguments]
-        // According to the DXR specification and OptiX documentation, the shader identifier / record header is always at
-        // offset 0. Both D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES and OPTIX_SBT_RECORD_HEADER_SIZE are 32 bytes, so local
-        // root arguments start at offset 32 on both backends.
+        // According to the DXR specification and OptiX documentation, the shader identifier / record header is always
+        // at offset 0. Both D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES and OPTIX_SBT_RECORD_HEADER_SIZE are 32 bytes, so
+        // local root arguments start at offset 32 on both backends.
         std::vector<ShaderRecordOverwrite> hitGroupSbtData;
         for (size_t i = 0; i < hitGroupProgramNames.size(); i++)
         {
