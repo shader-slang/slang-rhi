@@ -614,7 +614,7 @@ void rayGenShaderGetShaderRecordBufferHandle()
     HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
 
     uint2 handle = hitObjectHit.GetShaderRecordBufferHandle();
-    
+
     uint64_t address = (uint64_t(handle.y) << 32) | uint64_t(handle.x);
     ConstBufferPointer<SbtRecord> recordPtr = ConstBufferPointer<SbtRecord>(address);
 
