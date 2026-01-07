@@ -1111,22 +1111,22 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         // Raygen index is set at dispatch time.
         m_rayGenTableAddr = shaderTableAddr + m_shaderTable->m_rayGenTableOffset;
         m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress = shaderTableAddr;
-        m_dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+        m_dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = m_shaderTable->m_rayGenRecordStride;
 
         if (m_shaderTable->m_missShaderCount > 0)
         {
             m_dispatchRaysDesc.MissShaderTable.StartAddress = shaderTableAddr + m_shaderTable->m_missTableOffset;
             m_dispatchRaysDesc.MissShaderTable.SizeInBytes =
-                m_shaderTable->m_missShaderCount * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-            m_dispatchRaysDesc.MissShaderTable.StrideInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+                m_shaderTable->m_missShaderCount * m_shaderTable->m_missRecordStride;
+            m_dispatchRaysDesc.MissShaderTable.StrideInBytes = m_shaderTable->m_missRecordStride;
         }
 
         if (m_shaderTable->m_hitGroupCount > 0)
         {
             m_dispatchRaysDesc.HitGroupTable.StartAddress = shaderTableAddr + m_shaderTable->m_hitGroupTableOffset;
             m_dispatchRaysDesc.HitGroupTable.SizeInBytes =
-                m_shaderTable->m_hitGroupCount * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-            m_dispatchRaysDesc.HitGroupTable.StrideInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+                m_shaderTable->m_hitGroupCount * m_shaderTable->m_hitGroupRecordStride;
+            m_dispatchRaysDesc.HitGroupTable.StrideInBytes = m_shaderTable->m_hitGroupRecordStride;
         }
 
         if (m_shaderTable->m_callableShaderCount > 0)
@@ -1134,8 +1134,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
             m_dispatchRaysDesc.CallableShaderTable.StartAddress =
                 shaderTableAddr + m_shaderTable->m_callableTableOffset;
             m_dispatchRaysDesc.CallableShaderTable.SizeInBytes =
-                m_shaderTable->m_callableShaderCount * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-            m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+                m_shaderTable->m_callableShaderCount * m_shaderTable->m_callableRecordStride;
+            m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = m_shaderTable->m_callableRecordStride;
         }
     }
 
@@ -1151,7 +1151,7 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
         return;
 
     m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress =
-        m_rayGenTableAddr + cmd.rayGenShaderIndex * kRayGenRecordSize;
+        m_rayGenTableAddr + cmd.rayGenShaderIndex * m_shaderTable->m_rayGenRecordStride;
     m_dispatchRaysDesc.Width = cmd.width;
     m_dispatchRaysDesc.Height = cmd.height;
     m_dispatchRaysDesc.Depth = cmd.depth;

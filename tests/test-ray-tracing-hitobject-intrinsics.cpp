@@ -47,13 +47,18 @@ struct RayTracingSingleTriangleTest
 
         // Populate hit group SBT with test data
         // SBT record layout: [Shader Identifier / Record Header (32 bytes)] [Local Root Arguments]
-        // According to the DXR specification and OptiX documentation, the shader identifier / record headeris always at
+        // According to the DXR specification and OptiX documentation, the shader identifier / record header is always at
         // offset 0. Both D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES and OPTIX_SBT_RECORD_HEADER_SIZE are 32 bytes, so local
         // root arguments start at offset 32 on both backends.
-        ShaderRecordOverwrite hitGroupSbtData = {};
-        hitGroupSbtData.offset = 32;                 // After the 32-byte shader identifier / record header
-        hitGroupSbtData.size = sizeof(testSbtValue); // uint32_t
-        memcpy(hitGroupSbtData.data, &testSbtValue, sizeof(testSbtValue));
+        std::vector<ShaderRecordOverwrite> hitGroupSbtData;
+        for (size_t i = 0; i < hitGroupProgramNames.size(); i++)
+        {
+            ShaderRecordOverwrite currSbtData = {};
+            currSbtData.offset = 32;                 // After the 32-byte shader identifier / record header
+            currSbtData.size = sizeof(testSbtValue); // uint32_t
+            memcpy(currSbtData.data, &testSbtValue, sizeof(testSbtValue));
+            hitGroupSbtData.push_back(currSbtData);
+        }
 
         RayTracingTestPipeline pipeline(
             device,
@@ -62,7 +67,7 @@ struct RayTracingSingleTriangleTest
             hitGroupProgramNames,
             missNames,
             RayTracingPipelineFlags::None,
-            &hitGroupSbtData
+            hitGroupSbtData.data()
         );
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
     }
