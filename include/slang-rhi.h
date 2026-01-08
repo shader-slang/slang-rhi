@@ -1693,6 +1693,7 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, Size size) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(const ShaderOffset& offset, Size size, void** outData) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;

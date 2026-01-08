@@ -52,6 +52,11 @@ public:
         const void* data,
         size_t size
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(
+        const ShaderOffset& offset,
+        size_t size,
+        void** outData
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) override;

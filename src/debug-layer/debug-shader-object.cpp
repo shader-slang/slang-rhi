@@ -78,6 +78,13 @@ Result DebugShaderObject::setData(const ShaderOffset& offset, const void* data, 
     return baseObject->setData(offset, data, size);
 }
 
+Result DebugShaderObject::reserveData(const ShaderOffset& offset, Size size, void** outData)
+{
+    SLANG_RHI_API_FUNC;
+    checkNotFinalized();
+    return baseObject->reserveData(offset, size, outData);
+}
+
 Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** object)
 {
     SLANG_RHI_API_FUNC;
