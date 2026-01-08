@@ -934,7 +934,23 @@ public:
         CUdeviceptr devicePtr = deviceBuffer;
 
         OptixShaderBindingTable& sbt = shaderBindingTable->m_sbt;
-        const std::map<std::string, uint32_t>& programGroupIndexByName = pipelineImpl->m_programGroupIndexByName;
+
+        auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
+        {
+            auto it = pipelineImpl->m_programGroupIndexByName.find(name);
+            if (it != pipelineImpl->m_programGroupIndexByName.end())
+            {
+                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], dest),
+                    m_device
+                );
+            }
+            if (overwrite && overwrite->size > 0)
+            {
+                memcpy((uint8_t*)dest + overwrite->offset, overwrite->data, overwrite->size);
+            }
+            return SLANG_OK;
+        };
 
         // Raygen records
         if (shaderTable->m_rayGenShaderCount > 0)
@@ -942,17 +958,9 @@ public:
             sbt.raygenRecord = devicePtr;
             for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
             {
-                auto it = programGroupIndexByName.find(shaderTable->m_rayGenShaderEntryPointNames[i]);
-                if (it == programGroupIndexByName.end())
-                    continue;
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-                hostPtr += sizeof(SbtRecord);
-                hostPtr += shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
-                devicePtr += sizeof(SbtRecord);
-                devicePtr += shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
+                SLANG_RETURN_ON_FAIL(writeTableEntry(hostPtr, shaderTable->m_rayGenShaderEntryPointNames[i], nullptr));
+                hostPtr += sizeof(SbtRecord) + shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
+                devicePtr += sizeof(SbtRecord) + shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
             }
         }
 
@@ -964,24 +972,11 @@ public:
             sbt.missRecordCount = shaderTable->m_missShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
             {
-                auto it = programGroupIndexByName.find(shaderTable->m_missShaderEntryPointNames[i]);
-                if (it == programGroupIndexByName.end())
-                {
-                    continue;
-                }
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-
-                // Apply shader record overwrite if present
-                if (i < shaderTable->m_missRecordOverwrites.size())
-                {
-                    const ShaderRecordOverwrite& overwrite = shaderTable->m_missRecordOverwrites[i];
-                    if (overwrite.size > 0)
-                        memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
-                }
-
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_missShaderEntryPointNames[i],
+                    (i < shaderTable->m_missRecordOverwrites.size()) ? &shaderTable->m_missRecordOverwrites[i] : nullptr
+                ));
                 hostPtr += missRecordSize;
                 devicePtr += missRecordSize;
             }
@@ -1005,24 +1000,12 @@ public:
             sbt.hitgroupRecordCount = shaderTable->m_hitGroupCount;
             for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
             {
-                auto it = programGroupIndexByName.find(shaderTable->m_hitGroupNames[i]);
-                if (it == programGroupIndexByName.end())
-                {
-                    continue;
-                }
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-
-                // Apply shader record overwrite if present
-                if (i < shaderTable->m_hitGroupRecordOverwrites.size())
-                {
-                    const ShaderRecordOverwrite& overwrite = shaderTable->m_hitGroupRecordOverwrites[i];
-                    if (overwrite.size > 0)
-                        memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
-                }
-
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_hitGroupNames[i],
+                    (i < shaderTable->m_hitGroupRecordOverwrites.size()) ? &shaderTable->m_hitGroupRecordOverwrites[i]
+                                                                         : nullptr
+                ));
                 hostPtr += hitGroupRecordSize;
                 devicePtr += hitGroupRecordSize;
             }
@@ -1036,24 +1019,12 @@ public:
             sbt.callablesRecordCount = shaderTable->m_callableShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
             {
-                auto it = programGroupIndexByName.find(shaderTable->m_callableShaderEntryPointNames[i]);
-                if (it == programGroupIndexByName.end())
-                {
-                    continue;
-                }
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-
-                // Apply shader record overwrite if present
-                if (i < shaderTable->m_callableRecordOverwrites.size())
-                {
-                    const ShaderRecordOverwrite& overwrite = shaderTable->m_callableRecordOverwrites[i];
-                    if (overwrite.size > 0)
-                        memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
-                }
-
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_callableShaderEntryPointNames[i],
+                    (i < shaderTable->m_callableRecordOverwrites.size()) ? &shaderTable->m_callableRecordOverwrites[i]
+                                                                         : nullptr
+                ));
                 hostPtr += callableRecordSize;
                 devicePtr += callableRecordSize;
             }
