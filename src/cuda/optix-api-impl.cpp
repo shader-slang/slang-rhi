@@ -534,7 +534,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     std::vector<OptixModule> m_modules;
     std::vector<OptixProgramGroup> m_programGroups;
-    std::map<std::string, uint32_t> m_shaderGroupNameToIndex;
+    std::map<std::string, uint32_t> m_programGroupIndexByName;
     std::vector<uint32_t> m_raygenEntryPointIndices;
     OptixPipeline m_pipeline = nullptr;
 
@@ -652,9 +652,9 @@ public:
 
         // Create optix modules & program groups
         std::vector<OptixModule> optixModules;
-        std::map<std::string, uint32_t> entryPointNameToModuleIndex;
+        std::map<std::string, uint32_t> moduleIndexByEntryPointName;
         std::vector<OptixProgramGroup> optixProgramGroups;
-        std::map<std::string, uint32_t> shaderGroupNameToIndex;
+        std::map<std::string, uint32_t> programGroupIndexByName;
         std::vector<uint32_t> raygenEntryPointIndices;
         for (const auto& module : program->m_modules)
         {
@@ -671,7 +671,7 @@ public:
                 ),
                 m_device
             );
-            entryPointNameToModuleIndex[module.entryPointName] = optixModules.size() - 1;
+            moduleIndexByEntryPointName[module.entryPointName] = optixModules.size() - 1;
 
             OptixProgramGroupDesc optixProgramGroupDesc = {};
             OptixProgramGroupOptions optixProgramGroupOptions = {};
@@ -733,7 +733,7 @@ public:
                 ),
                 m_device
             );
-            shaderGroupNameToIndex[module.entryPointName] = optixProgramGroups.size() - 1;
+            programGroupIndexByName[module.entryPointName] = optixProgramGroups.size() - 1;
         }
 
         // If we're using spheres, hit groups may use the builtin sphere intersector.
@@ -786,14 +786,14 @@ public:
             if (hitGroupDesc.closestHitEntryPoint)
             {
                 optixProgramGroupDesc.hitgroup.moduleCH =
-                    optixModules[entryPointNameToModuleIndex[hitGroupDesc.closestHitEntryPoint]];
+                    optixModules[moduleIndexByEntryPointName[hitGroupDesc.closestHitEntryPoint]];
                 entryFunctionNameCH = std::string("__closesthit__") + hitGroupDesc.closestHitEntryPoint;
                 optixProgramGroupDesc.hitgroup.entryFunctionNameCH = entryFunctionNameCH.data();
             }
             if (hitGroupDesc.anyHitEntryPoint)
             {
                 optixProgramGroupDesc.hitgroup.moduleAH =
-                    optixModules[entryPointNameToModuleIndex[hitGroupDesc.anyHitEntryPoint]];
+                    optixModules[moduleIndexByEntryPointName[hitGroupDesc.anyHitEntryPoint]];
                 entryFunctionNameAH = std::string("__anyhit__") + hitGroupDesc.anyHitEntryPoint;
                 optixProgramGroupDesc.hitgroup.entryFunctionNameAH = entryFunctionNameAH.data();
             }
@@ -809,7 +809,7 @@ public:
                 else
                 {
                     optixProgramGroupDesc.hitgroup.moduleIS =
-                        optixModules[entryPointNameToModuleIndex[hitGroupDesc.intersectionEntryPoint]];
+                        optixModules[moduleIndexByEntryPointName[hitGroupDesc.intersectionEntryPoint]];
                     entryFunctionNameIS = std::string("__intersection__") + hitGroupDesc.intersectionEntryPoint;
                     optixProgramGroupDesc.hitgroup.entryFunctionNameIS = entryFunctionNameIS.data();
                 }
@@ -827,7 +827,7 @@ public:
                 ),
                 m_device
             );
-            shaderGroupNameToIndex[hitGroupDesc.hitGroupName] = optixProgramGroups.size() - 1;
+            programGroupIndexByName[hitGroupDesc.hitGroupName] = optixProgramGroups.size() - 1;
         }
 
         OptixPipeline optixPipeline = nullptr;
@@ -865,7 +865,7 @@ public:
         pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
         pipeline->m_modules = std::move(optixModules);
         pipeline->m_programGroups = std::move(optixProgramGroups);
-        pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
+        pipeline->m_programGroupIndexByName = std::move(programGroupIndexByName);
         pipeline->m_raygenEntryPointIndices = std::move(raygenEntryPointIndices);
         pipeline->m_pipeline = optixPipeline;
         returnRefPtr(outPipeline, pipeline);
@@ -934,7 +934,7 @@ public:
         CUdeviceptr devicePtr = deviceBuffer;
 
         OptixShaderBindingTable& sbt = shaderBindingTable->m_sbt;
-        const std::map<std::string, uint32_t>& shaderGroupNameToIndex = pipelineImpl->m_shaderGroupNameToIndex;
+        const std::map<std::string, uint32_t>& programGroupIndexByName = pipelineImpl->m_programGroupIndexByName;
 
         // Raygen records
         if (shaderTable->m_rayGenShaderCount > 0)
@@ -942,8 +942,8 @@ public:
             sbt.raygenRecord = devicePtr;
             for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderTable->m_rayGenShaderEntryPointNames[i]);
-                if (it == shaderGroupNameToIndex.end())
+                auto it = programGroupIndexByName.find(shaderTable->m_rayGenShaderEntryPointNames[i]);
+                if (it == programGroupIndexByName.end())
                     continue;
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
                     optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
@@ -964,8 +964,8 @@ public:
             sbt.missRecordCount = shaderTable->m_missShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderTable->m_missShaderEntryPointNames[i]);
-                if (it == shaderGroupNameToIndex.end())
+                auto it = programGroupIndexByName.find(shaderTable->m_missShaderEntryPointNames[i]);
+                if (it == programGroupIndexByName.end())
                 {
                     continue;
                 }
@@ -1005,8 +1005,8 @@ public:
             sbt.hitgroupRecordCount = shaderTable->m_hitGroupCount;
             for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderTable->m_hitGroupNames[i]);
-                if (it == shaderGroupNameToIndex.end())
+                auto it = programGroupIndexByName.find(shaderTable->m_hitGroupNames[i]);
+                if (it == programGroupIndexByName.end())
                 {
                     continue;
                 }
@@ -1036,8 +1036,8 @@ public:
             sbt.callablesRecordCount = shaderTable->m_callableShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderTable->m_callableShaderEntryPointNames[i]);
-                if (it == shaderGroupNameToIndex.end())
+                auto it = programGroupIndexByName.find(shaderTable->m_callableShaderEntryPointNames[i]);
+                if (it == programGroupIndexByName.end())
                 {
                     continue;
                 }

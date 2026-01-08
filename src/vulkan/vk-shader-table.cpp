@@ -67,8 +67,8 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
 
     auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
     {
-        auto it = pipeline->m_shaderGroupNameToIndex.find(name);
-        if (it != pipeline->m_shaderGroupNameToIndex.end())
+        auto it = pipeline->m_shaderGroupIndexByName.find(name);
+        if (it != pipeline->m_shaderGroupIndexByName.end())
         {
             auto src = handles.data() + it->second * handleSize;
             memcpy(dest, src, handleSize);
