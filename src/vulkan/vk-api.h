@@ -259,6 +259,7 @@ protected:
     x(vkCreateAccelerationStructureKHR) \
     x(vkDestroyAccelerationStructureKHR) \
     x(vkGetAccelerationStructureBuildSizesKHR) \
+    x(vkGetAccelerationStructureDeviceAddressKHR) \
     x(vkCmdBuildClusterAccelerationStructureIndirectNV) \
     x(vkGetClusterAccelerationStructureBuildSizesNV) \
     x(vkGetSemaphoreCounterValue) \
