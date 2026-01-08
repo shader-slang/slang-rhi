@@ -12,6 +12,11 @@ public:
     uint32_t m_hitGroupTableOffset;
     uint32_t m_callableTableOffset;
 
+    uint32_t m_rayGenRecordStride;
+    uint32_t m_missRecordStride;
+    uint32_t m_hitGroupRecordStride;
+    uint32_t m_callableRecordStride;
+
     std::mutex m_mutex;
     std::map<RayTracingPipelineImpl*, RefPtr<BufferImpl>> m_buffers;
 

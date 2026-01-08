@@ -687,7 +687,7 @@ struct TLAS
         };
         const float* transformMatrix = transform ? transform : kIdentityTransform;
         memcpy(&genericInstanceDescs[0].transform[0][0], transformMatrix, sizeof(float) * 12);
-        genericInstanceDescs[0].instanceID = 0;
+        genericInstanceDescs[0].instanceID = 0xF00D;
         genericInstanceDescs[0].instanceMask = 0xFF;
         genericInstanceDescs[0].instanceContributionToHitGroupIndex = 0;
         genericInstanceDescs[0].accelerationStructure = blas->getHandle();
@@ -1028,7 +1028,9 @@ struct RayTracingTestPipeline
         const std::vector<const char*>& raygenNames,
         const std::vector<HitGroupProgramNames>& programNames,
         const std::vector<const char*>& missNames,
-        RayTracingPipelineFlags flags = RayTracingPipelineFlags::None
+        RayTracingPipelineFlags flags = RayTracingPipelineFlags::None,
+        const ShaderRecordOverwrite* hitGroupSbtData = nullptr,
+        const std::vector<const char*>& callableNames = std::vector<const char*>()
     )
     {
         ComPtr<IShaderProgram> rayTracingProgram;
@@ -1059,6 +1061,9 @@ struct RayTracingTestPipeline
         for (const char* missName : missNames)
             programsToLoad.push_back(missName);
 
+        for (const char* callableName : callableNames)
+            programsToLoad.push_back(callableName);
+
         REQUIRE_CALL(loadProgram(device, filepath, programsToLoad, rayTracingProgram.writeRef()));
 
         std::vector<std::string> hitgroupNames;
@@ -1086,7 +1091,7 @@ struct RayTracingTestPipeline
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = hitGroups.size();
         rtpDesc.hitGroups = hitGroups.data();
-        rtpDesc.maxRayPayloadSize = 64;
+        rtpDesc.maxRayPayloadSize = 128;
         rtpDesc.maxAttributeSizeInBytes = 8;
         rtpDesc.maxRecursion = 2;
         rtpDesc.flags = flags;
@@ -1098,10 +1103,13 @@ struct RayTracingTestPipeline
         shaderTableDesc.program = rayTracingProgram;
         shaderTableDesc.hitGroupCount = hitgroupNames.size();
         shaderTableDesc.hitGroupNames = hitgroupNamesCstr.data();
+        shaderTableDesc.hitGroupRecordOverwrites = hitGroupSbtData;
         shaderTableDesc.rayGenShaderCount = raygenNames.size();
         shaderTableDesc.rayGenShaderEntryPointNames = const_cast<const char**>(raygenNames.data());
         shaderTableDesc.missShaderCount = missNames.size();
         shaderTableDesc.missShaderEntryPointNames = const_cast<const char**>(missNames.data());
+        shaderTableDesc.callableShaderCount = callableNames.size();
+        shaderTableDesc.callableShaderEntryPointNames = const_cast<const char**>(callableNames.data());
         REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
     }
 };

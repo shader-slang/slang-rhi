@@ -882,21 +882,72 @@ public:
 
         RefPtr<ShaderBindingTableImpl> shaderBindingTable = new ShaderBindingTableImpl();
 
-        // Calculate the size required for the shader binding table record headers.
-        // Reserve space for a dummy miss record if there are no miss shaders.
-        size_t tableSize = (shaderTable->m_rayGenShaderCount + max(shaderTable->m_missShaderCount, 1u) +
-                            shaderTable->m_hitGroupCount + shaderTable->m_callableShaderCount) *
-                           sizeof(SbtRecord);
+        // Phase 1: Calculate minimum required sizes (without alignment)
+        size_t missRecordSize = sizeof(SbtRecord);
+        size_t hitGroupRecordSize = sizeof(SbtRecord);
+        size_t callableRecordSize = sizeof(SbtRecord);
 
-        // Calculate the size required for raygen entrypoint parameters and setup raygen infos.
-        // At dispatch time, we need to copy the entrypoint parameters to the shader binding table.
+        const std::vector<ShaderRecordOverwrite>& recordOverwrites = shaderTable->m_recordOverwrites;
+        size_t overwriteIndex = shaderTable->m_rayGenShaderCount; // Skip raygen entries
+
+        // Scan miss shader overwrites
+        for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
+        {
+            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
+            if (overwrite.size > 0)
+                missRecordSize = max(missRecordSize, size_t(overwrite.offset + overwrite.size));
+        }
+
+        // Scan hit group overwrites
+        for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
+        {
+            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
+            if (overwrite.size > 0)
+                hitGroupRecordSize = max(hitGroupRecordSize, size_t(overwrite.offset + overwrite.size));
+        }
+
+        // Scan callable shader overwrites
+        for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
+        {
+            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
+            if (overwrite.size > 0)
+                callableRecordSize = max(callableRecordSize, size_t(overwrite.offset + overwrite.size));
+        }
+
+        // Phase 2: Align all sizes to OPTIX_SBT_RECORD_ALIGNMENT
+        missRecordSize = math::calcAligned2(missRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
+        hitGroupRecordSize = math::calcAligned2(hitGroupRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
+        callableRecordSize = math::calcAligned2(callableRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
+
+        // Calculate the size required for the shader binding table.
+        // Reserve space for a dummy miss record if there are no miss shaders.
+        size_t tableSize = 0;
+
+        // Raygen records
+        for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
+        {
+            uint32_t entryPointIndex = pipelineImpl->m_raygenEntryPointIndices[i];
+            size_t paramsSize = pipelineImpl->m_rootObjectLayout->getEntryPoint(entryPointIndex).paramsSize;
+            size_t paramsSizeAligned = math::calcAligned2(paramsSize, OPTIX_SBT_RECORD_ALIGNMENT);
+            tableSize += sizeof(SbtRecord) + paramsSizeAligned;
+        }
+
+        // Miss records
+        tableSize += max(shaderTable->m_missShaderCount, 1u) * missRecordSize;
+
+        // Hit group records
+        tableSize += shaderTable->m_hitGroupCount * hitGroupRecordSize;
+
+        // Callable records
+        tableSize += shaderTable->m_callableShaderCount * callableRecordSize;
+
+        // Setup raygen infos for dispatch time
         uint64_t sbtOffset = 0;
         for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
         {
             uint32_t entryPointIndex = pipelineImpl->m_raygenEntryPointIndices[i];
             size_t paramsSize = pipelineImpl->m_rootObjectLayout->getEntryPoint(entryPointIndex).paramsSize;
             size_t paramsSizeAligned = math::calcAligned2(paramsSize, OPTIX_SBT_RECORD_ALIGNMENT);
-            tableSize += paramsSizeAligned;
             shaderBindingTable->m_raygenInfos.push_back({entryPointIndex, sbtOffset, paramsSize, paramsSizeAligned});
             sbtOffset += sizeof(SbtRecord) + paramsSizeAligned;
         }
@@ -914,13 +965,16 @@ public:
         const std::map<std::string, uint32_t>& shaderGroupNameToIndex = pipelineImpl->m_shaderGroupNameToIndex;
 
         size_t shaderTableEntryIndex = 0;
+        size_t recordOverwriteIndex = 0;
 
+        // Raygen records
         if (shaderTable->m_rayGenShaderCount > 0)
         {
             sbt.raygenRecord = devicePtr;
             for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
             {
                 auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
+                recordOverwriteIndex++; // Skip raygen overwrites (handled via entry point params)
                 if (it == shaderGroupNameToIndex.end())
                     continue;
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
@@ -934,22 +988,32 @@ public:
             }
         }
 
+        // Miss records
         if (shaderTable->m_missShaderCount > 0)
         {
             sbt.missRecordBase = devicePtr;
-            sbt.missRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.missRecordStrideInBytes = missRecordSize;
             sbt.missRecordCount = shaderTable->m_missShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
             {
                 auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
                 if (it == shaderGroupNameToIndex.end())
+                {
+                    recordOverwriteIndex++;
                     continue;
+                }
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
                     optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
                     m_device
                 );
-                hostPtr += sizeof(SbtRecord);
-                devicePtr += sizeof(SbtRecord);
+
+                // Apply shader record overwrite if present
+                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
+                if (overwrite.size > 0)
+                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+
+                hostPtr += missRecordSize;
+                devicePtr += missRecordSize;
             }
         }
         else
@@ -957,47 +1021,67 @@ public:
             // OptiX validation complains if there are no miss records.
             // To avoid this, we create a dummy miss record.
             sbt.missRecordBase = devicePtr;
-            sbt.missRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.missRecordStrideInBytes = missRecordSize;
             sbt.missRecordCount = 1;
-            hostPtr += sizeof(SbtRecord);
-            devicePtr += sizeof(SbtRecord);
+            hostPtr += missRecordSize;
+            devicePtr += missRecordSize;
         }
 
+        // Hit group records
         if (shaderTable->m_hitGroupCount > 0)
         {
             sbt.hitgroupRecordBase = devicePtr;
-            sbt.hitgroupRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.hitgroupRecordStrideInBytes = hitGroupRecordSize;
             sbt.hitgroupRecordCount = shaderTable->m_hitGroupCount;
             for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
             {
                 auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
                 if (it == shaderGroupNameToIndex.end())
+                {
+                    recordOverwriteIndex++;
                     continue;
+                }
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
                     optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
                     m_device
                 );
-                hostPtr += sizeof(SbtRecord);
-                devicePtr += sizeof(SbtRecord);
+
+                // Apply shader record overwrite if present
+                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
+                if (overwrite.size > 0)
+                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+
+                hostPtr += hitGroupRecordSize;
+                devicePtr += hitGroupRecordSize;
             }
         }
 
+        // Callable records
         if (shaderTable->m_callableShaderCount > 0)
         {
             sbt.callablesRecordBase = devicePtr;
-            sbt.callablesRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.callablesRecordStrideInBytes = callableRecordSize;
             sbt.callablesRecordCount = shaderTable->m_callableShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
             {
                 auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
                 if (it == shaderGroupNameToIndex.end())
+                {
+                    recordOverwriteIndex++;
                     continue;
+                }
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
                     optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
                     m_device
                 );
-                hostPtr += sizeof(SbtRecord);
-                devicePtr += sizeof(SbtRecord);
+
+                // Apply shader record overwrite if present
+                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
+                if (overwrite.size > 0)
+                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+
+                hostPtr += callableRecordSize;
+                devicePtr += callableRecordSize;
             }
         }
 
