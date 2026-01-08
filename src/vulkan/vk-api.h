@@ -8,7 +8,11 @@
 #elif SLANG_APPLE_FAMILY
 #define VK_USE_PLATFORM_METAL_EXT 1
 #elif SLANG_LINUX_FAMILY
+#if SLANG_ANDROID
+#define VK_USE_PLATFORM_ANDROID_KHR 1
+#else
 #define VK_USE_PLATFORM_XLIB_KHR 1
+#endif
 #endif
 
 #define VK_NO_PROTOTYPES
@@ -192,9 +196,15 @@ protected:
     x(vkCreateMetalSurfaceEXT) \
     /* */
 #elif SLANG_LINUX_FAMILY
-#   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
-    x(vkCreateXlibSurfaceKHR) \
-    /* */
+    #if SLANG_ANDROID
+        #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
+            x(vkCreateAndroidSurfaceKHR) \
+            /* */
+    #else
+        #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
+            x(vkCreateXlibSurfaceKHR) \
+            /* */
+    #endif
 #else
 #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
     /* */
@@ -249,6 +259,7 @@ protected:
     x(vkCreateAccelerationStructureKHR) \
     x(vkDestroyAccelerationStructureKHR) \
     x(vkGetAccelerationStructureBuildSizesKHR) \
+    x(vkGetAccelerationStructureDeviceAddressKHR) \
     x(vkCmdBuildClusterAccelerationStructureIndirectNV) \
     x(vkGetClusterAccelerationStructureBuildSizesNV) \
     x(vkGetSemaphoreCounterValue) \

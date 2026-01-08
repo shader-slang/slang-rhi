@@ -15,6 +15,11 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     DeviceImpl* device = getDevice<DeviceImpl>();
     if (device)
     {
+        if (m_descriptorHandle)
+        {
+            device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+        }
+
         device->m_api.vkDestroyAccelerationStructureKHR(device->m_api.m_device, m_vkHandle, nullptr);
     }
 }
@@ -26,14 +31,25 @@ Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
+{
+    auto& m_api = m_buffer->m_buffer.m_api;
+    if (!m_api->vkGetAccelerationStructureDeviceAddressKHR)
+        return 0;
+    VkAccelerationStructureDeviceAddressInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+    info.accelerationStructure = m_vkHandle;
+    return (DeviceAddress)m_api->vkGetAccelerationStructureDeviceAddressKHR(m_api->m_device, &info);
+}
+
 AccelerationStructureHandle AccelerationStructureImpl::getHandle()
 {
-    return AccelerationStructureHandle{m_buffer->getDeviceAddress()};
+    return AccelerationStructureHandle{getAccelerationStructureDeviceAddress()};
 }
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 {
-    return m_buffer->getDeviceAddress();
+    return getAccelerationStructureDeviceAddress();
 }
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)

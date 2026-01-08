@@ -43,7 +43,32 @@ struct RayTracingSingleTriangleTest
         for (const char* closestHitName : closestHitNames)
             hitGroupProgramNames.push_back({closestHitName, /*anyhit=*/nullptr, /*intersection=*/nullptr});
 
-        RayTracingTestPipeline pipeline(device, filepath, {raygenName}, hitGroupProgramNames, missNames);
+        uint32_t testSbtValue = 0xDEADBEEF;
+
+        // Populate hit group SBT with test data
+        // SBT record layout: [Shader Identifier / Record Header (32 bytes)] [Local Root Arguments]
+        // According to the DXR specification and OptiX documentation, the shader identifier / record header is always
+        // at offset 0. Both D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES and OPTIX_SBT_RECORD_HEADER_SIZE are 32 bytes, so
+        // local root arguments start at offset 32 on both backends.
+        std::vector<ShaderRecordOverwrite> hitGroupSbtData;
+        for (size_t i = 0; i < hitGroupProgramNames.size(); i++)
+        {
+            ShaderRecordOverwrite currSbtData = {};
+            currSbtData.offset = 32;                 // After the 32-byte shader identifier / record header
+            currSbtData.size = sizeof(testSbtValue); // uint32_t
+            memcpy(currSbtData.data, &testSbtValue, sizeof(testSbtValue));
+            hitGroupSbtData.push_back(currSbtData);
+        }
+
+        RayTracingTestPipeline pipeline(
+            device,
+            filepath,
+            {raygenName},
+            hitGroupProgramNames,
+            missNames,
+            RayTracingPipelineFlags::None,
+            hitGroupSbtData.data()
+        );
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
     }
 
@@ -574,4 +599,104 @@ GPU_TEST_CASE("ray-tracing-hitobject-trace-motion-ray", ALL)
     // Check that it's a hit
     CHECK_EQ(result->queryWasSuccess, 1);
     CHECK_EQ(result->invokeWasSuccess, 1);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-query-ray-desc", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderQueryRayDesc", {"closestHitNOP"}, {"missNOP"});
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-query-instance-id", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run("test-ray-tracing-hitobject-intrinsics", "rayGenShaderQueryInstanceID", {"closestHitNOP"}, {"missNOP"});
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+// Not available in Vulkan
+// Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/9509
+GPU_TEST_CASE("ray-tracing-hitobject-set-and-get-shader-table-index", CUDA /*| D3D12*/)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
+        SKIP("Set and get shader table index is not supported for CUDA with OptiX version less than 9.0");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderSetAndGetShaderTableIndex",
+        {"closestHitNOP"},
+        {"missNOP"}
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-load-local-root-table-constant", D3D12 | CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderLoadLocalRootTableConstant",
+        {"closestHitNOP"},
+        {"missNOP"}
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-get-shader-record-buffer-handle", Vulkan)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderGetShaderRecordBufferHandle",
+        {"closestHitNOP"},
+        {"missNOP"}
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
 }

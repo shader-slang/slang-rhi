@@ -154,6 +154,16 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    for (auto& handle : m_descriptorHandles)
+    {
+        if (handle.second)
+        {
+            device->m_bindlessDescriptorSet->freeHandle(handle.second);
+        }
+    }
+
     for (auto& view : m_views)
     {
         m_buffer.m_api->vkDestroyBufferView(m_buffer.m_api->m_device, view.second, nullptr);

@@ -529,6 +529,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         /wd4702 # unreachable code
         /wd4127 # conditional expression is constant
         /wd4389 # signed/unsigned mismatch
+        /EHsc   # Standard C++ exception handling
     >
     $<$<CXX_COMPILER_ID:GNU>:
         -Wall -Wextra -Wpedantic

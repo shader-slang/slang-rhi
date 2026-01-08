@@ -26,14 +26,30 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     auto& api = device->m_api;
     const auto& rtpProps = api.m_rayTracingPipelineProperties;
     uint32_t handleSize = rtpProps.shaderGroupHandleSize;
-    m_raygenTableSize = m_rayGenShaderCount * rtpProps.shaderGroupBaseAlignment;
-    m_missTableSize = (uint32_t)math::calcAligned2(m_missShaderCount * handleSize, rtpProps.shaderGroupBaseAlignment);
-    m_hitTableSize = (uint32_t)math::calcAligned2(m_hitGroupCount * handleSize, rtpProps.shaderGroupBaseAlignment);
-    m_callableTableSize =
-        (uint32_t)math::calcAligned2(m_callableShaderCount * handleSize, rtpProps.shaderGroupBaseAlignment);
-    uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
-    auto tableData = std::make_unique<uint8_t[]>(tableSize);
+    // Calculate record sizes (without alignment).
+    uint32_t raygenRecordSize = max(handleSize, m_rayGenRecordOverwriteMaxSize);
+    uint32_t missRecordSize = max(handleSize, m_missRecordOverwriteMaxSize);
+    uint32_t hitGroupRecordSize = max(handleSize, m_hitGroupRecordOverwriteMaxSize);
+    uint32_t callableRecordSize = max(handleSize, m_callableRecordOverwriteMaxSize);
+
+    // Align all record sizes to shaderGroupBaseAlignment.
+    raygenRecordSize = (uint32_t)math::calcAligned2(raygenRecordSize, rtpProps.shaderGroupBaseAlignment);
+    missRecordSize = (uint32_t)math::calcAligned2(missRecordSize, rtpProps.shaderGroupBaseAlignment);
+    hitGroupRecordSize = (uint32_t)math::calcAligned2(hitGroupRecordSize, rtpProps.shaderGroupBaseAlignment);
+    callableRecordSize = (uint32_t)math::calcAligned2(callableRecordSize, rtpProps.shaderGroupBaseAlignment);
+
+    // Store strides for use when dispatching rays.
+    m_raygenRecordStride = raygenRecordSize;
+    m_missRecordStride = missRecordSize;
+    m_hitGroupRecordStride = hitGroupRecordSize;
+    m_callableRecordStride = callableRecordSize;
+
+    m_raygenTableSize = m_rayGenShaderCount * raygenRecordSize;
+    m_missTableSize = m_missShaderCount * missRecordSize;
+    m_hitTableSize = m_hitGroupCount * hitGroupRecordSize;
+    m_callableTableSize = m_callableShaderCount * callableRecordSize;
+    uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
 
     std::vector<uint8_t> handles;
     auto handleCount = pipeline->m_shaderGroupCount;
@@ -49,64 +65,62 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     );
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
 
-    uint8_t* subTablePtr = tableData.get();
-    uint32_t shaderTableEntryCounter = 0;
+    auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
+    {
+        auto it = pipeline->m_shaderGroupIndexByName.find(name);
+        if (it != pipeline->m_shaderGroupIndexByName.end())
+        {
+            auto src = handles.data() + it->second * handleSize;
+            memcpy(dest, src, handleSize);
+        }
+        if (overwrite && overwrite->size > 0)
+        {
+            memcpy((uint8_t*)dest + overwrite->offset, overwrite->data, overwrite->size);
+        }
+    };
 
-    // Each loop calculates the copy source and destination locations by fetching the name
-    // of the shader group from the list of shader group names and getting its corresponding
-    // index in the buffer of handles.
+    auto tableData = std::make_unique<uint8_t[]>(tableSize);
+    uint8_t* tablePtr = tableData.get();
+    memset(tableData.get(), 0, tableSize);
+
     for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * rtpProps.shaderGroupBaseAlignment;
-        auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
-        if (it == pipeline->m_shaderGroupNameToIndex.end())
-            continue;
-        auto shaderGroupIndex = it->second;
-        auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
-        memcpy(dstHandlePtr, srcHandlePtr, handleSize);
-        memset(dstHandlePtr + handleSize, 0, rtpProps.shaderGroupBaseAlignment - handleSize);
+        writeTableEntry(
+            tablePtr + i * raygenRecordSize,
+            m_rayGenShaderEntryPointNames[i],
+            i < m_rayGenRecordOverwrites.size() ? &m_rayGenRecordOverwrites[i] : nullptr
+        );
     }
-    subTablePtr += m_raygenTableSize;
+    tablePtr += m_raygenTableSize;
 
     for (uint32_t i = 0; i < m_missShaderCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * handleSize;
-        auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
-        if (it == pipeline->m_shaderGroupNameToIndex.end())
-            continue;
-        auto shaderGroupIndex = it->second;
-        auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
-        memcpy(dstHandlePtr, srcHandlePtr, handleSize);
+        writeTableEntry(
+            tablePtr + i * missRecordSize,
+            m_missShaderEntryPointNames[i],
+            i < m_missRecordOverwrites.size() ? &m_missRecordOverwrites[i] : nullptr
+        );
     }
-    subTablePtr += m_missTableSize;
+    tablePtr += m_missTableSize;
 
     for (uint32_t i = 0; i < m_hitGroupCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * handleSize;
-        auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
-        if (it == pipeline->m_shaderGroupNameToIndex.end())
-            continue;
-        auto shaderGroupIndex = it->second;
-        auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
-        memcpy(dstHandlePtr, srcHandlePtr, handleSize);
+        writeTableEntry(
+            tablePtr + i * hitGroupRecordSize,
+            m_hitGroupNames[i],
+            i < m_hitGroupRecordOverwrites.size() ? &m_hitGroupRecordOverwrites[i] : nullptr
+        );
     }
-    subTablePtr += m_hitTableSize;
+    tablePtr += m_hitTableSize;
 
     for (uint32_t i = 0; i < m_callableShaderCount; i++)
     {
-        auto dstHandlePtr = subTablePtr + i * handleSize;
-        auto shaderGroupName = m_shaderGroupNames[shaderTableEntryCounter++];
-        auto it = pipeline->m_shaderGroupNameToIndex.find(shaderGroupName);
-        if (it == pipeline->m_shaderGroupNameToIndex.end())
-            continue;
-        auto shaderGroupIndex = it->second;
-        auto srcHandlePtr = handles.data() + shaderGroupIndex * handleSize;
-        memcpy(dstHandlePtr, srcHandlePtr, handleSize);
+        writeTableEntry(
+            tablePtr + i * callableRecordSize,
+            m_callableShaderEntryPointNames[i],
+            i < m_callableRecordOverwrites.size() ? &m_callableRecordOverwrites[i] : nullptr
+        );
     }
-    subTablePtr += m_callableTableSize;
 
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};

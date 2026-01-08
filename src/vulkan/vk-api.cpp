@@ -26,7 +26,11 @@ Result VulkanModule::init()
     HMODULE module = ::LoadLibraryA("vulkan-1.dll");
     m_module = (void*)module;
 #elif SLANG_LINUX_FAMILY
+#if SLANG_ANDROID
+    m_module = dlopen("libvulkan.so", RTLD_NOW);
+#else
     m_module = dlopen("libvulkan.so.1", RTLD_NOW);
+#endif
 #elif SLANG_APPLE_FAMILY
     m_module = dlopen("libvulkan.1.dylib", RTLD_NOW | RTLD_GLOBAL);
 #else
