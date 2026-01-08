@@ -2119,6 +2119,7 @@ struct WindowHandle
                 handle.canvasSelector[i] = canvasSelector[i];
             handle.canvasSelector[i] = 0;
         }
+        return handle;
     }
     static WindowHandle fromAndroidWindow(void* window)
     {
