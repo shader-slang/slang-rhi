@@ -250,13 +250,21 @@ public:
     ShaderTable(Device* device, const ShaderTableDesc& desc);
 
 public:
-    std::vector<std::string> m_shaderGroupNames;
-    std::vector<ShaderRecordOverwrite> m_recordOverwrites;
-
     uint32_t m_rayGenShaderCount;
     uint32_t m_missShaderCount;
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
+
+    std::vector<std::string> m_shaderGroupNames;
+
+    std::vector<ShaderRecordOverwrite> m_rayGenRecordOverwrites;
+    std::vector<ShaderRecordOverwrite> m_missRecordOverwrites;
+    std::vector<ShaderRecordOverwrite> m_hitGroupRecordOverwrites;
+    std::vector<ShaderRecordOverwrite> m_callableRecordOverwrites;
+    uint32_t m_rayGenRecordOverwriteMaxSize = 0;
+    uint32_t m_missRecordOverwriteMaxSize = 0;
+    uint32_t m_hitGroupRecordOverwriteMaxSize = 0;
+    uint32_t m_callableRecordOverwriteMaxSize = 0;
 };
 
 class Surface : public ISurface, public ComObject

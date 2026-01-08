@@ -882,39 +882,12 @@ public:
 
         RefPtr<ShaderBindingTableImpl> shaderBindingTable = new ShaderBindingTableImpl();
 
-        // Phase 1: Calculate minimum required sizes (without alignment)
-        size_t missRecordSize = sizeof(SbtRecord);
-        size_t hitGroupRecordSize = sizeof(SbtRecord);
-        size_t callableRecordSize = sizeof(SbtRecord);
+        // Calculate record sizes (without alignment).
+        size_t missRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_missRecordOverwriteMaxSize));
+        size_t hitGroupRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_hitGroupRecordOverwriteMaxSize));
+        size_t callableRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_callableRecordOverwriteMaxSize));
 
-        const std::vector<ShaderRecordOverwrite>& recordOverwrites = shaderTable->m_recordOverwrites;
-        size_t overwriteIndex = shaderTable->m_rayGenShaderCount; // Skip raygen entries
-
-        // Scan miss shader overwrites
-        for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
-        {
-            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
-            if (overwrite.size > 0)
-                missRecordSize = max(missRecordSize, size_t(overwrite.offset + overwrite.size));
-        }
-
-        // Scan hit group overwrites
-        for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
-        {
-            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
-            if (overwrite.size > 0)
-                hitGroupRecordSize = max(hitGroupRecordSize, size_t(overwrite.offset + overwrite.size));
-        }
-
-        // Scan callable shader overwrites
-        for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
-        {
-            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
-            if (overwrite.size > 0)
-                callableRecordSize = max(callableRecordSize, size_t(overwrite.offset + overwrite.size));
-        }
-
-        // Phase 2: Align all sizes to OPTIX_SBT_RECORD_ALIGNMENT
+        // Align all record sizes to OPTIX_SBT_RECORD_ALIGNMENT.
         missRecordSize = math::calcAligned2(missRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
         hitGroupRecordSize = math::calcAligned2(hitGroupRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
         callableRecordSize = math::calcAligned2(callableRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
@@ -965,7 +938,6 @@ public:
         const std::map<std::string, uint32_t>& shaderGroupNameToIndex = pipelineImpl->m_shaderGroupNameToIndex;
 
         size_t shaderTableEntryIndex = 0;
-        size_t recordOverwriteIndex = 0;
 
         // Raygen records
         if (shaderTable->m_rayGenShaderCount > 0)
@@ -974,7 +946,6 @@ public:
             for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
             {
                 auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                recordOverwriteIndex++; // Skip raygen overwrites (handled via entry point params)
                 if (it == shaderGroupNameToIndex.end())
                     continue;
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
@@ -999,7 +970,6 @@ public:
                 auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
                 if (it == shaderGroupNameToIndex.end())
                 {
-                    recordOverwriteIndex++;
                     continue;
                 }
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
@@ -1008,9 +978,12 @@ public:
                 );
 
                 // Apply shader record overwrite if present
-                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
-                if (overwrite.size > 0)
-                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+                if (i < shaderTable->m_missRecordOverwrites.size())
+                {
+                    const ShaderRecordOverwrite& overwrite = shaderTable->m_missRecordOverwrites[i];
+                    if (overwrite.size > 0)
+                        memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+                }
 
                 hostPtr += missRecordSize;
                 devicePtr += missRecordSize;
@@ -1038,7 +1011,6 @@ public:
                 auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
                 if (it == shaderGroupNameToIndex.end())
                 {
-                    recordOverwriteIndex++;
                     continue;
                 }
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
@@ -1047,9 +1019,12 @@ public:
                 );
 
                 // Apply shader record overwrite if present
-                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
-                if (overwrite.size > 0)
-                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+                if (i < shaderTable->m_hitGroupRecordOverwrites.size())
+                {
+                    const ShaderRecordOverwrite& overwrite = shaderTable->m_hitGroupRecordOverwrites[i];
+                    if (overwrite.size > 0)
+                        memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+                }
 
                 hostPtr += hitGroupRecordSize;
                 devicePtr += hitGroupRecordSize;
@@ -1067,7 +1042,6 @@ public:
                 auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
                 if (it == shaderGroupNameToIndex.end())
                 {
-                    recordOverwriteIndex++;
                     continue;
                 }
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
@@ -1076,9 +1050,12 @@ public:
                 );
 
                 // Apply shader record overwrite if present
-                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
-                if (overwrite.size > 0)
-                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+                if (i < shaderTable->m_callableRecordOverwrites.size())
+                {
+                    const ShaderRecordOverwrite& overwrite = shaderTable->m_callableRecordOverwrites[i];
+                    if (overwrite.size > 0)
+                        memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
+                }
 
                 hostPtr += callableRecordSize;
                 devicePtr += callableRecordSize;
