@@ -255,7 +255,10 @@ public:
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
 
-    std::vector<std::string> m_shaderGroupNames;
+    std::vector<std::string> m_rayGenShaderEntryPointNames;
+    std::vector<std::string> m_missShaderEntryPointNames;
+    std::vector<std::string> m_hitGroupNames;
+    std::vector<std::string> m_callableShaderEntryPointNames;
 
     std::vector<ShaderRecordOverwrite> m_rayGenRecordOverwrites;
     std::vector<ShaderRecordOverwrite> m_missRecordOverwrites;

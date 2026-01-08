@@ -934,10 +934,7 @@ public:
         CUdeviceptr devicePtr = deviceBuffer;
 
         OptixShaderBindingTable& sbt = shaderBindingTable->m_sbt;
-        const std::vector<std::string>& shaderGroupNames = shaderTable->m_shaderGroupNames;
         const std::map<std::string, uint32_t>& shaderGroupNameToIndex = pipelineImpl->m_shaderGroupNameToIndex;
-
-        size_t shaderTableEntryIndex = 0;
 
         // Raygen records
         if (shaderTable->m_rayGenShaderCount > 0)
@@ -945,7 +942,7 @@ public:
             sbt.raygenRecord = devicePtr;
             for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
+                auto it = shaderGroupNameToIndex.find(shaderTable->m_rayGenShaderEntryPointNames[i]);
                 if (it == shaderGroupNameToIndex.end())
                     continue;
                 SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
@@ -967,7 +964,7 @@ public:
             sbt.missRecordCount = shaderTable->m_missShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
+                auto it = shaderGroupNameToIndex.find(shaderTable->m_missShaderEntryPointNames[i]);
                 if (it == shaderGroupNameToIndex.end())
                 {
                     continue;
@@ -1008,7 +1005,7 @@ public:
             sbt.hitgroupRecordCount = shaderTable->m_hitGroupCount;
             for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
+                auto it = shaderGroupNameToIndex.find(shaderTable->m_hitGroupNames[i]);
                 if (it == shaderGroupNameToIndex.end())
                 {
                     continue;
@@ -1039,7 +1036,7 @@ public:
             sbt.callablesRecordCount = shaderTable->m_callableShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
+                auto it = shaderGroupNameToIndex.find(shaderTable->m_callableShaderEntryPointNames[i]);
                 if (it == shaderGroupNameToIndex.end())
                 {
                     continue;

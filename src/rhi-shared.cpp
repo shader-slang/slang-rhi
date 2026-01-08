@@ -369,14 +369,11 @@ ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
     m_missShaderCount = desc.missShaderCount;
     m_hitGroupCount = desc.hitGroupCount;
     m_callableShaderCount = desc.callableShaderCount;
-    m_shaderGroupNames.reserve(
-        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
-    );
 
-    for (uint32_t i = 0; i < desc.rayGenShaderCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.rayGenShaderEntryPointNames[i]);
-    }
+    m_rayGenShaderEntryPointNames.assign(
+        desc.rayGenShaderEntryPointNames,
+        desc.rayGenShaderEntryPointNames + desc.rayGenShaderCount
+    );
     if (desc.rayGenShaderRecordOverwrites)
     {
         m_rayGenRecordOverwrites.assign(
@@ -386,10 +383,10 @@ ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
     }
     m_rayGenRecordOverwriteMaxSize = getMaxOverrideSize(m_rayGenRecordOverwrites);
 
-    for (uint32_t i = 0; i < desc.missShaderCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.missShaderEntryPointNames[i]);
-    }
+    m_missShaderEntryPointNames.assign(
+        desc.missShaderEntryPointNames,
+        desc.missShaderEntryPointNames + desc.missShaderCount
+    );
     if (desc.missShaderRecordOverwrites)
     {
         m_missRecordOverwrites.assign(
@@ -399,10 +396,7 @@ ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
     }
     m_missRecordOverwriteMaxSize = getMaxOverrideSize(m_missRecordOverwrites);
 
-    for (uint32_t i = 0; i < desc.hitGroupCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.hitGroupNames[i]);
-    }
+    m_hitGroupNames.assign(desc.hitGroupNames, desc.hitGroupNames + desc.hitGroupCount);
     if (desc.hitGroupRecordOverwrites)
     {
         m_hitGroupRecordOverwrites.assign(
@@ -412,10 +406,10 @@ ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
     }
     m_hitGroupRecordOverwriteMaxSize = getMaxOverrideSize(m_hitGroupRecordOverwrites);
 
-    for (uint32_t i = 0; i < desc.callableShaderCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.callableShaderEntryPointNames[i]);
-    }
+    m_callableShaderEntryPointNames.assign(
+        desc.callableShaderEntryPointNames,
+        desc.callableShaderEntryPointNames + desc.callableShaderCount
+    );
     if (desc.callableShaderRecordOverwrites)
     {
         m_callableRecordOverwrites.assign(

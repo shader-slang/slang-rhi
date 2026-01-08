@@ -52,12 +52,10 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
         math::calcAligned2(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
     uint32_t tableSize = m_callableTableOffset + callableTableSize;
 
-    auto tableData = std::make_unique<uint8_t[]>(tableSize);
-
     ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
     pipeline->m_stateObject->QueryInterface(stateObjectProperties.writeRef());
 
-    auto copyShaderIdInto = [&](void* dest, std::string& name, const ShaderRecordOverwrite* overwrite)
+    auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
     {
         if (!name.empty())
         {
@@ -70,38 +68,42 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
         }
     };
 
+    auto tableData = std::make_unique<uint8_t[]>(tableSize);
     uint8_t* tablePtr = tableData.get();
     memset(tablePtr, 0, tableSize);
 
     for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
     {
-        copyShaderIdInto(
-            tablePtr + m_rayGenTableOffset + raygenRecordSize * i,
-            m_shaderGroupNames[i],
+        writeTableEntry(
+            tablePtr + m_rayGenTableOffset + i * raygenRecordSize,
+            m_rayGenShaderEntryPointNames[i],
             i < m_rayGenRecordOverwrites.size() ? &m_rayGenRecordOverwrites[i] : nullptr
         );
     }
+
     for (uint32_t i = 0; i < m_missShaderCount; i++)
     {
-        copyShaderIdInto(
-            tablePtr + m_missTableOffset + missRecordSize * i,
-            m_shaderGroupNames[m_rayGenShaderCount + i],
+        writeTableEntry(
+            tablePtr + m_missTableOffset + i * missRecordSize,
+            m_missShaderEntryPointNames[i],
             i < m_missRecordOverwrites.size() ? &m_missRecordOverwrites[i] : nullptr
         );
     }
+
     for (uint32_t i = 0; i < m_hitGroupCount; i++)
     {
-        copyShaderIdInto(
-            tablePtr + m_hitGroupTableOffset + hitGroupRecordSize * i,
-            m_shaderGroupNames[m_rayGenShaderCount + m_missShaderCount + i],
+        writeTableEntry(
+            tablePtr + m_hitGroupTableOffset + i * hitGroupRecordSize,
+            m_hitGroupNames[i],
             i < m_hitGroupRecordOverwrites.size() ? &m_hitGroupRecordOverwrites[i] : nullptr
         );
     }
+
     for (uint32_t i = 0; i < m_callableShaderCount; i++)
     {
-        copyShaderIdInto(
-            tablePtr + m_callableTableOffset + callableRecordSize * i,
-            m_shaderGroupNames[m_rayGenShaderCount + m_missShaderCount + m_hitGroupCount + i],
+        writeTableEntry(
+            tablePtr + m_callableTableOffset + i * callableRecordSize,
+            m_callableShaderEntryPointNames[i],
             i < m_callableRecordOverwrites.size() ? &m_callableRecordOverwrites[i] : nullptr
         );
     }
