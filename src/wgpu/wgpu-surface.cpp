@@ -40,8 +40,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     WGPUSurfaceSourceXlibWindow descXlib = {};
 #elif SLANG_APPLE_FAMILY
     WGPUSurfaceSourceMetalLayer descMetal = {};
-#elif defined(__EMSCRIPTEN__)
-    WGPUSurfaceSourceCanvasHTMLSelector descCanvas = {};
+#elif SLANG_WASM
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector descCanvas = {};
 #endif
 
     switch (windowHandle.type)
@@ -67,10 +67,13 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         descXlib.window = (uint64_t)windowHandle.handleValues[1];
         desc.nextInChain = (WGPUChainedStruct*)&descXlib;
         break;
-#elif defined(__EMSCRIPTEN__)
+#elif SLANG_WASM
     case WindowHandleType::WGPUCanvas:
-        descCanvas.chain.sType = WGPUSType_SurfaceSourceCanvasHTMLSelector;
-        descCanvas.selector = (const char*)windowHandle.handleValues[0];
+        descCanvas.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
+        {
+            const char* selector = windowHandle.canvasSelector;
+            descCanvas.selector = {selector, strlen(selector)};
+        }
         desc.nextInChain = (WGPUChainedStruct*)&descCanvas;
         break;
 #endif
@@ -215,7 +218,8 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     WGPUSurfaceTexture surfaceTexture;
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
-    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success)
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
+        surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal)
     {
         return SLANG_FAIL;
     }

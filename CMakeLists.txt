@@ -191,8 +191,8 @@ if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
     set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip")
 endif()
 
-# Dawn WebGPU
-if(NOT DEFINED SLANG_RHI_DAWN_URL)
+# Dawn WebGPU (not used for Emscripten - uses emdawnwebgpu port instead)
+if(NOT DEFINED SLANG_RHI_DAWN_URL AND NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(DAWN_VERSION "135.0.7049.80")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
@@ -205,8 +205,6 @@ if(NOT DEFINED SLANG_RHI_DAWN_URL)
         set(DAWN_ARCH "x86_64")
     elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
         set(DAWN_ARCH "aarch64")
-    elseif(SLANG_RHI_ARCHITECTURE MATCHES "wasm32")
-        set(DAWN_ARCH "wasm32")
     else()
         message(FATAL_ERROR "Unsupported processor architecture")
     endif()
@@ -575,10 +573,14 @@ target_compile_options(slang-rhi-warnings INTERFACE
 add_library(slang-rhi-warnings-as-errors INTERFACE)
 target_compile_options(slang-rhi-warnings-as-errors INTERFACE
     $<$<CXX_COMPILER_ID:MSVC>:/WX>
-    $<$<CXX_COMPILER_ID:GNU>:-Werror>
-    $<$<CXX_COMPILER_ID:Clang>:-Werror>
-    $<$<CXX_COMPILER_ID:AppleClang>:-Werror>
 )
+if(NOT EMSCRIPTEN)
+    target_compile_options(slang-rhi-warnings-as-errors INTERFACE
+        $<$<CXX_COMPILER_ID:GNU>:-Werror>
+        $<$<CXX_COMPILER_ID:Clang>:-Werror>
+        $<$<CXX_COMPILER_ID:AppleClang>:-Werror>
+    )
+endif()
 target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
 
 target_sources(slang-rhi PRIVATE

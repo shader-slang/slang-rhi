@@ -79,7 +79,12 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
             WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
             callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#if SLANG_WASM
+            callbackInfo.callback =
+                [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
+#else
             callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+#endif
             {
                 *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
             };

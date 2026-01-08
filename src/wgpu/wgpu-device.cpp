@@ -12,12 +12,13 @@
 #include <cstdio>
 #include <vector>
 
-#if defined(__EMSCRIPTEN__)
+#if SLANG_WASM
 #include <emscripten.h>
 #endif
 
 namespace rhi::wgpu {
 
+#if !SLANG_WASM
 static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 {
     // Currently no toggles are needed.
@@ -31,11 +32,12 @@ static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
     togglesDesc.disabledToggles = disabledToggles.data();
     return togglesDesc;
 }
+#endif
 
 static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
 {
     WGPUInstanceDescriptor instanceDesc = {};
-#if !defined(__EMSCRIPTEN__)
+#if !SLANG_WASM
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
@@ -66,7 +68,7 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
     options.backendType = WGPUBackendType_Vulkan;
 #endif
 
-#if !defined(__EMSCRIPTEN__)
+#if !SLANG_WASM
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     options.nextInChain = &togglesDesc.chain;
 #endif
@@ -75,7 +77,7 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
     {
         WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
         WGPURequestAdapterCallbackInfo callbackInfo = {};
-#if defined(__EMSCRIPTEN__)
+#if SLANG_WASM
         // On Emscripten, use AllowSpontaneous mode - callbacks fire during browser event loop
         callbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
 #else
@@ -93,7 +95,7 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = &adapter;
         WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
-#if defined(__EMSCRIPTEN__)
+#if SLANG_WASM
         // Poll with wgpuInstanceProcessEvents and emscripten_sleep
         while (status == WGPURequestAdapterStatus(0) && adapter == nullptr)
         {
@@ -211,7 +213,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         deviceImpl->reportUncapturedError(type, message);
     };
     deviceDesc.uncapturedErrorCallbackInfo.userdata1 = this;
-#if !defined(__EMSCRIPTEN__)
+#if !SLANG_WASM
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
 #endif
@@ -219,7 +221,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
         WGPURequestDeviceCallbackInfo callbackInfo = {};
-#if defined(__EMSCRIPTEN__)
+#if SLANG_WASM
         callbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
 #else
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
@@ -254,7 +256,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         deviceDesc.deviceLostCallbackInfo = deviceLostCallbackInfo;
 
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
-#if defined(__EMSCRIPTEN__)
+#if SLANG_WASM
         // Poll with wgpuInstanceProcessEvents and emscripten_sleep
         while (status == WGPURequestDeviceStatus(0) && m_ctx.device == nullptr)
         {
@@ -572,7 +574,11 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
         WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#if SLANG_WASM
+        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
+#else
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+#endif
         {
             *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
         };

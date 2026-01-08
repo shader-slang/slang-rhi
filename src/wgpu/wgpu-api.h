@@ -4,34 +4,91 @@
 
 #include "core/platform.h"
 
+#if !SLANG_WASM
 #define WGPU_SKIP_DECLARATIONS
-#if defined(__EMSCRIPTEN__)
-#include <webgpu/webgpu.h>
-#else
 #include <dawn/webgpu.h>
+#else
+#include <webgpu/webgpu.h>
 #endif
 
 // clang-format off
 
-#define SLANG_RHI_WGPU_PROCS(x) \
-    x(AdapterInfoFreeMembers) \
+// Define native-only procedures that are not available or different in Emscripten
+#if !SLANG_WASM
+#define SLANG_RHI_WGPU_NATIVE_PROCS(x) \
     x(AdapterPropertiesMemoryHeapsFreeMembers) \
     x(AdapterPropertiesSubgroupMatrixConfigsFreeMembers) \
-    x(CreateInstance) \
     x(DawnDrmFormatCapabilitiesFreeMembers) \
-    x(GetInstanceCapabilities) \
-    x(GetProcAddress) \
     x(SharedBufferMemoryEndAccessStateFreeMembers) \
     x(SharedTextureMemoryEndAccessStateFreeMembers) \
+    x(AdapterCreateDevice) \
+    x(AdapterGetFormatCapabilities) \
+    x(AdapterGetInstance) \
+    x(CommandEncoderInjectValidationError) \
+    x(CommandEncoderWriteBuffer) \
+    x(ComputePassEncoderSetImmediateData) \
+    x(GetInstanceCapabilities) \
+    x(RenderBundleEncoderSetImmediateData) \
+    x(RenderPassEncoderSetImmediateData) \
+    x(DeviceCreateErrorBuffer) \
+    x(DeviceCreateErrorExternalTexture) \
+    x(DeviceCreateErrorShaderModule) \
+    x(DeviceCreateErrorTexture) \
+    x(DeviceCreateExternalTexture) \
+    x(DeviceForceLoss) \
+    x(DeviceGetAHardwareBufferProperties) \
+    x(DeviceGetAdapter) \
+    x(DeviceImportSharedBufferMemory) \
+    x(DeviceImportSharedFence) \
+    x(DeviceImportSharedTextureMemory) \
+    x(DeviceInjectError) \
+    x(DeviceSetLoggingCallback) \
+    x(DeviceTick) \
+    x(DeviceValidateTextureDescriptor) \
+    x(ExternalTextureDestroy) \
+    x(ExternalTextureExpire) \
+    x(ExternalTextureRefresh) \
+    x(ExternalTextureSetLabel) \
+    x(ExternalTextureAddRef) \
+    x(ExternalTextureRelease) \
+    x(QueueCopyExternalTextureForBrowser) \
+    x(QueueCopyTextureForBrowser) \
+    x(RenderPassEncoderPixelLocalStorageBarrier) \
+    x(SharedBufferMemoryBeginAccess) \
+    x(SharedBufferMemoryCreateBuffer) \
+    x(SharedBufferMemoryEndAccess) \
+    x(SharedBufferMemoryGetProperties) \
+    x(SharedBufferMemoryIsDeviceLost) \
+    x(SharedBufferMemorySetLabel) \
+    x(SharedBufferMemoryAddRef) \
+    x(SharedBufferMemoryRelease) \
+    x(SharedFenceExportInfo) \
+    x(SharedFenceAddRef) \
+    x(SharedFenceRelease) \
+    x(SharedTextureMemoryBeginAccess) \
+    x(SharedTextureMemoryCreateTexture) \
+    x(SharedTextureMemoryEndAccess) \
+    x(SharedTextureMemoryGetProperties) \
+    x(SharedTextureMemoryIsDeviceLost) \
+    x(SharedTextureMemorySetLabel) \
+    x(SharedTextureMemoryAddRef) \
+    x(SharedTextureMemoryRelease) \
+    x(TextureCreateErrorView)
+#else
+#define SLANG_RHI_WGPU_NATIVE_PROCS(x)
+#endif
+
+#define SLANG_RHI_WGPU_PROCS(x) \
+    x(AdapterInfoFreeMembers) \
+    x(CreateInstance) \
+    x(GetProcAddress) \
     x(SupportedWGSLLanguageFeaturesFreeMembers) \
     x(SupportedFeaturesFreeMembers) \
     x(SurfaceCapabilitiesFreeMembers) \
+    SLANG_RHI_WGPU_NATIVE_PROCS(x) \
     /* Procs of Adapter */ \
-    x(AdapterCreateDevice) \
     x(AdapterGetFeatures) \
-    x(AdapterGetFormatCapabilities) \
     x(AdapterGetInfo) \
-    x(AdapterGetInstance) \
     x(AdapterGetLimits) \
     x(AdapterHasFeature) \
     x(AdapterRequestDevice) \
@@ -72,13 +129,11 @@
     x(CommandEncoderCopyTextureToBuffer) \
     x(CommandEncoderCopyTextureToTexture) \
     x(CommandEncoderFinish) \
-    x(CommandEncoderInjectValidationError) \
     x(CommandEncoderInsertDebugMarker) \
     x(CommandEncoderPopDebugGroup) \
     x(CommandEncoderPushDebugGroup) \
     x(CommandEncoderResolveQuerySet) \
     x(CommandEncoderSetLabel) \
-    x(CommandEncoderWriteBuffer) \
     x(CommandEncoderWriteTimestamp) \
     x(CommandEncoderAddRef) \
     x(CommandEncoderRelease) \
@@ -90,7 +145,6 @@
     x(ComputePassEncoderPopDebugGroup) \
     x(ComputePassEncoderPushDebugGroup) \
     x(ComputePassEncoderSetBindGroup) \
-    x(ComputePassEncoderSetImmediateData) \
     x(ComputePassEncoderSetLabel) \
     x(ComputePassEncoderSetPipeline) \
     x(ComputePassEncoderWriteTimestamp) \
@@ -108,11 +162,6 @@
     x(DeviceCreateCommandEncoder) \
     x(DeviceCreateComputePipeline) \
     x(DeviceCreateComputePipelineAsync) \
-    x(DeviceCreateErrorBuffer) \
-    x(DeviceCreateErrorExternalTexture) \
-    x(DeviceCreateErrorShaderModule) \
-    x(DeviceCreateErrorTexture) \
-    x(DeviceCreateExternalTexture) \
     x(DeviceCreatePipelineLayout) \
     x(DeviceCreateQuerySet) \
     x(DeviceCreateRenderBundleEncoder) \
@@ -122,34 +171,17 @@
     x(DeviceCreateShaderModule) \
     x(DeviceCreateTexture) \
     x(DeviceDestroy) \
-    x(DeviceForceLoss) \
-    x(DeviceGetAHardwareBufferProperties) \
-    x(DeviceGetAdapter) \
     x(DeviceGetAdapterInfo) \
     x(DeviceGetFeatures) \
     x(DeviceGetLimits) \
     x(DeviceGetLostFuture) \
     x(DeviceGetQueue) \
     x(DeviceHasFeature) \
-    x(DeviceImportSharedBufferMemory) \
-    x(DeviceImportSharedFence) \
-    x(DeviceImportSharedTextureMemory) \
-    x(DeviceInjectError) \
     x(DevicePopErrorScope) \
     x(DevicePushErrorScope) \
     x(DeviceSetLabel) \
-    x(DeviceSetLoggingCallback) \
-    x(DeviceTick) \
-    x(DeviceValidateTextureDescriptor) \
     x(DeviceAddRef) \
     x(DeviceRelease) \
-    /* Procs of ExternalTexture */ \
-    x(ExternalTextureDestroy) \
-    x(ExternalTextureExpire) \
-    x(ExternalTextureRefresh) \
-    x(ExternalTextureSetLabel) \
-    x(ExternalTextureAddRef) \
-    x(ExternalTextureRelease) \
     /* Procs of Instance */ \
     x(InstanceCreateSurface) \
     x(InstanceGetWGSLLanguageFeatures) \
@@ -171,8 +203,6 @@
     x(QuerySetAddRef) \
     x(QuerySetRelease) \
     /* Procs of Queue */ \
-    x(QueueCopyExternalTextureForBrowser) \
-    x(QueueCopyTextureForBrowser) \
     x(QueueOnSubmittedWorkDone) \
     x(QueueSetLabel) \
     x(QueueSubmit) \
@@ -194,7 +224,6 @@
     x(RenderBundleEncoderPopDebugGroup) \
     x(RenderBundleEncoderPushDebugGroup) \
     x(RenderBundleEncoderSetBindGroup) \
-    x(RenderBundleEncoderSetImmediateData) \
     x(RenderBundleEncoderSetIndexBuffer) \
     x(RenderBundleEncoderSetLabel) \
     x(RenderBundleEncoderSetPipeline) \
@@ -213,12 +242,10 @@
     x(RenderPassEncoderInsertDebugMarker) \
     x(RenderPassEncoderMultiDrawIndexedIndirect) \
     x(RenderPassEncoderMultiDrawIndirect) \
-    x(RenderPassEncoderPixelLocalStorageBarrier) \
     x(RenderPassEncoderPopDebugGroup) \
     x(RenderPassEncoderPushDebugGroup) \
     x(RenderPassEncoderSetBindGroup) \
     x(RenderPassEncoderSetBlendConstant) \
-    x(RenderPassEncoderSetImmediateData) \
     x(RenderPassEncoderSetIndexBuffer) \
     x(RenderPassEncoderSetLabel) \
     x(RenderPassEncoderSetPipeline) \
@@ -243,28 +270,6 @@
     x(ShaderModuleSetLabel) \
     x(ShaderModuleAddRef) \
     x(ShaderModuleRelease) \
-    /* Procs of SharedBufferMemory */ \
-    x(SharedBufferMemoryBeginAccess) \
-    x(SharedBufferMemoryCreateBuffer) \
-    x(SharedBufferMemoryEndAccess) \
-    x(SharedBufferMemoryGetProperties) \
-    x(SharedBufferMemoryIsDeviceLost) \
-    x(SharedBufferMemorySetLabel) \
-    x(SharedBufferMemoryAddRef) \
-    x(SharedBufferMemoryRelease) \
-    /* Procs of SharedFence */ \
-    x(SharedFenceExportInfo) \
-    x(SharedFenceAddRef) \
-    x(SharedFenceRelease) \
-    /* Procs of SharedTextureMemory */ \
-    x(SharedTextureMemoryBeginAccess) \
-    x(SharedTextureMemoryCreateTexture) \
-    x(SharedTextureMemoryEndAccess) \
-    x(SharedTextureMemoryGetProperties) \
-    x(SharedTextureMemoryIsDeviceLost) \
-    x(SharedTextureMemorySetLabel) \
-    x(SharedTextureMemoryAddRef) \
-    x(SharedTextureMemoryRelease) \
     /* Procs of Surface */ \
     x(SurfaceConfigure) \
     x(SurfaceGetCapabilities) \
@@ -275,7 +280,6 @@
     x(SurfaceAddRef) \
     x(SurfaceRelease) \
     /* Procs of Texture */ \
-    x(TextureCreateErrorView) \
     x(TextureCreateView) \
     x(TextureDestroy) \
     x(TextureGetDepthOrArrayLayers) \
@@ -300,7 +304,7 @@ namespace rhi::wgpu {
 
 struct API
 {
-#if !defined(__EMSCRIPTEN__)
+#if !SLANG_WASM
     SharedLibraryHandle m_module = nullptr;
 #endif
 

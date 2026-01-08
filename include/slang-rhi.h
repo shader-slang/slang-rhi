@@ -2074,7 +2074,11 @@ enum class WindowHandleType
 struct WindowHandle
 {
     WindowHandleType type = WindowHandleType::Undefined;
-    uint64_t handleValues[2];
+    union
+    {
+        uint64_t handleValues[2];
+        char canvasSelector[128];
+    };
 
     static WindowHandle fromHwnd(void* hwnd)
     {
@@ -2102,7 +2106,13 @@ struct WindowHandle
     {
         WindowHandle handle = {};
         handle.type = WindowHandleType::WGPUCanvas;
-        handle.handleValues[0] = (uint64_t)(canvasSelector);
+        if (canvasSelector)
+        {
+            size_t i = 0;
+            for (; i < sizeof(handle.canvasSelector) - 1 && canvasSelector[i]; ++i)
+                handle.canvasSelector[i] = canvasSelector[i];
+            handle.canvasSelector[i] = 0;
+        }
         return handle;
     }
 };

@@ -6,7 +6,7 @@ namespace rhi::wgpu {
 
 API::~API()
 {
-#if !defined(__EMSCRIPTEN__)
+#if !SLANG_WASM
     if (m_module)
     {
         unloadSharedLibrary(m_module);
@@ -16,7 +16,7 @@ API::~API()
 
 Result API::init()
 {
-#if defined(__EMSCRIPTEN__)
+#if SLANG_WASM
     // On Emscripten, WebGPU functions are provided by the browser.
     // Directly assign the global WebGPU function pointers.
 #define LOAD_PROC(name) wgpu##name = ::wgpu##name;
