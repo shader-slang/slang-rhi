@@ -1693,7 +1693,6 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, Size size) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(const ShaderOffset& offset, Size size, void** outData) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;
@@ -1701,6 +1700,11 @@ public:
         const ShaderOffset& offset,
         const DescriptorHandle& handle
     ) = 0;
+
+    /// Reserves a block of memory within the shader object's internal data buffer at the specified offset.
+    /// WARNING: This function bypasses the immutability of a ShaderObject. To use safely, ensure that the address
+    /// returned is immediately populated, not retained. Prefer using setData unless absolutely necessary.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(const ShaderOffset& offset, Size size, void** outData) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
