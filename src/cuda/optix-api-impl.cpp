@@ -534,7 +534,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     std::vector<OptixModule> m_modules;
     std::vector<OptixProgramGroup> m_programGroups;
-    std::map<std::string, uint32_t> m_shaderGroupNameToIndex;
+    std::map<std::string, uint32_t> m_programGroupIndexByName;
     std::vector<uint32_t> m_raygenEntryPointIndices;
     OptixPipeline m_pipeline = nullptr;
 
@@ -652,9 +652,9 @@ public:
 
         // Create optix modules & program groups
         std::vector<OptixModule> optixModules;
-        std::map<std::string, uint32_t> entryPointNameToModuleIndex;
+        std::map<std::string, uint32_t> moduleIndexByEntryPointName;
         std::vector<OptixProgramGroup> optixProgramGroups;
-        std::map<std::string, uint32_t> shaderGroupNameToIndex;
+        std::map<std::string, uint32_t> programGroupIndexByName;
         std::vector<uint32_t> raygenEntryPointIndices;
         for (const auto& module : program->m_modules)
         {
@@ -671,7 +671,7 @@ public:
                 ),
                 m_device
             );
-            entryPointNameToModuleIndex[module.entryPointName] = optixModules.size() - 1;
+            moduleIndexByEntryPointName[module.entryPointName] = optixModules.size() - 1;
 
             OptixProgramGroupDesc optixProgramGroupDesc = {};
             OptixProgramGroupOptions optixProgramGroupOptions = {};
@@ -733,7 +733,7 @@ public:
                 ),
                 m_device
             );
-            shaderGroupNameToIndex[module.entryPointName] = optixProgramGroups.size() - 1;
+            programGroupIndexByName[module.entryPointName] = optixProgramGroups.size() - 1;
         }
 
         // If we're using spheres, hit groups may use the builtin sphere intersector.
@@ -786,14 +786,14 @@ public:
             if (hitGroupDesc.closestHitEntryPoint)
             {
                 optixProgramGroupDesc.hitgroup.moduleCH =
-                    optixModules[entryPointNameToModuleIndex[hitGroupDesc.closestHitEntryPoint]];
+                    optixModules[moduleIndexByEntryPointName[hitGroupDesc.closestHitEntryPoint]];
                 entryFunctionNameCH = std::string("__closesthit__") + hitGroupDesc.closestHitEntryPoint;
                 optixProgramGroupDesc.hitgroup.entryFunctionNameCH = entryFunctionNameCH.data();
             }
             if (hitGroupDesc.anyHitEntryPoint)
             {
                 optixProgramGroupDesc.hitgroup.moduleAH =
-                    optixModules[entryPointNameToModuleIndex[hitGroupDesc.anyHitEntryPoint]];
+                    optixModules[moduleIndexByEntryPointName[hitGroupDesc.anyHitEntryPoint]];
                 entryFunctionNameAH = std::string("__anyhit__") + hitGroupDesc.anyHitEntryPoint;
                 optixProgramGroupDesc.hitgroup.entryFunctionNameAH = entryFunctionNameAH.data();
             }
@@ -809,7 +809,7 @@ public:
                 else
                 {
                     optixProgramGroupDesc.hitgroup.moduleIS =
-                        optixModules[entryPointNameToModuleIndex[hitGroupDesc.intersectionEntryPoint]];
+                        optixModules[moduleIndexByEntryPointName[hitGroupDesc.intersectionEntryPoint]];
                     entryFunctionNameIS = std::string("__intersection__") + hitGroupDesc.intersectionEntryPoint;
                     optixProgramGroupDesc.hitgroup.entryFunctionNameIS = entryFunctionNameIS.data();
                 }
@@ -827,7 +827,7 @@ public:
                 ),
                 m_device
             );
-            shaderGroupNameToIndex[hitGroupDesc.hitGroupName] = optixProgramGroups.size() - 1;
+            programGroupIndexByName[hitGroupDesc.hitGroupName] = optixProgramGroups.size() - 1;
         }
 
         OptixPipeline optixPipeline = nullptr;
@@ -865,7 +865,7 @@ public:
         pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
         pipeline->m_modules = std::move(optixModules);
         pipeline->m_programGroups = std::move(optixProgramGroups);
-        pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
+        pipeline->m_programGroupIndexByName = std::move(programGroupIndexByName);
         pipeline->m_raygenEntryPointIndices = std::move(raygenEntryPointIndices);
         pipeline->m_pipeline = optixPipeline;
         returnRefPtr(outPipeline, pipeline);
@@ -882,39 +882,12 @@ public:
 
         RefPtr<ShaderBindingTableImpl> shaderBindingTable = new ShaderBindingTableImpl();
 
-        // Phase 1: Calculate minimum required sizes (without alignment)
-        size_t missRecordSize = sizeof(SbtRecord);
-        size_t hitGroupRecordSize = sizeof(SbtRecord);
-        size_t callableRecordSize = sizeof(SbtRecord);
+        // Calculate record sizes (without alignment).
+        size_t missRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_missRecordOverwriteMaxSize));
+        size_t hitGroupRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_hitGroupRecordOverwriteMaxSize));
+        size_t callableRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_callableRecordOverwriteMaxSize));
 
-        const std::vector<ShaderRecordOverwrite>& recordOverwrites = shaderTable->m_recordOverwrites;
-        size_t overwriteIndex = shaderTable->m_rayGenShaderCount; // Skip raygen entries
-
-        // Scan miss shader overwrites
-        for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
-        {
-            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
-            if (overwrite.size > 0)
-                missRecordSize = max(missRecordSize, size_t(overwrite.offset + overwrite.size));
-        }
-
-        // Scan hit group overwrites
-        for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
-        {
-            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
-            if (overwrite.size > 0)
-                hitGroupRecordSize = max(hitGroupRecordSize, size_t(overwrite.offset + overwrite.size));
-        }
-
-        // Scan callable shader overwrites
-        for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
-        {
-            const ShaderRecordOverwrite& overwrite = recordOverwrites[overwriteIndex++];
-            if (overwrite.size > 0)
-                callableRecordSize = max(callableRecordSize, size_t(overwrite.offset + overwrite.size));
-        }
-
-        // Phase 2: Align all sizes to OPTIX_SBT_RECORD_ALIGNMENT
+        // Align all record sizes to OPTIX_SBT_RECORD_ALIGNMENT.
         missRecordSize = math::calcAligned2(missRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
         hitGroupRecordSize = math::calcAligned2(hitGroupRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
         callableRecordSize = math::calcAligned2(callableRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
@@ -961,11 +934,23 @@ public:
         CUdeviceptr devicePtr = deviceBuffer;
 
         OptixShaderBindingTable& sbt = shaderBindingTable->m_sbt;
-        const std::vector<std::string>& shaderGroupNames = shaderTable->m_shaderGroupNames;
-        const std::map<std::string, uint32_t>& shaderGroupNameToIndex = pipelineImpl->m_shaderGroupNameToIndex;
 
-        size_t shaderTableEntryIndex = 0;
-        size_t recordOverwriteIndex = 0;
+        auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
+        {
+            auto it = pipelineImpl->m_programGroupIndexByName.find(name);
+            if (it != pipelineImpl->m_programGroupIndexByName.end())
+            {
+                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], dest),
+                    m_device
+                );
+            }
+            if (overwrite && overwrite->size > 0)
+            {
+                memcpy((uint8_t*)dest + overwrite->offset, overwrite->data, overwrite->size);
+            }
+            return SLANG_OK;
+        };
 
         // Raygen records
         if (shaderTable->m_rayGenShaderCount > 0)
@@ -973,18 +958,9 @@ public:
             sbt.raygenRecord = devicePtr;
             for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                recordOverwriteIndex++; // Skip raygen overwrites (handled via entry point params)
-                if (it == shaderGroupNameToIndex.end())
-                    continue;
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-                hostPtr += sizeof(SbtRecord);
-                hostPtr += shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
-                devicePtr += sizeof(SbtRecord);
-                devicePtr += shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
+                SLANG_RETURN_ON_FAIL(writeTableEntry(hostPtr, shaderTable->m_rayGenShaderEntryPointNames[i], nullptr));
+                hostPtr += sizeof(SbtRecord) + shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
+                devicePtr += sizeof(SbtRecord) + shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
             }
         }
 
@@ -996,22 +972,11 @@ public:
             sbt.missRecordCount = shaderTable->m_missShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                if (it == shaderGroupNameToIndex.end())
-                {
-                    recordOverwriteIndex++;
-                    continue;
-                }
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-
-                // Apply shader record overwrite if present
-                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
-                if (overwrite.size > 0)
-                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
-
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_missShaderEntryPointNames[i],
+                    (i < shaderTable->m_missRecordOverwrites.size()) ? &shaderTable->m_missRecordOverwrites[i] : nullptr
+                ));
                 hostPtr += missRecordSize;
                 devicePtr += missRecordSize;
             }
@@ -1035,22 +1000,12 @@ public:
             sbt.hitgroupRecordCount = shaderTable->m_hitGroupCount;
             for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                if (it == shaderGroupNameToIndex.end())
-                {
-                    recordOverwriteIndex++;
-                    continue;
-                }
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-
-                // Apply shader record overwrite if present
-                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
-                if (overwrite.size > 0)
-                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
-
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_hitGroupNames[i],
+                    (i < shaderTable->m_hitGroupRecordOverwrites.size()) ? &shaderTable->m_hitGroupRecordOverwrites[i]
+                                                                         : nullptr
+                ));
                 hostPtr += hitGroupRecordSize;
                 devicePtr += hitGroupRecordSize;
             }
@@ -1064,22 +1019,12 @@ public:
             sbt.callablesRecordCount = shaderTable->m_callableShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                if (it == shaderGroupNameToIndex.end())
-                {
-                    recordOverwriteIndex++;
-                    continue;
-                }
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-
-                // Apply shader record overwrite if present
-                const ShaderRecordOverwrite& overwrite = recordOverwrites[recordOverwriteIndex++];
-                if (overwrite.size > 0)
-                    memcpy(hostPtr + overwrite.offset, overwrite.data, overwrite.size);
-
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_callableShaderEntryPointNames[i],
+                    (i < shaderTable->m_callableRecordOverwrites.size()) ? &shaderTable->m_callableRecordOverwrites[i]
+                                                                         : nullptr
+                ));
                 hostPtr += callableRecordSize;
                 devicePtr += callableRecordSize;
             }

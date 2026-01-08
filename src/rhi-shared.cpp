@@ -354,64 +354,70 @@ IShaderTable* ShaderTable::getInterface(const Guid& guid)
 ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
     : DeviceChild(device)
 {
+    auto getMaxOverrideSize = [](const std::vector<ShaderRecordOverwrite>& overwrites)
+    {
+        uint32_t maxSize = 0;
+        for (const auto& overwrite : overwrites)
+        {
+            uint32_t size = static_cast<uint32_t>(overwrite.offset) + static_cast<uint32_t>(overwrite.size);
+            maxSize = std::max(maxSize, size);
+        }
+        return maxSize;
+    };
+
     m_rayGenShaderCount = desc.rayGenShaderCount;
     m_missShaderCount = desc.missShaderCount;
     m_hitGroupCount = desc.hitGroupCount;
     m_callableShaderCount = desc.callableShaderCount;
-    m_shaderGroupNames.reserve(
-        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
+
+    m_rayGenShaderEntryPointNames.assign(
+        desc.rayGenShaderEntryPointNames,
+        desc.rayGenShaderEntryPointNames + desc.rayGenShaderCount
     );
-    m_recordOverwrites.reserve(
-        desc.hitGroupCount + desc.missShaderCount + desc.rayGenShaderCount + desc.callableShaderCount
+    if (desc.rayGenShaderRecordOverwrites)
+    {
+        m_rayGenRecordOverwrites.assign(
+            desc.rayGenShaderRecordOverwrites,
+            desc.rayGenShaderRecordOverwrites + desc.rayGenShaderCount
+        );
+    }
+    m_rayGenRecordOverwriteMaxSize = getMaxOverrideSize(m_rayGenRecordOverwrites);
+
+    m_missShaderEntryPointNames.assign(
+        desc.missShaderEntryPointNames,
+        desc.missShaderEntryPointNames + desc.missShaderCount
     );
-    for (uint32_t i = 0; i < desc.rayGenShaderCount; i++)
+    if (desc.missShaderRecordOverwrites)
     {
-        m_shaderGroupNames.push_back(desc.rayGenShaderEntryPointNames[i]);
-        if (desc.rayGenShaderRecordOverwrites)
-        {
-            m_recordOverwrites.push_back(desc.rayGenShaderRecordOverwrites[i]);
-        }
-        else
-        {
-            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
-        }
+        m_missRecordOverwrites.assign(
+            desc.missShaderRecordOverwrites,
+            desc.missShaderRecordOverwrites + desc.missShaderCount
+        );
     }
-    for (uint32_t i = 0; i < desc.missShaderCount; i++)
+    m_missRecordOverwriteMaxSize = getMaxOverrideSize(m_missRecordOverwrites);
+
+    m_hitGroupNames.assign(desc.hitGroupNames, desc.hitGroupNames + desc.hitGroupCount);
+    if (desc.hitGroupRecordOverwrites)
     {
-        m_shaderGroupNames.push_back(desc.missShaderEntryPointNames[i]);
-        if (desc.missShaderRecordOverwrites)
-        {
-            m_recordOverwrites.push_back(desc.missShaderRecordOverwrites[i]);
-        }
-        else
-        {
-            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
-        }
+        m_hitGroupRecordOverwrites.assign(
+            desc.hitGroupRecordOverwrites,
+            desc.hitGroupRecordOverwrites + desc.hitGroupCount
+        );
     }
-    for (uint32_t i = 0; i < desc.hitGroupCount; i++)
+    m_hitGroupRecordOverwriteMaxSize = getMaxOverrideSize(m_hitGroupRecordOverwrites);
+
+    m_callableShaderEntryPointNames.assign(
+        desc.callableShaderEntryPointNames,
+        desc.callableShaderEntryPointNames + desc.callableShaderCount
+    );
+    if (desc.callableShaderRecordOverwrites)
     {
-        m_shaderGroupNames.push_back(desc.hitGroupNames[i]);
-        if (desc.hitGroupRecordOverwrites)
-        {
-            m_recordOverwrites.push_back(desc.hitGroupRecordOverwrites[i]);
-        }
-        else
-        {
-            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
-        }
+        m_callableRecordOverwrites.assign(
+            desc.callableShaderRecordOverwrites,
+            desc.callableShaderRecordOverwrites + desc.callableShaderCount
+        );
     }
-    for (uint32_t i = 0; i < desc.callableShaderCount; i++)
-    {
-        m_shaderGroupNames.push_back(desc.callableShaderEntryPointNames[i]);
-        if (desc.callableShaderRecordOverwrites)
-        {
-            m_recordOverwrites.push_back(desc.callableShaderRecordOverwrites[i]);
-        }
-        else
-        {
-            m_recordOverwrites.push_back(ShaderRecordOverwrite{});
-        }
-    }
+    m_callableRecordOverwriteMaxSize = getMaxOverrideSize(m_callableRecordOverwrites);
 }
 
 // ----------------------------------------------------------------------------
