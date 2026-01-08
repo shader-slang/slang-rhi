@@ -14,6 +14,7 @@ public:
 public:
     AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc);
     ~AccelerationStructureImpl();
+    DeviceAddress getAccelerationStructureDeviceAddress();
 
     // IAccelerationStructure implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
