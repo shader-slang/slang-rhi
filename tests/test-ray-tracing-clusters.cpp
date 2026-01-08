@@ -401,13 +401,13 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
     CHECK_EQ(handles[1], destAddrsHost[1]);
 }
 
-
-// Build two clusters with device-written TriangleClusterArgs and render two horizontal bands.
-GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
+// Helper function to test cluster ray tracing with different shader configurations
+static void testClusterTracing(
+    IDevice* device,
+    const char* raygenShaderName,
+    const char* closestHitShaderName // nullptr if not used
+)
 {
-    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
-        SKIP("cluster acceleration structure not supported");
-
     // Geometry: two horizontal strips (shared indices; per-cluster vertex base)
     constexpr uint32_t kGridW = 4;
     constexpr uint32_t kGridH = 1;
@@ -611,18 +611,20 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     diagnoseIfNeeded(diagnosticsBlob);
     REQUIRE(module != nullptr);
     std::vector<slang::IComponentType*> components;
-    constexpr const char* kRayGen = "rayGenClusters";
     constexpr const char* kMiss = "missClusters";
-    constexpr const char* kClosestHit = "closestHitClusters";
     constexpr const char* kHitGroup = "hit_group";
     components.push_back(module);
     ComPtr<slang::IEntryPoint> ep;
-    REQUIRE_CALL(module->findEntryPointByName(kRayGen, ep.writeRef()));
+    REQUIRE_CALL(module->findEntryPointByName(raygenShaderName, ep.writeRef()));
     components.push_back(ep);
     REQUIRE_CALL(module->findEntryPointByName(kMiss, ep.writeRef()));
     components.push_back(ep);
-    REQUIRE_CALL(module->findEntryPointByName(kClosestHit, ep.writeRef()));
-    components.push_back(ep);
+    // Conditionally load closest hit
+    if (closestHitShaderName != nullptr)
+    {
+        REQUIRE_CALL(module->findEntryPointByName(closestHitShaderName, ep.writeRef()));
+        components.push_back(ep);
+    }
     ComPtr<slang::IComponentType> composedProgram;
     REQUIRE_CALL(slangSession->createCompositeComponentType(
         components.data(),
@@ -642,7 +644,10 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     rtp.program = rayTracingProgram;
     rtp.hitGroupCount = 1;
     HitGroupDesc hg = {};
-    hg.closestHitEntryPoint = kClosestHit;
+    if (closestHitShaderName != nullptr)
+    {
+        hg.closestHitEntryPoint = closestHitShaderName;
+    }
     hg.hitGroupName = kHitGroup;
     rtp.hitGroups = &hg;
     rtp.maxRayPayloadSize = 16;
@@ -652,7 +657,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     ComPtr<IRayTracingPipeline> pipeline;
     REQUIRE_CALL(device->createRayTracingPipeline(rtp, pipeline.writeRef()));
 
-    const char* raygenNames[] = {kRayGen};
+    const char* raygenNames[] = {raygenShaderName};
     const char* missNames[] = {kMiss};
     const char* hitGroupNames[] = {kHitGroup};
     ShaderTableDesc stDesc = {};
@@ -682,7 +687,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
         idsDesc.defaultState = ResourceState::UnorderedAccess;
         idsBuf = device->createBuffer(idsDesc);
         cursor["ids_buffer"].setBinding(idsBuf);
-        // ids are written at every pixel in closest hit
+        // ids are written at every pixel
         pass->dispatchRays(0, width, height, 1);
         pass->end();
     }
@@ -770,4 +775,21 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
         }
     }
     CHECK_EQ(stripCount, 2u);
+}
+
+// Build two clusters with device-written TriangleClusterArgs and render two horizontal bands.
+GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
+
+    testClusterTracing(device, "rayGenClusters", "closestHitClusters");
+}
+
+GPU_TEST_CASE("ray-tracing-cluster-tracing-hit-object", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
+
+    testClusterTracing(device, "rayGenClustersHitObject", nullptr);
 }

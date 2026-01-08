@@ -1098,26 +1098,24 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         BufferImpl* shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
         DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
 
-        auto rtpProps = api.m_rayTracingPipelineProperties;
-        size_t alignedHandleSize =
-            math::calcAligned2(rtpProps.shaderGroupHandleSize, rtpProps.shaderGroupHandleAlignment);
-
         // Raygen index is set at dispatch time.
         m_rayGenTableAddr = shaderTableAddr;
-        m_raygenSBT.stride = math::calcAligned2(alignedHandleSize, rtpProps.shaderGroupBaseAlignment);
+        m_raygenSBT.stride = m_shaderTable->m_raygenRecordStride;
         m_raygenSBT.deviceAddress = shaderTableAddr;
-        m_raygenSBT.size = m_raygenSBT.stride;
+        // For Vulkan, raygen SBT size must equal stride (only one raygen shader per dispatch)
+        // Multiple raygen shaders in the table are selected via deviceAddress offset at dispatch time
+        m_raygenSBT.size = m_shaderTable->m_raygenRecordStride;
 
         m_missSBT.deviceAddress = shaderTableAddr + m_shaderTable->m_raygenTableSize;
-        m_missSBT.stride = alignedHandleSize;
+        m_missSBT.stride = m_shaderTable->m_missRecordStride;
         m_missSBT.size = m_shaderTable->m_missTableSize;
 
         m_hitSBT.deviceAddress = m_missSBT.deviceAddress + m_missSBT.size;
-        m_hitSBT.stride = alignedHandleSize;
+        m_hitSBT.stride = m_shaderTable->m_hitGroupRecordStride;
         m_hitSBT.size = m_shaderTable->m_hitTableSize;
 
         m_callableSBT.deviceAddress = m_hitSBT.deviceAddress + m_hitSBT.size;
-        m_callableSBT.stride = alignedHandleSize;
+        m_callableSBT.stride = m_shaderTable->m_callableRecordStride;
         m_callableSBT.size = m_shaderTable->m_callableTableSize;
     }
 

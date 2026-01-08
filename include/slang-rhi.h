@@ -1701,6 +1701,11 @@ public:
         const DescriptorHandle& handle
     ) = 0;
 
+    /// Reserves a block of memory within the shader object's internal data buffer at the specified offset.
+    /// WARNING: This function bypasses the immutability of a ShaderObject. To use safely, ensure that the address
+    /// returned is immediately populated, not retained. Prefer using setData unless absolutely necessary.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(const ShaderOffset& offset, Size size, void** outData) = 0;
+
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
     /// of interface-typed shader parameters.
