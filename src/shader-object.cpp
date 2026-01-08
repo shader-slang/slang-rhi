@@ -55,6 +55,14 @@ Result ShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryPoint
 
 Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size size)
 {
+    void* dest;
+    SLANG_RETURN_ON_FAIL(reserveData(offset, size, &dest));
+    ::memcpy(dest, data, size);
+    return SLANG_OK;
+}
+
+Result ShaderObject::reserveData(const ShaderOffset& offset, Size size, void** outData)
+{
     SLANG_RETURN_ON_FAIL(checkFinalized());
 
     size_t dataOffset = offset.uniformOffset;
@@ -67,12 +75,12 @@ Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size 
     // that are too large, but we have several test cases that set more data than
     // an object actually stores on several targets...
     //
-    if ((dataOffset + dataSize) >= availableSize)
+    if ((dataOffset + dataSize) > availableSize)
     {
         dataSize = availableSize - dataOffset;
     }
 
-    ::memcpy(dest + dataOffset, data, dataSize);
+    *outData = dest + dataOffset;
 
     incrementVersion();
 
