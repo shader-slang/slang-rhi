@@ -240,8 +240,6 @@ public:
     StructHolder m_descHolder;
 };
 
-static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
-
 class ShaderTable : public IShaderTable, public DeviceChild
 {
 public:
