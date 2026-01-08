@@ -705,15 +705,15 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 }
 
 inline uint32_t findEntryPointIndexByName(
-    const std::map<std::string, uint32_t>& entryPointNameToIndex,
+    const std::map<std::string, uint32_t>& entryPointIndexByName,
     const char* name
 )
 {
     if (!name)
         return VK_SHADER_UNUSED_KHR;
 
-    auto it = entryPointNameToIndex.find(name);
-    if (it != entryPointNameToIndex.end())
+    auto it = entryPointIndexByName.find(name);
+    if (it != entryPointIndexByName.end())
         return it->second;
     // TODO: Error reporting?
     return VK_SHADER_UNUSED_KHR;
@@ -753,16 +753,16 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
 
     // Build Dictionary from entry point name to entry point index (stageCreateInfos index)
     // for all hit shaders - findShaderIndexByName
-    std::map<std::string, uint32_t> entryPointNameToIndex;
+    std::map<std::string, uint32_t> entryPointIndexByName;
 
-    std::map<std::string, uint32_t> shaderGroupNameToIndex;
+    std::map<std::string, uint32_t> shaderGroupIndexByName;
 
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroupInfos;
     for (uint32_t i = 0; i < createInfo.stageCount; ++i)
     {
         auto stageCreateInfo = program->m_stageCreateInfos[i];
         auto entryPointName = program->m_modules[i].entryPointName;
-        entryPointNameToIndex.emplace(entryPointName, i);
+        entryPointIndexByName.emplace(entryPointName, i);
         if (stageCreateInfo.stage & (VK_SHADER_STAGE_ANY_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
                                      VK_SHADER_STAGE_INTERSECTION_BIT_KHR))
             continue;
@@ -782,7 +782,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         auto shaderGroupName = entryPointName;
         uint32_t shaderGroupIndex = (uint32_t)shaderGroupInfos.size();
         shaderGroupInfos.push_back(shaderGroupInfo);
-        shaderGroupNameToIndex.emplace(shaderGroupName, shaderGroupIndex);
+        shaderGroupIndexByName.emplace(shaderGroupName, shaderGroupIndex);
     }
 
     for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
@@ -798,15 +798,15 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
                                    : VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
         shaderGroupInfo.generalShader = VK_SHADER_UNUSED_KHR;
         shaderGroupInfo.closestHitShader =
-            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.closestHitEntryPoint);
-        shaderGroupInfo.anyHitShader = findEntryPointIndexByName(entryPointNameToIndex, groupDesc.anyHitEntryPoint);
+            findEntryPointIndexByName(entryPointIndexByName, groupDesc.closestHitEntryPoint);
+        shaderGroupInfo.anyHitShader = findEntryPointIndexByName(entryPointIndexByName, groupDesc.anyHitEntryPoint);
         shaderGroupInfo.intersectionShader =
-            findEntryPointIndexByName(entryPointNameToIndex, groupDesc.intersectionEntryPoint);
+            findEntryPointIndexByName(entryPointIndexByName, groupDesc.intersectionEntryPoint);
         shaderGroupInfo.pShaderGroupCaptureReplayHandle = nullptr;
 
         uint32_t shaderGroupIndex = (uint32_t)shaderGroupInfos.size();
         shaderGroupInfos.push_back(shaderGroupInfo);
-        shaderGroupNameToIndex.emplace(groupDesc.hitGroupName, shaderGroupIndex);
+        shaderGroupIndexByName.emplace(groupDesc.hitGroupName, shaderGroupIndex);
     }
 
     createInfo.groupCount = (uint32_t)shaderGroupInfos.size();
@@ -867,7 +867,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
-    pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
+    pipeline->m_shaderGroupIndexByName = std::move(shaderGroupIndexByName);
     pipeline->m_shaderGroupCount = shaderGroupInfos.size();
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
