@@ -4,8 +4,12 @@
 
 #include "core/platform.h"
 
+#if !SLANG_WASM
 #define WGPU_SKIP_DECLARATIONS
 #include <dawn/webgpu.h>
+#else
+#include <webgpu/webgpu.h>
+#endif
 
 // clang-format off
 
@@ -290,17 +294,94 @@
     x(TextureViewAddRef) \
     x(TextureViewRelease)
 
+
+#if SLANG_WASM
+// Dawn-only procs that don't exist in Emscripten WebGPU
+#define SLANG_RHI_WGPU_STUBS(x) \
+    x(AdapterCreateDevice) \
+    x(AdapterGetFormatCapabilities) \
+    x(AdapterGetInstance) \
+    x(AdapterPropertiesMemoryHeapsFreeMembers) \
+    x(AdapterPropertiesSubgroupMatrixConfigsFreeMembers) \
+    x(CommandEncoderInjectValidationError) \
+    x(CommandEncoderWriteBuffer) \
+    x(ComputePassEncoderSetImmediateData) \
+    x(ComputePassEncoderWriteTimestamp) \
+    x(DawnDrmFormatCapabilitiesFreeMembers) \
+    x(DeviceCreateErrorBuffer) \
+    x(DeviceCreateErrorExternalTexture) \
+    x(DeviceCreateErrorShaderModule) \
+    x(DeviceCreateErrorTexture) \
+    x(DeviceCreateExternalTexture) \
+    x(DeviceForceLoss) \
+    x(DeviceGetAHardwareBufferProperties) \
+    x(DeviceGetAdapter) \
+    x(DeviceImportSharedBufferMemory) \
+    x(DeviceImportSharedFence) \
+    x(DeviceImportSharedTextureMemory) \
+    x(DeviceInjectError) \
+    x(DeviceSetLoggingCallback) \
+    x(DeviceTick) \
+    x(DeviceValidateTextureDescriptor) \
+    x(ExternalTextureAddRef) \
+    x(ExternalTextureDestroy) \
+    x(ExternalTextureExpire) \
+    x(ExternalTextureRefresh) \
+    x(ExternalTextureRelease) \
+    x(ExternalTextureSetLabel) \
+    x(GetInstanceCapabilities) \
+    x(QueueCopyExternalTextureForBrowser) \
+    x(QueueCopyTextureForBrowser) \
+    x(RenderBundleEncoderSetImmediateData) \
+    x(RenderPassEncoderMultiDrawIndexedIndirect) \
+    x(RenderPassEncoderMultiDrawIndirect) \
+    x(RenderPassEncoderPixelLocalStorageBarrier) \
+    x(RenderPassEncoderSetImmediateData) \
+    x(RenderPassEncoderWriteTimestamp) \
+    x(SharedBufferMemoryAddRef) \
+    x(SharedBufferMemoryBeginAccess) \
+    x(SharedBufferMemoryCreateBuffer) \
+    x(SharedBufferMemoryEndAccess) \
+    x(SharedBufferMemoryEndAccessStateFreeMembers) \
+    x(SharedBufferMemoryGetProperties) \
+    x(SharedBufferMemoryIsDeviceLost) \
+    x(SharedBufferMemoryRelease) \
+    x(SharedBufferMemorySetLabel) \
+    x(SharedFenceAddRef) \
+    x(SharedFenceExportInfo) \
+    x(SharedFenceRelease) \
+    x(SharedTextureMemoryAddRef) \
+    x(SharedTextureMemoryBeginAccess) \
+    x(SharedTextureMemoryCreateTexture) \
+    x(SharedTextureMemoryEndAccess) \
+    x(SharedTextureMemoryEndAccessStateFreeMembers) \
+    x(SharedTextureMemoryGetProperties) \
+    x(SharedTextureMemoryIsDeviceLost) \
+    x(SharedTextureMemoryRelease) \
+    x(SharedTextureMemorySetLabel) \
+    x(TextureCreateErrorView)
+#endif
+
 // clang-format on
 
 namespace rhi::wgpu {
 
 struct API
 {
+#if !SLANG_WASM
     SharedLibraryHandle m_module = nullptr;
+#endif
 
     ~API();
 
     Result init();
+
+// Stubs must be declared before procs
+#ifdef SLANG_RHI_WGPU_STUBS
+#define WGPU_DECLARE_STUB(name) typedef void (*WGPUProc##name)();
+    SLANG_RHI_WGPU_STUBS(WGPU_DECLARE_STUB)
+#undef WGPU_DECLARE_STUB
+#endif
 
 #define WGPU_DECLARE_PROC(name) WGPUProc##name wgpu##name;
     SLANG_RHI_WGPU_PROCS(WGPU_DECLARE_PROC)

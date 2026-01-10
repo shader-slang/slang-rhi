@@ -46,7 +46,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
             if (pageAllocation)
             {
                 Size offset = pageAllocation.offset * page->m_desc.alignment;
-                *outAllocation = {offset, size, page, pageAllocation.metadata, page->offsetToAddress(offset)};
+                *outAllocation = {offset, size, page, pageAllocation.metadata, (uintptr_t)page->offsetToAddress(offset)};
                 return SLANG_OK;
             }
         }
@@ -73,7 +73,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
         if (pageAllocation)
         {
             Size offset = pageAllocation.offset * newPage->m_desc.alignment;
-            *outAllocation = {offset, size, newPage, pageAllocation.metadata, newPage->offsetToAddress(offset)};
+            *outAllocation = {offset, size, newPage, pageAllocation.metadata, (uintptr_t)newPage->offsetToAddress(offset)};
             return SLANG_OK;
         }
     }
