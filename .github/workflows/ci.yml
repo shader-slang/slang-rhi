@@ -40,6 +40,11 @@ jobs:
           - { os: linux, compiler: msvc }
           - { os: macos, compiler: msvc }
           - { os: macos, compiler: gcc }
+          # Emscripten makes most sense on linux/wasm32
+          # TODO: Uncomment once Slang ships WASM libs
+          # - { os: windows, compiler: emscripten }
+          # - { os: macos, compiler: emscripten }
+          # - { os: linux, platform: aarch64, compiler: emscripten }
         include:
           # Builds running on self-hosted runners (build + tests)
           - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
@@ -59,6 +64,10 @@ jobs:
           - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
           - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
           - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
+          # Emscripten builds (build only, no tests)
+          # TODO: Uncomment once Slang ships WASM libs
+          # - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Debug", runs-on: ubuntu-latest }
+          # - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Release", runs-on: ubuntu-latest }
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -79,11 +88,27 @@ jobs:
       - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
 
+      - name: Setup Emscripten
+        if: matrix.compiler == 'emscripten'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 'latest'
+
       - name: Configure
+        if: matrix.compiler != 'emscripten'
         run: cmake --preset ${{matrix.preset}} -S . -B build ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
 
+      - name: Configure (Emscripten)
+        if: matrix.compiler == 'emscripten'
+        run: cmake --preset emscripten
+
       - name: Build
+        if: matrix.compiler != 'emscripten'
         run: cmake --build build --config ${{matrix.config}}
+
+      - name: Build (Emscripten)
+        if: matrix.compiler == 'emscripten'
+        run: cmake --build build.em --config ${{matrix.config}} --target slang-rhi
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')

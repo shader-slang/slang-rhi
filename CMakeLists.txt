@@ -570,18 +570,15 @@ target_compile_options(slang-rhi-warnings INTERFACE
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
     >
+    $<$<BOOL:${EMSCRIPTEN}>:-Wno-c2y-extensions>
 )
 add_library(slang-rhi-warnings-as-errors INTERFACE)
 target_compile_options(slang-rhi-warnings-as-errors INTERFACE
     $<$<CXX_COMPILER_ID:MSVC>:/WX>
+    $<$<CXX_COMPILER_ID:GNU>:-Werror>
+    $<$<CXX_COMPILER_ID:Clang>:-Werror>
+    $<$<CXX_COMPILER_ID:AppleClang>:-Werror>
 )
-if(NOT EMSCRIPTEN)
-    target_compile_options(slang-rhi-warnings-as-errors INTERFACE
-        $<$<CXX_COMPILER_ID:GNU>:-Werror>
-        $<$<CXX_COMPILER_ID:Clang>:-Werror>
-        $<$<CXX_COMPILER_ID:AppleClang>:-Werror>
-    )
-endif()
 target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
 
 target_sources(slang-rhi PRIVATE

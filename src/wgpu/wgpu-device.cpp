@@ -97,6 +97,7 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
         WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
 #if SLANG_WASM
         // Poll with wgpuInstanceProcessEvents and emscripten_sleep
+        (void)future;
         while (status == WGPURequestAdapterStatus(0) && adapter == nullptr)
         {
             api.wgpuInstanceProcessEvents(instance);
@@ -258,6 +259,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
 #if SLANG_WASM
         // Poll with wgpuInstanceProcessEvents and emscripten_sleep
+        (void)future;
         while (status == WGPURequestDeviceStatus(0) && m_ctx.device == nullptr)
         {
             m_ctx.api.wgpuInstanceProcessEvents(m_ctx.instance);

@@ -17,9 +17,9 @@ API::~API()
 Result API::init()
 {
 #if SLANG_WASM
-    // On Emscripten, WebGPU functions are provided by the browser.
-    // Directly assign the global WebGPU function pointers.
-#define LOAD_PROC(name) wgpu##name = ::wgpu##name;
+    // Use wgpuGetProcAddress to load procs at runtime provided by the browser.
+    // Dawn-only procs will return nullptr which is fine.
+#define LOAD_PROC(name) wgpu##name = (WGPUProc##name)wgpuGetProcAddress({.data = "wgpu" #name, .length = WGPU_STRLEN});
     SLANG_RHI_WGPU_PROCS(LOAD_PROC)
 #undef LOAD_PROC
     return SLANG_OK;

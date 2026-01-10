@@ -78,14 +78,15 @@
             "description": "Emscripten-based WebAssembly build",
             "generator": "Ninja Multi-Config",
             "binaryDir": "${sourceDir}/build.em",
+            "toolchainFile": "$env{EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake",
             "cacheVariables": {
                 "SLANG_RHI_BUILD_TESTS": "OFF",
                 "SLANG_RHI_BUILD_EXAMPLES": "OFF",
                 "SLANG_RHI_FETCH_SLANG": "OFF",
                 "SLANG_RHI_BUILD_FROM_SLANG_REPO": "ON",
                 "SLANG_RHI_SLANG_INCLUDE_DIR": "${sourceDir}/../slang/include",
-                "CMAKE_C_FLAGS_INIT": "-fwasm-exceptions -Os -Wno-error -Wno-c2y-extensions",
-                "CMAKE_CXX_FLAGS_INIT": "-fwasm-exceptions -Os -Wno-error -Wno-c2y-extensions",
+                "CMAKE_C_FLAGS_INIT": "-fwasm-exceptions -Os",
+                "CMAKE_CXX_FLAGS_INIT": "-fwasm-exceptions -Os",
                 "CMAKE_EXE_LINKER_FLAGS": "-sASSERTIONS -sALLOW_MEMORY_GROWTH -fwasm-exceptions --export=__cpp_exception"
             }
         }
