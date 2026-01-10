@@ -1,0 +1,476 @@
+#include "testing.h"
+#include "../src/core/block-allocator.h"
+
+#include <thread>
+#include <vector>
+#include <atomic>
+#include <chrono>
+#include <set>
+
+using namespace rhi;
+
+// Test struct for block allocator
+struct TestObject
+{
+    int value;
+    double data;
+    char padding[128]; // Make it bigger to test alignment
+
+    TestObject()
+        : value(0)
+        , data(0.0)
+    {
+    }
+
+    TestObject(int v, double d)
+        : value(v)
+        , data(d)
+    {
+    }
+};
+
+TEST_CASE("block-allocator-single-threaded")
+{
+    BlockAllocator<TestObject> allocator(4); // Small page size for testing
+
+    SUBCASE("basic-allocation")
+    {
+        TestObject* obj = allocator.allocate();
+        REQUIRE(obj != nullptr);
+
+        // Check alignment
+        REQUIRE(reinterpret_cast<uintptr_t>(obj) % alignof(TestObject) == 0);
+
+        // Use placement new to construct
+        new (obj) TestObject(42, 3.14);
+        CHECK(obj->value == 42);
+        CHECK(obj->data == 3.14);
+
+        // Destruct and deallocate
+        obj->~TestObject();
+        allocator.deallocate(obj);
+    }
+
+    SUBCASE("multiple-allocations")
+    {
+        std::vector<TestObject*> objects;
+
+        // Allocate more than one page worth
+        for (int i = 0; i < 10; ++i)
+        {
+            TestObject* obj = allocator.allocate();
+            REQUIRE(obj != nullptr);
+            new (obj) TestObject(i, i * 1.5);
+            objects.push_back(obj);
+        }
+
+        // Verify values
+        for (int i = 0; i < 10; ++i)
+        {
+            CHECK(objects[i]->value == i);
+            CHECK(objects[i]->data == i * 1.5);
+        }
+
+        // Deallocate all
+        for (auto obj : objects)
+        {
+            obj->~TestObject();
+            allocator.deallocate(obj);
+        }
+    }
+
+    SUBCASE("reuse-after-free")
+    {
+        // Allocate and free
+        TestObject* obj1 = allocator.allocate();
+        REQUIRE(obj1 != nullptr);
+        new (obj1) TestObject(1, 1.0);
+        obj1->~TestObject();
+        allocator.deallocate(obj1);
+
+        // Allocate again - should reuse the same block
+        TestObject* obj2 = allocator.allocate();
+        REQUIRE(obj2 != nullptr);
+        REQUIRE(obj2 == obj1); // Same memory location
+
+        new (obj2) TestObject(2, 2.0);
+        CHECK(obj2->value == 2);
+        obj2->~TestObject();
+        allocator.deallocate(obj2);
+    }
+
+    SUBCASE("allocate-multiple-pages")
+    {
+        std::vector<TestObject*> objects;
+
+        // Allocate 3 pages worth (4 blocks per page)
+        for (int i = 0; i < 12; ++i)
+        {
+            TestObject* obj = allocator.allocate();
+            REQUIRE(obj != nullptr);
+            objects.push_back(obj);
+        }
+
+        // All should be unique
+        std::set<TestObject*> uniqueObjects(objects.begin(), objects.end());
+        CHECK(uniqueObjects.size() == 12);
+
+        // Deallocate all
+        for (auto obj : objects)
+        {
+            allocator.deallocate(obj);
+        }
+    }
+}
+
+TEST_CASE("block-allocator-ownership")
+{
+    BlockAllocator<TestObject> allocator(16);
+
+    SUBCASE("owns-allocated-blocks")
+    {
+        TestObject* obj = allocator.allocate();
+        REQUIRE(obj != nullptr);
+
+        CHECK(allocator.owns(obj));
+
+        allocator.deallocate(obj);
+
+        // Still owns the memory even after deallocation
+        CHECK(allocator.owns(obj));
+    }
+
+    SUBCASE("does-not-own-heap-pointers")
+    {
+        TestObject* heapObj = new TestObject();
+        CHECK_FALSE(allocator.owns(heapObj));
+        delete heapObj;
+    }
+
+    SUBCASE("does-not-own-stack-pointers")
+    {
+        TestObject stackObj;
+        CHECK_FALSE(allocator.owns(&stackObj));
+    }
+
+    SUBCASE("does-not-own-nullptr")
+    {
+        CHECK_FALSE(allocator.owns(nullptr));
+    }
+
+    SUBCASE("owns-all-blocks-in-page")
+    {
+        std::vector<TestObject*> objects;
+
+        // Allocate a full page
+        for (int i = 0; i < 16; ++i)
+        {
+            TestObject* obj = allocator.allocate();
+            REQUIRE(obj != nullptr);
+            objects.push_back(obj);
+        }
+
+        // Should own all of them
+        for (auto obj : objects)
+        {
+            CHECK(allocator.owns(obj));
+        }
+
+        // Deallocate all
+        for (auto obj : objects)
+        {
+            allocator.deallocate(obj);
+        }
+    }
+}
+
+TEST_CASE("block-allocator-reset")
+{
+    BlockAllocator<TestObject> allocator(4);
+
+    // Allocate some objects
+    std::vector<TestObject*> objects;
+    for (int i = 0; i < 8; ++i)
+    {
+        objects.push_back(allocator.allocate());
+    }
+
+    // Free half of them
+    for (int i = 0; i < 4; ++i)
+    {
+        allocator.deallocate(objects[i]);
+    }
+
+    // Reset the allocator
+    allocator.reset();
+
+    // After reset, should be able to allocate all blocks again
+    std::vector<TestObject*> newObjects;
+    for (int i = 0; i < 8; ++i)
+    {
+        TestObject* obj = allocator.allocate();
+        REQUIRE(obj != nullptr);
+        newObjects.push_back(obj);
+    }
+
+    // Clean up
+    for (auto obj : newObjects)
+    {
+        allocator.deallocate(obj);
+    }
+}
+
+TEST_CASE("block-allocator-multi-threaded")
+{
+    BlockAllocator<TestObject> allocator(64);
+
+    constexpr int numThreads = 8;
+    constexpr int allocationsPerThread = 10000;
+    std::atomic<int> totalAllocations{0};
+    std::atomic<int> totalDeallocations{0};
+
+    auto threadFunc = [&]()
+    {
+        std::vector<TestObject*> localObjects;
+        localObjects.reserve(allocationsPerThread);
+
+        // Allocate
+        for (int i = 0; i < allocationsPerThread; ++i)
+        {
+            TestObject* obj = allocator.allocate();
+            if (obj)
+            {
+                new (obj) TestObject(i, i * 1.5);
+                localObjects.push_back(obj);
+                totalAllocations.fetch_add(1, std::memory_order_relaxed);
+            }
+        }
+
+        // Verify
+        for (size_t i = 0; i < localObjects.size(); ++i)
+        {
+            REQUIRE(localObjects[i]->value == static_cast<int>(i));
+            REQUIRE(localObjects[i]->data == i * 1.5);
+        }
+
+        // Deallocate
+        for (auto obj : localObjects)
+        {
+            obj->~TestObject();
+            allocator.deallocate(obj);
+            totalDeallocations.fetch_add(1, std::memory_order_relaxed);
+        }
+    };
+
+    // Launch threads
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numThreads; ++i)
+    {
+        threads.emplace_back(threadFunc);
+    }
+
+    // Wait for all threads
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
+
+    // Verify all allocations and deallocations completed
+    CHECK(totalAllocations.load() == numThreads * allocationsPerThread);
+    CHECK(totalDeallocations.load() == numThreads * allocationsPerThread);
+}
+
+TEST_CASE("block-allocator-stress-test")
+{
+    BlockAllocator<TestObject> allocator(128);
+
+    constexpr int numThreads = 4;
+    constexpr int iterations = 1000;
+    constexpr int objectsPerIteration = 100;
+
+    auto threadFunc = [&]()
+    {
+        for (int iter = 0; iter < iterations; ++iter)
+        {
+            std::vector<TestObject*> objects;
+
+            // Allocate
+            for (int i = 0; i < objectsPerIteration; ++i)
+            {
+                TestObject* obj = allocator.allocate();
+                if (obj)
+                {
+                    new (obj) TestObject(i, i * 2.0);
+                    objects.push_back(obj);
+                }
+            }
+
+            // Deallocate half
+            for (size_t i = 0; i < objects.size() / 2; ++i)
+            {
+                objects[i]->~TestObject();
+                allocator.deallocate(objects[i]);
+            }
+
+            // Allocate more
+            for (int i = 0; i < objectsPerIteration / 2; ++i)
+            {
+                TestObject* obj = allocator.allocate();
+                if (obj)
+                {
+                    new (obj) TestObject(i + 1000, i * 3.0);
+                    objects.push_back(obj);
+                }
+            }
+
+            // Deallocate all remaining
+            for (size_t i = objects.size() / 2; i < objects.size(); ++i)
+            {
+                objects[i]->~TestObject();
+                allocator.deallocate(objects[i]);
+            }
+        }
+    };
+
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numThreads; ++i)
+    {
+        threads.emplace_back(threadFunc);
+    }
+
+    for (auto& thread : threads)
+    {
+        thread.join();
+    }
+
+    // If we get here without crashing, the test passed
+    CHECK(true);
+}
+
+TEST_CASE("block-allocator-performance")
+{
+    constexpr int numAllocations = 100000;
+
+    SUBCASE("block-allocator-performance")
+    {
+        BlockAllocator<TestObject> allocator(256);
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        std::vector<TestObject*> objects;
+        objects.reserve(numAllocations);
+
+        for (int i = 0; i < numAllocations; ++i)
+        {
+            objects.push_back(allocator.allocate());
+        }
+
+        for (auto obj : objects)
+        {
+            allocator.deallocate(obj);
+        }
+
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+        MESSAGE("BlockAllocator: ", numAllocations, " allocations in ", duration.count(), " μs");
+    }
+
+    SUBCASE("standard-new-delete-performance")
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+
+        std::vector<TestObject*> objects;
+        objects.reserve(numAllocations);
+
+        for (int i = 0; i < numAllocations; ++i)
+        {
+            objects.push_back(new TestObject());
+        }
+
+        for (auto obj : objects)
+        {
+            delete obj;
+        }
+
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+        MESSAGE("Standard new/delete: ", numAllocations, " allocations in ", duration.count(), " μs");
+    }
+}
+
+// Test the macro system
+class TestMacroClass
+{
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(TestMacroClass, 32)
+
+public:
+    int value = 0;
+    TestMacroClass() = default;
+    TestMacroClass(int v)
+        : value(v)
+    {
+    }
+
+    // For testing - expose allocator
+    static BlockAllocator<TestMacroClass>& getAllocator() { return s_allocator; }
+};
+
+SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(TestMacroClass, 32)
+
+TEST_CASE("block-allocator-macro-system")
+{
+    SUBCASE("basic-allocation-with-macro")
+    {
+        TestMacroClass* obj = new TestMacroClass(42);
+        REQUIRE(obj != nullptr);
+        CHECK(obj->value == 42);
+        delete obj;
+    }
+
+    SUBCASE("ownership-with-macro")
+    {
+        TestMacroClass* obj = new TestMacroClass(100);
+        REQUIRE(obj != nullptr);
+
+        // The static allocator should own this
+        CHECK(TestMacroClass::getAllocator().owns(obj));
+
+        delete obj;
+    }
+
+    SUBCASE("fallback-to-heap")
+    {
+        // Allocate using standard operator new (bypassing custom operator)
+        void* memory = ::operator new(sizeof(TestMacroClass));
+        TestMacroClass* obj = ::new (memory) TestMacroClass(200);
+
+        // Should NOT be owned by the allocator
+        CHECK_FALSE(TestMacroClass::getAllocator().owns(obj));
+
+        // Manually destruct and free
+        obj->~TestMacroClass();
+        ::operator delete(memory);
+    }
+
+    SUBCASE("multiple-allocations-with-macro")
+    {
+        std::vector<TestMacroClass*> objects;
+
+        for (int i = 0; i < 100; ++i)
+        {
+            objects.push_back(new TestMacroClass(i));
+        }
+
+        for (int i = 0; i < 100; ++i)
+        {
+            CHECK(objects[i]->value == i);
+        }
+
+        for (auto obj : objects)
+        {
+            delete obj;
+        }
+    }
+}
