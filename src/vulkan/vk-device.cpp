@@ -1922,7 +1922,6 @@ Result DeviceImpl::getCooperativeVectorMatrixSize(
     info.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     info.dstStride = rowColumnStride;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
-    *outSize = math::calcAligned(*outSize, 64);
     return SLANG_OK;
 }
 
