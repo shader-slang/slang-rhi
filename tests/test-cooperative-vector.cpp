@@ -242,18 +242,21 @@ template<typename T>
 class matrix_view
 {
 public:
-    matrix_view(void* data, size_t rows, size_t cols, bool rowMajor)
+    matrix_view(void* data, size_t rows, size_t cols, bool rowMajor, size_t stride = 0)
         : m_data(static_cast<T*>(data))
         , m_rows(rows)
         , m_cols(cols)
         , m_rowMajor(rowMajor)
+        , m_stride(stride != 0 ? stride : (rowMajor ? cols : rows))
     {
     }
 
     size_t rows() const { return m_rows; }
     size_t cols() const { return m_cols; }
     bool rowMajor() const { return m_rowMajor; }
-    size_t sizeBytes() const { return m_rows * m_cols * sizeof(T); }
+    size_t stride() const { return m_stride; }
+    size_t strideBytes() const { return m_stride * sizeof(T); }
+    size_t sizeBytes() const { return m_stride * (m_rowMajor ? m_rows : m_cols) * sizeof(T); }
 
     T& operator()(size_t r, size_t c) { return m_data[getIndex(r, c)]; }
     const T& operator()(size_t r, size_t c) const { return m_data[getIndex(r, c)]; }
@@ -273,92 +276,224 @@ private:
     size_t getIndex(size_t r, size_t c) const
     {
         if (m_rowMajor)
-            return r * m_cols + c;
+            return r * m_stride + c;
         else
-            return c * m_rows + r;
+            return c * m_stride + r;
     }
 
     T* m_data;
     size_t m_rows;
     size_t m_cols;
     bool m_rowMajor;
+    size_t m_stride;
 };
+
+/// Configuration for matrix conversion tests.
+struct MatrixConvertTestConfig
+{
+    uint32_t rows;
+    uint32_t cols;
+    CooperativeVectorMatrixLayout srcLayout;
+    CooperativeVectorMatrixLayout dstLayout;
+    uint32_t srcStride; // 0 for tight packing
+    uint32_t dstStride; // 0 for tight packing
+};
+
+/// Compute tight stride for a given layout (in elements, not bytes).
+inline uint32_t getTightStride(uint32_t rows, uint32_t cols, CooperativeVectorMatrixLayout layout)
+{
+    return (layout == CooperativeVectorMatrixLayout::RowMajor) ? cols : rows;
+}
+
+/// Test matrix conversion on host.
+inline void testMatrixConvertHost(IDevice* device, const MatrixConvertTestConfig& config)
+{
+    uint32_t srcStride =
+        config.srcStride != 0 ? config.srcStride : getTightStride(config.rows, config.cols, config.srcLayout);
+    uint32_t dstStride =
+        config.dstStride != 0 ? config.dstStride : getTightStride(config.rows, config.cols, config.dstLayout);
+    bool srcRowMajor = config.srcLayout == CooperativeVectorMatrixLayout::RowMajor;
+    bool dstRowMajor = config.dstLayout == CooperativeVectorMatrixLayout::RowMajor;
+
+    matrix_view<float> srcView(nullptr, config.rows, config.cols, srcRowMajor, srcStride);
+    matrix_view<float> dstView(nullptr, config.rows, config.cols, dstRowMajor, dstStride);
+
+    std::vector<uint8_t> srcData(srcView.sizeBytes());
+    std::vector<uint8_t> dstData(dstView.sizeBytes());
+
+    matrix_view<float> srcMatrix(srcData.data(), config.rows, config.cols, srcRowMajor, srcStride);
+    for (size_t r = 0; r < config.rows; r++)
+        for (size_t c = 0; c < config.cols; c++)
+            srcMatrix(r, c) = (float)(r * config.cols + c);
+
+    CooperativeVectorMatrixDesc srcDesc = {};
+    srcDesc.rowCount = config.rows;
+    srcDesc.colCount = config.cols;
+    srcDesc.componentType = CooperativeVectorComponentType::Float32;
+    srcDesc.layout = config.srcLayout;
+    srcDesc.size = srcView.sizeBytes();
+    srcDesc.offset = 0;
+    srcDesc.rowColumnStride = srcStride * sizeof(float);
+
+    CooperativeVectorMatrixDesc dstDesc = {};
+    dstDesc.rowCount = config.rows;
+    dstDesc.colCount = config.cols;
+    dstDesc.componentType = CooperativeVectorComponentType::Float32;
+    dstDesc.layout = config.dstLayout;
+    dstDesc.size = dstView.sizeBytes();
+    dstDesc.offset = 0;
+    dstDesc.rowColumnStride = dstStride * sizeof(float);
+
+    REQUIRE_CALL(device->convertCooperativeVectorMatrix(
+        dstData.data(),
+        dstData.size(),
+        &dstDesc,
+        srcData.data(),
+        srcData.size(),
+        &srcDesc,
+        1
+    ));
+
+    matrix_view<float> dstMatrix(dstData.data(), config.rows, config.cols, dstRowMajor, dstStride);
+    CHECK(srcMatrix == dstMatrix);
+}
+
+/// Test matrix conversion on device.
+inline void testMatrixConvertDevice(IDevice* device, const MatrixConvertTestConfig& config)
+{
+    uint32_t srcStride =
+        config.srcStride != 0 ? config.srcStride : getTightStride(config.rows, config.cols, config.srcLayout);
+    uint32_t dstStride =
+        config.dstStride != 0 ? config.dstStride : getTightStride(config.rows, config.cols, config.dstLayout);
+    bool srcRowMajor = config.srcLayout == CooperativeVectorMatrixLayout::RowMajor;
+    bool dstRowMajor = config.dstLayout == CooperativeVectorMatrixLayout::RowMajor;
+
+    matrix_view<float> srcView(nullptr, config.rows, config.cols, srcRowMajor, srcStride);
+    matrix_view<float> dstView(nullptr, config.rows, config.cols, dstRowMajor, dstStride);
+
+    std::vector<uint8_t> srcData(srcView.sizeBytes());
+    std::vector<uint8_t> dstData(dstView.sizeBytes());
+
+    matrix_view<float> srcMatrix(srcData.data(), config.rows, config.cols, srcRowMajor, srcStride);
+    for (size_t r = 0; r < config.rows; r++)
+        for (size_t c = 0; c < config.cols; c++)
+            srcMatrix(r, c) = (float)(r * config.cols + c);
+
+    BufferDesc srcBufferDesc = {};
+    srcBufferDesc.size = srcData.size();
+    srcBufferDesc.memoryType = MemoryType::DeviceLocal;
+    srcBufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;
+    ComPtr<IBuffer> srcBuffer;
+    REQUIRE_CALL(device->createBuffer(srcBufferDesc, srcData.data(), srcBuffer.writeRef()));
+
+    BufferDesc dstBufferDesc = {};
+    dstBufferDesc.size = dstData.size();
+    dstBufferDesc.memoryType = MemoryType::DeviceLocal;
+    dstBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+    ComPtr<IBuffer> dstBuffer;
+    REQUIRE_CALL(device->createBuffer(dstBufferDesc, nullptr, dstBuffer.writeRef()));
+
+    CooperativeVectorMatrixDesc srcDesc = {};
+    srcDesc.rowCount = config.rows;
+    srcDesc.colCount = config.cols;
+    srcDesc.componentType = CooperativeVectorComponentType::Float32;
+    srcDesc.layout = config.srcLayout;
+    srcDesc.size = srcView.sizeBytes();
+    srcDesc.offset = 0;
+    srcDesc.rowColumnStride = srcStride * sizeof(float);
+
+    CooperativeVectorMatrixDesc dstDesc = {};
+    dstDesc.rowCount = config.rows;
+    dstDesc.colCount = config.cols;
+    dstDesc.componentType = CooperativeVectorComponentType::Float32;
+    dstDesc.layout = config.dstLayout;
+    dstDesc.size = dstView.sizeBytes();
+    dstDesc.offset = 0;
+    dstDesc.rowColumnStride = dstStride * sizeof(float);
+
+    {
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+        commandEncoder->convertCooperativeVectorMatrix(dstBuffer, &dstDesc, srcBuffer, &srcDesc, 1);
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+
+    REQUIRE_CALL(device->readBuffer(dstBuffer, 0, dstData.size(), dstData.data()));
+
+    matrix_view<float> dstMatrix(dstData.data(), config.rows, config.cols, dstRowMajor, dstStride);
+    CHECK(srcMatrix == dstMatrix);
+}
+
+/// Get test configurations for matrix conversion tests.
+inline std::vector<MatrixConvertTestConfig> getMatrixConvertTestConfigs()
+{
+    std::vector<MatrixConvertTestConfig> configs;
+
+    // Test various matrix sizes with tight packing.
+    std::vector<std::pair<uint32_t, uint32_t>> sizes = {
+        {4, 8},   // even x even
+        {8, 4},   // even x even (transposed)
+        {3, 7},   // odd x odd
+        {7, 3},   // odd x odd (transposed)
+        {5, 8},   // odd x even
+        {8, 5},   // even x odd
+        {1, 16},  // single row
+        {16, 1},  // single column
+        {16, 16}, // square
+        {17, 17}, // odd square
+    };
+
+    std::vector<std::pair<CooperativeVectorMatrixLayout, CooperativeVectorMatrixLayout>> layoutPairs = {
+        {CooperativeVectorMatrixLayout::RowMajor, CooperativeVectorMatrixLayout::ColumnMajor},
+        {CooperativeVectorMatrixLayout::ColumnMajor, CooperativeVectorMatrixLayout::RowMajor},
+        {CooperativeVectorMatrixLayout::RowMajor, CooperativeVectorMatrixLayout::RowMajor},
+        {CooperativeVectorMatrixLayout::ColumnMajor, CooperativeVectorMatrixLayout::ColumnMajor},
+    };
+
+    for (const auto& [rows, cols] : sizes)
+    {
+        for (const auto& [srcLayout, dstLayout] : layoutPairs)
+        {
+            configs.push_back({rows, cols, srcLayout, dstLayout, 0, 0});
+        }
+    }
+
+    // Test with custom strides (larger than tight packing).
+    // Use 8x8 matrix with extra padding.
+    configs.push_back(
+        {8, 8, CooperativeVectorMatrixLayout::RowMajor, CooperativeVectorMatrixLayout::ColumnMajor, 16, 16}
+    );
+    configs.push_back(
+        {8, 8, CooperativeVectorMatrixLayout::ColumnMajor, CooperativeVectorMatrixLayout::RowMajor, 16, 16}
+    );
+    // Mixed: tight source, padded destination.
+    configs.push_back(
+        {8, 8, CooperativeVectorMatrixLayout::RowMajor, CooperativeVectorMatrixLayout::ColumnMajor, 0, 16}
+    );
+    // Mixed: padded source, tight destination.
+    configs.push_back(
+        {8, 8, CooperativeVectorMatrixLayout::RowMajor, CooperativeVectorMatrixLayout::ColumnMajor, 16, 0}
+    );
+
+    return configs;
+}
 
 GPU_TEST_CASE("cooperative-vector-convert-matrix-host", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
-    constexpr size_t rows = 4;
-    constexpr size_t cols = 8;
-    constexpr size_t matrixSize = rows * cols * sizeof(float);
-
-    uint8_t inputData[2 * matrixSize];
-    uint8_t outputData[2 * matrixSize];
-
-    matrix_view<float> inputMatrix1(inputData, rows, cols, true);
-    for (size_t r = 0; r < rows; r++)
-        for (size_t c = 0; c < cols; c++)
-            inputMatrix1(r, c) = (float)(r * cols + c);
-
-    matrix_view<float> inputMatrix2(inputData + matrixSize, rows, cols, true);
-    for (size_t r = 0; r < rows; r++)
-        for (size_t c = 0; c < cols; c++)
-            inputMatrix2(r, c) = (float)(r * cols + c + 100);
-
-    CooperativeVectorMatrixDesc srcDesc1 = {};
-    srcDesc1.rowCount = rows;
-    srcDesc1.colCount = cols;
-    srcDesc1.componentType = CooperativeVectorComponentType::Float32;
-    srcDesc1.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc1.size = matrixSize;
-    srcDesc1.offset = 0;
-    srcDesc1.rowColumnStride = srcDesc1.colCount * sizeof(float);
-
-    CooperativeVectorMatrixDesc srcDesc2 = {};
-    srcDesc2.rowCount = rows;
-    srcDesc2.colCount = cols;
-    srcDesc2.componentType = CooperativeVectorComponentType::Float32;
-    srcDesc2.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc2.size = matrixSize;
-    srcDesc2.offset = matrixSize;
-    srcDesc2.rowColumnStride = srcDesc2.colCount * sizeof(float);
-
-    CooperativeVectorMatrixDesc dstDesc1 = {};
-    dstDesc1.rowCount = rows;
-    dstDesc1.colCount = cols;
-    dstDesc1.componentType = CooperativeVectorComponentType::Float32;
-    dstDesc1.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc1.size = matrixSize;
-    dstDesc1.offset = 0;
-    dstDesc1.rowColumnStride = dstDesc1.rowCount * sizeof(float);
-
-    CooperativeVectorMatrixDesc dstDesc2 = {};
-    dstDesc2.rowCount = rows;
-    dstDesc2.colCount = cols;
-    dstDesc2.componentType = CooperativeVectorComponentType::Float32;
-    dstDesc2.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc2.size = matrixSize;
-    dstDesc2.offset = matrixSize;
-    dstDesc2.rowColumnStride = dstDesc2.rowCount * sizeof(float);
-
-    CooperativeVectorMatrixDesc srcDescs[] = {srcDesc1, srcDesc2};
-    CooperativeVectorMatrixDesc dstDescs[] = {dstDesc1, dstDesc2};
-
-    REQUIRE_CALL(device->convertCooperativeVectorMatrix(
-        outputData,
-        sizeof(outputData),
-        dstDescs,
-        inputData,
-        sizeof(inputData),
-        srcDescs,
-        2
-    ));
-
-    matrix_view<float> outputMatrix1(outputData, rows, cols, false);
-    CHECK(inputMatrix1 == outputMatrix1);
-    matrix_view<float> outputMatrix2(outputData + matrixSize, rows, cols, false);
-    CHECK(inputMatrix2 == outputMatrix2);
+    for (const auto& config : getMatrixConvertTestConfigs())
+    {
+        CAPTURE(config.rows);
+        CAPTURE(config.cols);
+        CAPTURE(config.srcLayout);
+        CAPTURE(config.dstLayout);
+        CAPTURE(config.srcStride);
+        CAPTURE(config.dstStride);
+        testMatrixConvertHost(device, config);
+    }
 };
 
 GPU_TEST_CASE("cooperative-vector-convert-matrix-device", D3D12 | Vulkan | CUDA)
@@ -366,88 +501,14 @@ GPU_TEST_CASE("cooperative-vector-convert-matrix-device", D3D12 | Vulkan | CUDA)
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
-    constexpr size_t rows = 4;
-    constexpr size_t cols = 8;
-    constexpr size_t matrixSize = rows * cols * sizeof(float);
-
-    uint8_t inputData[2 * matrixSize];
-    uint8_t outputData[2 * matrixSize];
-
-    matrix_view<float> inputMatrix1(inputData, rows, cols, true);
-    for (size_t r = 0; r < rows; r++)
-        for (size_t c = 0; c < cols; c++)
-            inputMatrix1(r, c) = (float)(r * cols + c);
-
-    matrix_view<float> inputMatrix2(inputData + matrixSize, rows, cols, true);
-    for (size_t r = 0; r < rows; r++)
-        for (size_t c = 0; c < cols; c++)
-            inputMatrix2(r, c) = (float)(r * cols + c + 100);
-
-    BufferDesc inputBufferDesc = {};
-    inputBufferDesc.size = sizeof(inputData);
-    inputBufferDesc.memoryType = MemoryType::DeviceLocal;
-    inputBufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::CopyDestination;
-    ComPtr<IBuffer> inputBuffer;
-    REQUIRE_CALL(device->createBuffer(inputBufferDesc, inputData, inputBuffer.writeRef()));
-
-    BufferDesc outputBufferDesc = {};
-    outputBufferDesc.size = sizeof(outputData);
-    outputBufferDesc.memoryType = MemoryType::DeviceLocal;
-    outputBufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
-    ComPtr<IBuffer> outputBuffer;
-    REQUIRE_CALL(device->createBuffer(outputBufferDesc, nullptr, outputBuffer.writeRef()));
-
-    CooperativeVectorMatrixDesc srcDesc1 = {};
-    srcDesc1.rowCount = rows;
-    srcDesc1.colCount = cols;
-    srcDesc1.componentType = CooperativeVectorComponentType::Float32;
-    srcDesc1.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc1.size = matrixSize;
-    srcDesc1.offset = 0;
-    srcDesc1.rowColumnStride = srcDesc1.colCount * sizeof(float);
-
-    CooperativeVectorMatrixDesc srcDesc2 = {};
-    srcDesc2.rowCount = rows;
-    srcDesc2.colCount = cols;
-    srcDesc2.componentType = CooperativeVectorComponentType::Float32;
-    srcDesc2.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc2.size = matrixSize;
-    srcDesc2.offset = matrixSize;
-    srcDesc2.rowColumnStride = srcDesc2.colCount * sizeof(float);
-
-    CooperativeVectorMatrixDesc dstDesc1 = {};
-    dstDesc1.rowCount = rows;
-    dstDesc1.colCount = cols;
-    dstDesc1.componentType = CooperativeVectorComponentType::Float32;
-    dstDesc1.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc1.size = matrixSize;
-    dstDesc1.offset = 0;
-    dstDesc1.rowColumnStride = dstDesc1.rowCount * sizeof(float);
-
-    CooperativeVectorMatrixDesc dstDesc2 = {};
-    dstDesc2.rowCount = rows;
-    dstDesc2.colCount = cols;
-    dstDesc2.componentType = CooperativeVectorComponentType::Float32;
-    dstDesc2.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc2.size = matrixSize;
-    dstDesc2.offset = matrixSize;
-    dstDesc2.rowColumnStride = dstDesc2.rowCount * sizeof(float);
-
-    CooperativeVectorMatrixDesc srcDescs[] = {srcDesc1, srcDesc2};
-    CooperativeVectorMatrixDesc dstDescs[] = {dstDesc1, dstDesc2};
-
+    for (const auto& config : getMatrixConvertTestConfigs())
     {
-        auto queue = device->getQueue(QueueType::Graphics);
-        auto commandEncoder = queue->createCommandEncoder();
-        commandEncoder->convertCooperativeVectorMatrix(outputBuffer, dstDescs, inputBuffer, srcDescs, 2);
-        queue->submit(commandEncoder->finish());
-        queue->waitOnHost();
+        CAPTURE(config.rows);
+        CAPTURE(config.cols);
+        CAPTURE(config.srcLayout);
+        CAPTURE(config.dstLayout);
+        CAPTURE(config.srcStride);
+        CAPTURE(config.dstStride);
+        testMatrixConvertDevice(device, config);
     }
-
-    REQUIRE_CALL(device->readBuffer(outputBuffer, 0, sizeof(outputData), outputData));
-
-    matrix_view<float> outputMatrix1(outputData, rows, cols, false);
-    CHECK(inputMatrix1 == outputMatrix1);
-    matrix_view<float> outputMatrix2(outputData + matrixSize, rows, cols, false);
-    CHECK(inputMatrix2 == outputMatrix2);
 };
