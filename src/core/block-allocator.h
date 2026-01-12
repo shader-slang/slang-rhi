@@ -11,22 +11,25 @@ namespace rhi {
 /// Allocates fixed-size blocks out of larger pages.
 /// Uses a lockless free list for allocation/deallocation.
 /// Thread-safe for concurrent allocations and deallocations.
+///
+/// This allocator never frees pages, which allows
+/// it to be completely lock-free, but means it can only
+/// grow in size and never shrink.
 template<typename T>
 class BlockAllocator
 {
 public:
     /// Constructor
-    /// @param blocksPerPage Number of blocks to allocate per page (default: 256)
+    /// @param blocksPerPage Number of blocks to allocate per page (default: 256).
     BlockAllocator(size_t blocksPerPage = 256)
         : m_blocksPerPage(blocksPerPage)
     {
         SLANG_RHI_ASSERT(blocksPerPage > 0);
     }
 
-    /// Destructor - frees all pages
+    /// Destructor - frees all pages (NOT thread safe).
     ~BlockAllocator()
     {
-        // No need for mutex - destructor should not be called concurrently
         Page* page = m_pageListHead.load(std::memory_order_relaxed);
         while (page)
         {
@@ -42,7 +45,7 @@ public:
     BlockAllocator(BlockAllocator&&) = delete;
     BlockAllocator& operator=(BlockAllocator&&) = delete;
 
-    /// Allocate a block
+    /// Allocate a block (thread safe).
     /// @return Pointer to allocated block, or nullptr if allocation fails
     T* allocate()
     {
@@ -59,7 +62,7 @@ public:
         return allocateFromNewPage();
     }
 
-    /// Deallocate a block
+    /// Deallocate a block (thread safe).
     /// @param ptr Pointer to block to deallocate
     void deallocate(T* ptr)
     {
@@ -74,7 +77,7 @@ public:
         while (!m_freeList.compare_exchange_weak(head, block, std::memory_order_release, std::memory_order_acquire));
     }
 
-    /// Check if a pointer is owned by this allocator
+    /// Check if a pointer is owned by this allocator (thread safe).
     /// @param ptr Pointer to check
     /// @return true if the pointer is within any page managed by this allocator
     bool owns(const void* ptr) const
@@ -96,9 +99,7 @@ public:
         return false;
     }
 
-    /// Reset the allocator, rebuilding the free list from all pages
-    /// This is NOT thread-safe and should only be called when no other threads
-    /// are accessing the allocator.
+    /// Reset the allocator, rebuilding the free list from all pages (NOT thread safe).
     void reset()
     {
         FreeBlock* head = nullptr;
@@ -117,13 +118,13 @@ public:
     }
 
 private:
-    /// Free block - stores next pointer when block is unused
+    /// Free block - stores next pointer when block is unused.
     struct FreeBlock
     {
         FreeBlock* next;
     };
 
-    /// A block must be large enough to hold either T or a FreeBlock
+    /// A block must be large enough to hold either T or a FreeBlock.
     union Block
     {
         alignas(T) uint8_t data[sizeof(T)];
@@ -133,17 +134,17 @@ private:
     /// A page contains multiple blocks and a link to the next page
     struct Page
     {
-        std::atomic<Page*> next; // Intrusive linked list for lock-free iteration
-        size_t blockCount;       // Number of blocks in this page
-        Block blocks[1];         // Variable length array (allocated with extra space)
+        std::atomic<Page*> next;
+        size_t blockCount;
+        Block blocks[1];
     };
 
     static_assert(sizeof(Block) >= sizeof(FreeBlock*), "Block must be large enough to hold a pointer");
     static_assert(alignof(Block) >= alignof(T), "Block alignment must be sufficient for T");
 
-    /// Allocate a new page and return a block from it
-    /// This is protected by a mutex so multiple new pages don't get allocated
-    /// at once.
+    /// Allocate a new page and return a block from it.
+    /// This is protected by a mutex so multiple new pages don't
+    /// get allocated at once.
     T* allocateFromNewPage()
     {
         std::lock_guard<std::mutex> lock(m_pageMutex);
