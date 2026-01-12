@@ -1,7 +1,106 @@
 #include "testing.h"
 
+#include <set>
+
+#define VERBOSE 0
+
+#if VERBOSE
+#define PRINT(...) printf(__VA_ARGS__);
+#else
+#define PRINT(...)
+#endif
+
+namespace rhi {
+inline doctest::String toString(CooperativeVectorMatrixLayout value)
+{
+    return enumToString(value);
+}
+
+inline doctest::String toString(CooperativeVectorComponentType value)
+{
+    return enumToString(value);
+}
+} // namespace rhi
+
 using namespace rhi;
 using namespace rhi::testing;
+
+inline size_t getCooperativeVectorComponentSize(CooperativeVectorComponentType type)
+{
+    switch (type)
+    {
+    case CooperativeVectorComponentType::Sint8:
+    case CooperativeVectorComponentType::Uint8:
+    case CooperativeVectorComponentType::Sint8Packed:
+    case CooperativeVectorComponentType::Uint8Packed:
+    case CooperativeVectorComponentType::FloatE4M3:
+    case CooperativeVectorComponentType::FloatE5M2:
+        return 1;
+    case CooperativeVectorComponentType::Float16:
+    case CooperativeVectorComponentType::Sint16:
+    case CooperativeVectorComponentType::Uint16:
+        return 2;
+    case CooperativeVectorComponentType::Float32:
+    case CooperativeVectorComponentType::Sint32:
+    case CooperativeVectorComponentType::Uint32:
+        return 4;
+    case CooperativeVectorComponentType::Float64:
+    case CooperativeVectorComponentType::Sint64:
+    case CooperativeVectorComponentType::Uint64:
+        return 8;
+    }
+    return 0;
+}
+
+inline size_t getTightRowColumnStride(
+    uint32_t rowCount,
+    uint32_t colCount,
+    CooperativeVectorComponentType componentType,
+    CooperativeVectorMatrixLayout layout
+)
+{
+    size_t componentSize = getCooperativeVectorComponentSize(componentType);
+    switch (layout)
+    {
+    case CooperativeVectorMatrixLayout::RowMajor:
+        return componentSize * colCount;
+    case CooperativeVectorMatrixLayout::ColumnMajor:
+        return componentSize * rowCount;
+    case CooperativeVectorMatrixLayout::InferencingOptimal:
+    case CooperativeVectorMatrixLayout::TrainingOptimal:
+        break;
+    }
+    return 0;
+}
+
+inline size_t computeExpectedSize(
+    uint32_t rowCount,
+    uint32_t colCount,
+    CooperativeVectorComponentType componentType,
+    CooperativeVectorMatrixLayout layout,
+    uint32_t rowColumnStride = 0
+)
+{
+    size_t stride = rowColumnStride;
+    if (stride == 0)
+    {
+        stride = getTightRowColumnStride(rowCount, colCount, componentType, layout);
+    }
+
+    switch (layout)
+    {
+    case CooperativeVectorMatrixLayout::RowMajor:
+        return stride * rowCount;
+    case CooperativeVectorMatrixLayout::ColumnMajor:
+        return stride * colCount;
+    case CooperativeVectorMatrixLayout::InferencingOptimal:
+        return stride * colCount;
+    case CooperativeVectorMatrixLayout::TrainingOptimal:
+        return stride * colCount;
+    }
+    return 0;
+}
+
 
 GPU_TEST_CASE("cooperative-vector-properties", D3D12 | Vulkan)
 {
@@ -21,6 +120,16 @@ GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
+    // OptiX API automatically rounds up the matrix size to a multiple of 64 bytes.
+    // This is different from the NVAPI and Vulkan API behavior.
+    // We should consider changing the OptiX behavior to match the others for consistency.
+    // For now, adjust the expected size for CUDA tests.
+    bool isCUDA = device->getDeviceType() == DeviceType::CUDA;
+    auto padSizeForCUDA = [&](size_t size)
+    {
+        return isCUDA ? (size + 63) & ~size_t(63) : size;
+    };
+
     auto querySize = [&](uint32_t rowCount,
                          uint32_t colCount,
                          CooperativeVectorComponentType componentType,
@@ -34,35 +143,99 @@ GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
         return size;
     };
 
-    // These should get padded to 64 bytes
-    CHECK(querySize(4, 4, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor) == 64);
-    CHECK(querySize(4, 4, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor) == 64);
+    // Query cooperative vector properties to determine supported component types.
+    uint32_t propertiesCount = 0;
+    REQUIRE_CALL(device->getCooperativeVectorProperties(nullptr, &propertiesCount));
+    std::vector<CooperativeVectorProperties> properties(propertiesCount);
+    REQUIRE_CALL(device->getCooperativeVectorProperties(properties.data(), &propertiesCount));
 
-    CHECK(querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor) == 128);
-    CHECK(querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor) == 128);
-    CHECK(querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor, 16) == 128);
-    CHECK(
-        querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor, 16) == 128
+    // Determine supported component types (Float32 is implicit).
+    std::set<CooperativeVectorComponentType> supportedComponentTypes;
+    supportedComponentTypes.emplace(CooperativeVectorComponentType::Float32);
+    for (const auto& props : properties)
+    {
+        supportedComponentTypes.insert(props.matrixInterpretation);
+    }
+
+    // Determine supported component types for basic and optimal layout types.
+    std::vector<CooperativeVectorComponentType> basicLayoutComponentTypes;
+    std::vector<CooperativeVectorComponentType> optimalLayoutComponentTypes;
+    for (CooperativeVectorComponentType type : supportedComponentTypes)
+    {
+        if (type == CooperativeVectorComponentType::FloatE4M3 || type == CooperativeVectorComponentType::FloatE5M2)
+        {
+            optimalLayoutComponentTypes.push_back(type);
+            continue;
+        }
+        basicLayoutComponentTypes.push_back(type);
+        // OptiX does not support Float32 for training/inferencing optimal layouts.
+        if (type == CooperativeVectorComponentType::Float32 && isCUDA)
+            continue;
+        optimalLayoutComponentTypes.push_back(type);
+    }
+
+    std::vector<CooperativeVectorMatrixLayout> layouts = {
+        CooperativeVectorMatrixLayout::RowMajor,
+        CooperativeVectorMatrixLayout::ColumnMajor,
+        CooperativeVectorMatrixLayout::InferencingOptimal,
+        CooperativeVectorMatrixLayout::TrainingOptimal,
+    };
+
+    for (CooperativeVectorMatrixLayout layout : layouts)
+    {
+        PRINT("Layout: %s\n", toString(layout).c_str());
+        CAPTURE(layout);
+
+        std::vector<CooperativeVectorComponentType> componentTypes =
+            (layout == CooperativeVectorMatrixLayout::InferencingOptimal ||
+             layout == CooperativeVectorMatrixLayout::TrainingOptimal)
+                ? optimalLayoutComponentTypes
+                : basicLayoutComponentTypes;
+        for (CooperativeVectorComponentType type : componentTypes)
+        {
+            PRINT("  Component Type: %s\n", toString(type).c_str());
+            CAPTURE(type);
+            for (uint32_t rows : {1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 32, 33, 64, 127, 128})
+            {
+                CAPTURE(rows);
+                for (uint32_t cols : {1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 32, 33, 64, 127, 128})
+                {
+                    CAPTURE(cols);
+                    size_t size = querySize(rows, cols, type, layout);
+                    size_t expectedSize = padSizeForCUDA(computeExpectedSize(rows, cols, type, layout));
+                    PRINT("    rows=%d, cols=%d, size=%zd, expectedSize=%zd\n", rows, cols, size, expectedSize);
+                    if (layout != CooperativeVectorMatrixLayout::InferencingOptimal &&
+                        layout != CooperativeVectorMatrixLayout::TrainingOptimal)
+                    {
+                        CHECK_EQ(size, expectedSize);
+                    }
+                    else
+                    {
+                        // Optimal layouts are implementation defined!
+                        CHECK_GT(size, 0);
+                    }
+                }
+            }
+        }
+    }
+
+    // Additional checks with specific rowColumnStride values.
+    CHECK_EQ(
+        querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor, 16),
+        128
     );
-    CHECK(querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor, 32) == 256);
-    CHECK(
-        querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor, 32) == 256
+    CHECK_EQ(
+        querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor, 16),
+        128
     );
-
-    CHECK(querySize(4, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor) == 64);
-    CHECK(querySize(4, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor) == 64);
-
-    CHECK(querySize(8, 4, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor) == 64);
-    CHECK(querySize(8, 4, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor) == 64);
-
-    CHECK(querySize(4, 4, CooperativeVectorComponentType::Float32, CooperativeVectorMatrixLayout::RowMajor) == 64);
-    CHECK(querySize(4, 4, CooperativeVectorComponentType::Float32, CooperativeVectorMatrixLayout::ColumnMajor) == 64);
-
-    CHECK(querySize(4, 8, CooperativeVectorComponentType::Float32, CooperativeVectorMatrixLayout::RowMajor) == 128);
-    CHECK(querySize(4, 8, CooperativeVectorComponentType::Float32, CooperativeVectorMatrixLayout::ColumnMajor) == 128);
-
-    CHECK(querySize(8, 4, CooperativeVectorComponentType::Float32, CooperativeVectorMatrixLayout::RowMajor) == 128);
-    CHECK(querySize(8, 4, CooperativeVectorComponentType::Float32, CooperativeVectorMatrixLayout::ColumnMajor) == 128);
+    CHECK_EQ(
+        querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor, 32),
+        padSizeForCUDA(240)
+    );
+    CHECK_EQ(
+        querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor, 32),
+        padSizeForCUDA(240)
+    );
 }
 
 template<typename T, size_t Rows, size_t Cols, bool RowMajor>
