@@ -6,7 +6,6 @@
 #include <atomic>
 #include <chrono>
 #include <set>
-#include <cstdlib>
 
 using namespace rhi;
 
@@ -446,7 +445,7 @@ TEST_CASE("block-allocator-performance")
 // Test the macro system
 class TestMacroClass
 {
-    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(TestMacroClass, 32)
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(TestMacroClass)
 
 public:
     int value = 0;
@@ -481,23 +480,6 @@ TEST_CASE("block-allocator-macro-system")
         CHECK(TestMacroClass::getAllocator().owns(obj));
 
         delete obj;
-    }
-
-    SUBCASE("fallback-to-heap")
-    {
-        // Allocate raw memory using malloc (bypassing custom operator new)
-        void* memory = std::malloc(sizeof(TestMacroClass));
-        REQUIRE(memory != nullptr);
-
-        // Construct object in place using global placement new
-        TestMacroClass* obj = ::new (memory) TestMacroClass(200);
-
-        // Should NOT be owned by the allocator
-        CHECK_FALSE(TestMacroClass::getAllocator().owns(obj));
-
-        // Manually destruct and free with matching deallocation
-        obj->~TestMacroClass();
-        std::free(memory);
     }
 
     SUBCASE("multiple-allocations-with-macro")

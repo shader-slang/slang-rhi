@@ -175,8 +175,9 @@ private:
     uint32_t m_numPages{0};
 };
 
-// Macro to declare block allocator support for a class
-#define SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ClassName, BlocksPerPage)                                                    \
+/// Macro to declare block allocator support for a class.
+/// The block size is automatically determined from sizeof(ClassName).
+#define SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ClassName)                                                                   \
 public:                                                                                                                \
     void* operator new(size_t size);                                                                                   \
     void operator delete(void* ptr);                                                                                   \
@@ -184,7 +185,9 @@ public:                                                                         
 private:                                                                                                               \
     static ::rhi::BlockAllocator<ClassName> s_allocator;
 
-// Macro to implement block allocator operators in .cpp file
+/// Macro to implement block allocator operators in .cpp file.
+/// @param ClassName The class name to implement block allocation for.
+/// @param BlocksPerPage Number of blocks to allocate per page.
 #define SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(ClassName, BlocksPerPage)                                                  \
     ::rhi::BlockAllocator<ClassName> ClassName::s_allocator(BlocksPerPage);                                            \
                                                                                                                        \
@@ -195,16 +198,7 @@ private:                                                                        
                                                                                                                        \
     void ClassName::operator delete(void* ptr)                                                                         \
     {                                                                                                                  \
-        if (!ptr)                                                                                                      \
-            return;                                                                                                    \
-        if (s_allocator.owns(ptr))                                                                                     \
-        {                                                                                                              \
-            s_allocator.free(static_cast<ClassName*>(ptr));                                                            \
-        }                                                                                                              \
-        else                                                                                                           \
-        {                                                                                                              \
-            ::operator delete(ptr);                                                                                    \
-        }                                                                                                              \
+        s_allocator.free(static_cast<ClassName*>(ptr));                                                                \
     }
 
 } // namespace rhi
