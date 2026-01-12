@@ -171,6 +171,11 @@
 #define S_CooperativeVectorComponentType_FloatE4M3 "FloatE4M3"
 #define S_CooperativeVectorComponentType_FloatE5M2 "FloatE5M2"
 
+// CooperativeVectorMatrixLayout
+#define S_CooperativeVectorMatrixLayout_RowMajor "RowMajor"
+#define S_CooperativeVectorMatrixLayout_ColumnMajor "ColumnMajor"
+#define S_CooperativeVectorMatrixLayout_InferencingOptimal "InferencingOptimal"
+#define S_CooperativeVectorMatrixLayout_TrainingOptimal "TrainingOptimal"
 
 // ----------------------------------------------------------------------------
 // Functions
