@@ -6,7 +6,7 @@
 namespace rhi {
 
 /// Block allocator for fixed-size objects.
-/// Allocates fixed-size blocks out of larger pages.
+/// Allocates fixed-size blocks of sizeof(T) out of larger pages.
 /// Thread-safe for concurrent allocations and deallocations using a mutex.
 ///
 /// This allocator never frees pages, which means it can only
@@ -179,7 +179,7 @@ private:
 /// The block size is automatically determined from sizeof(ClassName).
 #define SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ClassName)                                                                   \
 public:                                                                                                                \
-    void* operator new(size_t size);                                                                                   \
+    void* operator new(size_t count);                                                                                  \
     void operator delete(void* ptr);                                                                                   \
                                                                                                                        \
 private:                                                                                                               \
@@ -191,7 +191,7 @@ private:                                                                        
 #define SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(ClassName, BlocksPerPage)                                                  \
     ::rhi::BlockAllocator<ClassName> ClassName::s_allocator(BlocksPerPage);                                            \
                                                                                                                        \
-    void* ClassName::operator new(size_t size)                                                                         \
+    void* ClassName::operator new(size_t count)                                                                        \
     {                                                                                                                  \
         return s_allocator.allocate();                                                                                 \
     }                                                                                                                  \
