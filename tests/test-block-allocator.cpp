@@ -338,7 +338,8 @@ TEST_CASE("block-allocator-stress-test")
                 if (objects[i])
                 {
                     CHECK_EQ(objects[i]->value, static_cast<int>(i));
-                    CHECK_EQ(objects[i]->thread, id);
+                    bool thread_eq = (objects[i]->thread == id);
+                    CHECK(thread_eq); // thread_id in CHECK macros fails to compile
                     objects[i]->~TestObject();
                     allocator.free(objects[i]);
                     objects[i] = nullptr;
@@ -362,7 +363,8 @@ TEST_CASE("block-allocator-stress-test")
                 if (objects[i])
                 {
                     CHECK_EQ(objects[i]->value, static_cast<int>(i));
-                    CHECK_EQ(objects[i]->thread, id);
+                    bool thread_eq = (objects[i]->thread == id);
+                    CHECK(thread_eq); // thread_id in CHECK macros fails to compile
                     objects[i]->~TestObject();
                     allocator.free(objects[i]);
                     objects[i] = nullptr;
