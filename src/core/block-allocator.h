@@ -30,10 +30,10 @@ public:
     /// Destructor - frees all pages (NOT thread safe).
     ~BlockAllocator()
     {
-        Page* page = m_pageListHead.load(std::memory_order_relaxed);
+        Page* page = m_pageListHead.load(std::memory_order_acquire);
         while (page)
         {
-            Page* next = page->next.load(std::memory_order_relaxed);
+            Page* next = page->next.load(std::memory_order_acquire);
             std::free(page);
             page = next;
         }
@@ -49,10 +49,13 @@ public:
     /// @return Pointer to allocated block, or nullptr if allocation fails
     T* allocate()
     {
+        m_totalBlocksAllocated++;
+
+        // std::lock_guard<std::mutex> lock(m_pageMutex);
         FreeBlock* block = m_freeList.load(std::memory_order_acquire);
         while (block)
         {
-            FreeBlock* next = block->next;
+            FreeBlock* next = block->next.load(std::memory_order_acquire);
             if (m_freeList.compare_exchange_weak(block, next, std::memory_order_release, std::memory_order_acquire))
             {
                 // Successfully popped from free list
@@ -66,15 +69,18 @@ public:
     /// @param ptr Pointer to block to deallocate
     void deallocate(T* ptr)
     {
+        // std::lock_guard<std::mutex> lock(m_pageMutex);
         if (!ptr)
             return;
         FreeBlock* block = reinterpret_cast<FreeBlock*>(ptr);
         FreeBlock* head = m_freeList.load(std::memory_order_acquire);
         do
         {
-            block->next = head;
+            block->next.store(head, std::memory_order_release);
         }
         while (!m_freeList.compare_exchange_weak(head, block, std::memory_order_release, std::memory_order_acquire));
+
+        m_totalBlocksAllocated--;
     }
 
     /// Check if a pointer is owned by this allocator (thread safe).
@@ -103,25 +109,31 @@ public:
     void reset()
     {
         FreeBlock* head = nullptr;
-        Page* page = m_pageListHead.load(std::memory_order_relaxed);
+        Page* page = m_pageListHead.load(std::memory_order_acquire);
         while (page)
         {
             for (size_t i = 0; i < page->blockCount; ++i)
             {
                 FreeBlock* block = reinterpret_cast<FreeBlock*>(&page->blocks[i]);
-                block->next = head;
+                block->next.store(head, std::memory_order_release);
                 head = block;
             }
-            page = page->next.load(std::memory_order_relaxed);
+            page = page->next.load(std::memory_order_acquire);
         }
         m_freeList.store(head, std::memory_order_release);
+    }
+
+    uint32_t getNumPages() const
+    {
+        std::lock_guard<std::mutex> lock(m_pageMutex);
+        return m_numPages;
     }
 
 private:
     /// Free block - stores next pointer when block is unused.
     struct FreeBlock
     {
-        FreeBlock* next;
+        std::atomic<FreeBlock*> next;
     };
 
     /// A block must be large enough to hold either T or a FreeBlock.
@@ -154,7 +166,7 @@ private:
         FreeBlock* block = m_freeList.load(std::memory_order_acquire);
         if (block)
         {
-            FreeBlock* next = block->next;
+            FreeBlock* next = block->next.load(std::memory_order_acquire);
             if (m_freeList.compare_exchange_strong(block, next, std::memory_order_release, std::memory_order_acquire))
             {
                 return reinterpret_cast<T*>(block);
@@ -171,35 +183,40 @@ private:
 
         // Initialize page metadata
         page->blockCount = m_blocksPerPage;
-        page->next.store(nullptr, std::memory_order_relaxed);
+        page->next.store(nullptr, std::memory_order_release);
 
-        // Atomically prepend page to linked list
-        Page* oldHead = m_pageListHead.load(std::memory_order_relaxed);
+        // Atomically prepend page to linked list of pages.
+        Page* oldHead = m_pageListHead.load(std::memory_order_acquire);
         do
         {
-            page->next.store(oldHead, std::memory_order_relaxed);
+            page->next.store(oldHead, std::memory_order_release);
         }
         while (
-            !m_pageListHead.compare_exchange_weak(oldHead, page, std::memory_order_release, std::memory_order_relaxed)
+            !m_pageListHead.compare_exchange_weak(oldHead, page, std::memory_order_release, std::memory_order_acquire)
         );
+        m_numPages++;
 
-        // Link all blocks except the first one into the free list in a single atomic operation
+
+        // Generate free list from all except first block.
         FreeBlock* localChain = reinterpret_cast<FreeBlock*>(&page->blocks[1]);
         FreeBlock* current = localChain;
         for (size_t i = 2; i < m_blocksPerPage; ++i)
         {
-            current->next = reinterpret_cast<FreeBlock*>(&page->blocks[i]);
-            current = current->next;
+            FreeBlock* nextBlock = reinterpret_cast<FreeBlock*>(&page->blocks[i]);
+            current->next.store(nextBlock, std::memory_order_release);
+            current = nextBlock;
         }
-        current->next = nullptr;
-        FreeBlock* oldFreeHead = m_freeList.load(std::memory_order_relaxed);
+        current->next.store(nullptr, std::memory_order_release);
+
+        // Locklessly append local chain to global free list
+        FreeBlock* oldFreeHead = m_freeList.load(std::memory_order_acquire);
         do
         {
-            current->next = oldFreeHead; // Link the tail to the current head
+            current->next.store(oldFreeHead, std::memory_order_release); // Link the tail to the current head
         }
         while (
             !m_freeList
-                 .compare_exchange_weak(oldFreeHead, localChain, std::memory_order_release, std::memory_order_relaxed)
+                 .compare_exchange_weak(oldFreeHead, localChain, std::memory_order_release, std::memory_order_acquire)
         );
 
         // Return the first block
@@ -210,6 +227,8 @@ private:
     std::atomic<FreeBlock*> m_freeList{nullptr};
     mutable std::mutex m_pageMutex; // Only for page allocation
     std::atomic<Page*> m_pageListHead{nullptr};
+    std::atomic<uint32_t> m_totalBlocksAllocated{0};
+    uint32_t m_numPages{0};
 };
 
 // Macro to declare block allocator support for a class

@@ -14,17 +14,20 @@ struct TestObject
 {
     int value;
     double data;
+    std::thread::id thread;
     char padding[128]; // Make it bigger to test alignment
 
     TestObject()
         : value(0)
         , data(0.0)
+        , thread()
     {
     }
 
-    TestObject(int v, double d)
+    TestObject(int v, double d, std::thread::id t = {})
         : value(v)
         , data(d)
+        , thread(t)
     {
     }
 };
@@ -282,17 +285,22 @@ TEST_CASE("block-allocator-multi-threaded")
 
 TEST_CASE("block-allocator-stress-test")
 {
-    BlockAllocator<TestObject> allocator(128);
+    BlockAllocator<TestObject> allocator(1000);
 
-    constexpr int numThreads = 4;
-    constexpr int iterations = 1000;
-    constexpr int objectsPerIteration = 100;
+    constexpr int numThreads = 16;
+    constexpr int iterations = 10000;
+    constexpr int objectsPerIteration = 1000;
 
     auto threadFunc = [&]()
     {
         for (int iter = 0; iter < iterations; ++iter)
         {
+            CHECK(allocator.getNumPages() < (numThreads * objectsPerIteration * 2) / 1000);
+
             std::vector<TestObject*> objects;
+            objects.reserve(objectsPerIteration * 2);
+
+            auto id = std::this_thread::get_id();
 
             // Allocate
             for (int i = 0; i < objectsPerIteration; ++i)
@@ -300,7 +308,7 @@ TEST_CASE("block-allocator-stress-test")
                 TestObject* obj = allocator.allocate();
                 if (obj)
                 {
-                    new (obj) TestObject(i, i * 2.0);
+                    new (obj) TestObject(i, i * 2.0, id);
                     objects.push_back(obj);
                 }
             }
@@ -308,8 +316,14 @@ TEST_CASE("block-allocator-stress-test")
             // Deallocate half
             for (size_t i = 0; i < objects.size() / 2; ++i)
             {
-                objects[i]->~TestObject();
-                allocator.deallocate(objects[i]);
+                if (objects[i])
+                {
+                    CHECK(objects[i]->value == static_cast<int>(i));
+                    CHECK(objects[i]->thread == id);
+                    objects[i]->~TestObject();
+                    allocator.deallocate(objects[i]);
+                    objects[i] = nullptr;
+                }
             }
 
             // Allocate more
@@ -318,17 +332,25 @@ TEST_CASE("block-allocator-stress-test")
                 TestObject* obj = allocator.allocate();
                 if (obj)
                 {
-                    new (obj) TestObject(i + 1000, i * 3.0);
+                    new (obj) TestObject(i + objectsPerIteration, i * 3.0, id);
                     objects.push_back(obj);
                 }
             }
 
             // Deallocate all remaining
-            for (size_t i = objects.size() / 2; i < objects.size(); ++i)
+            for (size_t i = 0; i < objects.size(); ++i)
             {
-                objects[i]->~TestObject();
-                allocator.deallocate(objects[i]);
+                if (objects[i])
+                {
+                    CHECK(objects[i]->value == static_cast<int>(i));
+                    CHECK(objects[i]->thread == id);
+                    objects[i]->~TestObject();
+                    allocator.deallocate(objects[i]);
+                    objects[i] = nullptr;
+                }
             }
+
+            CHECK(allocator.getNumPages() < (numThreads * objectsPerIteration * 2) / 1000);
         }
     };
 
@@ -342,23 +364,23 @@ TEST_CASE("block-allocator-stress-test")
     {
         thread.join();
     }
-
-    // If we get here without crashing, the test passed
-    CHECK(true);
 }
 
+#if 0
+// This perf test doesn't verify any functionality but can be enabled to compare
+// block allocator perf to standard new/delete
 TEST_CASE("block-allocator-performance")
 {
-    constexpr int numAllocations = 100000;
+    constexpr int numAllocations = 1000000;
 
     SUBCASE("block-allocator-performance")
     {
-        BlockAllocator<TestObject> allocator(256);
-
-        auto start = std::chrono::high_resolution_clock::now();
+        BlockAllocator<TestObject> allocator(1000000);
 
         std::vector<TestObject*> objects;
         objects.reserve(numAllocations);
+
+        auto start = std::chrono::high_resolution_clock::now();
 
         for (int i = 0; i < numAllocations; ++i)
         {
@@ -378,10 +400,10 @@ TEST_CASE("block-allocator-performance")
 
     SUBCASE("standard-new-delete-performance")
     {
-        auto start = std::chrono::high_resolution_clock::now();
-
         std::vector<TestObject*> objects;
         objects.reserve(numAllocations);
+
+        auto start = std::chrono::high_resolution_clock::now();
 
         for (int i = 0; i < numAllocations; ++i)
         {
@@ -399,6 +421,7 @@ TEST_CASE("block-allocator-performance")
         MESSAGE("Standard new/delete: ", numAllocations, " allocations in ", duration.count(), " μs");
     }
 }
+#endif
 
 // Test the macro system
 class TestMacroClass
