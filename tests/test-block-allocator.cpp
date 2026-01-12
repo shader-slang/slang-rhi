@@ -288,14 +288,14 @@ TEST_CASE("block-allocator-stress-test")
     BlockAllocator<TestObject> allocator(1000);
 
     // Quick test for CI
-    constexpr int numThreads = 16;
-    constexpr int iterations = 20;
-    constexpr int objectsPerIteration = 1000;
+    // constexpr int numThreads = 16;
+    // constexpr int iterations = 20;
+    // constexpr int objectsPerIteration = 1000;
 
     // Mega test takes about 30 mins
-    // constexpr int numThreads = 16;
-    // constexpr int iterations = 100000;
-    // constexpr int objectsPerIteration = 10000;
+    constexpr int numThreads = 16;
+    constexpr int iterations = 100000;
+    constexpr int objectsPerIteration = 10000;
 
     auto threadFunc = [&]()
     {
@@ -325,7 +325,8 @@ TEST_CASE("block-allocator-stress-test")
                 if (objects[i])
                 {
                     CHECK(objects[i]->value == static_cast<int>(i));
-                    CHECK(objects[i]->thread == id);
+                    bool thread_cmp = (objects[i]->thread == id);
+                    CHECK(thread_cmp); // doc test can't compile CHECK(objects[i]->thread == id);
                     objects[i]->~TestObject();
                     allocator.deallocate(objects[i]);
                     objects[i] = nullptr;
@@ -349,7 +350,8 @@ TEST_CASE("block-allocator-stress-test")
                 if (objects[i])
                 {
                     CHECK(objects[i]->value == static_cast<int>(i));
-                    CHECK(objects[i]->thread == id);
+                    bool thread_cmp = (objects[i]->thread == id);
+                    CHECK(thread_cmp); // doc test can't compile CHECK(objects[i]->thread == id);
                     objects[i]->~TestObject();
                     allocator.deallocate(objects[i]);
                     objects[i] = nullptr;
