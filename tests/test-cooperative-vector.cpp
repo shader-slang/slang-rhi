@@ -83,22 +83,21 @@ inline size_t computeExpectedSize(
     uint32_t rowColumnStride = 0
 )
 {
-    size_t stride = rowColumnStride;
-    if (stride == 0)
-    {
-        stride = getTightRowColumnStride(rowCount, colCount, componentType, layout);
-    }
+    size_t tightStride = getTightRowColumnStride(rowCount, colCount, componentType, layout);
+    size_t stride = rowColumnStride != 0 ? rowColumnStride : tightStride;
 
+    // The last row/column uses tight packing, not the padded stride.
+    // Total size = (count - 1) * stride + tightStride
     switch (layout)
     {
     case CooperativeVectorMatrixLayout::RowMajor:
-        return stride * rowCount;
+        return (rowCount - 1) * stride + tightStride;
     case CooperativeVectorMatrixLayout::ColumnMajor:
-        return stride * colCount;
+        return (colCount - 1) * stride + tightStride;
     case CooperativeVectorMatrixLayout::InferencingOptimal:
-        return stride * colCount;
     case CooperativeVectorMatrixLayout::TrainingOptimal:
-        return stride * colCount;
+        // Optimal layouts are implementation-defined.
+        break;
     }
     return 0;
 }
@@ -122,15 +121,7 @@ GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
-    // OptiX API automatically rounds up the matrix size to a multiple of 64 bytes.
-    // This is different from the NVAPI and Vulkan API behavior.
-    // We should consider changing the OptiX behavior to match the others for consistency.
-    // For now, adjust the expected size for CUDA tests.
     bool isCUDA = device->getDeviceType() == DeviceType::CUDA;
-    auto padSizeForCUDA = [&](size_t size)
-    {
-        return isCUDA ? (size + 63) & ~size_t(63) : size;
-    };
 
     auto querySize = [&](uint32_t rowCount,
                          uint32_t colCount,
@@ -204,7 +195,7 @@ GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
                 {
                     CAPTURE(cols);
                     size_t size = querySize(rows, cols, type, layout);
-                    size_t expectedSize = padSizeForCUDA(computeExpectedSize(rows, cols, type, layout));
+                    size_t expectedSize = computeExpectedSize(rows, cols, type, layout);
                     PRINT("    rows=%d, cols=%d, size=%zd, expectedSize=%zd\n", rows, cols, size, expectedSize);
                     if (layout != CooperativeVectorMatrixLayout::InferencingOptimal &&
                         layout != CooperativeVectorMatrixLayout::TrainingOptimal)
@@ -232,11 +223,11 @@ GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
     );
     CHECK_EQ(
         querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::RowMajor, 32),
-        padSizeForCUDA(240)
+        240
     );
     CHECK_EQ(
         querySize(8, 8, CooperativeVectorComponentType::Float16, CooperativeVectorMatrixLayout::ColumnMajor, 32),
-        padSizeForCUDA(240)
+        240
     );
 }
 
