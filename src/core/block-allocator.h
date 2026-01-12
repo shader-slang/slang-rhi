@@ -1,19 +1,31 @@
 #pragma once
 
 #include "common.h"
+#include "slang-user-config.h"
 #include <atomic>
 #include <mutex>
 #include <cstring>
 
+#ifndef SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
+#define SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR 0
+#endif
+
 namespace rhi {
 
-/// Lockless block allocator for fixed-size objects.
+/// Block allocator for fixed-size objects.
 /// Allocates fixed-size blocks out of larger pages.
-/// Uses a lockless free list for allocation/deallocation.
 /// Thread-safe for concurrent allocations and deallocations.
 ///
+/// When SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR is enabled (default):
+/// - Uses a lockless free list for allocation/deallocation.
+/// - Uses atomic operations and lock-free algorithms.
+///
+/// When SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR is disabled:
+/// - Uses a mutex to protect all public APIs.
+/// - Uses plain pointer operations (no atomic overhead).
+///
 /// This allocator never frees pages, which allows
-/// it to be completely lock-free, but means it can only
+/// it to be completely lock-free (when enabled), but means it can only
 /// grow in size and never shrink.
 template<typename T>
 class BlockAllocator
@@ -30,10 +42,18 @@ public:
     /// Destructor - frees all pages (NOT thread safe).
     ~BlockAllocator()
     {
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
         Page* page = m_pageListHead.load(std::memory_order_acquire);
+#else
+        Page* page = m_pageListHead;
+#endif
         while (page)
         {
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
             Page* next = page->next.load(std::memory_order_acquire);
+#else
+            Page* next = page->next;
+#endif
             std::free(page);
             page = next;
         }
@@ -49,6 +69,7 @@ public:
     /// @return Pointer to allocated block, or nullptr if allocation fails
     T* allocate()
     {
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
         FreeBlock* block = m_freeList.load(std::memory_order_acquire);
         while (block)
         {
@@ -60,6 +81,16 @@ public:
             }
         }
         return allocateFromNewPage();
+#else
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_freeList)
+        {
+            FreeBlock* block = m_freeList;
+            m_freeList = block->next;
+            return reinterpret_cast<T*>(block);
+        }
+        return allocateFromNewPageLocked();
+#endif
     }
 
     /// Deallocate a block (thread safe).
@@ -69,12 +100,18 @@ public:
         if (!ptr)
             return;
         FreeBlock* block = reinterpret_cast<FreeBlock*>(ptr);
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
         FreeBlock* head = m_freeList.load(std::memory_order_acquire);
         do
         {
             block->next.store(head, std::memory_order_release);
         }
         while (!m_freeList.compare_exchange_weak(head, block, std::memory_order_release, std::memory_order_acquire));
+#else
+        std::lock_guard<std::mutex> lock(m_mutex);
+        block->next = m_freeList;
+        m_freeList = block;
+#endif
     }
 
     /// Check if a pointer is owned by this allocator (thread safe).
@@ -85,7 +122,12 @@ public:
         if (!ptr)
             return false;
         uintptr_t addr = reinterpret_cast<uintptr_t>(ptr);
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
         Page* page = m_pageListHead.load(std::memory_order_acquire);
+#else
+        std::lock_guard<std::mutex> lock(m_mutex);
+        Page* page = m_pageListHead;
+#endif
         while (page)
         {
             uintptr_t pageStart = reinterpret_cast<uintptr_t>(page->blocks);
@@ -94,7 +136,11 @@ public:
             {
                 return true;
             }
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
             page = page->next.load(std::memory_order_acquire);
+#else
+            page = page->next;
+#endif
         }
         return false;
     }
@@ -103,6 +149,7 @@ public:
     void reset()
     {
         FreeBlock* head = nullptr;
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
         Page* page = m_pageListHead.load(std::memory_order_acquire);
         while (page)
         {
@@ -115,11 +162,29 @@ public:
             page = page->next.load(std::memory_order_acquire);
         }
         m_freeList.store(head, std::memory_order_release);
+#else
+        Page* page = m_pageListHead;
+        while (page)
+        {
+            for (size_t i = 0; i < page->blockCount; ++i)
+            {
+                FreeBlock* block = reinterpret_cast<FreeBlock*>(&page->blocks[i]);
+                block->next = head;
+                head = block;
+            }
+            page = page->next;
+        }
+        m_freeList = head;
+#endif
     }
 
     uint32_t getNumPages() const
     {
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
         std::lock_guard<std::mutex> lock(m_pageMutex);
+#else
+        std::lock_guard<std::mutex> lock(m_mutex);
+#endif
         return m_numPages;
     }
 
@@ -127,7 +192,11 @@ private:
     /// Free block - stores next pointer when block is unused.
     struct FreeBlock
     {
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
         std::atomic<FreeBlock*> next;
+#else
+        FreeBlock* next;
+#endif
     };
 
     /// A block must be large enough to hold either T or a FreeBlock.
@@ -140,7 +209,11 @@ private:
     /// A page contains multiple blocks and a link to the next page
     struct Page
     {
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
         std::atomic<Page*> next;
+#else
+        Page* next;
+#endif
         size_t blockCount;
         Block blocks[1];
     };
@@ -148,6 +221,7 @@ private:
     static_assert(sizeof(Block) >= sizeof(FreeBlock*), "Block must be large enough to hold a pointer");
     static_assert(alignof(Block) >= alignof(T), "Block alignment must be sufficient for T");
 
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
     /// Allocate a new page and return a block from it.
     /// This is protected by a mutex so multiple new pages don't
     /// get allocated at once.
@@ -216,11 +290,48 @@ private:
         // Return the first block
         return reinterpret_cast<T*>(&page->blocks[0]);
     }
+#else
+    /// Allocate a new page and return a block from it.
+    /// Called while m_mutex is already held.
+    T* allocateFromNewPageLocked()
+    {
+        // Allocate a new page
+        size_t pageSize = sizeof(Page) + (m_blocksPerPage - 1) * sizeof(Block);
+        Page* page = reinterpret_cast<Page*>(std::malloc(pageSize));
+        if (!page)
+        {
+            return nullptr;
+        }
+
+        // Initialize page metadata
+        page->blockCount = m_blocksPerPage;
+        page->next = m_pageListHead;
+        m_pageListHead = page;
+        m_numPages++;
+
+        // Generate free list from all except first block.
+        for (size_t i = 1; i < m_blocksPerPage; ++i)
+        {
+            FreeBlock* block = reinterpret_cast<FreeBlock*>(&page->blocks[i]);
+            block->next = m_freeList;
+            m_freeList = block;
+        }
+
+        // Return the first block
+        return reinterpret_cast<T*>(&page->blocks[0]);
+    }
+#endif
 
     size_t m_blocksPerPage;
+#if SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR
     std::atomic<FreeBlock*> m_freeList{nullptr};
     mutable std::mutex m_pageMutex; // Only for page allocation
     std::atomic<Page*> m_pageListHead{nullptr};
+#else
+    FreeBlock* m_freeList{nullptr};
+    mutable std::mutex m_mutex; // Protects all operations
+    Page* m_pageListHead{nullptr};
+#endif
     uint32_t m_numPages{0};
 };
 
