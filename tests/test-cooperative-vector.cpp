@@ -238,25 +238,32 @@ GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
     );
 }
 
-template<typename T, size_t Rows, size_t Cols, bool RowMajor>
+template<typename T>
 class matrix_view
 {
 public:
-    matrix_view(void* data)
+    matrix_view(void* data, size_t rows, size_t cols, bool rowMajor)
         : m_data(static_cast<T*>(data))
+        , m_rows(rows)
+        , m_cols(cols)
+        , m_rowMajor(rowMajor)
     {
     }
 
-    static constexpr size_t sizeBytes() { return Rows * Cols * sizeof(T); }
+    size_t rows() const { return m_rows; }
+    size_t cols() const { return m_cols; }
+    bool rowMajor() const { return m_rowMajor; }
+    size_t sizeBytes() const { return m_rows * m_cols * sizeof(T); }
 
     T& operator()(size_t r, size_t c) { return m_data[getIndex(r, c)]; }
     const T& operator()(size_t r, size_t c) const { return m_data[getIndex(r, c)]; }
 
-    template<bool RowMajorOther>
-    bool operator==(const matrix_view<T, Rows, Cols, RowMajorOther>& other) const
+    bool operator==(const matrix_view<T>& other) const
     {
-        for (size_t r = 0; r < Rows; r++)
-            for (size_t c = 0; c < Cols; c++)
+        if (m_rows != other.m_rows || m_cols != other.m_cols)
+            return false;
+        for (size_t r = 0; r < m_rows; r++)
+            for (size_t c = 0; c < m_cols; c++)
                 if (operator()(r, c) != other(r, c))
                     return false;
         return true;
@@ -265,13 +272,16 @@ public:
 private:
     size_t getIndex(size_t r, size_t c) const
     {
-        if constexpr (RowMajor)
-            return r * Cols + c;
+        if (m_rowMajor)
+            return r * m_cols + c;
         else
-            return c * Rows + r;
+            return c * m_rows + r;
     }
 
     T* m_data;
+    size_t m_rows;
+    size_t m_cols;
+    bool m_rowMajor;
 };
 
 GPU_TEST_CASE("cooperative-vector-convert-matrix-host", D3D12 | Vulkan | CUDA)
@@ -279,56 +289,57 @@ GPU_TEST_CASE("cooperative-vector-convert-matrix-host", D3D12 | Vulkan | CUDA)
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
-    using matrix_in = matrix_view<float, 4, 8, true>;
-    using matrix_out = matrix_view<float, 4, 8, false>;
+    constexpr size_t rows = 4;
+    constexpr size_t cols = 8;
+    constexpr size_t matrixSize = rows * cols * sizeof(float);
 
-    uint8_t inputData[2 * 4 * 8 * sizeof(float)];
-    uint8_t outputData[2 * 4 * 8 * sizeof(float)];
+    uint8_t inputData[2 * matrixSize];
+    uint8_t outputData[2 * matrixSize];
 
-    matrix_in inputMatrix1(inputData);
-    for (size_t r = 0; r < 4; r++)
-        for (size_t c = 0; c < 8; c++)
-            inputMatrix1(r, c) = (float)(r * 8 + c);
+    matrix_view<float> inputMatrix1(inputData, rows, cols, true);
+    for (size_t r = 0; r < rows; r++)
+        for (size_t c = 0; c < cols; c++)
+            inputMatrix1(r, c) = (float)(r * cols + c);
 
-    matrix_in inputMatrix2(inputData + matrix_in::sizeBytes());
-    for (size_t r = 0; r < 4; r++)
-        for (size_t c = 0; c < 8; c++)
-            inputMatrix2(r, c) = (float)(r * 8 + c + 100);
+    matrix_view<float> inputMatrix2(inputData + matrixSize, rows, cols, true);
+    for (size_t r = 0; r < rows; r++)
+        for (size_t c = 0; c < cols; c++)
+            inputMatrix2(r, c) = (float)(r * cols + c + 100);
 
     CooperativeVectorMatrixDesc srcDesc1 = {};
-    srcDesc1.rowCount = 4;
-    srcDesc1.colCount = 8;
+    srcDesc1.rowCount = rows;
+    srcDesc1.colCount = cols;
     srcDesc1.componentType = CooperativeVectorComponentType::Float32;
     srcDesc1.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc1.size = matrix_in::sizeBytes();
+    srcDesc1.size = matrixSize;
     srcDesc1.offset = 0;
     srcDesc1.rowColumnStride = srcDesc1.colCount * sizeof(float);
 
     CooperativeVectorMatrixDesc srcDesc2 = {};
-    srcDesc2.rowCount = 4;
-    srcDesc2.colCount = 8;
+    srcDesc2.rowCount = rows;
+    srcDesc2.colCount = cols;
     srcDesc2.componentType = CooperativeVectorComponentType::Float32;
     srcDesc2.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc2.size = matrix_in::sizeBytes();
-    srcDesc2.offset = matrix_in::sizeBytes();
+    srcDesc2.size = matrixSize;
+    srcDesc2.offset = matrixSize;
     srcDesc2.rowColumnStride = srcDesc2.colCount * sizeof(float);
 
     CooperativeVectorMatrixDesc dstDesc1 = {};
-    dstDesc1.rowCount = 4;
-    dstDesc1.colCount = 8;
+    dstDesc1.rowCount = rows;
+    dstDesc1.colCount = cols;
     dstDesc1.componentType = CooperativeVectorComponentType::Float32;
     dstDesc1.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc1.size = matrix_out::sizeBytes();
+    dstDesc1.size = matrixSize;
     dstDesc1.offset = 0;
     dstDesc1.rowColumnStride = dstDesc1.rowCount * sizeof(float);
 
     CooperativeVectorMatrixDesc dstDesc2 = {};
-    dstDesc2.rowCount = 4;
-    dstDesc2.colCount = 8;
+    dstDesc2.rowCount = rows;
+    dstDesc2.colCount = cols;
     dstDesc2.componentType = CooperativeVectorComponentType::Float32;
     dstDesc2.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc2.size = matrix_out::sizeBytes();
-    dstDesc2.offset = matrix_out::sizeBytes();
+    dstDesc2.size = matrixSize;
+    dstDesc2.offset = matrixSize;
     dstDesc2.rowColumnStride = dstDesc2.rowCount * sizeof(float);
 
     CooperativeVectorMatrixDesc srcDescs[] = {srcDesc1, srcDesc2};
@@ -344,9 +355,9 @@ GPU_TEST_CASE("cooperative-vector-convert-matrix-host", D3D12 | Vulkan | CUDA)
         2
     ));
 
-    matrix_out outputMatrix(outputData);
-    CHECK(inputMatrix1 == outputMatrix);
-    matrix_out outputMatrix2(outputData + matrix_out::sizeBytes());
+    matrix_view<float> outputMatrix1(outputData, rows, cols, false);
+    CHECK(inputMatrix1 == outputMatrix1);
+    matrix_view<float> outputMatrix2(outputData + matrixSize, rows, cols, false);
     CHECK(inputMatrix2 == outputMatrix2);
 };
 
@@ -355,21 +366,22 @@ GPU_TEST_CASE("cooperative-vector-convert-matrix-device", D3D12 | Vulkan | CUDA)
     if (!device->hasFeature(Feature::CooperativeVector))
         SKIP("cooperative vector not supported");
 
-    using matrix_in = matrix_view<float, 4, 8, true>;
-    using matrix_out = matrix_view<float, 4, 8, false>;
+    constexpr size_t rows = 4;
+    constexpr size_t cols = 8;
+    constexpr size_t matrixSize = rows * cols * sizeof(float);
 
-    uint8_t inputData[2 * 4 * 8 * sizeof(float)];
-    uint8_t outputData[2 * 4 * 8 * sizeof(float)];
+    uint8_t inputData[2 * matrixSize];
+    uint8_t outputData[2 * matrixSize];
 
-    matrix_in inputMatrix1(inputData);
-    for (size_t r = 0; r < 4; r++)
-        for (size_t c = 0; c < 8; c++)
-            inputMatrix1(r, c) = (float)(r * 8 + c);
+    matrix_view<float> inputMatrix1(inputData, rows, cols, true);
+    for (size_t r = 0; r < rows; r++)
+        for (size_t c = 0; c < cols; c++)
+            inputMatrix1(r, c) = (float)(r * cols + c);
 
-    matrix_in inputMatrix2(inputData + matrix_in::sizeBytes());
-    for (size_t r = 0; r < 4; r++)
-        for (size_t c = 0; c < 8; c++)
-            inputMatrix2(r, c) = (float)(r * 8 + c + 100);
+    matrix_view<float> inputMatrix2(inputData + matrixSize, rows, cols, true);
+    for (size_t r = 0; r < rows; r++)
+        for (size_t c = 0; c < cols; c++)
+            inputMatrix2(r, c) = (float)(r * cols + c + 100);
 
     BufferDesc inputBufferDesc = {};
     inputBufferDesc.size = sizeof(inputData);
@@ -386,39 +398,39 @@ GPU_TEST_CASE("cooperative-vector-convert-matrix-device", D3D12 | Vulkan | CUDA)
     REQUIRE_CALL(device->createBuffer(outputBufferDesc, nullptr, outputBuffer.writeRef()));
 
     CooperativeVectorMatrixDesc srcDesc1 = {};
-    srcDesc1.rowCount = 4;
-    srcDesc1.colCount = 8;
+    srcDesc1.rowCount = rows;
+    srcDesc1.colCount = cols;
     srcDesc1.componentType = CooperativeVectorComponentType::Float32;
     srcDesc1.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc1.size = matrix_in::sizeBytes();
+    srcDesc1.size = matrixSize;
     srcDesc1.offset = 0;
     srcDesc1.rowColumnStride = srcDesc1.colCount * sizeof(float);
 
     CooperativeVectorMatrixDesc srcDesc2 = {};
-    srcDesc2.rowCount = 4;
-    srcDesc2.colCount = 8;
+    srcDesc2.rowCount = rows;
+    srcDesc2.colCount = cols;
     srcDesc2.componentType = CooperativeVectorComponentType::Float32;
     srcDesc2.layout = CooperativeVectorMatrixLayout::RowMajor;
-    srcDesc2.size = matrix_in::sizeBytes();
-    srcDesc2.offset = matrix_in::sizeBytes();
+    srcDesc2.size = matrixSize;
+    srcDesc2.offset = matrixSize;
     srcDesc2.rowColumnStride = srcDesc2.colCount * sizeof(float);
 
     CooperativeVectorMatrixDesc dstDesc1 = {};
-    dstDesc1.rowCount = 4;
-    dstDesc1.colCount = 8;
+    dstDesc1.rowCount = rows;
+    dstDesc1.colCount = cols;
     dstDesc1.componentType = CooperativeVectorComponentType::Float32;
     dstDesc1.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc1.size = matrix_out::sizeBytes();
+    dstDesc1.size = matrixSize;
     dstDesc1.offset = 0;
     dstDesc1.rowColumnStride = dstDesc1.rowCount * sizeof(float);
 
     CooperativeVectorMatrixDesc dstDesc2 = {};
-    dstDesc2.rowCount = 4;
-    dstDesc2.colCount = 8;
+    dstDesc2.rowCount = rows;
+    dstDesc2.colCount = cols;
     dstDesc2.componentType = CooperativeVectorComponentType::Float32;
     dstDesc2.layout = CooperativeVectorMatrixLayout::ColumnMajor;
-    dstDesc2.size = matrix_out::sizeBytes();
-    dstDesc2.offset = matrix_out::sizeBytes();
+    dstDesc2.size = matrixSize;
+    dstDesc2.offset = matrixSize;
     dstDesc2.rowColumnStride = dstDesc2.rowCount * sizeof(float);
 
     CooperativeVectorMatrixDesc srcDescs[] = {srcDesc1, srcDesc2};
@@ -434,8 +446,8 @@ GPU_TEST_CASE("cooperative-vector-convert-matrix-device", D3D12 | Vulkan | CUDA)
 
     REQUIRE_CALL(device->readBuffer(outputBuffer, 0, sizeof(outputData), outputData));
 
-    matrix_out outputMatrix(outputData);
-    CHECK(inputMatrix1 == outputMatrix);
-    matrix_out outputMatrix2(outputData + matrix_out::sizeBytes());
+    matrix_view<float> outputMatrix1(outputData, rows, cols, false);
+    CHECK(inputMatrix1 == outputMatrix1);
+    matrix_view<float> outputMatrix2(outputData + matrixSize, rows, cols, false);
     CHECK(inputMatrix2 == outputMatrix2);
 };
