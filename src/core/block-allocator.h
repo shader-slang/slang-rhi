@@ -49,9 +49,6 @@ public:
     /// @return Pointer to allocated block, or nullptr if allocation fails
     T* allocate()
     {
-        m_totalBlocksAllocated++;
-
-        // std::lock_guard<std::mutex> lock(m_pageMutex);
         FreeBlock* block = m_freeList.load(std::memory_order_acquire);
         while (block)
         {
@@ -69,7 +66,6 @@ public:
     /// @param ptr Pointer to block to deallocate
     void deallocate(T* ptr)
     {
-        // std::lock_guard<std::mutex> lock(m_pageMutex);
         if (!ptr)
             return;
         FreeBlock* block = reinterpret_cast<FreeBlock*>(ptr);
@@ -79,8 +75,6 @@ public:
             block->next.store(head, std::memory_order_release);
         }
         while (!m_freeList.compare_exchange_weak(head, block, std::memory_order_release, std::memory_order_acquire));
-
-        m_totalBlocksAllocated--;
     }
 
     /// Check if a pointer is owned by this allocator (thread safe).
@@ -227,7 +221,6 @@ private:
     std::atomic<FreeBlock*> m_freeList{nullptr};
     mutable std::mutex m_pageMutex; // Only for page allocation
     std::atomic<Page*> m_pageListHead{nullptr};
-    std::atomic<uint32_t> m_totalBlocksAllocated{0};
     uint32_t m_numPages{0};
 };
 
