@@ -546,6 +546,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingLinearSweptSpheresFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.clusterAccelerationStructureFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix1Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderFloat8Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.descriptorIndexingFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.mutableDescriptorTypeFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.pipelineBinaryFeatures);
@@ -928,6 +929,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::SPV_KHR_cooperative_matrix);
                 availableCapabilities.push_back(Capability::spvCooperativeMatrixKHR);
             }
+        );
+
+        // VK_EXT_shader_float8 is required for cooperative matrix types FloatE4M3 and FloatE5M2.
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderFloat8Features,
+            shaderFloat8CooperativeMatrix,
+            VK_EXT_SHADER_FLOAT8_EXTENSION_NAME,
+            {}
         );
 
         SIMPLE_EXTENSION_FEATURE(
