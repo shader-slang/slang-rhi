@@ -1,5 +1,7 @@
 #include "testing.h"
+#include "core/common.h"
 
+#include <cmath>
 #include <set>
 
 #define VERBOSE 0
@@ -238,56 +240,6 @@ GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
     );
 }
 
-template<typename T>
-class matrix_view
-{
-public:
-    matrix_view(void* data, size_t rows, size_t cols, bool rowMajor, size_t stride = 0)
-        : m_data(static_cast<T*>(data))
-        , m_rows(rows)
-        , m_cols(cols)
-        , m_rowMajor(rowMajor)
-        , m_stride(stride != 0 ? stride : (rowMajor ? cols : rows))
-    {
-    }
-
-    size_t rows() const { return m_rows; }
-    size_t cols() const { return m_cols; }
-    bool rowMajor() const { return m_rowMajor; }
-    size_t stride() const { return m_stride; }
-    size_t strideBytes() const { return m_stride * sizeof(T); }
-    size_t sizeBytes() const { return m_stride * (m_rowMajor ? m_rows : m_cols) * sizeof(T); }
-
-    T& operator()(size_t r, size_t c) { return m_data[getIndex(r, c)]; }
-    const T& operator()(size_t r, size_t c) const { return m_data[getIndex(r, c)]; }
-
-    bool operator==(const matrix_view<T>& other) const
-    {
-        if (m_rows != other.m_rows || m_cols != other.m_cols)
-            return false;
-        for (size_t r = 0; r < m_rows; r++)
-            for (size_t c = 0; c < m_cols; c++)
-                if (operator()(r, c) != other(r, c))
-                    return false;
-        return true;
-    }
-
-private:
-    size_t getIndex(size_t r, size_t c) const
-    {
-        if (m_rowMajor)
-            return r * m_stride + c;
-        else
-            return c * m_stride + r;
-    }
-
-    T* m_data;
-    size_t m_rows;
-    size_t m_cols;
-    bool m_rowMajor;
-    size_t m_stride;
-};
-
 /// Configuration for matrix conversion tests.
 struct MatrixConvertTestConfig
 {
@@ -295,6 +247,8 @@ struct MatrixConvertTestConfig
     uint32_t cols;
     CooperativeVectorMatrixLayout srcLayout;
     CooperativeVectorMatrixLayout dstLayout;
+    CooperativeVectorComponentType srcComponentType;
+    CooperativeVectorComponentType dstComponentType;
     uint32_t srcStride; // 0 for tight packing
     uint32_t dstStride; // 0 for tight packing
 };
@@ -303,6 +257,96 @@ struct MatrixConvertTestConfig
 inline uint32_t getTightStride(uint32_t rows, uint32_t cols, CooperativeVectorMatrixLayout layout)
 {
     return (layout == CooperativeVectorMatrixLayout::RowMajor) ? cols : rows;
+}
+
+/// Write a float value to a buffer at the given index using the specified component type.
+inline void writeComponent(void* data, size_t index, float value, CooperativeVectorComponentType type)
+{
+    switch (type)
+    {
+    case CooperativeVectorComponentType::Float32:
+        static_cast<float*>(data)[index] = value;
+        break;
+    case CooperativeVectorComponentType::Float16:
+        static_cast<uint16_t*>(data)[index] = math::floatToHalf(value);
+        break;
+    default:
+        FAIL("Unsupported component type for write");
+    }
+}
+
+/// Read a float value from a buffer at the given index using the specified component type.
+inline float readComponent(const void* data, size_t index, CooperativeVectorComponentType type)
+{
+    switch (type)
+    {
+    case CooperativeVectorComponentType::Float32:
+        return static_cast<const float*>(data)[index];
+    case CooperativeVectorComponentType::Float16:
+        return math::halfToFloat(static_cast<const uint16_t*>(data)[index]);
+    default:
+        FAIL("Unsupported component type for read");
+        return 0.f;
+    }
+}
+
+/// Get the index into a linear buffer for a row-major or column-major matrix.
+inline size_t getMatrixIndex(size_t r, size_t c, size_t rows, size_t cols, size_t stride, bool rowMajor)
+{
+    if (rowMajor)
+        return r * stride + c;
+    else
+        return c * stride + r;
+}
+
+/// Compute buffer size in bytes for a matrix.
+inline size_t getMatrixSizeBytes(
+    uint32_t rows,
+    uint32_t cols,
+    uint32_t stride,
+    bool rowMajor,
+    CooperativeVectorComponentType componentType
+)
+{
+    size_t componentSize = getCooperativeVectorComponentSize(componentType);
+    return stride * (rowMajor ? rows : cols) * componentSize;
+}
+
+/// Compare two matrices with tolerance for floating point conversions.
+inline bool compareMatrices(
+    const void* srcData,
+    uint32_t srcRows,
+    uint32_t srcCols,
+    uint32_t srcStride,
+    bool srcRowMajor,
+    CooperativeVectorComponentType srcType,
+    const void* dstData,
+    uint32_t dstRows,
+    uint32_t dstCols,
+    uint32_t dstStride,
+    bool dstRowMajor,
+    CooperativeVectorComponentType dstType,
+    float tolerance = 0.f
+)
+{
+    if (srcRows != dstRows || srcCols != dstCols)
+        return false;
+
+    for (size_t r = 0; r < srcRows; r++)
+    {
+        for (size_t c = 0; c < srcCols; c++)
+        {
+            size_t srcIdx = getMatrixIndex(r, c, srcRows, srcCols, srcStride, srcRowMajor);
+            size_t dstIdx = getMatrixIndex(r, c, dstRows, dstCols, dstStride, dstRowMajor);
+
+            float srcVal = readComponent(srcData, srcIdx, srcType);
+            float dstVal = readComponent(dstData, dstIdx, dstType);
+
+            if (std::abs(srcVal - dstVal) > tolerance)
+                return false;
+        }
+    }
+    return true;
 }
 
 /// Test matrix conversion on host.
@@ -315,34 +359,44 @@ inline void testMatrixConvertHost(IDevice* device, const MatrixConvertTestConfig
     bool srcRowMajor = config.srcLayout == CooperativeVectorMatrixLayout::RowMajor;
     bool dstRowMajor = config.dstLayout == CooperativeVectorMatrixLayout::RowMajor;
 
-    matrix_view<float> srcView(nullptr, config.rows, config.cols, srcRowMajor, srcStride);
-    matrix_view<float> dstView(nullptr, config.rows, config.cols, dstRowMajor, dstStride);
+    size_t srcComponentSize = getCooperativeVectorComponentSize(config.srcComponentType);
+    size_t dstComponentSize = getCooperativeVectorComponentSize(config.dstComponentType);
 
-    std::vector<uint8_t> srcData(srcView.sizeBytes());
-    std::vector<uint8_t> dstData(dstView.sizeBytes());
+    size_t srcSizeBytes = getMatrixSizeBytes(config.rows, config.cols, srcStride, srcRowMajor, config.srcComponentType);
+    size_t dstSizeBytes = getMatrixSizeBytes(config.rows, config.cols, dstStride, dstRowMajor, config.dstComponentType);
 
-    matrix_view<float> srcMatrix(srcData.data(), config.rows, config.cols, srcRowMajor, srcStride);
+    std::vector<uint8_t> srcData(srcSizeBytes);
+    std::vector<uint8_t> dstData(dstSizeBytes);
+
+    // Fill source matrix with test data.
+    // Use small integer values that can be represented exactly in Float16.
     for (size_t r = 0; r < config.rows; r++)
+    {
         for (size_t c = 0; c < config.cols; c++)
-            srcMatrix(r, c) = (float)(r * config.cols + c);
+        {
+            size_t idx = getMatrixIndex(r, c, config.rows, config.cols, srcStride, srcRowMajor);
+            float value = (float)((r * config.cols + c) % 32);
+            writeComponent(srcData.data(), idx, value, config.srcComponentType);
+        }
+    }
 
     CooperativeVectorMatrixDesc srcDesc = {};
     srcDesc.rowCount = config.rows;
     srcDesc.colCount = config.cols;
-    srcDesc.componentType = CooperativeVectorComponentType::Float32;
+    srcDesc.componentType = config.srcComponentType;
     srcDesc.layout = config.srcLayout;
-    srcDesc.size = srcView.sizeBytes();
+    srcDesc.size = srcSizeBytes;
     srcDesc.offset = 0;
-    srcDesc.rowColumnStride = srcStride * sizeof(float);
+    srcDesc.rowColumnStride = srcStride * srcComponentSize;
 
     CooperativeVectorMatrixDesc dstDesc = {};
     dstDesc.rowCount = config.rows;
     dstDesc.colCount = config.cols;
-    dstDesc.componentType = CooperativeVectorComponentType::Float32;
+    dstDesc.componentType = config.dstComponentType;
     dstDesc.layout = config.dstLayout;
-    dstDesc.size = dstView.sizeBytes();
+    dstDesc.size = dstSizeBytes;
     dstDesc.offset = 0;
-    dstDesc.rowColumnStride = dstStride * sizeof(float);
+    dstDesc.rowColumnStride = dstStride * dstComponentSize;
 
     REQUIRE_CALL(device->convertCooperativeVectorMatrix(
         dstData.data(),
@@ -354,8 +408,21 @@ inline void testMatrixConvertHost(IDevice* device, const MatrixConvertTestConfig
         1
     ));
 
-    matrix_view<float> dstMatrix(dstData.data(), config.rows, config.cols, dstRowMajor, dstStride);
-    CHECK(srcMatrix == dstMatrix);
+    bool match = compareMatrices(
+        srcData.data(),
+        config.rows,
+        config.cols,
+        srcStride,
+        srcRowMajor,
+        config.srcComponentType,
+        dstData.data(),
+        config.rows,
+        config.cols,
+        dstStride,
+        dstRowMajor,
+        config.dstComponentType
+    );
+    CHECK(match);
 }
 
 /// Test matrix conversion on device.
@@ -368,16 +435,26 @@ inline void testMatrixConvertDevice(IDevice* device, const MatrixConvertTestConf
     bool srcRowMajor = config.srcLayout == CooperativeVectorMatrixLayout::RowMajor;
     bool dstRowMajor = config.dstLayout == CooperativeVectorMatrixLayout::RowMajor;
 
-    matrix_view<float> srcView(nullptr, config.rows, config.cols, srcRowMajor, srcStride);
-    matrix_view<float> dstView(nullptr, config.rows, config.cols, dstRowMajor, dstStride);
+    size_t srcComponentSize = getCooperativeVectorComponentSize(config.srcComponentType);
+    size_t dstComponentSize = getCooperativeVectorComponentSize(config.dstComponentType);
 
-    std::vector<uint8_t> srcData(srcView.sizeBytes());
-    std::vector<uint8_t> dstData(dstView.sizeBytes());
+    size_t srcSizeBytes = getMatrixSizeBytes(config.rows, config.cols, srcStride, srcRowMajor, config.srcComponentType);
+    size_t dstSizeBytes = getMatrixSizeBytes(config.rows, config.cols, dstStride, dstRowMajor, config.dstComponentType);
 
-    matrix_view<float> srcMatrix(srcData.data(), config.rows, config.cols, srcRowMajor, srcStride);
+    std::vector<uint8_t> srcData(srcSizeBytes);
+    std::vector<uint8_t> dstData(dstSizeBytes);
+
+    // Fill source matrix with test data.
+    // Use small integer values that can be represented exactly in Float16.
     for (size_t r = 0; r < config.rows; r++)
+    {
         for (size_t c = 0; c < config.cols; c++)
-            srcMatrix(r, c) = (float)(r * config.cols + c);
+        {
+            size_t idx = getMatrixIndex(r, c, config.rows, config.cols, srcStride, srcRowMajor);
+            float value = (float)((r * config.cols + c) % 32);
+            writeComponent(srcData.data(), idx, value, config.srcComponentType);
+        }
+    }
 
     BufferDesc srcBufferDesc = {};
     srcBufferDesc.size = srcData.size();
@@ -396,20 +473,20 @@ inline void testMatrixConvertDevice(IDevice* device, const MatrixConvertTestConf
     CooperativeVectorMatrixDesc srcDesc = {};
     srcDesc.rowCount = config.rows;
     srcDesc.colCount = config.cols;
-    srcDesc.componentType = CooperativeVectorComponentType::Float32;
+    srcDesc.componentType = config.srcComponentType;
     srcDesc.layout = config.srcLayout;
-    srcDesc.size = srcView.sizeBytes();
+    srcDesc.size = srcSizeBytes;
     srcDesc.offset = 0;
-    srcDesc.rowColumnStride = srcStride * sizeof(float);
+    srcDesc.rowColumnStride = srcStride * srcComponentSize;
 
     CooperativeVectorMatrixDesc dstDesc = {};
     dstDesc.rowCount = config.rows;
     dstDesc.colCount = config.cols;
-    dstDesc.componentType = CooperativeVectorComponentType::Float32;
+    dstDesc.componentType = config.dstComponentType;
     dstDesc.layout = config.dstLayout;
-    dstDesc.size = dstView.sizeBytes();
+    dstDesc.size = dstSizeBytes;
     dstDesc.offset = 0;
-    dstDesc.rowColumnStride = dstStride * sizeof(float);
+    dstDesc.rowColumnStride = dstStride * dstComponentSize;
 
     {
         auto queue = device->getQueue(QueueType::Graphics);
@@ -421,8 +498,21 @@ inline void testMatrixConvertDevice(IDevice* device, const MatrixConvertTestConf
 
     REQUIRE_CALL(device->readBuffer(dstBuffer, 0, dstData.size(), dstData.data()));
 
-    matrix_view<float> dstMatrix(dstData.data(), config.rows, config.cols, dstRowMajor, dstStride);
-    CHECK(srcMatrix == dstMatrix);
+    bool match = compareMatrices(
+        srcData.data(),
+        config.rows,
+        config.cols,
+        srcStride,
+        srcRowMajor,
+        config.srcComponentType,
+        dstData.data(),
+        config.rows,
+        config.cols,
+        dstStride,
+        dstRowMajor,
+        config.dstComponentType
+    );
+    CHECK(match);
 }
 
 /// Get test configurations for matrix conversion tests.
@@ -430,7 +520,7 @@ inline std::vector<MatrixConvertTestConfig> getMatrixConvertTestConfigs()
 {
     std::vector<MatrixConvertTestConfig> configs;
 
-    // Test various matrix sizes with tight packing.
+    // Test various matrix sizes with tight packing and Float32.
     std::vector<std::pair<uint32_t, uint32_t>> sizes = {
         {4, 8},   // even x even
         {8, 4},   // even x even (transposed)
@@ -451,30 +541,127 @@ inline std::vector<MatrixConvertTestConfig> getMatrixConvertTestConfigs()
         {CooperativeVectorMatrixLayout::ColumnMajor, CooperativeVectorMatrixLayout::ColumnMajor},
     };
 
+    // Test matrix sizes and layouts with Float32 -> Float32.
     for (const auto& [rows, cols] : sizes)
     {
         for (const auto& [srcLayout, dstLayout] : layoutPairs)
         {
-            configs.push_back({rows, cols, srcLayout, dstLayout, 0, 0});
+            configs.push_back({
+                rows,
+                cols,
+                srcLayout,
+                dstLayout,
+                CooperativeVectorComponentType::Float32,
+                CooperativeVectorComponentType::Float32,
+                0,
+                0,
+            });
         }
     }
 
     // Test with custom strides (larger than tight packing).
     // Use 8x8 matrix with extra padding.
-    configs.push_back(
-        {8, 8, CooperativeVectorMatrixLayout::RowMajor, CooperativeVectorMatrixLayout::ColumnMajor, 16, 16}
-    );
-    configs.push_back(
-        {8, 8, CooperativeVectorMatrixLayout::ColumnMajor, CooperativeVectorMatrixLayout::RowMajor, 16, 16}
-    );
+    configs.push_back({
+        8,
+        8,
+        CooperativeVectorMatrixLayout::RowMajor,
+        CooperativeVectorMatrixLayout::ColumnMajor,
+        CooperativeVectorComponentType::Float32,
+        CooperativeVectorComponentType::Float32,
+        16,
+        16,
+    });
+    configs.push_back({
+        8,
+        8,
+        CooperativeVectorMatrixLayout::ColumnMajor,
+        CooperativeVectorMatrixLayout::RowMajor,
+        CooperativeVectorComponentType::Float32,
+        CooperativeVectorComponentType::Float32,
+        16,
+        16,
+    });
     // Mixed: tight source, padded destination.
-    configs.push_back(
-        {8, 8, CooperativeVectorMatrixLayout::RowMajor, CooperativeVectorMatrixLayout::ColumnMajor, 0, 16}
-    );
+    configs.push_back({
+        8,
+        8,
+        CooperativeVectorMatrixLayout::RowMajor,
+        CooperativeVectorMatrixLayout::ColumnMajor,
+        CooperativeVectorComponentType::Float32,
+        CooperativeVectorComponentType::Float32,
+        0,
+        16,
+    });
     // Mixed: padded source, tight destination.
-    configs.push_back(
-        {8, 8, CooperativeVectorMatrixLayout::RowMajor, CooperativeVectorMatrixLayout::ColumnMajor, 16, 0}
-    );
+    configs.push_back({
+        8,
+        8,
+        CooperativeVectorMatrixLayout::RowMajor,
+        CooperativeVectorMatrixLayout::ColumnMajor,
+        CooperativeVectorComponentType::Float32,
+        CooperativeVectorComponentType::Float32,
+        16,
+        0,
+    });
+
+    // Test component type conversions with a representative matrix size.
+    std::vector<std::pair<CooperativeVectorComponentType, CooperativeVectorComponentType>> typePairs = {
+        // Float16 conversions
+        {CooperativeVectorComponentType::Float16, CooperativeVectorComponentType::Float16},
+        {CooperativeVectorComponentType::Float32, CooperativeVectorComponentType::Float16},
+        {CooperativeVectorComponentType::Float16, CooperativeVectorComponentType::Float32},
+    };
+
+    for (const auto& [srcType, dstType] : typePairs)
+    {
+        for (const auto& [srcLayout, dstLayout] : layoutPairs)
+        {
+            configs.push_back({
+                8,
+                8,
+                srcLayout,
+                dstLayout,
+                srcType,
+                dstType,
+                0,
+                0,
+            });
+        }
+    }
+
+    // Test component type conversion with odd-sized matrix.
+    configs.push_back({
+        7,
+        5,
+        CooperativeVectorMatrixLayout::RowMajor,
+        CooperativeVectorMatrixLayout::ColumnMajor,
+        CooperativeVectorComponentType::Float32,
+        CooperativeVectorComponentType::Float16,
+        0,
+        0,
+    });
+    configs.push_back({
+        7,
+        5,
+        CooperativeVectorMatrixLayout::RowMajor,
+        CooperativeVectorMatrixLayout::ColumnMajor,
+        CooperativeVectorComponentType::Float16,
+        CooperativeVectorComponentType::Float32,
+        0,
+        0,
+    });
+
+    // Test component type conversion with custom strides.
+    configs.push_back({
+        8,
+        8,
+        CooperativeVectorMatrixLayout::RowMajor,
+        CooperativeVectorMatrixLayout::ColumnMajor,
+        CooperativeVectorComponentType::Float32,
+        CooperativeVectorComponentType::Float16,
+        16,
+        16,
+    });
 
     return configs;
 }
@@ -490,6 +677,8 @@ GPU_TEST_CASE("cooperative-vector-convert-matrix-host", D3D12 | Vulkan | CUDA)
         CAPTURE(config.cols);
         CAPTURE(config.srcLayout);
         CAPTURE(config.dstLayout);
+        CAPTURE(config.srcComponentType);
+        CAPTURE(config.dstComponentType);
         CAPTURE(config.srcStride);
         CAPTURE(config.dstStride);
         testMatrixConvertHost(device, config);
@@ -507,6 +696,8 @@ GPU_TEST_CASE("cooperative-vector-convert-matrix-device", D3D12 | Vulkan | CUDA)
         CAPTURE(config.cols);
         CAPTURE(config.srcLayout);
         CAPTURE(config.dstLayout);
+        CAPTURE(config.srcComponentType);
+        CAPTURE(config.dstComponentType);
         CAPTURE(config.srcStride);
         CAPTURE(config.dstStride);
         testMatrixConvertDevice(device, config);
