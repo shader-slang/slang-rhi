@@ -6,6 +6,7 @@
 #include <atomic>
 #include <chrono>
 #include <set>
+#include <cstdlib>
 
 using namespace rhi;
 
@@ -51,7 +52,7 @@ TEST_CASE("block-allocator-single-threaded")
 
         // Destruct and deallocate
         obj->~TestObject();
-        allocator.deallocate(obj);
+        allocator.free(obj);
     }
 
     SUBCASE("multiple-allocations")
@@ -78,7 +79,7 @@ TEST_CASE("block-allocator-single-threaded")
         for (auto obj : objects)
         {
             obj->~TestObject();
-            allocator.deallocate(obj);
+            allocator.free(obj);
         }
     }
 
@@ -89,7 +90,7 @@ TEST_CASE("block-allocator-single-threaded")
         REQUIRE(obj1 != nullptr);
         new (obj1) TestObject(1, 1.0);
         obj1->~TestObject();
-        allocator.deallocate(obj1);
+        allocator.free(obj1);
 
         // Allocate again - should reuse the same block
         TestObject* obj2 = allocator.allocate();
@@ -99,7 +100,7 @@ TEST_CASE("block-allocator-single-threaded")
         new (obj2) TestObject(2, 2.0);
         CHECK(obj2->value == 2);
         obj2->~TestObject();
-        allocator.deallocate(obj2);
+        allocator.free(obj2);
     }
 
     SUBCASE("allocate-multiple-pages")
@@ -121,7 +122,7 @@ TEST_CASE("block-allocator-single-threaded")
         // Deallocate all
         for (auto obj : objects)
         {
-            allocator.deallocate(obj);
+            allocator.free(obj);
         }
     }
 }
@@ -137,7 +138,7 @@ TEST_CASE("block-allocator-ownership")
 
         CHECK(allocator.owns(obj));
 
-        allocator.deallocate(obj);
+        allocator.free(obj);
 
         // Still owns the memory even after deallocation
         CHECK(allocator.owns(obj));
@@ -182,7 +183,7 @@ TEST_CASE("block-allocator-ownership")
         // Deallocate all
         for (auto obj : objects)
         {
-            allocator.deallocate(obj);
+            allocator.free(obj);
         }
     }
 }
@@ -201,13 +202,15 @@ TEST_CASE("block-allocator-reset")
     // Free half of them
     for (int i = 0; i < 4; ++i)
     {
-        allocator.deallocate(objects[i]);
+        allocator.free(objects[i]);
     }
 
     // Reset the allocator
     allocator.reset();
 
     // After reset, should be able to allocate all blocks again
+    // and get the same pointers back (in some order)
+    std::set<TestObject*> originalPtrs(objects.begin(), objects.end());
     std::vector<TestObject*> newObjects;
     for (int i = 0; i < 8; ++i)
     {
@@ -216,10 +219,20 @@ TEST_CASE("block-allocator-reset")
         newObjects.push_back(obj);
     }
 
+    // All new allocations should be from the same set of pointers
+    for (auto obj : newObjects)
+    {
+        CHECK(originalPtrs.count(obj) == 1);
+    }
+
+    // All should be unique
+    std::set<TestObject*> newPtrs(newObjects.begin(), newObjects.end());
+    CHECK(newPtrs.size() == 8);
+
     // Clean up
     for (auto obj : newObjects)
     {
-        allocator.deallocate(obj);
+        allocator.free(obj);
     }
 }
 
@@ -260,7 +273,7 @@ TEST_CASE("block-allocator-multi-threaded")
         for (auto obj : localObjects)
         {
             obj->~TestObject();
-            allocator.deallocate(obj);
+            allocator.free(obj);
             totalDeallocations.fetch_add(1, std::memory_order_relaxed);
         }
     };
@@ -285,7 +298,8 @@ TEST_CASE("block-allocator-multi-threaded")
 
 TEST_CASE("block-allocator-stress-test")
 {
-    BlockAllocator<TestObject> allocator(1000);
+    constexpr int blocksPerPage = 1000;
+    BlockAllocator<TestObject> allocator(blocksPerPage);
 
     // Quick test for CI
     constexpr int numThreads = 16;
@@ -294,14 +308,14 @@ TEST_CASE("block-allocator-stress-test")
 
     // Mega test takes about 30 mins
     // constexpr int numThreads = 16;
-    // constexpr int iterations = 100000;
+    // constexpr int iterations = 10000;
     // constexpr int objectsPerIteration = 10000;
 
     auto threadFunc = [&]()
     {
         for (int iter = 0; iter < iterations; ++iter)
         {
-            CHECK(allocator.getNumPages() < (numThreads * objectsPerIteration * 2) / 1000);
+            CHECK(allocator.getNumPages() < (numThreads * objectsPerIteration * 2) / blocksPerPage);
 
             std::vector<TestObject*> objects;
             objects.reserve(objectsPerIteration * 2);
@@ -324,11 +338,10 @@ TEST_CASE("block-allocator-stress-test")
             {
                 if (objects[i])
                 {
-                    CHECK(objects[i]->value == static_cast<int>(i));
-                    bool thread_cmp = (objects[i]->thread == id);
-                    CHECK(thread_cmp); // doc test can't compile CHECK(objects[i]->thread == id);
+                    CHECK_EQ(objects[i]->value, static_cast<int>(i));
+                    CHECK_EQ(objects[i]->thread, id);
                     objects[i]->~TestObject();
-                    allocator.deallocate(objects[i]);
+                    allocator.free(objects[i]);
                     objects[i] = nullptr;
                 }
             }
@@ -349,16 +362,15 @@ TEST_CASE("block-allocator-stress-test")
             {
                 if (objects[i])
                 {
-                    CHECK(objects[i]->value == static_cast<int>(i));
-                    bool thread_cmp = (objects[i]->thread == id);
-                    CHECK(thread_cmp); // doc test can't compile CHECK(objects[i]->thread == id);
+                    CHECK_EQ(objects[i]->value, static_cast<int>(i));
+                    CHECK_EQ(objects[i]->thread, id);
                     objects[i]->~TestObject();
-                    allocator.deallocate(objects[i]);
+                    allocator.free(objects[i]);
                     objects[i] = nullptr;
                 }
             }
 
-            CHECK(allocator.getNumPages() < (numThreads * objectsPerIteration * 2) / 1000);
+            CHECK(allocator.getNumPages() < (numThreads * objectsPerIteration * 2) / blocksPerPage);
         }
     };
 
@@ -397,7 +409,7 @@ TEST_CASE("block-allocator-performance")
 
         for (auto obj : objects)
         {
-            allocator.deallocate(obj);
+            allocator.free(obj);
         }
 
         auto end = std::chrono::high_resolution_clock::now();
@@ -473,16 +485,19 @@ TEST_CASE("block-allocator-macro-system")
 
     SUBCASE("fallback-to-heap")
     {
-        // Allocate using standard operator new (bypassing custom operator)
-        void* memory = ::operator new(sizeof(TestMacroClass));
+        // Allocate raw memory using malloc (bypassing custom operator new)
+        void* memory = std::malloc(sizeof(TestMacroClass));
+        REQUIRE(memory != nullptr);
+
+        // Construct object in place using global placement new
         TestMacroClass* obj = ::new (memory) TestMacroClass(200);
 
         // Should NOT be owned by the allocator
         CHECK_FALSE(TestMacroClass::getAllocator().owns(obj));
 
-        // Manually destruct and free
+        // Manually destruct and free with matching deallocation
         obj->~TestMacroClass();
-        ::operator delete(memory);
+        std::free(memory);
     }
 
     SUBCASE("multiple-allocations-with-macro")
