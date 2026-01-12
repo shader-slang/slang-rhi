@@ -16,11 +16,11 @@ namespace rhi {
 /// Allocates fixed-size blocks out of larger pages.
 /// Thread-safe for concurrent allocations and deallocations.
 ///
-/// When SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR is enabled (default):
+/// When SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR is enabled:
 /// - Uses a lockless free list for allocation/deallocation.
 /// - Uses atomic operations and lock-free algorithms.
 ///
-/// When SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR is disabled:
+/// When SLANG_RHI_LOCKLESS_BLOCK_ALLOCATOR is disabled (default):
 /// - Uses a mutex to protect all public APIs.
 /// - Uses plain pointer operations (no atomic overhead).
 ///
