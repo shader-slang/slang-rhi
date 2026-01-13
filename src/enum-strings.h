@@ -24,6 +24,7 @@ const char* enumToString(TextureReductionOp value);
 const char* enumToString(InputSlotClass value);
 const char* enumToString(PrimitiveTopology value);
 const char* enumToString(QueryType value);
+const char* enumToString(CooperativeVectorMatrixLayout value);
 const char* enumToString(CooperativeVectorComponentType value);
 
 } // namespace rhi

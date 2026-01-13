@@ -1903,7 +1903,6 @@ Result DeviceImpl::getCooperativeVectorMatrixSize(
     nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     nvDesc.dstStride = rowColumnStride;
     SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc));
-    *outSize = math::calcAligned(*outSize, 64);
     return SLANG_OK;
 #else
     return SLANG_E_NOT_AVAILABLE;

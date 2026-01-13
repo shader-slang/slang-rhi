@@ -4,6 +4,7 @@
 
 #include "core/common.h"
 #include "core/short_vector.h"
+#include "core/block-allocator.h"
 
 #include "reference.h"
 
@@ -206,6 +207,8 @@ using ShaderObjectSetBindingHook = void (*)(
 
 class ShaderObject : public IShaderObject, public ComObject
 {
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ShaderObject)
+
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderObject* getInterface(const Guid& guid);
@@ -327,6 +330,8 @@ protected:
 
 class RootShaderObject : public ShaderObject
 {
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(RootShaderObject)
+
 public:
     RefPtr<ShaderProgram> m_shaderProgram;
 
