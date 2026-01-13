@@ -459,6 +459,11 @@ struct VulkanExtendedFeatures
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV
     };
 
+    // Float8 features.
+    VkPhysicalDeviceShaderFloat8FeaturesEXT shaderFloat8Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT
+    };
+
     // Linear swept spheres features.
     VkPhysicalDeviceRayTracingLinearSweptSpheresFeaturesNV rayTracingLinearSweptSpheresFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_LINEAR_SWEPT_SPHERES_FEATURES_NV

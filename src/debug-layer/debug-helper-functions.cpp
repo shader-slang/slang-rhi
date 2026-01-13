@@ -714,11 +714,6 @@ Result validateConvertCooperativeVectorMatrix(
             RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].size must not be zero", i);
             valid = false;
         }
-        if (dstDescs[i].offset % 64 != 0)
-        {
-            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].offset must be a multiple of 64 bytes", i);
-            valid = false;
-        }
         switch (dstDescs[i].layout)
         {
         case CooperativeVectorMatrixLayout::RowMajor:
@@ -735,6 +730,11 @@ Result validateConvertCooperativeVectorMatrix(
             break;
         case CooperativeVectorMatrixLayout::InferencingOptimal:
         case CooperativeVectorMatrixLayout::TrainingOptimal:
+            if (dstDescs[i].offset % 64 != 0)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].offset must be a multiple of 64 bytes", i);
+                valid = false;
+            }
             if (dstDescs[i].rowColumnStride != 0)
             {
                 RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowColumnStride must be zero for optimal layouts", i);
@@ -762,11 +762,6 @@ Result validateConvertCooperativeVectorMatrix(
             RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].size must not be zero", i);
             valid = false;
         }
-        if (srcDescs[i].offset % 64 != 0)
-        {
-            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].offset must be a multiple of 64 bytes", i);
-            valid = false;
-        }
         switch (srcDescs[i].layout)
         {
         case CooperativeVectorMatrixLayout::RowMajor:
@@ -783,6 +778,11 @@ Result validateConvertCooperativeVectorMatrix(
             break;
         case CooperativeVectorMatrixLayout::InferencingOptimal:
         case CooperativeVectorMatrixLayout::TrainingOptimal:
+            if (srcDescs[i].offset % 64 != 0)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].offset must be a multiple of 64 bytes", i);
+                valid = false;
+            }
             if (srcDescs[i].rowColumnStride != 0)
             {
                 RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].rowColumnStride must be zero for optimal layouts", i);
