@@ -393,6 +393,22 @@ const char* enumToString(QueryType value)
     return S_INVALID;
 }
 
+const char* enumToString(CooperativeVectorMatrixLayout value)
+{
+    switch (value)
+    {
+    case CooperativeVectorMatrixLayout::RowMajor:
+        return S_CooperativeVectorMatrixLayout_RowMajor;
+    case CooperativeVectorMatrixLayout::ColumnMajor:
+        return S_CooperativeVectorMatrixLayout_ColumnMajor;
+    case CooperativeVectorMatrixLayout::InferencingOptimal:
+        return S_CooperativeVectorMatrixLayout_InferencingOptimal;
+    case CooperativeVectorMatrixLayout::TrainingOptimal:
+        return S_CooperativeVectorMatrixLayout_TrainingOptimal;
+    }
+    return S_INVALID;
+}
+
 const char* enumToString(CooperativeVectorComponentType value)
 {
     switch (value)

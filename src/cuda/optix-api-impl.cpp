@@ -12,6 +12,7 @@
 
 #include "core/stable_vector.h"
 #include "core/string.h"
+#include "cooperative-vector-utils.h"
 
 #define OPTIX_DONT_INCLUDE_CUDA
 #define OPTIX_ENABLE_SDK_MIXING
@@ -1325,6 +1326,16 @@ public:
     ) const override
     {
 #if OPTIX_VERSION >= 90000
+        // For non-optimal layouts (RowMajor/ColumnMajor), compute the size manually
+        // to match the behavior of D3D12 and Vulkan backends. The OptiX API rounds
+        // up to 64-byte boundaries which is inconsistent with other backends.
+        if (layout == CooperativeVectorMatrixLayout::RowMajor || layout == CooperativeVectorMatrixLayout::ColumnMajor)
+        {
+            *outSize = computeCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride);
+            return SLANG_OK;
+        }
+
+        // For optimal layouts, use the OptiX API since the size is implementation-defined.
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
             optixCoopVecMatrixComputeSize(
                 m_deviceContext,
