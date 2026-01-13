@@ -875,8 +875,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Signal main fence - force event if pool pressure or external fences requested on last buffer
-        bool forceEvent = poolPressure || (desc.signalFenceCount > 0 && i == desc.commandBufferCount - 1);
+        // Signal main fence - force event only if pool pressure detected.
+        // External fences use setCurrentValue() and don't require CUDA events.
+        bool forceEvent = poolPressure;
         uint64_t submissionID;
         SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID, forceEvent));
 
