@@ -4,6 +4,12 @@
 
 namespace rhi {
 
+// ----------------------------------------------------------------------------
+// Allocators (~1MB page size for each type)
+// ----------------------------------------------------------------------------
+
+SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(ShaderObject, 4 * 1024)
+SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(RootShaderObject, 4 * 1024)
 
 // ----------------------------------------------------------------------------
 // ShaderObjectLayout
