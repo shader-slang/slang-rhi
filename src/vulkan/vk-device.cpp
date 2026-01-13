@@ -420,7 +420,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if (isDebugLayersEnabled() && m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((is_set(desc.debugDeviceOptions, DebugDeviceOptions::RaytracingValidation) || isDebugLayersEnabled()) &&
+        m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
