@@ -747,7 +747,11 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
 Result CommandQueueImpl::retireCommandBuffers()
 {
     // Run fence logic so m_lastFinishedID is up to date.
-    SLANG_RETURN_ON_FAIL(updateFence());
+    // Skip if already fully synced (e.g., after waitOnHost or in destructor).
+    if (m_lastFinishedID < m_lastSubmittedID)
+    {
+        SLANG_RETURN_ON_FAIL(updateFence());
+    }
 
     // Retire command buffers that're passed the submission ID
     auto cbIt = m_commandBuffersInFlight.begin();
