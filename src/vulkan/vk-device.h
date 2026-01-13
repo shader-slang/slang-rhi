@@ -20,7 +20,6 @@ public:
 
     Result initVulkanInstanceAndDevice(
         const DeviceDesc& desc,
-        bool enableValidationLayer,
         std::vector<Feature>& availableFeatures,
         std::vector<Capability>& availableCapabilities
     );

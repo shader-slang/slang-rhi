@@ -275,6 +275,5 @@ namespace rhi {
 
 IAdapter* getD3D12Adapter(uint32_t index);
 Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
-void enableD3D12DebugLayerIfAvailable();
 
 } // namespace rhi
