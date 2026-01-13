@@ -677,7 +677,11 @@ CommandQueueImpl::~CommandQueueImpl()
     }
 
     // After event + stream sync, ALL work is done - update directly so sparse events don't block retirement.
-    m_lastFinishedID = m_lastSubmittedID;
+    // Thread-safe: protect shared state access (defensive, shouldn't have concurrent access during destruction)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_lastFinishedID = m_lastSubmittedID;
+    }
 
     // Retire finished command buffers, which should be all of them
     retireCommandBuffers();
@@ -783,6 +787,9 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 
 Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId, bool forceEvent)
 {
+    // Thread-safe: protect all shared state access with mutex
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     // Increment submit count
     m_lastSubmittedID++;
     m_submissionsSinceLastEvent++;
@@ -808,6 +815,9 @@ Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId, bool forc
 
 Result CommandQueueImpl::updateFence()
 {
+    // Thread-safe: protect all shared state access with mutex
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     // Iterate the submit events to update the last finished ID
     auto submitIt = m_submitEvents.begin();
     while (submitIt != m_submitEvents.end())
@@ -907,7 +917,11 @@ Result CommandQueueImpl::waitOnHost()
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
 
     // After stream sync, ALL work is done - update directly so sparse events don't block retirement.
-    m_lastFinishedID = m_lastSubmittedID;
+    // Thread-safe: protect shared state access
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_lastFinishedID = m_lastSubmittedID;
+    }
 
     // Retire command buffers that have completed.
     retireCommandBuffers();
