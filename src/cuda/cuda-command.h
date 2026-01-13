@@ -20,6 +20,11 @@ public:
     uint64_t m_lastSubmittedID = 0;
     uint64_t m_lastFinishedID = 0;
 
+    // Sparse event signaling: create events every N submissions instead of every one.
+    // CUDA streams are ordered, so if event at submission N completes, all 0..N-1 are complete.
+    static constexpr uint32_t kEventSignalInterval = 32;
+    uint32_t m_submissionsSinceLastEvent = 0;
+
     std::mutex m_mutex;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
@@ -35,7 +40,7 @@ public:
     void retireCommandBuffer(CommandBufferImpl* commandBuffer);
     Result retireCommandBuffers();
 
-    Result signalFence(CUstream stream, uint64_t* outId);
+    Result signalFence(CUstream stream, uint64_t* outId, bool forceEvent = false);
     Result updateFence();
 
     // ICommandQueue implementation
