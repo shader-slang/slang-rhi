@@ -3581,8 +3581,14 @@ SLANG_RHI_ENUM_CLASS_OPERATORS(DebugLayerOptions);
 class IRHI
 {
 protected:
+    friend class LiveDeviceTracker;
+
     DebugLayerOptions debugLayerOptions = DebugLayerOptions::None;
     int totalLiveDevices = 0;
+    /// Increment the total number of live devices created by this IRHI instance.
+    void incrementLiveDeviceCount() { totalLiveDevices++; }
+    /// Decrement the total number of live devices created by this IRHI instance
+    void decrementLiveDeviceCount() { totalLiveDevices--; }
 
 public:
     virtual SLANG_NO_THROW const FormatInfo& SLANG_MCALL getFormatInfo(Format format) = 0;
