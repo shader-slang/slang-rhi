@@ -664,6 +664,14 @@ CommandQueueImpl::~CommandQueueImpl()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
+    // Capture submission count before sync to avoid race.
+    // During destruction, there should be NO concurrent submissions, but be defensive.
+    uint64_t lastIDBeforeSync;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        lastIDBeforeSync = m_lastSubmittedID;
+    }
+
     // Block on all events completing
     for (const auto& ev : m_submitEvents)
     {
@@ -676,11 +684,13 @@ CommandQueueImpl::~CommandQueueImpl()
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
     }
 
-    // After event + stream sync, ALL work is done - update directly so sparse events don't block retirement.
-    // Thread-safe: protect shared state access (defensive, shouldn't have concurrent access during destruction)
+    // After event + stream sync, ALL work submitted before destruction is done.
+    // Assert no new submissions happened during destruction (would be a bug).
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_lastFinishedID = m_lastSubmittedID;
+        SLANG_RHI_ASSERT(m_lastSubmittedID == lastIDBeforeSync &&
+                         "New submissions during queue destruction!");
+        m_lastFinishedID = lastIDBeforeSync;
     }
 
     // Retire finished command buffers, which should be all of them
@@ -913,14 +923,24 @@ Result CommandQueueImpl::waitOnHost()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
+    // Capture the last submitted ID BEFORE sync to avoid race condition.
+    // If we read m_lastSubmittedID after sync, another thread could have
+    // submitted new work in between, and we'd incorrectly mark it as finished.
+    uint64_t lastIDBeforeSync;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        lastIDBeforeSync = m_lastSubmittedID;
+    }
+
+    // Synchronize stream and context (no lock held during blocking operations)
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
 
-    // After stream sync, ALL work is done - update directly so sparse events don't block retirement.
-    // Thread-safe: protect shared state access
+    // After stream sync, ALL work submitted BEFORE sync is done.
+    // Update to the captured value (not current m_lastSubmittedID).
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_lastFinishedID = m_lastSubmittedID;
+        m_lastFinishedID = lastIDBeforeSync;
     }
 
     // Retire command buffers that have completed.
