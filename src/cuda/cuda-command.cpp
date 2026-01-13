@@ -670,14 +670,22 @@ CommandQueueImpl::~CommandQueueImpl()
         SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
     }
 
+    // Sync the stream to ensure all work is done
+    if (m_stream)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
+    }
+
+    // After event + stream sync, ALL work is done - update directly so sparse events don't block retirement.
+    m_lastFinishedID = m_lastSubmittedID;
+
     // Retire finished command buffers, which should be all of them
     retireCommandBuffers();
     SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
 
-    // Sync/destroy the stream
+    // Destroy the stream
     if (m_stream)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
     }
 }
@@ -769,17 +777,25 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
+Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId, bool forceEvent)
 {
     // Increment submit count
     m_lastSubmittedID++;
+    m_submissionsSinceLastEvent++;
 
-    // Record submission event so we can detect completion
-    SubmitEvent ev;
-    ev.submitID = m_lastSubmittedID;
-    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
-    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
-    m_submitEvents.push_back(ev);
+    // Create event only when: forced, interval reached, or first submission.
+    // CUDA streams are ordered, so if event at submission N completes, all 0..N-1 are complete.
+    bool createEvent = forceEvent || (m_submissionsSinceLastEvent >= kEventSignalInterval) || (m_lastSubmittedID == 1);
+
+    if (createEvent)
+    {
+        SubmitEvent ev;
+        ev.submitID = m_lastSubmittedID;
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
+        SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
+        m_submitEvents.push_back(ev);
+        m_submissionsSinceLastEvent = 0;
+    }
 
     if (outId)
         *outId = m_lastSubmittedID;
@@ -826,6 +842,14 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Check if we need to retire command buffers that have completed.
     retireCommandBuffers();
 
+    // Detect pool pressure - force event creation if pool is empty and we have many in-flight.
+    // This ensures command buffers can be recycled before running out.
+    bool poolPressure = false;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        poolPressure = m_commandBuffersPool.empty() && m_commandBuffersInFlight.size() >= kEventSignalInterval;
+    }
+
     // Select either the queue's default stream or the stream
     // specified in the descriptor,and switch to it for the scope
     // of this submission.
@@ -851,9 +875,10 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Signal main fence
+        // Signal main fence - force event if pool pressure or external fences requested on last buffer
+        bool forceEvent = poolPressure || (desc.signalFenceCount > 0 && i == desc.commandBufferCount - 1);
         uint64_t submissionID;
-        SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
+        SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID, forceEvent));
 
         // Record the command buffer + corresponding submit ID
         commandBuffer->m_submissionID = submissionID;
@@ -875,6 +900,9 @@ Result CommandQueueImpl::waitOnHost()
 
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
+
+    // After stream sync, ALL work is done - update directly so sparse events don't block retirement.
+    m_lastFinishedID = m_lastSubmittedID;
 
     // Retire command buffers that have completed.
     retireCommandBuffers();
