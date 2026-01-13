@@ -627,16 +627,8 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
         cmd.countBuffer.offset
     );
 #else
-    // MultiDrawIndirect is not supported on Emscripten WebGPU
-    // Only single draw is supported, so we use maxDrawCount of 1
-    if (cmd.maxDrawCount > 0)
-    {
-        m_ctx.api.wgpuRenderPassEncoderDrawIndirect(
-            m_renderPassEncoder,
-            checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
-            cmd.argBuffer.offset
-        );
-    }
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndirect);
 #endif
 }
 
@@ -655,16 +647,8 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
         cmd.countBuffer.offset
     );
 #else
-    // MultiDrawIndexedIndirect is not supported on Emscripten WebGPU
-    // Only single draw is supported, so we use maxDrawCount of 1
-    if (cmd.maxDrawCount > 0)
-    {
-        m_ctx.api.wgpuRenderPassEncoderDrawIndexedIndirect(
-            m_renderPassEncoder,
-            checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
-            cmd.argBuffer.offset
-        );
-    }
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexedIndirect);
 #endif
 }
 
