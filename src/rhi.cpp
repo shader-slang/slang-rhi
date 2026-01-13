@@ -150,11 +150,6 @@ public:
     virtual Result reportLiveObjects() override;
     virtual Result setTaskPool(ITaskPool* scheduler) override;
 
-    /// Increment the total number of live devices created by this IRHI instance.
-    void incrementLiveDeviceCount() { totalLiveDevices++; }
-    /// Decrement the total number of live devices created by this IRHI instance
-    void decrementLiveDeviceCount() { totalLiveDevices--; }
-
     static RHI* getInstance()
     {
         static RHI instance;
@@ -409,16 +404,6 @@ Result RHI::reportLiveObjects()
 Result RHI::setTaskPool(ITaskPool* taskPool)
 {
     return setGlobalTaskPool(taskPool);
-}
-
-extern "C" SLANG_RHI_API void SLANG_STDCALL incrementLiveDeviceCount()
-{
-    rhi::RHI::getInstance()->incrementLiveDeviceCount();
-}
-
-extern "C" SLANG_RHI_API void SLANG_STDCALL decrementLiveDeviceCount()
-{
-    rhi::RHI::getInstance()->decrementLiveDeviceCount();
 }
 
 } // namespace rhi

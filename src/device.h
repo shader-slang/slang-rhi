@@ -145,21 +145,17 @@ public:
     }
 };
 
-extern "C" SLANG_RHI_API void SLANG_STDCALL incrementLiveDeviceCount();
-extern "C" SLANG_RHI_API void SLANG_STDCALL decrementLiveDeviceCount();
+class LiveDeviceTracker : public RefObject
+{
+public:
+    LiveDeviceTracker() { getRHI()->incrementLiveDeviceCount(); }
+    ~LiveDeviceTracker() { getRHI()->decrementLiveDeviceCount(); }
+};
 
 // Device implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
 class Device : public IDevice, public ComObject
 {
-private:
-    class LiveDeviceTracker : public RefObject
-    {
-    public:
-        LiveDeviceTracker() { incrementLiveDeviceCount(); }
-        ~LiveDeviceTracker() { decrementLiveDeviceCount(); }
-    };
-
 public:
     using IDevice::readTexture;
     using IDevice::readBuffer;
