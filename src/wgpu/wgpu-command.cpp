@@ -617,6 +617,7 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     if (!m_renderStateValid)
         return;
 
+#if !SLANG_WASM
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndirect(
         m_renderPassEncoder,
         checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
@@ -625,6 +626,10 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
         cmd.countBuffer ? checked_cast<BufferImpl*>(cmd.countBuffer.buffer)->m_buffer : nullptr,
         cmd.countBuffer.offset
     );
+#else
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndirect);
+#endif
 }
 
 void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
@@ -632,6 +637,7 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     if (!m_renderStateValid)
         return;
 
+#if !SLANG_WASM
     m_ctx.api.wgpuRenderPassEncoderMultiDrawIndexedIndirect(
         m_renderPassEncoder,
         checked_cast<BufferImpl*>(cmd.argBuffer.buffer)->m_buffer,
@@ -640,6 +646,10 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
         cmd.countBuffer ? checked_cast<BufferImpl*>(cmd.countBuffer.buffer)->m_buffer : nullptr,
         cmd.countBuffer.offset
     );
+#else
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexedIndirect);
+#endif
 }
 
 void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
@@ -945,7 +955,11 @@ Result CommandQueueImpl::waitOnHost()
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
         WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#if SLANG_WASM
+        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
+#else
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+#endif
         {
             *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
         };
