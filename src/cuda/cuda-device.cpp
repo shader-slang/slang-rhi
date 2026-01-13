@@ -379,7 +379,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     optixContextDesc.device = this;
     optixContextDesc.requiredOptixVersion = desc.requiredOptixVersion;
     optixContextDesc.existingOptixDeviceContext = existingOptixDeviceContext;
-    optixContextDesc.enableRayTracingValidation = desc.enableRayTracingValidation;
+    optixContextDesc.enableRayTracingValidation = is_set(desc.debugDeviceOptions, DebugDeviceOptions::RaytracingValidation);
     if (SLANG_SUCCEEDED(optix::createContext(optixContextDesc, m_ctx.optixContext.writeRef())))
     {
         addFeature(Feature::AccelerationStructure);

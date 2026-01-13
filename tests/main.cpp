@@ -32,10 +32,6 @@ int main(int argc, const char** argv)
 
     rhi::testing::cleanupTestTempDirectories();
 
-#if SLANG_RHI_DEBUG
-    rhi::getRHI()->enableDebugLayers();
-#endif
-
     // Parse extra command line options.
     {
         auto& options = rhi::testing::options();

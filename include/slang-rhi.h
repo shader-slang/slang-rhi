@@ -2916,16 +2916,28 @@ struct DeviceInfo
 
 enum class DebugMessageType
 {
-    Info,
-    Warning,
-    Error
+    None = 0,
+
+    Info = (1 << 0),
+    Warning = (1 << 1),
+    Error = (1 << 2),
+
+    All = Info | Warning | Error,
 };
+SLANG_RHI_ENUM_CLASS_OPERATORS(DebugMessageType)
+
 enum class DebugMessageSource
 {
-    Layer,
-    Driver,
-    Slang
+    None = 0,
+
+    Layer = (1 << 0),
+    Driver = (1 << 1),
+    Slang = (1 << 2),
+
+    All = Layer | Driver | Slang,
 };
+SLANG_RHI_ENUM_CLASS_OPERATORS(DebugMessageSource)
+
 class IDebugCallback
 {
 public:
@@ -2977,6 +2989,23 @@ struct DeviceNativeHandles
 {
     NativeHandle handles[3] = {};
 };
+
+/// Per device options that can be toggled to enhance debugging experience
+enum class DebugDeviceOptions
+{
+    None = 0,
+
+    /// Enable validation for of the Slang-RHI API (All).
+    /// This does not provide down-stream API validation.
+    SlangRHIValidation = (1 << 0),
+    /// Enable NVIDIA Aftermath (D3D11 | D3D12 | Vulkan).
+    Aftermath = (1 << 1),
+    /// Enable downstream API raytracing validation (CUDA | D3D12 | Vulkan).
+    RaytracingValidation = (1 << 2),
+
+    All = SlangRHIValidation | Aftermath | RaytracingValidation
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(DebugDeviceOptions);
 
 enum class AftermathFlags
 {
@@ -3031,12 +3060,9 @@ struct DeviceDesc
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t requiredOptixVersion = 0;
 
-    /// Enable RHI validation layer.
-    bool enableValidation = false;
-    /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
-    bool enableRayTracingValidation = false;
-    /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
-    bool enableAftermath = false;
+    /// Flags of different (per device) debug options to enable.
+    DebugDeviceOptions debugDeviceOptions = DebugDeviceOptions::None;
+    /// Requires DebugDeviceOptions::Aftermath to be enabled.
     /// Aftermath configuration.
     AftermathFlags aftermathFlags = AftermathFlags::Default;
     /// Debug callback. If not null, this will be called for each debug message.
@@ -3537,8 +3563,27 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
 };
 
+/// Options for downstream API debug layers.
+enum class DebugLayerOptions
+{
+    /// Disable debug layer
+    None = 0,
+
+    /// Enable core debug layers (D3D12 | Vulkan).
+    CoreValidation = (1 << 0),
+    /// Enable GPU assisted/based debug layer (D3D12 | Vulkan).
+    GPUAssistedValidation = (1 << 1),
+
+    All = CoreValidation | GPUAssistedValidation,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(DebugLayerOptions);
+
 class IRHI
 {
+protected:
+    DebugLayerOptions debugLayerOptions = DebugLayerOptions::None;
+    int totalLiveDevices = 0;
+
 public:
     virtual SLANG_NO_THROW const FormatInfo& SLANG_MCALL getFormatInfo(Format format) = 0;
 
@@ -3560,10 +3605,6 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(getAdapters(type, blob.writeRef()));
         return AdapterList(blob);
     }
-
-    /// Enable debug layers, if available.
-    /// If this is called, it must be called before creating any devices.
-    virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
 
     /// Creates a device.
     virtual SLANG_NO_THROW Result SLANG_MCALL createDevice(const DeviceDesc& desc, IDevice** outDevice) = 0;
@@ -3592,6 +3633,29 @@ public:
     /// Set the global task pool for the RHI.
     /// Must be called before any devices are created.
     virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPool(ITaskPool* taskPool) = 0;
+
+    /// Check is downstream debug layer is enabled
+    bool isDebugLayersEnabled() { return debugLayerOptions != DebugLayerOptions::None; }
+
+    /// Change downstream debug layer options.
+    /// All devices must be released.
+    /// Fails if not all devices are released.
+    Result setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions)
+    {
+        if (totalLiveDevices != 0)
+            return SLANG_FAIL;
+        this->debugLayerOptions = newDebugLayerOptions;
+        return SLANG_OK;
+    }
+
+    /// Get current downstream debug layer options.
+    DebugLayerOptions getDebugLayerOptions() { return debugLayerOptions; }
+
+    /// Check if downstream debug layer option is set.
+    bool isDebugLayerOptionSet(DebugLayerOptions debugLayerOption)
+    {
+        return is_set(this->debugLayerOptions, debugLayerOption);
+    }
 };
 
 // Extended descs.
@@ -3642,6 +3706,66 @@ inline IRHI* getRHI()
 inline const FormatInfo& getFormatInfo(Format format)
 {
     return getRHI()->getFormatInfo(format);
+}
+
+/// Check is debug layer is enabled
+inline bool isDebugLayersEnabled()
+{
+    return getRHI()->isDebugLayersEnabled();
+}
+
+/// Change downstream debug layer options.
+/// All devices must be released.
+/// Fails if not all devices are released.
+inline Result setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions)
+{
+    return getRHI()->setDebugLayerOptions(newDebugLayerOptions);
+}
+
+/// Get current downstream debug layer options.
+inline DebugLayerOptions getDebugLayerOptions()
+{
+    return getRHI()->getDebugLayerOptions();
+}
+
+/// Check if downstream debug layer option is set.
+inline bool isDebugLayerOptionSet(DebugLayerOptions debugLayerOption)
+{
+    return getRHI()->isDebugLayerOptionSet(debugLayerOption);
+}
+
+inline const char* const debugMessageTypeToString(DebugMessageType debugMessageType)
+{
+    switch (debugMessageType)
+    {
+    case DebugMessageType::Info:
+        return "Info";
+    case DebugMessageType::Warning:
+        return "Warning";
+    case DebugMessageType::Error:
+        return "Error";
+    default:
+        // Missing case
+        assert(false);
+        return "Invalid";
+    }
+}
+
+inline const char* const debugMessageSourceToString(DebugMessageSource debugMessageSource)
+{
+    switch (debugMessageSource)
+    {
+    case DebugMessageSource::Layer:
+        return "Layer";
+    case DebugMessageSource::Driver:
+        return "Driver";
+    case DebugMessageSource::Slang:
+        return "Slang";
+    default:
+        // Missing case
+        assert(false);
+        return "Invalid";
+    }
 }
 
 } // namespace rhi

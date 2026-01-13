@@ -28,7 +28,6 @@ Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 Result reportD3DLiveObjects();
-void enableD3D12DebugLayerIfAvailable();
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
@@ -136,8 +135,6 @@ inline const FormatInfo& _getFormatInfo(Format format)
 class RHI : public IRHI
 {
 public:
-    bool debugLayersEnabled = false;
-
     virtual const FormatInfo& getFormatInfo(Format format) override { return _getFormatInfo(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;
@@ -146,13 +143,17 @@ public:
 
     virtual IAdapter* getAdapter(DeviceType type, uint32_t index) override;
     virtual Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
-    virtual void enableDebugLayers() override;
     virtual Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
 
     virtual Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;
 
     virtual Result reportLiveObjects() override;
     virtual Result setTaskPool(ITaskPool* scheduler) override;
+
+    /// Increment the total number of live devices created by this IRHI instance.
+    void incrementLiveDeviceCount() { totalLiveDevices++; }
+    /// Decrement the total number of live devices created by this IRHI instance
+    void decrementLiveDeviceCount() { totalLiveDevices--; }
 
     static RHI* getInstance()
     {
@@ -357,23 +358,13 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
     }
 }
 
-void RHI::enableDebugLayers()
-{
-    if (debugLayersEnabled)
-        return;
-#if SLANG_RHI_ENABLE_D3D12
-    enableD3D12DebugLayerIfAvailable();
-#endif
-    debugLayersEnabled = true;
-}
-
 Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
 {
     ComPtr<IDevice> innerDevice;
     auto resultCode = _createDevice(&desc, innerDevice.writeRef());
     if (SLANG_FAILED(resultCode))
         return resultCode;
-    if (!desc.enableValidation)
+    if (!is_set(desc.debugDeviceOptions, DebugDeviceOptions::SlangRHIValidation))
     {
         returnComPtr(outDevice, innerDevice);
         return resultCode;
@@ -420,9 +411,14 @@ Result RHI::setTaskPool(ITaskPool* taskPool)
     return setGlobalTaskPool(taskPool);
 }
 
-bool isDebugLayersEnabled()
+extern "C" SLANG_RHI_API void SLANG_STDCALL incrementLiveDeviceCount()
 {
-    return RHI::getInstance()->debugLayersEnabled;
+    rhi::RHI::getInstance()->incrementLiveDeviceCount();
+}
+
+extern "C" SLANG_RHI_API void SLANG_STDCALL decrementLiveDeviceCount()
+{
+    rhi::RHI::getInstance()->decrementLiveDeviceCount();
 }
 
 } // namespace rhi

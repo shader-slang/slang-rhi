@@ -145,10 +145,21 @@ public:
     }
 };
 
+extern "C" SLANG_RHI_API void SLANG_STDCALL incrementLiveDeviceCount();
+extern "C" SLANG_RHI_API void SLANG_STDCALL decrementLiveDeviceCount();
+
 // Device implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
 class Device : public IDevice, public ComObject
 {
+private:
+    class LiveDeviceTracker : public RefObject
+    {
+    public:
+        LiveDeviceTracker() { incrementLiveDeviceCount(); }
+        ~LiveDeviceTracker() { decrementLiveDeviceCount(); }
+    };
+
 public:
     using IDevice::readTexture;
     using IDevice::readBuffer;
@@ -455,6 +466,8 @@ public:
     std::vector<Heap*> m_globalHeaps;
 
     IDebugCallback* m_debugCallback = nullptr;
+
+    RefPtr<LiveDeviceTracker> m_liveDeviceTracker = RefPtr<LiveDeviceTracker>(new LiveDeviceTracker());
 };
 
 /// Mark the default adapter in the list, preferring the first discrete adapter.
