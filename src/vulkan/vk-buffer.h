@@ -27,11 +27,18 @@ public:
 
     ~VKBufferHandleRAII()
     {
-        if (m_api)
-        {
-            m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
-        }
+        reset();
+    }
+
+    void reset()
+    {
+        if (!m_api)
+            return;
+        m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
+        m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+        m_buffer = VK_NULL_HANDLE;
+        m_memory = VK_NULL_HANDLE;
+        m_api = nullptr;
     }
 
     VkBuffer m_buffer;

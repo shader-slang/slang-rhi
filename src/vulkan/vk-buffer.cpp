@@ -395,7 +395,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
                 1,
                 &copyInfo
             );
-            m_deviceQueue.flush();
+            m_deviceQueue.flushAndWait();
+            buffer->m_uploadBuffer.reset();
         }
         else
         {
