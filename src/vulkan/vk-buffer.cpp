@@ -371,7 +371,8 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            SLANG_RETURN_ON_FAIL(buffer->m_uploadBuffer.init(
+            VKBufferHandleRAII uploadBuffer;
+            SLANG_RETURN_ON_FAIL(uploadBuffer.init(
                 m_api,
                 bufferSize,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -379,9 +380,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             ));
             // Copy into staging buffer
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
             ::memcpy(mappedData, initData, bufferSize);
-            m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
+            m_api.vkUnmapMemory(m_device, uploadBuffer.m_memory);
 
             // Copy from staging buffer to real buffer
             VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
@@ -390,13 +391,12 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             copyInfo.size = bufferSize;
             m_api.vkCmdCopyBuffer(
                 commandBuffer,
-                buffer->m_uploadBuffer.m_buffer,
+                uploadBuffer.m_buffer,
                 buffer->m_buffer.m_buffer,
                 1,
                 &copyInfo
             );
             m_deviceQueue.flushAndWait();
-            buffer->m_uploadBuffer.reset();
         }
         else
         {

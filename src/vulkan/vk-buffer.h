@@ -53,7 +53,6 @@ public:
     ~BufferImpl();
 
     VKBufferHandleRAII m_buffer;
-    VKBufferHandleRAII m_uploadBuffer;
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 
