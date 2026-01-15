@@ -389,13 +389,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
             VkBufferCopy copyInfo = {};
             copyInfo.size = bufferSize;
-            m_api.vkCmdCopyBuffer(
-                commandBuffer,
-                uploadBuffer.m_buffer,
-                buffer->m_buffer.m_buffer,
-                1,
-                &copyInfo
-            );
+            m_api.vkCmdCopyBuffer(commandBuffer, uploadBuffer.m_buffer, buffer->m_buffer.m_buffer, 1, &copyInfo);
             m_deviceQueue.flushAndWait();
         }
         else

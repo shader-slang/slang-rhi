@@ -25,10 +25,7 @@ public:
     {
     }
 
-    ~VKBufferHandleRAII()
-    {
-        reset();
-    }
+    ~VKBufferHandleRAII() { reset(); }
 
     void reset()
     {
