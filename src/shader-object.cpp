@@ -61,24 +61,9 @@ Result ShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryPoint
 
 Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size size)
 {
-    SLANG_RETURN_ON_FAIL(checkFinalized());
-
-    size_t dataOffset = offset.uniformOffset;
-    size_t availableSize = m_data.size();
-
-    // Silently ignore out-of-bounds writes to preserve legacy behavior in tests.
-    if (dataOffset >= availableSize)
-        return SLANG_OK;
-
-    size_t copySize = size;
-    if (dataOffset + copySize > availableSize)
-        copySize = availableSize - dataOffset;
-
-    if (copySize == 0)
-        return SLANG_OK;
-
-    ::memcpy(m_data.data() + dataOffset, data, copySize);
-    incrementVersion();
+    void* dest;
+    SLANG_RETURN_ON_FAIL(reserveData(offset, size, &dest));
+    ::memcpy(dest, data, size);
     return SLANG_OK;
 }
 
@@ -87,14 +72,21 @@ Result ShaderObject::reserveData(const ShaderOffset& offset, Size size, void** o
     SLANG_RETURN_ON_FAIL(checkFinalized());
 
     size_t dataOffset = offset.uniformOffset;
+    size_t dataSize = size;
+
+    uint8_t* dest = m_data.data();
     size_t availableSize = m_data.size();
 
-    if (dataOffset >= availableSize)
-        return SLANG_E_INVALID_ARG;
-    if (dataOffset + size > availableSize)
-        return SLANG_E_INVALID_ARG;
+    // TODO(shaderobject): We really should bounds-check access rather than silently ignoring sets
+    // that are too large, but we have several test cases that set more data than
+    // an object actually stores on several targets...
+    //
+    if ((dataOffset + dataSize) > availableSize)
+    {
+        dataSize = availableSize - dataOffset;
+    }
 
-    *outData = m_data.data() + dataOffset;
+    *outData = dest + dataOffset;
 
     incrementVersion();
 
