@@ -258,12 +258,9 @@ struct SLANG_RHI_API RefPtr
 
     void operator=(RefPtr<T>&& p)
     {
-        if (this == &p)
-            return;
         T* old = pointer;
         pointer = p.pointer;
-        p.pointer = nullptr;
-        releaseReference(old);
+        p.pointer = old;
     }
 
     template<typename U>
