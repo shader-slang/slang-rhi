@@ -9,7 +9,7 @@ GPU_TEST_CASE_EX("acceleration-structure-creation-with-validation", Vulkan, GPUA
 {
     // Ensure that GPU-AV does not assert when using an acceleration-structure
     DeviceExtraOptions deviceExtraOptions{};
-    deviceExtraOptions.debugMessageTypesToEmit = DebugMessageType::Error;
+    deviceExtraOptions.debugMessageTypesToEmit = { DebugMessageType::Error };
     device = createTestingDevice(ctx, ctx->deviceType, false, &deviceExtraOptions);
     auto m_device = device;
     auto m_queue = m_device->getQueue(QueueType::Graphics);

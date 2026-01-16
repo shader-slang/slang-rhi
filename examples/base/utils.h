@@ -85,8 +85,8 @@ inline Result createDevice(
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
 #if SLANG_RHI_DEBUG
-    setDebugLayerOptions(DebugLayerOptions::CoreValidation);
-    deviceDesc.debugDeviceOptions |= DebugDeviceOptions::SlangRHIValidation;
+    setDebugLayerOptions({true});
+    deviceDesc.enableValidation = true;
     deviceDesc.debugCallback = DebugPrinter::getInstance();
 #endif
     const char* searchPaths[] = {EXAMPLE_DIR};

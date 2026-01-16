@@ -203,8 +203,8 @@ struct ShaderCacheTest
         // (And in general reduce the differences (and duplication) between
         // here and render-test-main.cpp)
 #if SLANG_RHI_DEBUG
-        setDebugLayerOptions(DebugLayerOptions::CoreValidation);
-        deviceDesc.debugDeviceOptions |= DebugDeviceOptions::SlangRHIValidation;
+        setDebugLayerOptions({true});
+        deviceDesc.enableValidation = true;
 #endif
 
         REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
