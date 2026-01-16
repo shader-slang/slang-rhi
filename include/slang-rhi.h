@@ -2739,6 +2739,27 @@ enum class HeapUsage
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
 
+/// Configuration for PyTorch-style caching allocator.
+/// When enabled, freed pages are cached for reuse instead of being returned to the GPU.
+/// This reduces allocation overhead and improves performance for repeated allocations.
+struct HeapCachingConfig
+{
+    /// Enable caching allocator (default: true)
+    bool enabled = true;
+
+    /// Maximum number of pages to cache (0 = unlimited)
+    uint32_t maxCachedPages = 0;
+
+    /// Maximum total cached memory in bytes (0 = unlimited)
+    Size maxCachedMemory = 0;
+
+    /// Enable garbage collection when memory pressure is detected
+    bool enableGarbageCollection = false;
+
+    /// Trigger garbage collection when GPU memory usage exceeds this ratio (0.0-1.0)
+    float gcMemoryThreshold = 0.8f;
+};
+
 struct HeapDesc
 {
     StructType structType = StructType::HeapDesc;
@@ -2751,6 +2772,9 @@ struct HeapDesc
 
     /// The label for the heap.
     const char* label = nullptr;
+
+    /// Configuration for caching allocator (PyTorch-style memory reuse)
+    HeapCachingConfig caching;
 };
 
 struct HeapAllocDesc

@@ -47,6 +47,42 @@ public:
 
         virtual DeviceAddress offsetToAddress(Size offset) = 0;
 
+        // ============================================================================
+        // Stream tracking for caching allocator (PyTorch-style)
+        // ============================================================================
+
+        /// The stream this page was originally allocated on.
+        /// This NEVER changes - ownership remains with original stream (PyTorch model).
+        /// Backend-specific handle (CUstream for CUDA, queue handle for D3D/Vk).
+        void* m_stream = nullptr;
+
+        /// Record that this page is being used by a stream different from m_stream.
+        /// Backend implementations override this to insert synchronization events.
+        /// Following PyTorch model: events are only added when stream != m_stream.
+        /// @param stream The stream using this page (backend-specific handle)
+        virtual void recordStreamUse(void* stream)
+        {
+            // Default: no-op, backend overrides with event insertion
+            (void)stream;
+        }
+
+        /// Check if this page can be reused (all pending stream events completed).
+        /// Backend implementations override this to query event completion status.
+        /// @return true if the page can be safely reused
+        virtual bool canReuse() const
+        {
+            // Default: always reusable (no cross-stream tracking)
+            return true;
+        }
+
+        /// Process completed events and clean up.
+        /// Called periodically or before reuse checks.
+        /// Backend implementations override to query and remove completed events.
+        virtual void processEvents()
+        {
+            // Default: no-op
+        }
+
         uint32_t m_id;
         Heap* m_heap;
         PageDesc m_desc;

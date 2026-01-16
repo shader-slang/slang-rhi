@@ -1,0 +1,309 @@
+#include "testing.h"
+
+#include <string>
+#include <vector>
+
+#include "rhi-shared.h"
+
+using namespace rhi;
+using namespace rhi::testing;
+
+// Helper function to create a buffer and run a simple compute shader
+void runDummyCompute(IDevice* device)
+{
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = 1024;
+    bufferDesc.format = Format::Undefined;
+    bufferDesc.elementSize = sizeof(uint32_t);
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IBuffer> src, dst;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, src.writeRef()));
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, dst.writeRef()));
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-buffer-copy", "computeMain", shaderProgram.writeRef()));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    ComPtr<ICommandQueue> queue;
+    REQUIRE_CALL(device->getQueue(QueueType::Graphics, queue.writeRef()));
+
+    auto commandEncoder = queue->createCommandEncoder();
+    auto passEncoder = commandEncoder->beginComputePass();
+    auto rootObject = passEncoder->bindPipeline(pipeline);
+    ShaderCursor shaderCursor(rootObject);
+    shaderCursor["src"].setBinding(src);
+    shaderCursor["dst"].setBinding(dst);
+    passEncoder->dispatchCompute(1, 1, 1);
+    passEncoder->end();
+
+    ComPtr<ICommandBuffer> cb = commandEncoder->finish();
+    REQUIRE_CALL(queue->submit(cb));
+}
+
+GPU_TEST_CASE("caching-allocator-enabled-by-default", CUDA)
+{
+    // Create a heap with default settings - caching should be enabled
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    // Allocate and free memory
+    HeapAllocDesc allocDesc;
+    allocDesc.size = 1024 * 1024; // 1 MB
+    allocDesc.alignment = 128;
+
+    HeapAlloc allocation;
+    REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
+
+    HeapReport report = heap->report();
+    CHECK_EQ(report.numPages, 1);
+    Size initialMemUsage = report.totalMemUsage;
+
+    // Free the allocation
+    REQUIRE_CALL(heap->free(allocation));
+
+    // With caching enabled, the page should still exist (cached for reuse)
+    report = heap->report();
+    CHECK_EQ(report.totalAllocated, 0);
+    CHECK_EQ(report.numAllocations, 0);
+    // Page count should still be 1 (page is cached, not freed)
+    CHECK_EQ(report.numPages, 1);
+    CHECK_EQ(report.totalMemUsage, initialMemUsage);
+}
+
+GPU_TEST_CASE("caching-allocator-page-reuse", CUDA)
+{
+    // Test that freed pages are reused for new allocations
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    HeapAllocDesc allocDesc;
+    allocDesc.size = 1024 * 1024; // 1 MB
+    allocDesc.alignment = 128;
+
+    // First allocation
+    HeapAlloc alloc1;
+    REQUIRE_CALL(heap->allocate(allocDesc, &alloc1));
+
+    HeapReport report = heap->report();
+    CHECK_EQ(report.numPages, 1);
+    Size pageSize = report.totalMemUsage;
+
+    // Free the allocation
+    REQUIRE_CALL(heap->free(alloc1));
+
+    // Second allocation of same size - should reuse the cached page
+    HeapAlloc alloc2;
+    REQUIRE_CALL(heap->allocate(allocDesc, &alloc2));
+
+    report = heap->report();
+    // Should still have only 1 page (reused the cached one)
+    CHECK_EQ(report.numPages, 1);
+    CHECK_EQ(report.totalMemUsage, pageSize);
+
+    // Clean up
+    REQUIRE_CALL(heap->free(alloc2));
+}
+
+GPU_TEST_CASE("caching-allocator-multiple-pages", CUDA)
+{
+    // Test caching with multiple pages of different sizes
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    std::vector<HeapAlloc> allocations;
+
+    // Allocate pages of different sizes
+    std::vector<Size> sizes = {
+        512 * 1024,      // Small (8MB page)
+        4 * 1024 * 1024, // Medium (8MB page)
+        16 * 1024 * 1024 // Large (64MB page)
+    };
+
+    HeapAllocDesc allocDesc;
+    allocDesc.alignment = 128;
+
+    for (Size size : sizes)
+    {
+        allocDesc.size = size;
+        HeapAlloc alloc;
+        REQUIRE_CALL(heap->allocate(allocDesc, &alloc));
+        allocations.push_back(alloc);
+    }
+
+    HeapReport report = heap->report();
+    uint32_t initialPageCount = report.numPages;
+    Size initialMemUsage = report.totalMemUsage;
+
+    // Free all allocations
+    for (auto& alloc : allocations)
+    {
+        REQUIRE_CALL(heap->free(alloc));
+    }
+
+    // Pages should be cached (not freed)
+    report = heap->report();
+    CHECK_EQ(report.totalAllocated, 0);
+    CHECK_EQ(report.numAllocations, 0);
+    CHECK_EQ(report.numPages, initialPageCount);
+    CHECK_EQ(report.totalMemUsage, initialMemUsage);
+
+    // Allocate again - should reuse cached pages
+    allocations.clear();
+    for (Size size : sizes)
+    {
+        allocDesc.size = size;
+        HeapAlloc alloc;
+        REQUIRE_CALL(heap->allocate(allocDesc, &alloc));
+        allocations.push_back(alloc);
+    }
+
+    report = heap->report();
+    // Page count should not have increased
+    CHECK_EQ(report.numPages, initialPageCount);
+
+    // Clean up
+    for (auto& alloc : allocations)
+    {
+        REQUIRE_CALL(heap->free(alloc));
+    }
+}
+
+GPU_TEST_CASE("caching-allocator-disabled", CUDA)
+{
+    // Test that caching can be disabled
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+    desc.caching.enabled = false;
+
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    HeapAllocDesc allocDesc;
+    allocDesc.size = 1024 * 1024;
+    allocDesc.alignment = 128;
+
+    // Allocate
+    HeapAlloc alloc;
+    REQUIRE_CALL(heap->allocate(allocDesc, &alloc));
+
+    HeapReport report = heap->report();
+    CHECK_EQ(report.numPages, 1);
+
+    // Free
+    REQUIRE_CALL(heap->free(alloc));
+
+    // With caching disabled, page should be actually freed
+    // (Note: freePage is called immediately, but removeEmptyPages needs to be called)
+    REQUIRE_CALL(heap->removeEmptyPages());
+
+    report = heap->report();
+    CHECK_EQ(report.numPages, 0);
+    CHECK_EQ(report.totalMemUsage, 0);
+}
+
+GPU_TEST_CASE("caching-allocator-with-gpu-work", CUDA)
+{
+    // Test that caching works correctly with GPU work in progress
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+
+    HeapAllocDesc allocDesc;
+    allocDesc.size = 1024 * 1024;
+    allocDesc.alignment = 128;
+
+    // Allocate
+    HeapAlloc alloc;
+    REQUIRE_CALL(heap->allocate(allocDesc, &alloc));
+
+    // Run some GPU work
+    runDummyCompute(device);
+
+    // Free the allocation while GPU work is pending
+    REQUIRE_CALL(heap->free(alloc));
+
+    HeapReport report = heap->report();
+    // With pending GPU work, allocation might still be reported as allocated
+    // (pending free mechanism)
+
+    // Wait for GPU
+    queue->waitOnHost();
+    REQUIRE_CALL(heap->flush());
+
+    report = heap->report();
+    CHECK_EQ(report.totalAllocated, 0);
+    CHECK_EQ(report.numAllocations, 0);
+    // Page should still exist (cached)
+    CHECK_EQ(report.numPages, 1);
+
+    // New allocation should reuse the cached page
+    HeapAlloc alloc2;
+    REQUIRE_CALL(heap->allocate(allocDesc, &alloc2));
+
+    report = heap->report();
+    CHECK_EQ(report.numPages, 1);
+
+    REQUIRE_CALL(heap->free(alloc2));
+}
+
+GPU_TEST_CASE("caching-allocator-stress-test", CUDA)
+{
+    // Stress test with many allocations and frees
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    HeapAllocDesc allocDesc;
+    allocDesc.size = 256 * 1024; // 256KB
+    allocDesc.alignment = 128;
+
+    // Perform many allocation/free cycles
+    for (int cycle = 0; cycle < 10; cycle++)
+    {
+        std::vector<HeapAlloc> allocations;
+
+        // Allocate multiple blocks
+        for (int i = 0; i < 5; i++)
+        {
+            HeapAlloc alloc;
+            REQUIRE_CALL(heap->allocate(allocDesc, &alloc));
+            allocations.push_back(alloc);
+        }
+
+        // Free all
+        for (auto& alloc : allocations)
+        {
+            REQUIRE_CALL(heap->free(alloc));
+        }
+    }
+
+    // After many cycles, pages should be cached and reused
+    // Memory usage should not grow unboundedly
+    HeapReport report = heap->report();
+
+    // Should have reasonable number of pages (not one per allocation)
+    CHECK(report.numPages <= 5); // Should be much less than 50 (10 cycles * 5 allocs)
+}
