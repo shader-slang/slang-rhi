@@ -134,7 +134,17 @@ inline const FormatInfo& _getFormatInfo(Format format)
 
 class RHI : public IRHI
 {
+private:
+    DebugLayerOptions debugLayerOptions = {};
+    int totalLiveDevices = 0;
+
+    virtual void incrementLiveDeviceCount() override { totalLiveDevices++; }
+    virtual void decrementLiveDeviceCount() override { totalLiveDevices--; }
 public:
+
+    virtual Result setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions);
+    virtual DebugLayerOptions getDebugLayerOptions() override { return debugLayerOptions; }
+
     virtual const FormatInfo& getFormatInfo(Format format) override { return _getFormatInfo(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;
@@ -156,6 +166,14 @@ public:
         return &instance;
     }
 };
+
+Result RHI::setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions)
+{
+    if (totalLiveDevices != 0)
+        return SLANG_FAIL;
+    this->debugLayerOptions = newDebugLayerOptions;
+    return SLANG_OK;
+}
 
 const char* RHI::getDeviceTypeName(DeviceType type)
 {
@@ -359,7 +377,7 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
     auto resultCode = _createDevice(&desc, innerDevice.writeRef());
     if (SLANG_FAILED(resultCode))
         return resultCode;
-    if (!is_set(desc.debugDeviceOptions, DebugDeviceOptions::SlangRHIValidation))
+    if (!desc.enableValidation)
     {
         returnComPtr(outDevice, innerDevice);
         return resultCode;

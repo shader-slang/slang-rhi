@@ -128,17 +128,19 @@ static CaptureDebugCallback sCaptureDebugCallback;
 class DebugCallback : public IDebugCallback
 {
 public:
-    DebugMessageType debugMessageTypesToEmit = DebugMessageType::None;
-    DebugMessageSource debugMessageSourcesToEmitFrom = DebugMessageSource::None;
+    std::set<DebugMessageType> debugMessageTypesToEmit =
+        {DebugMessageType::Info, DebugMessageType::Warning, DebugMessageType::Error};
+    std::set<DebugMessageSource> debugMessageSourcesToEmitFrom =
+        {DebugMessageSource::Slang, DebugMessageSource::Layer, DebugMessageSource::Driver};
 
     bool shouldIgnoreMessage(DebugMessageType type, DebugMessageSource source, const char* message)
     {
-        if (!is_set(debugMessageTypesToEmit, type))
+        if (debugMessageTypesToEmit.find(type) == debugMessageTypesToEmit.end())
             return true;
-        if (!is_set(debugMessageSourcesToEmitFrom, source))
+        if (debugMessageSourcesToEmitFrom.find(source) == debugMessageSourcesToEmitFrom.end())
             return true;
 
-        if (is_set(type, DebugMessageType::Error))
+        if (type == DebugMessageType::Error)
         {
             // These 2 messages pop up as the vulkan validation layer doesn't pick up on CoopVec yet
             if (strstr(message, "VK_NV_cooperative_vector is not supported by this layer"))
@@ -167,35 +169,8 @@ public:
         if (shouldIgnoreMessage(type, source, message))
             return;
 
-        doctest::String msg;
-        switch (type)
-        {
-        case DebugMessageType::Info:
-            msg += "[Info] ";
-            break;
-        case DebugMessageType::Warning:
-            msg += "[Warning] ";
-            break;
-        case DebugMessageType::Error:
-            msg += "[Error] ";
-            break;
-        default:
-            break;
-        }
-        switch (source)
-        {
-        case DebugMessageSource::Layer:
-            msg += "[Layer] ";
-            break;
-        case DebugMessageSource::Driver:
-            msg += "[Driver] ";
-            break;
-        case DebugMessageSource::Slang:
-            msg += "[Slang] ";
-            break;
-        default:
-            break;
-        }
+        doctest::String msg = "[" + doctest::String(debugMessageTypeToString(type)) + "] ";
+        msg += "[" + doctest::String(debugMessageSourceToString(source)) + "] ";
         msg += message;
 
         auto output = [](const doctest::String& str)
@@ -209,16 +184,12 @@ public:
                 INFO(str);
             }
         };
-
-        if (is_set(type, DebugMessageType::Info))
+        if (type == DebugMessageType::Info
+            || type == DebugMessageType::Warning)
         {
             output(msg);
         }
-        else if (is_set(type, DebugMessageType::Warning))
-        {
-            output(msg);
-        }
-        else if (is_set(type, DebugMessageType::Error))
+        else if (type == DebugMessageType::Error)
         {
             FAIL(msg);
         }
@@ -546,7 +517,7 @@ void releaseCachedDevices()
 void TryToChangeCurrentDebugLayerStateAndOptions(DebugLayerOptions targetDebugLayerOptions)
 {
     // By default debug layer is 'off'
-    static DebugLayerOptions currentDebugLayerOptions = DebugLayerOptions::None;
+    static DebugLayerOptions currentDebugLayerOptions = {};
 
     // Nothing to change
     if (currentDebugLayerOptions == targetDebugLayerOptions)
@@ -555,9 +526,7 @@ void TryToChangeCurrentDebugLayerStateAndOptions(DebugLayerOptions targetDebugLa
     // Clear all cached devices so that we can change debug layer options
     releaseCachedDevices();
 
-    SlangResult result{};
-    result = setDebugLayerOptions(targetDebugLayerOptions);
-    if (result != SLANG_OK)
+    if (setDebugLayerOptions(targetDebugLayerOptions) != SLANG_OK)
         FAIL("rhi::getRHI()->setDebugLayersOptions(...) failed, some devices were not removed");
 
     currentDebugLayerOptions = targetDebugLayerOptions;
@@ -601,7 +570,9 @@ ComPtr<IDevice> createTestingDevice(
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
         deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
         deviceDesc.existingDeviceHandles = extraOptions->existingDeviceHandles;
-        deviceDesc.debugDeviceOptions = extraOptions->debugDeviceOptions;
+        deviceDesc.enableAftermath = extraOptions->enableAftermath;
+        deviceDesc.enableRayTracingValidation = extraOptions->enableRayTracingValidation;
+        deviceDesc.enableValidation = extraOptions->enableValidation;
         deviceDesc.aftermathFlags = extraOptions->aftermathFlags;
         sDebugCallback.debugMessageTypesToEmit = extraOptions->debugMessageTypesToEmit;
         sDebugCallback.debugMessageSourcesToEmitFrom = extraOptions->debugMessageSourcesToEmitFrom;
@@ -742,8 +713,8 @@ ComPtr<IDevice> createTestingDevice(
 #if SLANG_RHI_DEBUG
     // We do not set the DebugLayerOptions here since this is done
     // higher up in the call-tree before creating devices.
-    // We will set the per device option `SlangRHIValidation` here though.
-    deviceDesc.debugDeviceOptions |= DebugDeviceOptions::SlangRHIValidation;
+    // We will set the per device option `enableValidation` here though.
+    deviceDesc.enableValidation = true;
 #endif
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
@@ -854,7 +825,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     desc.deviceType = deviceType;
     desc.adapter = getSelectedDeviceAdapter(deviceType);
 #if SLANG_RHI_DEBUG
-    desc.debugDeviceOptions |= DebugDeviceOptions::SlangRHIValidation;
+    desc.enableValidation = true;
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
 #if SLANG_RHI_ENABLE_NVAPI
@@ -998,7 +969,7 @@ static void gpuTestTrampoline()
         SKIP("device not selected");
     }
 
-    TryToChangeCurrentDebugLayerStateAndOptions(static_cast<DebugLayerOptions>(info->debugLayerFlags));
+    TryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
 
     if (isDeviceTypeAvailable(deviceType))
     {
@@ -1057,7 +1028,7 @@ int registerGpuTest(
     const char* name,
     GpuTestFunc func,
     GpuTestFlags flags,
-    GpuTestDebugLayerFlags debugLayerFlags,
+    DebugLayerOptions debugLayerOptions,
     const char* file,
     int line
 )
@@ -1080,7 +1051,7 @@ int registerGpuTest(
         info->func = func;
         info->deviceType = deviceType;
         info->flags = flags;
-        info->debugLayerFlags = debugLayerFlags;
+        info->debugLayerOptions = debugLayerOptions;
 
         char* testName = reinterpret_cast<char*>(info + 1);
         snprintf(testName, testNameLen, "%s.%s", name, deviceTypeToString(deviceType));

@@ -79,7 +79,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     // Aftermath crash dump needs to be enabled before device.
-    if (is_set(desc.debugDeviceOptions, DebugDeviceOptions::Aftermath))
+    if (desc.enableAftermath)
     {
         AftermathCrashDumper::getOrCreate();
     }
@@ -150,7 +150,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
 #if SLANG_RHI_ENABLE_AFTERMATH
-    if (is_set(desc.debugDeviceOptions, DebugDeviceOptions::Aftermath))
+    if (desc.enableAftermath)
     {
         // Initialize Aftermath for this device.
         uint32_t aftermathFlags = 0;
@@ -185,7 +185,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 #else
-    if (is_set(desc.debugDeviceOptions, DebugDeviceOptions::Aftermath))
+    if (desc.enableAftermath)
     {
         printWarning("Aftermath requested but not enabled in build.\n");
     }

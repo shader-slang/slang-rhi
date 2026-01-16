@@ -10,7 +10,7 @@ GPU_TEST_CASE("aftermath-tdr", D3D11 | D3D12 | Vulkan | DontCreateDevice)
     SKIP("manual test only");
 
     DeviceExtraOptions extraOptions = {};
-    extraOptions.debugDeviceOptions = DebugDeviceOptions::Aftermath;
+    extraOptions.enableAftermath = true;
     extraOptions.compilerOptions.push_back(
         slang::CompilerOptionEntry{
             slang::CompilerOptionName::DebugInformation,

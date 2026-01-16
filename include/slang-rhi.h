@@ -2916,28 +2916,16 @@ struct DeviceInfo
 
 enum class DebugMessageType
 {
-    None = 0,
-
-    Info = (1 << 0),
-    Warning = (1 << 1),
-    Error = (1 << 2),
-
-    All = Info | Warning | Error,
+    Info,
+    Warning,
+    Error
 };
-SLANG_RHI_ENUM_CLASS_OPERATORS(DebugMessageType)
-
 enum class DebugMessageSource
 {
-    None = 0,
-
-    Layer = (1 << 0),
-    Driver = (1 << 1),
-    Slang = (1 << 2),
-
-    All = Layer | Driver | Slang,
+    Layer,
+    Driver,
+    Slang
 };
-SLANG_RHI_ENUM_CLASS_OPERATORS(DebugMessageSource)
-
 class IDebugCallback
 {
 public:
@@ -2989,23 +2977,6 @@ struct DeviceNativeHandles
 {
     NativeHandle handles[3] = {};
 };
-
-/// Per device options that can be toggled to enhance debugging experience
-enum class DebugDeviceOptions
-{
-    None = 0,
-
-    /// Enable validation for of the Slang-RHI API (All).
-    /// This does not provide down-stream API validation.
-    SlangRHIValidation = (1 << 0),
-    /// Enable NVIDIA Aftermath (D3D11 | D3D12 | Vulkan).
-    Aftermath = (1 << 1),
-    /// Enable downstream API raytracing validation (CUDA | D3D12 | Vulkan).
-    RaytracingValidation = (1 << 2),
-
-    All = SlangRHIValidation | Aftermath | RaytracingValidation
-};
-SLANG_RHI_ENUM_CLASS_OPERATORS(DebugDeviceOptions);
 
 enum class AftermathFlags
 {
@@ -3060,9 +3031,16 @@ struct DeviceDesc
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t requiredOptixVersion = 0;
 
-    /// Flags of different (per device) debug options to enable.
-    DebugDeviceOptions debugDeviceOptions = DebugDeviceOptions::None;
-    /// Requires DebugDeviceOptions::Aftermath to be enabled.
+    /// Enable validation for Slang-RHI API (All).
+    /// This does not enable down-stream API Debug Layers
+    /// (ex: Vulkan Validation Layers).
+    bool enableValidation = false;
+    /// Enable downstream API raytracing validation (CUDA | D3D12 | Vulkan).
+    bool enableRayTracingValidation = false;
+    /// Enable NVIDIA Aftermath (D3D11 | D3D12 | Vulkan).
+    bool enableAftermath = false;
+  
+    /// Requires `this->enableAftermath == true`.
     /// Aftermath configuration.
     AftermathFlags aftermathFlags = AftermathFlags::Default;
     /// Debug callback. If not null, this will be called for each debug message.
@@ -3564,33 +3542,47 @@ public:
 };
 
 /// Options for downstream API debug layers.
-enum class DebugLayerOptions
+struct DebugLayerOptions
 {
-    /// Disable debug layer
-    None = 0,
-
     /// Enable core debug layers (D3D12 | Vulkan).
-    CoreValidation = (1 << 0),
+    bool coreValidation;
     /// Enable GPU assisted/based debug layer (D3D12 | Vulkan).
-    GPUAssistedValidation = (1 << 1),
+    bool GPUAssistedValidation;
 
-    All = CoreValidation | GPUAssistedValidation,
+    bool operator==(const DebugLayerOptions& other) const
+    {
+        return coreValidation == other.coreValidation &&
+               GPUAssistedValidation == other.GPUAssistedValidation;
+    }
+
+    bool isDebugLayersEnabled() const
+    {
+        return coreValidation == true
+            || GPUAssistedValidation == true;
+    }
 };
-SLANG_RHI_ENUM_CLASS_OPERATORS(DebugLayerOptions);
 
 class IRHI
 {
 protected:
     friend class LiveDeviceTracker;
-
-    DebugLayerOptions debugLayerOptions = DebugLayerOptions::None;
-    int totalLiveDevices = 0;
     /// Increment the total number of live devices created by this IRHI instance.
-    void incrementLiveDeviceCount() { totalLiveDevices++; }
+    virtual SLANG_NO_THROW void SLANG_MCALL incrementLiveDeviceCount() = 0;
     /// Decrement the total number of live devices created by this IRHI instance
-    void decrementLiveDeviceCount() { totalLiveDevices--; }
+    virtual SLANG_NO_THROW void SLANG_MCALL decrementLiveDeviceCount() = 0;
 
 public:
+    /// Check is downstream debug layer is enabled
+    inline bool isDebugLayersEnabled() { return getDebugLayerOptions().isDebugLayersEnabled(); }
+
+    /// Change downstream debug layer options.
+    /// All devices must be released.
+    /// Fails if not all devices are released.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions) = 0;
+
+    /// Get current downstream debug layer options.
+    virtual SLANG_NO_THROW DebugLayerOptions SLANG_MCALL getDebugLayerOptions() = 0;
+
     virtual SLANG_NO_THROW const FormatInfo& SLANG_MCALL getFormatInfo(Format format) = 0;
 
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDeviceTypeName(DeviceType type) = 0;
@@ -3639,29 +3631,6 @@ public:
     /// Set the global task pool for the RHI.
     /// Must be called before any devices are created.
     virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPool(ITaskPool* taskPool) = 0;
-
-    /// Check is downstream debug layer is enabled
-    bool isDebugLayersEnabled() { return debugLayerOptions != DebugLayerOptions::None; }
-
-    /// Change downstream debug layer options.
-    /// All devices must be released.
-    /// Fails if not all devices are released.
-    Result setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions)
-    {
-        if (totalLiveDevices != 0)
-            return SLANG_FAIL;
-        this->debugLayerOptions = newDebugLayerOptions;
-        return SLANG_OK;
-    }
-
-    /// Get current downstream debug layer options.
-    DebugLayerOptions getDebugLayerOptions() { return debugLayerOptions; }
-
-    /// Check if downstream debug layer option is set.
-    bool isDebugLayerOptionSet(DebugLayerOptions debugLayerOption)
-    {
-        return is_set(this->debugLayerOptions, debugLayerOption);
-    }
 };
 
 // Extended descs.
@@ -3732,12 +3701,6 @@ inline Result setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions)
 inline DebugLayerOptions getDebugLayerOptions()
 {
     return getRHI()->getDebugLayerOptions();
-}
-
-/// Check if downstream debug layer option is set.
-inline bool isDebugLayerOptionSet(DebugLayerOptions debugLayerOption)
-{
-    return getRHI()->isDebugLayerOptionSet(debugLayerOption);
 }
 
 inline const char* const debugMessageTypeToString(DebugMessageType debugMessageType)

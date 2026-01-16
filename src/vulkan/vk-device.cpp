@@ -320,7 +320,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-            if (isDebugLayerOptionSet(DebugLayerOptions::GPUAssistedValidation))
+            if (getDebugLayerOptions().GPUAssistedValidation)
                 instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
@@ -339,13 +339,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         std::vector<VkValidationFeatureDisableEXT> disabledValidationFeatures = {};
         if (isDebugLayersEnabled())
         {
-            if (isDebugLayerOptionSet(DebugLayerOptions::GPUAssistedValidation))
+            if (getDebugLayerOptions().GPUAssistedValidation)
             {
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
             }
 
-            if (!isDebugLayerOptionSet(DebugLayerOptions::CoreValidation))
+            if (!getDebugLayerOptions().coreValidation)
             {
                 disabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT);
             }
@@ -420,7 +420,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((is_set(desc.debugDeviceOptions, DebugDeviceOptions::RaytracingValidation) || isDebugLayersEnabled()) &&
+    if ((desc.enableRayTracingValidation || isDebugLayersEnabled()) &&
         m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
@@ -887,7 +887,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             deviceExtensions.push_back(VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME);
         }
 
-        if (is_set(desc.debugDeviceOptions, DebugDeviceOptions::RaytracingValidation))
+        if (desc.enableRayTracingValidation)
         {
             // If unsupported, fail
             if (!extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
@@ -1181,7 +1181,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #if SLANG_RHI_ENABLE_AFTERMATH
     VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {};
 
-    if (is_set(desc.debugDeviceOptions, DebugDeviceOptions::Aftermath))
+    if (desc.enableAftermath)
     {
         // Enable NV_device_diagnostic_checkpoints extension to be able to use Aftermath event markers.
         deviceExtensions.push_back(VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
@@ -1208,7 +1208,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         m_aftermathCrashDumper = AftermathCrashDumper::getOrCreate();
     }
 #else
-    if (is_set(desc.debugDeviceOptions, DebugDeviceOptions::Aftermath))
+    if (desc.enableAftermath)
     {
         printWarning("Aftermath requested but not enabled in build.\n");
     }
