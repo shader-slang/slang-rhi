@@ -28,7 +28,6 @@ Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 Result reportD3DLiveObjects();
-void enableD3D12DebugLayerIfAvailable();
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
@@ -135,8 +134,16 @@ inline const FormatInfo& _getFormatInfo(Format format)
 
 class RHI : public IRHI
 {
+private:
+    DebugLayerOptions debugLayerOptions = {};
+    int totalLiveDevices = 0;
+
+    virtual void incrementLiveDeviceCount() override { totalLiveDevices++; }
+    virtual void decrementLiveDeviceCount() override { totalLiveDevices--; }
 public:
-    bool debugLayersEnabled = false;
+
+    virtual Result setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions);
+    virtual DebugLayerOptions getDebugLayerOptions() override { return debugLayerOptions; }
 
     virtual const FormatInfo& getFormatInfo(Format format) override { return _getFormatInfo(format); }
     virtual const char* getDeviceTypeName(DeviceType type) override;
@@ -146,7 +153,6 @@ public:
 
     virtual IAdapter* getAdapter(DeviceType type, uint32_t index) override;
     virtual Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
-    virtual void enableDebugLayers() override;
     virtual Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
 
     virtual Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;
@@ -160,6 +166,14 @@ public:
         return &instance;
     }
 };
+
+Result RHI::setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions)
+{
+    if (totalLiveDevices != 0)
+        return SLANG_FAIL;
+    this->debugLayerOptions = newDebugLayerOptions;
+    return SLANG_OK;
+}
 
 const char* RHI::getDeviceTypeName(DeviceType type)
 {
@@ -357,16 +371,6 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
     }
 }
 
-void RHI::enableDebugLayers()
-{
-    if (debugLayersEnabled)
-        return;
-#if SLANG_RHI_ENABLE_D3D12
-    enableD3D12DebugLayerIfAvailable();
-#endif
-    debugLayersEnabled = true;
-}
-
 Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
 {
     ComPtr<IDevice> innerDevice;
@@ -418,11 +422,6 @@ Result RHI::reportLiveObjects()
 Result RHI::setTaskPool(ITaskPool* taskPool)
 {
     return setGlobalTaskPool(taskPool);
-}
-
-bool isDebugLayersEnabled()
-{
-    return RHI::getInstance()->debugLayersEnabled;
 }
 
 } // namespace rhi

@@ -1,5 +1,5 @@
 #include "d3d-utils.h"
-
+#include "rhi-shared.h"
 #include "core/common.h"
 
 #include <dxgi1_6.h>
@@ -317,11 +317,19 @@ Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory)
     }
 }
 
-bool isDebugLayersEnabled();
-
 ComPtr<IDXGIFactory> getDXGIFactory()
 {
-    static ComPtr<IDXGIFactory> factory = []()
+    static ComPtr<IDXGIFactory> factory;
+    /// Tracks if the current DXGIFactory created is debug.
+    static bool DXGIFactoryIsDebug = false;
+
+    // Remake our DXGIFactory if the current Slang-RHI
+    // instance expects downstream debug layers, but
+    // DXGIFactory was not created with the debug flag
+    if (DXGIFactoryIsDebug != isDebugLayersEnabled())
+        factory.setNull();
+
+    factory = []()
     {
         ComPtr<IDXGIFactory> f;
         if (SLANG_FAILED(createDXGIFactory(isDebugLayersEnabled(), f)))

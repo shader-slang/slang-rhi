@@ -60,9 +60,7 @@ public:
         const char* message
     ) override
     {
-        static const char* kTypeStrings[] = {"INFO", "WARN", "ERROR"};
-        static const char* kSourceStrings[] = {"Layer", "Driver", "Slang"};
-        printf("[%s] (%s) %s\n", kTypeStrings[int(type)], kSourceStrings[int(source)], message);
+        printf("[%s] (%s) %s\n", debugMessageTypeToString(type), debugMessageSourceToString(source), message);
         fflush(stdout);
     }
 
@@ -87,7 +85,7 @@ inline Result createDevice(
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
 #if SLANG_RHI_DEBUG
-    getRHI()->enableDebugLayers();
+    setDebugLayerOptions({true});
     deviceDesc.enableValidation = true;
     deviceDesc.debugCallback = DebugPrinter::getInstance();
 #endif

@@ -145,6 +145,13 @@ public:
     }
 };
 
+class LiveDeviceTracker : public RefObject
+{
+public:
+    LiveDeviceTracker() { getRHI()->incrementLiveDeviceCount(); }
+    ~LiveDeviceTracker() { getRHI()->decrementLiveDeviceCount(); }
+};
+
 // Device implementation shared by all platforms.
 // Responsible for shader compilation, specialization and caching.
 class Device : public IDevice, public ComObject
@@ -455,6 +462,8 @@ public:
     std::vector<Heap*> m_globalHeaps;
 
     IDebugCallback* m_debugCallback = nullptr;
+
+    RefPtr<LiveDeviceTracker> m_liveDeviceTracker = RefPtr<LiveDeviceTracker>(new LiveDeviceTracker());
 };
 
 /// Mark the default adapter in the list, preferring the first discrete adapter.
