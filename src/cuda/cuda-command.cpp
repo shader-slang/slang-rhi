@@ -1,5 +1,6 @@
 #include "cuda-command.h"
 #include "cuda-device.h"
+#include "cuda-heap.h"
 #include "cuda-pipeline.h"
 #include "cuda-buffer.h"
 #include "cuda-query.h"
@@ -848,7 +849,16 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         // Get/execute the buffer.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
-        CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
+
+        // Set current stream on heaps for caching allocator (PyTorch-style)
+        // This ensures new page allocations are associated with this stream
+        DeviceImpl* device = getDevice<DeviceImpl>();
+        if (device->m_deviceMemHeap)
+            device->m_deviceMemHeap->setCurrentStream(requestedStream);
+        if (device->m_hostMemHeap)
+            device->m_hostMemHeap->setCurrentStream(requestedStream);
+
+        CommandExecutor executor(device, requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
         // Signal main fence
