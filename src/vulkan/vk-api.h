@@ -479,6 +479,11 @@ struct VulkanExtendedFeatures
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR
     };
 
+    // Cooperative matrix 2 (NV) features.
+    VkPhysicalDeviceCooperativeMatrix2FeaturesNV cooperativeMatrix2Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
+    };
+
     // Descriptor indexing features
     VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES

@@ -27,6 +27,10 @@
 #include <string>
 #include <vector>
 
+#ifndef VK_NV_COOPERATIVE_MATRIX2_EXTENSION_NAME
+#define VK_NV_COOPERATIVE_MATRIX2_EXTENSION_NAME "VK_NV_cooperative_matrix2"
+#endif
+
 namespace rhi::vk {
 
 inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
@@ -546,6 +550,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingLinearSweptSpheresFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.clusterAccelerationStructureFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix1Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderFloat8Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.descriptorIndexingFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.mutableDescriptorTypeFeatures);
@@ -573,6 +578,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         }
 
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
+
+        // Request cooperative matrix 2 features when supported.
+        if (extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixWorkgroupScope)
+            extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixWorkgroupScope = VK_TRUE;
+        if (extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixPerElementOperations)
+            extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixPerElementOperations = VK_TRUE;
+        if (extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixFlexibleDimensions)
+            extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixFlexibleDimensions = VK_TRUE;
 
         if (deviceFeatures2.features.shaderResourceMinLod)
         {
@@ -930,6 +943,14 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::spvCooperativeMatrixKHR);
             }
         );
+
+        const bool hasCoopMat2 = extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixPerElementOperations ||
+                                 extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixWorkgroupScope ||
+                                 extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixFlexibleDimensions;
+        if (addFeatureExtension(hasCoopMat2, extendedFeatures.cooperativeMatrix2Features, VK_NV_COOPERATIVE_MATRIX2_EXTENSION_NAME))
+        {
+            availableCapabilities.push_back(Capability::spvCooperativeMatrixPerElementOperationsNV);
+        }
 
         // VK_EXT_shader_float8 is required for cooperative matrix types FloatE4M3 and FloatE5M2.
         SIMPLE_EXTENSION_FEATURE(

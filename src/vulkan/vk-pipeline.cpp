@@ -570,20 +570,18 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     VkPipeline vkPipeline = VK_NULL_HANDLE;
     bool cached = false;
     size_t cacheSize = 0;
-    SLANG_RETURN_ON_FAIL(
-        createPipelineWithCache<VkGraphicsPipelineCreateInfo>(
-            this,
-            &createInfo,
-            [](DeviceImpl* device, VkGraphicsPipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
-            {
-                return device->m_api
-                    .vkCreateGraphicsPipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
-            },
-            &vkPipeline,
-            cached,
-            cacheSize
-        )
-    );
+    SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkGraphicsPipelineCreateInfo>(
+        this,
+        &createInfo,
+        [](DeviceImpl* device, VkGraphicsPipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
+        {
+            return device->m_api
+                .vkCreateGraphicsPipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
+        },
+        &vkPipeline,
+        cached,
+        cacheSize
+    ));
 
     _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
 
@@ -644,20 +642,22 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     VkPipeline vkPipeline = VK_NULL_HANDLE;
     bool cached = false;
     size_t cacheSize = 0;
-    SLANG_RETURN_ON_FAIL(
-        createPipelineWithCache<VkComputePipelineCreateInfo>(
-            this,
-            &createInfo,
-            [](DeviceImpl* device, VkComputePipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
-            {
-                return device->m_api
-                    .vkCreateComputePipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
-            },
-            &vkPipeline,
-            cached,
-            cacheSize
-        )
-    );
+    FILE* f;
+    fopen_s(&f, "d:\\test\\ill-spv.spv", "wb");
+    fwrite(program->m_modules[0].code->getBufferPointer(), 1, program->m_modules[0].code->getBufferSize(), f);
+    fclose(f);
+    SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkComputePipelineCreateInfo>(
+        this,
+        &createInfo,
+        [](DeviceImpl* device, VkComputePipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
+        {
+            return device->m_api
+                .vkCreateComputePipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
+        },
+        &vkPipeline,
+        cached,
+        cacheSize
+    ));
 
     _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
 
@@ -826,27 +826,25 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     VkPipeline vkPipeline = VK_NULL_HANDLE;
     bool cached = false;
     size_t cacheSize = 0;
-    SLANG_RETURN_ON_FAIL(
-        createPipelineWithCache<VkRayTracingPipelineCreateInfoKHR>(
-            this,
-            &createInfo,
-            [](DeviceImpl* device, VkRayTracingPipelineCreateInfoKHR* createInfo2, VkPipeline* pipeline) -> VkResult
-            {
-                return device->m_api.vkCreateRayTracingPipelinesKHR(
-                    device->m_device,
-                    VK_NULL_HANDLE,
-                    VK_NULL_HANDLE,
-                    1,
-                    createInfo2,
-                    nullptr,
-                    pipeline
-                );
-            },
-            &vkPipeline,
-            cached,
-            cacheSize
-        )
-    );
+    SLANG_RETURN_ON_FAIL(createPipelineWithCache<VkRayTracingPipelineCreateInfoKHR>(
+        this,
+        &createInfo,
+        [](DeviceImpl* device, VkRayTracingPipelineCreateInfoKHR* createInfo2, VkPipeline* pipeline) -> VkResult
+        {
+            return device->m_api.vkCreateRayTracingPipelinesKHR(
+                device->m_device,
+                VK_NULL_HANDLE,
+                VK_NULL_HANDLE,
+                1,
+                createInfo2,
+                nullptr,
+                pipeline
+            );
+        },
+        &vkPipeline,
+        cached,
+        cacheSize
+    ));
 
     _labelObject((uint64_t)vkPipeline, VK_OBJECT_TYPE_PIPELINE, desc.label);
 
