@@ -882,18 +882,22 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
         // PyTorch-style lazy events optimization:
-        // Only create events when explicitly needed (multi-stream or explicit fence requests).
+        // Only create events for multi-stream workloads where we need cross-stream synchronization.
         // For single-stream workloads (the common case), we skip event creation entirely
         // and use cuStreamQuery in retireCommandBuffers() instead.
         //
+        // Note: desc.signalFenceCount is NOT checked here because:
+        // - The internal event is for command buffer RETIREMENT tracking
+        // - User fences (desc.signalFences) use setCurrentValue() which is separate
+        // - Single-stream retirement works fine with cuStreamQuery()
+        //
         // This provides a major performance win since single-stream workloads have ZERO event overhead,
         // matching PyTorch's behavior where events are only created for cross-stream synchronization.
-        bool needsEvent = (desc.signalFenceCount > 0) ||      // Explicit fence request
-                          (requestedStream != m_stream);       // Multi-stream (different from default)
+        bool needsEvent = (requestedStream != m_stream);  // Only multi-stream needs events
 
         if (needsEvent)
         {
-            // Multi-stream or explicit fences: use event-based tracking
+            // Multi-stream: use event-based tracking for cross-stream synchronization
             uint64_t submissionID;
             SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
             commandBuffer->m_submissionID = submissionID;
