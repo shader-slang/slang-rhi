@@ -136,6 +136,21 @@ void HeapImpl::PageImpl::processEvents()
     }
 }
 
+void HeapImpl::PageImpl::notifyUse()
+{
+    // Get the current stream from the heap
+    HeapImpl* heap = static_cast<HeapImpl*>(m_heap);
+    CUstream currentStream = heap->getCurrentStream();
+
+    // If this page is being used by a different stream than it was allocated on,
+    // record the cross-stream usage for proper synchronization.
+    // Following PyTorch model: only track when streams actually differ.
+    if (currentStream != nullptr && m_stream != currentStream)
+    {
+        recordStreamUse(currentStream);
+    }
+}
+
 // ============================================================================
 // PageCache - PyTorch-style caching allocator
 // ============================================================================

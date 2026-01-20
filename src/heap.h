@@ -83,6 +83,15 @@ public:
             // Default: no-op
         }
 
+        /// Called when this page is used for an allocation.
+        /// Backend implementations override to track cross-stream usage.
+        /// This enables proper multi-stream synchronization: if a page allocated
+        /// on stream A is used during encoding for stream B, we record that usage.
+        virtual void notifyUse()
+        {
+            // Default: no-op, backend overrides with stream tracking
+        }
+
         uint32_t m_id;
         Heap* m_heap;
         PageDesc m_desc;
