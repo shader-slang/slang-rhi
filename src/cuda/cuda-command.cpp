@@ -784,6 +784,15 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
+    // Set current stream on heaps for allocations during command encoding.
+    // This enables proper multi-stream tracking: when a page allocated on stream A
+    // is used for allocations during encoding for stream B, we record the cross-stream usage.
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (device->m_deviceMemHeap)
+        device->m_deviceMemHeap->setCurrentStream(m_stream);
+    if (device->m_hostMemHeap)
+        device->m_hostMemHeap->setCurrentStream(m_stream);
+
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);

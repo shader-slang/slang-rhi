@@ -55,6 +55,10 @@ public:
         /// Removes events that have completed from m_pendingEvents.
         void processEvents() override;
 
+        /// Called when this page is used for an allocation.
+        /// Records cross-stream usage if the current stream differs from the page's stream.
+        void notifyUse() override;
+
         CUdeviceptr m_cudaMemory;
 
         /// Events tracking streams that have used this page (for multi-stream synchronization).

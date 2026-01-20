@@ -45,6 +45,8 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
             auto pageAllocation = page->m_allocator.allocate(size / desc.alignment);
             if (pageAllocation)
             {
+                // Notify page it's being used (enables multi-stream tracking)
+                page->notifyUse();
                 Size offset = pageAllocation.offset * page->m_desc.alignment;
                 *outAllocation = {offset, size, page, pageAllocation.metadata, page->offsetToAddress(offset)};
                 return SLANG_OK;
@@ -72,6 +74,9 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
         auto pageAllocation = newPage->m_allocator.allocate(size / desc.alignment);
         if (pageAllocation)
         {
+            // Notify page it's being used (for new pages this is typically a no-op
+            // since the page was just created with the current stream)
+            newPage->notifyUse();
             Size offset = pageAllocation.offset * newPage->m_desc.alignment;
             *outAllocation = {offset, size, newPage, pageAllocation.metadata, newPage->offsetToAddress(offset)};
             return SLANG_OK;
