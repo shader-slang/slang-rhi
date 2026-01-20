@@ -739,10 +739,30 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
 
 Result CommandQueueImpl::retireCommandBuffers()
 {
-    // Run fence logic so m_lastFinishedID is up to date.
-    SLANG_RETURN_ON_FAIL(updateFence());
+    // PyTorch-style lazy events: use different tracking depending on event availability
+    //
+    // If we have submit events (multi-stream or explicit fences), use event-based tracking.
+    // Otherwise, use cuStreamQuery for non-blocking completion check (single-stream case).
+    // This avoids creating events on every submit, which is a major performance win.
+    if (!m_submitEvents.empty())
+    {
+        // Multi-stream or explicit fences: use event-based tracking
+        SLANG_RETURN_ON_FAIL(updateFence());
+    }
+    else if (!m_commandBuffersInFlight.empty())
+    {
+        // Single-stream lazy mode: use cuStreamQuery (non-blocking)
+        CUresult result = cuStreamQuery(m_stream);
+        if (result == CUDA_SUCCESS)
+        {
+            // Stream is idle - all submitted work is complete
+            m_lastFinishedID = m_lastSubmittedID;
+        }
+        // CUDA_ERROR_NOT_READY means work is still pending - that's fine, we're async
+        // Other errors would indicate a more serious problem, but we don't fail here
+    }
 
-    // Retire command buffers that're passed the submission ID
+    // Retire command buffers that have passed the submission ID
     auto cbIt = m_commandBuffersInFlight.begin();
     while (cbIt != m_commandBuffersInFlight.end())
     {
@@ -861,12 +881,30 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(device, requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Signal main fence
-        uint64_t submissionID;
-        SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
+        // PyTorch-style lazy events optimization:
+        // Only create events when explicitly needed (multi-stream or explicit fence requests).
+        // For single-stream workloads (the common case), we skip event creation entirely
+        // and use cuStreamQuery in retireCommandBuffers() instead.
+        //
+        // This provides a major performance win since single-stream workloads have ZERO event overhead,
+        // matching PyTorch's behavior where events are only created for cross-stream synchronization.
+        bool needsEvent = (desc.signalFenceCount > 0) ||      // Explicit fence request
+                          (requestedStream != m_stream);       // Multi-stream (different from default)
 
-        // Record the command buffer + corresponding submit ID
-        commandBuffer->m_submissionID = submissionID;
+        if (needsEvent)
+        {
+            // Multi-stream or explicit fences: use event-based tracking
+            uint64_t submissionID;
+            SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
+            commandBuffer->m_submissionID = submissionID;
+        }
+        else
+        {
+            // Single-stream lazy mode: just increment ID, no event
+            m_lastSubmittedID++;
+            commandBuffer->m_submissionID = m_lastSubmittedID;
+        }
+
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 

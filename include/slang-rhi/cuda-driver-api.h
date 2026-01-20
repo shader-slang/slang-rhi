@@ -855,6 +855,7 @@ CUDA_SYM(CUresult (*cuStreamCreate)(CUstream*, unsigned int));
 CUDA_SYM(CUresult (*cuStreamCreateWithPriority)(CUstream*, unsigned int, int));
 CUDA_SYM(CUresult (*cuStreamWaitEvent)(CUstream, CUevent, unsigned int));
 CUDA_SYM(CUresult (*cuStreamSynchronize)(CUstream));
+CUDA_SYM(CUresult (*cuStreamQuery)(CUstream));
 CUDA_SYM(CUresult (*cuStreamDestroy)(CUstream)); // v2
 CUDA_SYM(CUresult (*cuEventCreate)(CUevent*, unsigned int));
 CUDA_SYM(CUresult (*cuEventRecord)(CUevent, CUstream));
