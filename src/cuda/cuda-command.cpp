@@ -896,8 +896,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         // and use cuStreamQuery in retireCommandBuffers() instead.
         //
         // Note: desc.signalFenceCount is NOT checked here because:
-        // - The internal event is for command buffer RETIREMENT tracking
-        // - User fences (desc.signalFences) use setCurrentValue() which is separate
+        // - The internal signalFence() event is for command buffer RETIREMENT tracking
+        // - User fences (desc.signalFences) use setCurrentValue() which is separate (see below)
         // - Single-stream retirement works fine with cuStreamQuery()
         //
         // This provides a major performance win since single-stream workloads have ZERO event overhead,
