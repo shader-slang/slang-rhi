@@ -974,6 +974,8 @@ struct SubresourceLayout
     Size rowCount;
 };
 
+class ISampler;
+
 static const uint32_t kAllLayers = 0xffffffff;
 static const uint32_t kAllMips = 0xffffffff;
 static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
@@ -1008,6 +1010,10 @@ struct TextureDesc
 
     const ClearValue* optimalClearValue = nullptr;
 
+    /// Default sampler settings to use for the texture (CUDA only).
+    /// If not specified, tri-linear filtering and wrap addressing mode will be used.
+    ISampler* sampler = nullptr;
+
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;
 
@@ -1027,6 +1033,11 @@ struct TextureViewDesc
     Format format = Format::Undefined;
     TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
+
+    /// Sampler settings to use for the texture view (CUDA only).
+    /// If not specified, the default sampler settings from the texture will be used.
+    ISampler* sampler = nullptr;
+
     const char* label = nullptr;
 };
 

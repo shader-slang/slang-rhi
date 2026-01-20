@@ -345,6 +345,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Supports surface/swapchain (implemented in Vulkan).
     addFeature(Feature::Surface);
 #endif
+    addFeature(Feature::CustomBorderColor);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
     addFeature(Feature::RealtimeClock);

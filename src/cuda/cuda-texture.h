@@ -104,8 +104,7 @@ public:
     CUtexObject getTexObject()
     {
         if (!m_cudaTexObj)
-            m_cudaTexObj =
-                m_texture->getTexObject(m_desc.format, m_texture->m_defaultSamplerSettings, m_desc.subresourceRange);
+            m_cudaTexObj = m_texture->getTexObject(m_desc.format, m_samplerSettings, m_desc.subresourceRange);
         return m_cudaTexObj;
     }
 
@@ -122,6 +121,7 @@ public:
     }
 
     BreakableReference<TextureImpl> m_texture;
+    SamplerSettings m_samplerSettings;
     CUtexObject m_cudaTexObj = 0;
     CUsurfObject m_cudaSurfObj = 0;
 };
