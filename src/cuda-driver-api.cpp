@@ -118,6 +118,7 @@ extern "C" bool rhiCudaDriverApiInit()
         LOAD(cuStreamCreateWithPriority);
         LOAD(cuStreamWaitEvent);
         LOAD(cuStreamSynchronize);
+        LOAD(cuStreamQuery);
         LOAD(cuStreamDestroy, "v2");
         LOAD(cuEventCreate);
         LOAD(cuEventRecord);
@@ -237,6 +238,7 @@ extern "C" void rhiCudaDriverApiShutdown()
     UNLOAD(cuStreamCreateWithPriority);
     UNLOAD(cuStreamWaitEvent);
     UNLOAD(cuStreamSynchronize);
+    UNLOAD(cuStreamQuery);
     UNLOAD(cuStreamDestroy);
     UNLOAD(cuEventCreate);
     UNLOAD(cuEventRecord);
