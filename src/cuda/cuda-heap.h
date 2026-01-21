@@ -108,18 +108,14 @@ public:
     // Alignments
     virtual Result fixUpAllocDesc(HeapAllocDesc& desc) override;
 
-    /// Set the current stream for allocation tracking.
-    /// New page allocations will be associated with this stream.
-    void setCurrentStream(CUstream stream) { m_currentStream = stream; }
-    CUstream getCurrentStream() const { return m_currentStream; }
+    /// Get the current stream from the device.
+    /// This is used for PyTorch-style same-stream detection.
+    CUstream getCurrentStream() const;
 
     std::list<PendingFree> m_pendingFrees;
 
     /// Page cache for reuse (PyTorch-style caching allocator)
     PageCache m_pageCache;
-
-    /// Current stream for new allocations (set by command encoder)
-    CUstream m_currentStream = nullptr;
 
     /// Caching configuration (copied from HeapDesc at creation)
     HeapCachingConfig m_cachingConfig;

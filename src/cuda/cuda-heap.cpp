@@ -3,45 +3,7 @@
 #include "cuda-utils.h"
 #include "cuda-command.h"
 
-#include <cstdlib>
-
 namespace rhi::cuda {
-
-// ============================================================================
-// Environment variable configuration for caching allocator
-// ============================================================================
-
-/// Load caching configuration from environment variables.
-/// Environment variables override the programmatic defaults.
-/// Variables:
-///   SLANG_RHI_ALLOCATOR_CACHING        - Enable/disable caching (0 or 1)
-///   SLANG_RHI_ALLOCATOR_MAX_PAGES      - Max cached pages (integer)
-///   SLANG_RHI_ALLOCATOR_MAX_MEMORY_MB  - Max cached memory in MB (integer)
-///   SLANG_RHI_ALLOCATOR_GC_ENABLE      - Enable garbage collection (0 or 1)
-///   SLANG_RHI_ALLOCATOR_GC_THRESHOLD   - GC memory threshold (float 0.0-1.0)
-static void loadCachingConfigFromEnv(HeapCachingConfig& config)
-{
-    if (const char* val = std::getenv("SLANG_RHI_ALLOCATOR_CACHING"))
-    {
-        config.enabled = (std::atoi(val) != 0);
-    }
-    if (const char* val = std::getenv("SLANG_RHI_ALLOCATOR_MAX_PAGES"))
-    {
-        config.maxCachedPages = static_cast<uint32_t>(std::atoi(val));
-    }
-    if (const char* val = std::getenv("SLANG_RHI_ALLOCATOR_MAX_MEMORY_MB"))
-    {
-        config.maxCachedMemory = static_cast<Size>(std::atoi(val)) * 1024 * 1024;
-    }
-    if (const char* val = std::getenv("SLANG_RHI_ALLOCATOR_GC_ENABLE"))
-    {
-        config.enableGarbageCollection = (std::atoi(val) != 0);
-    }
-    if (const char* val = std::getenv("SLANG_RHI_ALLOCATOR_GC_THRESHOLD"))
-    {
-        config.gcMemoryThreshold = static_cast<float>(std::atof(val));
-    }
-}
 
 // ============================================================================
 // PageImpl - Stream tracking implementation (PyTorch-style)
@@ -259,8 +221,15 @@ HeapImpl::HeapImpl(Device* device, const HeapDesc& desc)
     : Heap(device, desc)
     , m_cachingConfig(desc.caching)
 {
-    // Load environment variable overrides
-    loadCachingConfigFromEnv(m_cachingConfig);
+}
+
+CUstream HeapImpl::getCurrentStream() const
+{
+    // Query the device for the current stream.
+    // This is set by the command queue on submit, so all heaps
+    // automatically see the current stream without needing individual updates.
+    DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(m_device.get());
+    return deviceImpl->getCurrentStream();
 }
 
 HeapImpl::~HeapImpl()
@@ -273,18 +242,47 @@ HeapImpl::~HeapImpl()
 Result HeapImpl::free(HeapAlloc allocation)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
+
+    // PyTorch-style optimization: Same-stream immediate reuse
+    //
+    // Key insight: CUDA stream FIFO ordering means operations on the same stream
+    // execute in order. When we "free" and "allocate" memory on the same stream,
+    // these are CPU-side pool operations - the GPU never sees them.
+    //
+    // Timeline:
+    //   CPU: [Launch K1(A)] → [Free A] → [Alloc A] → [Launch K2(A)]
+    //                ▼       (pool op)  (pool op)         ▼
+    //   GPU:    [Kernel K1 uses A] ──────────────► [Kernel K2 uses A]
+    //                              FIFO guarantees K2 waits for K1
+    //
+    // This is SAFE and allows immediate memory reuse without waiting!
+    PageImpl* page = static_cast<PageImpl*>(allocation.pageId);
+
+    // Check if this is a same-stream allocation with no cross-stream usage
+    CUstream currentStream = getCurrentStream();
+    bool sameStream = (page->m_stream == currentStream);
+    bool noCrossStreamEvents = page->canReuse();  // No pending cross-stream events
+
+    if (sameStream && noCrossStreamEvents)
+    {
+        // Same stream, no cross-stream usage: IMMEDIATE reuse (PyTorch fast path)
+        // This is the key optimization - no waiting for stream idle!
+        return retire(allocation);
+    }
+
+    // Fallback cases that require deferred retirement:
+    // 1. Stream is idle (old conservative path)
     if (deviceImpl->m_queue->m_lastFinishedID == deviceImpl->m_queue->m_lastSubmittedID)
     {
         return retire(allocation);
     }
-    else
-    {
-        PendingFree pendingFree;
-        pendingFree.allocation = allocation;
-        pendingFree.submitIndex = deviceImpl->m_queue->m_lastSubmittedID;
-        m_pendingFrees.push_back(pendingFree);
-        return SLANG_OK;
-    }
+
+    // 2. Different stream or has cross-stream events: defer until safe
+    PendingFree pendingFree;
+    pendingFree.allocation = allocation;
+    pendingFree.submitIndex = deviceImpl->m_queue->m_lastSubmittedID;
+    m_pendingFrees.push_back(pendingFree);
+    return SLANG_OK;
 }
 
 Result HeapImpl::flush()
@@ -312,10 +310,12 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     SLANG_CUDA_CTX_SCOPE(deviceImpl);
 
+    CUstream currentStream = getCurrentStream();
+
     // Try to find a reusable page in the cache first (PyTorch-style caching)
     if (m_cachingConfig.enabled)
     {
-        PageImpl* cachedPage = m_pageCache.findReusable(desc.size, m_currentStream);
+        PageImpl* cachedPage = m_pageCache.findReusable(desc.size, currentStream);
         if (cachedPage)
         {
             // Reusing cached page - it keeps its original allocation stream (m_stream)
@@ -340,7 +340,7 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     PageImpl* newPage = new PageImpl(this, desc, cudaMemory);
 
     // Set the allocation stream for the new page (PyTorch model: set once, never changes)
-    newPage->m_stream = m_currentStream;
+    newPage->m_stream = currentStream;
 
     *outPage = newPage;
     return SLANG_OK;

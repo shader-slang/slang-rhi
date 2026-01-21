@@ -715,7 +715,23 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     RefPtr<CommandBufferImpl> commandBuffer;
     if (m_commandBuffersPool.empty())
     {
-        SLANG_RETURN_ON_FAIL(createCommandBuffer(commandBuffer.writeRef()));
+        // Pool exhausted - try lazy retirement to reclaim completed buffers
+        // This is one of the trigger points for on-demand cleanup (PyTorch-style)
+        // Use locked version since we already hold m_mutex
+        retireCommandBuffersLocked();
+
+        // If retirement freed up buffers, use them instead of allocating new
+        if (!m_commandBuffersPool.empty())
+        {
+            commandBuffer = m_commandBuffersPool.front();
+            m_commandBuffersPool.pop_front();
+            commandBuffer->setInternalReferenceCount(0);
+        }
+        else
+        {
+            // Still empty after retirement - must create new
+            SLANG_RETURN_ON_FAIL(createCommandBuffer(commandBuffer.writeRef()));
+        }
     }
     else
     {
@@ -737,8 +753,25 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
     }
 }
 
+void CommandQueueImpl::retireCommandBufferLocked(CommandBufferImpl* commandBuffer)
+{
+    // NOTE: Caller must hold m_mutex!
+    commandBuffer->reset();
+    m_commandBuffersPool.push_back(commandBuffer);
+    commandBuffer->setInternalReferenceCount(1);
+}
+
 Result CommandQueueImpl::retireCommandBuffers()
 {
+    // Public API - acquires lock, then calls locked version
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return retireCommandBuffersLocked();
+}
+
+Result CommandQueueImpl::retireCommandBuffersLocked()
+{
+    // NOTE: Caller must hold m_mutex!
+    //
     // PyTorch-style lazy events: use different tracking depending on event availability
     //
     // If we have submit events (multi-stream or explicit fences), use event-based tracking.
@@ -770,11 +803,14 @@ Result CommandQueueImpl::retireCommandBuffers()
         if (commandBuffer->m_submissionID > m_lastFinishedID)
             break;
 
-        retireCommandBuffer(commandBuffer);
+        retireCommandBufferLocked(commandBuffer);
         cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
 
-    // Flush all device heaps
+    // Flush device heaps to process any pending frees
+    // Note: With same-stream immediate reuse, most allocations are retired immediately
+    // and never enter the pending list. This flush now only processes the rare
+    // cross-stream allocations that were deferred. Much cheaper than before!
     SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->flushHeaps());
 
     return SLANG_OK;
@@ -784,14 +820,12 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    // Set current stream on heaps for allocations during command encoding.
+    // Set current stream on device for allocations during command encoding.
     // This enables proper multi-stream tracking: when a page allocated on stream A
     // is used for allocations during encoding for stream B, we record the cross-stream usage.
+    // All heaps query the device for the current stream, so we only need to set it once.
     DeviceImpl* device = getDevice<DeviceImpl>();
-    if (device->m_deviceMemHeap)
-        device->m_deviceMemHeap->setCurrentStream(m_stream);
-    if (device->m_hostMemHeap)
-        device->m_hostMemHeap->setCurrentStream(m_stream);
+    device->setCurrentStream(m_stream);
 
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
     SLANG_RETURN_ON_FAIL(encoder->init());
@@ -853,8 +887,14 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    // Check if we need to retire command buffers that have completed.
-    retireCommandBuffers();
+    // PyTorch-style lazy retirement: DON'T retire on every submit.
+    // Only retire when:
+    // 1. Command buffer pool is exhausted (see getOrCreateCommandBuffer)
+    // 2. Explicit sync via waitOnHost()
+    // 3. Memory pressure (heap allocation fails)
+    //
+    // This eliminates per-submit overhead of cuStreamQuery/event checks.
+    // With same-stream immediate reuse, memory is available faster anyway.
 
     // Select either the queue's default stream or the stream
     // specified in the descriptor,and switch to it for the scope
@@ -879,16 +919,24 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         // Get/execute the buffer.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
 
-        // Set current stream on heaps for caching allocator (PyTorch-style)
-        // This ensures new page allocations are associated with this stream
+        // Set current stream on device for caching allocator (PyTorch-style)
+        // This ensures new page allocations are associated with this stream.
+        // All heaps query the device for the current stream.
         DeviceImpl* device = getDevice<DeviceImpl>();
-        if (device->m_deviceMemHeap)
-            device->m_deviceMemHeap->setCurrentStream(requestedStream);
-        if (device->m_hostMemHeap)
-            device->m_hostMemHeap->setCurrentStream(requestedStream);
+        device->setCurrentStream(requestedStream);
 
         CommandExecutor executor(device, requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
+
+        // Reset device stream back to the queue's default stream after execution.
+        // This prevents dangling stream handles when users pass external streams
+        // via SubmitDesc.cudaStream that may be destroyed after this call returns.
+        //
+        // For cross-stream detection: pages allocated DURING this submit will have
+        // m_stream = requestedStream. When freed later (after reset to m_stream),
+        // the comparison will be page->m_stream (requestedStream) vs device->m_currentStream (m_stream)
+        // which correctly detects cross-stream if they differ.
+        device->setCurrentStream(m_stream);
 
         // PyTorch-style lazy events optimization:
         // Only create events for multi-stream workloads where we need cross-stream synchronization.
@@ -896,8 +944,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         // and use cuStreamQuery in retireCommandBuffers() instead.
         //
         // Note: desc.signalFenceCount is NOT checked here because:
-        // - The internal signalFence() event is for command buffer RETIREMENT tracking
-        // - User fences (desc.signalFences) use setCurrentValue() which is separate (see below)
+        // - The internal event is for command buffer RETIREMENT tracking
+        // - User fences (desc.signalFences) use setCurrentValue() which is separate
         // - Single-stream retirement works fine with cuStreamQuery()
         //
         // This provides a major performance win since single-stream workloads have ZERO event overhead,
