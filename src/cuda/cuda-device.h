@@ -29,6 +29,17 @@ public:
     RefPtr<HeapImpl> m_deviceMemHeap;
     RefPtr<HeapImpl> m_hostMemHeap;
 
+    /// Current CUDA stream for heap allocation tracking (PyTorch-style optimization).
+    /// Updated by command queue on submit. Heaps query this to determine if
+    /// allocations are on the same stream for immediate reuse.
+    CUstream m_currentStream = nullptr;
+
+    /// Set the current stream (called by command queue on submit)
+    void setCurrentStream(CUstream stream) { m_currentStream = stream; }
+
+    /// Get the current stream (called by heaps for same-stream detection)
+    CUstream getCurrentStream() const { return m_currentStream; }
+
 public:
     using Device::readBuffer;
 

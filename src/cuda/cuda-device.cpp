@@ -455,10 +455,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     m_deviceMemHeap = checked_cast<HeapImpl*>(heapPtr.get());
     m_deviceMemHeap->breakStrongReferenceToDevice();
 
-    // Set the default stream for heaps (used for caching allocator stream tracking)
-    // This ensures allocations during command encoding have a valid stream association
-    m_hostMemHeap->setCurrentStream(m_queue->m_stream);
-    m_deviceMemHeap->setCurrentStream(m_queue->m_stream);
+    // Set the default stream on the device (used for caching allocator stream tracking)
+    // All heaps query the device for the current stream, so we only need to set it once.
+    // This ensures allocations during command encoding have a valid stream association.
+    setCurrentStream(m_queue->m_stream);
 
     // Register heaps with the base Device class for reporting
     m_globalHeaps.push_back(m_hostMemHeap);
