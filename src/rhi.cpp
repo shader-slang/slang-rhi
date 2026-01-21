@@ -133,13 +133,13 @@ inline const FormatInfo& _getFormatInfo(Format format)
     return s_formatInfos[size_t(format)];
 }
 
-void RHI::incrementLiveDeviceCount() { m_totalLiveDevices++; }
+void RHI::incrementLiveDeviceCount() { m_liveDeviceCount++; }
 
-void RHI::decrementLiveDeviceCount() { m_totalLiveDevices--; }
+void RHI::decrementLiveDeviceCount() { m_liveDeviceCount--; }
     
 Result RHI::setDebugLayerOptions(DebugLayerOptions options)
 {
-    if (m_totalLiveDevices != 0)
+    if (m_liveDeviceCount != 0)
         return SLANG_FAIL;
     this->m_debugLayerOptions = options;
     return SLANG_OK;

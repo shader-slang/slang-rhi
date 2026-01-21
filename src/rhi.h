@@ -8,7 +8,7 @@ class RHI : public IRHI
 {
 private:
     DebugLayerOptions m_debugLayerOptions = {};
-    std::atomic<uint32_t> m_totalLiveDevices = 0;
+    std::atomic<uint32_t> m_liveDeviceCount = 0;
 
 public:
     void incrementLiveDeviceCount();
