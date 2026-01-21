@@ -108,6 +108,7 @@
     x(SPV_KHR_subgroup_rotate) \
     x(SPV_NV_ray_tracing_motion_blur) \
     x(SPV_NV_shader_invocation_reorder) \
+    x(SPV_EXT_shader_invocation_reorder) \
     x(SPV_NV_cluster_acceleration_structure) \
     x(SPV_NV_linear_swept_spheres) \
     x(SPV_NV_shader_image_footprint) \
@@ -150,7 +151,7 @@
     x(spvRayQueryKHR) \
     x(spvRayQueryPositionFetchKHR) \
     x(spvShaderInvocationReorderNV) \
-    x(spirv_nv) \
+    x(spvShaderInvocationReorderEXT) \
     x(spvRayTracingClusterAccelerationStructureNV) \
     x(spvRayTracingLinearSweptSpheresGeometryNV) \
     x(spvShaderClockKHR) \
@@ -228,6 +229,7 @@
     x(_GL_NV_ray_tracing_motion_blur) \
     x(_GL_NV_shader_atomic_fp16_vector) \
     x(_GL_NV_shader_invocation_reorder) \
+    x(_GL_EXT_shader_invocation_reorder) \
     x(_GL_NV_shader_subgroup_partitioned) \
     x(_GL_NV_shader_texture_footprint) \
     x(_GL_NV_cluster_acceleration_structure) \
