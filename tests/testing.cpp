@@ -116,8 +116,8 @@ public:
         const char* message
     ) override
     {
-        output += "[" + std::string(rhi::debugMessageTypeToString(type)) + "] ";
-        output += "[" + std::string(rhi::debugMessageSourceToString(source)) + "] ";
+        output += "[" + std::string(rhi::enumToString(type)) + "] ";
+        output += "[" + std::string(rhi::enumToString(source)) + "] ";
         output += message;
         output += "\n";
     }
@@ -169,8 +169,8 @@ public:
         if (shouldIgnoreMessage(type, source, message))
             return;
 
-        doctest::String msg = "[" + doctest::String(debugMessageTypeToString(type)) + "] ";
-        msg += "[" + doctest::String(debugMessageSourceToString(source)) + "] ";
+        doctest::String msg = "[" + doctest::String(enumToString(type)) + "] ";
+        msg += "[" + doctest::String(enumToString(source)) + "] ";
         msg += message;
 
         auto output = [](const doctest::String& str)
@@ -526,7 +526,7 @@ void TryToChangeCurrentDebugLayerStateAndOptions(DebugLayerOptions targetDebugLa
     // Clear all cached devices so that we can change debug layer options
     releaseCachedDevices();
 
-    if (setDebugLayerOptions(targetDebugLayerOptions) != SLANG_OK)
+    if (SLANG_FAILED(getRHI()->setDebugLayerOptions(targetDebugLayerOptions)))
         FAIL("rhi::getRHI()->setDebugLayersOptions(...) failed, some devices were not removed");
 
     currentDebugLayerOptions = targetDebugLayerOptions;

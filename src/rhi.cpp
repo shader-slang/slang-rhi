@@ -1,5 +1,6 @@
 #include <slang-rhi.h>
 
+#include "rhi.h"
 #include "debug-layer/debug-device.h"
 #include "rhi-shared.h"
 
@@ -132,48 +133,26 @@ inline const FormatInfo& _getFormatInfo(Format format)
     return s_formatInfos[size_t(format)];
 }
 
-class RHI : public IRHI
+void RHI::incrementLiveDeviceCount() { m_totalLiveDevices++; }
+
+void RHI::decrementLiveDeviceCount() { m_totalLiveDevices--; }
+    
+Result RHI::setDebugLayerOptions(DebugLayerOptions options)
 {
-private:
-    DebugLayerOptions debugLayerOptions = {};
-    int totalLiveDevices = 0;
-
-    virtual void incrementLiveDeviceCount() override { totalLiveDevices++; }
-    virtual void decrementLiveDeviceCount() override { totalLiveDevices--; }
-public:
-
-    virtual Result setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions);
-    virtual DebugLayerOptions getDebugLayerOptions() override { return debugLayerOptions; }
-
-    virtual const FormatInfo& getFormatInfo(Format format) override { return _getFormatInfo(format); }
-    virtual const char* getDeviceTypeName(DeviceType type) override;
-    virtual bool isDeviceTypeSupported(DeviceType type) override;
-    virtual const char* getFeatureName(Feature feature) override;
-    virtual const char* getCapabilityName(Capability capability) override;
-
-    virtual IAdapter* getAdapter(DeviceType type, uint32_t index) override;
-    virtual Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
-    virtual Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
-
-    virtual Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;
-
-    virtual Result reportLiveObjects() override;
-    virtual Result setTaskPool(ITaskPool* scheduler) override;
-
-    static RHI* getInstance()
-    {
-        static RHI instance;
-        return &instance;
-    }
-};
-
-Result RHI::setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions)
-{
-    if (totalLiveDevices != 0)
+    if (m_totalLiveDevices != 0)
         return SLANG_FAIL;
-    this->debugLayerOptions = newDebugLayerOptions;
+    this->m_debugLayerOptions = options;
     return SLANG_OK;
 }
+
+DebugLayerOptions RHI::getDebugLayerOptions(){ return m_debugLayerOptions; }
+
+
+const FormatInfo& RHI::getFormatInfo(Format format)
+{
+    return _getFormatInfo(format);
+}
+
 
 const char* RHI::getDeviceTypeName(DeviceType type)
 {

@@ -4,8 +4,8 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-
-GPU_TEST_CASE_EX("acceleration-structure-creation-with-validation", Vulkan, GPUAssistedValidation)
+static DebugLayerOptions kDebugLayerOptions = DebugLayerOptionsBuilder().enableGPUAssistedValidation();
+GPU_TEST_CASE_EX("acceleration-structure-creation-with-validation", Vulkan, kDebugLayerOptions)
 {
     // Ensure that GPU-AV does not assert when using an acceleration-structure
     DeviceExtraOptions deviceExtraOptions{};

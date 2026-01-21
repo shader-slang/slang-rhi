@@ -267,6 +267,7 @@ public:
 
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* desc);
+    inline Result setupDebugLayer(SharedLibraryHandle d3dModule);
 };
 
 } // namespace rhi::d3d12

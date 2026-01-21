@@ -326,13 +326,13 @@ ComPtr<IDXGIFactory> getDXGIFactory()
     // Remake our DXGIFactory if the current Slang-RHI
     // instance expects downstream debug layers, but
     // DXGIFactory was not created with the debug flag
-    if (DXGIFactoryIsDebug != isDebugLayersEnabled())
+    if (DXGIFactoryIsDebug != getRHI()->isDebugLayersEnabled())
         factory.setNull();
 
     factory = []()
     {
         ComPtr<IDXGIFactory> f;
-        if (SLANG_FAILED(createDXGIFactory(isDebugLayersEnabled(), f)))
+        if (SLANG_FAILED(createDXGIFactory(getRHI()->isDebugLayersEnabled(), f)))
         {
             return ComPtr<IDXGIFactory>();
         }

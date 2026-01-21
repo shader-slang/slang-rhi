@@ -185,15 +185,85 @@ static void __stdcall raytracingValidationMessageCallback(
 }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
 {
-    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
-
     // Tracks the `DebugLayers` state for D3D12 since this
     // state is persistent across devices/factory objects.
     // This state does not mirror `getDebugLayerOptions()` since
-    // D3D12 debug layer state is only hinted by `getDebugLayerOptions()`.
+    // D3D12 debug layer state is only hinted at by `getDebugLayerOptions()`.
     static DebugLayerOptions activeDebugLayers = {};
+
+    // Only interact with `ID3D12Debug` if we enabled or previously enabled debug layers.
+    if (getRHI()->isDebugLayersEnabled() || activeDebugLayers.isDebugLayersEnabled())
+    {
+        if (!m_D3D12GetDebugInterface)
+            m_D3D12GetDebugInterface =
+                (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
+
+        // With our vulkan backend we fail to create a valid VkInstance and return SLANG_FAIL.
+        // We will keep consistent with this failure.
+        if (!m_D3D12GetDebugInterface)
+        {
+            printWarning("D3D12GetDebugInterface is missing\n");
+            return SLANG_OK;
+        }
+
+        if (SLANG_SUCCEEDED(m_D3D12GetDebugInterface(IID_PPV_ARGS(m_dxDebug.writeRef()))))
+        {
+            // If debug layers are signaled to be disabled we know the debug-layers were previously enabled
+            if(getRHI()->isDebugLayersEnabled() == false)
+            {
+                ComPtr<ID3D12Debug4> debug4;
+                if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug4.writeRef())))
+                {
+                    activeDebugLayers.coreValidation = false;
+                    debug4->DisableDebugLayer();
+                }
+                else
+                {
+                    printWarning("Unable to disable the previously enabled debug layers.\n");
+                    return SLANG_OK;
+                }
+            }
+            // If debug layers are signaled to be enabled, enable them if not done already 
+            else if (!activeDebugLayers.coreValidation)
+            {
+                activeDebugLayers.coreValidation = true;
+                m_dxDebug->EnableDebugLayer();
+            }
+        }
+        else
+        {
+            printWarning("Debug layer requested but not available.\n");
+            return SLANG_OK;
+        }
+
+        auto willGPUAssistedValidationBeEnabled = getRHI()->getDebugLayerOptions().GPUAssistedValidation;
+        // If there is a GPUAssistedValidation option mismatch between
+        // the last created device and our Slang RHI instance, then 
+        // change the global state of GPUAssistedValidation.
+        if (activeDebugLayers.GPUAssistedValidation
+            != willGPUAssistedValidationBeEnabled)
+        {
+            ComPtr<ID3D12Debug1> debug1;
+            if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug1.writeRef())))
+            {
+                debug1->SetEnableGPUBasedValidation(willGPUAssistedValidationBeEnabled);
+                activeDebugLayers.GPUAssistedValidation = willGPUAssistedValidationBeEnabled;
+            }
+            else
+            {
+                printWarning("GPU Based Validation is unavailable.\n");
+                return SLANG_OK;
+            }
+        }
+    }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::initialize(const DeviceDesc& desc)
+{
+    SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
     // Rather than statically link against D3D, we load it dynamically.
     SharedLibraryHandle d3dModule;
@@ -225,71 +295,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    // Only interact with `ID3D12Debug` if we enabled or previously enabled debug layers.
-    if (isDebugLayersEnabled() || activeDebugLayers.isDebugLayersEnabled())
-    {
-        if (!m_D3D12GetDebugInterface)
-            m_D3D12GetDebugInterface =
-                (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
-
-        // With our vulkan backend we fail to create a valid VkInstance and return SLANG_FAIL.
-        // We will keep consistent with this failure.
-        if (!m_D3D12GetDebugInterface)
-        {
-            printError("D3D12GetDebugInterface is missing\n");
-            return SLANG_FAIL;
-        }
-
-        if (SLANG_SUCCEEDED(m_D3D12GetDebugInterface(IID_PPV_ARGS(m_dxDebug.writeRef()))))
-        {
-            // If debug layers are signaled to be disabled we know the debug-layers were previously enabled
-            if(isDebugLayersEnabled() == false)
-            {
-                ComPtr<ID3D12Debug4> debug4;
-                if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug4.writeRef())))
-                {
-                    activeDebugLayers.coreValidation = false;
-                    debug4->DisableDebugLayer();
-                }
-                else
-                {
-                    printError("Unable to disable the previously enabled debug layers.\n");
-                    return SLANG_FAIL;
-                }
-            }
-            // If debug layers are signaled to be enabled, enable them if not done already 
-            else if (!activeDebugLayers.coreValidation)
-            {
-                activeDebugLayers.coreValidation = true;
-                m_dxDebug->EnableDebugLayer();
-            }
-        }
-        else
-        {
-            printError("Debug layer requested but not available.\n");
-            return SLANG_FAIL;
-        }
-
-        auto willGPUAssistedValidationBeEnabled = getDebugLayerOptions().GPUAssistedValidation;
-        // If there is a GPUAssistedValidation option mismatch between
-        // the last created device and our Slang RHI instance, then 
-        // change the global state of GPUAssistedValidation.
-        if (activeDebugLayers.GPUAssistedValidation
-            != willGPUAssistedValidationBeEnabled)
-        {
-            ComPtr<ID3D12Debug1> debug1;
-            if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug1.writeRef())))
-            {
-                debug1->SetEnableGPUBasedValidation(willGPUAssistedValidationBeEnabled);
-                activeDebugLayers.GPUAssistedValidation = willGPUAssistedValidationBeEnabled;
-            }
-            else
-            {
-                printError("GPU Based Validation is unavailable.\n");
-                return SLANG_FAIL;
-            }
-        }
-    }
+    if (SLANG_SUCCEEDED(setupDebugLayer(d3dModule)))
+        return SLANG_FAIL;
 
     // Get D3D12 entry points.
     {
@@ -383,7 +390,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Query for ID3D12Device5 interface.
     m_device->QueryInterface<ID3D12Device5>(m_device5.writeRef());
 
-    if (isDebugLayersEnabled() && m_dxDebug)
+    if (getRHI()->isDebugLayersEnabled() && m_dxDebug)
     {
         ComPtr<ID3D12InfoQueue> infoQueue;
         if (SLANG_SUCCEEDED(m_device->QueryInterface(infoQueue.writeRef())))
@@ -452,7 +459,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 #if SLANG_RHI_ENABLE_AFTERMATH
     if (desc.enableAftermath)
     {
-        if (isDebugLayersEnabled())
+        if (getRHI()->isDebugLayersEnabled())
         {
             printWarning("Aftermath cannot be used with D3D12 debug layers enabled.");
         }
@@ -923,6 +930,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     &m_raytracingValidationHandle
                 ));
             }
+        }
+        else
+        {
+            printWarning("Tried to enable raytracing validation but unsupported\n");
         }
     }
 #endif // SLANG_RHI_ENABLE_NVAPI

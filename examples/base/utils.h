@@ -85,7 +85,9 @@ inline Result createDevice(
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
 #if SLANG_RHI_DEBUG
-    setDebugLayerOptions({true});
+    DebugLayerOptions debugLayerOptions;
+    debugLayerOptions.coreValidation = true; 
+    getRHI()->setDebugLayerOptions(debugLayerOptions);
     deviceDesc.enableValidation = true;
     deviceDesc.debugCallback = DebugPrinter::getInstance();
 #endif

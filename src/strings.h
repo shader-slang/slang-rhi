@@ -177,6 +177,16 @@
 #define S_CooperativeVectorMatrixLayout_InferencingOptimal "InferencingOptimal"
 #define S_CooperativeVectorMatrixLayout_TrainingOptimal "TrainingOptimal"
 
+// DebugMessageType
+#define S_DebugMessageType_Info "Info"
+#define S_DebugMessageType_Warning "Warning"
+#define S_DebugMessageType_Error "Error"
+
+// DebugMessageSource
+#define S_DebugMessageSource_Layer "Layer"
+#define S_DebugMessageSource_Driver "Driver"
+#define S_DebugMessageSource_Slang "Slang"
+
 // ----------------------------------------------------------------------------
 // Functions
 // ----------------------------------------------------------------------------

@@ -315,12 +315,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #endif
 #endif
 
-        if (isDebugLayersEnabled())
+        if (getRHI()->isDebugLayersEnabled())
         {
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-            if (getDebugLayerOptions().GPUAssistedValidation)
+            if (getRHI()->getDebugLayerOptions().GPUAssistedValidation)
                 instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
@@ -337,15 +337,15 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         VkValidationFeaturesEXT validationFeatures = {};
         std::vector<VkValidationFeatureEnableEXT> enabledValidationFeatures = {};
         std::vector<VkValidationFeatureDisableEXT> disabledValidationFeatures = {};
-        if (isDebugLayersEnabled())
+        if (getRHI()->isDebugLayersEnabled())
         {
-            if (getDebugLayerOptions().GPUAssistedValidation)
+            if (getRHI()->getDebugLayerOptions().GPUAssistedValidation)
             {
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
             }
 
-            if (!getDebugLayerOptions().coreValidation)
+            if (!getRHI()->getDebugLayerOptions().coreValidation)
             {
                 disabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT);
             }
@@ -420,7 +420,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((desc.enableRayTracingValidation || isDebugLayersEnabled()) &&
+    if ((desc.enableRayTracingValidation || getRHI()->isDebugLayersEnabled()) &&
         m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
@@ -892,15 +892,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             // If unsupported, fail
             if (!extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
             {
-                printError("Tried to enable raytracing validation but unsupported\n");
-                return SLANG_FAIL;
+                printWarning("Tried to enable raytracing validation but unsupported\n");
             }
-            SIMPLE_EXTENSION_FEATURE(
-                extendedFeatures.rayTracingValidationFeatures,
-                rayTracingValidation,
-                VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
-                { availableFeatures.push_back(Feature::RayTracingValidation); }
-            );
+            else
+            {
+                SIMPLE_EXTENSION_FEATURE(
+                    extendedFeatures.rayTracingValidationFeatures,
+                    rayTracingValidation,
+                    VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
+                    { availableFeatures.push_back(Feature::RayTracingValidation); }
+                );
+            }
         }
 
         SIMPLE_EXTENSION_FEATURE(

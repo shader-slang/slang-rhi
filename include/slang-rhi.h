@@ -3564,13 +3564,6 @@ struct DebugLayerOptions
 
 class IRHI
 {
-protected:
-    friend class LiveDeviceTracker;
-    /// Increment the total number of live devices created by this IRHI instance.
-    virtual SLANG_NO_THROW void SLANG_MCALL incrementLiveDeviceCount() = 0;
-    /// Decrement the total number of live devices created by this IRHI instance
-    virtual SLANG_NO_THROW void SLANG_MCALL decrementLiveDeviceCount() = 0;
-
 public:
     /// Check is downstream debug layer is enabled
     inline bool isDebugLayersEnabled() { return getDebugLayerOptions().isDebugLayersEnabled(); }
@@ -3578,7 +3571,7 @@ public:
     /// Change downstream debug layer options.
     /// All devices must be released.
     /// Fails if not all devices are released.
-    virtual SLANG_NO_THROW Result SLANG_MCALL setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setDebugLayerOptions(DebugLayerOptions options) = 0;
 
     /// Get current downstream debug layer options.
     virtual SLANG_NO_THROW DebugLayerOptions SLANG_MCALL getDebugLayerOptions() = 0;
@@ -3681,60 +3674,6 @@ inline IRHI* getRHI()
 inline const FormatInfo& getFormatInfo(Format format)
 {
     return getRHI()->getFormatInfo(format);
-}
-
-/// Check is debug layer is enabled
-inline bool isDebugLayersEnabled()
-{
-    return getRHI()->isDebugLayersEnabled();
-}
-
-/// Change downstream debug layer options.
-/// All devices must be released.
-/// Fails if not all devices are released.
-inline Result setDebugLayerOptions(DebugLayerOptions newDebugLayerOptions)
-{
-    return getRHI()->setDebugLayerOptions(newDebugLayerOptions);
-}
-
-/// Get current downstream debug layer options.
-inline DebugLayerOptions getDebugLayerOptions()
-{
-    return getRHI()->getDebugLayerOptions();
-}
-
-inline const char* const debugMessageTypeToString(DebugMessageType debugMessageType)
-{
-    switch (debugMessageType)
-    {
-    case DebugMessageType::Info:
-        return "Info";
-    case DebugMessageType::Warning:
-        return "Warning";
-    case DebugMessageType::Error:
-        return "Error";
-    default:
-        // Missing case
-        assert(false);
-        return "Invalid";
-    }
-}
-
-inline const char* const debugMessageSourceToString(DebugMessageSource debugMessageSource)
-{
-    switch (debugMessageSource)
-    {
-    case DebugMessageSource::Layer:
-        return "Layer";
-    case DebugMessageSource::Driver:
-        return "Driver";
-    case DebugMessageSource::Slang:
-        return "Slang";
-    default:
-        // Missing case
-        assert(false);
-        return "Invalid";
-    }
 }
 
 } // namespace rhi

@@ -439,29 +439,15 @@ enum GpuTestFlags
 };
 
 /// Struct that converts into DebugLayerOptions.
-/// This struct is made to function like an enum for
-/// users making tests with the testing framework.
-struct DebugLayerOptionsWrapper
+class DebugLayerOptionsBuilder
 {
-    DebugLayerOptions data {};
-    DebugLayerOptionsWrapper operator|(DebugLayerOptionsWrapper input) const
-    {
-        DebugLayerOptionsWrapper newDebugLayerOptions = *this;
-        if (input.data.coreValidation)
-            newDebugLayerOptions.data.coreValidation = true;
-        if (input.data.GPUAssistedValidation)
-            newDebugLayerOptions.data.GPUAssistedValidation = true;
-        return newDebugLayerOptions;
-    }
-
-    DebugLayerOptions getData() const
-    {
-        return data;
-    }
+public:
+    DebugLayerOptionsBuilder& enableCoreValidation() { m_options.coreValidation = true; return *this; }
+    DebugLayerOptionsBuilder& enableGPUAssistedValidation() { m_options.GPUAssistedValidation = true; return *this; }
+    operator DebugLayerOptions() const { return m_options; }
+private:
+    DebugLayerOptions m_options = {};
 };
-
-const DebugLayerOptionsWrapper CoreValidation = {true, false};
-const DebugLayerOptionsWrapper GPUAssistedValidation = {false, true};
 
 struct GpuTestInfo
 {
@@ -494,12 +480,21 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
             name,                                                                                                      \
             func,                                                                                                      \
             static_cast<::rhi::testing::GpuTestFlags>(flags),                                                          \
-            debugLayerOptions.getData(),                                                                               \
+            debugLayerOptions,                                                                                         \
             __FILE__,                                                                                                  \
             __LINE__                                                                                                   \
         )                                                                                                              \
     )                                                                                                                  \
     static void func(::rhi::testing::GpuTestContext* ctx, ::ComPtr<::rhi::IDevice> device)
+
+
+// By default debug-layers are enabled if SLANG_RHI_DEBUG,
+// otherwise they are never enabled.
+#if SLANG_RHI_DEBUG
+static rhi::DebugLayerOptions kDefaultDebugLayerOptions = rhi::testing::DebugLayerOptionsBuilder().enableCoreValidation();
+#else
+static rhi::DebugLayerOptions kDefaultDebugLayerOptions = rhi::testing::DebugLayerOptionsBuilder();
+#endif
 
 // Register a GPU test case.
 // This will register one test case for each device type specified in the flags.
@@ -509,12 +504,19 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
 // - GpuTestFlag::DontCreateDevice: Do not create a device (device argument is nullptr)
 // - GpuTestFlag::DontCacheDevice: Do not use cached devices (create a new device for this test case)
 #define GPU_TEST_CASE(name, flags)                                                                                     \
-    GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, CoreValidation)
+    GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, kDefaultDebugLayerOptions)
 
+// By default debug-layers are enabled if SLANG_RHI_DEBUG,
+// otherwise they are never enabled.
+#if SLANG_RHI_DEBUG
 // Register a GPU test case, similar to `GPU_TEST_CASE`, but with one additional parameter, `debugLayerFlags`.
 // `debugLayerFlags` controls the DebugLayerOptions for our Slang-RHI instance.
 #define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
     GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, debugLayerOptions)
+#else
+#define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
+    GPU_TEST_CASE(name, flags)
+#endif
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))

@@ -9,6 +9,7 @@
 
 #include "staging-heap.h"
 
+#include "rhi.h"
 #include "rhi-shared-fwd.h"
 
 #include <atomic>
@@ -148,8 +149,8 @@ public:
 class LiveDeviceTracker : public RefObject
 {
 public:
-    LiveDeviceTracker() { getRHI()->incrementLiveDeviceCount(); }
-    ~LiveDeviceTracker() { getRHI()->decrementLiveDeviceCount(); }
+    LiveDeviceTracker() { checked_cast<RHI*>(getRHI())->incrementLiveDeviceCount(); }
+    ~LiveDeviceTracker() { checked_cast<RHI*>(getRHI())->decrementLiveDeviceCount(); }
 };
 
 // Device implementation shared by all platforms.
