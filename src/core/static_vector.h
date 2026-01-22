@@ -9,6 +9,11 @@
 #include <type_traits>
 #include <utility>
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wagressive-loop-optimizations"
+#endif
+
 namespace rhi {
 
 /**
@@ -189,8 +194,6 @@ public:
     void resize(size_type count)
     {
         SLANG_RHI_ASSERT(count <= N);
-        if (count > N)
-            return;
         if (count < m_size)
         {
             destroy_range(count, m_size);
@@ -206,8 +209,6 @@ public:
     void resize(size_type count, const value_type& value)
     {
         SLANG_RHI_ASSERT(count <= N);
-        if (count > N)
-            return;
         if (count < m_size)
         {
             destroy_range(count, m_size);
@@ -434,3 +435,7 @@ private:
 };
 
 } // namespace rhi
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
