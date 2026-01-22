@@ -12,70 +12,70 @@ namespace {
 // Test struct to track construction/destruction for lifetime testing
 struct LifetimeTracker
 {
-    static int s_constructCount;
-    static int s_destructCount;
-    static int s_copyCount;
-    static int s_moveCount;
+    static int s_construct_count;
+    static int s_destruct_count;
+    static int s_copy_count;
+    static int s_move_count;
 
     int value;
 
-    static void resetCounters()
+    static void reset_counters()
     {
-        s_constructCount = 0;
-        s_destructCount = 0;
-        s_copyCount = 0;
-        s_moveCount = 0;
+        s_construct_count = 0;
+        s_destruct_count = 0;
+        s_copy_count = 0;
+        s_move_count = 0;
     }
 
     LifetimeTracker()
         : value(0)
     {
-        ++s_constructCount;
+        ++s_construct_count;
     }
 
     explicit LifetimeTracker(int v)
         : value(v)
     {
-        ++s_constructCount;
+        ++s_construct_count;
     }
 
     LifetimeTracker(const LifetimeTracker& other)
         : value(other.value)
     {
-        ++s_constructCount;
-        ++s_copyCount;
+        ++s_construct_count;
+        ++s_copy_count;
     }
 
     LifetimeTracker(LifetimeTracker&& other) noexcept
         : value(other.value)
     {
-        ++s_constructCount;
-        ++s_moveCount;
+        ++s_construct_count;
+        ++s_move_count;
         other.value = -1;
     }
 
     LifetimeTracker& operator=(const LifetimeTracker& other)
     {
         value = other.value;
-        ++s_copyCount;
+        ++s_copy_count;
         return *this;
     }
 
     LifetimeTracker& operator=(LifetimeTracker&& other) noexcept
     {
         value = other.value;
-        ++s_moveCount;
+        ++s_move_count;
         other.value = -1;
         return *this;
     }
 
-    ~LifetimeTracker() { ++s_destructCount; }
+    ~LifetimeTracker() { ++s_destruct_count; }
 };
 
-int LifetimeTracker::s_constructCount = 0;
-int LifetimeTracker::s_destructCount = 0;
-int LifetimeTracker::s_copyCount = 0;
-int LifetimeTracker::s_moveCount = 0;
+int LifetimeTracker::s_construct_count = 0;
+int LifetimeTracker::s_destruct_count = 0;
+int LifetimeTracker::s_copy_count = 0;
+int LifetimeTracker::s_move_count = 0;
 
 } // namespace
 
@@ -227,19 +227,19 @@ TEST_CASE("static_vector")
 
     SUBCASE("clear")
     {
-        LifetimeTracker::resetCounters();
+        LifetimeTracker::reset_counters();
         {
             static_vector<LifetimeTracker, 10> vec;
             vec.emplace_back(1);
             vec.emplace_back(2);
             vec.emplace_back(3);
             CHECK(vec.size() == 3);
-            CHECK(LifetimeTracker::s_constructCount == 3);
-            CHECK(LifetimeTracker::s_destructCount == 0);
+            CHECK(LifetimeTracker::s_construct_count == 3);
+            CHECK(LifetimeTracker::s_destruct_count == 0);
 
             vec.clear();
             CHECK(vec.empty());
-            CHECK(LifetimeTracker::s_destructCount == 3);
+            CHECK(LifetimeTracker::s_destruct_count == 3);
         }
     }
 
@@ -269,7 +269,7 @@ TEST_CASE("static_vector")
 
     SUBCASE("resize-shrink")
     {
-        LifetimeTracker::resetCounters();
+        LifetimeTracker::reset_counters();
         {
             static_vector<LifetimeTracker, 10> vec;
             vec.emplace_back(1);
@@ -277,13 +277,13 @@ TEST_CASE("static_vector")
             vec.emplace_back(3);
             vec.emplace_back(4);
             vec.emplace_back(5);
-            CHECK(LifetimeTracker::s_destructCount == 0);
+            CHECK(LifetimeTracker::s_destruct_count == 0);
 
             vec.resize(2);
             CHECK(vec.size() == 2);
             CHECK(vec[0].value == 1);
             CHECK(vec[1].value == 2);
-            CHECK(LifetimeTracker::s_destructCount == 3);
+            CHECK(LifetimeTracker::s_destruct_count == 3);
         }
     }
 
@@ -323,7 +323,7 @@ TEST_CASE("static_vector")
 
     SUBCASE("copy-construction")
     {
-        LifetimeTracker::resetCounters();
+        LifetimeTracker::reset_counters();
         {
             static_vector<LifetimeTracker, 10> vec1;
             vec1.emplace_back(1);
@@ -341,13 +341,13 @@ TEST_CASE("static_vector")
             CHECK(vec1[1].value == 2);
             CHECK(vec1[2].value == 3);
 
-            CHECK(LifetimeTracker::s_copyCount == 3);
+            CHECK(LifetimeTracker::s_copy_count == 3);
         }
     }
 
     SUBCASE("move-construction")
     {
-        LifetimeTracker::resetCounters();
+        LifetimeTracker::reset_counters();
         {
             static_vector<LifetimeTracker, 10> vec1;
             vec1.emplace_back(1);
@@ -363,7 +363,7 @@ TEST_CASE("static_vector")
             // Original should be cleared
             CHECK(vec1.empty());
 
-            CHECK(LifetimeTracker::s_moveCount == 3);
+            CHECK(LifetimeTracker::s_move_count == 3);
         }
     }
 
@@ -434,32 +434,32 @@ TEST_CASE("static_vector")
 
     SUBCASE("lifetime-destruction-order")
     {
-        LifetimeTracker::resetCounters();
+        LifetimeTracker::reset_counters();
         {
             static_vector<LifetimeTracker, 10> vec;
             vec.emplace_back(1);
             vec.emplace_back(2);
             vec.emplace_back(3);
-            CHECK(LifetimeTracker::s_constructCount == 3);
+            CHECK(LifetimeTracker::s_construct_count == 3);
         }
-        CHECK(LifetimeTracker::s_destructCount == 3);
+        CHECK(LifetimeTracker::s_destruct_count == 3);
     }
 
     SUBCASE("pop_back-destroys-element")
     {
-        LifetimeTracker::resetCounters();
+        LifetimeTracker::reset_counters();
         {
             static_vector<LifetimeTracker, 10> vec;
             vec.emplace_back(1);
             vec.emplace_back(2);
-            CHECK(LifetimeTracker::s_destructCount == 0);
+            CHECK(LifetimeTracker::s_destruct_count == 0);
 
             vec.pop_back();
-            CHECK(LifetimeTracker::s_destructCount == 1);
+            CHECK(LifetimeTracker::s_destruct_count == 1);
             CHECK(vec.size() == 1);
             CHECK(vec[0].value == 1);
         }
-        CHECK(LifetimeTracker::s_destructCount == 2);
+        CHECK(LifetimeTracker::s_destruct_count == 2);
     }
 
     SUBCASE("full-capacity")
@@ -649,7 +649,7 @@ TEST_CASE("static_vector")
 
     SUBCASE("swap-with-lifetime-tracking")
     {
-        LifetimeTracker::resetCounters();
+        LifetimeTracker::reset_counters();
         {
             static_vector<LifetimeTracker, 10> vec1;
             vec1.emplace_back(1);
@@ -672,12 +672,12 @@ TEST_CASE("static_vector")
             CHECK(vec2[1].value == 2);
         }
         // All elements should be properly destroyed
-        CHECK(LifetimeTracker::s_constructCount == LifetimeTracker::s_destructCount);
+        CHECK(LifetimeTracker::s_construct_count == LifetimeTracker::s_destruct_count);
     }
 
     SUBCASE("insert-with-lifetime-tracking")
     {
-        LifetimeTracker::resetCounters();
+        LifetimeTracker::reset_counters();
         {
             static_vector<LifetimeTracker, 10> vec;
             vec.emplace_back(1);
@@ -691,7 +691,7 @@ TEST_CASE("static_vector")
             CHECK(vec[1].value == 2);
             CHECK(vec[2].value == 3);
         }
-        CHECK(LifetimeTracker::s_constructCount == LifetimeTracker::s_destructCount);
+        CHECK(LifetimeTracker::s_construct_count == LifetimeTracker::s_destruct_count);
     }
 
     // POD optimization tests - these exercise the memmove/memcpy fast paths
