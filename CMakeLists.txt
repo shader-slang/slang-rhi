@@ -879,7 +879,9 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-shader-cache.cpp
         tests/test-shader-object-large.cpp
         tests/test-shader-object-resource-tracking.cpp
+        tests/test-short-vector.cpp
         tests/test-staging-heap.cpp
+        tests/test-static-vector.cpp
         tests/test-surface.cpp
         tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
