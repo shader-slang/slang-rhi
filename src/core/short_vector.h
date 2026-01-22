@@ -515,10 +515,9 @@ public:
 
             // Move inline elements to heap_vec's inline buffer.
             heap_vec.m_data = heap_vec.inline_buffer();
-            heap_vec.m_size = 0;
+            heap_vec.m_size = inline_vec.m_size;
             heap_vec.m_capacity = N;
             move_construct_range(inline_vec.m_data, inline_vec.m_data + inline_vec.m_size, heap_vec.m_data);
-            heap_vec.m_size = inline_vec.m_size;
 
             // Destroy inline elements and transfer heap pointer.
             destroy_range(inline_vec.m_data, inline_vec.m_data + inline_vec.m_size);
