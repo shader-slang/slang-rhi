@@ -30,6 +30,10 @@ public:
     {
         Size alignment = 0;
         Size size = 0;
+
+        /// Stream context for this page (backend-specific handle).
+        /// Passed from HeapAllocDesc when creating the page.
+        void* stream = kNoStream;
     };
 
     class Page
@@ -54,7 +58,8 @@ public:
         /// The stream this page was originally allocated on.
         /// This NEVER changes - ownership remains with original stream (PyTorch model).
         /// Backend-specific handle (CUstream for CUDA, queue handle for D3D/Vk).
-        void* m_stream = nullptr;
+        /// Set to kNoStream if allocated outside encoding context (lazy assignment on first use).
+        void* m_stream = kNoStream;
 
         /// Record that this page is being used by a stream different from m_stream.
         /// Backend implementations override this to insert synchronization events.
@@ -87,9 +92,11 @@ public:
         /// Backend implementations override to track cross-stream usage.
         /// This enables proper multi-stream synchronization: if a page allocated
         /// on stream A is used during encoding for stream B, we record that usage.
-        virtual void notifyUse()
+        /// @param stream The stream context for this allocation (from HeapAllocDesc::stream)
+        virtual void notifyUse(void* stream)
         {
             // Default: no-op, backend overrides with stream tracking
+            (void)stream;
         }
 
         uint32_t m_id;
