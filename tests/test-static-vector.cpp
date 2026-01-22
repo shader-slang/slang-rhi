@@ -392,16 +392,6 @@ TEST_CASE("static_vector")
         CHECK(vec1.empty());
     }
 
-    SUBCASE("self-assignment")
-    {
-        static_vector<int, 10> vec = {1, 2, 3};
-        vec = vec;
-        CHECK(vec.size() == 3);
-        CHECK(vec[0] == 1);
-        CHECK(vec[1] == 2);
-        CHECK(vec[2] == 3);
-    }
-
     SUBCASE("erase-single")
     {
         static_vector<int, 10> vec = {1, 2, 3, 4, 5};

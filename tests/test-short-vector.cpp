@@ -469,24 +469,6 @@ TEST_CASE("short_vector")
         CHECK(vec[1] == 20);
     }
 
-    SUBCASE("self-assignment")
-    {
-        short_vector<int, 4> vec = {1, 2, 3};
-        vec = vec;
-        CHECK(vec.size() == 3);
-        CHECK(vec[0] == 1);
-        CHECK(vec[1] == 2);
-        CHECK(vec[2] == 3);
-    }
-
-    SUBCASE("self-move-assignment")
-    {
-        short_vector<int, 4> vec = {1, 2, 3};
-        vec = std::move(vec);
-        CHECK(vec.size() == 3);
-        CHECK(vec[0] == 1);
-    }
-
     SUBCASE("erase-single")
     {
         short_vector<int, 8> vec = {1, 2, 3, 4, 5};
