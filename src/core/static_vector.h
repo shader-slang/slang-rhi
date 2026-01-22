@@ -260,7 +260,7 @@ public:
     iterator erase(const_iterator pos)
     {
         SLANG_RHI_ASSERT(pos >= begin() && pos < end());
-        iterator it = begin() + (pos - cbegin());
+        iterator it = begin() + (pos - begin());
         if constexpr (std::is_trivially_copyable_v<T>)
         {
             std::memmove(it, it + 1, (end() - it - 1) * sizeof(T));
@@ -279,8 +279,8 @@ public:
     {
         SLANG_RHI_ASSERT(first >= begin() && first <= end());
         SLANG_RHI_ASSERT(last >= first && last <= end());
-        iterator it_first = begin() + (first - cbegin());
-        iterator it_last = begin() + (last - cbegin());
+        iterator it_first = begin() + (first - begin());
+        iterator it_last = begin() + (last - begin());
         if (it_first != it_last)
         {
             size_type num_erased = it_last - it_first;
@@ -305,7 +305,7 @@ public:
     {
         SLANG_RHI_ASSERT(m_size < N);
         SLANG_RHI_ASSERT(pos >= begin() && pos <= end());
-        iterator it = begin() + (pos - cbegin());
+        iterator it = begin() + (pos - begin());
         if (it == end())
         {
             construct_at(m_size, value);
@@ -334,7 +334,7 @@ public:
     {
         SLANG_RHI_ASSERT(m_size < N);
         SLANG_RHI_ASSERT(pos >= begin() && pos <= end());
-        iterator it = begin() + (pos - cbegin());
+        iterator it = begin() + (pos - begin());
         if (it == end())
         {
             construct_at(m_size, std::move(value));

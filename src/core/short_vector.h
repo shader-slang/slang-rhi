@@ -344,7 +344,7 @@ public:
     iterator erase(const_iterator pos)
     {
         SLANG_RHI_ASSERT(pos >= begin() && pos < end());
-        iterator it = begin() + (pos - cbegin());
+        iterator it = begin() + (pos - begin());
         if constexpr (std::is_trivially_copyable_v<T>)
         {
             std::memmove(it, it + 1, (end() - it - 1) * sizeof(T));
@@ -363,8 +363,8 @@ public:
     {
         SLANG_RHI_ASSERT(first >= begin() && first <= end());
         SLANG_RHI_ASSERT(last >= first && last <= end());
-        iterator it_first = begin() + (first - cbegin());
-        iterator it_last = begin() + (last - cbegin());
+        iterator it_first = begin() + (first - begin());
+        iterator it_last = begin() + (last - begin());
         if (it_first != it_last)
         {
             size_type num_erased = it_last - it_first;
@@ -388,7 +388,7 @@ public:
     iterator insert(const_iterator pos, const value_type& value)
     {
         SLANG_RHI_ASSERT(pos >= begin() && pos <= end());
-        size_type index = pos - cbegin();
+        size_type index = pos - begin();
 
         // Copy value before any modifications in case it references an element in this vector.
         value_type copy = value;
@@ -420,7 +420,7 @@ public:
     iterator insert(const_iterator pos, value_type&& value)
     {
         SLANG_RHI_ASSERT(pos >= begin() && pos <= end());
-        size_type index = pos - cbegin();
+        size_type index = pos - begin();
 
         // Move value before any modifications in case it references an element in this vector.
         value_type copy = std::move(value);
