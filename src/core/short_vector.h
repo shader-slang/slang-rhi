@@ -475,9 +475,7 @@ public:
             size_type common = (m_size < other.m_size) ? m_size : other.m_size;
             for (size_type i = 0; i < common; ++i)
             {
-                value_type tmp = std::move(m_data[i]);
-                m_data[i] = std::move(other.m_data[i]);
-                other.m_data[i] = std::move(tmp);
+                std::swap(m_data[i], other.m_data[i]);
             }
 
             if (m_size < other.m_size)
@@ -496,22 +494,14 @@ public:
                     destroy_at(m_data + i);
                 }
             }
-            size_type tmp_size = m_size;
-            m_size = other.m_size;
-            other.m_size = tmp_size;
+            std::swap(m_size, other.m_size);
         }
         // Both heap: just swap pointers.
         else if (!is_inline() && !other.is_inline())
         {
-            pointer tmp_data = m_data;
-            m_data = other.m_data;
-            other.m_data = tmp_data;
-            size_type tmp_size = m_size;
-            m_size = other.m_size;
-            other.m_size = tmp_size;
-            size_type tmp_capacity = m_capacity;
-            m_capacity = other.m_capacity;
-            other.m_capacity = tmp_capacity;
+            std::swap(m_data, other.m_data);
+            std::swap(m_size, other.m_size);
+            std::swap(m_capacity, other.m_capacity);
         }
         // Mixed: move inline elements to heap side, transfer heap pointer.
         else

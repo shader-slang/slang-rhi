@@ -308,10 +308,12 @@ public:
         }
         else
         {
+            // Copy value first in case it references an element in this vector.
+            value_type copy = value;
             construct_at(m_size, std::move(back()));
             for (iterator dst = end() - 1, src = dst - 1; dst != it; --dst, --src)
                 *dst = std::move(*src);
-            *it = value;
+            *it = std::move(copy);
         }
         ++m_size;
         return it;
@@ -335,10 +337,12 @@ public:
         }
         else
         {
+            // Copy value first in case it references an element in this vector.
+            value_type copy = std::move(value);
             construct_at(m_size, std::move(back()));
             for (iterator dst = end() - 1, src = dst - 1; dst != it; --dst, --src)
                 *dst = std::move(*src);
-            *it = std::move(value);
+            *it = std::move(copy);
         }
         ++m_size;
         return it;
@@ -387,9 +391,7 @@ public:
         size_type common = (m_size < other.m_size) ? m_size : other.m_size;
         for (size_type i = 0; i < common; ++i)
         {
-            value_type tmp = std::move((*this)[i]);
-            (*this)[i] = std::move(other[i]);
-            other[i] = std::move(tmp);
+            std::swap((*this)[i], other[i]);
         }
 
         // Move extra elements from the larger to the smaller
@@ -410,9 +412,7 @@ public:
             }
         }
 
-        size_type tmp_size = m_size;
-        m_size = other.m_size;
-        other.m_size = tmp_size;
+        std::swap(m_size, other.m_size);
     }
 
     friend void swap(static_vector& a, static_vector& b) noexcept(
