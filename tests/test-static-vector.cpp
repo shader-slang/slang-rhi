@@ -693,4 +693,107 @@ TEST_CASE("static_vector")
         }
         CHECK(LifetimeTracker::s_constructCount == LifetimeTracker::s_destructCount);
     }
+
+    // POD optimization tests - these exercise the memmove/memcpy fast paths
+    SUBCASE("pod-erase-first")
+    {
+        static_vector<int, 10> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.begin());
+        CHECK(vec.size() == 4);
+        CHECK(vec[0] == 2);
+        CHECK(vec[1] == 3);
+        CHECK(vec[2] == 4);
+        CHECK(vec[3] == 5);
+    }
+
+    SUBCASE("pod-erase-last")
+    {
+        static_vector<int, 10> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.end() - 1);
+        CHECK(vec.size() == 4);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 2);
+        CHECK(vec[2] == 3);
+        CHECK(vec[3] == 4);
+    }
+
+    SUBCASE("pod-erase-range-all")
+    {
+        static_vector<int, 10> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.begin(), vec.end());
+        CHECK(vec.empty());
+    }
+
+    SUBCASE("pod-erase-range-from-start")
+    {
+        static_vector<int, 10> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.begin(), vec.begin() + 3);
+        CHECK(vec.size() == 2);
+        CHECK(vec[0] == 4);
+        CHECK(vec[1] == 5);
+    }
+
+    SUBCASE("pod-erase-range-to-end")
+    {
+        static_vector<int, 10> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.begin() + 2, vec.end());
+        CHECK(vec.size() == 2);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 2);
+    }
+
+    SUBCASE("pod-insert-into-empty")
+    {
+        static_vector<int, 10> vec;
+        vec.insert(vec.begin(), 42);
+        CHECK(vec.size() == 1);
+        CHECK(vec[0] == 42);
+    }
+
+    SUBCASE("pod-insert-multiple-at-beginning")
+    {
+        static_vector<int, 10> vec = {3, 4, 5};
+        vec.insert(vec.begin(), 2);
+        vec.insert(vec.begin(), 1);
+        CHECK(vec.size() == 5);
+        for (int i = 0; i < 5; ++i)
+            CHECK(vec[i] == i + 1);
+    }
+
+    SUBCASE("pod-insert-self-reference")
+    {
+        // Test inserting an element that references itself (the copy should happen before shift)
+        static_vector<int, 10> vec = {1, 2, 3};
+        vec.insert(vec.begin() + 1, vec[0]);
+        CHECK(vec.size() == 4);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 1);
+        CHECK(vec[2] == 2);
+        CHECK(vec[3] == 3);
+    }
+
+    SUBCASE("pod-copy-construct-large")
+    {
+        static_vector<int, 100> vec1;
+        for (int i = 0; i < 100; ++i)
+            vec1.push_back(i);
+
+        static_vector<int, 100> vec2(vec1);
+        CHECK(vec2.size() == 100);
+        for (int i = 0; i < 100; ++i)
+            CHECK(vec2[i] == i);
+    }
+
+    SUBCASE("pod-move-construct-large")
+    {
+        static_vector<int, 100> vec1;
+        for (int i = 0; i < 100; ++i)
+            vec1.push_back(i);
+
+        static_vector<int, 100> vec2(std::move(vec1));
+        CHECK(vec2.size() == 100);
+        for (int i = 0; i < 100; ++i)
+            CHECK(vec2[i] == i);
+        CHECK(vec1.empty());
+    }
 }

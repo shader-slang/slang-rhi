@@ -334,9 +334,17 @@ public:
     {
         SLANG_RHI_ASSERT(pos >= begin() && pos < end());
         iterator it = begin() + (pos - cbegin());
-        for (iterator src = it + 1, dst = it; src != end(); ++src, ++dst)
-            *dst = std::move(*src);
-        pop_back();
+        if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            std::memmove(it, it + 1, (end() - it - 1) * sizeof(T));
+            --m_size;
+        }
+        else
+        {
+            for (iterator src = it + 1, dst = it; src != end(); ++src, ++dst)
+                *dst = std::move(*src);
+            pop_back();
+        }
         return it;
     }
 
@@ -348,11 +356,20 @@ public:
         iterator it_last = begin() + (last - cbegin());
         if (it_first != it_last)
         {
-            iterator dst = it_first;
-            for (iterator src = it_last; src != end(); ++src, ++dst)
-                *dst = std::move(*src);
-            destroy_range(dst, m_data + m_size);
-            m_size = dst - m_data;
+            size_type num_erased = it_last - it_first;
+            size_type num_tail = end() - it_last;
+            if constexpr (std::is_trivially_copyable_v<T>)
+            {
+                std::memmove(it_first, it_last, num_tail * sizeof(T));
+            }
+            else
+            {
+                iterator dst = it_first;
+                for (iterator src = it_last; src != end(); ++src, ++dst)
+                    *dst = std::move(*src);
+                destroy_range(dst, m_data + m_size);
+            }
+            m_size -= num_erased;
         }
         return it_first;
     }
@@ -372,6 +389,11 @@ public:
         if (it == end())
         {
             construct_at(m_data + m_size, std::move(copy));
+        }
+        else if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            std::memmove(it + 1, it, (end() - it) * sizeof(T));
+            *it = std::move(copy);
         }
         else
         {
@@ -399,6 +421,11 @@ public:
         if (it == end())
         {
             construct_at(m_data + m_size, std::move(copy));
+        }
+        else if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            std::memmove(it + 1, it, (end() - it) * sizeof(T));
+            *it = std::move(copy);
         }
         else
         {
@@ -585,8 +612,15 @@ private:
 
     static void construct_range(pointer first, pointer last)
     {
-        for (; first != last; ++first)
-            ::new (static_cast<void*>(first)) T();
+        if constexpr (std::is_trivially_default_constructible_v<T>)
+        {
+            std::memset(first, 0, (last - first) * sizeof(T));
+        }
+        else
+        {
+            for (; first != last; ++first)
+                ::new (static_cast<void*>(first)) T();
+        }
     }
 
     static void destroy_range(pointer first, pointer last)

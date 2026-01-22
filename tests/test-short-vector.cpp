@@ -838,4 +838,144 @@ TEST_CASE("short_vector")
         for (int i = 0; i < 100; ++i)
             CHECK(vec[i] == 99 - i);
     }
+
+    // POD optimization tests - these exercise the memmove/memcpy fast paths
+    SUBCASE("pod-erase-first")
+    {
+        short_vector<int, 8> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.begin());
+        CHECK(vec.size() == 4);
+        CHECK(vec[0] == 2);
+        CHECK(vec[1] == 3);
+        CHECK(vec[2] == 4);
+        CHECK(vec[3] == 5);
+    }
+
+    SUBCASE("pod-erase-last")
+    {
+        short_vector<int, 8> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.end() - 1);
+        CHECK(vec.size() == 4);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 2);
+        CHECK(vec[2] == 3);
+        CHECK(vec[3] == 4);
+    }
+
+    SUBCASE("pod-erase-range-all")
+    {
+        short_vector<int, 8> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.begin(), vec.end());
+        CHECK(vec.empty());
+    }
+
+    SUBCASE("pod-erase-range-from-start")
+    {
+        short_vector<int, 8> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.begin(), vec.begin() + 3);
+        CHECK(vec.size() == 2);
+        CHECK(vec[0] == 4);
+        CHECK(vec[1] == 5);
+    }
+
+    SUBCASE("pod-erase-range-to-end")
+    {
+        short_vector<int, 8> vec = {1, 2, 3, 4, 5};
+        vec.erase(vec.begin() + 2, vec.end());
+        CHECK(vec.size() == 2);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 2);
+    }
+
+    SUBCASE("pod-erase-on-heap")
+    {
+        short_vector<int, 2> vec = {1, 2, 3, 4, 5};
+        CHECK(!vec.is_inline());
+        vec.erase(vec.begin() + 1, vec.begin() + 4);
+        CHECK(vec.size() == 2);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 5);
+    }
+
+    SUBCASE("pod-insert-into-empty")
+    {
+        short_vector<int, 8> vec;
+        vec.insert(vec.begin(), 42);
+        CHECK(vec.size() == 1);
+        CHECK(vec[0] == 42);
+    }
+
+    SUBCASE("pod-insert-multiple-at-beginning")
+    {
+        short_vector<int, 8> vec = {3, 4, 5};
+        vec.insert(vec.begin(), 2);
+        vec.insert(vec.begin(), 1);
+        CHECK(vec.size() == 5);
+        for (int i = 0; i < 5; ++i)
+            CHECK(vec[i] == i + 1);
+    }
+
+    SUBCASE("pod-insert-self-reference")
+    {
+        // Test inserting an element that references itself (the copy should happen before shift)
+        short_vector<int, 8> vec = {1, 2, 3};
+        vec.insert(vec.begin() + 1, vec[0]);
+        CHECK(vec.size() == 4);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 1);
+        CHECK(vec[2] == 2);
+        CHECK(vec[3] == 3);
+    }
+
+    SUBCASE("pod-insert-triggers-growth")
+    {
+        short_vector<int, 2> vec = {1, 2};
+        CHECK(vec.is_inline());
+        vec.insert(vec.begin() + 1, 10);
+        CHECK(!vec.is_inline());
+        CHECK(vec.size() == 3);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 10);
+        CHECK(vec[2] == 2);
+    }
+
+    SUBCASE("pod-insert-on-heap")
+    {
+        short_vector<int, 2> vec = {1, 2, 3, 4};
+        CHECK(!vec.is_inline());
+        vec.insert(vec.begin() + 2, 10);
+        CHECK(vec.size() == 5);
+        CHECK(vec[0] == 1);
+        CHECK(vec[1] == 2);
+        CHECK(vec[2] == 10);
+        CHECK(vec[3] == 3);
+        CHECK(vec[4] == 4);
+    }
+
+    SUBCASE("pod-copy-construct-large")
+    {
+        short_vector<int, 4> vec1;
+        for (int i = 0; i < 100; ++i)
+            vec1.push_back(i);
+        CHECK(!vec1.is_inline());
+
+        short_vector<int, 4> vec2(vec1);
+        CHECK(vec2.size() == 100);
+        for (int i = 0; i < 100; ++i)
+            CHECK(vec2[i] == i);
+    }
+
+    SUBCASE("pod-move-construct-large")
+    {
+        short_vector<int, 4> vec1;
+        for (int i = 0; i < 100; ++i)
+            vec1.push_back(i);
+        CHECK(!vec1.is_inline());
+
+        short_vector<int, 4> vec2(std::move(vec1));
+        CHECK(vec2.size() == 100);
+        for (int i = 0; i < 100; ++i)
+            CHECK(vec2[i] == i);
+        CHECK(vec1.empty());
+    }
 }

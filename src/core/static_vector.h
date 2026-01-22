@@ -3,6 +3,7 @@
 #include "assert.h"
 
 #include <cstddef>
+#include <cstring>
 #include <initializer_list>
 #include <memory>
 #include <new>
@@ -48,8 +49,7 @@ public:
     explicit static_vector(size_type count)
     {
         SLANG_RHI_ASSERT(count <= N);
-        for (size_type i = 0; i < count; ++i)
-            construct_at(i);
+        construct_range(0, count);
         m_size = count;
     }
 
@@ -88,16 +88,14 @@ public:
     /// Copy constructor.
     static_vector(const static_vector& other)
     {
-        for (size_type i = 0; i < other.m_size; ++i)
-            construct_at(i, other[i]);
+        copy_construct_range(other.ptr_at(0), other.m_size, ptr_at(0));
         m_size = other.m_size;
     }
 
     /// Move constructor.
     static_vector(static_vector&& other) noexcept(std::is_nothrow_move_constructible<T>::value)
     {
-        for (size_type i = 0; i < other.m_size; ++i)
-            construct_at(i, std::move(other[i]));
+        move_construct_range(other.ptr_at(0), other.m_size, ptr_at(0));
         m_size = other.m_size;
         other.destroy_all();
     }
@@ -111,8 +109,7 @@ public:
         if (this != &other)
         {
             clear();
-            for (size_type i = 0; i < other.m_size; ++i)
-                construct_at(i, other[i]);
+            copy_construct_range(other.ptr_at(0), other.m_size, ptr_at(0));
             m_size = other.m_size;
         }
         return *this;
@@ -124,8 +121,7 @@ public:
         if (this != &other)
         {
             clear();
-            for (size_type i = 0; i < other.m_size; ++i)
-                construct_at(i, std::move(other[i]));
+            move_construct_range(other.ptr_at(0), other.m_size, ptr_at(0));
             m_size = other.m_size;
             other.destroy_all();
         }
@@ -200,8 +196,7 @@ public:
         }
         else if (count > m_size)
         {
-            for (size_type i = m_size; i < count; ++i)
-                construct_at(i);
+            construct_range(m_size, count);
         }
         m_size = count;
     }
@@ -255,9 +250,17 @@ public:
     {
         SLANG_RHI_ASSERT(pos >= begin() && pos < end());
         iterator it = begin() + (pos - cbegin());
-        for (iterator src = it + 1, dst = it; src != end(); ++src, ++dst)
-            *dst = std::move(*src);
-        pop_back();
+        if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            std::memmove(it, it + 1, (end() - it - 1) * sizeof(T));
+            --m_size;
+        }
+        else
+        {
+            for (iterator src = it + 1, dst = it; src != end(); ++src, ++dst)
+                *dst = std::move(*src);
+            pop_back();
+        }
         return it;
     }
 
@@ -269,11 +272,20 @@ public:
         iterator it_last = begin() + (last - cbegin());
         if (it_first != it_last)
         {
-            iterator dst = it_first;
-            for (iterator src = it_last; src != end(); ++src, ++dst)
-                *dst = std::move(*src);
-            destroy_range(dst - begin(), m_size);
-            m_size = dst - begin();
+            size_type num_erased = it_last - it_first;
+            size_type num_tail = end() - it_last;
+            if constexpr (std::is_trivially_copyable_v<T>)
+            {
+                std::memmove(it_first, it_last, num_tail * sizeof(T));
+            }
+            else
+            {
+                iterator dst = it_first;
+                for (iterator src = it_last; src != end(); ++src, ++dst)
+                    *dst = std::move(*src);
+                destroy_range(m_size - num_erased, m_size);
+            }
+            m_size -= num_erased;
         }
         return it_first;
     }
@@ -286,6 +298,13 @@ public:
         if (it == end())
         {
             construct_at(m_size, value);
+        }
+        else if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            // Copy value first in case it references an element in this vector.
+            value_type copy = value;
+            std::memmove(it + 1, it, (end() - it) * sizeof(T));
+            *it = copy;
         }
         else
         {
@@ -306,6 +325,13 @@ public:
         if (it == end())
         {
             construct_at(m_size, std::move(value));
+        }
+        else if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            // Copy value first in case it references an element in this vector.
+            value_type copy = std::move(value);
+            std::memmove(it + 1, it, (end() - it) * sizeof(T));
+            *it = copy;
         }
         else
         {
@@ -410,12 +436,19 @@ private:
         ::new (static_cast<void*>(&m_storage[index])) T(std::forward<Args>(args)...);
     }
 
-    void destroy_at(size_type index) { ptr_at(index)->~T(); }
+    void destroy_at(size_type index)
+    {
+        if constexpr (!std::is_trivially_destructible_v<T>)
+            ptr_at(index)->~T();
+    }
 
     void destroy_range(size_type first, size_type last)
     {
-        for (size_type i = first; i < last; ++i)
-            destroy_at(i);
+        if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            for (size_type i = first; i < last; ++i)
+                ptr_at(i)->~T();
+        }
     }
 
     /// Destroys all elements after they have been moved from.
@@ -423,6 +456,45 @@ private:
     {
         destroy_range(0, m_size);
         m_size = 0;
+    }
+
+    static void copy_construct_range(const_pointer src, size_type count, pointer dest)
+    {
+        if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            std::memcpy(dest, src, count * sizeof(T));
+        }
+        else
+        {
+            for (size_type i = 0; i < count; ++i)
+                ::new (static_cast<void*>(dest + i)) T(src[i]);
+        }
+    }
+
+    static void move_construct_range(pointer src, size_type count, pointer dest)
+    {
+        if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            std::memcpy(dest, src, count * sizeof(T));
+        }
+        else
+        {
+            for (size_type i = 0; i < count; ++i)
+                ::new (static_cast<void*>(dest + i)) T(std::move(src[i]));
+        }
+    }
+
+    void construct_range(size_type first, size_type last)
+    {
+        if constexpr (std::is_trivially_default_constructible_v<T>)
+        {
+            std::memset(ptr_at(first), 0, (last - first) * sizeof(T));
+        }
+        else
+        {
+            for (size_type i = first; i < last; ++i)
+                ::new (static_cast<void*>(&m_storage[i])) T();
+        }
     }
 
     struct alignas(T) storage_type
