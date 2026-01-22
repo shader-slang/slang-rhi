@@ -59,6 +59,11 @@ typedef size_t Offset;
 
 const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 
+/// Sentinel value indicating no stream context is available.
+/// Used in HeapAllocDesc::stream when allocating outside command encoding context.
+/// Note: nullptr/0 is NOT used as sentinel because it represents the default stream in CUDA.
+inline void* const kNoStream = reinterpret_cast<void*>(~uintptr_t(0));
+
 enum class StructType
 {
     ShaderProgramDesc,
@@ -2781,6 +2786,12 @@ struct HeapAllocDesc
 {
     Size size = 0;
     Size alignment = 0;
+
+    /// Stream context for multi-stream tracking (backend-specific handle).
+    /// Set to the encoding stream when allocating during command encoding.
+    /// Set to kNoStream (default) when allocating outside encoding context.
+    /// Note: nullptr is valid (represents default stream in CUDA), use kNoStream for "no context".
+    void* stream = kNoStream;
 };
 
 struct HeapReport

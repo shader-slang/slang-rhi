@@ -665,11 +665,15 @@ CommandQueueImpl::~CommandQueueImpl()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    // Block on all events completing (multi-stream case)
+    // Block on and destroy all events (multi-stream case)
+    // We must destroy events explicitly - cuEventDestroy does NOT happen automatically
+    // when the context is destroyed, and leaking handles can exhaust per-process limits.
     for (const auto& ev : m_submitEvents)
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(ev.event));
     }
+    m_submitEvents.clear();
 
     // Always synchronize the CUDA context before destruction.
     // This is critical for single-stream workloads using the default stream (m_stream == nullptr)
@@ -825,13 +829,6 @@ Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    // Set current stream on device for allocations during command encoding.
-    // This enables proper multi-stream tracking: when a page allocated on stream A
-    // is used for allocations during encoding for stream B, we record the cross-stream usage.
-    // All heaps query the device for the current stream, so we only need to set it once.
-    DeviceImpl* device = getDevice<DeviceImpl>();
-    device->setCurrentStream(m_stream);
-
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
@@ -923,25 +920,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         // Get/execute the buffer.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
-
-        // Set current stream on device for caching allocator (PyTorch-style)
-        // This ensures new page allocations are associated with this stream.
-        // All heaps query the device for the current stream.
-        DeviceImpl* device = getDevice<DeviceImpl>();
-        device->setCurrentStream(requestedStream);
-
-        CommandExecutor executor(device, requestedStream);
+        CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
-
-        // Reset device stream back to the queue's default stream after execution.
-        // This prevents dangling stream handles when users pass external streams
-        // via SubmitDesc.cudaStream that may be destroyed after this call returns.
-        //
-        // For cross-stream detection: pages allocated DURING this submit will have
-        // m_stream = requestedStream. When freed later (after reset to m_stream),
-        // the comparison will be page->m_stream (requestedStream) vs device->m_currentStream (m_stream)
-        // which correctly detects cross-stream if they differ.
-        device->setCurrentStream(m_stream);
 
         // PyTorch-style lazy events optimization:
         // Only create events for multi-stream workloads where we need cross-stream synchronization.
@@ -955,7 +935,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         //
         // This provides a major performance win since single-stream workloads have ZERO event overhead,
         // matching PyTorch's behavior where events are only created for cross-stream synchronization.
-        bool needsEvent = (requestedStream != m_stream);  // Only multi-stream needs events
+        bool needsEvent = (requestedStream != m_stream); // Only multi-stream needs events
 
         if (needsEvent)
         {
@@ -1045,6 +1025,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
+    builder.m_stream = m_queue->m_stream; // Pass stream for multi-stream tracking
     ShaderObjectLayout* specializedLayout = nullptr;
     SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
     return builder.bindAsRoot(

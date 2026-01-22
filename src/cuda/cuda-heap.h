@@ -62,8 +62,9 @@ public:
         bool processEventsAndCheckReuse();
 
         /// Called when this page is used for an allocation.
-        /// Records cross-stream usage if the current stream differs from the page's stream.
-        void notifyUse() override;
+        /// Records cross-stream usage if the passed stream differs from the page's stream.
+        /// @param stream The stream context for this allocation (from HeapAllocDesc::stream)
+        void notifyUse(void* stream) override;
 
         CUdeviceptr m_cudaMemory;
 
@@ -113,10 +114,6 @@ public:
 
     // Alignments
     virtual Result fixUpAllocDesc(HeapAllocDesc& desc) override;
-
-    /// Get the current stream from the device.
-    /// This is used for PyTorch-style same-stream detection.
-    CUstream getCurrentStream() const;
 
     std::list<PendingFree> m_pendingFrees;
 

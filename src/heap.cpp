@@ -46,7 +46,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
             if (pageAllocation)
             {
                 // Notify page it's being used (enables multi-stream tracking)
-                page->notifyUse();
+                page->notifyUse(desc.stream);
                 Size offset = pageAllocation.offset * page->m_desc.alignment;
                 *outAllocation = {offset, size, page, pageAllocation.metadata, page->offsetToAddress(offset)};
                 return SLANG_OK;
@@ -58,6 +58,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
     PageDesc pageDesc;
     pageDesc.alignment = desc.alignment;
     pageDesc.size = pageSize;
+    pageDesc.stream = desc.stream;
     Page* newPage = nullptr;
     Result res = createPage(pageDesc, &newPage);
     if (res == SLANG_E_OUT_OF_MEMORY)
@@ -76,7 +77,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
         {
             // Notify page it's being used (for new pages this is typically a no-op
             // since the page was just created with the current stream)
-            newPage->notifyUse();
+            newPage->notifyUse(desc.stream);
             Size offset = pageAllocation.offset * newPage->m_desc.alignment;
             *outAllocation = {offset, size, newPage, pageAllocation.metadata, newPage->offsetToAddress(offset)};
             return SLANG_OK;

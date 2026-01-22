@@ -49,15 +49,15 @@ void ConstantBufferPool::reset()
     m_globalDataPool.reset(m_device);
 }
 
-Result ConstantBufferPool::allocate(size_t size, ConstantBufferMemType memType, Allocation& outAllocation)
+Result ConstantBufferPool::allocate(size_t size, ConstantBufferMemType memType, void* stream, Allocation& outAllocation)
 {
     if (memType == ConstantBufferMemType::Global)
     {
-        return m_globalDataPool.allocate(m_device, size, outAllocation);
+        return m_globalDataPool.allocate(m_device, size, stream, outAllocation);
     }
     else
     {
-        return m_entryPointDataPool.allocate(m_device, size, outAllocation);
+        return m_entryPointDataPool.allocate(m_device, size, stream, outAllocation);
     }
 }
 
@@ -83,7 +83,7 @@ void ConstantBufferPool::Pool::reset(DeviceImpl* device)
     m_largePages.clear();
 }
 
-Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Allocation& outAllocation)
+Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, void* stream, Allocation& outAllocation)
 {
     if (size == 0)
     {
@@ -96,7 +96,7 @@ Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Alloc
     {
         m_largePages.push_back(Page());
         Page& page = m_largePages.back();
-        SLANG_RETURN_ON_FAIL(createPage(device, size, page));
+        SLANG_RETURN_ON_FAIL(createPage(device, size, stream, page));
         page.usedSize = size;
         outAllocation.hostData = page.hostMem ? page.hostMem.getHostPtr() : 0;
         outAllocation.deviceData = page.deviceMem ? page.deviceMem.getDeviceAddress() : 0;
@@ -109,7 +109,7 @@ Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Alloc
         if (m_currentPage >= int(m_pages.size()))
         {
             m_pages.push_back(Page());
-            SLANG_RETURN_ON_FAIL(createPage(device, kPageSize, m_pages.back()));
+            SLANG_RETURN_ON_FAIL(createPage(device, kPageSize, stream, m_pages.back()));
         }
         m_currentOffset = 0;
     }
@@ -122,11 +122,12 @@ Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Alloc
     return SLANG_OK;
 }
 
-Result ConstantBufferPool::Pool::createPage(DeviceImpl* device, size_t size, Page& outPage)
+Result ConstantBufferPool::Pool::createPage(DeviceImpl* device, size_t size, void* stream, Page& outPage)
 {
     HeapAllocDesc desc;
     desc.alignment = kAlignment;
     desc.size = size;
+    desc.stream = stream; // Pass stream for multi-stream tracking
 
     if (m_memType == ConstantBufferMemType::Global)
     {

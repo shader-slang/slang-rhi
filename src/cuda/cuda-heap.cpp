@@ -134,16 +134,27 @@ bool HeapImpl::PageImpl::processEventsAndCheckReuse()
     return true;
 }
 
-void HeapImpl::PageImpl::notifyUse()
+void HeapImpl::PageImpl::notifyUse(void* stream)
 {
-    // Get the current stream from the heap
-    HeapImpl* heap = static_cast<HeapImpl*>(m_heap);
-    CUstream currentStream = heap->getCurrentStream();
+    // If no stream context provided (kNoStream sentinel), nothing to track
+    if (stream == kNoStream)
+    {
+        return;
+    }
+
+    CUstream currentStream = static_cast<CUstream>(stream);
+
+    // If page has no stream yet (kNoStream), adopt this stream as owner (lazy assignment)
+    if (m_stream == kNoStream)
+    {
+        m_stream = currentStream;
+        return;
+    }
 
     // If this page is being used by a different stream than it was allocated on,
     // record the cross-stream usage for proper synchronization.
     // Following PyTorch model: only track when streams actually differ.
-    if (currentStream != nullptr && m_stream != currentStream)
+    if (m_stream != currentStream)
     {
         recordStreamUse(currentStream);
     }
@@ -255,15 +266,6 @@ HeapImpl::HeapImpl(Device* device, const HeapDesc& desc)
 {
 }
 
-CUstream HeapImpl::getCurrentStream() const
-{
-    // Query the device for the current stream.
-    // This is set by the command queue on submit, so all heaps
-    // automatically see the current stream without needing individual updates.
-    DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(m_device.get());
-    return deviceImpl->getCurrentStream();
-}
-
 HeapImpl::~HeapImpl()
 {
     // Release all cached pages
@@ -274,42 +276,35 @@ HeapImpl::~HeapImpl()
 Result HeapImpl::free(HeapAlloc allocation)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
-
-    // PyTorch-style optimization: Same-stream immediate reuse
-    //
-    // Key insight: CUDA stream FIFO ordering means operations on the same stream
-    // execute in order. When we "free" and "allocate" memory on the same stream,
-    // these are CPU-side pool operations - the GPU never sees them.
-    //
-    // Timeline:
-    //   CPU: [Launch K1(A)] → [Free A] → [Alloc A] → [Launch K2(A)]
-    //                ▼       (pool op)  (pool op)         ▼
-    //   GPU:    [Kernel K1 uses A] ──────────────► [Kernel K2 uses A]
-    //                              FIFO guarantees K2 waits for K1
-    //
-    // This is SAFE and allows immediate memory reuse without waiting!
     PageImpl* page = static_cast<PageImpl*>(allocation.pageId);
 
-    // Check if this is a same-stream allocation with no cross-stream usage
-    CUstream currentStream = getCurrentStream();
-    bool sameStream = (page->m_stream == currentStream);
-    bool noCrossStreamEvents = page->canReuse();  // No pending cross-stream events
+    // PyTorch-style optimization: Immediate reuse when safe
+    //
+    // Key insight: CUDA stream FIFO ordering means operations on the same stream
+    // execute in order. If a page has no cross-stream events, it was only used
+    // by its owner stream, so any new allocation will be properly ordered.
 
-    if (sameStream && noCrossStreamEvents)
+    // Case 1: Page has no stream assignment - no GPU work was ever done with it
+    if (page->m_stream == kNoStream)
     {
-        // Same stream, no cross-stream usage: IMMEDIATE reuse (PyTorch fast path)
-        // This is the key optimization - no waiting for stream idle!
         return retire(allocation);
     }
 
-    // Fallback cases that require deferred retirement:
-    // 1. Stream is idle (old conservative path)
+    // Case 2: Queue is completely idle - all GPU work is done
     if (deviceImpl->m_queue->m_lastFinishedID == deviceImpl->m_queue->m_lastSubmittedID)
     {
         return retire(allocation);
     }
 
-    // 2. Different stream or has cross-stream events: defer until safe
+    // Case 3: No cross-stream events - page was only used by its owner stream
+    // CUDA stream ordering guarantees safety for immediate reuse on that stream
+    if (page->canReuse())
+    {
+        return retire(allocation);
+    }
+
+    // Case 4: Cross-stream events exist - defer until safe
+    // We need to wait until all streams that used this page have completed.
     PendingFree pendingFree;
     pendingFree.allocation = allocation;
     pendingFree.submitIndex = deviceImpl->m_queue->m_lastSubmittedID;
@@ -342,12 +337,14 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     SLANG_CUDA_CTX_SCOPE(deviceImpl);
 
-    CUstream currentStream = getCurrentStream();
+    // Get stream from PageDesc (passed from HeapAllocDesc)
+    // Note: kNoStream means no stream context, nullptr is the default CUDA stream
+    CUstream stream = (desc.stream == kNoStream) ? nullptr : static_cast<CUstream>(desc.stream);
 
     // Try to find a reusable page in the cache first (PyTorch-style caching)
     if (m_cachingConfig.enabled)
     {
-        PageImpl* cachedPage = m_pageCache.findReusable(desc.size, currentStream);
+        PageImpl* cachedPage = m_pageCache.findReusable(desc.size, stream);
         if (cachedPage)
         {
             // Reusing cached page - it keeps its original allocation stream (m_stream)
@@ -371,8 +368,9 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
 
     PageImpl* newPage = new PageImpl(this, desc, cudaMemory);
 
-    // Set the allocation stream for the new page (PyTorch model: set once, never changes)
-    newPage->m_stream = currentStream;
+    // Set the allocation stream for the new page from PageDesc
+    // If kNoStream, the page will get its stream on first use (lazy assignment in notifyUse)
+    newPage->m_stream = desc.stream;
 
     *outPage = newPage;
     return SLANG_OK;
