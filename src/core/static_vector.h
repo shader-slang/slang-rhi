@@ -11,7 +11,7 @@
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wagressive-loop-optimizations"
+#pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
 #endif
 
 namespace rhi {
