@@ -158,6 +158,7 @@ TEST_CASE("short_vector")
         vec.push_back(3);
         CHECK(!vec.is_inline());
         CHECK(vec.size() == 3);
+        CHECK(vec.capacity() >= 3);
         CHECK(vec[0] == 1);
         CHECK(vec[1] == 2);
         CHECK(vec[2] == 3);
@@ -983,6 +984,7 @@ TEST_CASE("short_vector")
         vec.insert(vec.begin() + 1, 10);
         CHECK(!vec.is_inline());
         CHECK(vec.size() == 3);
+        CHECK(vec.capacity() >= 3);
         CHECK(vec[0] == 1);
         CHECK(vec[1] == 10);
         CHECK(vec[2] == 2);
