@@ -396,7 +396,7 @@ public:
         if (m_size == m_capacity)
             grow(m_capacity * 2);
 
-        iterator it = m_data + index;
+        iterator it = begin() + index;
         if (it == end())
         {
             construct_at(m_data + m_size, std::move(copy));
@@ -428,7 +428,7 @@ public:
         if (m_size == m_capacity)
             grow(m_capacity * 2);
 
-        iterator it = m_data + index;
+        iterator it = begin() + index;
         if (it == end())
         {
             construct_at(m_data + m_size, std::move(copy));
