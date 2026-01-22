@@ -436,6 +436,19 @@ private:
         ::new (static_cast<void*>(&m_storage[index])) T(std::forward<Args>(args)...);
     }
 
+    void construct_range(size_type first, size_type last)
+    {
+        if constexpr (std::is_trivially_default_constructible_v<T>)
+        {
+            std::memset(ptr_at(first), 0, (last - first) * sizeof(T));
+        }
+        else
+        {
+            for (size_type i = first; i < last; ++i)
+                ::new (static_cast<void*>(&m_storage[i])) T();
+        }
+    }
+
     void destroy_at(size_type index)
     {
         if constexpr (!std::is_trivially_destructible_v<T>)
@@ -481,19 +494,6 @@ private:
         {
             for (size_type i = 0; i < count; ++i)
                 ::new (static_cast<void*>(dest + i)) T(std::move(src[i]));
-        }
-    }
-
-    void construct_range(size_type first, size_type last)
-    {
-        if constexpr (std::is_trivially_default_constructible_v<T>)
-        {
-            std::memset(ptr_at(first), 0, (last - first) * sizeof(T));
-        }
-        else
-        {
-            for (size_type i = first; i < last; ++i)
-                ::new (static_cast<void*>(&m_storage[i])) T();
         }
     }
 

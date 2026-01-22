@@ -604,12 +604,6 @@ private:
         ::new (static_cast<void*>(p)) T(std::forward<Args>(args)...);
     }
 
-    static void destroy_at(pointer p)
-    {
-        if constexpr (!std::is_trivially_destructible_v<T>)
-            p->~T();
-    }
-
     static void construct_range(pointer first, pointer last)
     {
         if constexpr (std::is_trivially_default_constructible_v<T>)
@@ -623,6 +617,12 @@ private:
         }
     }
 
+    static void destroy_at(pointer p)
+    {
+        if constexpr (!std::is_trivially_destructible_v<T>)
+            p->~T();
+    }
+
     static void destroy_range(pointer first, pointer last)
     {
         if constexpr (!std::is_trivially_destructible_v<T>)
@@ -630,6 +630,12 @@ private:
             for (; first != last; ++first)
                 first->~T();
         }
+    }
+
+    void destroy_all()
+    {
+        destroy_range(m_data, m_data + m_size);
+        m_size = 0;
     }
 
     static void copy_construct_range(const_pointer src_first, const_pointer src_last, pointer dest)
@@ -656,12 +662,6 @@ private:
             for (; src_first != src_last; ++src_first, ++dest)
                 ::new (static_cast<void*>(dest)) T(std::move(*src_first));
         }
-    }
-
-    void destroy_all()
-    {
-        destroy_range(m_data, m_data + m_size);
-        m_size = 0;
     }
 
     struct alignas(T) inline_storage_type
