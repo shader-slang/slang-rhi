@@ -11,11 +11,16 @@ namespace rhi::cuda {
 
 HeapImpl::PageImpl::~PageImpl()
 {
-    // Clean up any remaining events
+    // Wait on and clean up any remaining events.
+    // We must call cuEventSynchronize before cuEventDestroy because
+    // cuEventDestroy does NOT wait for the event to complete - it just
+    // marks the event for destruction. Without sync, we could destroy
+    // an event while GPU work referencing this page is still pending.
     for (auto& se : m_pendingEvents)
     {
         if (se.event)
         {
+            SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(se.event));
             SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(se.event));
         }
     }
@@ -71,8 +76,10 @@ bool HeapImpl::PageImpl::canReuse() const
             // At least one stream is still using this page
             return false;
         }
-        // CUDA_SUCCESS means event completed
-        // Other errors we treat as completed (something went wrong, but don't block)
+        // CUDA_SUCCESS means event completed.
+        // Assert on unexpected errors (e.g., CUDA_ERROR_INVALID_VALUE if context destroyed).
+        // This catches issues in debug builds while preventing deadlocks in release.
+        SLANG_RHI_ASSERT(result == CUDA_SUCCESS);
     }
 
     return true;
@@ -85,17 +92,46 @@ void HeapImpl::PageImpl::processEvents()
     while (it != m_pendingEvents.end())
     {
         CUresult result = cuEventQuery(it->event);
-        if (result != CUDA_ERROR_NOT_READY)
+        if (result == CUDA_ERROR_NOT_READY)
         {
-            // Event completed (or errored) - clean up
-            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(it->event));
-            it = m_pendingEvents.erase(it);
+            // Event still pending - keep it
+            ++it;
         }
         else
         {
-            ++it;
+            // CUDA_SUCCESS means event completed.
+            // Assert on unexpected errors to catch issues in debug builds.
+            SLANG_RHI_ASSERT(result == CUDA_SUCCESS);
+            // Clean up the event (defensive: proceed even if assert disabled in release)
+            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(it->event));
+            it = m_pendingEvents.erase(it);
         }
     }
+}
+
+bool HeapImpl::PageImpl::processEventsAndCheckReuse()
+{
+    // Combined operation: process events and check reusability in a single pass.
+    // This is more efficient than processEvents() + canReuse() and avoids the
+    // race condition where events complete between the two separate calls.
+    auto it = m_pendingEvents.begin();
+    while (it != m_pendingEvents.end())
+    {
+        CUresult result = cuEventQuery(it->event);
+        if (result == CUDA_ERROR_NOT_READY)
+        {
+            // At least one event still pending - page cannot be reused yet
+            return false;
+        }
+        // CUDA_SUCCESS means event completed.
+        // Assert on unexpected errors to catch issues in debug builds.
+        SLANG_RHI_ASSERT(result == CUDA_SUCCESS);
+        // Clean up the completed event
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(it->event));
+        it = m_pendingEvents.erase(it);
+    }
+    // All events processed and completed - page is safe to reuse
+    return true;
 }
 
 void HeapImpl::PageImpl::notifyUse()
@@ -132,11 +168,10 @@ HeapImpl::PageImpl* HeapImpl::PageCache::findReusable(Size size, CUstream stream
         // Prefer page from same stream (no events to wait on)
         if (page->m_stream == stream)
         {
-            // Process any completed events first
-            page->processEvents();
-
-            // Check if page can be reused (all events completed)
-            if (!page->canReuse())
+            // Process events and check reusability in a single pass.
+            // This avoids the race condition where events complete between
+            // separate processEvents() and canReuse() calls.
+            if (!page->processEventsAndCheckReuse())
                 continue;
 
             // Found a reusable page from same stream - best case
@@ -158,11 +193,8 @@ HeapImpl::PageImpl* HeapImpl::PageCache::findReusable(Size size, CUstream stream
         if (page->m_stream == stream)
             continue;
 
-        // Process any completed events first
-        page->processEvents();
-
-        // Check if page can be reused (all events completed)
-        if (!page->canReuse())
+        // Process events and check reusability in a single pass
+        if (!page->processEventsAndCheckReuse())
             continue;
 
         // Found a reusable page from different stream

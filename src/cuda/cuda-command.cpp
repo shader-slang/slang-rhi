@@ -665,20 +665,25 @@ CommandQueueImpl::~CommandQueueImpl()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    // Block on all events completing
+    // Block on all events completing (multi-stream case)
     for (const auto& ev : m_submitEvents)
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
     }
 
-    // Retire finished command buffers, which should be all of them
+    // Always synchronize the CUDA context before destruction.
+    // This is critical for single-stream workloads using the default stream (m_stream == nullptr)
+    // where lazy events optimization means m_submitEvents is empty.
+    // Without this, heap destruction could call cuMemFree while GPU is still using memory!
+    SLANG_CUDA_ASSERT_ON_FAIL(cuCtxSynchronize());
+
+    // Retire finished command buffers, which should be all of them now
     retireCommandBuffers();
     SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
 
-    // Sync/destroy the stream
+    // Destroy non-default streams (default stream uses nullptr, nothing to destroy)
     if (m_stream)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
     }
 }
