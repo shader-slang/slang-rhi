@@ -55,6 +55,12 @@ public:
         /// Removes events that have completed from m_pendingEvents.
         void processEvents() override;
 
+        /// Process events and check if page can be reused in a single pass.
+        /// More efficient than processEvents() + canReuse() and avoids race condition
+        /// where events complete between the two calls.
+        /// @return true if the page can be safely reused (all events completed)
+        bool processEventsAndCheckReuse();
+
         /// Called when this page is used for an allocation.
         /// Records cross-stream usage if the current stream differs from the page's stream.
         void notifyUse() override;
