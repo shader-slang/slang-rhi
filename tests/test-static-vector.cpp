@@ -321,6 +321,38 @@ TEST_CASE("static_vector")
         CHECK(sum == 6);
     }
 
+    SUBCASE("reverse-iterators")
+    {
+        static_vector<int, 10> vec = {1, 2, 3, 4, 5};
+
+        // Test rbegin/rend
+        std::vector<int> reversed;
+        for (auto it = vec.rbegin(); it != vec.rend(); ++it)
+            reversed.push_back(*it);
+        CHECK(reversed.size() == 5);
+        CHECK(reversed[0] == 5);
+        CHECK(reversed[1] == 4);
+        CHECK(reversed[2] == 3);
+        CHECK(reversed[3] == 2);
+        CHECK(reversed[4] == 1);
+
+        // Test modification through reverse iterator
+        *vec.rbegin() = 50;
+        CHECK(vec.back() == 50);
+    }
+
+    SUBCASE("const-reverse-iterators")
+    {
+        const static_vector<int, 10> vec = {1, 2, 3};
+        std::vector<int> reversed;
+        for (auto it = vec.crbegin(); it != vec.crend(); ++it)
+            reversed.push_back(*it);
+        CHECK(reversed.size() == 3);
+        CHECK(reversed[0] == 3);
+        CHECK(reversed[1] == 2);
+        CHECK(reversed[2] == 1);
+    }
+
     SUBCASE("copy-construction")
     {
         LifetimeTracker::reset_counters();

@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
+#include <iterator>
 #include <new>
 #include <type_traits>
 #include <utility>
@@ -36,6 +37,8 @@ public:
     using const_pointer = const value_type*;
     using iterator = value_type*;
     using const_iterator = const value_type*;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     /// Default constructor.
     short_vector() noexcept
@@ -222,6 +225,14 @@ public:
     [[nodiscard]] iterator end() noexcept { return m_data + m_size; }
     [[nodiscard]] const_iterator end() const noexcept { return m_data + m_size; }
     [[nodiscard]] const_iterator cend() const noexcept { return m_data + m_size; }
+
+    [[nodiscard]] reverse_iterator rbegin() noexcept { return reverse_iterator(end()); }
+    [[nodiscard]] const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator(end()); }
+    [[nodiscard]] const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); }
+
+    [[nodiscard]] reverse_iterator rend() noexcept { return reverse_iterator(begin()); }
+    [[nodiscard]] const_reverse_iterator rend() const noexcept { return const_reverse_iterator(begin()); }
+    [[nodiscard]] const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
 
     [[nodiscard]] bool empty() const noexcept { return m_size == 0; }
 
