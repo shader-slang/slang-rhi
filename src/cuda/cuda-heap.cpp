@@ -369,8 +369,9 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     PageImpl* newPage = new PageImpl(this, desc, cudaMemory);
 
     // Set the allocation stream for the new page from PageDesc
-    // If kNoStream, the page will get its stream on first use (lazy assignment in notifyUse)
-    newPage->m_stream = desc.stream;
+    // Convert kNoStream to nullptr (default stream) for consistency with cache lookup (line 342)
+    // This ensures pages created with kNoStream can be found when searching with kNoStream
+    newPage->m_stream = (desc.stream == kNoStream) ? nullptr : desc.stream;
 
     *outPage = newPage;
     return SLANG_OK;
