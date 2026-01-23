@@ -51,8 +51,14 @@ option(SLANG_RHI_INSTALL "Install library" ON)
 # Configure coverage flags
 if(SLANG_RHI_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
-        add_link_options(-fprofile-instr-generate)
+        # Output coverage data to a dedicated directory in the build folder.
+        # %p = process ID, %m = binary signature (allows multiple runs without conflicts)
+        set(SLANG_RHI_COVERAGE_DIR "${CMAKE_BINARY_DIR}/coverage")
+        set(SLANG_RHI_COVERAGE_PATTERN "${SLANG_RHI_COVERAGE_DIR}/coverage-%p-%m.profraw")
+        add_compile_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN} -fcoverage-mapping)
+        add_link_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN})
+    else()
+        message(FATAL_ERROR "Code coverage is only supported with Clang")
     endif()
 endif()
 
@@ -972,9 +978,15 @@ if(SLANG_RHI_ENABLE_COVERAGE)
             -ignore-filename-regex=".*tests.*"
         )
 
+        # Create clean-coverage target to remove existing coverage data
+        add_custom_target(clean-coverage
+            COMMAND ${CMAKE_COMMAND} -E rm -rf ${SLANG_RHI_COVERAGE_DIR}
+            COMMENT "Cleaning coverage data..."
+        )
+
         # Create coverage target
         add_custom_target(coverage
-            COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
+            COMMAND ${LLVM_PROFDATA} merge -sparse ${SLANG_RHI_COVERAGE_DIR}/*.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
             COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} -format lcov > coverage.lcov
             COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
