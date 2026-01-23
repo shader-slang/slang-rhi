@@ -32,7 +32,10 @@ void HeapImpl::PageImpl::recordStreamUse(void* stream)
     CUstream cudaStream = static_cast<CUstream>(stream);
 
     // Following PyTorch model: only add events when stream differs from allocation stream
-    if (cudaStream == m_stream || cudaStream == nullptr)
+    // Note: nullptr (default stream) is a valid stream that needs tracking if it differs
+    // from m_stream. We don't skip nullptr here because cross-stream usage with the
+    // default stream still requires synchronization.
+    if (cudaStream == m_stream)
     {
         return;
     }

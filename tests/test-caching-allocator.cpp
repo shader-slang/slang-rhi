@@ -445,8 +445,8 @@ GPU_TEST_CASE("cuda-buffer-immediate-reuse-safety", CUDA)
     bufferDesc.size = 1024 * sizeof(uint32_t);
     bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(uint32_t);
-    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess |
-                       BufferUsage::CopyDestination | BufferUsage::CopySource;
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
@@ -555,8 +555,8 @@ GPU_TEST_CASE("cuda-buffer-upload-readback-still-tracked", CUDA)
     // Create a device-local buffer
     BufferDesc deviceDesc = {};
     deviceDesc.size = 1024;
-    deviceDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess |
-                       BufferUsage::CopySource | BufferUsage::CopyDestination;
+    deviceDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource |
+                       BufferUsage::CopyDestination;
     deviceDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBuffer> deviceBuffer;
@@ -596,8 +596,8 @@ GPU_TEST_CASE("cuda-buffer-mixed-memory-types", CUDA)
         BufferDesc deviceDesc = {};
         deviceDesc.size = 4096;
         deviceDesc.elementSize = sizeof(uint32_t);
-        deviceDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess |
-                           BufferUsage::CopySource | BufferUsage::CopyDestination;
+        deviceDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource |
+                           BufferUsage::CopyDestination;
         deviceDesc.memoryType = MemoryType::DeviceLocal;
 
         ComPtr<IBuffer> src, dst;
