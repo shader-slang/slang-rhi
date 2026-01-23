@@ -1014,11 +1014,72 @@ Result CommandEncoderImpl::init()
     return SLANG_OK;
 }
 
+/// Track resources for CUDA backend, skipping device-local buffers.
+///
+/// PyTorch-style optimization: Device-local buffers don't need tracking because
+/// CUDA stream FIFO ordering guarantees that GPU work using the buffer will complete
+/// before any new work that might reuse the memory (on the same stream).
+///
+/// We still track:
+/// - Textures: CUDA textures are context-level objects, not stream-level
+/// - Upload/ReadBack buffers: CPU may access after GPU work completes
+/// - Samplers, Pipelines, etc.: Not backed by heap memory
+/// - Acceleration structures: Complex lifetime requirements
+static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<RefObject>>& resources)
+{
+    // Track slot resources, but skip device-local buffers
+    for (const auto& slot : shaderObject->m_slots)
+    {
+        if (slot.resource)
+        {
+            // Check if this is a device-local buffer we can skip
+            if (Buffer* buffer = dynamic_cast<Buffer*>(slot.resource.get()))
+            {
+                // Only skip DeviceLocal buffers - these benefit from same-stream reuse
+                // Keep tracking Upload/ReadBack buffers as CPU may access them
+                if (buffer->m_desc.memoryType == MemoryType::DeviceLocal)
+                {
+                    continue; // Skip tracking - CUDA stream ordering provides safety
+                }
+            }
+            resources.insert(slot.resource);
+        }
+        if (slot.resource2)
+        {
+            // resource2 is typically a sampler or counter buffer, always track
+            resources.insert(slot.resource2);
+        }
+    }
+
+    // Recursively track sub-objects
+    for (const auto& object : shaderObject->m_objects)
+    {
+        if (object)
+        {
+            trackResourcesForCUDA(object, resources);
+        }
+    }
+}
+
+static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<RefPtr<RefObject>>& resources)
+{
+    trackResourcesForCUDA(rootObject, resources);
+    for (const auto& entryPoint : rootObject->m_entryPoints)
+    {
+        if (entryPoint)
+        {
+            trackResourcesForCUDA(entryPoint, resources);
+        }
+    }
+}
+
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    // PyTorch-style optimization: Don't track device-local buffers.
+    // CUDA stream FIFO ordering guarantees safety for same-stream reuse.
+    trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
 
     BindingDataBuilder builder;
     builder.m_device = getDevice<DeviceImpl>();
