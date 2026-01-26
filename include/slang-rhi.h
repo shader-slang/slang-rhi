@@ -3031,15 +3031,14 @@ struct DeviceDesc
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t requiredOptixVersion = 0;
 
-    /// Enable validation for Slang-RHI API (All).
-    /// This does not enable down-stream API Debug Layers
-    /// (ex: Vulkan Validation Layers).
+    /// Enable validation for the Slang-RHI API.
+    /// This does not enable downstream API debug layers (D3D12/Vulkan validation layers).
     bool enableValidation = false;
     /// Enable downstream API raytracing validation (CUDA | D3D12 | Vulkan).
     bool enableRayTracingValidation = false;
     /// Enable NVIDIA Aftermath (D3D11 | D3D12 | Vulkan).
     bool enableAftermath = false;
-  
+
     /// Requires `this->enableAftermath == true`.
     /// Aftermath configuration.
     AftermathFlags aftermathFlags = AftermathFlags::Default;
@@ -3551,15 +3550,10 @@ struct DebugLayerOptions
 
     bool operator==(const DebugLayerOptions& other) const
     {
-        return coreValidation == other.coreValidation &&
-               GPUAssistedValidation == other.GPUAssistedValidation;
+        return coreValidation == other.coreValidation && GPUAssistedValidation == other.GPUAssistedValidation;
     }
 
-    bool isDebugLayersEnabled() const
-    {
-        return coreValidation == true
-            || GPUAssistedValidation == true;
-    }
+    bool isDebugLayersEnabled() const { return coreValidation == true || GPUAssistedValidation == true; }
 };
 
 class IRHI
@@ -3569,7 +3563,6 @@ public:
     inline bool isDebugLayersEnabled() { return getDebugLayerOptions().isDebugLayersEnabled(); }
 
     /// Change downstream debug layer options.
-    /// All devices must be released.
     /// Fails if not all devices are released.
     virtual SLANG_NO_THROW Result SLANG_MCALL setDebugLayerOptions(DebugLayerOptions options) = 0;
 

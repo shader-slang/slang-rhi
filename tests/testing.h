@@ -13,6 +13,7 @@
 #include <vector>
 #include <cstring>
 #include <set>
+#include <optional>
 
 namespace rhi::testing {
 
@@ -329,16 +330,11 @@ struct DeviceExtraOptions
     // This value is passed to D3D12DeviceExtendedDesc::highestShaderModel.
     uint32_t d3d12HighestShaderModel = 0;
 
-    bool enableValidation = false;    
+    bool enableValidation = false;
     bool enableRayTracingValidation = false;
     bool enableAftermath = false;
-    
-    AftermathFlags aftermathFlags = AftermathFlags::Default;
 
-    std::set<DebugMessageType> debugMessageTypesToEmit =
-        {DebugMessageType::Info, DebugMessageType::Warning, DebugMessageType::Error};
-    std::set<DebugMessageSource> debugMessageSourcesToEmitFrom =
-        {DebugMessageSource::Slang, DebugMessageSource::Layer, DebugMessageSource::Driver };
+    AftermathFlags aftermathFlags = AftermathFlags::Default;
 };
 
 ComPtr<IDevice> createTestingDevice(
@@ -442,9 +438,18 @@ enum GpuTestFlags
 class DebugLayerOptionsBuilder
 {
 public:
-    DebugLayerOptionsBuilder& enableCoreValidation() { m_options.coreValidation = true; return *this; }
-    DebugLayerOptionsBuilder& enableGPUAssistedValidation() { m_options.GPUAssistedValidation = true; return *this; }
+    DebugLayerOptionsBuilder& enableCoreValidation()
+    {
+        m_options.coreValidation = true;
+        return *this;
+    }
+    DebugLayerOptionsBuilder& enableGPUAssistedValidation()
+    {
+        m_options.GPUAssistedValidation = true;
+        return *this;
+    }
     operator DebugLayerOptions() const { return m_options; }
+
 private:
     DebugLayerOptions m_options = {};
 };
@@ -462,7 +467,7 @@ int registerGpuTest(
     const char* name,
     GpuTestFunc func,
     GpuTestFlags flags,
-    DebugLayerOptions debugLayerFlags,
+    std::optional<DebugLayerOptions> maybeDebugLayerOptions,
     const char* file,
     int line
 );
@@ -487,15 +492,6 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
     )                                                                                                                  \
     static void func(::rhi::testing::GpuTestContext* ctx, ::ComPtr<::rhi::IDevice> device)
 
-
-// By default debug-layers are enabled if SLANG_RHI_DEBUG,
-// otherwise they are never enabled.
-#if SLANG_RHI_DEBUG
-static rhi::DebugLayerOptions kDefaultDebugLayerOptions = rhi::testing::DebugLayerOptionsBuilder().enableCoreValidation();
-#else
-static rhi::DebugLayerOptions kDefaultDebugLayerOptions = rhi::testing::DebugLayerOptionsBuilder();
-#endif
-
 // Register a GPU test case.
 // This will register one test case for each device type specified in the flags.
 // Each test will be named <name>.<deviceType> where <deviceType> is the string representation of the device type.
@@ -503,8 +499,7 @@ static rhi::DebugLayerOptions kDefaultDebugLayerOptions = rhi::testing::DebugLay
 // In addition to the device flags, the following flags can be used:
 // - GpuTestFlag::DontCreateDevice: Do not create a device (device argument is nullptr)
 // - GpuTestFlag::DontCacheDevice: Do not use cached devices (create a new device for this test case)
-#define GPU_TEST_CASE(name, flags)                                                                                     \
-    GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, kDefaultDebugLayerOptions)
+#define GPU_TEST_CASE(name, flags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, std::nullopt)
 
 // By default debug-layers are enabled if SLANG_RHI_DEBUG,
 // otherwise they are never enabled.
@@ -514,8 +509,7 @@ static rhi::DebugLayerOptions kDefaultDebugLayerOptions = rhi::testing::DebugLay
 #define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
     GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, debugLayerOptions)
 #else
-#define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
-    GPU_TEST_CASE(name, flags)
+#define GPU_TEST_CASE_EX(name, flags, debugLayerOptions) GPU_TEST_CASE(name, flags)
 #endif
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))

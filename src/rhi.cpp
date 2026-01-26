@@ -133,19 +133,28 @@ inline const FormatInfo& _getFormatInfo(Format format)
     return s_formatInfos[size_t(format)];
 }
 
-void RHI::incrementLiveDeviceCount() { m_liveDeviceCount++; }
+void RHI::incrementLiveDeviceCount()
+{
+    m_liveDeviceCount++;
+}
 
-void RHI::decrementLiveDeviceCount() { m_liveDeviceCount--; }
-    
+void RHI::decrementLiveDeviceCount()
+{
+    m_liveDeviceCount--;
+}
+
 Result RHI::setDebugLayerOptions(DebugLayerOptions options)
 {
     if (m_liveDeviceCount != 0)
         return SLANG_FAIL;
-    this->m_debugLayerOptions = options;
+    m_debugLayerOptions = options;
     return SLANG_OK;
 }
 
-DebugLayerOptions RHI::getDebugLayerOptions(){ return m_debugLayerOptions; }
+DebugLayerOptions RHI::getDebugLayerOptions()
+{
+    return m_debugLayerOptions;
+}
 
 
 const FormatInfo& RHI::getFormatInfo(Format format)

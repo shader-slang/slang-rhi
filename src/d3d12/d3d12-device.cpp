@@ -211,7 +211,7 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
         if (SLANG_SUCCEEDED(m_D3D12GetDebugInterface(IID_PPV_ARGS(m_dxDebug.writeRef()))))
         {
             // If debug layers are signaled to be disabled we know the debug-layers were previously enabled
-            if(getRHI()->isDebugLayersEnabled() == false)
+            if (getRHI()->isDebugLayersEnabled() == false)
             {
                 ComPtr<ID3D12Debug4> debug4;
                 if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug4.writeRef())))
@@ -225,7 +225,7 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
                     return SLANG_OK;
                 }
             }
-            // If debug layers are signaled to be enabled, enable them if not done already 
+            // If debug layers are signaled to be enabled, enable them if not done already
             else if (!activeDebugLayers.coreValidation)
             {
                 activeDebugLayers.coreValidation = true;
@@ -240,10 +240,9 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
 
         auto willGPUAssistedValidationBeEnabled = getRHI()->getDebugLayerOptions().GPUAssistedValidation;
         // If there is a GPUAssistedValidation option mismatch between
-        // the last created device and our Slang RHI instance, then 
+        // the last created device and our Slang RHI instance, then
         // change the global state of GPUAssistedValidation.
-        if (activeDebugLayers.GPUAssistedValidation
-            != willGPUAssistedValidationBeEnabled)
+        if (activeDebugLayers.GPUAssistedValidation != willGPUAssistedValidationBeEnabled)
         {
             ComPtr<ID3D12Debug1> debug1;
             if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug1.writeRef())))
@@ -253,7 +252,7 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
             }
             else
             {
-                printWarning("GPU Based Validation is unavailable.\n");
+                printWarning("GPU based validation requested but not available.\n");
                 return SLANG_OK;
             }
         }
@@ -933,7 +932,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
         else
         {
-            printWarning("Tried to enable raytracing validation but unsupported\n");
+            printWarning("Raytracing validation requested but not available.\n");
         }
     }
 #endif // SLANG_RHI_ENABLE_NVAPI

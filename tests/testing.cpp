@@ -128,30 +128,20 @@ static CaptureDebugCallback sCaptureDebugCallback;
 class DebugCallback : public IDebugCallback
 {
 public:
-    std::set<DebugMessageType> debugMessageTypesToEmit =
-        {DebugMessageType::Info, DebugMessageType::Warning, DebugMessageType::Error};
-    std::set<DebugMessageSource> debugMessageSourcesToEmitFrom =
-        {DebugMessageSource::Slang, DebugMessageSource::Layer, DebugMessageSource::Driver};
-
     bool shouldIgnoreMessage(DebugMessageType type, DebugMessageSource source, const char* message)
     {
-        if (debugMessageTypesToEmit.find(type) == debugMessageTypesToEmit.end())
+        if (type != DebugMessageType::Error)
+            return false;
+
+        // These 2 messages pop up as the vulkan validation layer doesn't pick up on CoopVec yet
+        if (strstr(message, "VK_NV_cooperative_vector is not supported by this layer"))
             return true;
-        if (debugMessageSourcesToEmitFrom.find(source) == debugMessageSourcesToEmitFrom.end())
+        if (strstr(message, "includes a structure with unknown VkStructureType (1000491000)"))
             return true;
 
-        if (type == DebugMessageType::Error)
-        {
-            // These 2 messages pop up as the vulkan validation layer doesn't pick up on CoopVec yet
-            if (strstr(message, "VK_NV_cooperative_vector is not supported by this layer"))
-                return true;
-            if (strstr(message, "includes a structure with unknown VkStructureType (1000491000)"))
-                return true;
-
-            // Redundant warning about old architectures
-            if (strstr(message, "nvrtc: warning : Architectures prior to"))
-                return true;
-        }
+        // Redundant warning about old architectures
+        if (strstr(message, "nvrtc: warning : Architectures prior to"))
+            return true;
 
         return false;
     }
@@ -184,8 +174,7 @@ public:
                 INFO(str);
             }
         };
-        if (type == DebugMessageType::Info
-            || type == DebugMessageType::Warning)
+        if (type == DebugMessageType::Info || type == DebugMessageType::Warning)
         {
             output(msg);
         }
@@ -514,7 +503,7 @@ void releaseCachedDevices()
     getRHI()->reportLiveObjects();
 }
 
-void TryToChangeCurrentDebugLayerStateAndOptions(DebugLayerOptions targetDebugLayerOptions)
+void tryToChangeCurrentDebugLayerStateAndOptions(DebugLayerOptions targetDebugLayerOptions)
 {
     // By default debug layer is 'off'
     static DebugLayerOptions currentDebugLayerOptions = {};
@@ -574,8 +563,6 @@ ComPtr<IDevice> createTestingDevice(
         deviceDesc.enableRayTracingValidation = extraOptions->enableRayTracingValidation;
         deviceDesc.enableValidation = extraOptions->enableValidation;
         deviceDesc.aftermathFlags = extraOptions->aftermathFlags;
-        sDebugCallback.debugMessageTypesToEmit = extraOptions->debugMessageTypesToEmit;
-        sDebugCallback.debugMessageSourcesToEmitFrom = extraOptions->debugMessageSourcesToEmitFrom;
     }
 
     if (rhi::getRHI()->isDebugLayersEnabled())
@@ -969,7 +956,7 @@ static void gpuTestTrampoline()
         SKIP("device not selected");
     }
 
-    TryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
+    tryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
 
     if (isDeviceTypeAvailable(deviceType))
     {
@@ -1028,12 +1015,34 @@ int registerGpuTest(
     const char* name,
     GpuTestFunc func,
     GpuTestFlags flags,
-    DebugLayerOptions debugLayerOptions,
+    std::optional<DebugLayerOptions> maybeDebugLayerOptions,
     const char* file,
     int line
 )
 {
     static GpuTestAllocator allocator;
+
+    // `registerGpuTest` manages the current RHI instance's `DebugLayerOptions`
+    // through the following steps:
+    // 1. If `maybeDebugLayerOptions` is not null we:
+    //     a. Use `maybeDebugLayerOptions` as the source for `DebugLayerOptions`.
+    // 2. If `maybeDebugLayerOptions` is null we:
+    //     a. Use our saved 'default' RHI state as the source for `DebugLayerOptions`.
+    //
+
+    // Default `DebugLayerOptions` for if `maybeDebugLayerOptions` is empty.
+#if SLANG_RHI_DEBUG
+    static rhi::DebugLayerOptions kDefaultDebugLayerOptions =
+        rhi::testing::DebugLayerOptionsBuilder().enableCoreValidation();
+#else
+    static rhi::DebugLayerOptions kDefaultDebugLayerOptions = rhi::testing::DebugLayerOptionsBuilder();
+#endif
+
+    DebugLayerOptions temporaryNewDebugLayerOptions;
+    if (maybeDebugLayerOptions.has_value())
+        temporaryNewDebugLayerOptions = *maybeDebugLayerOptions;
+    else
+        temporaryNewDebugLayerOptions = kDefaultDebugLayerOptions;
 
     for (int i = 1; i <= 7; i++)
     {
@@ -1051,7 +1060,7 @@ int registerGpuTest(
         info->func = func;
         info->deviceType = deviceType;
         info->flags = flags;
-        info->debugLayerOptions = debugLayerOptions;
+        info->debugLayerOptions = temporaryNewDebugLayerOptions;
 
         char* testName = reinterpret_cast<char*>(info + 1);
         snprintf(testName, testNameLen, "%s.%s", name, deviceTypeToString(deviceType));

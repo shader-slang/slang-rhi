@@ -13,10 +13,10 @@ private:
 public:
     void incrementLiveDeviceCount();
     void decrementLiveDeviceCount();
-    
+
     virtual Result setDebugLayerOptions(DebugLayerOptions options);
     virtual DebugLayerOptions getDebugLayerOptions() override;
-    
+
     virtual const FormatInfo& getFormatInfo(Format format) override;
     virtual const char* getDeviceTypeName(DeviceType type) override;
     virtual bool isDeviceTypeSupported(DeviceType type) override;

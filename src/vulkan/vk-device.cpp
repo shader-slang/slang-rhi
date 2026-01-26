@@ -420,8 +420,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((desc.enableRayTracingValidation || getRHI()->isDebugLayersEnabled()) &&
-        m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((desc.enableRayTracingValidation || getRHI()->isDebugLayersEnabled()) && m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
@@ -892,7 +891,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             // If unsupported, fail
             if (!extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
             {
-                printWarning("Tried to enable raytracing validation but unsupported\n");
+                printWarning("Raytracing validation requested but not available.\n");
             }
             else
             {
