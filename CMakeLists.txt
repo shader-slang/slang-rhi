@@ -326,8 +326,6 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
 
     slang_rhi_add_library_slang()
 
-    target_link_libraries(slang-rhi PUBLIC slang)
-
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll .)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-compiler.dll .)
@@ -336,6 +334,9 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll .)
     endif()
 endif()
+
+# Always link to slang, either the fetched one or the one provided by the parent project.
+target_link_libraries(slang-rhi PUBLIC slang)
 
 # Slang distributes prelude headers in the "include" directory along the other headers.
 # However, in a slang build tree, the files are not in the "include" directory but in a separate "prelude" directory.
