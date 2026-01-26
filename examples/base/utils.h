@@ -2,6 +2,7 @@
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
+#include "../src/enum-strings.h"
 
 #include <execution>
 #include <limits>
@@ -60,7 +61,7 @@ public:
         const char* message
     ) override
     {
-        printf("[%s] (%s) %s\n", debugMessageTypeToString(type), debugMessageSourceToString(source), message);
+        printf("[%s] (%s) %s\n", enumToString(type), enumToString(source), message);
         fflush(stdout);
     }
 
