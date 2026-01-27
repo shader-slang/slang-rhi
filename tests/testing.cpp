@@ -163,20 +163,16 @@ public:
         msg += "[" + doctest::String(enumToString(source)) + "] ";
         msg += message;
 
-        auto output = [](const doctest::String& str)
+        if (type == DebugMessageType::Info || type == DebugMessageType::Warning)
         {
             if (options().verbose)
             {
-                MESSAGE(str);
+                MESSAGE(msg);
             }
             else
             {
-                INFO(str);
+                INFO(msg);
             }
-        };
-        if (type == DebugMessageType::Info || type == DebugMessageType::Warning)
-        {
-            output(msg);
         }
         else if (type == DebugMessageType::Error)
         {
@@ -956,19 +952,30 @@ static void gpuTestTrampoline()
         SKIP("device not selected");
     }
 
-    tryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
-
     if (isDeviceTypeAvailable(deviceType))
     {
-        GpuTestContext ctx;
-        ctx.deviceType = deviceType;
-        ctx.slangGlobalSession = getSlangGlobalSession();
-        ComPtr<IDevice> device;
-        if (createDevice)
+        // Cache the default `DebugLayerOptions` and switch if
+        // the test requests different `DebugLayerOptions`.
+        auto previousDebugLayerOptions = getRHI()->getDebugLayerOptions();
+        if(info->hasDebugLayerOptions)
+            tryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
+
         {
-            device = createTestingDevice(&ctx, deviceType, cacheDevice);
+            // Run test
+            GpuTestContext ctx;
+            ctx.deviceType = deviceType;
+            ctx.slangGlobalSession = getSlangGlobalSession();
+            ComPtr<IDevice> device;
+            if (createDevice)
+            {
+                device = createTestingDevice(&ctx, deviceType, cacheDevice);
+            }
+            info->func(&ctx, device);
         }
-        info->func(&ctx, device);
+
+        // Switch back to the old `DebugLayerOptions` after `device` releases
+        if(info->hasDebugLayerOptions)
+            tryToChangeCurrentDebugLayerStateAndOptions(previousDebugLayerOptions);
     }
     else
     {
@@ -1015,34 +1022,12 @@ int registerGpuTest(
     const char* name,
     GpuTestFunc func,
     GpuTestFlags flags,
-    std::optional<DebugLayerOptions> maybeDebugLayerOptions,
+    std::optional<DebugLayerOptions> overrideDebugLayerOptions,
     const char* file,
     int line
 )
 {
     static GpuTestAllocator allocator;
-
-    // `registerGpuTest` manages the current RHI instance's `DebugLayerOptions`
-    // through the following steps:
-    // 1. If `maybeDebugLayerOptions` is not null we:
-    //     a. Use `maybeDebugLayerOptions` as the source for `DebugLayerOptions`.
-    // 2. If `maybeDebugLayerOptions` is null we:
-    //     a. Use our saved 'default' RHI state as the source for `DebugLayerOptions`.
-    //
-
-    // Default `DebugLayerOptions` for if `maybeDebugLayerOptions` is empty.
-#if SLANG_RHI_DEBUG
-    static rhi::DebugLayerOptions kDefaultDebugLayerOptions =
-        rhi::testing::DebugLayerOptionsBuilder().enableCoreValidation();
-#else
-    static rhi::DebugLayerOptions kDefaultDebugLayerOptions = rhi::testing::DebugLayerOptionsBuilder();
-#endif
-
-    DebugLayerOptions temporaryNewDebugLayerOptions;
-    if (maybeDebugLayerOptions.has_value())
-        temporaryNewDebugLayerOptions = *maybeDebugLayerOptions;
-    else
-        temporaryNewDebugLayerOptions = kDefaultDebugLayerOptions;
 
     for (int i = 1; i <= 7; i++)
     {
@@ -1060,7 +1045,9 @@ int registerGpuTest(
         info->func = func;
         info->deviceType = deviceType;
         info->flags = flags;
-        info->debugLayerOptions = temporaryNewDebugLayerOptions;
+        info->hasDebugLayerOptions = overrideDebugLayerOptions.has_value();
+        if(info->hasDebugLayerOptions)
+            info->debugLayerOptions = *overrideDebugLayerOptions;
 
         char* testName = reinterpret_cast<char*>(info + 1);
         snprintf(testName, testNameLen, "%s.%s", name, deviceTypeToString(deviceType));

@@ -14,7 +14,7 @@ public:
     void incrementLiveDeviceCount();
     void decrementLiveDeviceCount();
 
-    virtual Result setDebugLayerOptions(DebugLayerOptions options);
+    virtual Result setDebugLayerOptions(DebugLayerOptions options) override;
     virtual DebugLayerOptions getDebugLayerOptions() override;
 
     virtual const FormatInfo& getFormatInfo(Format format) override;

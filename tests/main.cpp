@@ -32,6 +32,12 @@ int main(int argc, const char** argv)
 
     rhi::testing::cleanupTestTempDirectories();
 
+#if SLANG_RHI_DEBUG
+    rhi::DebugLayerOptions defaultDebugLayerOptions{};
+    defaultDebugLayerOptions.coreValidation = true;
+    rhi::getRHI()->setDebugLayerOptions(defaultDebugLayerOptions);
+#endif
+
     // Parse extra command line options.
     {
         auto& options = rhi::testing::options();
