@@ -458,7 +458,7 @@ struct GpuTestInfo
     GpuTestFunc func;
     DeviceType deviceType;
     GpuTestFlags flags;
-    
+
     // Since std::optional is not POD we use an alternative
     bool hasDebugLayerOptions;
     DebugLayerOptions debugLayerOptions;
@@ -508,7 +508,7 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
 #if SLANG_RHI_DEBUG
 // Register a GPU test case, similar to `GPU_TEST_CASE`, but with one additional parameter, `overrideDebugLayerOptions`.
 // `overrideDebugLayerOptions` controls the DebugLayerOptions for our Slang-RHI instance.
-#define GPU_TEST_CASE_EX(name, flags, overrideDebugLayerOptions)                                                      \
+#define GPU_TEST_CASE_EX(name, flags, overrideDebugLayerOptions)                                                       \
     GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, overrideDebugLayerOptions)
 #else
 #define GPU_TEST_CASE_EX(name, flags, debugLayerOptions) GPU_TEST_CASE(name, flags)

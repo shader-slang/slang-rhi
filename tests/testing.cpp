@@ -957,7 +957,7 @@ static void gpuTestTrampoline()
         // Cache the default `DebugLayerOptions` and switch if
         // the test requests different `DebugLayerOptions`.
         auto previousDebugLayerOptions = getRHI()->getDebugLayerOptions();
-        if(info->hasDebugLayerOptions)
+        if (info->hasDebugLayerOptions)
             tryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
 
         {
@@ -974,7 +974,7 @@ static void gpuTestTrampoline()
         }
 
         // Switch back to the old `DebugLayerOptions` after `device` releases
-        if(info->hasDebugLayerOptions)
+        if (info->hasDebugLayerOptions)
             tryToChangeCurrentDebugLayerStateAndOptions(previousDebugLayerOptions);
     }
     else
@@ -1046,7 +1046,7 @@ int registerGpuTest(
         info->deviceType = deviceType;
         info->flags = flags;
         info->hasDebugLayerOptions = overrideDebugLayerOptions.has_value();
-        if(info->hasDebugLayerOptions)
+        if (info->hasDebugLayerOptions)
             info->debugLayerOptions = *overrideDebugLayerOptions;
 
         char* testName = reinterpret_cast<char*>(info + 1);
