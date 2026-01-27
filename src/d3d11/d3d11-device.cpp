@@ -119,7 +119,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     int usedCreateFlags = 0;
 
     Result result = SLANG_FAIL;
-    for (uint32_t i = isDebugLayersEnabled() ? 0 : 2; i < SLANG_COUNT_OF(createFlags); i++)
+    for (uint32_t i = getRHI()->isDebugLayersEnabled() ? 0 : 2; i < SLANG_COUNT_OF(createFlags); i++)
     {
         usedCreateFlags = createFlags[i];
         bool useDebug = (usedCreateFlags & UseDebug) != 0;
@@ -144,7 +144,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         printError("D3D11CreateDevice failed: %08x\n", result);
         return SLANG_FAIL;
     }
-    if (isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
+    if (getRHI()->isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
     {
         printWarning("Debug layer requested but not available.\n");
     }

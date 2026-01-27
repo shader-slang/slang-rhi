@@ -2,6 +2,7 @@
 
 #include <slang-rhi.h>
 #include <slang-rhi/shader-cursor.h>
+#include "../src/enum-strings.h"
 
 #include <execution>
 #include <limits>
@@ -60,9 +61,7 @@ public:
         const char* message
     ) override
     {
-        static const char* kTypeStrings[] = {"INFO", "WARN", "ERROR"};
-        static const char* kSourceStrings[] = {"Layer", "Driver", "Slang"};
-        printf("[%s] (%s) %s\n", kTypeStrings[int(type)], kSourceStrings[int(source)], message);
+        printf("[%s] (%s) %s\n", enumToString(type), enumToString(source), message);
         fflush(stdout);
     }
 
@@ -87,7 +86,9 @@ inline Result createDevice(
     DeviceDesc deviceDesc = {};
     deviceDesc.deviceType = deviceType;
 #if SLANG_RHI_DEBUG
-    getRHI()->enableDebugLayers();
+    DebugLayerOptions debugLayerOptions;
+    debugLayerOptions.coreValidation = true;
+    getRHI()->setDebugLayerOptions(debugLayerOptions);
     deviceDesc.enableValidation = true;
     deviceDesc.debugCallback = DebugPrinter::getInstance();
 #endif
