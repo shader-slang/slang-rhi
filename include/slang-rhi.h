@@ -59,6 +59,11 @@ typedef size_t Offset;
 
 const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 
+/// Sentinel value indicating no stream context is available.
+/// Used in HeapAllocDesc::stream when allocating outside command encoding context.
+/// Note: nullptr/0 is NOT used as sentinel because it represents the default stream in CUDA.
+inline void* const kNoStream = reinterpret_cast<void*>(~uintptr_t(0));
+
 enum class StructType
 {
     ShaderProgramDesc,
@@ -2727,6 +2732,27 @@ enum class HeapUsage
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
 
+/// Configuration for PyTorch-style caching allocator.
+/// When enabled, freed pages are cached for reuse instead of being returned to the GPU.
+/// This reduces allocation overhead and improves performance for repeated allocations.
+struct HeapCachingConfig
+{
+    /// Enable caching allocator (default: true)
+    bool enabled = true;
+
+    /// Maximum number of pages to cache (0 = unlimited)
+    uint32_t maxCachedPages = 0;
+
+    /// Maximum total cached memory in bytes (0 = unlimited)
+    Size maxCachedMemory = 0;
+
+    /// Enable garbage collection when memory pressure is detected
+    bool enableGarbageCollection = false;
+
+    /// Trigger garbage collection when GPU memory usage exceeds this ratio (0.0-1.0)
+    float gcMemoryThreshold = 0.8f;
+};
+
 struct HeapDesc
 {
     StructType structType = StructType::HeapDesc;
@@ -2739,12 +2765,21 @@ struct HeapDesc
 
     /// The label for the heap.
     const char* label = nullptr;
+
+    /// Configuration for caching allocator (PyTorch-style memory reuse)
+    HeapCachingConfig caching;
 };
 
 struct HeapAllocDesc
 {
     Size size = 0;
     Size alignment = 0;
+
+    /// Stream context for multi-stream tracking (backend-specific handle).
+    /// Set to the encoding stream when allocating during command encoding.
+    /// Set to kNoStream (default) when allocating outside encoding context.
+    /// Note: nullptr is valid (represents default stream in CUDA), use kNoStream for "no context".
+    void* stream = kNoStream;
 };
 
 struct HeapReport

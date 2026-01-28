@@ -33,7 +33,9 @@ public:
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
     Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
     void retireCommandBuffer(CommandBufferImpl* commandBuffer);
+    void retireCommandBufferLocked(CommandBufferImpl* commandBuffer);
     Result retireCommandBuffers();
+    Result retireCommandBuffersLocked();
 
     Result signalFence(CUstream stream, uint64_t* outId);
     Result updateFence();
