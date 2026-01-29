@@ -76,6 +76,7 @@ public:
     virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
     BreakableReference<TextureImpl> m_texture;
+    /// Descriptor handles (texture read, texture write, combined texture/sampler).
     DescriptorHandle m_descriptorHandle[3] = {};
 
     // ITextureView implementation
