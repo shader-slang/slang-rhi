@@ -1011,7 +1011,11 @@ struct TextureDesc
 
     const ClearValue* optimalClearValue = nullptr;
 
-    /// Default sampler settings to use for the texture (CUDA only).
+    /// Default sampler to use for the texture.
+    /// This specifies the sampler for combined texture/sampler descriptor handles
+    /// when calling getCombinedTextureSamplerDescriptorHandle().
+    /// On CUDA, texture objects are always combined texture/sampler objects,
+    /// so this sampler is used for all texture access.
     /// If not specified, tri-linear filtering and wrap addressing mode will be used.
     ISampler* sampler = nullptr;
 
@@ -1035,8 +1039,12 @@ struct TextureViewDesc
     TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
 
-    /// Sampler settings to use for the texture view (CUDA only).
-    /// If not specified, the default sampler settings from the texture will be used.
+    /// Sampler to use for the texture view.
+    /// This specifies the sampler for combined texture/sampler descriptor handles
+    /// when calling getCombinedTextureSamplerDescriptorHandle().
+    /// On CUDA, texture objects are always combined texture/sampler objects,
+    /// so this sampler is used for all texture access.
+    /// If not specified, the default sampler from the texture will be used.
     ISampler* sampler = nullptr;
 
     const char* label = nullptr;
