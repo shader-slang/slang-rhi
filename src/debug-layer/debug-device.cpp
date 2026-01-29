@@ -218,12 +218,6 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         break;
     }
 
-    if (desc.sampler != nullptr && ctx->deviceType != DeviceType::CUDA)
-    {
-        RHI_VALIDATION_ERROR("Setting default sampler for texture is only supported on CUDA device");
-        return SLANG_E_INVALID_ARG;
-    }
-
     TextureDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
@@ -424,12 +418,6 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
 Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     SLANG_RHI_API_FUNC;
-
-    if (desc.sampler != nullptr && ctx->deviceType != DeviceType::CUDA)
-    {
-        RHI_VALIDATION_ERROR("Setting default sampler for texture is only supported on CUDA device");
-        return SLANG_E_INVALID_ARG;
-    }
 
     TextureViewDesc patchedDesc = desc;
     std::string label;
