@@ -585,9 +585,18 @@ GPU_TEST_CASE("bindless-combined-texture-samplers", D3D12 | Vulkan | CUDA)
         REQUIRE_CALL(device->createSampler(desc, samplerPoint.writeRef()));
     }
 
+    ComPtr<ISampler> samplerLinear;
+    {
+        SamplerDesc desc = {};
+        desc.minFilter = desc.magFilter = desc.mipFilter = TextureFilteringMode::Linear;
+        REQUIRE_CALL(device->createSampler(desc, samplerLinear.writeRef()));
+    }
+
     ComPtr<ITexture> texture2D;
-    ComPtr<ITextureView> texture2DView;
-    DescriptorHandle combinedSampler2DHandle = {};
+    ComPtr<ITextureView> texture2DViewPoint;
+    ComPtr<ITextureView> texture2DViewLinear;
+    DescriptorHandle combinedSampler2DPointHandle = {};
+    DescriptorHandle combinedSampler2DLinearHandle = {};
     {
         TextureDesc desc = {};
         desc.type = TextureType::Texture2D;
@@ -597,11 +606,18 @@ GPU_TEST_CASE("bindless-combined-texture-samplers", D3D12 | Vulkan | CUDA)
         float data[4] = {1.f, 2.f, 3.f, 4.f};
         SubresourceData subresourceData[] = {{data, 8, 0}};
         REQUIRE_CALL(device->createTexture(desc, subresourceData, texture2D.writeRef()));
-        TextureViewDesc viewDesc = {};
-        viewDesc.sampler = samplerPoint;
-        REQUIRE_CALL(texture2D->createView(viewDesc, texture2DView.writeRef()));
-        REQUIRE_CALL(texture2DView->getCombinedTextureSamplerDescriptorHandle(&combinedSampler2DHandle));
-        CHECK(combinedSampler2DHandle.type == DescriptorHandleType::CombinedTextureSampler);
+
+        TextureViewDesc viewDescPoint = {};
+        viewDescPoint.sampler = samplerPoint;
+        REQUIRE_CALL(texture2D->createView(viewDescPoint, texture2DViewPoint.writeRef()));
+        REQUIRE_CALL(texture2DViewPoint->getCombinedTextureSamplerDescriptorHandle(&combinedSampler2DPointHandle));
+        CHECK(combinedSampler2DPointHandle.type == DescriptorHandleType::CombinedTextureSampler);
+
+        TextureViewDesc viewDescLinear = {};
+        viewDescLinear.sampler = samplerLinear;
+        REQUIRE_CALL(texture2D->createView(viewDescLinear, texture2DViewLinear.writeRef()));
+        REQUIRE_CALL(texture2DViewLinear->getCombinedTextureSamplerDescriptorHandle(&combinedSampler2DLinearHandle));
+        CHECK(combinedSampler2DLinearHandle.type == DescriptorHandleType::CombinedTextureSampler);
     }
 
     ComPtr<ITexture> texture3D;
@@ -710,7 +726,8 @@ GPU_TEST_CASE("bindless-combined-texture-samplers", D3D12 | Vulkan | CUDA)
         auto passEncoder = commandEncoder->beginComputePass();
         IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
         ShaderCursor cursor(rootObject);
-        cursor["combinedSampler2D"].setDescriptorHandle(combinedSampler2DHandle);
+        cursor["combinedSampler2DPoint"].setDescriptorHandle(combinedSampler2DPointHandle);
+        cursor["combinedSampler2DLinear"].setDescriptorHandle(combinedSampler2DLinearHandle);
         cursor["combinedSampler3D"].setDescriptorHandle(combinedSampler3DHandle);
         cursor["combinedSamplerCube"].setDescriptorHandle(combinedSamplerCubeHandle);
         cursor["combinedSampler2DArray"].setDescriptorHandle(combinedSampler2DArrayHandle);
@@ -728,9 +745,11 @@ GPU_TEST_CASE("bindless-combined-texture-samplers", D3D12 | Vulkan | CUDA)
         device,
         result,
         std::array{
-            // Sampler2D
+            // Sampler2D (point)
             1.f,
             4.f,
+            // Sampler2D (linear) - average of 1, 2, 3, 4
+            2.5f,
             // Sampler3D
             1.f,
             8.f,

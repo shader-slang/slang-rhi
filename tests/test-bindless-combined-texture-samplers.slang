@@ -1,4 +1,5 @@
-uniform Sampler2D<float>.Handle combinedSampler2D;
+uniform Sampler2D<float>.Handle combinedSampler2DPoint;
+uniform Sampler2D<float>.Handle combinedSampler2DLinear;
 uniform Sampler3D<float>.Handle combinedSampler3D;
 uniform SamplerCube<float>.Handle combinedSamplerCube;
 
@@ -13,10 +14,15 @@ void computeMain()
 {
     uint index = 0;
 
-    // Sampler2D
+    // Sampler2D with point sampling
     {
-        result[index++] = combinedSampler2D.SampleLevel(float2(0.25, 0.25), 0);
-        result[index++] = combinedSampler2D.SampleLevel(float2(0.75, 0.75), 0);
+        result[index++] = combinedSampler2DPoint.SampleLevel(float2(0.25, 0.25), 0);
+        result[index++] = combinedSampler2DPoint.SampleLevel(float2(0.75, 0.75), 0);
+    }
+
+    // Sampler2D with linear sampling (samples at center to get average of all 4 texels)
+    {
+        result[index++] = combinedSampler2DLinear.SampleLevel(float2(0.5, 0.5), 0);
     }
 
     // Sampler3D
