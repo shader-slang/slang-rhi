@@ -129,6 +129,7 @@ enum class DeviceType
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \
     x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
+    x(CooperativeMatrix2,                       "cooperative-matrix-2"                          ) \
     x(SM_5_1,                                   "sm_5_1"                                        ) \
     x(SM_6_0,                                   "sm_6_0"                                        ) \
     x(SM_6_1,                                   "sm_6_1"                                        ) \
@@ -150,6 +151,8 @@ enum class DeviceType
     x(WaveOps,                                  "wave-ops"                                      ) \
     x(MeshShader,                               "mesh-shader"                                   ) \
     x(Pointer,                                  "has-ptr"                                       ) \
+    x(Float8,                                   "fp8"                                           ) \
+    x(Bfloat16,                                 "bfloat16"                                      ) \
     /* D3D12 specific features */                                                                 \
     x(ConservativeRasterization1,               "conservative-rasterization-1"                  ) \
     x(ConservativeRasterization2,               "conservative-rasterization-2"                  ) \

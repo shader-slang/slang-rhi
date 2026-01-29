@@ -119,6 +119,8 @@
     x(SPV_KHR_cooperative_matrix) \
     x(SPV_NV_tensor_addressing) \
     x(SPV_NV_cooperative_matrix2) \
+    x(SPV_EXT_float8) \
+    x(SPV_KHR_bfloat16) \
     x(spvDeviceGroup) \
     x(spvAtomicFloat32AddEXT) \
     x(spvAtomicFloat16AddEXT) \
@@ -162,6 +164,7 @@
     x(spvCooperativeVectorNV) \
     x(spvCooperativeVectorTrainingNV) \
     x(spvCooperativeMatrixKHR) \
+    x(spvCooperativeMatrix2NV) \
     x(spvCooperativeMatrixReductionsNV) \
     x(spvCooperativeMatrixConversionsNV) \
     x(spvCooperativeMatrixPerElementOperationsNV) \
@@ -172,6 +175,9 @@
     x(spvQuadControlKHR) \
     x(spvVulkanMemoryModelKHR) \
     x(spvVulkanMemoryModelDeviceScopeKHR) \
+    x(spvFloat8EXT) \
+    x(spvBfloat16KHR) \
+    x(spvFloat8CooperativeMatrixEXT) \
     x(_GL_EXT_buffer_reference) \
     x(_GL_EXT_buffer_reference_uvec2) \
     x(_GL_EXT_debug_printf) \

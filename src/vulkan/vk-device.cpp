@@ -430,8 +430,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         uint32_t physicalDeviceCount = 0;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data())
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data())
         );
 
         // Find the physical device that matches the selected adapter UUID.
@@ -556,6 +555,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vertexAttributeRobustnessFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
+
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -934,9 +936,39 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         // VK_EXT_shader_float8 is required for cooperative matrix types FloatE4M3 and FloatE5M2.
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderFloat8Features,
-            shaderFloat8CooperativeMatrix,
+            shaderFloat8,
             VK_EXT_SHADER_FLOAT8_EXTENSION_NAME,
-            {}
+            {
+                availableFeatures.push_back(Feature::Float8);
+                availableCapabilities.push_back(Capability::SPV_EXT_float8);
+                availableCapabilities.push_back(Capability::spvFloat8EXT);
+                if (extendedFeatures.shaderFloat8Features.shaderFloat8CooperativeMatrix)
+                {
+                    availableCapabilities.push_back(Capability::spvFloat8CooperativeMatrixEXT);
+                }
+            }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderBfloat16Features,
+            shaderBFloat16Type,
+            VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME,
+            {
+                availableFeatures.push_back(Feature::Bfloat16);
+                availableCapabilities.push_back(Capability::SPV_KHR_bfloat16);
+                availableCapabilities.push_back(Capability::spvBfloat16KHR);
+            }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixWorkgroupScope,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            {
+                availableFeatures.push_back(Feature::CooperativeMatrix2);
+                availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
+                availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -996,7 +1028,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::SPV_NV_ray_tracing_motion_blur);
                 availableCapabilities.push_back(Capability::spvRayTracingMotionBlurNV);
             }
-        )
+        );
 
 #undef SIMPLE_EXTENSION_FEATURE
 
@@ -2009,14 +2041,12 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    SLANG_RETURN_ON_FAIL(
-        RootShaderObjectLayoutImpl::create(
-            this,
-            shaderProgram->linkedProgram,
-            shaderProgram->linkedProgram->getLayout(),
-            shaderProgram->m_rootShaderObjectLayout.writeRef()
-        )
-    );
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
+        this,
+        shaderProgram->linkedProgram,
+        shaderProgram->linkedProgram->getLayout(),
+        shaderProgram->m_rootShaderObjectLayout.writeRef()
+    ));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
