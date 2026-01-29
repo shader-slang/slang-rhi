@@ -608,6 +608,7 @@ enum class DescriptorHandleType
     Texture,
     RWTexture,
     Sampler,
+    CombinedTextureSampler,
     AccelerationStructure,
 };
 
@@ -1095,6 +1096,9 @@ public:
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
+        DescriptorHandle* outHandle
+    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
         DescriptorHandle* outHandle
     ) = 0;
 };
@@ -2969,6 +2973,8 @@ struct BindlessDesc
     uint32_t textureCount = 1024;
     // Maximum number of bindless samplers.
     uint32_t samplerCount = 128;
+    // Maximum number of bindless combined texture samplers.
+    uint32_t combinedTextureSamplerCount = 1024;
     // Maximum number of bindless acceleration structures.
     uint32_t accelerationStructureCount = 128;
 };
