@@ -560,3 +560,205 @@ GPU_TEST_CASE("bindless-textures", D3D12 | Vulkan | CUDA)
     compareComputeResult(device, rwTexture2DArray, 0, 0, std::array{2.f, 2.f, 3.f, 5.f});
     compareComputeResult(device, rwTexture2DArray, 1, 0, std::array{6.f, 6.f, 7.f, 9.f});
 }
+
+GPU_TEST_CASE("bindless-combined-texture-samplers", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::Bindless))
+    {
+        SKIP("Bindless is not supported");
+    }
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(
+        loadProgram(device, "test-bindless-combined-texture-samplers", "computeMain", shaderProgram.writeRef())
+    );
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    ComPtr<ISampler> samplerPoint;
+    {
+        SamplerDesc desc = {};
+        desc.minFilter = desc.magFilter = desc.mipFilter = TextureFilteringMode::Point;
+        REQUIRE_CALL(device->createSampler(desc, samplerPoint.writeRef()));
+    }
+
+    ComPtr<ITexture> texture2D;
+    ComPtr<ITextureView> texture2DView;
+    DescriptorHandle combinedSampler2DHandle = {};
+    {
+        TextureDesc desc = {};
+        desc.type = TextureType::Texture2D;
+        desc.size = {2, 2, 1};
+        desc.format = Format::R32Float;
+        desc.usage = TextureUsage::ShaderResource;
+        float data[4] = {1.f, 2.f, 3.f, 4.f};
+        SubresourceData subresourceData[] = {{data, 8, 0}};
+        REQUIRE_CALL(device->createTexture(desc, subresourceData, texture2D.writeRef()));
+        TextureViewDesc viewDesc = {};
+        viewDesc.sampler = samplerPoint;
+        REQUIRE_CALL(texture2D->createView(viewDesc, texture2DView.writeRef()));
+        REQUIRE_CALL(texture2DView->getCombinedTextureSamplerDescriptorHandle(&combinedSampler2DHandle));
+        CHECK(combinedSampler2DHandle.type == DescriptorHandleType::CombinedTextureSampler);
+    }
+
+    ComPtr<ITexture> texture3D;
+    ComPtr<ITextureView> texture3DView;
+    DescriptorHandle combinedSampler3DHandle = {};
+    {
+        TextureDesc desc = {};
+        desc.type = TextureType::Texture3D;
+        desc.size = {2, 2, 2};
+        desc.format = Format::R32Float;
+        desc.usage = TextureUsage::ShaderResource;
+        float data[8] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+        SubresourceData subresourceData[] = {{data, 8, 16}};
+        REQUIRE_CALL(device->createTexture(desc, subresourceData, texture3D.writeRef()));
+        TextureViewDesc viewDesc = {};
+        viewDesc.sampler = samplerPoint;
+        REQUIRE_CALL(texture3D->createView(viewDesc, texture3DView.writeRef()));
+        REQUIRE_CALL(texture3DView->getCombinedTextureSamplerDescriptorHandle(&combinedSampler3DHandle));
+        CHECK(combinedSampler3DHandle.type == DescriptorHandleType::CombinedTextureSampler);
+    }
+
+    ComPtr<ITexture> textureCube;
+    ComPtr<ITextureView> textureCubeView;
+    DescriptorHandle combinedSamplerCubeHandle = {};
+    {
+        TextureDesc desc = {};
+        desc.type = TextureType::TextureCube;
+        desc.size = {1, 1, 1};
+        desc.format = Format::R32Float;
+        desc.usage = TextureUsage::ShaderResource;
+        float data[6][1] = {{1.f}, {2.f}, {3.f}, {4.f}, {5.f}, {6.f}};
+        SubresourceData subresourceData[] =
+            {{data[0], 4, 0}, {data[1], 4, 0}, {data[2], 4, 0}, {data[3], 4, 0}, {data[4], 4, 0}, {data[5], 4, 0}};
+        REQUIRE_CALL(device->createTexture(desc, subresourceData, textureCube.writeRef()));
+        TextureViewDesc viewDesc = {};
+        viewDesc.sampler = samplerPoint;
+        REQUIRE_CALL(textureCube->createView(viewDesc, textureCubeView.writeRef()));
+        REQUIRE_CALL(textureCubeView->getCombinedTextureSamplerDescriptorHandle(&combinedSamplerCubeHandle));
+        CHECK(combinedSamplerCubeHandle.type == DescriptorHandleType::CombinedTextureSampler);
+    }
+
+    ComPtr<ITexture> texture2DArray;
+    ComPtr<ITextureView> texture2DArrayView;
+    DescriptorHandle combinedSampler2DArrayHandle = {};
+    {
+        TextureDesc desc = {};
+        desc.type = TextureType::Texture2DArray;
+        desc.size = {2, 2, 1};
+        desc.arrayLength = 2;
+        desc.format = Format::R32Float;
+        desc.usage = TextureUsage::ShaderResource;
+        float data[2][4] = {{1.f, 2.f, 3.f, 4.f}, {5.f, 6.f, 7.f, 8.f}};
+        SubresourceData subresourceData[] = {{data[0], 8, 0}, {data[1], 8, 0}};
+        REQUIRE_CALL(device->createTexture(desc, subresourceData, texture2DArray.writeRef()));
+        TextureViewDesc viewDesc = {};
+        viewDesc.sampler = samplerPoint;
+        REQUIRE_CALL(texture2DArray->createView(viewDesc, texture2DArrayView.writeRef()));
+        REQUIRE_CALL(texture2DArrayView->getCombinedTextureSamplerDescriptorHandle(&combinedSampler2DArrayHandle));
+        CHECK(combinedSampler2DArrayHandle.type == DescriptorHandleType::CombinedTextureSampler);
+    }
+
+    ComPtr<ITexture> textureCubeArray;
+    ComPtr<ITextureView> textureCubeArrayView;
+    DescriptorHandle combinedSamplerCubeArrayHandle = {};
+    {
+        TextureDesc desc = {};
+        desc.type = TextureType::TextureCubeArray;
+        desc.size = {1, 1, 1};
+        desc.arrayLength = 2;
+        desc.format = Format::R32Float;
+        desc.usage = TextureUsage::ShaderResource;
+        float data[12][1] = {{1.f}, {2.f}, {3.f}, {4.f}, {5.f}, {6.f}, {7.f}, {8.f}, {9.f}, {10.f}, {11.f}, {12.f}};
+        SubresourceData subresourceData[] = {
+            {data[0], 4, 0},
+            {data[1], 4, 0},
+            {data[2], 4, 0},
+            {data[3], 4, 0},
+            {data[4], 4, 0},
+            {data[5], 4, 0},
+            {data[6], 4, 0},
+            {data[7], 4, 0},
+            {data[8], 4, 0},
+            {data[9], 4, 0},
+            {data[10], 4, 0},
+            {data[11], 4, 0}
+        };
+        REQUIRE_CALL(device->createTexture(desc, subresourceData, textureCubeArray.writeRef()));
+        TextureViewDesc viewDesc = {};
+        viewDesc.sampler = samplerPoint;
+        REQUIRE_CALL(textureCubeArray->createView(viewDesc, textureCubeArrayView.writeRef()));
+        REQUIRE_CALL(textureCubeArrayView->getCombinedTextureSamplerDescriptorHandle(&combinedSamplerCubeArrayHandle));
+        CHECK(combinedSamplerCubeArrayHandle.type == DescriptorHandleType::CombinedTextureSampler);
+    }
+
+    ComPtr<IBuffer> result;
+    {
+        BufferDesc desc = {};
+        desc.size = 1024;
+        desc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        REQUIRE_CALL(device->createBuffer(desc, nullptr, result.writeRef()));
+    }
+
+    {
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginComputePass();
+        IShaderObject* rootObject = passEncoder->bindPipeline(pipeline);
+        ShaderCursor cursor(rootObject);
+        cursor["combinedSampler2D"].setDescriptorHandle(combinedSampler2DHandle);
+        cursor["combinedSampler3D"].setDescriptorHandle(combinedSampler3DHandle);
+        cursor["combinedSamplerCube"].setDescriptorHandle(combinedSamplerCubeHandle);
+        cursor["combinedSampler2DArray"].setDescriptorHandle(combinedSampler2DArrayHandle);
+        cursor["combinedSamplerCubeArray"].setDescriptorHandle(combinedSamplerCubeArrayHandle);
+        cursor["result"].setBinding(result);
+
+        passEncoder->dispatchCompute(1, 1, 1);
+        passEncoder->end();
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+
+    compareComputeResult(
+        device,
+        result,
+        std::array{
+            // Sampler2D
+            1.f,
+            4.f,
+            // Sampler3D
+            1.f,
+            8.f,
+            // SamplerCube
+            1.f,
+            2.f,
+            3.f,
+            4.f,
+            5.f,
+            6.f,
+            // Sampler2DArray
+            1.f,
+            4.f,
+            5.f,
+            8.f,
+            // SamplerCubeArray
+            1.f,
+            2.f,
+            3.f,
+            4.f,
+            5.f,
+            6.f,
+            7.f,
+            8.f,
+            9.f,
+            10.f,
+            11.f,
+            12.f,
+        }
+    );
+}
