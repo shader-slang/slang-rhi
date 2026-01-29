@@ -62,6 +62,43 @@ static void runCopyPointerShader(IDevice* device, DeviceAddress src, DeviceAddre
     REQUIRE_CALL(queue->submit(cb));
 }
 
+// Helper: Verify heap allocation contains expected pattern
+// Reads back GPU memory and checks all elements match the expected value
+static void verifyHeapPattern(IDevice* device, HeapAlloc& alloc, uint32_t expectedPattern, uint32_t numElements)
+{
+    // Create a readback buffer
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numElements * sizeof(uint32_t);
+    bufferDesc.usage = BufferUsage::CopyDestination;
+    bufferDesc.memoryType = MemoryType::ReadBack;
+
+    ComPtr<IBuffer> readbackBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, readbackBuffer.writeRef()));
+
+    // Copy from heap allocation to buffer via shader
+    runCopyPointerShader(device, alloc.getDeviceAddress(), readbackBuffer->getDeviceAddress(), numElements);
+
+    // Wait for GPU
+    ComPtr<ICommandQueue> queue;
+    REQUIRE_CALL(device->getQueue(QueueType::Graphics, queue.writeRef()));
+    queue->waitOnHost();
+
+    // Read back and verify
+    ComPtr<ISlangBlob> blob;
+    REQUIRE_CALL(device->readBuffer(readbackBuffer, 0, bufferDesc.size, blob.writeRef()));
+    auto data = (const uint32_t*)blob->getBufferPointer();
+
+    for (uint32_t i = 0; i < numElements; i++)
+    {
+        if (data[i] != expectedPattern)
+        {
+            CAPTURE(i);
+            CHECK_EQ(data[i], expectedPattern);
+            break; // Don't spam on first failure
+        }
+    }
+}
+
 GPU_TEST_CASE("caching-allocator-enabled-by-default", CUDA)
 {
     // Create a heap with default settings - caching should be enabled
@@ -235,43 +272,86 @@ GPU_TEST_CASE("caching-allocator-disabled", CUDA)
 
 GPU_TEST_CASE("caching-allocator-stress-test", CUDA)
 {
-    // Stress test with many allocations and frees
+    // Stress test with 1 million allocations and frees.
+    // Uses a rotating pool to maintain realistic memory pressure while
+    // exercising the caching allocator at scale.
+
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IHeap> heap;
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
+    // Use varying allocation sizes to stress different code paths
+    const Size sizes[] = {64 * 1024, 128 * 1024, 256 * 1024, 512 * 1024};
+    const int numSizes = sizeof(sizes) / sizeof(sizes[0]);
+
     HeapAllocDesc allocDesc;
-    allocDesc.size = 256 * 1024; // 256KB
     allocDesc.alignment = 128;
 
-    // Perform many allocation/free cycles
-    for (int cycle = 0; cycle < 10; cycle++)
-    {
-        std::vector<HeapAlloc> allocations;
+    // Rotating pool: maintain ~100 active allocations at any time
+    constexpr int poolSize = 100;
+    std::vector<HeapAlloc> pool(poolSize);
+    std::vector<bool> poolActive(poolSize, false);
 
-        // Allocate multiple blocks
-        for (int i = 0; i < 5; i++)
+    // Track stats for verification
+    uint64_t totalAllocations = 0;
+    uint32_t maxPagesObserved = 0;
+
+    // Perform 1 million allocation operations
+    constexpr uint64_t totalOperations = 1000000;
+
+    for (uint64_t op = 0; op < totalOperations; op++)
+    {
+        // Pick a random slot in the pool
+        int slot = op % poolSize;
+
+        // If slot is active, free it first
+        if (poolActive[slot])
         {
-            HeapAlloc alloc;
-            REQUIRE_CALL(heap->allocate(allocDesc, &alloc));
-            allocations.push_back(alloc);
+            REQUIRE_CALL(heap->free(pool[slot]));
+            poolActive[slot] = false;
         }
 
-        // Free all
-        for (auto& alloc : allocations)
+        // Allocate with varying sizes
+        allocDesc.size = sizes[op % numSizes];
+        REQUIRE_CALL(heap->allocate(allocDesc, &pool[slot]));
+        poolActive[slot] = true;
+        totalAllocations++;
+
+        // Periodically check page count isn't exploding
+        if (op % 100000 == 0)
         {
-            REQUIRE_CALL(heap->free(alloc));
+            HeapReport report = heap->report();
+            if (report.numPages > maxPagesObserved)
+            {
+                maxPagesObserved = report.numPages;
+            }
         }
     }
 
-    // After many cycles, pages should be cached and reused
-    // Memory usage should not grow unboundedly
-    HeapReport report = heap->report();
+    // Clean up remaining allocations
+    for (int i = 0; i < poolSize; i++)
+    {
+        if (poolActive[i])
+        {
+            REQUIRE_CALL(heap->free(pool[i]));
+        }
+    }
 
-    // Should have reasonable number of pages (not one per allocation)
-    CHECK(report.numPages <= 5); // Should be much less than 50 (10 cycles * 5 allocs)
+    // Verify caching worked correctly
+    HeapReport report = heap->report();
+    CHECK_EQ(report.totalAllocated, 0);
+    CHECK_EQ(report.numAllocations, 0);
+
+    // Key invariant: page count should be bounded regardless of allocation count.
+    // With 100 concurrent allocations of up to 512KB each, we need at most ~50MB.
+    // With 8MB default page size, that's ~7 pages max. Allow some headroom.
+    CHECK(report.numPages <= 20);
+    CHECK(maxPagesObserved <= 20);
+
+    // Sanity check: we actually did 1 million allocations
+    CHECK_EQ(totalAllocations, totalOperations);
 }
 
 
@@ -347,6 +427,8 @@ GPU_TEST_CASE("caching-allocator-with-gpu-work", CUDA)
     REQUIRE_CALL(heap->allocate(allocDesc, &alloc1));
 
     runInitPointerShader(device, 0xDEADBEEF, alloc1.getDeviceAddress(), numElements);
+    // Verify the pattern was written correctly
+    verifyHeapPattern(device, alloc1, 0xDEADBEEF, numElements);
 
     HeapReport report = heap->report();
     CHECK_EQ(report.numPages, 1);
@@ -366,6 +448,8 @@ GPU_TEST_CASE("caching-allocator-with-gpu-work", CUDA)
 
     // Write a different pattern
     runInitPointerShader(device, 0xCAFEBABE, alloc2.getDeviceAddress(), numElements);
+    // Verify second pattern
+    verifyHeapPattern(device, alloc2, 0xCAFEBABE, numElements);
 
     report = heap->report();
     CHECK_EQ(report.numPages, 1); // Still 1 page (reused)
@@ -403,6 +487,10 @@ GPU_TEST_CASE("caching-allocator-immediate-reuse-data-integrity", CUDA)
         // Write a unique pattern for this iteration
         uint32_t pattern = 0xABCD0000 | iteration;
         runInitPointerShader(device, pattern, alloc.getDeviceAddress(), numElements);
+
+        // Verify BEFORE free to ensure CUDA FIFO ordering is working correctly.
+        // If immediate reuse were unsafe, we'd see corruption from previous iteration.
+        verifyHeapPattern(device, alloc, pattern, numElements);
 
         // Free immediately - with CUDA same-stream, this is safe
         REQUIRE_CALL(heap->free(alloc));
@@ -452,6 +540,13 @@ GPU_TEST_CASE("caching-allocator-concurrent-allocations-with-gpu", CUDA)
             runInitPointerShader(device, pattern, allocations[i].getDeviceAddress(), numElements);
         }
 
+        // Verify all patterns before freeing
+        for (size_t i = 0; i < allocations.size(); i++)
+        {
+            uint32_t pattern = (cycle << 16) | i;
+            verifyHeapPattern(device, allocations[i], pattern, numElements);
+        }
+
         // Free all - with CUDA same-stream, immediate reuse is safe
         for (auto& alloc : allocations)
         {
@@ -492,9 +587,13 @@ GPU_TEST_CASE("caching-allocator-copy-between-heap-allocations", CUDA)
 
     // Initialize source with pattern
     runInitPointerShader(device, 0x12345678, srcAlloc.getDeviceAddress(), numElements);
+    // Verify source pattern
+    verifyHeapPattern(device, srcAlloc, 0x12345678, numElements);
 
     // Copy from source to destination
     runCopyPointerShader(device, srcAlloc.getDeviceAddress(), dstAlloc.getDeviceAddress(), numElements);
+    // Verify the copy worked - destination should have source's pattern
+    verifyHeapPattern(device, dstAlloc, 0x12345678, numElements);
 
     HeapReport report = heap->report();
     CHECK_EQ(report.numAllocations, 2);

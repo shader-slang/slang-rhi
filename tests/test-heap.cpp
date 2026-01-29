@@ -90,6 +90,43 @@ void runCopyPointerShader(IDevice* device, DeviceAddress src, DeviceAddress dst,
     REQUIRE_CALL(queue->submit(cb));
 }
 
+// Helper: Verify heap allocation contains expected pattern
+// Reads back GPU memory and checks all elements match the expected value
+void verifyHeapPattern(IDevice* device, HeapAlloc& alloc, uint32_t expectedPattern, uint32_t numElements)
+{
+    // Create a readback buffer
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numElements * sizeof(uint32_t);
+    bufferDesc.usage = BufferUsage::CopyDestination;
+    bufferDesc.memoryType = MemoryType::ReadBack;
+
+    ComPtr<IBuffer> readbackBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, readbackBuffer.writeRef()));
+
+    // Copy from heap allocation to buffer via shader
+    runCopyPointerShader(device, alloc.getDeviceAddress(), readbackBuffer->getDeviceAddress(), numElements);
+
+    // Wait for GPU
+    ComPtr<ICommandQueue> queue;
+    REQUIRE_CALL(device->getQueue(QueueType::Graphics, queue.writeRef()));
+    queue->waitOnHost();
+
+    // Read back and verify
+    ComPtr<ISlangBlob> blob;
+    REQUIRE_CALL(device->readBuffer(readbackBuffer, 0, bufferDesc.size, blob.writeRef()));
+    auto data = (const uint32_t*)blob->getBufferPointer();
+
+    for (uint32_t i = 0; i < numElements; i++)
+    {
+        if (data[i] != expectedPattern)
+        {
+            CAPTURE(i);
+            CHECK_EQ(data[i], expectedPattern);
+            break; // Don't spam on first failure
+        }
+    }
+}
+
 ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t size)
 {
     // Setup buffer descriptor
@@ -158,7 +195,7 @@ GPU_TEST_CASE("heap-allocate", CUDA | Vulkan)
 // CUDA: PyTorch-style same-stream optimization - frees are IMMEDIATE
 // because CUDA stream FIFO ordering guarantees the GPU work using the
 // allocation will complete before any new work that might reuse the memory.
-GPU_TEST_CASE("heap-submit", CUDA)
+GPU_TEST_CASE("heap-cuda-immediate-retirement", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -204,7 +241,7 @@ GPU_TEST_CASE("heap-submit", CUDA)
 }
 
 // Vulkan: No same-stream optimization - frees are DEFERRED until GPU completion
-GPU_TEST_CASE("heap-submit-deferred", Vulkan)
+GPU_TEST_CASE("heap-vulkan-deferred-retirement", Vulkan)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -567,7 +604,13 @@ GPU_TEST_CASE("heap-same-stream-immediate-reuse", CUDA)
         // Actually USE the heap allocation - write a pattern to it via shader
         // This creates GPU work that uses the allocation on the default stream
         uint32_t numElements = (uint32_t)(allocDesc.size / sizeof(uint32_t));
-        runInitPointerShader(device, submitIndex + 1, allocation.getDeviceAddress(), numElements);
+        uint32_t pattern = submitIndex + 1;
+        runInitPointerShader(device, pattern, allocation.getDeviceAddress(), numElements);
+
+        // Verify the pattern was written correctly BEFORE freeing.
+        // This proves same-stream FIFO ordering is working - if immediate reuse
+        // were unsafe, we'd see corruption from previous iteration's data.
+        verifyHeapPattern(device, allocation, pattern, numElements);
 
         // Free the allocation - should be IMMEDIATE because same stream
         REQUIRE_CALL(heap->free(allocation));

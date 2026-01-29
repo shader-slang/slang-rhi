@@ -725,7 +725,6 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     if (m_commandBuffersPool.empty())
     {
         // Pool exhausted - try lazy retirement to reclaim completed buffers
-        // This is one of the trigger points for on-demand cleanup (PyTorch-style)
         // Use locked version since we already hold m_mutex
         retireCommandBuffersLocked();
 
@@ -781,11 +780,8 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
 {
     // NOTE: Caller must hold m_mutex!
     //
-    // PyTorch-style lazy events: use different tracking depending on event availability
-    //
-    // If we have submit events (multi-stream or explicit fences), use event-based tracking.
-    // Otherwise, use cuStreamQuery for non-blocking completion check (single-stream case).
-    // This avoids creating events on every submit, which is a major performance win.
+    // Use event-based tracking if events exist, otherwise use cuStreamQuery (non-blocking).
+    // Single-stream workloads skip event creation entirely for better performance.
     if (!m_submitEvents.empty())
     {
         // Multi-stream or explicit fences: use event-based tracking
@@ -800,8 +796,13 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
             // Stream is idle - all submitted work is complete
             m_lastFinishedID = m_lastSubmittedID;
         }
+        else if (result != CUDA_ERROR_NOT_READY)
+        {
+            // Unexpected error - assert in debug builds to catch bugs
+            // Don't fail in release to avoid deadlocks during cleanup
+            SLANG_RHI_ASSERT_FAILURE("Unexpected cuStreamQuery error");
+        }
         // CUDA_ERROR_NOT_READY means work is still pending - that's fine, we're async
-        // Other errors would indicate a more serious problem, but we don't fail here
     }
 
     // Retire command buffers that have passed the submission ID
@@ -889,14 +890,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    // PyTorch-style lazy retirement: DON'T retire on every submit.
-    // Only retire when:
-    // 1. Command buffer pool is exhausted (see getOrCreateCommandBuffer)
-    // 2. Explicit sync via waitOnHost()
-    // 3. Memory pressure (heap allocation fails)
-    //
-    // This eliminates per-submit overhead of cuStreamQuery/event checks.
-    // With same-stream immediate reuse, memory is available faster anyway.
+    // Lazy retirement: don't retire on every submit - only on pool exhaustion,
+    // explicit sync, or memory pressure. Eliminates per-submit overhead.
 
     // Select either the queue's default stream or the stream
     // specified in the descriptor,and switch to it for the scope
@@ -923,19 +918,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // PyTorch-style lazy events optimization:
-        // Only create events for multi-stream workloads where we need cross-stream synchronization.
-        // For single-stream workloads (the common case), we skip event creation entirely
-        // and use cuStreamQuery in retireCommandBuffers() instead.
-        //
-        // Note: desc.signalFenceCount is NOT checked here because:
-        // - The internal event is for command buffer RETIREMENT tracking
-        // - User fences (desc.signalFences) use setCurrentValue() which is separate
-        // - Single-stream retirement works fine with cuStreamQuery()
-        //
-        // This provides a major performance win since single-stream workloads have ZERO event overhead,
-        // matching PyTorch's behavior where events are only created for cross-stream synchronization.
-        bool needsEvent = (requestedStream != m_stream); // Only multi-stream needs events
+        // Lazy events: only create events for multi-stream workloads.
+        // Single-stream uses cuStreamQuery() instead - zero event overhead.
+        bool needsEvent = (requestedStream != m_stream);
 
         if (needsEvent)
         {
@@ -1015,16 +1000,8 @@ Result CommandEncoderImpl::init()
 }
 
 /// Track resources for CUDA backend, skipping device-local buffers.
-///
-/// PyTorch-style optimization: Device-local buffers don't need tracking because
-/// CUDA stream FIFO ordering guarantees that GPU work using the buffer will complete
-/// before any new work that might reuse the memory (on the same stream).
-///
-/// We still track:
-/// - Textures: CUDA textures are context-level objects, not stream-level
-/// - Upload/ReadBack buffers: CPU may access after GPU work completes
-/// - Samplers, Pipelines, etc.: Not backed by heap memory
-/// - Acceleration structures: Complex lifetime requirements
+/// Device-local buffers rely on CUDA stream FIFO ordering for safe reuse.
+/// We still track textures, upload/readback buffers, and other resources.
 static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<RefObject>>& resources)
 {
     // Track slot resources, but skip device-local buffers
@@ -1077,8 +1054,7 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    // PyTorch-style optimization: Don't track device-local buffers.
-    // CUDA stream FIFO ordering guarantees safety for same-stream reuse.
+    // Skip tracking device-local buffers - CUDA stream ordering guarantees safety
     trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
 
     BindingDataBuilder builder;

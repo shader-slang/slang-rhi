@@ -24,8 +24,8 @@ public:
     class PageImpl : public Heap::Page
     {
     public:
-        /// Event recorded on a stream to track when that stream is done with this page.
-        /// Following PyTorch model: events only created when stream != m_stream (allocation stream).
+        /// Event recorded on a stream to track cross-stream usage.
+        /// Only created when stream differs from the page's allocation stream.
         struct StreamEvent
         {
             CUstream stream;
@@ -42,9 +42,8 @@ public:
 
         DeviceAddress offsetToAddress(Size offset) override { return DeviceAddress(m_cudaMemory + offset); }
 
-        /// Record that this page is being used by a stream different from m_stream.
-        /// Creates a CUDA event and records it on the stream for synchronization tracking.
-        /// Following PyTorch model: events are only added when stream != m_stream.
+        /// Record cross-stream usage. Creates a CUDA event for synchronization.
+        /// Only adds events when stream differs from m_stream.
         void recordStreamUse(void* stream) override;
 
         /// Check if this page can be reused (all pending stream events completed).
@@ -74,7 +73,7 @@ public:
     };
 
     // ============================================================================
-    // Page Cache - PyTorch-style caching allocator
+    // Page Cache
     // ============================================================================
 
     /// Cache of freed pages for reuse, organized by size tier.
@@ -117,7 +116,7 @@ public:
 
     std::list<PendingFree> m_pendingFrees;
 
-    /// Page cache for reuse (PyTorch-style caching allocator)
+    /// Page cache for memory reuse
     PageCache m_pageCache;
 
     /// Caching configuration (copied from HeapDesc at creation)

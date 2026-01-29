@@ -6,7 +6,48 @@
 namespace rhi::cuda {
 
 // ============================================================================
-// PageImpl - Stream tracking implementation (PyTorch-style)
+// CUDA Heap Allocator - Design Overview
+// ============================================================================
+//
+// This allocator exploits CUDA's stream execution model for efficient memory reuse.
+//
+// KEY INSIGHT: CUDA streams execute operations in FIFO order. If memory is freed
+// and reallocated on the same stream, the new work using that memory is guaranteed
+// to execute AFTER the previous work completes. No explicit synchronization needed.
+//
+// SAME-STREAM IMMEDIATE REUSE:
+//   1. Page allocated on stream A, used by GPU work on stream A
+//   2. Page freed (but not returned to CUDA)
+//   3. Page reallocated on stream A for new work
+//   4. CUDA guarantees step 1's work completes before step 3's work starts
+//
+// FREE PATH:
+//   heap->free(allocation)
+//       │
+//       ├─► Same stream + no cross-stream events ──► IMMEDIATE retire
+//       │
+//       └─► Otherwise ──► m_pendingFrees (deferred until GPU done)
+//
+// CROSS-STREAM SYNCHRONIZATION:
+//   When a page is used by a different stream than it was allocated on, we record
+//   a CUDA event on that stream. Before reusing the page, we check all events
+//   have completed. This is the only case requiring explicit synchronization.
+//
+// PAGE CACHING:
+//   Freed pages go to a cache instead of cuMemFree(). New allocations check the
+//   cache first, preferring pages from the same stream (no sync needed) over
+//   pages from different streams (may need event waits).
+//
+// LAZY EVENTS:
+//   For single-stream workloads (the common case), we avoid creating CUDA events
+//   entirely. Command buffer retirement uses cuStreamQuery() instead, which is
+//   a non-blocking check that the stream is idle.
+//
+// These optimizations are inspired by PyTorch's CUDACachingAllocator.
+// ============================================================================
+
+// ============================================================================
+// PageImpl - Stream tracking implementation
 // ============================================================================
 
 HeapImpl::PageImpl::~PageImpl()
@@ -31,10 +72,8 @@ void HeapImpl::PageImpl::recordStreamUse(void* stream)
 {
     CUstream cudaStream = static_cast<CUstream>(stream);
 
-    // Following PyTorch model: only add events when stream differs from allocation stream
-    // Note: nullptr (default stream) is a valid stream that needs tracking if it differs
-    // from m_stream. We don't skip nullptr here because cross-stream usage with the
-    // default stream still requires synchronization.
+    // Only add events when stream differs from allocation stream.
+    // nullptr (default stream) still needs tracking if it differs from m_stream.
     if (cudaStream == m_stream)
     {
         return;
@@ -154,9 +193,7 @@ void HeapImpl::PageImpl::notifyUse(void* stream)
         return;
     }
 
-    // If this page is being used by a different stream than it was allocated on,
-    // record the cross-stream usage for proper synchronization.
-    // Following PyTorch model: only track when streams actually differ.
+    // Record cross-stream usage for proper synchronization
     if (m_stream != currentStream)
     {
         recordStreamUse(currentStream);
@@ -164,13 +201,12 @@ void HeapImpl::PageImpl::notifyUse(void* stream)
 }
 
 // ============================================================================
-// PageCache - PyTorch-style caching allocator
+// PageCache
 // ============================================================================
 
 HeapImpl::PageImpl* HeapImpl::PageCache::findReusable(Size size, CUstream stream)
 {
-    // PyTorch-style optimization: prefer pages allocated on the same stream
-    // First pass: look for exact stream match (no synchronization needed)
+    // First pass: prefer same-stream pages (no sync needed, see design overview)
     for (auto it = m_cachedPages.begin(); it != m_cachedPages.end(); ++it)
     {
         PageImpl* page = *it;
@@ -281,13 +317,9 @@ Result HeapImpl::free(HeapAlloc allocation)
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
     PageImpl* page = static_cast<PageImpl*>(allocation.pageId);
 
-    // PyTorch-style optimization: Immediate reuse when safe
-    //
-    // Key insight: CUDA stream FIFO ordering means operations on the same stream
-    // execute in order. If a page has no cross-stream events, it was only used
-    // by its owner stream, so any new allocation will be properly ordered.
+    // Immediate reuse when safe - CUDA stream FIFO ordering guarantees safety
 
-    // Case 1: Page has no stream assignment - no GPU work was ever done with it
+    // Case 1: No stream assignment - page never used by GPU
     if (page->m_stream == kNoStream)
     {
         return retire(allocation);
@@ -299,15 +331,13 @@ Result HeapImpl::free(HeapAlloc allocation)
         return retire(allocation);
     }
 
-    // Case 3: No cross-stream events - page was only used by its owner stream
-    // CUDA stream ordering guarantees safety for immediate reuse on that stream
+    // Case 3: No cross-stream events - same-stream reuse is safe
     if (page->canReuse())
     {
         return retire(allocation);
     }
 
-    // Case 4: Cross-stream events exist - defer until safe
-    // We need to wait until all streams that used this page have completed.
+    // Case 4: Cross-stream events exist - defer until all streams complete
     PendingFree pendingFree;
     pendingFree.allocation = allocation;
     pendingFree.submitIndex = deviceImpl->m_queue->m_lastSubmittedID;
@@ -344,14 +374,13 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     // Note: kNoStream means no stream context, nullptr is the default CUDA stream
     CUstream stream = (desc.stream == kNoStream) ? nullptr : static_cast<CUstream>(desc.stream);
 
-    // Try to find a reusable page in the cache first (PyTorch-style caching)
+    // Try to find a reusable page in the cache first
     if (m_cachingConfig.enabled)
     {
         PageImpl* cachedPage = m_pageCache.findReusable(desc.size, stream);
         if (cachedPage)
         {
-            // Reusing cached page - it keeps its original allocation stream (m_stream)
-            // This follows PyTorch model where ownership never transfers
+            // Reusing cached page - keeps its original stream ownership
             *outPage = cachedPage;
             return SLANG_OK;
         }
@@ -384,7 +413,7 @@ Result HeapImpl::freePage(Page* page_)
 {
     PageImpl* page = static_cast<PageImpl*>(page_);
 
-    // PyTorch-style caching: don't actually free, cache for reuse
+    // Cache for reuse instead of freeing to CUDA
     if (m_cachingConfig.enabled)
     {
         // Process any completed events before caching
