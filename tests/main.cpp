@@ -33,9 +33,9 @@ int main(int argc, const char** argv)
     rhi::testing::cleanupTestTempDirectories();
 
 #if SLANG_RHI_DEBUG
-    rhi::DebugLayerOptions defaultDebugLayerOptions{};
-    defaultDebugLayerOptions.coreValidation = true;
-    rhi::getRHI()->setDebugLayerOptions(defaultDebugLayerOptions);
+    rhi::DebugLayerOptions debugLayerOptions{};
+    debugLayerOptions.coreValidation = true;
+    rhi::getRHI()->setDebugLayerOptions(debugLayerOptions);
 #endif
 
     // Parse extra command line options.

@@ -143,6 +143,11 @@ void RHI::decrementLiveDeviceCount()
     m_liveDeviceCount--;
 }
 
+void RHI::enableDebugLayers()
+{
+    m_debugLayerOptions.coreValidation = true;
+}
+
 Result RHI::setDebugLayerOptions(DebugLayerOptions options)
 {
     if (m_liveDeviceCount != 0)

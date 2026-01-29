@@ -501,20 +501,11 @@ void releaseCachedDevices()
 
 void tryToChangeCurrentDebugLayerStateAndOptions(DebugLayerOptions targetDebugLayerOptions)
 {
-    // By default debug layer is 'off'
-    static DebugLayerOptions currentDebugLayerOptions = {};
-
-    // Nothing to change
-    if (currentDebugLayerOptions == targetDebugLayerOptions)
-        return;
-
     // Clear all cached devices so that we can change debug layer options
     releaseCachedDevices();
 
     if (SLANG_FAILED(getRHI()->setDebugLayerOptions(targetDebugLayerOptions)))
         FAIL("rhi::getRHI()->setDebugLayersOptions(...) failed, some devices were not removed");
-
-    currentDebugLayerOptions = targetDebugLayerOptions;
 }
 
 ComPtr<IDevice> createTestingDevice(
@@ -561,8 +552,9 @@ ComPtr<IDevice> createTestingDevice(
         deviceDesc.aftermathFlags = extraOptions->aftermathFlags;
     }
 
-    if (rhi::getRHI()->isDebugLayersEnabled())
-        deviceDesc.debugCallback = &sDebugCallback;
+#ifdef SLANG_RHI_DEBUG
+    deviceDesc.debugCallback = &sDebugCallback;
+#endif
 
     std::vector<slang::PreprocessorMacroDesc> preprocessorMacros;
     std::vector<slang::CompilerOptionEntry> compilerOptions;
@@ -808,7 +800,6 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     desc.deviceType = deviceType;
     desc.adapter = getSelectedDeviceAdapter(deviceType);
 #if SLANG_RHI_DEBUG
-    desc.enableValidation = true;
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
 #if SLANG_RHI_ENABLE_NVAPI
@@ -957,7 +948,9 @@ static void gpuTestTrampoline()
         // Cache the default `DebugLayerOptions` and switch if
         // the test requests different `DebugLayerOptions`.
         auto previousDebugLayerOptions = getRHI()->getDebugLayerOptions();
-        if (info->hasDebugLayerOptions)
+        bool testRequestsDifferentDebugLayerOptions =
+            info->hasDebugLayerOptions && (previousDebugLayerOptions != info->debugLayerOptions);
+        if (testRequestsDifferentDebugLayerOptions)
             tryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
 
         {
@@ -974,7 +967,7 @@ static void gpuTestTrampoline()
         }
 
         // Switch back to the old `DebugLayerOptions` after `device` releases
-        if (info->hasDebugLayerOptions)
+        if (testRequestsDifferentDebugLayerOptions)
             tryToChangeCurrentDebugLayerStateAndOptions(previousDebugLayerOptions);
     }
     else

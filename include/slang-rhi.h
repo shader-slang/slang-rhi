@@ -3553,6 +3553,8 @@ struct DebugLayerOptions
         return coreValidation == other.coreValidation && GPUAssistedValidation == other.GPUAssistedValidation;
     }
 
+    bool operator!=(const DebugLayerOptions& other) const { return !(*this == other); }
+
     bool isDebugLayersEnabled() const { return coreValidation == true || GPUAssistedValidation == true; }
 };
 
@@ -3561,6 +3563,12 @@ class IRHI
 public:
     /// Check is downstream debug layer is enabled
     inline bool isDebugLayersEnabled() { return getDebugLayerOptions().isDebugLayersEnabled(); }
+
+    /// Deprecated. Enable core-validation debug layers, if available.
+    /// This function may or may-not actually enable debug layers
+    /// when called. Even if layers are enabled, it may do so in
+    /// an incorrect way. It is highly advised to not use this function.
+    virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
 
     /// Change downstream debug layer options.
     /// Fails if not all devices are released.

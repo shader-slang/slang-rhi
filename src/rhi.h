@@ -14,6 +14,7 @@ public:
     void incrementLiveDeviceCount();
     void decrementLiveDeviceCount();
 
+    virtual void enableDebugLayers() override;
     virtual Result setDebugLayerOptions(DebugLayerOptions options) override;
     virtual DebugLayerOptions getDebugLayerOptions() override;
 
