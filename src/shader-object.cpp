@@ -61,10 +61,34 @@ Result ShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryPoint
 
 Result ShaderObject::setData(const ShaderOffset& offset, const void* data, Size size)
 {
+    // TODO: Ideally we would use the following code here, but slang-test relies
+    // on out-of-bounds `size` to be clamped to the actual buffer size.
+#if 0
     void* dest;
     SLANG_RETURN_ON_FAIL(reserveData(offset, size, &dest));
     ::memcpy(dest, data, size);
     return SLANG_OK;
+#else
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+
+    size_t dataOffset = offset.uniformOffset;
+    size_t dataSize = size;
+
+    uint8_t* dest = m_data.data();
+    size_t availableSize = m_data.size();
+
+    // This should be an error, but slang-test relies on this behavior.
+    if ((dataOffset + dataSize) > availableSize)
+    {
+        dataSize = availableSize - dataOffset;
+    }
+
+    ::memcpy(dest + dataOffset, data, dataSize);
+
+    incrementVersion();
+
+    return SLANG_OK;
+#endif
 }
 
 Result ShaderObject::reserveData(const ShaderOffset& offset, Size size, void** outData)
@@ -77,13 +101,9 @@ Result ShaderObject::reserveData(const ShaderOffset& offset, Size size, void** o
     uint8_t* dest = m_data.data();
     size_t availableSize = m_data.size();
 
-    // TODO(shaderobject): We really should bounds-check access rather than silently ignoring sets
-    // that are too large, but we have several test cases that set more data than
-    // an object actually stores on several targets...
-    //
     if ((dataOffset + dataSize) > availableSize)
     {
-        dataSize = availableSize - dataOffset;
+        return SLANG_E_INVALID_ARG;
     }
 
     *outData = dest + dataOffset;

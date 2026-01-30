@@ -358,7 +358,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     TextureDesc desc = fixupTextureDesc(desc_);
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
     MTL::PixelFormat pixelFormat = translatePixelFormat(desc.format);
-    Size alignment = m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
+    Size alignment = formatInfo.isCompressed ? 1 : m_device->minimumLinearTextureAlignmentForPixelFormat(pixelFormat);
     Size size = 0;
     Extent3D extent = desc.size;
 
