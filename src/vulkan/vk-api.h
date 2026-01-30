@@ -371,8 +371,7 @@ struct VulkanExtendedFeatures
     };
 
     // Clock features
-    VkPhysicalDeviceShaderClockFeaturesKHR clockFeatures = {
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR
+    VkPhysicalDeviceShaderClockFeaturesKHR clockFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR
     };
 
     // Mesh shader features
@@ -505,6 +504,11 @@ struct VulkanExtendedFeatures
     // Shader demote to helper invocation features
     VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT shaderDemoteToHelperInvocationFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT
+    };
+
+    // Shader float8 features
+    VkPhysicalDeviceShaderFloat8FeaturesEXT shaderFloat8Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT
     };
 
     // Shader bfloat16 features
