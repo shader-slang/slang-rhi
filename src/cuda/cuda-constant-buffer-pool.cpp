@@ -26,6 +26,16 @@ void ConstantBufferPool::upload(CUstream stream)
     {
         if (page.usedSize > 0)
         {
+            // Notify heap pages of actual execution stream for multi-stream tracking
+            if (page.deviceMem.pageId)
+            {
+                static_cast<HeapImpl::PageImpl*>(page.deviceMem.pageId)->notifyUse(stream);
+            }
+            if (page.hostMem.pageId)
+            {
+                static_cast<HeapImpl::PageImpl*>(page.hostMem.pageId)->notifyUse(stream);
+            }
+
             SLANG_CUDA_ASSERT_ON_FAIL(
                 cuMemcpyHtoDAsync(page.deviceMem.getDeviceAddress(), page.hostMem.getHostPtr(), page.usedSize, stream)
             );
@@ -49,15 +59,17 @@ void ConstantBufferPool::reset()
     m_globalDataPool.reset(m_device);
 }
 
-Result ConstantBufferPool::allocate(size_t size, ConstantBufferMemType memType, void* stream, Allocation& outAllocation)
+Result ConstantBufferPool::allocate(size_t size, ConstantBufferMemType memType, Allocation& outAllocation)
 {
+    // Stream is not passed here - pages are allocated with kInvalidCUDAStream during encoding.
+    // The correct execution stream is set later in upload() via notifyUse().
     if (memType == ConstantBufferMemType::Global)
     {
-        return m_globalDataPool.allocate(m_device, size, stream, outAllocation);
+        return m_globalDataPool.allocate(m_device, size, outAllocation);
     }
     else
     {
-        return m_entryPointDataPool.allocate(m_device, size, stream, outAllocation);
+        return m_entryPointDataPool.allocate(m_device, size, outAllocation);
     }
 }
 
@@ -83,7 +95,7 @@ void ConstantBufferPool::Pool::reset(DeviceImpl* device)
     m_largePages.clear();
 }
 
-Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, void* stream, Allocation& outAllocation)
+Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, Allocation& outAllocation)
 {
     if (size == 0)
     {
@@ -96,7 +108,7 @@ Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, void*
     {
         m_largePages.push_back(Page());
         Page& page = m_largePages.back();
-        SLANG_RETURN_ON_FAIL(createPage(device, size, stream, page));
+        SLANG_RETURN_ON_FAIL(createPage(device, size, page));
         page.usedSize = size;
         outAllocation.hostData = page.hostMem ? page.hostMem.getHostPtr() : 0;
         outAllocation.deviceData = page.deviceMem ? page.deviceMem.getDeviceAddress() : 0;
@@ -109,7 +121,7 @@ Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, void*
         if (m_currentPage >= int(m_pages.size()))
         {
             m_pages.push_back(Page());
-            SLANG_RETURN_ON_FAIL(createPage(device, kPageSize, stream, m_pages.back()));
+            SLANG_RETURN_ON_FAIL(createPage(device, kPageSize, m_pages.back()));
         }
         m_currentOffset = 0;
     }
@@ -122,12 +134,12 @@ Result ConstantBufferPool::Pool::allocate(DeviceImpl* device, size_t size, void*
     return SLANG_OK;
 }
 
-Result ConstantBufferPool::Pool::createPage(DeviceImpl* device, size_t size, void* stream, Page& outPage)
+Result ConstantBufferPool::Pool::createPage(DeviceImpl* device, size_t size, Page& outPage)
 {
     HeapAllocDesc desc;
     desc.alignment = kAlignment;
     desc.size = size;
-    desc.stream = stream; // Pass stream for multi-stream tracking
+    // Stream is kInvalidCUDAStream by default - will be set at upload time via notifyUse()
 
     if (m_memType == ConstantBufferMemType::Global)
     {

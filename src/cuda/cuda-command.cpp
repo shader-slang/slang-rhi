@@ -1062,7 +1062,6 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     builder.m_bindingCache = &m_commandBuffer->m_bindingCache;
     builder.m_allocator = &m_commandBuffer->m_allocator;
     builder.m_constantBufferPool = &m_commandBuffer->m_constantBufferPool;
-    builder.m_stream = m_queue->m_stream; // Pass stream for multi-stream tracking
     ShaderObjectLayout* specializedLayout = nullptr;
     SLANG_RETURN_ON_FAIL(rootObject->getSpecializedLayout(specializedLayout));
     return builder.bindAsRoot(

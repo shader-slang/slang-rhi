@@ -23,10 +23,6 @@ struct BindingDataBuilder
     ConstantBufferPool* m_constantBufferPool;
     ArenaAllocator* m_allocator;
 
-    /// Stream context for this binding operation (from the command encoder's queue).
-    /// Used for multi-stream tracking when allocating constant buffers.
-    void* m_stream = kNoStream;
-
     /// Bind this object as a root shader object
     Result bindAsRoot(
         RootShaderObject* shaderObject,

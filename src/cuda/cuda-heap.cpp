@@ -178,16 +178,16 @@ bool HeapImpl::PageImpl::processEventsAndCheckReuse()
 
 void HeapImpl::PageImpl::notifyUse(void* stream)
 {
-    // If no stream context provided (kNoStream sentinel), nothing to track
-    if (stream == kNoStream)
+    // If no stream context provided (kInvalidCUDAStream sentinel), nothing to track
+    if (stream == kInvalidCUDAStream)
     {
         return;
     }
 
     CUstream currentStream = static_cast<CUstream>(stream);
 
-    // If page has no stream yet (kNoStream), adopt this stream as owner (lazy assignment)
-    if (m_stream == kNoStream)
+    // Lazy stream assignment - adopt first stream that uses this page
+    if (m_stream == nullptr)
     {
         m_stream = currentStream;
         return;
@@ -319,8 +319,9 @@ Result HeapImpl::free(HeapAlloc allocation)
 
     // Immediate reuse when safe - CUDA stream FIFO ordering guarantees safety
 
-    // Case 1: No stream assignment - page never used by GPU
-    if (page->m_stream == kNoStream)
+    // Case 1: No stream assignment - page never used by GPU.
+    // Note: allocatePage() converts kInvalidCUDAStream to nullptr, so we check for nullptr here.
+    if (page->m_stream == nullptr)
     {
         return retire(allocation);
     }
@@ -371,8 +372,8 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     SLANG_CUDA_CTX_SCOPE(deviceImpl);
 
     // Get stream from PageDesc (passed from HeapAllocDesc)
-    // Note: kNoStream means no stream context, nullptr is the default CUDA stream
-    CUstream stream = (desc.stream == kNoStream) ? nullptr : static_cast<CUstream>(desc.stream);
+    // Note: kInvalidCUDAStream means no stream context, nullptr is the default CUDA stream
+    CUstream stream = (desc.stream == kInvalidCUDAStream) ? nullptr : static_cast<CUstream>(desc.stream);
 
     // Try to find a reusable page in the cache first
     if (m_cachingConfig.enabled)
@@ -401,9 +402,9 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
     PageImpl* newPage = new PageImpl(this, desc, cudaMemory);
 
     // Set the allocation stream for the new page from PageDesc
-    // Convert kNoStream to nullptr (default stream) for consistency with cache lookup (line 342)
-    // This ensures pages created with kNoStream can be found when searching with kNoStream
-    newPage->m_stream = (desc.stream == kNoStream) ? nullptr : desc.stream;
+    // Convert kInvalidCUDAStream to nullptr (default stream) for consistency with cache lookup (line 342)
+    // This ensures pages created with kInvalidCUDAStream can be found when searching with kInvalidCUDAStream
+    newPage->m_stream = (desc.stream == kInvalidCUDAStream) ? nullptr : desc.stream;
 
     *outPage = newPage;
     return SLANG_OK;

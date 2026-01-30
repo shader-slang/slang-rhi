@@ -33,7 +33,7 @@ public:
 
         /// Stream context for this page (backend-specific handle).
         /// Passed from HeapAllocDesc when creating the page.
-        void* stream = kNoStream;
+        void* stream = kInvalidCUDAStream;
     };
 
     class Page
@@ -58,8 +58,8 @@ public:
         /// The stream this page was originally allocated on.
         /// This NEVER changes - ownership remains with original stream (PyTorch model).
         /// Backend-specific handle (CUstream for CUDA, queue handle for D3D/Vk).
-        /// Set to kNoStream if allocated outside encoding context (lazy assignment on first use).
-        void* m_stream = kNoStream;
+        /// Set to kInvalidCUDAStream if allocated outside encoding context (lazy assignment on first use).
+        void* m_stream = kInvalidCUDAStream;
 
         /// Record that this page is being used by a stream different from m_stream.
         /// Backend implementations override this to insert synchronization events.

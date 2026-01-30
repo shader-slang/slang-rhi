@@ -142,7 +142,7 @@ Result BindingDataBuilder::writeObjectData(
     size_t size = specializedLayout->getElementTypeLayout()->getSize();
 
     ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, memType, m_stream, allocation));
+    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, memType, allocation));
 
     ObjectData objectData = {};
     objectData.size = size;

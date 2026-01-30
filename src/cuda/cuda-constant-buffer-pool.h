@@ -27,7 +27,7 @@ public:
     void upload(CUstream stream);
     void reset();
 
-    Result allocate(size_t size, ConstantBufferMemType memType, void* stream, Allocation& outAllocation);
+    Result allocate(size_t size, ConstantBufferMemType memType, Allocation& outAllocation);
 
 private:
     // Note: Page size can be relatively small, as it is allocated from
@@ -52,8 +52,8 @@ private:
         size_t m_currentOffset = 0;
         ConstantBufferMemType m_memType;
 
-        Result allocate(DeviceImpl* device, size_t size, void* stream, Allocation& outAllocation);
-        Result createPage(DeviceImpl* device, size_t size, void* stream, Page& outPage);
+        Result allocate(DeviceImpl* device, size_t size, Allocation& outAllocation);
+        Result createPage(DeviceImpl* device, size_t size, Page& outPage);
         void reset(DeviceImpl* device);
     };
 
