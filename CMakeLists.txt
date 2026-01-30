@@ -890,6 +890,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-staging-heap.cpp
         tests/test-static-vector.cpp
         tests/test-surface.cpp
+        tests/test-texture-allocation-info.cpp
         tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-shared.cpp
