@@ -193,6 +193,12 @@ public:
 
     void customizeShaderObject(ShaderObject* shaderObject) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
+        const TextureDesc& desc,
+        Size* outSize,
+        Size* outAlignment
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
 };
 
