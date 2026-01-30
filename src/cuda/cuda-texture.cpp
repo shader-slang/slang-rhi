@@ -645,6 +645,13 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     return SLANG_OK;
 }
 
+Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
+{
+    outHandle->type = DescriptorHandleType::CombinedTextureSampler;
+    outHandle->value = (uint64_t)getTexObject();
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     SLANG_CUDA_CTX_SCOPE(this);

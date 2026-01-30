@@ -108,6 +108,8 @@ Result calcSubresourceRegionLayout(
     SubresourceLayout* outLayout
 );
 
+class Sampler;
+
 class Texture : public ITexture, public Resource
 {
 public:
@@ -152,6 +154,7 @@ public:
 public:
     TextureDesc m_desc;
     StructHolder m_descHolder;
+    RefPtr<Sampler> m_sampler;
     NativeHandle m_sharedHandle;
 };
 
@@ -171,10 +174,14 @@ public:
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
+        DescriptorHandle* outHandle
+    ) override;
 
 public:
     TextureViewDesc m_desc;
     StructHolder m_descHolder;
+    RefPtr<Sampler> m_sampler;
 };
 
 class Sampler : public ISampler, public Resource
