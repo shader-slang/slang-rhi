@@ -430,7 +430,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         uint32_t physicalDeviceCount = 0;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data())
+        SLANG_VK_RETURN_ON_FAIL(
+            m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data())
         );
 
         // Find the physical device that matches the selected adapter UUID.
@@ -2041,12 +2042,14 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
-        this,
-        shaderProgram->linkedProgram,
-        shaderProgram->linkedProgram->getLayout(),
-        shaderProgram->m_rootShaderObjectLayout.writeRef()
-    ));
+    SLANG_RETURN_ON_FAIL(
+        RootShaderObjectLayoutImpl::create(
+            this,
+            shaderProgram->linkedProgram,
+            shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->m_rootShaderObjectLayout.writeRef()
+        )
+    );
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }
