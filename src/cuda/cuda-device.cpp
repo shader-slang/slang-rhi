@@ -748,6 +748,55 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
 }
 
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
+{
+    TextureDesc desc = fixupTextureDesc(desc_);
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+
+    // Query texture base address alignment from CUDA device
+    int textureAlignment = 0;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuDeviceGetAttribute(&textureAlignment, CU_DEVICE_ATTRIBUTE_TEXTURE_ALIGNMENT, m_ctx.device),
+        this
+    );
+    Size alignment = static_cast<Size>(textureAlignment);
+
+    // Query texture pitch (row) alignment from CUDA device
+    int texturePitchAlignment = 0;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuDeviceGetAttribute(&texturePitchAlignment, CU_DEVICE_ATTRIBUTE_TEXTURE_PITCH_ALIGNMENT, m_ctx.device),
+        this
+    );
+    Size rowAlignment = static_cast<Size>(texturePitchAlignment);
+
+    auto alignTo = [](Size size, Size align) -> Size
+    {
+        return ((size + align - 1) / align) * align;
+    };
+
+    Size size = 0;
+    Extent3D extent = desc.size;
+
+    for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
+    {
+        Size rowSize =
+            ((extent.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
+        rowSize = alignTo(rowSize, rowAlignment);
+        Size sliceSize = rowSize * ((extent.height + formatInfo.blockHeight - 1) / formatInfo.blockHeight);
+        size += sliceSize * extent.depth;
+        extent.width = max(1u, extent.width >> 1);
+        extent.height = max(1u, extent.height >> 1);
+        extent.depth = max(1u, extent.depth >> 1);
+    }
+    size = alignTo(size, alignment);
+    size *= desc.getLayerCount();
+
+    *outSize = size;
+    *outAlignment = alignment;
+
+    return SLANG_OK;
+}
+
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 1;
