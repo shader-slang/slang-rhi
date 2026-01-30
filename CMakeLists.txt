@@ -611,6 +611,8 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-query.cpp
     src/debug-layer/debug-shader-object.cpp
     src/debug-layer/debug-surface.cpp
+    src/slang-capture/capture-engine.cpp
+    src/slang-capture/json-serialization.cpp
 )
 
 if(APPLE)
@@ -902,6 +904,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/texture-utils.cpp
         tests/texture-test.cpp
         tests/test-task-pool.cpp
+        tests/test-slang-capture-basic.cpp
     )
     target_compile_definitions(slang-rhi-tests
         PRIVATE
