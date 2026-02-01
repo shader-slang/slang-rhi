@@ -398,6 +398,22 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     return SLANG_OK;
 }
 
+Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
+{
+    DescriptorHandle textureHandle;
+    SLANG_RETURN_ON_FAIL(getDescriptorHandle(DescriptorHandleAccess::Read, &textureHandle));
+    Sampler* sampler = m_sampler ? m_sampler : m_texture->m_sampler;
+    if (!sampler)
+    {
+        return SLANG_FAIL;
+    }
+    DescriptorHandle samplerHandle;
+    SLANG_RETURN_ON_FAIL(sampler->getDescriptorHandle(&samplerHandle));
+    outHandle->type = DescriptorHandleType::CombinedTextureSampler;
+    outHandle->value = textureHandle.value | (samplerHandle.value << 32);
+    return SLANG_OK;
+}
+
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
     // TODO return view descriptor

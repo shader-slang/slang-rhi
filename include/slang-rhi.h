@@ -608,6 +608,7 @@ enum class DescriptorHandleType
     Texture,
     RWTexture,
     Sampler,
+    CombinedTextureSampler,
     AccelerationStructure,
 };
 
@@ -974,6 +975,8 @@ struct SubresourceLayout
     Size rowCount;
 };
 
+class ISampler;
+
 static const uint32_t kAllLayers = 0xffffffff;
 static const uint32_t kAllMips = 0xffffffff;
 static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
@@ -1008,6 +1011,14 @@ struct TextureDesc
 
     const ClearValue* optimalClearValue = nullptr;
 
+    /// Default sampler to use for the texture.
+    /// This specifies the sampler for combined texture/sampler descriptor handles
+    /// when calling getCombinedTextureSamplerDescriptorHandle().
+    /// On CUDA, texture objects are always combined texture/sampler objects,
+    /// so this sampler is used for all texture access.
+    /// If not specified, tri-linear filtering and wrap addressing mode will be used.
+    ISampler* sampler = nullptr;
+
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;
 
@@ -1027,6 +1038,15 @@ struct TextureViewDesc
     Format format = Format::Undefined;
     TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
+
+    /// Sampler to use for the texture view.
+    /// This specifies the sampler for combined texture/sampler descriptor handles
+    /// when calling getCombinedTextureSamplerDescriptorHandle().
+    /// On CUDA, texture objects are always combined texture/sampler objects,
+    /// so this sampler is used for all texture access.
+    /// If not specified, the default sampler from the texture will be used.
+    ISampler* sampler = nullptr;
+
     const char* label = nullptr;
 };
 
@@ -1084,6 +1104,9 @@ public:
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
+        DescriptorHandle* outHandle
+    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
         DescriptorHandle* outHandle
     ) = 0;
 };
@@ -2981,6 +3004,8 @@ struct BindlessDesc
     uint32_t textureCount = 1024;
     // Maximum number of bindless samplers.
     uint32_t samplerCount = 128;
+    // Maximum number of bindless combined texture samplers.
+    uint32_t combinedTextureSamplerCount = 1024;
     // Maximum number of bindless acceleration structures.
     uint32_t accelerationStructureCount = 128;
 };

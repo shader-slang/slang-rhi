@@ -100,6 +100,9 @@ public:
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
+        DescriptorHandle* outHandle
+    ) override;
 
     D3D12_CPU_DESCRIPTOR_HANDLE getSRV();
     D3D12_CPU_DESCRIPTOR_HANDLE getUAV();
