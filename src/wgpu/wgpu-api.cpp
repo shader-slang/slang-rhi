@@ -17,11 +17,9 @@ API::~API()
 Result API::init()
 {
 #if SLANG_WASM
-    // Use wgpuGetProcAddress to load procs at runtime provided by the browser.
-    // Dawn-only procs will return nullptr which is fine.
-#define LOAD_PROC(name) wgpu##name = (WGPUProc##name)wgpuGetProcAddress({.data = "wgpu" #name, .length = WGPU_STRLEN});
-    SLANG_RHI_WGPU_PROCS(LOAD_PROC)
-#undef LOAD_PROC
+#define LINK_STATIC(name) wgpu##name = (WGPUProc##name)::wgpu##name;
+    SLANG_RHI_WGPU_PROCS(LINK_STATIC)
+#undef LINK_STATIC
     return SLANG_OK;
 #else
 #if SLANG_WINDOWS_FAMILY
