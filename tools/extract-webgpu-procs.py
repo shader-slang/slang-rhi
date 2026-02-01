@@ -71,7 +71,7 @@ def main():
     print(f"// Fetching Emscripten header from {EMSCRIPTEN_HEADER_URL}...")
     try:
         em_content = fetch_url(EMSCRIPTEN_HEADER_URL)
-        _, em_procs = extract_procs_from_content(em_content)
+        em_items, em_procs = extract_procs_from_content(em_content)
     except Exception as e:
         print(f"// Error fetching Emscripten header: {e}")
         em_procs = set()
@@ -80,6 +80,7 @@ def main():
     print(f"// Emscripten procs: {len(em_procs)}")
     print()
     
+    print("#if !SLANG_WASM")
     output = "#define SLANG_RHI_WGPU_PROCS(x) \\\n"
     for i, (item_type, item_value) in enumerate(dawn_items):
         is_last = (i == len(dawn_items) - 1)
@@ -89,17 +90,16 @@ def main():
         else:
             output += "    x(" + item_value + ")" + suffix + "\n"
     print(output)
-    print()
-    
-    print("#if SLANG_WASM")
-    print("// Dawn-only procs that don't exist in Emscripten WebGPU")
-    print("#define SLANG_RHI_WGPU_STUBS(x) \\")
-    dawn_only_procs = dawn_procs - em_procs
-    sorted_procs = sorted(dawn_only_procs)
-    for i, proc in enumerate(sorted_procs):
-        is_last = (i == len(sorted_procs) - 1)
+    print("#else")
+    output = "#define SLANG_RHI_WGPU_PROCS(x) \\\n"
+    for i, (item_type, item_value) in enumerate(em_items):
+        is_last = (i == len(em_items) - 1)
         suffix = "" if is_last else " \\"
-        print(f"    x({proc}){suffix}")
+        if item_type == "comment":
+            output += "    /* " + item_value + " */" + suffix + "\n"
+        else:
+            output += "    x(" + item_value + ")" + suffix + "\n"
+    print(output)
     print("#endif")
 
 if __name__ == "__main__":
