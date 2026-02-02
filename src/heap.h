@@ -30,6 +30,10 @@ public:
     {
         Size alignment = 0;
         Size size = 0;
+
+        /// Stream context for this page (backend-specific handle).
+        /// Passed from HeapAllocDesc when creating the page.
+        void* stream = kInvalidCUDAStream;
     };
 
     class Page
@@ -46,6 +50,54 @@ public:
         virtual ~Page() {}
 
         virtual DeviceAddress offsetToAddress(Size offset) = 0;
+
+        // ============================================================================
+        // Stream tracking for caching allocator (PyTorch-style)
+        // ============================================================================
+
+        /// The stream this page was originally allocated on.
+        /// This NEVER changes - ownership remains with original stream (PyTorch model).
+        /// Backend-specific handle (CUstream for CUDA, queue handle for D3D/Vk).
+        /// Set to kInvalidCUDAStream if allocated outside encoding context (lazy assignment on first use).
+        void* m_stream = kInvalidCUDAStream;
+
+        /// Record that this page is being used by a stream different from m_stream.
+        /// Backend implementations override this to insert synchronization events.
+        /// Following PyTorch model: events are only added when stream != m_stream.
+        /// @param stream The stream using this page (backend-specific handle)
+        virtual void recordStreamUse(void* stream)
+        {
+            // Default: no-op, backend overrides with event insertion
+            (void)stream;
+        }
+
+        /// Check if this page can be reused (all pending stream events completed).
+        /// Backend implementations override this to query event completion status.
+        /// @return true if the page can be safely reused
+        virtual bool canReuse() const
+        {
+            // Default: always reusable (no cross-stream tracking)
+            return true;
+        }
+
+        /// Process completed events and clean up.
+        /// Called periodically or before reuse checks.
+        /// Backend implementations override to query and remove completed events.
+        virtual void processEvents()
+        {
+            // Default: no-op
+        }
+
+        /// Called when this page is used for an allocation.
+        /// Backend implementations override to track cross-stream usage.
+        /// This enables proper multi-stream synchronization: if a page allocated
+        /// on stream A is used during encoding for stream B, we record that usage.
+        /// @param stream The stream context for this allocation (from HeapAllocDesc::stream)
+        virtual void notifyUse(void* stream)
+        {
+            // Default: no-op, backend overrides with stream tracking
+            (void)stream;
+        }
 
         uint32_t m_id;
         Heap* m_heap;
