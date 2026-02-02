@@ -401,9 +401,7 @@ Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
 
     PageImpl* newPage = new PageImpl(this, desc, cudaMemory);
 
-    // Set the allocation stream for the new page from PageDesc
-    // Convert kInvalidCUDAStream to nullptr (default stream) for consistency with cache lookup (line 342)
-    // This ensures pages created with kInvalidCUDAStream can be found when searching with kInvalidCUDAStream
+    // Convert kInvalidCUDAStream to nullptr for cache lookup consistency.
     newPage->m_stream = (desc.stream == kInvalidCUDAStream) ? nullptr : desc.stream;
 
     *outPage = newPage;

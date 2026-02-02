@@ -61,8 +61,6 @@ void ConstantBufferPool::reset()
 
 Result ConstantBufferPool::allocate(size_t size, ConstantBufferMemType memType, Allocation& outAllocation)
 {
-    // Stream is not passed here - pages are allocated with kInvalidCUDAStream during encoding.
-    // The correct execution stream is set later in upload() via notifyUse().
     if (memType == ConstantBufferMemType::Global)
     {
         return m_globalDataPool.allocate(m_device, size, outAllocation);
@@ -139,7 +137,6 @@ Result ConstantBufferPool::Pool::createPage(DeviceImpl* device, size_t size, Pag
     HeapAllocDesc desc;
     desc.alignment = kAlignment;
     desc.size = size;
-    // Stream is kInvalidCUDAStream by default - will be set at upload time via notifyUse()
 
     if (m_memType == ConstantBufferMemType::Global)
     {
