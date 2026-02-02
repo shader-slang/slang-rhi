@@ -6,7 +6,7 @@ using namespace rhi::testing;
 // Test dispatchComputeIndirect with a simple compute shader.
 // The test sets up an indirect argument buffer with dispatch dimensions,
 // then verifies the compute shader ran with the correct number of threads.
-GPU_TEST_CASE("compute-indirect", D3D12 | Vulkan)
+GPU_TEST_CASE("compute-indirect", D3D12 | Vulkan | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-compute-indirect", "computeMain", shaderProgram.writeRef()));
@@ -122,7 +122,7 @@ GPU_TEST_CASE("compute-indirect", D3D12 | Vulkan)
 
 // Test dispatchComputeIndirect with zero dispatch dimensions.
 // This verifies the implementation handles edge cases correctly.
-GPU_TEST_CASE("compute-indirect-zero", D3D12 | Vulkan)
+GPU_TEST_CASE("compute-indirect-zero", D3D12 | Vulkan | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-compute-indirect", "computeMain", shaderProgram.writeRef()));
@@ -182,7 +182,7 @@ GPU_TEST_CASE("compute-indirect-zero", D3D12 | Vulkan)
 
 // Test dispatchComputeIndirect with non-zero buffer offset.
 // This verifies the offset parameter is handled correctly.
-GPU_TEST_CASE("compute-indirect-offset", D3D12 | Vulkan)
+GPU_TEST_CASE("compute-indirect-offset", D3D12 | Vulkan | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-compute-indirect", "computeMain", shaderProgram.writeRef()));
