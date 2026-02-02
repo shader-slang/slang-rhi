@@ -90,6 +90,43 @@ void runCopyPointerShader(IDevice* device, DeviceAddress src, DeviceAddress dst,
     REQUIRE_CALL(queue->submit(cb));
 }
 
+// Helper: Verify heap allocation contains expected pattern
+// Reads back GPU memory and checks all elements match the expected value
+void verifyHeapPattern(IDevice* device, HeapAlloc& alloc, uint32_t expectedPattern, uint32_t numElements)
+{
+    // Create a readback buffer
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numElements * sizeof(uint32_t);
+    bufferDesc.usage = BufferUsage::CopyDestination;
+    bufferDesc.memoryType = MemoryType::ReadBack;
+
+    ComPtr<IBuffer> readbackBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, readbackBuffer.writeRef()));
+
+    // Copy from heap allocation to buffer via shader
+    runCopyPointerShader(device, alloc.getDeviceAddress(), readbackBuffer->getDeviceAddress(), numElements);
+
+    // Wait for GPU
+    ComPtr<ICommandQueue> queue;
+    REQUIRE_CALL(device->getQueue(QueueType::Graphics, queue.writeRef()));
+    queue->waitOnHost();
+
+    // Read back and verify
+    ComPtr<ISlangBlob> blob;
+    REQUIRE_CALL(device->readBuffer(readbackBuffer, 0, bufferDesc.size, blob.writeRef()));
+    auto data = (const uint32_t*)blob->getBufferPointer();
+
+    for (uint32_t i = 0; i < numElements; i++)
+    {
+        if (data[i] != expectedPattern)
+        {
+            CAPTURE(i);
+            CHECK_EQ(data[i], expectedPattern);
+            break; // Don't spam on first failure
+        }
+    }
+}
+
 ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t size)
 {
     // Setup buffer descriptor
@@ -155,7 +192,10 @@ GPU_TEST_CASE("heap-allocate", CUDA | Vulkan)
     CHECK_EQ(report.numPages, 0);
 }
 
-GPU_TEST_CASE("heap-submit", CUDA | Vulkan)
+// CUDA: PyTorch-style same-stream optimization - frees are IMMEDIATE
+// because CUDA stream FIFO ordering guarantees the GPU work using the
+// allocation will complete before any new work that might reuse the memory.
+GPU_TEST_CASE("heap-cuda-immediate-retirement", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -164,8 +204,8 @@ GPU_TEST_CASE("heap-submit", CUDA | Vulkan)
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 
     HeapAllocDesc allocDesc;
-    allocDesc.size = 1024 * 1024; // 1 MB
-    allocDesc.alignment = 128;    // 256 KB
+    allocDesc.size = 32 * 1024; // 32 KB (8192 uint32s, must be multiple of 32 for shader)
+    allocDesc.alignment = 128;
 
     HeapAlloc allocation;
     REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
@@ -177,31 +217,75 @@ GPU_TEST_CASE("heap-submit", CUDA | Vulkan)
     CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
     CHECK_EQ(report.numPages, 1);
 
-    // Run dummy shader just to create a submit
-    auto src = createBuffer(device, 1024);
-    auto dst = createBuffer(device, 1024);
-    runCopyBufferShader(device, src.get(), dst.get());
+    // Actually USE the heap allocation - write a pattern to it via shader
+    // This creates GPU work that uses the allocation on the default stream
+    uint32_t numElements = (uint32_t)(allocDesc.size / sizeof(uint32_t));
+    runInitPointerShader(device, 0xDEADBEEF, allocation.getDeviceAddress(), numElements);
 
-    // Request a free, which should not actually trigger
-    // yet as the latest submit hasn't completed
+    // Request a free - with PyTorch-style same-stream optimization,
+    // this is IMMEDIATE because page and GPU work are on the same stream
     REQUIRE_CALL(heap->free(allocation));
     report = heap->report();
+    CHECK_EQ(report.totalAllocated, 0); // Immediate retirement (same stream)
+    CHECK_EQ(report.numAllocations, 0);
+    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
+    CHECK_EQ(report.numPages, 1);
+
+    REQUIRE_CALL(heap->removeEmptyPages());
+
+    report = heap->report();
+    CHECK_EQ(report.totalAllocated, 0);
+    CHECK_EQ(report.numAllocations, 0);
+    CHECK_EQ(report.totalMemUsage, 0);
+    CHECK_EQ(report.numPages, 0);
+}
+
+// Vulkan: No same-stream optimization - frees are DEFERRED until GPU completion
+GPU_TEST_CASE("heap-vulkan-deferred-retirement", Vulkan)
+{
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    HeapAllocDesc allocDesc;
+    allocDesc.size = 32 * 1024; // 32 KB (8192 uint32s, must be multiple of 32 for shader)
+    allocDesc.alignment = 128;
+
+    HeapAlloc allocation;
+    REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
+    CHECK_EQ(allocation.size, allocDesc.size);
+
+    HeapReport report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size);
     CHECK_EQ(report.numAllocations, 1);
     CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
     CHECK_EQ(report.numPages, 1);
 
+    // Actually USE the heap allocation - write a pattern to it via shader
+    uint32_t numElements = (uint32_t)(allocDesc.size / sizeof(uint32_t));
+    runInitPointerShader(device, 0xDEADBEEF, allocation.getDeviceAddress(), numElements);
+
+    // Request a free - Vulkan defers until GPU completion
+    REQUIRE_CALL(heap->free(allocation));
+    report = heap->report();
+    CHECK_EQ(report.totalAllocated, allocDesc.size); // Still allocated (deferred)
+    CHECK_EQ(report.numAllocations, 1);
+    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024);
+    CHECK_EQ(report.numPages, 1);
+
     // Wait for the queue to complete
     device->getQueue(QueueType::Graphics)->waitOnHost();
 
-    // Flush the heap (TODO: Remove once hooked into device logic)
+    // Flush the heap to process pending frees
     REQUIRE_CALL(heap->flush());
 
     // Now the free should be processed
     report = heap->report();
     CHECK_EQ(report.totalAllocated, 0);
     CHECK_EQ(report.numAllocations, 0);
-    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
+    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024);
     CHECK_EQ(report.numPages, 1);
 
     REQUIRE_CALL(heap->removeEmptyPages());
@@ -493,7 +577,10 @@ GPU_TEST_CASE("heap-alignment-sizes", CUDA | Vulkan)
     }
 }
 
-GPU_TEST_CASE("heap-multiple-submits-pending-frees", CUDA | Vulkan)
+// Test: CUDA same-stream frees are IMMEDIATE (PyTorch-style optimization)
+// When allocation and GPU work are on the same stream, CUDA FIFO ordering
+// guarantees the GPU work will complete before any reuse of the memory.
+GPU_TEST_CASE("heap-same-stream-immediate-reuse", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -503,28 +590,99 @@ GPU_TEST_CASE("heap-multiple-submits-pending-frees", CUDA | Vulkan)
 
     auto queue = device->getQueue(QueueType::Graphics);
 
-    std::vector<HeapAlloc> pendingFrees;
-
     // Create multiple submits with allocations that will be freed
     for (int submitIndex = 0; submitIndex < 5; submitIndex++)
     {
-        // Allocate some memory for this submit
+        // Allocate some memory for this submit (size must be multiple of 32*4 for shader)
         HeapAllocDesc allocDesc;
-        allocDesc.size = (submitIndex + 1) * 65536; // Varying sizes
+        allocDesc.size = 32 * 1024; // 32 KB (8192 uint32s)
         allocDesc.alignment = 128;
 
         HeapAlloc allocation;
         REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
 
-        // Create some GPU work
-        auto src = createBuffer(device, 1024);
-        auto dst = createBuffer(device, 1024);
-        runCopyBufferShader(device, src.get(), dst.get());
+        // Actually USE the heap allocation - write a pattern to it via shader
+        // This creates GPU work that uses the allocation on the default stream
+        uint32_t numElements = (uint32_t)(allocDesc.size / sizeof(uint32_t));
+        uint32_t pattern = submitIndex + 1;
+        runInitPointerShader(device, pattern, allocation.getDeviceAddress(), numElements);
 
-        // Queue the allocation for freeing - this should create pending frees
-        // since we haven't waited for GPU completion
+        // Verify the pattern was written correctly BEFORE freeing.
+        // This proves same-stream FIFO ordering is working - if immediate reuse
+        // were unsafe, we'd see corruption from previous iteration's data.
+        verifyHeapPattern(device, allocation, pattern, numElements);
+
+        // Free the allocation - should be IMMEDIATE because same stream
         REQUIRE_CALL(heap->free(allocation));
-        pendingFrees.push_back(allocation);
+    }
+
+    // All allocations should be immediately freed (same-stream optimization)
+    HeapReport report = heap->report();
+    CHECK_EQ(report.totalAllocated, 0);
+    CHECK_EQ(report.numAllocations, 0);
+
+    // Wait for GPU to complete - verifies the immediate retirement was safe
+    // (if it wasn't, we'd have use-after-free and potential GPU crash)
+    queue->waitOnHost();
+
+    // Create new allocations to verify the heap is still functional
+    // and that freed memory can be reused immediately
+    std::vector<HeapAlloc> newAllocations;
+    for (int i = 0; i < 3; i++)
+    {
+        HeapAllocDesc allocDesc;
+        allocDesc.size = 32 * 1024; // 32 KB
+        allocDesc.alignment = 128;
+
+        HeapAlloc allocation;
+        REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
+        newAllocations.push_back(allocation);
+    }
+
+    // Verify new allocations don't overlap
+    for (size_t i = 0; i < newAllocations.size(); i++)
+    {
+        for (size_t j = i + 1; j < newAllocations.size(); j++)
+        {
+            CHECK(!allocationsOverlap(newAllocations[i], newAllocations[j]));
+        }
+    }
+
+    // Clean up
+    for (auto& alloc : newAllocations)
+    {
+        REQUIRE_CALL(heap->free(alloc));
+    }
+}
+
+// Test: Vulkan frees are DEFERRED until GPU completion (no same-stream optimization)
+GPU_TEST_CASE("heap-multiple-submits-pending-frees", Vulkan)
+{
+    HeapDesc desc;
+    desc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IHeap> heap;
+    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+
+    // Create multiple submits with allocations that will be freed
+    for (int submitIndex = 0; submitIndex < 5; submitIndex++)
+    {
+        // Allocate some memory for this submit (size must be multiple of 32*4 for shader)
+        HeapAllocDesc allocDesc;
+        allocDesc.size = 32 * 1024; // 32 KB (8192 uint32s)
+        allocDesc.alignment = 128;
+
+        HeapAlloc allocation;
+        REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
+
+        // Actually USE the heap allocation - write a pattern to it via shader
+        uint32_t numElements = (uint32_t)(allocDesc.size / sizeof(uint32_t));
+        runInitPointerShader(device, submitIndex + 1, allocation.getDeviceAddress(), numElements);
+
+        // Queue the allocation for freeing - Vulkan defers these
+        REQUIRE_CALL(heap->free(allocation));
 
         // Don't wait - let submits pile up
     }
@@ -553,7 +711,7 @@ GPU_TEST_CASE("heap-multiple-submits-pending-frees", CUDA | Vulkan)
     for (int i = 0; i < 3; i++)
     {
         HeapAllocDesc allocDesc;
-        allocDesc.size = 32768;
+        allocDesc.size = 32 * 1024; // 32 KB
         allocDesc.alignment = 128;
 
         HeapAlloc allocation;

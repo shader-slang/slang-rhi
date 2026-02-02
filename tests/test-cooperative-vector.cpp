@@ -187,6 +187,15 @@ GPU_TEST_CASE("cooperative-vector-get-matrix-size", D3D12 | Vulkan | CUDA)
         for (CooperativeVectorComponentType type : componentTypes)
         {
             PRINT("  Component Type: %s\n", toString(type).c_str());
+            if (type == CooperativeVectorComponentType::FloatE4M3 || type == CooperativeVectorComponentType::FloatE5M2)
+            {
+                // Not all devices support fp8 on Vulkan, skip if not available.
+                if (device->getDeviceType() == DeviceType::Vulkan && !device->hasFeature(Feature::Float8))
+                {
+                    PRINT("   Skipping due to lack of float8 support\n");
+                    continue;
+                }
+            }
             CAPTURE(type);
             for (uint32_t rows : {1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 32, 33, 64, 127, 128})
             {

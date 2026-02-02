@@ -59,6 +59,7 @@ typedef size_t Offset;
 
 const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 
+
 enum class StructType
 {
     ShaderProgramDesc,
@@ -129,6 +130,7 @@ enum class DeviceType
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \
     x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
+    x(CooperativeMatrix2,                       "cooperative-matrix-2"                          ) \
     x(SM_5_1,                                   "sm_5_1"                                        ) \
     x(SM_6_0,                                   "sm_6_0"                                        ) \
     x(SM_6_1,                                   "sm_6_1"                                        ) \
@@ -150,6 +152,8 @@ enum class DeviceType
     x(WaveOps,                                  "wave-ops"                                      ) \
     x(MeshShader,                               "mesh-shader"                                   ) \
     x(Pointer,                                  "has-ptr"                                       ) \
+    x(Float8,                                   "fp8"                                           ) \
+    x(Bfloat16,                                 "bfloat16"                                      ) \
     /* D3D12 specific features */                                                                 \
     x(ConservativeRasterization1,               "conservative-rasterization-1"                  ) \
     x(ConservativeRasterization2,               "conservative-rasterization-2"                  ) \
@@ -2739,6 +2743,15 @@ enum class HeapUsage
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
 
+/// Configuration for heap caching allocator.
+/// When enabled, freed pages are cached for reuse instead of being returned to the GPU.
+/// This reduces allocation overhead and improves performance for repeated allocations.
+struct HeapCachingConfig
+{
+    /// Enable caching allocator (default: true)
+    bool enabled = true;
+};
+
 struct HeapDesc
 {
     StructType structType = StructType::HeapDesc;
@@ -2751,12 +2764,21 @@ struct HeapDesc
 
     /// The label for the heap.
     const char* label = nullptr;
+
+    /// Caching allocator configuration
+    HeapCachingConfig caching;
 };
 
 struct HeapAllocDesc
 {
     Size size = 0;
     Size alignment = 0;
+
+    /// Stream context for multi-stream tracking (backend-specific handle).
+    /// Set to the encoding stream when allocating during command encoding.
+    /// Set to kInvalidCUDAStream (default) when allocating outside encoding context.
+    /// Note: nullptr is valid (represents default stream in CUDA), use kInvalidCUDAStream for "no context".
+    void* stream = kInvalidCUDAStream;
 };
 
 struct HeapReport
