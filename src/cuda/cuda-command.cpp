@@ -493,8 +493,30 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_ComputePassEncoder_dispatchComputeIndirect);
+    if (!m_computeStateValid)
+        return;
+
+    // Emulate indirect dispatch by reading the dispatch arguments from the buffer on the host.
+    // This requires a GPU->CPU synchronization and stalls the GPU pipeline, but CUDA does not provide
+    // a way to perform indirect dispatches natively.
+    // In the future, we might consider using CUDA dynamic parallelism to launch a helper kernel
+    // that performs the actual dispatch, but that would require more setup and complexity.
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    CUdeviceptr srcPtr = (CUdeviceptr)argBuffer->m_cudaMemory + cmd.argBuffer.offset;
+
+    IndirectDispatchArguments args;
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyDtoH(&args, srcPtr, sizeof(IndirectDispatchArguments)));
+
+    // Skip dispatch if any dimension is zero (CUDA doesn't allow zero-sized dispatches).
+    if (args.threadGroupCountX == 0 || args.threadGroupCountY == 0 || args.threadGroupCountZ == 0)
+        return;
+
+    // Dispatch with the retrieved arguments.
+    commands::DispatchCompute dispatchCmd;
+    dispatchCmd.x = args.threadGroupCountX;
+    dispatchCmd.y = args.threadGroupCountY;
+    dispatchCmd.z = args.threadGroupCountZ;
+    cmdDispatchCompute(dispatchCmd);
 }
 
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
