@@ -837,6 +837,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
+        tests/test-caching-allocator.cpp
         tests/test-command-encoder.cpp
         tests/test-compilation-report.cpp
         tests/test-cmd-clear-buffer.cpp
