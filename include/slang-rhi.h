@@ -59,6 +59,7 @@ typedef size_t Offset;
 
 const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 
+
 enum class StructType
 {
     ShaderProgramDesc,
@@ -2742,6 +2743,15 @@ enum class HeapUsage
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
 
+/// Configuration for heap caching allocator.
+/// When enabled, freed pages are cached for reuse instead of being returned to the GPU.
+/// This reduces allocation overhead and improves performance for repeated allocations.
+struct HeapCachingConfig
+{
+    /// Enable caching allocator (default: true)
+    bool enabled = true;
+};
+
 struct HeapDesc
 {
     StructType structType = StructType::HeapDesc;
@@ -2754,12 +2764,21 @@ struct HeapDesc
 
     /// The label for the heap.
     const char* label = nullptr;
+
+    /// Caching allocator configuration
+    HeapCachingConfig caching;
 };
 
 struct HeapAllocDesc
 {
     Size size = 0;
     Size alignment = 0;
+
+    /// Stream context for multi-stream tracking (backend-specific handle).
+    /// Set to the encoding stream when allocating during command encoding.
+    /// Set to kInvalidCUDAStream (default) when allocating outside encoding context.
+    /// Note: nullptr is valid (represents default stream in CUDA), use kInvalidCUDAStream for "no context".
+    void* stream = kInvalidCUDAStream;
 };
 
 struct HeapReport
