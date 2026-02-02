@@ -945,13 +945,27 @@ static void gpuTestTrampoline()
 
     if (isDeviceTypeAvailable(deviceType))
     {
+        static bool cachedPreviousDebugLayer = false;
+        static DebugLayerOptions previousDebugLayerOptions;
+
+        // Switch back to the old `DebugLayerOptions`.
+        // We need to cache the previous state via a static
+        // since if an assert is hit, we want our code to be
+        // aware that "we still did not switch back to the old
+        // debug settings".
+        if (cachedPreviousDebugLayer)
+            tryToChangeCurrentDebugLayerStateAndOptions(previousDebugLayerOptions);
+
         // Cache the default `DebugLayerOptions` and switch if
         // the test requests different `DebugLayerOptions`.
-        auto previousDebugLayerOptions = getRHI()->getDebugLayerOptions();
+        previousDebugLayerOptions = getRHI()->getDebugLayerOptions();
         bool testRequestsDifferentDebugLayerOptions =
             info->hasDebugLayerOptions && (previousDebugLayerOptions != info->debugLayerOptions);
         if (testRequestsDifferentDebugLayerOptions)
+        {
             tryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
+            cachedPreviousDebugLayer = true;
+        }
 
         {
             // Run test
@@ -965,10 +979,6 @@ static void gpuTestTrampoline()
             }
             info->func(&ctx, device);
         }
-
-        // Switch back to the old `DebugLayerOptions` after `device` releases
-        if (testRequestsDifferentDebugLayerOptions)
-            tryToChangeCurrentDebugLayerStateAndOptions(previousDebugLayerOptions);
     }
     else
     {
