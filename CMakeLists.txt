@@ -51,8 +51,14 @@ option(SLANG_RHI_INSTALL "Install library" ON)
 # Configure coverage flags
 if(SLANG_RHI_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
-        add_link_options(-fprofile-instr-generate)
+        # Output coverage data to a dedicated directory in the build folder.
+        # %p = process ID, %m = binary signature (allows multiple runs without conflicts)
+        set(SLANG_RHI_COVERAGE_DIR "${CMAKE_BINARY_DIR}/coverage")
+        set(SLANG_RHI_COVERAGE_PATTERN "${SLANG_RHI_COVERAGE_DIR}/coverage-%p-%m.profraw")
+        add_compile_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN} -fcoverage-mapping)
+        add_link_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN})
+    else()
+        message(FATAL_ERROR "Code coverage is only supported with Clang")
     endif()
 endif()
 
@@ -85,6 +91,13 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(SLANG_RHI_HAS_METAL OFF)
     set(SLANG_RHI_HAS_CUDA OFF)
     set(SLANG_RHI_HAS_WGPU ON)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(SLANG_RHI_HAS_D3D11 OFF)
+    set(SLANG_RHI_HAS_D3D12 OFF)
+    set(SLANG_RHI_HAS_VULKAN ON)
+    set(SLANG_RHI_HAS_METAL OFF)
+    set(SLANG_RHI_HAS_CUDA OFF)
+    set(SLANG_RHI_HAS_WGPU OFF)
 endif()
 
 set(SLANG_RHI_HAS_AGILITY_SDK OFF)
@@ -327,8 +340,6 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
 
     slang_rhi_add_library_slang()
 
-    target_link_libraries(slang-rhi PUBLIC slang)
-
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll .)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-compiler.dll .)
@@ -337,6 +348,9 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll .)
     endif()
 endif()
+
+# Always link to slang, either the fetched one or the one provided by the parent project.
+target_link_libraries(slang-rhi PUBLIC slang)
 
 # Slang distributes prelude headers in the "include" directory along the other headers.
 # However, in a slang build tree, the files are not in the "include" directory but in a separate "prelude" directory.
@@ -835,6 +849,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
+        tests/test-caching-allocator.cpp
         tests/test-command-encoder.cpp
         tests/test-compilation-report.cpp
         tests/test-cmd-clear-buffer.cpp
@@ -849,6 +864,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-cmd-upload-buffer.cpp
         tests/test-cmd-upload-texture.cpp
         tests/test-combined-texture-sampler.cpp
+        tests/test-compute-indirect.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
         tests/test-cooperative-vector.cpp
@@ -891,8 +907,11 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-shader-cache.cpp
         tests/test-shader-object-large.cpp
         tests/test-shader-object-resource-tracking.cpp
+        tests/test-short-vector.cpp
         tests/test-staging-heap.cpp
+        tests/test-static-vector.cpp
         tests/test-surface.cpp
+        tests/test-texture-allocation-info.cpp
         tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-shared.cpp
@@ -982,9 +1001,15 @@ if(SLANG_RHI_ENABLE_COVERAGE)
             -ignore-filename-regex=".*tests.*"
         )
 
+        # Create clean-coverage target to remove existing coverage data
+        add_custom_target(clean-coverage
+            COMMAND ${CMAKE_COMMAND} -E rm -rf ${SLANG_RHI_COVERAGE_DIR}
+            COMMENT "Cleaning coverage data..."
+        )
+
         # Create coverage target
         add_custom_target(coverage
-            COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
+            COMMAND ${LLVM_PROFDATA} merge -sparse ${SLANG_RHI_COVERAGE_DIR}/*.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
             COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} -format lcov > coverage.lcov
             COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}

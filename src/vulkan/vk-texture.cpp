@@ -223,6 +223,30 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     return SLANG_OK;
 }
 
+Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    DescriptorHandle& handle = m_descriptorHandle[2];
+    if (!handle)
+    {
+        Sampler* sampler = m_sampler ? m_sampler : m_texture->m_sampler;
+        if (!sampler)
+        {
+            return SLANG_FAIL;
+        }
+        SLANG_RETURN_ON_FAIL(
+            device->m_bindlessDescriptorSet->allocCombinedTextureSamplerHandle(this, sampler, &handle)
+        );
+    }
+    *outHandle = handle;
+    return SLANG_OK;
+}
+
 TextureSubresourceView TextureViewImpl::getView()
 {
     return m_texture->getView(m_desc.format, m_desc.aspect, m_desc.subresourceRange, false);

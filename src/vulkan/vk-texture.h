@@ -76,13 +76,17 @@ public:
     virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
     BreakableReference<TextureImpl> m_texture;
-    DescriptorHandle m_descriptorHandle[2] = {};
+    /// Descriptor handles (texture read, texture write, combined texture/sampler).
+    DescriptorHandle m_descriptorHandle[3] = {};
 
     // ITextureView implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
+        DescriptorHandle* outHandle
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
         DescriptorHandle* outHandle
     ) override;
 

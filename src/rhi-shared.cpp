@@ -159,6 +159,7 @@ Texture::Texture(Device* device, const TextureDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
+    m_sampler = checked_cast<Sampler*>(m_desc.sampler);
 }
 
 SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
@@ -232,6 +233,7 @@ TextureView::TextureView(Device* device, const TextureViewDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
+    m_sampler = checked_cast<Sampler*>(m_desc.sampler);
 }
 
 Result TextureView::getNativeHandle(NativeHandle* outHandle)
@@ -241,6 +243,12 @@ Result TextureView::getNativeHandle(NativeHandle* outHandle)
 }
 
 Result TextureView::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result TextureView::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;

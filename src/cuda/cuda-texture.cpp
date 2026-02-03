@@ -270,12 +270,19 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     auto& samplerSettings = tex->m_defaultSamplerSettings;
     samplerSettings = {};
-    samplerSettings.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.filterMode = CU_TR_FILTER_MODE_LINEAR;
-    samplerSettings.maxAnisotropy = 1;
-    samplerSettings.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    if (desc.sampler)
+    {
+        samplerSettings = checked_cast<SamplerImpl*>(desc.sampler)->m_samplerSettings;
+    }
+    else
+    {
+        samplerSettings.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.filterMode = CU_TR_FILTER_MODE_LINEAR;
+        samplerSettings.maxAnisotropy = 1;
+        samplerSettings.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    }
 
     // The size of the element/texel in bytes
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
@@ -638,6 +645,13 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     return SLANG_OK;
 }
 
+Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
+{
+    outHandle->type = DescriptorHandleType::CombinedTextureSampler;
+    outHandle->value = (uint64_t)getTexObject();
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     SLANG_CUDA_CTX_SCOPE(this);
@@ -647,6 +661,8 @@ Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& d
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
+    view->m_samplerSettings = desc.sampler ? checked_cast<SamplerImpl*>(desc.sampler)->m_samplerSettings
+                                           : view->m_texture->m_defaultSamplerSettings;
     returnComPtr(outView, view);
     return SLANG_OK;
 }

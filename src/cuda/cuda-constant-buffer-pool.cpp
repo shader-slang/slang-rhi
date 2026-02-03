@@ -26,6 +26,16 @@ void ConstantBufferPool::upload(CUstream stream)
     {
         if (page.usedSize > 0)
         {
+            // Notify heap pages of actual execution stream for multi-stream tracking
+            if (page.deviceMem.pageId)
+            {
+                static_cast<HeapImpl::PageImpl*>(page.deviceMem.pageId)->notifyUse(stream);
+            }
+            if (page.hostMem.pageId)
+            {
+                static_cast<HeapImpl::PageImpl*>(page.hostMem.pageId)->notifyUse(stream);
+            }
+
             SLANG_CUDA_ASSERT_ON_FAIL(
                 cuMemcpyHtoDAsync(page.deviceMem.getDeviceAddress(), page.hostMem.getHostPtr(), page.usedSize, stream)
             );

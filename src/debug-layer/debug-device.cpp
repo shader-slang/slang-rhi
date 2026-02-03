@@ -99,8 +99,6 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
 {
     SLANG_RHI_API_FUNC;
 
-    DeviceType deviceType = getDeviceType();
-
     if (uint32_t(desc.type) > uint32_t(TextureType::TextureCubeArray))
     {
         RHI_VALIDATION_ERROR("Invalid texture type");
@@ -165,12 +163,12 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
             RHI_VALIDATION_ERROR("Texture with multisample type cannot have mip levels");
             return SLANG_E_INVALID_ARG;
         }
-        if (deviceType == DeviceType::WGPU && desc.sampleCount != 4)
+        if (ctx->deviceType == DeviceType::WGPU && desc.sampleCount != 4)
         {
             RHI_VALIDATION_ERROR("WebGPU only supports sample count of 4");
             return SLANG_E_INVALID_ARG;
         }
-        if (deviceType == DeviceType::WGPU && desc.arrayLength != 1)
+        if (ctx->deviceType == DeviceType::WGPU && desc.arrayLength != 1)
         {
             RHI_VALIDATION_ERROR("WebGPU doesn't support multisampled texture arrays");
             return SLANG_E_INVALID_ARG;

@@ -59,6 +59,7 @@ typedef size_t Offset;
 
 const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 
+
 enum class StructType
 {
     ShaderProgramDesc,
@@ -608,6 +609,7 @@ enum class DescriptorHandleType
     Texture,
     RWTexture,
     Sampler,
+    CombinedTextureSampler,
     AccelerationStructure,
 };
 
@@ -974,6 +976,8 @@ struct SubresourceLayout
     Size rowCount;
 };
 
+class ISampler;
+
 static const uint32_t kAllLayers = 0xffffffff;
 static const uint32_t kAllMips = 0xffffffff;
 static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
@@ -1008,6 +1012,14 @@ struct TextureDesc
 
     const ClearValue* optimalClearValue = nullptr;
 
+    /// Default sampler to use for the texture.
+    /// This specifies the sampler for combined texture/sampler descriptor handles
+    /// when calling getCombinedTextureSamplerDescriptorHandle().
+    /// On CUDA, texture objects are always combined texture/sampler objects,
+    /// so this sampler is used for all texture access.
+    /// If not specified, tri-linear filtering and wrap addressing mode will be used.
+    ISampler* sampler = nullptr;
+
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;
 
@@ -1027,6 +1039,15 @@ struct TextureViewDesc
     Format format = Format::Undefined;
     TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
+
+    /// Sampler to use for the texture view.
+    /// This specifies the sampler for combined texture/sampler descriptor handles
+    /// when calling getCombinedTextureSamplerDescriptorHandle().
+    /// On CUDA, texture objects are always combined texture/sampler objects,
+    /// so this sampler is used for all texture access.
+    /// If not specified, the default sampler from the texture will be used.
+    ISampler* sampler = nullptr;
+
     const char* label = nullptr;
 };
 
@@ -1084,6 +1105,9 @@ public:
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
+        DescriptorHandle* outHandle
+    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
         DescriptorHandle* outHandle
     ) = 0;
 };
@@ -2739,6 +2763,15 @@ enum class HeapUsage
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
 
+/// Configuration for heap caching allocator.
+/// When enabled, freed pages are cached for reuse instead of being returned to the GPU.
+/// This reduces allocation overhead and improves performance for repeated allocations.
+struct HeapCachingConfig
+{
+    /// Enable caching allocator (default: true)
+    bool enabled = true;
+};
+
 struct HeapDesc
 {
     StructType structType = StructType::HeapDesc;
@@ -2751,12 +2784,21 @@ struct HeapDesc
 
     /// The label for the heap.
     const char* label = nullptr;
+
+    /// Caching allocator configuration
+    HeapCachingConfig caching;
 };
 
 struct HeapAllocDesc
 {
     Size size = 0;
     Size alignment = 0;
+
+    /// Stream context for multi-stream tracking (backend-specific handle).
+    /// Set to the encoding stream when allocating during command encoding.
+    /// Set to kInvalidCUDAStream (default) when allocating outside encoding context.
+    /// Note: nullptr is valid (represents default stream in CUDA), use kInvalidCUDAStream for "no context".
+    void* stream = kInvalidCUDAStream;
 };
 
 struct HeapReport
@@ -2981,6 +3023,8 @@ struct BindlessDesc
     uint32_t textureCount = 1024;
     // Maximum number of bindless samplers.
     uint32_t samplerCount = 128;
+    // Maximum number of bindless combined texture samplers.
+    uint32_t combinedTextureSamplerCount = 1024;
     // Maximum number of bindless acceleration structures.
     uint32_t accelerationStructureCount = 128;
 };
