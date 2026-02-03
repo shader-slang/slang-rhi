@@ -625,9 +625,21 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
+#if SLANG_WASM
+        uint64_t timeoutNS = 0;
+        WGPUWaitStatus waitStatus = WGPUWaitStatus_Success;
+        while (true)
+        {
+            waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+            if (futures[0].completed)
+                break;
+            emscripten_sleep(1);
+        }
+#else
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+#endif
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
@@ -651,9 +663,21 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         callbackInfo.userdata2 = this;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
+#if SLANG_WASM
+        uint64_t timeoutNS = 0;
+        WGPUWaitStatus waitStatus = WGPUWaitStatus_Success;
+        while (true)
+        {
+            waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+            if (futures[0].completed)
+                break;
+            emscripten_sleep(1);
+        }
+#else
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+#endif
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
         {
             return SLANG_FAIL;

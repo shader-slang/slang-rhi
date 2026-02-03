@@ -6,6 +6,10 @@
 #include "wgpu-shader-object.h"
 #include "wgpu-utils.h"
 
+#ifdef SLANG_WASM
+#include <emscripten.h>
+#endif
+
 #include "../strings.h"
 
 #include "core/deferred.h"
@@ -967,9 +971,21 @@ Result CommandQueueImpl::waitOnHost()
         WGPUFuture future = device->m_ctx.api.wgpuQueueOnSubmittedWorkDone(m_queue, callbackInfo);
         constexpr size_t futureCount = 1;
         WGPUFutureWaitInfo futures[futureCount] = {{future}};
+#if SLANG_WASM
+        uint64_t timeoutNS = 0;
+        WGPUWaitStatus waitStatus = WGPUWaitStatus_Success;
+        while (true)
+        {
+            waitStatus = device->m_ctx.api.wgpuInstanceWaitAny(device->m_ctx.instance, futureCount, futures, timeoutNS);
+            if (futures[0].completed)
+                break;
+            emscripten_sleep(1);
+        }
+#else
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             device->m_ctx.api.wgpuInstanceWaitAny(device->m_ctx.instance, futureCount, futures, timeoutNS);
+#endif
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
