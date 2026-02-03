@@ -954,7 +954,10 @@ static void gpuTestTrampoline()
         // aware that "we still did not switch back to the old
         // debug settings".
         if (cachedPreviousDebugLayer)
+        {
             tryToChangeCurrentDebugLayerStateAndOptions(previousDebugLayerOptions);
+            cachedPreviousDebugLayer = false;
+        }
 
         // Cache the default `DebugLayerOptions` and switch if
         // the test requests different `DebugLayerOptions`.
