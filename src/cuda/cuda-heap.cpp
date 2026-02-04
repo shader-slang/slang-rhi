@@ -369,7 +369,6 @@ Result HeapImpl::flush()
 Result HeapImpl::allocatePage(const PageDesc& desc, Page** outPage)
 {
     DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(getDevice());
-    SLANG_CUDA_CTX_SCOPE(deviceImpl);
 
     // Get stream from PageDesc (passed from HeapAllocDesc)
     // Note: kInvalidCUDAStream means no stream context, nullptr is the default CUDA stream
@@ -455,8 +454,6 @@ Result HeapImpl::fixUpAllocDesc(HeapAllocDesc& desc)
 
 Result DeviceImpl::createHeap(const HeapDesc& desc, IHeap** outHeap)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     RefPtr<HeapImpl> fence = new HeapImpl(this, desc);
     returnComPtr(outHeap, fence);
     return SLANG_OK;
