@@ -190,6 +190,10 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() override;
+
 private:
     DebugContext m_ctx;
 };

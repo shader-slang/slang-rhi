@@ -477,8 +477,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     switch (desc.type)
     {
     case QueryType::Timestamp:
@@ -507,8 +505,6 @@ Result DeviceImpl::createShaderObjectLayout(
     ShaderObjectLayout** outLayout
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     RefPtr<ShaderObjectLayoutImpl> cudaLayout;
     cudaLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
     returnRefPtrMove(outLayout, cudaLayout);
@@ -526,8 +522,6 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -543,8 +537,6 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
     shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
@@ -594,8 +586,6 @@ Result DeviceImpl::readTexture(
     void* outData
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 
     CUarray srcArray = textureImpl->m_cudaArray;
@@ -624,8 +614,6 @@ Result DeviceImpl::readTexture(
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, void* outData)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     auto bufferImpl = checked_cast<BufferImpl*>(buffer);
     if (offset + size > bufferImpl->m_desc.size)
     {
@@ -643,8 +631,6 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AccelerationStructureSizes* outSizes
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -654,8 +640,6 @@ Result DeviceImpl::getAccelerationStructureSizes(
 
 Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -668,8 +652,6 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -735,8 +717,6 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
     uint32_t matrixCount
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (m_ctx.optixContext)
     {
         CUdeviceptr dstPtr = 0;
@@ -812,6 +792,25 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 1;
+    return SLANG_OK;
+}
+
+Result DeviceImpl::setCudaContextCurrent()
+{
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSetCurrent(m_ctx.context), this);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::pushCudaContext()
+{
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxPushCurrent(m_ctx.context), this);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::popCudaContext()
+{
+    CUcontext ctx;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxPopCurrent(&ctx), this);
     return SLANG_OK;
 }
 

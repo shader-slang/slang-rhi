@@ -3559,6 +3559,18 @@ public:
     /// @param heapCount [in/out] On input: size of heapReports buffer (ignored if heapReports is null). On output:
     /// number of heaps available or written
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) = 0;
+
+    /// Set the device's CUDA context as current on this thread.
+    /// For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() = 0;
+
+    /// Push the device's CUDA context onto the current thread's context stack.
+    /// Must be paired with popCudaContext(). For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() = 0;
+
+    /// Pop the CUDA context from the current thread's context stack.
+    /// For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() = 0;
 };
 
 class ITaskPool : public ISlangUnknown
