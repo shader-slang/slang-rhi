@@ -862,6 +862,7 @@ Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
 {
     // Increment submit count
     m_lastSubmittedID++;
+    m_submitsSinceEvent = 0;
 
     // Record submission event so we can detect completion
     SubmitEvent ev;
@@ -942,7 +943,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
         // Lazy events: only create events for multi-stream workloads.
         // Single-stream uses cuStreamQuery() instead - zero event overhead.
-        bool needsEvent = (requestedStream != m_stream);
+        bool needsEvent = (requestedStream != m_stream) || m_submitsSinceEvent > kMaxSubmitsWithoutEvent;
 
         if (needsEvent)
         {
@@ -955,6 +956,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         {
             // Single-stream lazy mode: just increment ID, no event
             m_lastSubmittedID++;
+            m_submitsSinceEvent++;
             commandBuffer->m_submissionID = m_lastSubmittedID;
         }
 
