@@ -10,34 +10,25 @@ static thread_local std::atomic<uint32_t> g_contextStackDepth = 0;
 
 ContextScope::ContextScope(const DeviceImpl* device)
 {
-    // TEMP Perf fix: Get current context before pushing it, as the push
-    // seemingly has significant impacts on cpu and gpu. This should be
-    // removed in favour of just not pushing/popping context regularly,
-    // as cuCtxGetCurrent is not free.
-    CUcontext currentContext = nullptr;
-    cuCtxGetCurrent(&currentContext);
-    if (currentContext != device->m_ctx.context)
-    {
-        m_didPush = true;
-        SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPushCurrent(device->m_ctx.context));
+    // Always push context - this is only used in destructors (cold path).
+    // Push/pop is needed because:
+    // 1. GC may call from any thread with unknown context state
+    // 2. Interop: we must restore the previous context (e.g., PyTorch's) after cleanup
+    SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPushCurrent(device->m_ctx.context));
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-        g_currentContext = device->m_ctx.context;
-        g_contextStackDepth++;
+    g_currentContext = device->m_ctx.context;
+    g_contextStackDepth++;
 #endif
-    }
 }
 
 ContextScope::~ContextScope()
 {
-    if (m_didPush)
-    {
-        CUcontext ctx;
-        SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPopCurrent(&ctx));
+    CUcontext ctx;
+    SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPopCurrent(&ctx));
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-        g_currentContext = ctx;
-        g_contextStackDepth--;
+    g_currentContext = ctx;
+    g_contextStackDepth--;
 #endif
-    }
 }
 
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
