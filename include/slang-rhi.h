@@ -2265,6 +2265,39 @@ union DeviceOrHostAddressConst
     const void* hostAddress;
 };
 
+enum class CooperativeMatrixComponentType
+{
+    Float16 = 0,
+    Float32 = 1,
+    Bfloat16 = 2,
+    FloatE4M3 = 3,
+    FloatE5M2 = 4,
+    Int8 = 5,
+    Uint8 = 6,
+    Int16 = 7,
+    Uint16 = 8,
+    Int32 = 9,
+    Uint32 = 10,
+};
+
+enum class CooperativeMatrixScope
+{
+    Subgroup = 0,
+    Workgroup = 1,
+};
+
+struct CooperativeMatrixDesc
+{
+    uint32_t m = 0;
+    uint32_t n = 0;
+    uint32_t k = 0;
+    CooperativeMatrixComponentType aType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType bType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType cType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType resultType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixScope scope = CooperativeMatrixScope::Subgroup;
+};
+
 enum class CooperativeVectorComponentType
 {
     Float16 = 0,
@@ -3480,6 +3513,13 @@ public:
     {
         return getTextureRowAlignment(Format::Undefined, outAlignment);
     };
+
+    /// Returns true if the cooperative matrix configuration is supported by the device.
+    /// Implementations should return SLANG_OK and set *outSupported = false if unsupported.
+    virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
+        const CooperativeMatrixDesc& desc,
+        bool* outSupported
+    ) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
         CooperativeVectorProperties* properties,

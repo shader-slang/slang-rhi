@@ -39,10 +39,12 @@
 | `waitForFences`                    | :x: | :x:  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureAllocationInfo`         | :x: | :x:  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureRowAlignment`           | :x: | :x:  | :x:   | yes   | yes    | yes     | :x:  |
+| `isCooperativeMatrixSupported` (2) | yes | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getCooperativeVectorProperties`   | :x: | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
 | `convertCooperativeVectorMatrix`   | :x: | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
 
 (1) dummy implementation only
+(2) returns false when unsupported
 
 ## `IBuffer` interface
 

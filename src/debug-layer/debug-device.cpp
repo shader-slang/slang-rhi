@@ -823,6 +823,12 @@ Result DebugDevice::getTextureRowAlignment(Format format, size_t* outAlignment)
     return baseObject->getTextureRowAlignment(format, outAlignment);
 }
 
+Result DebugDevice::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->isCooperativeMatrixSupported(desc, outSupported);
+}
+
 Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
     SLANG_RHI_API_FUNC;
