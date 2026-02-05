@@ -9,6 +9,7 @@
 
 #include "staging-heap.h"
 
+#include "rhi.h"
 #include "rhi-shared-fwd.h"
 
 #include <atomic>
@@ -143,6 +144,13 @@ public:
         static NullDebugCallback instance;
         return &instance;
     }
+};
+
+class LiveDeviceTracker : public RefObject
+{
+public:
+    LiveDeviceTracker() { checked_cast<RHI*>(getRHI())->incrementLiveDeviceCount(); }
+    ~LiveDeviceTracker() { checked_cast<RHI*>(getRHI())->decrementLiveDeviceCount(); }
 };
 
 // Device implementation shared by all platforms.
@@ -455,6 +463,8 @@ public:
     std::vector<Heap*> m_globalHeaps;
 
     IDebugCallback* m_debugCallback = nullptr;
+
+    RefPtr<LiveDeviceTracker> m_liveDeviceTracker = RefPtr<LiveDeviceTracker>(new LiveDeviceTracker());
 };
 
 /// Mark the default adapter in the list, preferring the first discrete adapter.

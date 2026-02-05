@@ -329,6 +329,4 @@ inline uint32_t heightInBlocks(const FormatInfo& formatInfo, uint32_t size)
     return formatInfo.isCompressed ? (size + formatInfo.blockHeight - 1) / formatInfo.blockHeight : size;
 }
 
-bool isDebugLayersEnabled();
-
 } // namespace rhi

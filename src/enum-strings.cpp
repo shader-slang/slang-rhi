@@ -447,4 +447,32 @@ const char* enumToString(CooperativeVectorComponentType value)
     return S_INVALID;
 }
 
+const char* enumToString(DebugMessageType debugMessageType)
+{
+    switch (debugMessageType)
+    {
+    case DebugMessageType::Info:
+        return S_DebugMessageType_Info;
+    case DebugMessageType::Warning:
+        return S_DebugMessageType_Warning;
+    case DebugMessageType::Error:
+        return S_DebugMessageType_Error;
+    }
+    return S_INVALID;
+}
+
+const char* enumToString(DebugMessageSource debugMessageSource)
+{
+    switch (debugMessageSource)
+    {
+    case DebugMessageSource::Layer:
+        return S_DebugMessageSource_Layer;
+    case DebugMessageSource::Driver:
+        return S_DebugMessageSource_Driver;
+    case DebugMessageSource::Slang:
+        return S_DebugMessageSource_Slang;
+    }
+    return S_INVALID;
+}
+
 } // namespace rhi
