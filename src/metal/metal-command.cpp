@@ -990,6 +990,10 @@ void CommandQueueImpl::retireCommandBuffers()
         auto status = commandBuffer->m_commandBuffer->status();
         if (status == MTL::CommandBufferStatusCompleted || status == MTL::CommandBufferStatusError)
         {
+            // Ensure memory visibility before retiring.
+            // status() only checks the signal value, but waitUntilCompleted() ensures
+            // all GPU writes are visible to the CPU (required for managed storage mode).
+            commandBuffer->m_commandBuffer->waitUntilCompleted();
             commandBuffer->reset();
         }
         else
