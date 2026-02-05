@@ -18,13 +18,12 @@ namespace rhi::cuda {
 class DeviceImpl;
 
 /// Helper class to push/pop CUDA context on the stack.
+/// Used only in destructors where GC may call from any thread.
 class ContextScope
 {
 public:
     explicit ContextScope(const DeviceImpl* device);
     ~ContextScope();
-
-    bool m_didPush = false;
 };
 
 #define SLANG_CUDA_CTX_SCOPE(device) ::rhi::cuda::ContextScope _context_scope(device)
