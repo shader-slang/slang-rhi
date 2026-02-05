@@ -1891,10 +1891,7 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
-static bool translateCooperativeMatrixComponentType(
-    VkComponentTypeKHR type,
-    CooperativeMatrixComponentType& outType
-)
+static bool translateCooperativeMatrixComponentType(VkComponentTypeKHR type, CooperativeMatrixComponentType& outType)
 {
     switch (type)
     {
@@ -1990,11 +1987,7 @@ Result DeviceImpl::isCooperativeMatrixSupported(const CooperativeMatrixDesc& des
             props[i].pNext = nullptr;
         }
 
-        m_api.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(
-            m_api.m_physicalDevice,
-            &count,
-            props.data()
-        );
+        m_api.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(m_api.m_physicalDevice, &count, props.data());
 
         for (uint32_t i = 0; i < count; ++i)
         {
