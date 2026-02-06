@@ -168,6 +168,8 @@ public:
     DeviceImpl();
     ~DeviceImpl();
 
+    void deferDelete(Resource* resource);
+
 public:
     VkBool32 handleDebugMessage(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

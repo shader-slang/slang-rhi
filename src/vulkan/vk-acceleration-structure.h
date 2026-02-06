@@ -14,6 +14,9 @@ public:
 public:
     AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc);
     ~AccelerationStructureImpl();
+
+    virtual void deleteThis() override;
+
     DeviceAddress getAccelerationStructureDeviceAddress();
 
     // IAccelerationStructure implementation

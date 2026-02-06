@@ -1972,6 +1972,11 @@ DeviceImpl::~DeviceImpl()
 #endif
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
+
+    m_uploadHeap.release();
+    m_readbackHeap.release();
+
+    m_queue->shutdown();
     m_queue.setNull();
 
     m_bindlessDescriptorSet.setNull();
@@ -1994,6 +1999,13 @@ DeviceImpl::~DeviceImpl()
             m_validationMessageCallbackCookie = 0;
         }
     }
+}
+
+void DeviceImpl::deferDelete(Resource* resource)
+{
+    SLANG_RHI_ASSERT(m_queue != nullptr);
+    m_queue->deferDelete(resource);
+    resource->breakStrongReferenceToDevice();
 }
 
 } // namespace rhi::d3d12

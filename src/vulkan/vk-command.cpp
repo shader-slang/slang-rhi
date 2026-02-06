@@ -1831,6 +1831,15 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
     }
 }
 
+void CommandQueueImpl::shutdown()
+{
+    waitOnHost();
+    retireCommandBuffers();
+    m_commandBuffersPool.clear();
+    executeDeferredDeletes();
+    SLANG_RHI_ASSERT(m_deferredDeletes.empty());
+}
+
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
 {
     RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl(m_device, this);
@@ -1885,8 +1894,41 @@ void CommandQueueImpl::retireCommandBuffers()
         }
     }
 
+    // Delete deferred resources that are no longer in use by the GPU.
+    executeDeferredDeletes();
+
     // Flush all device heaps
     getDevice<DeviceImpl>()->flushHeaps();
+}
+
+void CommandQueueImpl::deferDelete(Resource* resource)
+{
+    std::lock_guard<std::mutex> lock(m_deferredDeletesMutex);
+    // Use current submission ID - resource will be released after this submission completes.
+    // This is conservative but simple: the resource may have been used in an earlier submission,
+    // but using the current ID ensures we don't release too early.
+    m_deferredDeletes.push_back({m_lastSubmittedID, resource});
+}
+
+void CommandQueueImpl::executeDeferredDeletes()
+{
+    uint64_t lastFinishedID = m_lastFinishedID;
+    std::lock_guard<std::mutex> lock(m_deferredDeletesMutex);
+    auto it = m_deferredDeletes.begin();
+    while (it != m_deferredDeletes.end())
+    {
+        if (it->submissionID <= lastFinishedID)
+        {
+            // GPU is done with this resource - delete it.
+            delete it->resource;
+            it = m_deferredDeletes.erase(it);
+        }
+        else
+        {
+            // Resource still in use by GPU.
+            ++it;
+        }
+    }
 }
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
