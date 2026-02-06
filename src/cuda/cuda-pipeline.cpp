@@ -6,7 +6,7 @@
 
 // Enable using cuModuleLoadDataEx for loading CUDA modules.
 // This allows us to get logs for module loading.
-#define SLANG_RHI_CUDA_DEBUG_MODULE_LOAD 0
+#define SLANG_RHI_CUDA_DEBUG_MODULE_LOAD 1
 
 namespace rhi::cuda {
 
