@@ -59,7 +59,10 @@ public:
     Resource(Device* device)
         : DeviceChild(device)
     {
+        ++testing::gResourceCount;
     }
+
+    virtual ~Resource() { --testing::gResourceCount; }
 };
 
 class Buffer : public IBuffer, public Resource
