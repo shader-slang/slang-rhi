@@ -147,7 +147,10 @@ DeviceImpl::~DeviceImpl()
         m_api.vkDestroySampler(m_device, m_defaultSampler, nullptr);
     }
 
-    m_queue->shutdown();
+    if (m_queue)
+    {
+        m_queue->shutdown();
+    }
     m_queue.setNull();
     m_deviceQueue.destroy();
 
