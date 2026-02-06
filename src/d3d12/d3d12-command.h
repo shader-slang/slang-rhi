@@ -4,8 +4,7 @@
 #include "d3d12-shader-object.h"
 #include "d3d12-constant-buffer-pool.h"
 
-#include <deque>
-#include <list>
+#include "core/ring-queue.h"
 
 namespace rhi::d3d12 {
 
@@ -33,8 +32,8 @@ public:
         uint64_t submissionID;
         Resource* resource;
     };
-    std::mutex m_deferredDeletesMutex;
-    std::list<DeferredDelete> m_deferredDeletes;
+    std::mutex m_deferredDeleteQueueMutex;
+    RingQueue<DeferredDelete> m_deferredDeleteQueue;
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     GFSDK_Aftermath_ContextHandle m_aftermathContext;

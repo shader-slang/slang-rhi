@@ -1837,7 +1837,7 @@ void CommandQueueImpl::shutdown()
     retireCommandBuffers();
     m_commandBuffersPool.clear();
     executeDeferredDeletes();
-    SLANG_RHI_ASSERT(m_deferredDeletes.empty());
+    SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
 }
 
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
@@ -1903,31 +1903,22 @@ void CommandQueueImpl::retireCommandBuffers()
 
 void CommandQueueImpl::deferDelete(Resource* resource)
 {
-    std::lock_guard<std::mutex> lock(m_deferredDeletesMutex);
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
     // Use current submission ID - resource will be released after this submission completes.
     // This is conservative but simple: the resource may have been used in an earlier submission,
     // but using the current ID ensures we don't release too early.
-    m_deferredDeletes.push_back({m_lastSubmittedID, resource});
+    m_deferredDeleteQueue.push({m_lastSubmittedID, resource});
 }
 
 void CommandQueueImpl::executeDeferredDeletes()
 {
     uint64_t lastFinishedID = m_lastFinishedID;
-    std::lock_guard<std::mutex> lock(m_deferredDeletesMutex);
-    auto it = m_deferredDeletes.begin();
-    while (it != m_deferredDeletes.end())
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
     {
-        if (it->submissionID <= lastFinishedID)
-        {
-            // GPU is done with this resource - delete it.
-            delete it->resource;
-            it = m_deferredDeletes.erase(it);
-        }
-        else
-        {
-            // Resource still in use by GPU.
-            ++it;
-        }
+        // GPU is done with this resource - delete it.
+        delete m_deferredDeleteQueue.front().resource;
+        m_deferredDeleteQueue.pop();
     }
 }
 

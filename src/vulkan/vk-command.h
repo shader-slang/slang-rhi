@@ -4,8 +4,7 @@
 #include "vk-shader-object.h"
 #include "vk-constant-buffer-pool.h"
 
-#include <vector>
-#include <list>
+#include "core/ring-queue.h"
 
 namespace rhi::vk {
 
@@ -39,8 +38,8 @@ public:
         uint64_t submissionID;
         Resource* resource;
     };
-    std::mutex m_deferredDeletesMutex;
-    std::list<DeferredDelete> m_deferredDeletes;
+    std::mutex m_deferredDeleteQueueMutex;
+    RingQueue<DeferredDelete> m_deferredDeleteQueue;
 
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
