@@ -50,15 +50,15 @@ jobs:
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", runs-on: macos-latest }
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", runs-on: macos-latest }
           # Builds running on GitHub hosted runners (build + tests on WARP)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: windows-latest }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", runs-on: windows-latest }
-          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: windows-11-arm }
+          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "lavapipe,unit-test", runs-on: windows-latest }
+          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "lavapipe,unit-test", runs-on: windows-latest }
+          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Release", flags: "lavapipe,unit-test", runs-on: windows-11-arm }
           # Raytracing tests are flakey on aarch64/Debug builds, so tests are currently disabled
           - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Debug", flags: "", runs-on: windows-11-arm }
           # Builds running on GitHub hosted runners (build only)
-          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
-          - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
-          - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
+          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, flags: "lavapipe,unit-test", runs-on: ubuntu-latest }
+          - { os: linux, platform: "aarch64", compiler: clang, preset: clang, flags: "lavapipe,unit-test", runs-on: ubuntu-24.04-arm }
+          - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, flags: "lavapipe,unit-test", runs-on: ubuntu-24.04-arm }
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -78,6 +78,10 @@ jobs:
 
       - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
+
+      - name: Setup lavapipe
+        if: contains(matrix.flags, 'lavapipe')
+        uses: ./.github/actions/setup-lavapipe
 
       - name: Configure
         run: cmake --preset ${{matrix.preset}} -S . -B build ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}

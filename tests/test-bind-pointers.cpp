@@ -149,6 +149,7 @@ GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA)
     {
         // GFX APIs like Vulkan and D3D12 require explicit synchronization between dispatches, which
         // isn't done automatically for pointers, so we'd expect race conditions
-        compareComputeResult(device, dst, span<uint8_t>(data), true);
+        // TODO: This test is not reliable, for example, on lavapipe it fails because dispatches are serialized.
+        // compareComputeResult(device, dst, span<uint8_t>(data), true);
     }
 }

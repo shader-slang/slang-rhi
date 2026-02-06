@@ -116,6 +116,9 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     bufferDesc.size = tableSize;
     m_device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef());
 
+    // D3D12 should always align allocations to the required minimum.
+    SLANG_RHI_ASSERT(buffer->getDeviceAddress() % D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT == 0);
+
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer.get());
     m_buffers[pipeline] = bufferImpl;
     return bufferImpl;
