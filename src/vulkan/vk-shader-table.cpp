@@ -3,6 +3,7 @@
 #include "vk-buffer.h"
 #include "vk-pipeline.h"
 #include "vk-command.h"
+#include "vk-shader-object-layout.h"
 
 #include <vector>
 
@@ -11,6 +12,23 @@ namespace rhi::vk {
 ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
     : ShaderTable(device, desc)
 {
+}
+
+/// Find the entry point index in the root object layout by name.
+static uint32_t findEntryPointIndexByName(
+    RootShaderObjectLayoutImpl* layout,
+    slang::ProgramLayout* programLayout,
+    const std::string& name
+)
+{
+    SlangInt count = programLayout->getEntryPointCount();
+    for (SlangInt i = 0; i < count; ++i)
+    {
+        auto ep = programLayout->getEntryPointByIndex(i);
+        if (ep->getName() == name)
+            return (uint32_t)i;
+    }
+    return UINT32_MAX;
 }
 
 BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
@@ -27,8 +45,43 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     const auto& rtpProps = api.m_rayTracingPipelineProperties;
     uint32_t handleSize = rtpProps.shaderGroupHandleSize;
 
+    RootShaderObjectLayoutImpl* rootLayout = pipeline->m_rootObjectLayout;
+    slang::ProgramLayout* programLayout = rootLayout->getSlangProgramLayout();
+
+    // Build raygen infos and calculate per-raygen record sizes based on entry point params.
+    m_raygenInfos.clear();
+    uint32_t maxRaygenRecordSize = handleSize;
+
+    for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
+    {
+        const std::string& entryPointName = m_rayGenShaderEntryPointNames[i];
+        uint32_t entryPointIndex = findEntryPointIndexByName(rootLayout, programLayout, entryPointName);
+
+        size_t paramsSize = 0;
+        if (entryPointIndex != UINT32_MAX)
+        {
+            paramsSize = rootLayout->getEntryPoint(entryPointIndex).paramsSize;
+        }
+
+        // Record size = handle + params (aligned)
+        // For simplicity, we use a uniform record size for all raygen shaders (the maximum needed).
+        uint32_t recordSize = handleSize + (uint32_t)paramsSize;
+        maxRaygenRecordSize = max(maxRaygenRecordSize, recordSize);
+
+        RaygenInfo info;
+        info.entryPointIndex = entryPointIndex;
+        info.paramsSize = paramsSize;
+        info.paramsSizeAligned = math::calcAligned2(paramsSize, rtpProps.shaderGroupBaseAlignment);
+        // sbtOffset will be set after we know the final aligned record size
+        info.sbtOffset = 0;
+        m_raygenInfos.push_back(info);
+    }
+
+    // Also consider ShaderRecordOverwrite size for raygen
+    maxRaygenRecordSize = max(maxRaygenRecordSize, m_rayGenRecordOverwriteMaxSize);
+
     // Calculate record sizes (without alignment).
-    uint32_t raygenRecordSize = max(handleSize, m_rayGenRecordOverwriteMaxSize);
+    uint32_t raygenRecordSize = maxRaygenRecordSize;
     uint32_t missRecordSize = max(handleSize, m_missRecordOverwriteMaxSize);
     uint32_t hitGroupRecordSize = max(handleSize, m_hitGroupRecordOverwriteMaxSize);
     uint32_t callableRecordSize = max(handleSize, m_callableRecordOverwriteMaxSize);
@@ -50,6 +103,14 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     m_hitTableSize = m_hitGroupCount * hitGroupRecordSize;
     m_callableTableSize = m_callableShaderCount * callableRecordSize;
     uint32_t tableSize = m_raygenTableSize + m_missTableSize + m_hitTableSize + m_callableTableSize;
+
+    // Now that we know the aligned record size, update the SBT offsets for each raygen.
+    // The offset is where the entry point parameters should be written (after the handle).
+    for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
+    {
+        // The params go after the shader group handle within each raygen record.
+        m_raygenInfos[i].sbtOffset = i * raygenRecordSize + handleSize;
+    }
 
     std::vector<uint8_t> handles;
     auto handleCount = pipeline->m_shaderGroupCount;

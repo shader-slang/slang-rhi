@@ -55,6 +55,7 @@ public:
     bool m_rayTracingStateValid = false;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
+    BufferImpl* m_shaderTableBuffer = nullptr;
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -1095,8 +1096,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     {
         m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
-        BufferImpl* shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
-        DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
+        m_shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
+        DeviceAddress shaderTableAddr = m_shaderTableBuffer->getDeviceAddress();
 
         // Raygen index is set at dispatch time.
         m_rayGenTableAddr = shaderTableAddr;
@@ -1130,6 +1131,48 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
     if (!m_rayTracingStateValid)
         return;
+
+    // Copy entry point parameters to the SBT for the selected raygen shader.
+    // This allows ray tracing shaders to receive uniform parameters via the shader record.
+    if (cmd.rayGenShaderIndex < m_shaderTable->m_raygenInfos.size())
+    {
+        const auto& raygenInfo = m_shaderTable->m_raygenInfos[cmd.rayGenShaderIndex];
+        if (raygenInfo.paramsSize > 0 && raygenInfo.entryPointIndex < m_bindingData->entryPointCount)
+        {
+            const auto& entryPointData = m_bindingData->entryPointData[raygenInfo.entryPointIndex];
+            if (entryPointData.data && entryPointData.size > 0)
+            {
+                // Use vkCmdUpdateBuffer to copy entry point data to the SBT.
+                // The data is written at the raygen's sbtOffset (after the shader group handle).
+                VkDeviceSize dstOffset = raygenInfo.sbtOffset;
+                VkDeviceSize copySize = std::min(entryPointData.size, raygenInfo.paramsSize);
+                m_api.vkCmdUpdateBuffer(
+                    m_cmdBuffer,
+                    m_shaderTableBuffer->m_buffer.m_buffer,
+                    dstOffset,
+                    copySize,
+                    entryPointData.data
+                );
+
+                // Insert a barrier to ensure the update is visible before tracing rays.
+                VkMemoryBarrier memoryBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+                memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+                m_api.vkCmdPipelineBarrier(
+                    m_cmdBuffer,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+                    0,
+                    1,
+                    &memoryBarrier,
+                    0,
+                    nullptr,
+                    0,
+                    nullptr
+                );
+            }
+        }
+    }
 
     m_raygenSBT.deviceAddress = m_rayGenTableAddr + cmd.rayGenShaderIndex * m_raygenSBT.stride;
 
