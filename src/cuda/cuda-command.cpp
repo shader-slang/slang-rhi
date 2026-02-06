@@ -683,7 +683,28 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 {
 }
 
-CommandQueueImpl::~CommandQueueImpl()
+CommandQueueImpl::~CommandQueueImpl() {}
+
+Result CommandQueueImpl::init()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // On CUDA, treat the graphics stream as the default stream, identified
+    // by a NULL ptr. When we support async compute queues on D3D/Vulkan,
+    // they will be equivalent to secondary, non-default streams in CUDA.
+    if (m_type == QueueType::Graphics)
+    {
+        m_stream = nullptr;
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
+    }
+
+    return SLANG_OK;
+}
+
+void CommandQueueImpl::shutdown()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
@@ -707,30 +728,18 @@ CommandQueueImpl::~CommandQueueImpl()
     retireCommandBuffers();
     SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
 
+    // Release all command buffers in order to release all resources they may hold.
+    m_commandBuffersPool.clear();
+    // Execute remaining deferred deletes.
+    m_lastFinishedID = m_lastSubmittedID;
+    executeDeferredDeletes();
+    SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
+
     // Destroy non-default streams (default stream uses nullptr, nothing to destroy)
     if (m_stream)
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
     }
-}
-
-Result CommandQueueImpl::init()
-{
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    // On CUDA, treat the graphics stream as the default stream, identified
-    // by a NULL ptr. When we support async compute queues on D3D/Vulkan,
-    // they will be equivalent to secondary, non-default streams in CUDA.
-    if (m_type == QueueType::Graphics)
-    {
-        m_stream = nullptr;
-    }
-    else
-    {
-        SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
-    }
-
-    return SLANG_OK;
 }
 
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
@@ -839,6 +848,9 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
         cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
 
+    // Delete deferred resources that are no longer in use by the GPU.
+    executeDeferredDeletes();
+
     // Flush device heaps to process any pending frees
     // Note: With same-stream immediate reuse, most allocations are retired immediately
     // and never enter the pending list. This flush now only processes the rare
@@ -846,6 +858,23 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
     SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->flushHeaps());
 
     return SLANG_OK;
+}
+
+void CommandQueueImpl::deferDelete(Resource* resource)
+{
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    m_deferredDeleteQueue.push({m_lastSubmittedID, resource});
+}
+
+void CommandQueueImpl::executeDeferredDeletes()
+{
+    uint64_t lastFinishedID = m_lastFinishedID;
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
+    {
+        delete m_deferredDeleteQueue.front().resource;
+        m_deferredDeleteQueue.pop();
+    }
 }
 
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)

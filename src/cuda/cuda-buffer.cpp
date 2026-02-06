@@ -24,6 +24,11 @@ BufferImpl::~BufferImpl()
     }
 }
 
+void BufferImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 DeviceAddress BufferImpl::getDeviceAddress()
 {
     return reinterpret_cast<DeviceAddress>(m_cudaMemory);

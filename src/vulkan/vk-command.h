@@ -4,8 +4,7 @@
 #include "vk-shader-object.h"
 #include "vk-constant-buffer-pool.h"
 
-#include <vector>
-#include <list>
+#include "core/ring-queue.h"
 
 namespace rhi::vk {
 
@@ -32,16 +31,34 @@ public:
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
+    // Deferred delete queue for GPU resources.
+    // Resources are held here until the GPU has finished using them.
+    struct DeferredDelete
+    {
+        uint64_t submissionID;
+        Resource* resource;
+    };
+    std::mutex m_deferredDeleteQueueMutex;
+    RingQueue<DeferredDelete> m_deferredDeleteQueue;
+
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
 
     void init(VkQueue queue, uint32_t queueFamilyIndex);
+    void shutdown();
 
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
     Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
     void retireCommandBuffer(CommandBufferImpl* commandBuffer);
     void retireCommandBuffers();
     uint64_t updateLastFinishedID();
+
+    /// Queue a resource for deferred deletion. The resource will be deleted
+    /// once the GPU has finished all work submitted up to this point.
+    void deferDelete(Resource* resource);
+
+    /// Delete deferred resources that are no longer in use by the GPU.
+    void executeDeferredDeletes();
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;

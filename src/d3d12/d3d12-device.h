@@ -190,6 +190,8 @@ public:
 
     ~DeviceImpl();
 
+    void deferDelete(Resource* resource);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureSizes* outSizes
