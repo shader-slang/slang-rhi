@@ -35,6 +35,8 @@ public:
     DeviceImpl();
     ~DeviceImpl();
 
+    void deferDelete(Resource* resource);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;

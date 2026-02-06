@@ -201,7 +201,11 @@ DeviceImpl::~DeviceImpl()
         m_readbackHeap.release();
         m_clearEngine.release();
 
-        m_queue.setNull();
+        if (m_queue)
+        {
+            m_queue->shutdown();
+            m_queue.setNull();
+        }
         m_deviceMemHeap.setNull();
         m_hostMemHeap.setNull();
 
@@ -212,6 +216,13 @@ DeviceImpl::~DeviceImpl()
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuDevicePrimaryCtxRelease(m_ctx.device));
     }
+}
+
+void DeviceImpl::deferDelete(Resource* resource)
+{
+    SLANG_RHI_ASSERT(m_queue != nullptr);
+    m_queue->deferDelete(resource);
+    resource->breakStrongReferenceToDevice();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)

@@ -1767,11 +1767,7 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 {
 }
 
-CommandQueueImpl::~CommandQueueImpl()
-{
-    waitOnHost();
-    ::CloseHandle(m_globalWaitHandle);
-}
+CommandQueueImpl::~CommandQueueImpl() {}
 
 Result CommandQueueImpl::init(uint32_t queueIndex)
 {
@@ -1799,10 +1795,12 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
 void CommandQueueImpl::shutdown()
 {
     waitOnHost();
-    retireCommandBuffers();
+    // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
+    // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
+    ::CloseHandle(m_globalWaitHandle);
 }
 
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)

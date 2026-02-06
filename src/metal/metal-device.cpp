@@ -83,8 +83,23 @@ DeviceImpl::~DeviceImpl()
         captureManager->stopCapture();
     }
 
-    m_queue.setNull();
+    m_uploadHeap.release();
+    m_readbackHeap.release();
+
+    if (m_queue)
+    {
+        m_queue->shutdown();
+        m_queue.setNull();
+    }
+
     m_clearEngine.release();
+}
+
+void DeviceImpl::deferDelete(Resource* resource)
+{
+    SLANG_RHI_ASSERT(m_queue != nullptr);
+    m_queue->deferDelete(resource);
+    resource->breakStrongReferenceToDevice();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)

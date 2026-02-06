@@ -1979,8 +1979,8 @@ DeviceImpl::~DeviceImpl()
     if (m_queue)
     {
         m_queue->shutdown();
+        m_queue.setNull();
     }
-    m_queue.setNull();
 
     m_bindlessDescriptorSet.setNull();
 
