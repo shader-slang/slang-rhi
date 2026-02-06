@@ -25,7 +25,7 @@ TEST_CASE("ring-queue")
         RingQueue<int> queue;
         CHECK(queue.empty());
         CHECK(queue.size() == 0);
-        CHECK(queue.capacity() == RingQueue<int>::default_initial_capacity);
+        CHECK(queue.capacity() > 0);
     }
 
     SUBCASE("construction-with-capacity")

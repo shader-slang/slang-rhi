@@ -32,10 +32,8 @@ public:
     using reference = value_type&;
     using const_reference = const value_type&;
 
-    static constexpr size_type default_initial_capacity = 64;
-
     /// Default constructor with optional initial capacity.
-    explicit RingQueue(size_type initial_capacity = default_initial_capacity)
+    explicit RingQueue(size_type initial_capacity = 64)
         : m_head(0)
         , m_tail(0)
         , m_size(0)

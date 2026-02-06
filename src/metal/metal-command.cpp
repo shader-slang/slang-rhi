@@ -983,10 +983,13 @@ void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
 void CommandQueueImpl::shutdown()
 {
     waitOnHost();
+    // TODO: This will be needed if we use command buffer pooling as we do in the other backends.
+#if 0
     // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
     // Execute remaining deferred deletes.
     executeDeferredDeletes();
+#endif
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
     m_commandQueue.reset();
     m_trackingEvent.reset();
