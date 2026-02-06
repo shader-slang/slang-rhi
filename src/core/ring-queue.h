@@ -49,12 +49,11 @@ public:
     {
         m_buffer.resize(other.m_buffer.size());
         // Copy elements in order, compacting to the beginning.
-        size_type src = other.m_head;
-        for (size_type dst = 0; dst < other.m_size; ++dst)
+        for (size_type dst = 0, src = other.m_head; dst < other.m_size; ++dst, ++src)
         {
-            m_buffer[dst] = other.m_buffer[src];
-            if (++src >= other.m_buffer.size())
+            if (src >= other.m_buffer.size())
                 src = 0;
+            m_buffer[dst] = other.m_buffer[src];
         }
     }
 
@@ -83,12 +82,11 @@ public:
             m_tail = other.m_size;
             m_size = other.m_size;
             // Copy elements in order, compacting to the beginning.
-            size_type src = other.m_head;
-            for (size_type dst = 0; dst < other.m_size; ++dst)
+            for (size_type dst = 0, src = other.m_head; dst < other.m_size; ++dst, ++src)
             {
-                m_buffer[dst] = other.m_buffer[src];
-                if (++src >= other.m_buffer.size())
+                if (src >= other.m_buffer.size())
                     src = 0;
+                m_buffer[dst] = other.m_buffer[src];
             }
         }
         return *this;
@@ -333,12 +331,11 @@ private:
         std::vector<value_type> new_buffer(new_capacity);
 
         // Compact elements to the beginning of the new buffer.
-        size_type src = m_head;
-        for (size_type dst = 0; dst < m_size; ++dst)
+        for (size_type dst = 0, src = m_head; dst < m_size; ++dst, ++src)
         {
-            new_buffer[dst] = std::move(m_buffer[src]);
-            if (++src >= m_buffer.size())
+            if (src >= m_buffer.size())
                 src = 0;
+            new_buffer[dst] = std::move(m_buffer[src]);
         }
 
         m_buffer = std::move(new_buffer);
