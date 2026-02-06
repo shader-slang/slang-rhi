@@ -1891,63 +1891,6 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
-static bool translateCooperativeMatrixComponentType(VkComponentTypeKHR type, CooperativeMatrixComponentType& outType)
-{
-    switch (type)
-    {
-    case VK_COMPONENT_TYPE_FLOAT16_KHR:
-        outType = CooperativeMatrixComponentType::Float16;
-        return true;
-    case VK_COMPONENT_TYPE_FLOAT32_KHR:
-        outType = CooperativeMatrixComponentType::Float32;
-        return true;
-    case VK_COMPONENT_TYPE_BFLOAT16_KHR:
-        outType = CooperativeMatrixComponentType::Bfloat16;
-        return true;
-    case VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT:
-        outType = CooperativeMatrixComponentType::FloatE4M3;
-        return true;
-    case VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT:
-        outType = CooperativeMatrixComponentType::FloatE5M2;
-        return true;
-    case VK_COMPONENT_TYPE_SINT8_KHR:
-        outType = CooperativeMatrixComponentType::Int8;
-        return true;
-    case VK_COMPONENT_TYPE_UINT8_KHR:
-        outType = CooperativeMatrixComponentType::Uint8;
-        return true;
-    case VK_COMPONENT_TYPE_SINT16_KHR:
-        outType = CooperativeMatrixComponentType::Int16;
-        return true;
-    case VK_COMPONENT_TYPE_UINT16_KHR:
-        outType = CooperativeMatrixComponentType::Uint16;
-        return true;
-    case VK_COMPONENT_TYPE_SINT32_KHR:
-        outType = CooperativeMatrixComponentType::Int32;
-        return true;
-    case VK_COMPONENT_TYPE_UINT32_KHR:
-        outType = CooperativeMatrixComponentType::Uint32;
-        return true;
-    default:
-        return false;
-    }
-}
-
-static bool translateCooperativeMatrixScope(VkScopeKHR scope, CooperativeMatrixScope& outScope)
-{
-    switch (scope)
-    {
-    case VK_SCOPE_SUBGROUP_KHR:
-        outScope = CooperativeMatrixScope::Subgroup;
-        return true;
-    case VK_SCOPE_WORKGROUP_KHR:
-        outScope = CooperativeMatrixScope::Workgroup;
-        return true;
-    default:
-        return false;
-    }
-}
-
 static bool isPowerOfTwo(uint32_t value)
 {
     return value != 0 && (value & (value - 1)) == 0;
@@ -2005,7 +1948,7 @@ Result DeviceImpl::isCooperativeMatrixSupported(const CooperativeMatrixDesc& des
                 continue;
             }
 
-            CooperativeMatrixFixedProperty fixedProp = {};
+            CooperativeMatrixDesc fixedProp = {};
             fixedProp.m = props[i].MSize;
             fixedProp.n = props[i].NSize;
             fixedProp.k = props[i].KSize;

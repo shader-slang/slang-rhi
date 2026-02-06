@@ -98,6 +98,9 @@ VkStencilOpState translateStencilState(DepthStencilOpDesc desc);
 
 VkSamplerReductionMode translateReductionOp(TextureReductionOp op);
 
+bool translateCooperativeMatrixComponentType(VkComponentTypeKHR type, CooperativeMatrixComponentType& outType);
+bool translateCooperativeMatrixScope(VkScopeKHR scope, CooperativeMatrixScope& outScope);
+
 VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type);
 CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type);
 VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout);

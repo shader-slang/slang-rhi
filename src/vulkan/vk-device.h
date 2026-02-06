@@ -225,18 +225,6 @@ public:
     VulkanDeviceQueue m_deviceQueue;
     uint32_t m_queueFamilyIndex;
 
-    struct CooperativeMatrixFixedProperty
-    {
-        uint32_t m = 0;
-        uint32_t n = 0;
-        uint32_t k = 0;
-        CooperativeMatrixComponentType aType = CooperativeMatrixComponentType::Float16;
-        CooperativeMatrixComponentType bType = CooperativeMatrixComponentType::Float16;
-        CooperativeMatrixComponentType cType = CooperativeMatrixComponentType::Float16;
-        CooperativeMatrixComponentType resultType = CooperativeMatrixComponentType::Float16;
-        CooperativeMatrixScope scope = CooperativeMatrixScope::Subgroup;
-    };
-
     struct CooperativeMatrixFlexibleProperty
     {
         uint32_t mGranularity = 0;
@@ -250,7 +238,7 @@ public:
     };
 
     bool m_cooperativeMatrixPropertiesInitialized = false;
-    std::vector<CooperativeMatrixFixedProperty> m_cooperativeMatrixFixedProperties;
+    std::vector<CooperativeMatrixDesc> m_cooperativeMatrixFixedProperties;
     std::vector<CooperativeMatrixFlexibleProperty> m_cooperativeMatrixFlexibleProperties;
     RefPtr<CommandQueueImpl> m_queue;
 
