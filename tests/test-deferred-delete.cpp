@@ -76,20 +76,9 @@ GPU_TEST_CASE("deferred-delete", D3D12 | Vulkan)
         CHECK_GT(countAfterAccel, countAfterSampler);
     }
 
-    // Create a buffer to use in a submit.
-    BufferDesc bufferDesc = {};
-    bufferDesc.size = 256;
-    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
-    bufferDesc.defaultState = ResourceState::UnorderedAccess;
-    bufferDesc.memoryType = MemoryType::DeviceLocal;
-
-    // ComPtr<IBuffer> buffer;
-    // REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
-
     // Do a submit - this should trigger executeDeferredDeletes.
     {
         auto encoder = queue->createCommandEncoder();
-        // encoder->clearBuffer(buffer);
         queue->submit(encoder->finish());
     }
 
