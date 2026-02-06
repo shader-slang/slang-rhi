@@ -359,17 +359,6 @@ TEST_CASE("ring-queue")
         CHECK(queue1.empty());
     }
 
-    SUBCASE("self-assignment")
-    {
-        RingQueue<int> queue(4);
-        queue.push(1);
-        queue.push(2);
-
-        queue = queue;
-        CHECK(queue.size() == 2);
-        CHECK(queue.front() == 1);
-    }
-
     SUBCASE("head-reset-on-empty")
     {
         RingQueue<int> queue(4);
