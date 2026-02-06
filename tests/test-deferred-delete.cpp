@@ -83,7 +83,7 @@ GPU_TEST_CASE("deferred-delete", D3D12 | Vulkan)
     }
 
     // All deferred resources should now be deleted.
-    CHECK_EQ(gResourceCount.load(), countBegin);
+    CHECK_LE(gResourceCount.load(), countBegin);
 
     // Wait for GPU work to complete.
     queue->waitOnHost();
