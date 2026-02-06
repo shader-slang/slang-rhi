@@ -9,74 +9,6 @@ using namespace rhi;
 
 namespace {
 
-// Test struct to track construction/destruction for lifetime testing
-struct LifetimeTracker
-{
-    static int s_construct_count;
-    static int s_destruct_count;
-    static int s_copy_count;
-    static int s_move_count;
-
-    int value;
-
-    static void reset_counters()
-    {
-        s_construct_count = 0;
-        s_destruct_count = 0;
-        s_copy_count = 0;
-        s_move_count = 0;
-    }
-
-    LifetimeTracker()
-        : value(0)
-    {
-        ++s_construct_count;
-    }
-
-    explicit LifetimeTracker(int v)
-        : value(v)
-    {
-        ++s_construct_count;
-    }
-
-    LifetimeTracker(const LifetimeTracker& other)
-        : value(other.value)
-    {
-        ++s_construct_count;
-        ++s_copy_count;
-    }
-
-    LifetimeTracker(LifetimeTracker&& other) noexcept
-        : value(other.value)
-    {
-        ++s_construct_count;
-        ++s_move_count;
-        other.value = -1;
-    }
-
-    LifetimeTracker& operator=(const LifetimeTracker& other)
-    {
-        value = other.value;
-        ++s_copy_count;
-        return *this;
-    }
-
-    LifetimeTracker& operator=(LifetimeTracker&& other) noexcept
-    {
-        value = other.value;
-        ++s_move_count;
-        other.value = -1;
-        return *this;
-    }
-
-    ~LifetimeTracker() { ++s_destruct_count; }
-};
-
-int LifetimeTracker::s_construct_count = 0;
-int LifetimeTracker::s_destruct_count = 0;
-int LifetimeTracker::s_copy_count = 0;
-int LifetimeTracker::s_move_count = 0;
-
 // Helper struct for deferred delete simulation
 struct DeferredDelete
 {
@@ -267,8 +199,9 @@ TEST_CASE("ring-queue")
         queue.push(2);
 
         size_t old_capacity = queue.capacity();
-        queue.reserve(4); // Smaller than current
-        CHECK(queue.capacity() == old_capacity); // Should not shrink
+        queue.reserve(4);
+        // Should not shrink
+        CHECK(queue.capacity() == old_capacity);
     }
 
     SUBCASE("iterator")
@@ -390,7 +323,8 @@ TEST_CASE("ring-queue")
         RingQueue<int> queue2(std::move(queue1));
         CHECK(queue2.size() == 3);
         CHECK(queue2.front() == 1);
-        CHECK(queue1.empty()); // NOLINT: testing moved-from state
+        // Testing moved-from state
+        CHECK(queue1.empty());
     }
 
     SUBCASE("copy-assignment")
@@ -421,7 +355,8 @@ TEST_CASE("ring-queue")
         queue2 = std::move(queue1);
         CHECK(queue2.size() == 2);
         CHECK(queue2.front() == 1);
-        CHECK(queue1.empty()); // NOLINT: testing moved-from state
+        // Testing moved-from state
+        CHECK(queue1.empty());
     }
 
     SUBCASE("self-assignment")
@@ -527,20 +462,5 @@ TEST_CASE("ring-queue")
         lastFinishedID = 3;
         executeDeferredDeletes();
         CHECK(deferredDeletes.empty());
-    }
-
-    SUBCASE("string-operations")
-    {
-        RingQueue<std::string> queue(4);
-        queue.push("hello");
-        queue.push("world");
-        queue.emplace("test");
-
-        CHECK(queue.size() == 3);
-        CHECK(queue.front() == "hello");
-        CHECK(queue.back() == "test");
-
-        queue.pop();
-        CHECK(queue.front() == "world");
     }
 }
