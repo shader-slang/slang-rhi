@@ -9,11 +9,15 @@
 #include "core/common.h"
 #include "core/deferred.h"
 
-#include <cstdio>
 #include <vector>
+
+#if SLANG_WASM
+#include <emscripten.h>
+#endif
 
 namespace rhi::wgpu {
 
+#if !SLANG_WASM
 static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 {
     // Currently no toggles are needed.
@@ -27,13 +31,16 @@ static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
     togglesDesc.disabledToggles = disabledToggles.data();
     return togglesDesc;
 }
+#endif
 
 static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
 {
     WGPUInstanceDescriptor instanceDesc = {};
+#if !SLANG_WASM
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
+#endif
     WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
     if (!instance)
     {
@@ -42,11 +49,6 @@ static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
     *outInstance = instance;
     return SLANG_OK;
 }
-
-#if 0
-
-
-#endif
 
 static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
 {
@@ -59,39 +61,79 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
 #elif SLANG_LINUX_FAMILY
     options.backendType = WGPUBackendType_Vulkan;
 #endif
+
+#if !SLANG_WASM
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     options.nextInChain = &togglesDesc.chain;
+#endif
 
-    WGPUAdapter adapter = {};
+    struct AdapterRequestState
     {
         WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
+        WGPUAdapter adapter = nullptr;
+    };
+    AdapterRequestState* state = new AdapterRequestState();
+
+    {
         WGPURequestAdapterCallbackInfo callbackInfo = {};
+#if SLANG_WASM
+        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
+#else
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#endif
         callbackInfo.callback = [](WGPURequestAdapterStatus status_,
                                    WGPUAdapter adapter_,
                                    WGPUStringView message,
                                    void* userdata1,
                                    void* userdata2)
         {
-            *(WGPURequestAdapterStatus*)userdata1 = status_;
-            *(WGPUAdapter*)userdata2 = adapter_;
+            AdapterRequestState* requestState = (AdapterRequestState*)userdata1;
+            requestState->status = status_;
+            requestState->adapter = adapter_;
         };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &adapter;
+        callbackInfo.userdata1 = state;
+        callbackInfo.userdata2 = nullptr;
+
         WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
+#if SLANG_WASM
+        SLANG_UNUSED(future);
+        int iterations = 0;
+        emscripten_sleep(0);
+        while (state->status == WGPURequestAdapterStatus(0))
+        {
+            api.wgpuInstanceProcessEvents(instance);
+            emscripten_sleep(10);
+            if (++iterations > 500) // 5s timeout
+            {
+                delete state;
+                return SLANG_FAIL;
+            }
+        }
+        if (state->status != WGPURequestAdapterStatus_Success)
+        {
+            delete state;
+            return SLANG_FAIL;
+        }
+#else
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
+        if (waitStatus != WGPUWaitStatus_Success || state->status != WGPURequestAdapterStatus_Success)
         {
+            delete state;
             return SLANG_FAIL;
         }
+#endif
     }
-    if (!adapter)
+
+    WGPUAdapter resultAdapter = state->adapter;
+    delete state;
+
+    if (!resultAdapter)
     {
         return SLANG_FAIL;
     }
-    *outAdapter = adapter;
+    *outAdapter = resultAdapter;
     return SLANG_OK;
 }
 
@@ -184,25 +226,44 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         deviceImpl->reportUncapturedError(type, message);
     };
     deviceDesc.uncapturedErrorCallbackInfo.userdata1 = this;
+#if SLANG_WASM
+    deviceDesc.deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
+#else
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
+#endif
 
     {
-        WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
+        struct DeviceRequestState
+        {
+            WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
+            WGPUDevice device = nullptr;
+            std::string message;
+        };
+        DeviceRequestState* state = new DeviceRequestState();
+
         WGPURequestDeviceCallbackInfo callbackInfo = {};
+#if SLANG_WASM
+        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
+#else
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#endif
         callbackInfo.callback = [](WGPURequestDeviceStatus status_,
                                    WGPUDevice device,
                                    WGPUStringView message,
                                    void* userdata1,
                                    void* userdata2)
         {
-            *(WGPURequestDeviceStatus*)userdata1 = status_;
-            *(WGPUDevice*)userdata2 = device;
+            DeviceRequestState* requestState = (DeviceRequestState*)userdata1;
+            requestState->status = status_;
+            requestState->device = device;
+            if (message.length > 0)
+                requestState->message.assign(message.data, message.length);
         };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &m_ctx.device;
+        callbackInfo.userdata1 = state;
+        callbackInfo.userdata2 = nullptr;
 
+#if !SLANG_WASM
         WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = {};
         deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
                                              WGPUDeviceLostReason reason,
@@ -219,16 +280,43 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         deviceLostCallbackInfo.userdata1 = this;
         deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
         deviceDesc.deviceLostCallbackInfo = deviceLostCallbackInfo;
+#endif
 
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
+#if SLANG_WASM
+        SLANG_UNUSED(future);
+        emscripten_sleep(0);
+        int iterations = 0;
+        while (state->status == WGPURequestDeviceStatus(0))
+        {
+            m_ctx.api.wgpuInstanceProcessEvents(m_ctx.instance);
+            emscripten_sleep(10);
+            if (++iterations > 500) // 5s timeout
+            {
+                delete state;
+                return SLANG_FAIL;
+            }
+        }
+        if (state->status != WGPURequestDeviceStatus_Success)
+        {
+            delete state;
+            return SLANG_FAIL;
+        }
+        m_ctx.device = state->device;
+        delete state;
+#else
         WGPUFutureWaitInfo futures[1] = {{future}};
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestDeviceStatus_Success)
+        if (waitStatus != WGPUWaitStatus_Success || state->status != WGPURequestDeviceStatus_Success)
         {
+            delete state;
             return SLANG_FAIL;
         }
+        m_ctx.device = state->device;
+        delete state;
+#endif
     }
 
     // Query device limits.
@@ -526,16 +614,32 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
         WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#if SLANG_WASM
+        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
+#else
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+#endif
         {
             *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
         };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
+#if SLANG_WASM
+        uint64_t timeoutNS = 0;
+        WGPUWaitStatus waitStatus = WGPUWaitStatus_Success;
+        while (true)
+        {
+            waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+            if (futures[0].completed)
+                break;
+            emscripten_sleep(1);
+        }
+#else
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+#endif
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
@@ -559,9 +663,21 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         callbackInfo.userdata2 = this;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
         WGPUFutureWaitInfo futures[1] = {{future}};
+#if SLANG_WASM
+        uint64_t timeoutNS = 0;
+        WGPUWaitStatus waitStatus = WGPUWaitStatus_Success;
+        while (true)
+        {
+            waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+            if (futures[0].completed)
+                break;
+            emscripten_sleep(1);
+        }
+#else
         uint64_t timeoutNS = UINT64_MAX;
         WGPUWaitStatus waitStatus =
             m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+#endif
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
         {
             return SLANG_FAIL;

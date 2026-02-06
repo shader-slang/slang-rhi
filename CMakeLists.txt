@@ -84,6 +84,13 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(SLANG_RHI_HAS_METAL ON)
     set(SLANG_RHI_HAS_CUDA OFF)
     set(SLANG_RHI_HAS_WGPU ON)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(SLANG_RHI_HAS_D3D11 OFF)
+    set(SLANG_RHI_HAS_D3D12 OFF)
+    set(SLANG_RHI_HAS_VULKAN OFF)
+    set(SLANG_RHI_HAS_METAL OFF)
+    set(SLANG_RHI_HAS_CUDA OFF)
+    set(SLANG_RHI_HAS_WGPU ON)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
     set(SLANG_RHI_HAS_D3D11 OFF)
     set(SLANG_RHI_HAS_D3D12 OFF)
@@ -197,8 +204,8 @@ if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
     set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip")
 endif()
 
-# Dawn WebGPU
-if(NOT DEFINED SLANG_RHI_DAWN_URL)
+# Dawn WebGPU (not used for Emscripten - uses emdawnwebgpu port instead)
+if(NOT DEFINED SLANG_RHI_DAWN_URL AND NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(DAWN_VERSION "135.0.7049.80")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
@@ -461,7 +468,7 @@ if(SLANG_RHI_ENABLE_METAL)
 endif()
 
 # Fetch & setup Dawn WebGPU
-if(SLANG_RHI_ENABLE_WGPU)
+if(SLANG_RHI_ENABLE_WGPU AND NOT EMSCRIPTEN)
     message(STATUS "Fetching Dawn WebGPU ...")
     FetchPackage(dawn URL ${SLANG_RHI_DAWN_URL})
     add_library(slang-rhi-dawn INTERFACE)
@@ -474,6 +481,10 @@ if(SLANG_RHI_ENABLE_WGPU)
         copy_file(${dawn_SOURCE_DIR}/lib/libdawn.dylib .)
     endif()
     target_link_libraries(slang-rhi PRIVATE slang-rhi-dawn)
+elseif(SLANG_RHI_ENABLE_WGPU AND EMSCRIPTEN)
+    # For Emscripten, WebGPU headers are provided by emdawnwebgpu port
+    # Add compile option to use the port which provides include paths
+    target_compile_options(slang-rhi PRIVATE "--use-port=emdawnwebgpu")
 endif()
 
 # Fetch glfw
@@ -573,6 +584,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
     >
+    $<$<BOOL:${EMSCRIPTEN}>:-Wno-c2y-extensions>
 )
 add_library(slang-rhi-warnings-as-errors INTERFACE)
 target_compile_options(slang-rhi-warnings-as-errors INTERFACE
