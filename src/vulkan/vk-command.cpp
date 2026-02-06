@@ -1811,11 +1811,7 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 {
 }
 
-CommandQueueImpl::~CommandQueueImpl()
-{
-    m_api.vkQueueWaitIdle(m_queue);
-    m_api.vkDestroySemaphore(m_api.m_device, m_trackingSemaphore, nullptr);
-}
+CommandQueueImpl::~CommandQueueImpl() {}
 
 void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
 {
@@ -1834,10 +1830,12 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
 void CommandQueueImpl::shutdown()
 {
     waitOnHost();
-    retireCommandBuffers();
+    // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
+    // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
+    m_api.vkDestroySemaphore(m_api.m_device, m_trackingSemaphore, nullptr);
 }
 
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)

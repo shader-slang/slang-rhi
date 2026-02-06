@@ -135,11 +135,12 @@ public:
         uint64_t timeout
     ) override;
 
-    // void waitForGpu();
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     DeviceImpl();
     ~DeviceImpl();
+
+    void deferDelete(Resource* resource);
 
 public:
     std::string m_adapterName;

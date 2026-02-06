@@ -18,6 +18,11 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     device->m_accelerationStructures.dirty = true;
 }
 
+void AccelerationStructureImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::MTLAccelerationStructure;

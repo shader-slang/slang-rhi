@@ -980,6 +980,19 @@ void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
     m_trackingEventListener = NS::TransferPtr(MTL::SharedEventListener::alloc()->init());
 }
 
+void CommandQueueImpl::shutdown()
+{
+    waitOnHost();
+    // Release all command buffers in order to release all resources they may hold.
+    m_commandBuffersPool.clear();
+    // Execute remaining deferred deletes.
+    executeDeferredDeletes();
+    SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
+    m_commandQueue.reset();
+    m_trackingEvent.reset();
+    m_trackingEventListener.reset();
+}
+
 void CommandQueueImpl::retireCommandBuffers()
 {
     std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
@@ -998,8 +1011,29 @@ void CommandQueueImpl::retireCommandBuffers()
         }
     }
 
+    // Delete deferred resources that are no longer in use by the GPU.
+    updateLastFinishedID();
+    executeDeferredDeletes();
+
     // Flush all device heaps
     getDevice<DeviceImpl>()->flushHeaps();
+}
+
+void CommandQueueImpl::deferDelete(Resource* resource)
+{
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    m_deferredDeleteQueue.push({m_lastSubmittedID, resource});
+}
+
+void CommandQueueImpl::executeDeferredDeletes()
+{
+    uint64_t lastFinishedID = m_lastFinishedID;
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
+    {
+        delete m_deferredDeleteQueue.front().resource;
+        m_deferredDeleteQueue.pop();
+    }
 }
 
 uint64_t CommandQueueImpl::updateLastFinishedID()

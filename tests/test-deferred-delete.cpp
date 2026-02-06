@@ -6,10 +6,60 @@ using namespace rhi;
 using namespace rhi::testing;
 
 // This test verifies that the deferred delete mechanism keeps GPU resources alive until the next submit.
-GPU_TEST_CASE("deferred-delete", D3D12 | Vulkan)
+GPU_TEST_CASE("deferred-delete", ALL)
 {
+    // Determine which resource types are deferred delete for the given device type.
+    // This is implementation defined, but we need to know for testing purposes.
+    bool deferredBuffer = false;
+    bool deferredTexture = false;
+    bool deferredSampler = false;
+    bool deferredAccel = false;
+
+    switch (device->getDeviceType())
+    {
+    case ::DeviceType::D3D11:
+        // D3D11 already handles deferred release internally.
+        break;
+    case ::DeviceType::D3D12:
+        // D3D12 deferred deletes all resources.
+        deferredBuffer = true;
+        deferredTexture = true;
+        deferredSampler = true;
+        deferredAccel = true;
+        break;
+    case ::DeviceType::Vulkan:
+        // Vulkan deferred deletes all resources.
+        deferredBuffer = true;
+        deferredTexture = true;
+        deferredSampler = true;
+        deferredAccel = true;
+        break;
+    case ::DeviceType::Metal:
+        // Metal deferred deletes all resources.
+        deferredBuffer = true;
+        deferredTexture = true;
+        deferredSampler = true;
+        deferredAccel = true;
+        break;
+    case ::DeviceType::CPU:
+        // CPU devices dispatch commands synchronously, so resources can be deleted immediately.
+        break;
+    case ::DeviceType::CUDA:
+        // CUDA deferred deletes all resources except samplers which have no GPU representation.
+        deferredBuffer = true;
+        deferredTexture = true;
+        deferredAccel = true;
+        break;
+    case ::DeviceType::WGPU:
+        // WGPU already handles deferred release internally.
+        break;
+    default:
+        break;
+    }
+
     auto queue = device->getQueue(QueueType::Graphics);
     uint64_t countBegin = gResourceCount;
+    uint64_t countBefore = gResourceCount;
 
     // Create and release a buffer.
     {
@@ -24,8 +74,11 @@ GPU_TEST_CASE("deferred-delete", D3D12 | Vulkan)
     }
 
     // Check buffer is still alive due to deferred delete.
-    uint64_t countAfterBuffer = gResourceCount;
-    CHECK_GT(countAfterBuffer, countBegin);
+    if (deferredBuffer)
+    {
+        CHECK_GT(gResourceCount, countBefore);
+    }
+    countBefore = gResourceCount;
 
     // Create and release a texture.
     {
@@ -42,8 +95,11 @@ GPU_TEST_CASE("deferred-delete", D3D12 | Vulkan)
     }
 
     // Check texture is still alive due to deferred delete.
-    uint64_t countAfterTexture = gResourceCount;
-    CHECK_GT(countAfterTexture, countAfterBuffer);
+    if (deferredTexture)
+    {
+        CHECK_GT(gResourceCount, countBefore);
+    }
+    countBefore = gResourceCount;
 
     // Create and release a sampler.
     {
@@ -55,8 +111,11 @@ GPU_TEST_CASE("deferred-delete", D3D12 | Vulkan)
     }
 
     // Check sampler is still alive due to deferred delete.
-    uint64_t countAfterSampler = gResourceCount;
-    CHECK_GT(countAfterSampler, countAfterTexture);
+    if (deferredSampler)
+    {
+        CHECK_GT(gResourceCount, countBefore);
+    }
+    countBefore = gResourceCount;
 
     // Create and release an acceleration structure (if supported).
     if (device->hasFeature(Feature::AccelerationStructure))
@@ -70,16 +129,23 @@ GPU_TEST_CASE("deferred-delete", D3D12 | Vulkan)
     }
 
     // Check acceleration structure is still alive due to deferred delete (if supported).
-    uint64_t countAfterAccel = gResourceCount;
-    if (device->hasFeature(Feature::AccelerationStructure))
+    if (deferredAccel && device->hasFeature(Feature::AccelerationStructure))
     {
-        CHECK_GT(countAfterAccel, countAfterSampler);
+        CHECK_GT(gResourceCount, countBefore);
     }
+    countBefore = gResourceCount;
 
     // Do a submit - this should trigger executeDeferredDeletes.
     {
         auto encoder = queue->createCommandEncoder();
         queue->submit(encoder->finish());
+    }
+
+    // CUDA backend doesn't always trigger deferred deletes on submit for now.
+    // Force by waiting on host to ensure all GPU work is done.
+    if (device->getDeviceType() == DeviceType::CUDA)
+    {
+        queue->waitOnHost();
     }
 
     // All deferred resources should now be deleted.
@@ -93,7 +159,7 @@ GPU_TEST_CASE("deferred-delete", D3D12 | Vulkan)
 // Stress test that verifies deferred delete works correctly with actual GPU work.
 // This creates temporary buffers, uses them in compute shaders, and releases them.
 // If deferred delete isn't working, the GPU would read from deleted buffers and produce wrong results.
-GPU_TEST_CASE("deferred-delete-stress", D3D12 | Vulkan)
+GPU_TEST_CASE("deferred-delete-stress", ALL)
 {
     ComPtr<IShaderProgram> writeValueProgram;
     REQUIRE_CALL(loadProgram(device, "test-deferred-delete", "writeValue", writeValueProgram.writeRef()));
