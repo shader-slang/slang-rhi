@@ -47,6 +47,18 @@ TextureImpl::~TextureImpl()
     }
 }
 
+void TextureImpl::deleteThis()
+{
+    if (m_isSwapchainTexture)
+    {
+        delete this;
+        return;
+    }
+    m_defaultView.setNull();
+    m_sampler.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::D3D12Resource;

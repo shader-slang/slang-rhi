@@ -20,6 +20,11 @@ SamplerImpl::~SamplerImpl()
     device->m_cpuSamplerHeap->free(m_descriptor);
 }
 
+void SamplerImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::D3D12CpuDescriptorHandle;

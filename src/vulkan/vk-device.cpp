@@ -147,6 +147,7 @@ DeviceImpl::~DeviceImpl()
         m_api.vkDestroySampler(m_device, m_defaultSampler, nullptr);
     }
 
+    m_queue->shutdown();
     m_queue.setNull();
     m_deviceQueue.destroy();
 
@@ -162,6 +163,13 @@ DeviceImpl::~DeviceImpl()
         if (m_api.m_instance != VK_NULL_HANDLE && !m_existingDeviceHandles.handles[0])
             m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
+}
+
+void DeviceImpl::deferDelete(Resource* resource)
+{
+    SLANG_RHI_ASSERT(m_queue != nullptr);
+    m_queue->deferDelete(resource);
+    resource->breakStrongReferenceToDevice();
 }
 
 VkBool32 DeviceImpl::handleDebugMessage(

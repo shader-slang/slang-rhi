@@ -45,6 +45,8 @@ public:
     BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
+    virtual void deleteThis() override;
+
     VKBufferHandleRAII m_buffer;
     VKBufferHandleRAII m_uploadBuffer;
 

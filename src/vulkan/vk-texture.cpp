@@ -27,7 +27,7 @@ TextureImpl::~TextureImpl()
     {
         api.vkDestroyImageView(api.m_device, view.second.imageView, nullptr);
     }
-    if (!m_isWeakImageReference)
+    if (!m_isSwapchainTexture)
     {
         api.vkFreeMemory(api.m_device, m_imageMemory, nullptr);
         api.vkDestroyImage(api.m_device, m_image, nullptr);
@@ -40,6 +40,18 @@ TextureImpl::~TextureImpl()
         ::close((int)m_sharedHandle.value);
 #endif
     }
+}
+
+void TextureImpl::deleteThis()
+{
+    if (m_isSwapchainTexture)
+    {
+        delete this;
+        return;
+    }
+    m_defaultView.setNull();
+    m_sampler.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
 }
 
 Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
