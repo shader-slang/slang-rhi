@@ -92,6 +92,7 @@ protected:
     x(vkMapMemory) \
     x(vkUnmapMemory) \
     x(vkCmdCopyBuffer) \
+    x(vkCmdUpdateBuffer) \
     x(vkDestroyBuffer) \
     x(vkFreeMemory) \
     x(vkCreateDescriptorSetLayout) \
