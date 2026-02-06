@@ -52,12 +52,18 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     auto infoLog = std::make_unique<uint8_t[]>(infoLogSize);
     auto errorLog = std::make_unique<uint8_t[]>(errorLogSize);
 
+    // Use CU_JIT_TARGET_FROM_CUCONTEXT to automatically use the GPU's compute capability
+    // from the CUDA context. This prevents "SM version specified by .target is higher
+    // than default SM version assumed" errors when PTX targets a higher SM version than
+    // the default assumed by cuModuleLoadDataEx.
+    int targetFromContext = 1;
     CUjit_option options[] = {
         CU_JIT_INFO_LOG_BUFFER,
         CU_JIT_INFO_LOG_BUFFER_SIZE_BYTES,
         CU_JIT_ERROR_LOG_BUFFER,
         CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES,
         CU_JIT_LOG_VERBOSE,
+        CU_JIT_TARGET_FROM_CUCONTEXT,
     };
     void* optionValues[] = {
         infoLog.get(),
@@ -65,6 +71,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         errorLog.get(),
         (void*)(uintptr_t)errorLogSize,
         (void*)(uintptr_t)logVerbose,
+        (void*)(uintptr_t)targetFromContext,
     };
     CUresult result = cuModuleLoadDataEx(
         &pipeline->m_module,
@@ -85,7 +92,27 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     }
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(result, this);
 #else  // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&pipeline->m_module, module.code->getBufferPointer()), this);
+    // Use cuModuleLoadDataEx with CU_JIT_TARGET_FROM_CUCONTEXT instead of cuModuleLoadData
+    // to ensure the JIT compiler uses the GPU's compute capability from the CUDA context.
+    // This prevents "SM version specified by .target is higher than default SM version assumed"
+    // errors. This is functionally equivalent to cuModuleLoadData but with proper SM version handling.
+    int targetFromContext = 1;
+    CUjit_option options[] = {
+        CU_JIT_TARGET_FROM_CUCONTEXT,
+    };
+    void* optionValues[] = {
+        (void*)(uintptr_t)targetFromContext,
+    };
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuModuleLoadDataEx(
+            &pipeline->m_module,
+            module.code->getBufferPointer(),
+            SLANG_COUNT_OF(options),
+            options,
+            optionValues
+        ),
+        this
+    );
 #endif // SLANG_RHI_CUDA_DEBUG_MODULE_LOAD
     pipeline->m_entryPointName = module.entryPointName;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(
