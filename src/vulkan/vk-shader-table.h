@@ -12,31 +12,40 @@ public:
     /// Information for each raygen shader for copying entry point params to SBT at dispatch time.
     struct RaygenInfo
     {
-        uint32_t entryPointIndex; // Index into the root object layout's entry points
-        uint64_t sbtOffset;       // Offset within the SBT buffer where params should be written
-        size_t paramsSize;        // Size of parameters to copy
-        size_t paramsSizeAligned; // Aligned size for SBT alignment
+        /// Index into the root object layout's entry points.
+        uint32_t entryPointIndex;
+        /// Offset within the SBT buffer where params should be written.
+        uint64_t sbtOffset;
+        /// Size of parameters to copy.
+        size_t paramsSize;
+        /// Offset of this raygen record from the start of the raygen table.
+        uint32_t recordOffset;
+        /// Aligned size of this raygen record.
+        uint32_t recordSize;
     };
 
-    uint32_t m_raygenTableSize;
-    uint32_t m_missTableSize;
-    uint32_t m_hitTableSize;
-    uint32_t m_callableTableSize;
+    /// Data specific to a pipeline, including the buffer and raygen infos.
+    struct PipelineData : public RefObject
+    {
+        RefPtr<BufferImpl> buffer;
+        short_vector<RaygenInfo> raygenInfos;
 
-    uint32_t m_raygenRecordStride;
-    uint32_t m_missRecordStride;
-    uint32_t m_hitGroupRecordStride;
-    uint32_t m_callableRecordStride;
+        uint32_t raygenTableSize;
+        uint32_t missTableSize;
+        uint32_t hitTableSize;
+        uint32_t callableTableSize;
 
-    /// Information for each raygen shader.
-    short_vector<RaygenInfo> m_raygenInfos;
+        uint32_t missRecordStride;
+        uint32_t hitGroupRecordStride;
+        uint32_t callableRecordStride;
+    };
 
     std::mutex m_mutex;
-    std::map<RayTracingPipelineImpl*, RefPtr<BufferImpl>> m_buffers;
+    std::map<RayTracingPipelineImpl*, RefPtr<PipelineData>> m_pipelineData;
 
     ShaderTableImpl(Device* device, const ShaderTableDesc& desc);
 
-    BufferImpl* getBuffer(RayTracingPipelineImpl* pipeline);
+    PipelineData* getPipelineData(RayTracingPipelineImpl* pipeline);
 };
 
 } // namespace rhi::vk
