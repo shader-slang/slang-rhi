@@ -115,6 +115,13 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     if (capabilities.usages & WGPUTextureUsage_RenderAttachment)
         usage |= TextureUsage::RenderTarget;
 
+#if SLANG_WASM
+    // wgpuSurfaceGetCapabilities might return 0 usages if the adapter was created
+    // without a compatible surface. Force RenderTarget as it's required for swapchains.
+    if (usage == TextureUsage::None)
+        usage = TextureUsage::RenderTarget;
+#endif
+
     m_info.preferredFormat = preferredFormat;
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();
@@ -218,8 +225,12 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     WGPUSurfaceTexture surfaceTexture;
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
+#if SLANG_WASM
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
         surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal)
+#else
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success)
+#endif
     {
         return SLANG_FAIL;
     }
@@ -247,7 +258,9 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
+#if !SLANG_WASM
     m_device->m_ctx.api.wgpuSurfacePresent(m_surface);
+#endif
     return SLANG_OK;
 }
 
