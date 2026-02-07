@@ -434,7 +434,7 @@ struct GpuTestInfo
     DeviceType deviceType;
     GpuTestFlags flags;
 };
-static_assert(std::is_pod_v<GpuTestInfo>, "GpuTestInfo must be POD");
+static_assert(std::is_trivial_v<GpuTestInfo>, "GpuTestInfo must be trivial");
 
 int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, const char* file, int line);
 
