@@ -166,11 +166,22 @@ Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result TextureImpl::getDefaultView(ITextureView** outTextureView)
 {
+    if (m_defaultView)
+    {
+        returnComPtr(outTextureView, m_defaultView);
+        return SLANG_OK;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+
     if (!m_defaultView)
     {
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
@@ -181,9 +192,11 @@ CUtexObject TextureImpl::getTexObject(
     const SubresourceRange& range
 )
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+    DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(m_mutex);
+    SLANG_CUDA_CTX_SCOPE(device);
+
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
 
     ViewKey key = {format, samplerSettings, range};
     CUtexObject& texObject = m_texObjects[key];
@@ -238,9 +251,11 @@ CUtexObject TextureImpl::getTexObject(
 
 CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+    DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(m_mutex);
+    SLANG_CUDA_CTX_SCOPE(device);
+
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
 
     CUsurfObject& surfObject = m_surfObjects[range];
     if (surfObject)

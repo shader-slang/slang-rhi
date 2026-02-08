@@ -13,15 +13,13 @@ AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const Accel
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    if (device)
-    {
-        if (m_descriptorHandle)
-        {
-            device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
-        }
 
-        device->m_api.vkDestroyAccelerationStructureKHR(device->m_api.m_device, m_vkHandle, nullptr);
+    if (m_descriptorHandle)
+    {
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
     }
+
+    device->m_api.vkDestroyAccelerationStructureKHR(device->m_device, m_vkHandle, nullptr);
 }
 
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
@@ -29,17 +27,6 @@ Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
     outHandle->type = NativeHandleType::VkAccelerationStructureKHR;
     outHandle->value = (uint64_t)m_vkHandle;
     return SLANG_OK;
-}
-
-DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
-{
-    auto& m_api = m_buffer->m_buffer.m_api;
-    if (!m_api->vkGetAccelerationStructureDeviceAddressKHR)
-        return 0;
-    VkAccelerationStructureDeviceAddressInfoKHR info = {};
-    info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-    info.accelerationStructure = m_vkHandle;
-    return (DeviceAddress)m_api->vkGetAccelerationStructureDeviceAddressKHR(m_api->m_device, &info);
 }
 
 AccelerationStructureHandle AccelerationStructureImpl::getHandle()
@@ -52,8 +39,36 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
     return getAccelerationStructureDeviceAddress();
 }
 
+DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
+{
+    if (m_deviceAddress)
+    {
+        return m_deviceAddress;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_api.vkGetAccelerationStructureDeviceAddressKHR)
+    {
+        return 0;
+    }
+
+    VkAccelerationStructureDeviceAddressInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+    info.accelerationStructure = m_vkHandle;
+    m_deviceAddress = (DeviceAddress)device->m_api.vkGetAccelerationStructureDeviceAddressKHR(device->m_device, &info);
+
+    return m_deviceAddress;
+}
+
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
+    if (isDescriptorHandleValidAtomic(m_descriptorHandle))
+    {
+        *outHandle = m_descriptorHandle;
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (!device->m_bindlessDescriptorSet)
@@ -61,7 +76,9 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
         return SLANG_E_NOT_AVAILABLE;
     }
 
-    if (!m_descriptorHandle)
+    std::lock_guard<std::mutex> lock(device->m_accelerationStructureMutex);
+
+    if (!isDescriptorHandleValidAtomic(m_descriptorHandle))
     {
         SLANG_RETURN_ON_FAIL(
             device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &m_descriptorHandle)

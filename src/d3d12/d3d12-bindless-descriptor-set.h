@@ -28,6 +28,8 @@ public:
     DeviceImpl* m_device;
     BindlessDesc m_desc;
 
+    std::mutex m_mutex;
+
     GPUDescriptorRangeAllocation m_srvUavAllocation;
     GPUDescriptorRangeAllocation m_samplerAllocation;
 

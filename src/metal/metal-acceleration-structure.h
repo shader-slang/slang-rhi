@@ -7,17 +7,19 @@ namespace rhi::metal {
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
-    NS::SharedPtr<MTL::AccelerationStructure> m_accelerationStructure;
-    uint32_t m_globalIndex;
-
-public:
     AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc);
     ~AccelerationStructureImpl();
 
-    // IAccelerationStructure implementation
+    // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    // IAccelerationStructure implementation
     virtual SLANG_NO_THROW AccelerationStructureHandle getHandle() override;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
+
+public:
+    NS::SharedPtr<MTL::AccelerationStructure> m_accelerationStructure;
+    uint32_t m_globalIndex;
 };
 
 struct AccelerationStructureBuildDescConverter

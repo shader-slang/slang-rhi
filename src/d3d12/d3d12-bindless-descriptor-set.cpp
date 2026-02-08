@@ -62,6 +62,8 @@ Result BindlessDescriptorSet::allocBufferHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
 
@@ -75,7 +77,7 @@ Result BindlessDescriptorSet::allocBufferHandle(
             bufferImpl->getSRV(format, 0, range),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
-        outHandle->type = DescriptorHandleType::Buffer;
+        setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::Buffer, m_srvUavHeapOffset + slot);
         break;
     case DescriptorHandleAccess::ReadWrite:
         m_device->m_device->CopyDescriptorsSimple(
@@ -85,12 +87,11 @@ Result BindlessDescriptorSet::allocBufferHandle(
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
         outHandle->type = DescriptorHandleType::RWBuffer;
+        setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::RWBuffer, m_srvUavHeapOffset + slot);
         break;
     default:
         return SLANG_E_INVALID_ARG;
     }
-
-    outHandle->value = m_srvUavHeapOffset + slot;
 
     return SLANG_OK;
 }
@@ -101,6 +102,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_textureAllocator.allocate(&slot));
 
@@ -114,7 +117,11 @@ Result BindlessDescriptorSet::allocTextureHandle(
             textureViewImpl->getSRV(),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
-        outHandle->type = DescriptorHandleType::Texture;
+        setDescriptorHandleAtomic(
+            *outHandle,
+            DescriptorHandleType::Texture,
+            m_srvUavHeapOffset + m_firstTextureHandle + slot
+        );
         break;
     case DescriptorHandleAccess::ReadWrite:
         m_device->m_device->CopyDescriptorsSimple(
@@ -123,19 +130,23 @@ Result BindlessDescriptorSet::allocTextureHandle(
             textureViewImpl->getUAV(),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
-        outHandle->type = DescriptorHandleType::RWTexture;
+        setDescriptorHandleAtomic(
+            *outHandle,
+            DescriptorHandleType::RWTexture,
+            m_srvUavHeapOffset + m_firstTextureHandle + slot
+        );
         break;
     default:
         return SLANG_E_INVALID_ARG;
     }
-
-    outHandle->value = m_srvUavHeapOffset + m_firstTextureHandle + slot;
 
     return SLANG_OK;
 }
 
 Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHandle* outHandle)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_samplerAllocator.allocate(&slot));
 
@@ -147,8 +158,7 @@ Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHa
         D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
     );
 
-    outHandle->type = DescriptorHandleType::Sampler;
-    outHandle->value = m_samplerHeapOffset + slot;
+    setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::Sampler, m_samplerHeapOffset + slot);
 
     return SLANG_OK;
 }
@@ -158,6 +168,8 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_accelerationStructureAllocator.allocate(&slot));
 
@@ -169,14 +181,19 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
     );
 
-    outHandle->type = DescriptorHandleType::AccelerationStructure;
-    outHandle->value = m_srvUavHeapOffset + m_firstAccelerationStructureHandle + slot;
+    setDescriptorHandleAtomic(
+        *outHandle,
+        DescriptorHandleType::AccelerationStructure,
+        m_srvUavHeapOffset + m_firstAccelerationStructureHandle + slot
+    );
 
     return SLANG_OK;
 }
 
 Result BindlessDescriptorSet::freeHandle(const DescriptorHandle& handle)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     switch (handle.type)
     {
     case DescriptorHandleType::Buffer:

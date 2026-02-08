@@ -4,28 +4,34 @@
 
 namespace rhi::vk {
 
-struct TextureSubresourceView
-{
-    VkImageView imageView = VK_NULL_HANDLE;
-    VkImageLayout imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-};
-
 class TextureImpl : public Texture
 {
 public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
+    // IResource implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    // ITexture implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
+
+public:
+    struct View
+    {
+        VkImageView imageView = VK_NULL_HANDLE;
+        VkImageLayout imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    };
+
+    View getView(Format format, TextureAspect aspect, const SubresourceRange& range, bool isRenderTarget);
+
     VkImage m_image = VK_NULL_HANDLE;
     VkFormat m_vkformat = VK_FORMAT_UNDEFINED;
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
     bool m_isWeakImageReference = false;
-
     bool m_isSwapchainInitialState = false;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
     struct ViewKey
     {
         Format format;
@@ -55,15 +61,7 @@ public:
     };
 
     RefPtr<TextureViewImpl> m_defaultView;
-    std::mutex m_mutex;
-    std::unordered_map<ViewKey, TextureSubresourceView, ViewKeyHasher> m_views;
-
-    TextureSubresourceView getView(
-        Format format,
-        TextureAspect aspect,
-        const SubresourceRange& range,
-        bool isRenderTarget
-    );
+    std::unordered_map<ViewKey, View, ViewKeyHasher> m_views;
 };
 
 class TextureViewImpl : public TextureView
@@ -72,15 +70,14 @@ public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
     ~TextureViewImpl();
 
+    // RefObject implementation
     virtual void makeExternal() override { m_texture.establishStrongReference(); }
     virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
-    BreakableReference<TextureImpl> m_texture;
-    /// Descriptor handles (texture read, texture write, combined texture/sampler).
-    DescriptorHandle m_descriptorHandle[3] = {};
+    // IResource implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
     // ITextureView implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
@@ -90,8 +87,13 @@ public:
         DescriptorHandle* outHandle
     ) override;
 
-    TextureSubresourceView getView();
-    TextureSubresourceView getRenderTargetView();
+public:
+    TextureImpl::View getView();
+    TextureImpl::View getRenderTargetView();
+
+    BreakableReference<TextureImpl> m_texture;
+    /// Descriptor handles (texture read, texture write, combined texture/sampler).
+    DescriptorHandle m_descriptorHandle[3] = {};
 };
 
 } // namespace rhi::vk

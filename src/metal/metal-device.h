@@ -151,6 +151,11 @@ public:
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
     ClearEngine m_clearEngine;
 
+    // Mutexes shared among resources for synchronizing per-resource operations that require CPU-side state tracking,
+    // such as view and descriptor allocation and caching. These are used to avoid the overhead of a mutex per resource,
+    // while still allowing for concurrent access to multiple resources.
+    std::mutex m_textureMutex;
+
     // Global registry of all acceleration structures.
     // IAccelerationStructure::getHandle will return the index into this array.
     // These indices are used when building instance acceleration structures.

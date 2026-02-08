@@ -24,16 +24,16 @@ BufferImpl::~BufferImpl()
     }
 }
 
-DeviceAddress BufferImpl::getDeviceAddress()
-{
-    return reinterpret_cast<DeviceAddress>(m_cudaMemory);
-}
-
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::CUdeviceptr;
     outHandle->value = reinterpret_cast<uint64_t>(m_cudaMemory);
     return SLANG_OK;
+}
+
+DeviceAddress BufferImpl::getDeviceAddress()
+{
+    return reinterpret_cast<DeviceAddress>(m_cudaMemory);
 }
 
 Result BufferImpl::getDescriptorHandle(

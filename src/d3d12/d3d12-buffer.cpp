@@ -42,11 +42,6 @@ BufferImpl::~BufferImpl()
     }
 }
 
-DeviceAddress BufferImpl::getDeviceAddress()
-{
-    return (DeviceAddress)m_resource.getResource()->GetGPUVirtualAddress();
-}
-
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::D3D12Resource;
@@ -60,23 +55,34 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists for this resource.
-    if (m_sharedHandle)
+    if (isNativeHandleValidAtomic(m_sharedHandle))
     {
         *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
 
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_bufferMutex);
+
     // If a shared handle doesn't exist, create one and store it.
-    ComPtr<ID3D12Device> pDevice;
-    auto pResource = m_resource.getResource();
-    pResource->GetDevice(IID_PPV_ARGS(pDevice.writeRef()));
-    SLANG_RETURN_ON_FAIL(
-        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&m_sharedHandle.value)
-    );
-    m_sharedHandle.type = NativeHandleType::Win32;
+    if (!isNativeHandleValidAtomic(m_sharedHandle))
+    {
+        HANDLE handle = NULL;
+        SLANG_RETURN_ON_FAIL(
+            device->m_device->CreateSharedHandle(m_resource.getResource(), NULL, GENERIC_ALL, nullptr, &handle)
+        );
+        setNativeHandleAtomic(m_sharedHandle, NativeHandleType::Win32, (uint64_t)handle);
+    }
+
     *outHandle = m_sharedHandle;
     return SLANG_OK;
 #endif
+}
+
+DeviceAddress BufferImpl::getDeviceAddress()
+{
+    return (DeviceAddress)m_resource.getResource()->GetGPUVirtualAddress();
 }
 
 Result BufferImpl::getDescriptorHandle(
@@ -95,6 +101,8 @@ Result BufferImpl::getDescriptorHandle(
 
     range = resolveBufferRange(range);
 
+    std::lock_guard<std::mutex> lock(device->m_bufferDescriptorMutex);
+
     DescriptorHandleKey key = {access, format, range};
     DescriptorHandle& handle = m_descriptorHandles[key];
     if (handle)
@@ -106,6 +114,7 @@ Result BufferImpl::getDescriptorHandle(
     SLANG_RETURN_FALSE_ON_FAIL(
         device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle)
     );
+
     *outHandle = handle;
     return SLANG_OK;
 }
@@ -113,6 +122,8 @@ Result BufferImpl::getDescriptorHandle(
 D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, const BufferRange& range)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_bufferViewMutex);
 
     ViewKey key = {format, stride, range, nullptr};
     CPUDescriptorAllocation& allocation = m_srvs[key];
@@ -158,6 +169,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
 )
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_bufferViewMutex);
 
     ViewKey key = {format, stride, range, counter};
     CPUDescriptorAllocation& allocation = m_uavs[key];

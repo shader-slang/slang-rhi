@@ -11,11 +11,6 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl() {}
 
-DeviceAddress BufferImpl::getDeviceAddress()
-{
-    return m_buffer->gpuAddress();
-}
-
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::MTLBuffer;
@@ -27,6 +22,11 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+DeviceAddress BufferImpl::getDeviceAddress()
+{
+    return m_buffer->gpuAddress();
 }
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
