@@ -65,8 +65,8 @@ protected:
     x(vkDestroyDebugUtilsMessengerEXT) \
     x(vkGetPhysicalDeviceCooperativeMatrixPropertiesNV) \
     x(vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV) \
-    x(vkGetPhysicalDeviceCooperativeVectorPropertiesNV) \
     x(vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR) \
+    x(vkGetPhysicalDeviceCooperativeVectorPropertiesNV) \
     /* */
 
 #define VK_API_INSTANCE_PROCS(x) \
