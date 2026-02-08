@@ -127,6 +127,11 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
+        const CooperativeMatrixDesc& desc,
+        bool* outSupported
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
         CooperativeVectorProperties* properties,
         uint32_t* propertiesCount
