@@ -1918,6 +1918,8 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     if (!m_nvapiEnabled)
         return SLANG_E_NOT_AVAILABLE;
 
+    std::lock_guard<std::mutex> lock(m_cooperativeVectorPropertiesMutex);
+
     if (m_cooperativeVectorProperties.empty())
     {
         NvU32 nvPropertyCount = 0;

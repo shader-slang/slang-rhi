@@ -4,15 +4,15 @@
 
 | API                                | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |------------------------------------|-----|------|-------|-------|--------|-------|------|
-| `getNativeDeviceHandles`           | n/a | no   | n/a   | no    | no     | no    | n/a  |
-| `getInfo`                          | no  | no   | no    | no    | no     | no    | no   |
-| `hasFeature`                       | no  | no   | no    | no    | no     | no    | no   |
-| `getFeatures`                      | no  | no   | no    | no    | no     | no    | no   |
-| `getCapabilities`                  | no  | no   | no    | no    | no     | no    | no   |
-| `hasCapability`                    | no  | no   | no    | no    | no     | no    | no   |
-| `getFormatSupport`                 | no  | no   | no    | no    | no     | no    | no   |
-| `getSlangSession`                  | no  | no   | no    | no    | no     | no    | no   |
-| `getQueue`                         | no  | no   | no    | no    | no     | no    | no   |
+| `getNativeDeviceHandles`           | n/a | yes  | n/a   | yes   | yes    | yes   | n/a  |
+| `getInfo`                          | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `hasFeature`                       | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getFeatures`                      | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getCapabilities`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `hasCapability`                    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getFormatSupport`                 | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getSlangSession`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getQueue`                         | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `createTexture`                    | no  | no   | no    | no    | no     | no    | no   |
 | `createTextureFromNativeHandle`    | n/a | n/a  | n/a   | no    | n/a    | n/a   | n/a  |
 | `createTextureFromSharedHandle`    | n/a | no   | n/a   | n/a   | n/a    | n/a   | n/a  |
@@ -21,10 +21,10 @@
 | `createBufferFromSharedHandle`     | n/a | no   | n/a   | n/a   | n/a    | n/a   | n/a  |
 | `mapBuffer`                        | no  | n/a  | no    | no    | no     | no    | no   |
 | `unmapBuffer`                      | no  | n/a  | no    | no    | no     | no    | no   |
-| `createSampler`                    | no  | no   | no    | no    | no     | no    | no   |
-| `createTextureView`                | no  | no   | no    | no    | no     | no    | no   |
+| `createSampler`                    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `createTextureView`                | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `createSurface`                    | n/a | no   | no    | no    | no     | no    | no   |
-| `createInputLayout`                | n/a | n/a  | no    | no    | no     | no    | no   |
+| `createInputLayout`                | n/a | n/a  | yes   | yes   | yes    | yes   | yes  |
 | `createShaderObject`               | no  | no   | no    | no    | no     | no    | no   |
 | `createShaderObjectFromTypeLayout` | no  | no   | no    | no    | no     | no    | no   |
 | `createRootShaderObject`           | no  | no   | no    | no    | no     | no    | no   |
@@ -36,17 +36,17 @@
 | `readTexture`                      | no  | no   | no    | no    | no     | no    | no   |
 | `readBuffer`                       | no  | no   | no    | no    | no     | no    | no   |
 | `createQueryPool`                  | no  | no   | no    | no    | no     | no    | no   |
-| `getAccelerationStructureSizes`    | n/a | no   | n/a   | no    | no     | no    | n/a  |
-| `getClusterOperationSizes`         | n/a | no   | n/a   | no    | no     | n/a   | n/a  |
-| `createAccelerationStructure`      | n/a | no   | n/a   | no    | no     | no    | n/a  |
+| `getAccelerationStructureSizes`    | n/a | yes  | n/a   | yes   | yes    | yes   | n/a  |
+| `getClusterOperationSizes`         | n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
+| `createAccelerationStructure`      | n/a | yes  | n/a   | no    | no     | no    | n/a  |
 | `createFence`                      | no  | no   | n/a   | no    | no     | no    | no   |
 | `waitForFences`                    | no  | no   | n/a   | no    | no     | no    | no   |
 | `createHeap`                       | n/a | no   | n/a   | no    | no     | n/a   | n/a  |
-| `getTextureAllocationInfo`         | no  | no   | n/a   | no    | no     | no    | n/a  |
-| `getTextureRowAlignment`           | no  | no   | n/a   | no    | no     | no    | no   |
-| `getCooperativeVectorProperties`   | n/a | no   | n/a   | no    | no     | n/a   | n/a  |
-| `getCooperativeVectorMatrixSize`   | n/a | no   | n/a   | no    | no     | n/a   | n/a  |
-| `convertCooperativeVectorMatrix`   | n/a | no   | n/a   | no    | no     | n/a   | n/a  |
+| `getTextureAllocationInfo`         | yes | yes  | n/a   | yes   | yes    | yes   | n/a  |
+| `getTextureRowAlignment`           | yes | yes  | n/a   | yes   | yes    | yes   | yes  |
+| `getCooperativeVectorProperties`   | n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
+| `getCooperativeVectorMatrixSize`   | n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
+| `convertCooperativeVectorMatrix`   | n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
 | `reportHeaps`                      | no  | no   | no    | no    | no     | no    | no   |
 
 ## `IBuffer` interface
@@ -95,24 +95,7 @@
 
 ## `IShaderObject` interface
 
-| API                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-----------------------------|-----|------|-------|-------|--------|-------|------|
-| `getElementTypeLayout`      | no  | no   | no    | no    | no     | no    | no   |
-| `getContainerType`          | no  | no   | no    | no    | no     | no    | no   |
-| `getEntryPointCount`        | no  | no   | no    | no    | no     | no    | no   |
-| `getEntryPoint`             | no  | no   | no    | no    | no     | no    | no   |
-| `setData`                   | no  | no   | no    | no    | no     | no    | no   |
-| `getObject`                 | no  | no   | no    | no    | no     | no    | no   |
-| `setObject`                 | no  | no   | no    | no    | no     | no    | no   |
-| `setBinding`                | no  | no   | no    | no    | no     | no    | no   |
-| `setDescriptorHandle`       | no  | no   | no    | no    | no     | no    | no   |
-| `reserveData`               | no  | no   | no    | no    | no     | no    | no   |
-| `setSpecializationArgs`     | no  | no   | no    | no    | no     | no    | no   |
-| `getRawData`                | no  | no   | no    | no    | no     | no    | no   |
-| `getSize`                   | no  | no   | no    | no    | no     | no    | no   |
-| `setConstantBufferOverride` | n/a | n/a  | n/a   | n/a   | n/a    | n/a   | n/a  |
-| `finalize`                  | no  | no   | no    | no    | no     | no    | no   |
-| `isFinalized`               | no  | no   | no    | no    | no     | no    | no   |
+Not thread-safe. All operations must be synchronized externally.
 
 ## `IShaderTable` interface
 

@@ -688,6 +688,9 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     {
         return SLANG_E_NOT_AVAILABLE;
     }
+
+    std::lock_guard<std::mutex> lock(m_cooperativeVectorPropertiesMutex);
+
     if (m_cooperativeVectorProperties.empty())
     {
 #define ADD_PROPERTIES(inputType, inputInterpretation, matrixInterpretation, biasInterpretation, resultType)           \
@@ -705,6 +708,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
         ADD_PROPERTIES(Float16, FloatE5M2, FloatE5M2, Float16, Float16);
 #undef ADD_PROPERTIES
     }
+
     return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 
