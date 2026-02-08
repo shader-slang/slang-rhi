@@ -432,6 +432,7 @@ protected:
     std::array<bool, size_t(Capability::_Count)> m_capabilitySet;
     std::array<FormatSupport, size_t(Format::_Count)> m_formatSupport;
     std::vector<CooperativeVectorProperties> m_cooperativeVectorProperties;
+    std::mutex m_cooperativeVectorPropertiesMutex;
 
 public:
     DeviceInfo m_info;

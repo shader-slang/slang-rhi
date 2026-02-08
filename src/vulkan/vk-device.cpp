@@ -1898,6 +1898,8 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
         !m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV)
         return SLANG_E_NOT_AVAILABLE;
 
+    std::lock_guard<std::mutex> lock(m_cooperativeVectorPropertiesMutex);
+
     if (m_cooperativeVectorProperties.empty())
     {
         uint32_t vkPropertyCount = 0;

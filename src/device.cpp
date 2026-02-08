@@ -504,7 +504,7 @@ std::vector<Capability> Device::getCapabilities()
 
 Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
-    return SLANG_OK;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result Device::getFeatures(uint32_t* outFeatureCount, Feature* outFeatures)
