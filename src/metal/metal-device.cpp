@@ -268,17 +268,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     return SLANG_OK;
 }
 
-// void DeviceImpl::waitForGpu() { m_deviceQueue.flushAndWait(); }
-
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     AUTORELEASEPOOL
 
     if (type != QueueType::Graphics)
     {
-        return SLANG_FAIL;
+        return SLANG_E_INVALID_ARG;
     }
-    m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }

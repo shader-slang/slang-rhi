@@ -4,7 +4,6 @@
 #include "vk-bindless-descriptor-set.h"
 
 #include <string>
-#include <vector>
 
 namespace rhi::vk {
 

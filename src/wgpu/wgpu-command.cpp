@@ -974,8 +974,9 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)
-        return SLANG_FAIL;
-    m_queue->establishStrongReferenceToDevice();
+    {
+        return SLANG_E_INVALID_ARG;
+    }
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
