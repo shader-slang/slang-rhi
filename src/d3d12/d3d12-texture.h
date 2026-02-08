@@ -12,6 +12,14 @@ public:
 
     virtual void deleteThis() override;
 
+    // IResource implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    // ITexture implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
+
+public:
     D3D12Resource m_resource;
     DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
     bool m_isTypeless = false;
@@ -19,12 +27,6 @@ public:
     // True if this texture is created from a swap chain buffer.
     // Swap chain textures are deleted immediately when deleteThis() is called.
     bool m_isSwapchainTexture = false;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
-
-public:
     RefPtr<TextureViewImpl> m_defaultView;
 
     struct ViewKey
@@ -92,14 +94,14 @@ public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
     ~TextureViewImpl();
 
+    // RefObject implementation
     virtual void makeExternal() override { m_texture.establishStrongReference(); }
     virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
-    BreakableReference<TextureImpl> m_texture;
-    DescriptorHandle m_descriptorHandle[2] = {};
+    // IResource implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
     // ITextureView implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
@@ -109,12 +111,14 @@ public:
         DescriptorHandle* outHandle
     ) override;
 
+public:
     D3D12_CPU_DESCRIPTOR_HANDLE getSRV();
     D3D12_CPU_DESCRIPTOR_HANDLE getUAV();
     D3D12_CPU_DESCRIPTOR_HANDLE getRTV();
     D3D12_CPU_DESCRIPTOR_HANDLE getDSV();
 
-private:
+    BreakableReference<TextureImpl> m_texture;
+    DescriptorHandle m_descriptorHandle[2] = {};
     D3D12_CPU_DESCRIPTOR_HANDLE m_srv = {};
     D3D12_CPU_DESCRIPTOR_HANDLE m_uav = {};
     D3D12_CPU_DESCRIPTOR_HANDLE m_rtv = {};

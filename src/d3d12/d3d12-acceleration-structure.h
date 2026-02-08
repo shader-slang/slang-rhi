@@ -7,21 +7,23 @@ namespace rhi::d3d12 {
 class AccelerationStructureImpl : public AccelerationStructure
 {
 public:
-    RefPtr<BufferImpl> m_buffer;
-    CPUDescriptorAllocation m_descriptor;
-    DescriptorHandle m_descriptorHandle;
-
-public:
     AccelerationStructureImpl(Device* device, const AccelerationStructureDesc& desc);
     ~AccelerationStructureImpl();
 
     virtual void deleteThis() override;
 
-    // IAccelerationStructure implementation
+    // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    // IAccelerationStructure implementation
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
+
+public:
+    RefPtr<BufferImpl> m_buffer;
+    CPUDescriptorAllocation m_descriptor;
+    DescriptorHandle m_descriptorHandle;
 };
 
 struct AccelerationStructureBuildDescConverter

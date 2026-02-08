@@ -72,20 +72,25 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists for this resource.
-    if (m_sharedHandle)
+    if (isNativeHandleValidAtomic(m_sharedHandle))
     {
         *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
 
-    // If a shared handle doesn't exist, create one and store it.
-    ComPtr<ID3D12Device> pDevice;
-    auto pResource = m_resource.getResource();
-    pResource->GetDevice(IID_PPV_ARGS(pDevice.writeRef()));
-    SLANG_RETURN_ON_FAIL(
-        pDevice->CreateSharedHandle(pResource, NULL, GENERIC_ALL, nullptr, (HANDLE*)&m_sharedHandle.value)
-    );
-    m_sharedHandle.type = NativeHandleType::Win32;
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+
+    if (!isNativeHandleValidAtomic(m_sharedHandle))
+    {
+        HANDLE handle = NULL;
+        SLANG_RETURN_ON_FAIL(
+            device->m_device->CreateSharedHandle(m_resource.getResource(), NULL, GENERIC_ALL, nullptr, &handle)
+        );
+        setNativeHandleAtomic(m_sharedHandle, NativeHandleType::Win32, (uint64_t)handle);
+    }
+
     *outHandle = m_sharedHandle;
     return SLANG_OK;
 #endif
@@ -93,11 +98,22 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 
 Result TextureImpl::getDefaultView(ITextureView** outTextureView)
 {
+    if (m_defaultView)
+    {
+        returnComPtr(outTextureView, m_defaultView);
+        return SLANG_OK;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+
     if (!m_defaultView)
     {
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
@@ -106,6 +122,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE
 TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const SubresourceRange& range)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
 
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_srvs[key];
@@ -186,6 +204,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
+
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_uavs[key];
     if (allocation)
@@ -253,6 +273,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
+
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_rtvs[key];
     if (allocation)
@@ -319,6 +341,8 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
 )
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
 
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_dsvs[key];
@@ -393,27 +417,47 @@ TextureViewImpl::~TextureViewImpl()
     }
 }
 
+Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
 {
+    DescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
+
+    if (isDescriptorHandleValidAtomic(handle))
+    {
+        *outHandle = handle;
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (!device->m_bindlessDescriptorSet)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    DescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
-    if (!handle)
+
+
+    std::lock_guard<std::mutex> lock(device->m_textureDescriptorMutex);
+
+    if (!isDescriptorHandleValidAtomic(handle))
     {
         SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocTextureHandle(this, access, &handle));
     }
+
     *outHandle = handle;
     return SLANG_OK;
 }
 
 Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
 {
+    // Get texture descriptor handle.
     DescriptorHandle textureHandle;
     SLANG_RETURN_ON_FAIL(getDescriptorHandle(DescriptorHandleAccess::Read, &textureHandle));
+
+    // Get sampler descriptor handle.
     Sampler* sampler = m_sampler ? m_sampler : m_texture->m_sampler;
     if (!sampler)
     {
@@ -421,15 +465,11 @@ Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHand
     }
     DescriptorHandle samplerHandle;
     SLANG_RETURN_ON_FAIL(sampler->getDescriptorHandle(&samplerHandle));
+
+    // Return the combined handle.
     outHandle->type = DescriptorHandleType::CombinedTextureSampler;
     outHandle->value = textureHandle.value | (samplerHandle.value << 32);
     return SLANG_OK;
-}
-
-Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
-{
-    // TODO return view descriptor
-    return m_texture->getNativeHandle(outHandle);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE TextureViewImpl::getSRV()
