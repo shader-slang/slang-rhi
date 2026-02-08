@@ -269,7 +269,11 @@ public:
     // such as view and descriptor allocation and caching. These are used to avoid the overhead of a mutex per resource,
     // while still allowing for concurrent access to multiple resources.
     std::mutex m_bufferMutex;
+    std::mutex m_bufferViewMutex;
+    std::mutex m_bufferDescriptorMutex;
     std::mutex m_textureMutex;
+    std::mutex m_textureViewMutex;
+    std::mutex m_textureDescriptorMutex;
     std::mutex m_samplerMutex;
     std::mutex m_accelerationStructureMutex;
 

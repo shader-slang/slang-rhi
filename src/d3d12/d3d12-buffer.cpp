@@ -101,7 +101,7 @@ Result BufferImpl::getDescriptorHandle(
 
     range = resolveBufferRange(range);
 
-    std::lock_guard<std::mutex> lock(device->m_bufferMutex);
+    std::lock_guard<std::mutex> lock(device->m_bufferDescriptorMutex);
 
     DescriptorHandleKey key = {access, format, range};
     DescriptorHandle& handle = m_descriptorHandles[key];
@@ -123,7 +123,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getSRV(Format format, uint32_t stride, c
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(device->m_bufferMutex);
+    std::lock_guard<std::mutex> lock(device->m_bufferViewMutex);
 
     ViewKey key = {format, stride, range, nullptr};
     CPUDescriptorAllocation& allocation = m_srvs[key];
@@ -170,7 +170,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(device->m_bufferMutex);
+    std::lock_guard<std::mutex> lock(device->m_bufferViewMutex);
 
     ViewKey key = {format, stride, range, counter};
     CPUDescriptorAllocation& allocation = m_uavs[key];

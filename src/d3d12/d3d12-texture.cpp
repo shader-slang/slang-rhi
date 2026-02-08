@@ -111,7 +111,7 @@ TextureImpl::getSRV(Format format, TextureType type, TextureAspect aspect, const
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
 
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_srvs[key];
@@ -192,7 +192,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getUAV(
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
 
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_uavs[key];
@@ -261,7 +261,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getRTV(
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
 
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_rtvs[key];
@@ -330,7 +330,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE TextureImpl::getDSV(
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
 
     ViewKey key = {format, type, aspect, range};
     CPUDescriptorAllocation& allocation = m_dsvs[key];
@@ -428,7 +428,7 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     }
 
 
-    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+    std::lock_guard<std::mutex> lock(device->m_textureDescriptorMutex);
 
     if (!isDescriptorHandleValidAtomic(handle))
     {
