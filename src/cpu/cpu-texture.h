@@ -109,9 +109,10 @@ public:
 
     Result init(const SubresourceData* initData);
 
+    // ITexture implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
-    const TextureDesc& _getDesc() { return m_desc; }
+public:
     Format getFormat() { return m_desc.format; }
     int32_t getRank() { return m_baseShape->rank; }
 
@@ -137,15 +138,15 @@ class TextureViewImpl : public TextureView, public slang_prelude::IRWTexture
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
+    // RefObject implementation
     virtual void makeExternal() override { m_texture.establishStrongReference(); }
     virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
     // ITextureView implementation
     virtual SLANG_NO_THROW rhi::ITexture* SLANG_MCALL getTexture() override { return m_texture; }
 
-    //
-    // ITexture interface
-    //
+public:
+    // slang_prelude::ITexture interface
 
     slang_prelude::TextureDimensions GetDimensions(int mip = -1) override;
 
@@ -161,9 +162,7 @@ public:
         size_t dataSize
     ) override;
 
-    //
-    // IRWTexture interface
-    //
+    // slang_prelude::IRWTexture interface
 
     void* refAt(const uint32_t* texelCoords) override;
 

@@ -9,6 +9,14 @@ class BufferImpl : public Buffer
 public:
     BufferImpl(Device* device, const BufferDesc& desc);
 
+    // IBuffer implementation
+    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
+
+
+public:
+    ID3D11ShaderResourceView* getSRV(Format format, const BufferRange& range);
+    ID3D11UnorderedAccessView* getUAV(Format format, const BufferRange& range);
+
     D3D11_USAGE m_d3dUsage;
     ComPtr<ID3D11Buffer> m_buffer;
 
@@ -31,14 +39,8 @@ public:
         }
     };
 
-    std::mutex m_mutex;
     std::unordered_map<ViewKey, ComPtr<ID3D11ShaderResourceView>, ViewKeyHasher> m_srvs;
     std::unordered_map<ViewKey, ComPtr<ID3D11UnorderedAccessView>, ViewKeyHasher> m_uavs;
-
-    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-
-    ID3D11ShaderResourceView* getSRV(Format format, const BufferRange& range);
-    ID3D11UnorderedAccessView* getUAV(Format format, const BufferRange& range);
 };
 
 } // namespace rhi::d3d11

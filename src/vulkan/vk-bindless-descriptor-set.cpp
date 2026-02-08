@@ -159,6 +159,8 @@ Result BindlessDescriptorSet::allocBufferHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
 
@@ -170,13 +172,14 @@ Result BindlessDescriptorSet::allocBufferHandle(
     write.descriptorCount = 1;
     write.dstArrayElement = slot;
 
+    DescriptorHandleType type = DescriptorHandleType::Undefined;
     switch (access)
     {
     case DescriptorHandleAccess::Read:
-        outHandle->type = DescriptorHandleType::Buffer;
+        type = DescriptorHandleType::Buffer;
         break;
     case DescriptorHandleAccess::ReadWrite:
-        outHandle->type = DescriptorHandleType::RWBuffer;
+        type = DescriptorHandleType::RWBuffer;
         break;
     default:
         return SLANG_E_INVALID_ARG;
@@ -205,7 +208,7 @@ Result BindlessDescriptorSet::allocBufferHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->value = slot;
+    setDescriptorHandleAtomic(*outHandle, type, slot);
 
     return SLANG_OK;
 }
@@ -216,6 +219,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_textureAllocator.allocate(&slot));
 
@@ -227,15 +232,16 @@ Result BindlessDescriptorSet::allocTextureHandle(
     write.descriptorCount = 1;
     write.dstArrayElement = m_firstTextureHandle + slot;
 
+    DescriptorHandleType type = DescriptorHandleType::Undefined;
     switch (access)
     {
     case DescriptorHandleAccess::Read:
         write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        outHandle->type = DescriptorHandleType::Texture;
+        type = DescriptorHandleType::Texture;
         break;
     case DescriptorHandleAccess::ReadWrite:
         write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        outHandle->type = DescriptorHandleType::RWTexture;
+        type = DescriptorHandleType::RWTexture;
         break;
     default:
         return SLANG_E_INVALID_ARG;
@@ -250,13 +256,15 @@ Result BindlessDescriptorSet::allocTextureHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->value = m_firstTextureHandle + slot;
+    setDescriptorHandleAtomic(*outHandle, type, m_firstTextureHandle + slot);
 
     return SLANG_OK;
 }
 
 Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHandle* outHandle)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_samplerAllocator.allocate(&slot));
 
@@ -277,8 +285,7 @@ Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHa
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->type = DescriptorHandleType::Sampler;
-    outHandle->value = slot;
+    setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::Sampler, slot);
 
     return SLANG_OK;
 }
@@ -289,6 +296,8 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_combinedTextureSamplerAllocator.allocate(&slot));
 
@@ -311,8 +320,7 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->type = DescriptorHandleType::CombinedTextureSampler;
-    outHandle->value = slot;
+    setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::CombinedTextureSampler, slot);
 
     return SLANG_OK;
 }
@@ -322,6 +330,8 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_accelerationStructureAllocator.allocate(&slot));
 
@@ -344,14 +354,19 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    outHandle->type = DescriptorHandleType::AccelerationStructure;
-    outHandle->value = m_firstAccelerationStructureHandle + slot;
+    setDescriptorHandleAtomic(
+        *outHandle,
+        DescriptorHandleType::AccelerationStructure,
+        m_firstAccelerationStructureHandle + slot
+    );
 
     return SLANG_OK;
 }
 
 Result BindlessDescriptorSet::freeHandle(const DescriptorHandle& handle)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     switch (handle.type)
     {
     case DescriptorHandleType::Buffer:

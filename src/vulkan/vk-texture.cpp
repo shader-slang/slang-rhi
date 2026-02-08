@@ -22,7 +22,7 @@ TextureImpl::~TextureImpl()
 {
     m_defaultView.setNull();
     DeviceImpl* device = getDevice<DeviceImpl>();
-    auto& api = device->m_api;
+    const auto& api = device->m_api;
     for (auto& view : m_views)
     {
         api.vkDestroyImageView(api.m_device, view.second.imageView, nullptr);
@@ -63,83 +63,78 @@ Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
-    DeviceImpl* device = getDevice<DeviceImpl>();
-
-    // Check if a shared handle already exists for this resource.
-    if (m_sharedHandle)
+    if (isNativeHandleValidAtomic(m_sharedHandle))
     {
         *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
 
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const auto& api = device->m_api;
+
+    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+
     // If a shared handle doesn't exist, create one and store it.
+    if (!isNativeHandleValidAtomic(m_sharedHandle))
+    {
 #if SLANG_WINDOWS_FAMILY
-    VkMemoryGetWin32HandleInfoKHR info = {};
-    info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
-    info.pNext = nullptr;
-    info.memory = m_imageMemory;
-    info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+        VkMemoryGetWin32HandleInfoKHR info = {};
+        info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
+        info.pNext = nullptr;
+        info.memory = m_imageMemory;
+        info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
-    auto& api = device->m_api;
-    PFN_vkGetMemoryWin32HandleKHR vkCreateSharedHandle;
-    vkCreateSharedHandle = api.vkGetMemoryWin32HandleKHR;
-    if (!vkCreateSharedHandle)
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(device->m_device, &info, (HANDLE*)&m_sharedHandle.value) != VK_SUCCESS);
-    m_sharedHandle.type = NativeHandleType::Win32;
+        if (!api.vkGetMemoryWin32HandleKHR)
+        {
+            return SLANG_FAIL;
+        }
+        HANDLE handle = NULL;
+        SLANG_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(device->m_device, &info, &handle) != VK_SUCCESS);
+        setNativeHandleAtomic(m_sharedHandle, NativeHandleType::Win32, (uint64_t)handle);
 #else
-    VkMemoryGetFdInfoKHR info = {};
-    info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
-    info.pNext = nullptr;
-    info.memory = m_imageMemory;
-    info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+        VkMemoryGetFdInfoKHR info = {};
+        info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
+        info.pNext = nullptr;
+        info.memory = m_imageMemory;
+        info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 
-    auto& api = device->m_api;
-    PFN_vkGetMemoryFdKHR vkCreateSharedHandle;
-    vkCreateSharedHandle = api.vkGetMemoryFdKHR;
-    if (!vkCreateSharedHandle)
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_RETURN_ON_FAIL(vkCreateSharedHandle(device->m_device, &info, (int*)&m_sharedHandle.value) != VK_SUCCESS);
-    m_sharedHandle.type = NativeHandleType::FileDescriptor;
+        if (!api.vkGetMemoryFdKHR)
+        {
+            return SLANG_FAIL;
+        }
+        int handle = 0;
+        SLANG_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(device->m_device, &info, &handle) != VK_SUCCESS);
+        setNativeHandleAtomic(m_sharedHandle, NativeHandleType::FileDescriptor, (uint64_t)handle);
 #endif
+    }
+
     *outHandle = m_sharedHandle;
     return SLANG_OK;
 }
 
 Result TextureImpl::getDefaultView(ITextureView** outTextureView)
 {
+    if (m_defaultView)
+    {
+        returnComPtr(outTextureView, m_defaultView);
+        return SLANG_OK;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_textureMutex);
+
     if (!m_defaultView)
     {
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
 
-TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
-    : TextureView(device, desc)
-{
-}
-
-TextureViewImpl::~TextureViewImpl()
-{
-    DeviceImpl* device = getDevice<DeviceImpl>();
-
-    for (auto& handle : m_descriptorHandle)
-    {
-        if (handle)
-        {
-            device->m_bindlessDescriptorSet->freeHandle(handle);
-        }
-    }
-}
-
-TextureSubresourceView TextureImpl::getView(
+TextureImpl::View TextureImpl::getView(
     Format format,
     TextureAspect aspect,
     const SubresourceRange& range,
@@ -148,11 +143,10 @@ TextureSubresourceView TextureImpl::getView(
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    std::lock_guard<std::mutex> lock(device->m_textureViewMutex);
+
     ViewKey key = {format, aspect, range, isRenderTarget};
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    TextureSubresourceView& view = m_views[key];
+    View& view = m_views[key];
     if (view.imageView)
         return view;
 
@@ -213,6 +207,24 @@ TextureSubresourceView TextureImpl::getView(
     return view;
 }
 
+TextureViewImpl::TextureViewImpl(Device* device, const TextureViewDesc& desc)
+    : TextureView(device, desc)
+{
+}
+
+TextureViewImpl::~TextureViewImpl()
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    for (auto& handle : m_descriptorHandle)
+    {
+        if (handle)
+        {
+            device->m_bindlessDescriptorSet->freeHandle(handle);
+        }
+    }
+}
+
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
     return SLANG_E_NOT_AVAILABLE;
@@ -220,31 +232,52 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
 {
+    DescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
+
+    if (isDescriptorHandleValidAtomic(handle))
+    {
+        *outHandle = handle;
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (!device->m_bindlessDescriptorSet)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    DescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
-    if (!handle)
+
+    std::lock_guard<std::mutex> lock(device->m_textureDescriptorMutex);
+
+    if (!isDescriptorHandleValidAtomic(handle))
     {
         SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocTextureHandle(this, access, &handle));
     }
+
     *outHandle = handle;
     return SLANG_OK;
 }
 
 Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
 {
+    DescriptorHandle& handle = m_descriptorHandle[2];
+
+    if (isDescriptorHandleValidAtomic(handle))
+    {
+        *outHandle = handle;
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (!device->m_bindlessDescriptorSet)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
-    DescriptorHandle& handle = m_descriptorHandle[2];
-    if (!handle)
+
+    std::lock_guard<std::mutex> lock(device->m_textureDescriptorMutex);
+
+    if (!isDescriptorHandleValidAtomic(handle))
     {
         Sampler* sampler = m_sampler ? m_sampler : m_texture->m_sampler;
         if (!sampler)
@@ -255,16 +288,17 @@ Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHand
             device->m_bindlessDescriptorSet->allocCombinedTextureSamplerHandle(this, sampler, &handle)
         );
     }
+
     *outHandle = handle;
     return SLANG_OK;
 }
 
-TextureSubresourceView TextureViewImpl::getView()
+TextureImpl::View TextureViewImpl::getView()
 {
     return m_texture->getView(m_desc.format, m_desc.aspect, m_desc.subresourceRange, false);
 }
 
-TextureSubresourceView TextureViewImpl::getRenderTargetView()
+TextureImpl::View TextureViewImpl::getRenderTargetView()
 {
     return m_texture->getView(m_desc.format, m_desc.aspect, m_desc.subresourceRange, true);
 }
