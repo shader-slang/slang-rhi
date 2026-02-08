@@ -30,10 +30,20 @@ Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (!device->m_bindlessDescriptorSet)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
+
+    if (m_descriptorHandle)
+    {
+        *outHandle = m_descriptorHandle;
+        return SLANG_OK;
+    }
+
+    std::lock_guard<std::mutex> lock(device->m_samplerMutex);
+
     if (!m_descriptorHandle)
     {
         SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &m_descriptorHandle));

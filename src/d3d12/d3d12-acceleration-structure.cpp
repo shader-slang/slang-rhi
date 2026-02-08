@@ -45,12 +45,20 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    if (isDescriptorHandleValidAtomic(m_descriptorHandle))
+    {
+        *outHandle = m_descriptorHandle;
+        return SLANG_OK;
+    }
+
     if (!device->m_bindlessDescriptorSet)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
 
-    if (!m_descriptorHandle)
+    std::lock_guard lock(device->m_accelerationStructureMutex);
+
+    if (!isDescriptorHandleValidAtomic(m_descriptorHandle))
     {
         SLANG_RETURN_ON_FAIL(
             device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &m_descriptorHandle)
