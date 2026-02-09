@@ -938,6 +938,17 @@ Result Device::createSurface(WindowHandle windowHandle, ISurface** outSurface)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
+{
+    SLANG_UNUSED(desc);
+    if (!outSupported)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    *outSupported = false;
+    return SLANG_OK;
+}
+
 Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
     if (!propertiesCount)

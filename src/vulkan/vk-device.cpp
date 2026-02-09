@@ -1892,6 +1892,171 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
+static bool isPowerOfTwo(uint32_t value)
+{
+    return value != 0 && (value & (value - 1)) == 0;
+}
+
+Result DeviceImpl::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
+{
+    if (!outSupported)
+        return SLANG_E_INVALID_ARG;
+
+    *outSupported = false;
+
+    if (desc.m == 0 || desc.n == 0 || desc.k == 0)
+        return SLANG_OK;
+
+    if (!m_api.m_extendedFeatures.cooperativeMatrix1Features.cooperativeMatrix ||
+        !m_api.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)
+    {
+        return SLANG_OK;
+    }
+
+    if (!m_cooperativeMatrixPropertiesInitialized)
+    {
+        m_cooperativeMatrixPropertiesInitialized = true;
+        m_cooperativeMatrixFixedProperties.clear();
+        m_cooperativeMatrixFlexibleProperties.clear();
+
+        uint32_t count = 0;
+        m_api.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(m_api.m_physicalDevice, &count, nullptr);
+        if (count == 0)
+            return SLANG_OK;
+
+        std::vector<VkCooperativeMatrixPropertiesKHR> props(count);
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            props[i].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
+            props[i].pNext = nullptr;
+        }
+
+        m_api.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(m_api.m_physicalDevice, &count, props.data());
+
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            CooperativeMatrixComponentType aType;
+            CooperativeMatrixComponentType bType;
+            CooperativeMatrixComponentType cType;
+            CooperativeMatrixComponentType resultType;
+            CooperativeMatrixScope scope;
+            if (!translateCooperativeMatrixComponentType(props[i].AType, aType) ||
+                !translateCooperativeMatrixComponentType(props[i].BType, bType) ||
+                !translateCooperativeMatrixComponentType(props[i].CType, cType) ||
+                !translateCooperativeMatrixComponentType(props[i].ResultType, resultType) ||
+                !translateCooperativeMatrixScope(props[i].scope, scope))
+            {
+                continue;
+            }
+
+            CooperativeMatrixDesc fixedProp = {};
+            fixedProp.m = props[i].MSize;
+            fixedProp.n = props[i].NSize;
+            fixedProp.k = props[i].KSize;
+            fixedProp.aType = aType;
+            fixedProp.bType = bType;
+            fixedProp.cType = cType;
+            fixedProp.resultType = resultType;
+            fixedProp.scope = scope;
+            m_cooperativeMatrixFixedProperties.push_back(fixedProp);
+        }
+
+        if (m_api.m_extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixFlexibleDimensions &&
+            m_api.vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV)
+        {
+            uint32_t flexCount = 0;
+            m_api.vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
+                m_api.m_physicalDevice,
+                &flexCount,
+                nullptr
+            );
+            if (flexCount > 0)
+            {
+                std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV> flexProps(
+                    flexCount,
+                    {VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_FLEXIBLE_DIMENSIONS_PROPERTIES_NV}
+                );
+                m_api.vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
+                    m_api.m_physicalDevice,
+                    &flexCount,
+                    flexProps.data()
+                );
+                for (uint32_t i = 0; i < flexCount; ++i)
+                {
+                    CooperativeMatrixComponentType aType;
+                    CooperativeMatrixComponentType bType;
+                    CooperativeMatrixComponentType cType;
+                    CooperativeMatrixComponentType resultType;
+                    CooperativeMatrixScope scope;
+                    if (!translateCooperativeMatrixComponentType(flexProps[i].AType, aType) ||
+                        !translateCooperativeMatrixComponentType(flexProps[i].BType, bType) ||
+                        !translateCooperativeMatrixComponentType(flexProps[i].CType, cType) ||
+                        !translateCooperativeMatrixComponentType(flexProps[i].ResultType, resultType) ||
+                        !translateCooperativeMatrixScope(flexProps[i].scope, scope))
+                    {
+                        continue;
+                    }
+
+                    if (flexProps[i].MGranularity == 0 || flexProps[i].NGranularity == 0 ||
+                        flexProps[i].KGranularity == 0)
+                    {
+                        continue;
+                    }
+
+                    SLANG_RHI_ASSERT(isPowerOfTwo(flexProps[i].MGranularity));
+                    SLANG_RHI_ASSERT(isPowerOfTwo(flexProps[i].NGranularity));
+                    SLANG_RHI_ASSERT(isPowerOfTwo(flexProps[i].KGranularity));
+
+                    CooperativeMatrixFlexibleProperty flexProp = {};
+                    flexProp.mGranularity = flexProps[i].MGranularity;
+                    flexProp.nGranularity = flexProps[i].NGranularity;
+                    flexProp.kGranularity = flexProps[i].KGranularity;
+                    flexProp.aType = aType;
+                    flexProp.bType = bType;
+                    flexProp.cType = cType;
+                    flexProp.resultType = resultType;
+                    flexProp.scope = scope;
+                    m_cooperativeMatrixFlexibleProperties.push_back(flexProp);
+                }
+            }
+        }
+    }
+
+    for (const auto& prop : m_cooperativeMatrixFixedProperties)
+    {
+        if (prop.scope != desc.scope)
+            continue;
+        if (prop.aType != desc.aType || prop.bType != desc.bType || prop.cType != desc.cType ||
+            prop.resultType != desc.resultType)
+            continue;
+        if (prop.m == desc.m && prop.n == desc.n && prop.k == desc.k)
+        {
+            *outSupported = true;
+            return SLANG_OK;
+        }
+    }
+
+    for (const auto& prop : m_cooperativeMatrixFlexibleProperties)
+    {
+        if (prop.scope != desc.scope)
+            continue;
+        if (prop.aType != desc.aType || prop.bType != desc.bType || prop.cType != desc.cType ||
+            prop.resultType != desc.resultType)
+            continue;
+        if (prop.mGranularity == 0 || prop.nGranularity == 0 || prop.kGranularity == 0)
+            continue;
+        if (desc.m < prop.mGranularity || desc.n < prop.nGranularity || desc.k < prop.kGranularity)
+            continue;
+        if ((desc.m & (prop.mGranularity - 1)) != 0 || (desc.n & (prop.nGranularity - 1)) != 0 ||
+            (desc.k & (prop.kGranularity - 1)) != 0)
+            continue;
+        *outSupported = true;
+        return SLANG_OK;
+    }
+
+    return SLANG_OK;
+}
+
 Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
     if (!m_api.m_extendedFeatures.cooperativeVectorFeatures.cooperativeVector ||
