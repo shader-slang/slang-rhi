@@ -110,6 +110,6 @@ GPU_TEST_CASE("shader-object-large", D3D12 | Vulkan)
         queue->submit(commandEncoder->finish());
         queue->waitOnHost();
 
-        compareComputeResult(device, resultBuffer, span(expectedResult));
+        compareComputeResult(device, resultBuffer, std::span(expectedResult));
     }
 }
