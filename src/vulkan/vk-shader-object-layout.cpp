@@ -316,6 +316,54 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsPushConstantBuffer(
     _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
 }
 
+/// Add descriptor ranges for an entry point type that wraps its parameters in a
+/// ConstantBuffer or PushConstantBuffer, but where the ordinary data is stored
+/// externally (e.g., in a shader binding table for ray tracing).
+///
+/// This unwraps the wrapper and processes only the inner descriptor ranges,
+/// without adding a uniform buffer descriptor or push constant range.
+///
+void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsConstantBufferWithoutDescriptor(
+    slang::TypeLayoutReflection* typeLayout,
+    const BindingOffset& offset
+)
+{
+    // Entry point parameters are typically wrapped in ConstantBuffer<T> or PushConstantBuffer<T>.
+    // We need to find this wrapper and unwrap it to get to the inner descriptor ranges.
+    uint32_t subObjectRangeCount = typeLayout->getSubObjectRangeCount();
+    for (uint32_t subObjectRangeIndex = 0; subObjectRangeIndex < subObjectRangeCount; ++subObjectRangeIndex)
+    {
+        auto bindingRangeIndex = typeLayout->getSubObjectRangeBindingRangeIndex(subObjectRangeIndex);
+        auto bindingType = typeLayout->getBindingRangeType(bindingRangeIndex);
+
+        if (bindingType == slang::BindingType::ConstantBuffer || bindingType == slang::BindingType::PushConstant)
+        {
+            // Get the sub-object type layout (the ConstantBuffer<T> or PushConstantBuffer<T>)
+            auto subObjectTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
+            SLANG_RHI_ASSERT(subObjectTypeLayout);
+
+            // Get the element type (T inside the wrapper)
+            auto elementVarLayout = subObjectTypeLayout->getElementVarLayout();
+            SLANG_RHI_ASSERT(elementVarLayout);
+            auto elementTypeLayout = elementVarLayout->getTypeLayout();
+            SLANG_RHI_ASSERT(elementTypeLayout);
+
+            // Compute the element offset
+            BindingOffset elementOffset = offset;
+            elementOffset += BindingOffset(elementVarLayout);
+
+            // Process only the inner descriptor ranges, without adding a
+            // constant buffer descriptor or push constant range.
+            _addDescriptorRangesAsValue(elementTypeLayout, elementOffset);
+        }
+        else
+        {
+            // For other sub-object types, process normally
+            _addDescriptorRangesAsValue(typeLayout, offset);
+        }
+    }
+}
+
 /// Add binding ranges to this shader object layout, as implied by the given
 /// `typeLayout`
 
@@ -919,9 +967,6 @@ void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutR
     // for global-scope parameters of uniform/ordinary type.
     //
     _addDescriptorRangesAsValue(globalsLayout->getTypeLayout(), offset);
-
-    // Binding offset handling has been simplified after pending data removal.
-    //
 }
 
 void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryPointLayout)
@@ -929,26 +974,56 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     auto slangEntryPointLayout = entryPointLayout->getSlangLayout();
     auto entryPointVarLayout = slangEntryPointLayout->getVarLayout();
 
-    // The offset information for each entry point needs to
-    // be handled uniformly now that pending data has been removed.
-    // was recorded in the global-scope layout.
-    //
-    // TODO(tfoley): Double-check that this is correct.
-
+    // Get the base offset from Slang's reflection for this entry point.
     BindingOffset entryPointOffset(entryPointVarLayout);
 
     EntryPointInfo info;
     info.layout = entryPointLayout;
     info.offset = entryPointOffset;
 
-    // Similar to the case for the global scope, we expect the
-    // type layout for the entry point parameters to be either
-    // a `struct EntryPointParams` or a `PushConstantBuffer<EntryPointParams>`.
-    // Rather than deal with the different cases here, we will
-    // trust the `_addDescriptorRangesAsValue` code to handle
-    // either case correctly.
+    // Entry point parameters are wrapped in either:
+    // - PushConstantBuffer<X>: Ordinary data uses push constants (compute/graphics shaders)
+    // - ConstantBuffer<X>: Used for ray tracing shaders where ordinary data is in the shader record
     //
-    _addDescriptorRangesAsValue(entryPointVarLayout->getTypeLayout(), entryPointOffset);
+    // For both cases, the size of ordinary uniform data is the same - it's just stored in different
+    // places (push constants vs shader binding table). The EntryPointLayout already computes this
+    // size via getTotalOrdinaryDataSize().
+    //
+    // For ray tracing entry points, Slang emits a ConstantBuffer binding type for the entry point
+    // parameters, but the ordinary uniform data is stored in the shader binding table (shader record),
+    // not in an actual constant buffer. The SPIR-V code expects the descriptor-bound parameters
+    // (like RWStructuredBuffer) to be at binding 0, without any preceding uniform buffer binding.
+    //
+    auto entryPointTypeLayout = entryPointVarLayout->getTypeLayout();
+    auto stage = slangEntryPointLayout->getStage();
+
+    // Check if this is a ray tracing stage
+    bool isRayTracingStage =
+        (stage == SLANG_STAGE_RAY_GENERATION || stage == SLANG_STAGE_MISS || stage == SLANG_STAGE_CLOSEST_HIT ||
+         stage == SLANG_STAGE_ANY_HIT || stage == SLANG_STAGE_INTERSECTION || stage == SLANG_STAGE_CALLABLE);
+
+    // For ray tracing entry points, store the size of ordinary uniform data for SBT writing.
+    // This is the same size calculation used for compute/graphics entry points.
+    if (isRayTracingStage)
+    {
+        info.paramsSize = entryPointLayout->getTotalOrdinaryDataSize();
+    }
+
+    if (isRayTracingStage)
+    {
+        // For ray tracing entry points, we process descriptor ranges the same way as
+        // PushConstantBuffer - we extract the inner element type and add its descriptor
+        // ranges without adding a constant buffer descriptor. The ordinary data will be
+        // written to the SBT instead of push constants.
+        _addDescriptorRangesAsConstantBufferWithoutDescriptor(entryPointTypeLayout, entryPointOffset);
+    }
+    else
+    {
+        // For non-ray-tracing entry points, process the type normally.
+        // The ConstantBuffer/PushConstant handling in _addDescriptorRangesAsValue
+        // will handle these cases correctly.
+        _addDescriptorRangesAsValue(entryPointTypeLayout, entryPointOffset);
+    }
 
     m_entryPoints.push_back(info);
 

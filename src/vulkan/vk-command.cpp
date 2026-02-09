@@ -55,6 +55,7 @@ public:
     bool m_rayTracingStateValid = false;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
     RefPtr<ShaderTableImpl> m_shaderTable;
+    ShaderTableImpl::PipelineData* m_shaderTableData = nullptr;
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -1095,28 +1096,24 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     {
         m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
-        BufferImpl* shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
-        DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
+        m_shaderTableData = m_shaderTable->getPipelineData(m_rayTracingPipeline);
+        DeviceAddress shaderTableAddr = m_shaderTableData->buffer->getDeviceAddress();
 
-        // Raygen index is set at dispatch time.
+        // Raygen address, stride, and size are set at dispatch time since each raygen
+        // shader can have a different record size.
         m_rayGenTableAddr = shaderTableAddr;
-        m_raygenSBT.stride = m_shaderTable->m_raygenRecordStride;
-        m_raygenSBT.deviceAddress = shaderTableAddr;
-        // For Vulkan, raygen SBT size must equal stride (only one raygen shader per dispatch)
-        // Multiple raygen shaders in the table are selected via deviceAddress offset at dispatch time
-        m_raygenSBT.size = m_shaderTable->m_raygenRecordStride;
 
-        m_missSBT.deviceAddress = shaderTableAddr + m_shaderTable->m_raygenTableSize;
-        m_missSBT.stride = m_shaderTable->m_missRecordStride;
-        m_missSBT.size = m_shaderTable->m_missTableSize;
+        m_missSBT.deviceAddress = shaderTableAddr + m_shaderTableData->raygenTableSize;
+        m_missSBT.stride = m_shaderTableData->missRecordStride;
+        m_missSBT.size = m_shaderTableData->missTableSize;
 
         m_hitSBT.deviceAddress = m_missSBT.deviceAddress + m_missSBT.size;
-        m_hitSBT.stride = m_shaderTable->m_hitGroupRecordStride;
-        m_hitSBT.size = m_shaderTable->m_hitTableSize;
+        m_hitSBT.stride = m_shaderTableData->hitGroupRecordStride;
+        m_hitSBT.size = m_shaderTableData->hitTableSize;
 
         m_callableSBT.deviceAddress = m_hitSBT.deviceAddress + m_hitSBT.size;
-        m_callableSBT.stride = m_shaderTable->m_callableRecordStride;
-        m_callableSBT.size = m_shaderTable->m_callableTableSize;
+        m_callableSBT.stride = m_shaderTableData->callableRecordStride;
+        m_callableSBT.size = m_shaderTableData->callableTableSize;
     }
 
     m_rayTracingStateValid = true;
@@ -1131,7 +1128,53 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
     if (!m_rayTracingStateValid)
         return;
 
-    m_raygenSBT.deviceAddress = m_rayGenTableAddr + cmd.rayGenShaderIndex * m_raygenSBT.stride;
+    if (cmd.rayGenShaderIndex >= m_shaderTableData->raygenInfos.size())
+        return;
+
+    // Copy entry point parameters to the SBT for the selected raygen shader.
+    // This allows ray tracing shaders to receive uniform parameters via the shader record.
+    const auto& raygenInfo = m_shaderTableData->raygenInfos[cmd.rayGenShaderIndex];
+    if (raygenInfo.paramsSize > 0 && raygenInfo.entryPointIndex < m_bindingData->entryPointCount)
+    {
+        const auto& entryPointData = m_bindingData->entryPointData[raygenInfo.entryPointIndex];
+        if (entryPointData.data && entryPointData.size > 0)
+        {
+            // Use vkCmdUpdateBuffer to copy entry point data to the SBT.
+            // The data is written at the raygen's sbtOffset (after the shader group handle).
+            VkDeviceSize dstOffset = raygenInfo.sbtOffset;
+            VkDeviceSize copySize = std::min(entryPointData.size, raygenInfo.paramsSize);
+            m_api.vkCmdUpdateBuffer(
+                m_cmdBuffer,
+                m_shaderTableData->buffer->m_buffer.m_buffer,
+                dstOffset,
+                copySize,
+                entryPointData.data
+            );
+
+            // Insert a barrier to ensure the update is visible before tracing rays.
+            VkMemoryBarrier memoryBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+            memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            m_api.vkCmdPipelineBarrier(
+                m_cmdBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+                0,
+                1,
+                &memoryBarrier,
+                0,
+                nullptr,
+                0,
+                nullptr
+            );
+        }
+    }
+
+    // Set raygen SBT address and size based on the selected raygen shader.
+    // Each raygen shader can have a different record size.
+    m_raygenSBT.deviceAddress = m_rayGenTableAddr + raygenInfo.recordOffset;
+    m_raygenSBT.stride = raygenInfo.recordSize;
+    m_raygenSBT.size = raygenInfo.recordSize;
 
     m_api.vkCmdTraceRaysKHR(
         m_cmdBuffer,

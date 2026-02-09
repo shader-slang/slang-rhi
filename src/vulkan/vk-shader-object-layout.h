@@ -344,6 +344,14 @@ protected:
             const BindingOffset& elementOffset
         );
 
+        /// Add descriptor ranges for an entry point type where ordinary data is stored
+        /// externally (e.g., in a shader binding table for ray tracing).
+        /// This unwraps ConstantBuffer/PushConstantBuffer wrappers without adding descriptors.
+        void _addDescriptorRangesAsConstantBufferWithoutDescriptor(
+            slang::TypeLayoutReflection* typeLayout,
+            const BindingOffset& offset
+        );
+
         /// Add binding ranges to this shader object layout, as implied by the given
         /// `typeLayout`
         void addBindingRanges(slang::TypeLayoutReflection* typeLayout);
@@ -402,6 +410,9 @@ public:
 
         /// Offset for binding the entry point, relative to the start of the program
         BindingOffset offset;
+
+        /// Size of the entry point parameters (for ray tracing SBT data)
+        size_t paramsSize = 0;
     };
 
     struct Builder : Super::Builder
