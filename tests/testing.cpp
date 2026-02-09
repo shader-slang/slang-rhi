@@ -1020,7 +1020,10 @@ static void gpuTestTrampoline()
             device->getQueue(QueueType::Graphics)->waitOnHost();
             device.setNull();
         }
-        getRHI()->reportLiveObjects();
+        if (!ENABLE_DEVICE_CACHE)
+        {
+            getRHI()->reportLiveObjects();
+        }
     }
     else
     {
