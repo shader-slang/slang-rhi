@@ -458,8 +458,8 @@ struct GpuTestInfo
     GpuTestFunc func;
     DeviceType deviceType;
     GpuTestFlags flags;
-
-    // Since std::optional is not POD we use an alternative
+    
+    // Since std::optional is not trivial we use an alternative
     bool hasDebugLayerOptions;
     DebugLayerOptions debugLayerOptions;
 };
