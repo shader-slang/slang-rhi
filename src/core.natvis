@@ -34,15 +34,4 @@
     </Expand>
 </Type>
 
-<Type Name="rhi::span&lt;*,*&gt;">
-    <DisplayString>{{ size={storage_.size} }}</DisplayString>
-    <Expand>
-        <Item Name="[size]">storage_.size</Item>
-        <ArrayItems>
-            <Size>storage_.size</Size>
-            <ValuePointer>storage_.ptr</ValuePointer>
-        </ArrayItems>
-    </Expand>
-</Type>
-
 </AutoVisualizer>
