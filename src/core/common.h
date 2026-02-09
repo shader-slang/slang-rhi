@@ -6,6 +6,7 @@
 #include <vector>
 #include <initializer_list>
 #include <mutex>
+#include <span>
 
 #include <cstring>
 #include <cstdint>
@@ -14,7 +15,6 @@
 #include "com-object.h"
 #include "platform.h"
 #include "smart-pointer.h"
-#include "span.h"
 #include "string.h"
 #include "struct-holder.h"
 

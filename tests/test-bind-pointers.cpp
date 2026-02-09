@@ -1,6 +1,5 @@
 #include "testing.h"
 #include <random>
-#include "../src/core/span.h"
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -64,7 +63,7 @@ GPU_TEST_CASE("bind-pointers-single-copy", Vulkan | CUDA)
         queue->waitOnHost();
     }
 
-    compareComputeResult(device, dst, span<uint8_t>(data));
+    compareComputeResult(device, dst, std::span<uint8_t>(data));
 }
 
 GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA)
@@ -143,12 +142,12 @@ GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA)
     if (device->getDeviceType() == DeviceType::CUDA)
     {
         // CUDA streams never overlap dispatches, so we'd expect syncing to have worked with no manual intervention
-        compareComputeResult(device, dst, span<uint8_t>(data));
+        compareComputeResult(device, dst, std::span<uint8_t>(data));
     }
     else
     {
         // GFX APIs like Vulkan and D3D12 require explicit synchronization between dispatches, which
         // isn't done automatically for pointers, so we'd expect race conditions
-        compareComputeResult(device, dst, span<uint8_t>(data), true);
+        compareComputeResult(device, dst, std::span<uint8_t>(data), true);
     }
 }

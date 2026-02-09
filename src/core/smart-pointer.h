@@ -101,8 +101,7 @@ public:
     {
         uint32_t count = referenceCount.fetch_add(1);
         uint32_t internalCount = internalReferenceCount.load();
-        // TODO: with C++20 we should mark this branch as [[unlikely]]
-        if (internalCount > 0 && count == internalCount)
+        if (internalCount > 0 && count == internalCount) [[unlikely]]
         {
             // Object is now externally referenced
             makeExternal();
@@ -115,13 +114,12 @@ public:
         uint32_t count = referenceCount.fetch_sub(1);
         SLANG_RHI_ASSERT(count > 0);
         uint32_t internalCount = internalReferenceCount.load();
-        // TODO: with C++20 we should mark this branch as [[unlikely]]
-        if (internalCount > 0 && count == internalCount + 1)
+        if (internalCount > 0 && count == internalCount + 1) [[unlikely]]
         {
             // Object is now internally referenced only
             makeInternal();
         }
-        if (count == 1)
+        if (count == 1) [[unlikely]]
         {
             // Last reference, delete the object
             // Default behavior immediately calls 'delete this'
