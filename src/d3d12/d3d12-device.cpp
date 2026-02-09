@@ -17,6 +17,7 @@
 #include "cooperative-vector-utils.h"
 
 #include "core/short_vector.h"
+#include "core/static_vector.h"
 #include "core/string.h"
 
 #include <algorithm>
@@ -87,7 +88,7 @@ inline int getShaderModelFromProfileName(const char* name)
     return -1;
 }
 
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
+inline Result getAdaptersImpl(static_vector<AdapterImpl, 16>& outAdapters)
 {
     std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
     SLANG_RETURN_ON_FAIL(enumAdapters(dxgiAdapters));
@@ -104,14 +105,14 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     }
 
     // Mark default adapter (prefer discrete if available).
-    markDefaultAdapter(outAdapters);
+    markDefaultAdapter(std::span{outAdapters});
 
     return SLANG_OK;
 }
 
-std::vector<AdapterImpl>& getAdapters()
+std::span<AdapterImpl> getAdapters()
 {
-    static std::vector<AdapterImpl> adapters;
+    static static_vector<AdapterImpl, 16> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -2002,7 +2003,7 @@ namespace rhi {
 
 IAdapter* getD3D12Adapter(uint32_t index)
 {
-    std::vector<d3d12::AdapterImpl>& adapters = d3d12::getAdapters();
+    std::span<d3d12::AdapterImpl> adapters = d3d12::getAdapters();
     return index < adapters.size() ? &adapters[index] : nullptr;
 }
 

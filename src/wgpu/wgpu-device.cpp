@@ -8,17 +8,17 @@
 
 #include "core/common.h"
 #include "core/deferred.h"
+#include "core/static_vector.h"
 
 #include <cstdio>
-#include <vector>
 
 namespace rhi::wgpu {
 
 static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 {
     // Currently no toggles are needed.
-    static const std::vector<const char*> enabledToggles = {};
-    static const std::vector<const char*> disabledToggles = {};
+    static const std::span<const char*> enabledToggles = {};
+    static const std::span<const char*> disabledToggles = {};
     WGPUDawnTogglesDescriptor togglesDesc = {};
     togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
     togglesDesc.enabledToggleCount = enabledToggles.size();
@@ -42,11 +42,6 @@ static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
     *outInstance = instance;
     return SLANG_OK;
 }
-
-#if 0
-
-
-#endif
 
 static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
 {
@@ -617,7 +612,7 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-inline Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
+inline Result getAdaptersImpl(static_vector<Adapter, 16>& outAdapters)
 {
     // If WGPU is not available, return no adapters.
     API api;
@@ -666,9 +661,9 @@ inline Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
     return SLANG_OK;
 }
 
-std::vector<Adapter>& getAdapters()
+std::span<Adapter> getAdapters()
 {
-    static std::vector<Adapter> adapters;
+    static static_vector<Adapter, 16> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -680,7 +675,7 @@ namespace rhi {
 
 IAdapter* getWGPUAdapter(uint32_t index)
 {
-    std::vector<Adapter>& adapters = wgpu::getAdapters();
+    std::span<Adapter> adapters = wgpu::getAdapters();
     return index < adapters.size() ? &adapters[index] : nullptr;
 }
 

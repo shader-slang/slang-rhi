@@ -13,6 +13,8 @@
 #include "cuda-utils.h"
 #include "cuda-heap.h"
 
+#include "core/static_vector.h"
+
 namespace rhi::cuda {
 
 struct ComputeCapabilityInfo
@@ -139,7 +141,7 @@ inline Result findMaxFlopsDeviceIndex(int* outDeviceIndex)
     return SLANG_OK;
 }
 
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
+inline Result getAdaptersImpl(static_vector<AdapterImpl, 16>& outAdapters)
 {
     if (!rhiCudaDriverApiInit())
     {
@@ -180,9 +182,9 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     return SLANG_OK;
 }
 
-std::vector<AdapterImpl>& getAdapters()
+std::span<AdapterImpl> getAdapters()
 {
-    static std::vector<AdapterImpl> adapters;
+    static static_vector<AdapterImpl, 16> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -810,7 +812,7 @@ namespace rhi {
 
 IAdapter* getCUDAAdapter(uint32_t index)
 {
-    std::vector<cuda::AdapterImpl>& adapters = cuda::getAdapters();
+    std::span<cuda::AdapterImpl> adapters = cuda::getAdapters();
     return index < adapters.size() ? &adapters[index] : nullptr;
 }
 

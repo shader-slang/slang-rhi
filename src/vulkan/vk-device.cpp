@@ -29,7 +29,7 @@
 
 namespace rhi::vk {
 
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
+inline Result getAdaptersImpl(static_vector<AdapterImpl, 16>& outAdapters)
 {
     VulkanModule module;
     SLANG_RETURN_ON_FAIL(module.init());
@@ -106,14 +106,14 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     }
 
     // Mark default adapter (prefer discrete if available).
-    markDefaultAdapter(outAdapters);
+    markDefaultAdapter(std::span{outAdapters});
 
     return SLANG_OK;
 }
 
-std::vector<AdapterImpl>& getAdapters()
+std::span<AdapterImpl> getAdapters()
 {
-    static std::vector<AdapterImpl> adapters;
+    static static_vector<AdapterImpl, 16> adapters;
     static Result initResult = getAdaptersImpl(adapters);
     SLANG_UNUSED(initResult);
     return adapters;
@@ -2276,7 +2276,7 @@ namespace rhi {
 
 IAdapter* getVKAdapter(uint32_t index)
 {
-    std::vector<vk::AdapterImpl>& adapters = vk::getAdapters();
+    std::span<vk::AdapterImpl> adapters = vk::getAdapters();
     return index < adapters.size() ? &adapters[index] : nullptr;
 }
 

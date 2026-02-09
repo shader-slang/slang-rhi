@@ -465,7 +465,7 @@ public:
 
 /// Mark the default adapter in the list, preferring the first discrete adapter.
 template<typename T>
-void markDefaultAdapter(std::vector<T>& adapters)
+void markDefaultAdapter(std::span<T> adapters)
 {
     if (!adapters.empty())
     {
@@ -483,7 +483,7 @@ void markDefaultAdapter(std::vector<T>& adapters)
 }
 
 template<typename T>
-Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc& desc, T*& outAdapter)
+Result selectAdapter(Device* device, std::span<T> adapters, const DeviceDesc& desc, T*& outAdapter)
 {
     if (adapters.empty())
     {
