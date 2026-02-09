@@ -810,7 +810,7 @@ target_compile_definitions(slang-rhi
     $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
-target_compile_features(slang-rhi PRIVATE cxx_std_17)
+target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Tests currently require linking statically due to reaching into internal details of the RHI implementation.
@@ -924,7 +924,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
-    target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
+    target_compile_features(slang-rhi-tests PRIVATE cxx_std_20)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
@@ -942,7 +942,7 @@ endif()
 if(SLANG_RHI_BUILD_EXAMPLES)
     function(add_example name source)
         add_executable(${name} ${source})
-        target_compile_features(${name} PRIVATE cxx_std_17)
+        target_compile_features(${name} PRIVATE cxx_std_20)
         get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
         target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
         target_include_directories(${name} PRIVATE examples/base)
