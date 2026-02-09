@@ -1892,11 +1892,6 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
-static bool isPowerOfTwo(uint32_t value)
-{
-    return value != 0 && (value & (value - 1)) == 0;
-}
-
 Result DeviceImpl::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
 {
     if (!outSupported)
@@ -2003,9 +1998,9 @@ Result DeviceImpl::isCooperativeMatrixSupported(const CooperativeMatrixDesc& des
                         continue;
                     }
 
-                    SLANG_RHI_ASSERT(isPowerOfTwo(flexProps[i].MGranularity));
-                    SLANG_RHI_ASSERT(isPowerOfTwo(flexProps[i].NGranularity));
-                    SLANG_RHI_ASSERT(isPowerOfTwo(flexProps[i].KGranularity));
+                    SLANG_RHI_ASSERT(math::isPowerOf2(flexProps[i].MGranularity));
+                    SLANG_RHI_ASSERT(math::isPowerOf2(flexProps[i].NGranularity));
+                    SLANG_RHI_ASSERT(math::isPowerOf2(flexProps[i].KGranularity));
 
                     CooperativeMatrixFlexibleProperty flexProp = {};
                     flexProp.mGranularity = flexProps[i].MGranularity;
