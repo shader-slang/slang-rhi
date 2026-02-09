@@ -499,13 +499,12 @@ void releaseCachedDevices()
     getRHI()->reportLiveObjects();
 }
 
-void tryToChangeCurrentDebugLayerStateAndOptions(DebugLayerOptions targetDebugLayerOptions)
+Result tryToChangeCurrentDebugLayerStateAndOptions(DebugLayerOptions targetDebugLayerOptions)
 {
     // Clear all cached devices so that we can change debug layer options
     releaseCachedDevices();
 
-    if (SLANG_FAILED(getRHI()->setDebugLayerOptions(targetDebugLayerOptions)))
-        FAIL("rhi::getRHI()->setDebugLayersOptions(...) failed, some devices were not removed");
+    return getRHI()->setDebugLayerOptions(targetDebugLayerOptions);
 }
 
 ComPtr<IDevice> createTestingDevice(
@@ -955,7 +954,7 @@ static void gpuTestTrampoline()
         // debug settings".
         if (cachedPreviousDebugLayer)
         {
-            tryToChangeCurrentDebugLayerStateAndOptions(previousDebugLayerOptions);
+            REQUIRE_CALL(tryToChangeCurrentDebugLayerStateAndOptions(previousDebugLayerOptions));
             cachedPreviousDebugLayer = false;
         }
 
@@ -966,7 +965,7 @@ static void gpuTestTrampoline()
             info->hasDebugLayerOptions && (previousDebugLayerOptions != info->debugLayerOptions);
         if (testRequestsDifferentDebugLayerOptions)
         {
-            tryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions);
+            REQUIRE_CALL(tryToChangeCurrentDebugLayerStateAndOptions(info->debugLayerOptions));
             cachedPreviousDebugLayer = true;
         }
 
