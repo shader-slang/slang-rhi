@@ -542,6 +542,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         -Wno-missing-field-initializers
         -Wno-sign-compare
         -Wno-subobject-linkage
+        -Wno-stringop-overread
     >
     $<$<CXX_COMPILER_ID:Clang>:
         -Wall -Wextra -Wpedantic
