@@ -10,10 +10,18 @@
 #include <string>
 #include <fstream>
 
+/// Enable dumping intermediate shader files (HLSL, SPIR-V, PTX etc.) to disk for debugging purposes.
+#define DUMP_INTERMEDIATES 0
+
+/// Enable device caching.
+/// This allows reusing the same device across multiple tests, which can speed up tests significantly.
+#define ENABLE_DEVICE_CACHE 1
+
+/// Enable caching of compiled shaders on disk across test runs.
+#define ENABLE_SHADER_CACHE 0
+
 #define ENABLE_RENDERDOC 0
 #define DEBUG_SPIRV 0
-#define DUMP_INTERMEDIATES 0
-#define ENABLE_SHADER_CACHE 0
 
 #if ENABLE_RENDERDOC
 #include <renderdoc_app.h>
@@ -514,6 +522,8 @@ ComPtr<IDevice> createTestingDevice(
     const DeviceExtraOptions* extraOptions
 )
 {
+    useCachedDevice = useCachedDevice && ENABLE_DEVICE_CACHE;
+
     // Extra options can only be used when not using cached device.
     if (useCachedDevice)
     {
@@ -969,17 +979,24 @@ static void gpuTestTrampoline()
             cachedPreviousDebugLayer = true;
         }
 
+        // Run test
+        GpuTestContext ctx;
+        ctx.deviceType = deviceType;
+        ctx.slangGlobalSession = getSlangGlobalSession();
+        ComPtr<IDevice> device;
+        if (createDevice)
         {
-            // Run test
-            GpuTestContext ctx;
-            ctx.deviceType = deviceType;
-            ctx.slangGlobalSession = getSlangGlobalSession();
-            ComPtr<IDevice> device;
-            if (createDevice)
-            {
-                device = createTestingDevice(&ctx, deviceType, cacheDevice);
-            }
-            info->func(&ctx, device);
+            device = createTestingDevice(&ctx, deviceType, cacheDevice);
+        }
+        info->func(&ctx, device);
+        if (device)
+        {
+            device->getQueue(QueueType::Graphics)->waitOnHost();
+            device.setNull();
+        }
+        if (!ENABLE_DEVICE_CACHE)
+        {
+            getRHI()->reportLiveObjects();
         }
     }
     else

@@ -6,11 +6,11 @@
 
 #include "enum-strings.h"
 #include "../src/core/blob.h"
-#include "../src/core/span.h"
 
 #include <array>
 #include <string_view>
 #include <vector>
+#include <span>
 #include <cstring>
 #include <optional>
 
@@ -231,7 +231,7 @@ inline void compareResultFuzzy(
 }
 
 template<typename T>
-void compareComputeResult(IDevice* device, IBuffer* buffer, span<T> expectedResult, bool expectFailure = false)
+void compareComputeResult(IDevice* device, IBuffer* buffer, std::span<T> expectedResult, bool expectFailure = false)
 {
     size_t bufferSize = expectedResult.size() * sizeof(T);
     // Read back the results.
@@ -254,7 +254,7 @@ void compareComputeResult(
     bool expectFailure = false
 )
 {
-    compareComputeResult(device, buffer, span<T>(expectedResult.data(), Count), expectFailure);
+    compareComputeResult(device, buffer, std::span<T>(expectedResult.data(), Count), expectFailure);
 }
 
 template<typename T>
@@ -263,7 +263,7 @@ void compareComputeResult(
     ITexture* texture,
     uint32_t layer,
     uint32_t mip,
-    span<T> expectedResult,
+    std::span<T> expectedResult,
     bool expectFailure = false
 )
 {
@@ -310,7 +310,7 @@ void compareComputeResult(
     bool expectFailure = false
 )
 {
-    compareComputeResult(device, texture, layer, mip, span<T>(expectedResult.data(), Count), expectFailure);
+    compareComputeResult(device, texture, layer, mip, std::span<T>(expectedResult.data(), Count), expectFailure);
 }
 
 const char* deviceTypeToString(DeviceType deviceType);
@@ -463,7 +463,7 @@ struct GpuTestInfo
     bool hasDebugLayerOptions;
     DebugLayerOptions debugLayerOptions;
 };
-static_assert(std::is_pod_v<GpuTestInfo>, "GpuTestInfo must be POD");
+static_assert(std::is_trivial_v<GpuTestInfo>, "GpuTestInfo must be trivial");
 
 int registerGpuTest(
     const char* name,
