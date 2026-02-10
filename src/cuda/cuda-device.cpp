@@ -373,6 +373,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 addCapability(cc.capability);
             }
         }
+
+        // BFloat16 atomic operations require SM 9.0 (Hopper) or higher
+        if (major >= 9)
+        {
+            addFeature(Feature::AtomicBfloat16);
+        }
     }
 
     optix::ContextDesc optixContextDesc = {};
