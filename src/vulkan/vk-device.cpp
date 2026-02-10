@@ -273,16 +273,8 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(
-    const DeviceDesc& desc,
-    bool enableValidationLayer,
-    std::vector<Feature>& availableFeatures,
-    std::vector<Capability>& availableCapabilities
-)
+Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions)
 {
-    availableFeatures.clear();
-    availableCapabilities.clear();
-
     // Initialize Vulkan instance.
     VkInstance instance = VK_NULL_HANDLE;
     if (!desc.existingDeviceHandles.handles[0])
@@ -316,10 +308,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #endif
 #endif
 
-        if (enableValidationLayer)
+        if (debugLayerOptions.isDebugLayersEnabled())
         {
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+            if (debugLayerOptions.GPUAssistedValidation)
+                instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
         VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -333,9 +328,27 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         const char* layerNames[] = {nullptr};
 
         VkValidationFeaturesEXT validationFeatures = {};
-        VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
-        if (enableValidationLayer)
+        std::vector<VkValidationFeatureEnableEXT> enabledValidationFeatures = {};
+        std::vector<VkValidationFeatureDisableEXT> disabledValidationFeatures = {};
+        if (debugLayerOptions.isDebugLayersEnabled())
         {
+            if (debugLayerOptions.GPUAssistedValidation)
+            {
+                enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+                enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+            }
+
+            if (!debugLayerOptions.coreValidation)
+            {
+                disabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT);
+            }
+            else
+            {
+                // Cannot use DebugPrintf if `CoreValidation` is disabled
+                if (m_extendedDesc.enableDebugPrintf)
+                    enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
+            }
+
             uint32_t layerCount;
             m_api.vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -356,14 +369,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 instanceCreateInfo.enabledLayerCount = SLANG_COUNT_OF(layerNames);
                 instanceCreateInfo.ppEnabledLayerNames = layerNames;
 
-                if (m_extendedDesc.enableDebugPrintf)
-                {
-                    // Include support for printf
-                    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-                    validationFeatures.enabledValidationFeatureCount = 1;
-                    validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
-                    instanceCreateInfo.pNext = &validationFeatures;
-                }
+                validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+                validationFeatures.enabledValidationFeatureCount = enabledValidationFeatures.size();
+                validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures.data();
+                validationFeatures.disabledValidationFeatureCount = disabledValidationFeatures.size();
+                validationFeatures.pDisabledValidationFeatures = disabledValidationFeatures.data();
+                instanceCreateInfo.pNext = &validationFeatures;
             }
         }
         uint32_t apiVersionsToTry[] = {
@@ -402,13 +413,15 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((desc.enableRayTracingValidation || enableValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((desc.enableRayTracingValidation || debugLayerOptions.isDebugLayersEnabled()) &&
+        m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
         };
-        messengerCreateInfo.messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+        messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+        messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+        messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         messengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                                           VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                           VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
@@ -419,6 +432,19 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback)
         );
     }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::initVulkanDevice(
+    const DeviceDesc& desc,
+    std::vector<Feature>& availableFeatures,
+    std::vector<Capability>& availableCapabilities
+)
+{
+    SLANG_RHI_ASSERT(m_api.m_instance != VK_NULL_HANDLE);
+
+    availableFeatures.clear();
+    availableCapabilities.clear();
 
     // Initialize Vulkan physical device.
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -428,10 +454,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr));
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
         SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data())
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data())
         );
 
         // Find the physical device that matches the selected adapter UUID.
@@ -558,7 +584,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
-
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -870,15 +895,22 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             deviceExtensions.push_back(VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME);
         }
 
-        // Only enable raytracing validation if both requested and supported
-        if (desc.enableRayTracingValidation && extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
+        if (desc.enableRayTracingValidation)
         {
-            SIMPLE_EXTENSION_FEATURE(
-                extendedFeatures.rayTracingValidationFeatures,
-                rayTracingValidation,
-                VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
-                { availableFeatures.push_back(Feature::RayTracingValidation); }
-            );
+            // If unsupported, fail
+            if (!extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
+            {
+                printWarning("Raytracing validation requested but not available.\n");
+            }
+            else
+            {
+                SIMPLE_EXTENSION_FEATURE(
+                    extendedFeatures.rayTracingValidationFeatures,
+                    rayTracingValidation,
+                    VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
+                    { availableFeatures.push_back(Feature::RayTracingValidation); }
+                );
+            }
         }
 
         SIMPLE_EXTENSION_FEATURE(
@@ -1277,14 +1309,39 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    std::vector<Feature> availableFeatures;
-    std::vector<Capability> availableCapabilities;
+    // Initialize Vulkan API and loader.
     SLANG_RETURN_ON_FAIL(m_module.init());
     SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
     descriptorSetAllocator.m_api = &m_api;
-    SLANG_RETURN_ON_FAIL(
-        initVulkanInstanceAndDevice(desc, isDebugLayersEnabled(), availableFeatures, availableCapabilities)
-    );
+
+    // Initialize Vulkan instance.
+    DebugLayerOptions debugLayerOptions = getRHI()->getDebugLayerOptions();
+    Result instanceResult = initVulkanInstance(desc, debugLayerOptions);
+    // If instance creation failed due to missing debug layers,
+    // disable debug layers and try again (if they were optional).
+    if (SLANG_FAILED(instanceResult) && debugLayerOptions.isDebugLayersEnabled())
+    {
+        bool debugLayersRequired = debugLayerOptions.required;
+        printMessage(
+            debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+            DebugMessageSource::Layer,
+            "Debug layers requested but not available.\n"
+        );
+        if (debugLayersRequired)
+            return SLANG_FAIL;
+        debugLayerOptions = {};
+        instanceResult = initVulkanInstance(desc, debugLayerOptions);
+    }
+    if (SLANG_FAILED(instanceResult))
+    {
+        printError("Failed to create Vulkan instance.\n");
+        return instanceResult;
+    }
+
+    // Initialize Vulkan device and query available features and capabilities.
+    std::vector<Feature> availableFeatures;
+    std::vector<Capability> availableCapabilities;
+    SLANG_RETURN_ON_FAIL(initVulkanDevice(desc, availableFeatures, availableCapabilities));
 
     VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};

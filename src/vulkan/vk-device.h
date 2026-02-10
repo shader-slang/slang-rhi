@@ -19,12 +19,13 @@ class DeviceImpl : public Device
 public:
     using Device::readBuffer;
 
-    Result initVulkanInstanceAndDevice(
+    Result initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions);
+    Result initVulkanDevice(
         const DeviceDesc& desc,
-        bool enableValidationLayer,
         std::vector<Feature>& availableFeatures,
         std::vector<Capability>& availableCapabilities
     );
+
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;

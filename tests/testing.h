@@ -12,6 +12,7 @@
 #include <vector>
 #include <span>
 #include <cstring>
+#include <optional>
 
 namespace rhi::testing {
 
@@ -328,7 +329,11 @@ struct DeviceExtraOptions
     // This value is passed to D3D12DeviceExtendedDesc::highestShaderModel.
     uint32_t d3d12HighestShaderModel = 0;
 
+    bool enableValidation = false;
+    bool enableRayTracingValidation = false;
     bool enableAftermath = false;
+
+    AftermathFlags aftermathFlags = AftermathFlags::Default;
 };
 
 ComPtr<IDevice> createTestingDevice(
@@ -428,22 +433,58 @@ enum GpuTestFlags
     DontCacheDevice = (1 << 11),  // Do not use cached devices (create a new device for this test case)
 };
 
+/// Struct that converts into DebugLayerOptions.
+class DebugLayerOptionsBuilder
+{
+public:
+    DebugLayerOptionsBuilder& enableCoreValidation()
+    {
+        m_options.coreValidation = true;
+        return *this;
+    }
+    DebugLayerOptionsBuilder& enableGPUAssistedValidation()
+    {
+        m_options.GPUAssistedValidation = true;
+        return *this;
+    }
+    DebugLayerOptionsBuilder& require()
+    {
+        m_options.required = true;
+        return *this;
+    }
+    operator DebugLayerOptions() const { return m_options; }
+
+private:
+    DebugLayerOptions m_options = {};
+};
+
 struct GpuTestInfo
 {
     GpuTestFunc func;
     DeviceType deviceType;
     GpuTestFlags flags;
-};
-static_assert(std::is_trivial_v<GpuTestInfo>, "GpuTestInfo must be trivial");
 
-int registerGpuTest(const char* name, GpuTestFunc func, GpuTestFlags flags, const char* file, int line);
+    // Since std::optional is not trivial we use a flag + value.
+    bool hasDebugLayerOptions;
+    DebugLayerOptions debugLayerOptions;
+};
+static_assert(std::is_trivially_copyable_v<GpuTestInfo>, "GpuTestInfo must be trivially copyable");
+
+int registerGpuTest(
+    const char* name,
+    GpuTestFunc func,
+    GpuTestFlags flags,
+    std::optional<DebugLayerOptions> debugLayerOptions,
+    const char* file,
+    int line
+);
 
 void reportSkip(const doctest::detail::TestCase* tc, const char* reason);
 const char* getSkipMessage(const doctest::TestCaseData* tc);
 
 } // namespace rhi::testing
 
-#define GPU_TEST_CASE_IMPL(name, func, flags)                                                                          \
+#define GPU_TEST_CASE_IMPL(name, func, flags, debugLayerOptions)                                                       \
     static void func(::rhi::testing::GpuTestContext* ctx, ::ComPtr<::rhi::IDevice> device);                            \
     DOCTEST_GLOBAL_NO_WARNINGS(                                                                                        \
         DOCTEST_ANONYMOUS(DOCTEST_ANON_VAR_),                                                                          \
@@ -451,6 +492,7 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
             name,                                                                                                      \
             func,                                                                                                      \
             static_cast<::rhi::testing::GpuTestFlags>(flags),                                                          \
+            debugLayerOptions,                                                                                         \
             __FILE__,                                                                                                  \
             __LINE__                                                                                                   \
         )                                                                                                              \
@@ -464,7 +506,14 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
 // In addition to the device flags, the following flags can be used:
 // - GpuTestFlag::DontCreateDevice: Do not create a device (device argument is nullptr)
 // - GpuTestFlag::DontCacheDevice: Do not use cached devices (create a new device for this test case)
-#define GPU_TEST_CASE(name, flags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags)
+#define GPU_TEST_CASE(name, flags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, std::nullopt)
+
+// Register a GPU test case, similar to `GPU_TEST_CASE`, but with an additional `debugLayerOptions` parameter.
+// Runs the test with the specified debug layer options instead of the currently active debug layer options.
+// This is useful for testing against a specific set of debug layer options, regardless of the global test
+// configuration.
+#define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
+    GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, debugLayerOptions)
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))

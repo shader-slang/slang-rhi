@@ -828,6 +828,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
+        tests/test-acceleration-structure-creation-with-validation.cpp
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
         tests/test-block-allocator.cpp
