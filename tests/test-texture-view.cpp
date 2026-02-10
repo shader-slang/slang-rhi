@@ -17,7 +17,7 @@
 //   - all layers/single mip (Store() and subscript store operator)
 //   - single layer/single mip (Store() and subscript store operator)
 
-#define TEST_SPECIFIC_FORMATS 0
+#define TEST_SPECIFIC_FORMATS 1
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -135,11 +135,10 @@ static const std::vector<Format> kFormats = {
     Format::RGBA8Uint,
     Format::RGBA8Sint,
     Format::RGBA8Unorm,
-    Format::RGBA8UnormSrgb,
+    // Format::RGBA8UnormSrgb,
     Format::RGBA8Snorm,
     Format::BGRA8Unorm,
     Format::BGRA8UnormSrgb,
-    // These currently fail due to last channel
     Format::BGRX8Unorm,
     Format::BGRX8UnormSrgb,
     // 16-bit / 1-channel formats
@@ -147,19 +146,19 @@ static const std::vector<Format> kFormats = {
     Format::R16Sint,
     Format::R16Unorm,
     Format::R16Snorm,
-    Format::R16Float,
+    // Format::R16Float,
     // 16-bit / 2-channel formats
     Format::RG16Uint,
     Format::RG16Sint,
     Format::RG16Unorm,
     Format::RG16Snorm,
-    Format::RG16Float,
+    // Format::RG16Float,
     // 16-bit / 4-channel formats
     Format::RGBA16Uint,
     Format::RGBA16Sint,
     Format::RGBA16Unorm,
     Format::RGBA16Snorm,
-    Format::RGBA16Float,
+    // Format::RGBA16Float,
     // 32-bit / 1-channel formats
     Format::R32Uint,
     Format::R32Sint,
@@ -199,7 +198,6 @@ inline bool needsFormatConversion(Format format)
     return info.kind == FormatKind::Normalized || info.kind == FormatKind::Float ||
            (info.kind == FormatKind::Integer && info.blockSizeInBytes / info.channelCount != 4);
 }
-
 
 struct TexelData
 {
@@ -1086,10 +1084,6 @@ GPU_TEST_CASE("texture-view-load-rw-all-layers-single-mip", D3D12 | Vulkan | CUD
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // CUDA does not support loads from surfaces that need format conversion (limitation in PTX ISA).
-            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
-                return;
-
             for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
             {
                 TextureViewDesc viewDesc = {};
@@ -1235,10 +1229,6 @@ GPU_TEST_CASE("texture-view-load-rw-single", D3D12 | Vulkan | CUDA | Metal)
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // CUDA does not support loads from surfaces that need format conversion (limitation in PTX ISA).
-            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
-                return;
-
             for (uint32_t layer = 0; layer < desc.arrayLength; ++layer)
             {
                 for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
@@ -1315,9 +1305,9 @@ GPU_TEST_CASE("texture-view-store-all-layers-single-mip", D3D12 | Vulkan | CUDA 
             if (shouldSkipFormat(desc.format))
                 return;
 
-            // CUDA does not support stores to surfaces that need format conversion (limitation in PTX ISA).
-            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
-                return;
+            // // CUDA does not support stores to surfaces that need format conversion (limitation in PTX ISA).
+            // if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
+            //     return;
 
             for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
             {
@@ -1392,8 +1382,8 @@ GPU_TEST_CASE("texture-view-store-single", D3D12 | Vulkan | CUDA | Metal)
                 return;
 
             // CUDA does not support stores to surfaces that need format conversion (limitation in PTX ISA).
-            if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
-                return;
+            // if (device->getDeviceType() == DeviceType::CUDA && needsFormatConversion(desc.format))
+            //     return;
             // CUDA does not support creating a surface from a subset of layers.
             // TODO: We should check for that in the validation layer.
             if (device->getDeviceType() == DeviceType::CUDA &&

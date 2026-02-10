@@ -542,6 +542,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
     arrayDesc.Format = mapping.arrayFormat;
     arrayDesc.NumChannels = mapping.channelCount;
     arrayDesc.Flags = 0; // TODO: Flags? CUDA_ARRAY_LAYERED/SURFACE_LDST/CUBEMAP/TEXTURE_GATHER
+    arrayDesc.Flags |= CUDA_ARRAY3D_SURFACE_LDST;
 
     switch (desc.type)
     {

@@ -835,6 +835,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
         result.available = false;                                                                                      \
         result.error = msg;                                                                                            \
         result.debugCallbackOutput = sCaptureDebugCallback.output;                                                     \
+        if (diagnostics) printf("Diagnostics: %s\n", (const char*)diagnostics->getBufferPointer()); \
         result.diagnostics = diagnostics ? (const char*)diagnostics->getBufferPointer() : "";                          \
         return result;                                                                                                 \
     }
