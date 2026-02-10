@@ -273,16 +273,8 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(
-    const DeviceDesc& desc,
-    std::vector<Feature>& availableFeatures,
-    std::vector<Capability>& availableCapabilities,
-    const DebugLayerOptions debugLayerOptions
-)
+Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions)
 {
-    availableFeatures.clear();
-    availableCapabilities.clear();
-
     // Initialize Vulkan instance.
     VkInstance instance = VK_NULL_HANDLE;
     if (!desc.existingDeviceHandles.handles[0])
@@ -417,34 +409,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     if (!instance)
     {
-        // If we fail to create a VkInstance we have the following senarios:
-        // 1. If debug settings are not enabled, fail
-        // 2. If debug settings are required, fail.
-        // 3. If debug settings are *not* required, we
-        //    need to try and make a device with progressively
-        //    less debug layer settings enabled as a backup.
-        if(!debugLayerOptions.isDebugLayersEnabled() || debugLayerOptions.required)
-            return SLANG_FAIL;
-
-        // If GPU-AV is enabled, disable that option first, then recursively
-        // try to create a device.
-        DebugLayerOptions newDebugLayerOptions = debugLayerOptions;
-        if(debugLayerOptions.GPUAssistedValidation)
-        {
-            printWarning("GPU based validation requested but not available.");
-            newDebugLayerOptions.GPUAssistedValidation = false;
-        }
-        // If Core is enabled, disable that option next.
-        else if(debugLayerOptions.coreValidation)
-        {
-            printWarning("Core validation requested but not available.");
-            newDebugLayerOptions.coreValidation = false;
-        }
-        return initVulkanInstanceAndDevice(desc, availableFeatures, availableCapabilities, newDebugLayerOptions);
+        return SLANG_FAIL;
     }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((desc.enableRayTracingValidation || debugLayerOptions.isDebugLayersEnabled()) && m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((desc.enableRayTracingValidation || debugLayerOptions.isDebugLayersEnabled()) &&
+        m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
@@ -462,6 +432,19 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback)
         );
     }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::initVulkanDevice(
+    const DeviceDesc& desc,
+    std::vector<Feature>& availableFeatures,
+    std::vector<Capability>& availableCapabilities
+)
+{
+    SLANG_RHI_ASSERT(m_api.m_instance != VK_NULL_HANDLE);
+
+    availableFeatures.clear();
+    availableCapabilities.clear();
 
     // Initialize Vulkan physical device.
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -471,10 +454,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr));
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
         SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data())
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data())
         );
 
         // Find the physical device that matches the selected adapter UUID.
@@ -601,7 +584,6 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
-
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -1327,17 +1309,39 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    std::vector<Feature> availableFeatures;
-    std::vector<Capability> availableCapabilities;
+    // Initialize Vulkan API and loader.
     SLANG_RETURN_ON_FAIL(m_module.init());
     SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
     descriptorSetAllocator.m_api = &m_api;
-    SLANG_RETURN_ON_FAIL(initVulkanInstanceAndDevice(
-        desc,
-        availableFeatures,
-        availableCapabilities,
-        getRHI()->getDebugLayerOptions())
-    );
+
+    // Initialize Vulkan instance.
+    DebugLayerOptions debugLayerOptions = getRHI()->getDebugLayerOptions();
+    Result instanceResult = initVulkanInstance(desc, debugLayerOptions);
+    // If instance creation failed due to missing debug layers,
+    // disable debug layers and try again (if they were optional).
+    if (SLANG_FAILED(instanceResult) && debugLayerOptions.isDebugLayersEnabled())
+    {
+        bool debugLayersRequired = debugLayerOptions.required;
+        printMessage(
+            debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+            DebugMessageSource::Layer,
+            "Debug layers requested but not available.\n"
+        );
+        if (debugLayersRequired)
+            return SLANG_FAIL;
+        debugLayerOptions = {};
+        instanceResult = initVulkanInstance(desc, debugLayerOptions);
+    }
+    if (SLANG_FAILED(instanceResult))
+    {
+        printError("Failed to create Vulkan instance.\n");
+        return instanceResult;
+    }
+
+    // Initialize Vulkan device and query available features and capabilities.
+    std::vector<Feature> availableFeatures;
+    std::vector<Capability> availableCapabilities;
+    SLANG_RETURN_ON_FAIL(initVulkanDevice(desc, availableFeatures, availableCapabilities));
 
     VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
