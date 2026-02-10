@@ -404,6 +404,12 @@ public:
         return SLANG_OK;
     }
 
+    // ICommandBuffer implementation
+    virtual SLANG_NO_THROW void SLANG_MCALL setLabel(const char* /*label*/) override
+    {
+        // Default implementation does nothing - backends override as needed
+    }
+
     ArenaAllocator m_allocator;
     CommandList m_commandList;
     std::set<RefPtr<RefObject>> m_trackedObjects;

@@ -2368,6 +2368,11 @@ class ICommandBuffer : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+
+    /// Set a debug label for this command buffer.
+    /// The label will be visible in GPU debugging tools (e.g., Xcode GPU Capture).
+    /// @param label The label string (copied internally).
+    virtual SLANG_NO_THROW void SLANG_MCALL setLabel(const char* label) = 0;
 };
 
 class IPassEncoder : public ISlangUnknown

@@ -83,6 +83,7 @@ public:
     virtual Result reset() override;
 
     // ICommandBuffer implementation
+    virtual SLANG_NO_THROW void SLANG_MCALL setLabel(const char* label) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

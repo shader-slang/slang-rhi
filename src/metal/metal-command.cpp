@@ -1004,8 +1004,35 @@ void CommandQueueImpl::retireCommandBuffers()
     for (const auto& commandBuffer : commandBuffers)
     {
         auto status = commandBuffer->m_commandBuffer->status();
-        if (status == MTL::CommandBufferStatusCompleted || status == MTL::CommandBufferStatusError)
+        if (status == MTL::CommandBufferStatusCompleted)
         {
+            commandBuffer->reset();
+        }
+        else if (status == MTL::CommandBufferStatusError)
+        {
+            // Report error via debug callback before resetting
+            NS::Error* error = commandBuffer->m_commandBuffer->error();
+            std::string errorMsg = "Metal command buffer error";
+            if (error)
+            {
+                if (auto desc = error->localizedDescription())
+                {
+                    errorMsg = desc->utf8String();
+                }
+            }
+            // Include command buffer label if available for correlation
+            NS::String* label = commandBuffer->m_commandBuffer->label();
+            std::string fullMsg = "Command buffer " + std::to_string(commandBuffer->m_submissionID);
+            if (label)
+            {
+                fullMsg += " (" + std::string(label->utf8String()) + ")";
+            }
+            fullMsg += " failed: " + errorMsg;
+            m_device->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Driver,
+                fullMsg.c_str()
+            );
             commandBuffer->reset();
         }
         else
@@ -1249,6 +1276,14 @@ Result CommandBufferImpl::reset()
 {
     m_bindingCache.reset();
     return CommandBuffer::reset();
+}
+
+void CommandBufferImpl::setLabel(const char* label)
+{
+    if (m_commandBuffer && label)
+    {
+        m_commandBuffer->setLabel(NS::String::string(label, NS::UTF8StringEncoding));
+    }
 }
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)

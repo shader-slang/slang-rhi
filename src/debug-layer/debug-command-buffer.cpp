@@ -10,4 +10,10 @@ Result DebugCommandBuffer::getNativeHandle(NativeHandle* outHandle)
     return baseObject->getNativeHandle(outHandle);
 }
 
+void DebugCommandBuffer::setLabel(const char* label)
+{
+    SLANG_RHI_API_FUNC;
+    baseObject->setLabel(label);
+}
+
 } // namespace rhi::debug
