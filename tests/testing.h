@@ -463,8 +463,8 @@ struct GpuTestInfo
     GpuTestFunc func;
     DeviceType deviceType;
     GpuTestFlags flags;
-    
-    // Since std::optional is not trivial we use an alternative
+
+    // Since std::optional is not trivial we use a flag + value.
     bool hasDebugLayerOptions;
     DebugLayerOptions debugLayerOptions;
 };
@@ -474,7 +474,7 @@ int registerGpuTest(
     const char* name,
     GpuTestFunc func,
     GpuTestFlags flags,
-    std::optional<DebugLayerOptions> overrideDebugLayerOptions,
+    std::optional<DebugLayerOptions> debugLayerOptions,
     const char* file,
     int line
 );
@@ -484,7 +484,7 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
 
 } // namespace rhi::testing
 
-#define GPU_TEST_CASE_IMPL(name, func, flags, overrideDebugLayerOptions)                                               \
+#define GPU_TEST_CASE_IMPL(name, func, flags, debugLayerOptions)                                                       \
     static void func(::rhi::testing::GpuTestContext* ctx, ::ComPtr<::rhi::IDevice> device);                            \
     DOCTEST_GLOBAL_NO_WARNINGS(                                                                                        \
         DOCTEST_ANONYMOUS(DOCTEST_ANON_VAR_),                                                                          \
@@ -492,7 +492,7 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
             name,                                                                                                      \
             func,                                                                                                      \
             static_cast<::rhi::testing::GpuTestFlags>(flags),                                                          \
-            overrideDebugLayerOptions,                                                                                 \
+            debugLayerOptions,                                                                                         \
             __FILE__,                                                                                                  \
             __LINE__                                                                                                   \
         )                                                                                                              \
@@ -508,16 +508,12 @@ const char* getSkipMessage(const doctest::TestCaseData* tc);
 // - GpuTestFlag::DontCacheDevice: Do not use cached devices (create a new device for this test case)
 #define GPU_TEST_CASE(name, flags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, std::nullopt)
 
-// By default debug-layers are enabled if SLANG_RHI_DEBUG,
-// otherwise they are never enabled.
-#if SLANG_RHI_DEBUG
-// Register a GPU test case, similar to `GPU_TEST_CASE`, but with one additional parameter, `overrideDebugLayerOptions`.
-// `overrideDebugLayerOptions` controls the DebugLayerOptions for our Slang-RHI instance.
-#define GPU_TEST_CASE_EX(name, flags, overrideDebugLayerOptions)                                                       \
-    GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, overrideDebugLayerOptions)
-#else
-#define GPU_TEST_CASE_EX(name, flags, debugLayerOptions) GPU_TEST_CASE(name, flags)
-#endif
+// Register a GPU test case, similar to `GPU_TEST_CASE`, but with an additional `debugLayerOptions` parameter.
+// Runs the test with the specified debug layer options instead of the currently active debug layer options.
+// This is useful for testing against a specific set of debug layer options, regardless of the global test
+// configuration.
+#define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
+    GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, debugLayerOptions)
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))

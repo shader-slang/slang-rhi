@@ -1050,7 +1050,7 @@ int registerGpuTest(
     const char* name,
     GpuTestFunc func,
     GpuTestFlags flags,
-    std::optional<DebugLayerOptions> overrideDebugLayerOptions,
+    std::optional<DebugLayerOptions> debugLayerOptions,
     const char* file,
     int line
 )
@@ -1073,9 +1073,8 @@ int registerGpuTest(
         info->func = func;
         info->deviceType = deviceType;
         info->flags = flags;
-        info->hasDebugLayerOptions = overrideDebugLayerOptions.has_value();
-        if (info->hasDebugLayerOptions)
-            info->debugLayerOptions = *overrideDebugLayerOptions;
+        info->hasDebugLayerOptions = debugLayerOptions.has_value();
+        info->debugLayerOptions = debugLayerOptions.value_or({});
 
         char* testName = reinterpret_cast<char*>(info + 1);
         snprintf(testName, testNameLen, "%s.%s", name, deviceTypeToString(deviceType));
