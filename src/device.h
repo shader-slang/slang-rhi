@@ -146,9 +146,8 @@ public:
     }
 };
 
-class LiveDeviceTracker : public RefObject
+struct LiveDeviceTracker
 {
-public:
     LiveDeviceTracker() { checked_cast<RHI*>(getRHI())->incrementLiveDeviceCount(); }
     ~LiveDeviceTracker() { checked_cast<RHI*>(getRHI())->decrementLiveDeviceCount(); }
 };
@@ -470,7 +469,7 @@ public:
 
     IDebugCallback* m_debugCallback = nullptr;
 
-    RefPtr<LiveDeviceTracker> m_liveDeviceTracker = RefPtr<LiveDeviceTracker>(new LiveDeviceTracker());
+    LiveDeviceTracker m_liveDeviceTracker;
 };
 
 /// Mark the default adapter in the list, preferring the first discrete adapter.
