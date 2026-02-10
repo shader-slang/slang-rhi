@@ -21,7 +21,8 @@ public:
     Result initVulkanInstanceAndDevice(
         const DeviceDesc& desc,
         std::vector<Feature>& availableFeatures,
-        std::vector<Capability>& availableCapabilities
+        std::vector<Capability>& availableCapabilities,
+        const DebugLayerOptions debugLayerOptions
     );
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;

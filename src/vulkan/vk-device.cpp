@@ -276,7 +276,8 @@ static bool _hasAnySetBits(const T& val, size_t offset)
 Result DeviceImpl::initVulkanInstanceAndDevice(
     const DeviceDesc& desc,
     std::vector<Feature>& availableFeatures,
-    std::vector<Capability>& availableCapabilities
+    std::vector<Capability>& availableCapabilities,
+    const DebugLayerOptions debugLayerOptions
 )
 {
     availableFeatures.clear();
@@ -315,12 +316,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #endif
 #endif
 
-        if (getRHI()->isDebugLayersEnabled())
+        if (debugLayerOptions.isDebugLayersEnabled())
         {
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-            if (getRHI()->getDebugLayerOptions().GPUAssistedValidation)
+            if (debugLayerOptions.GPUAssistedValidation)
                 instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
@@ -337,15 +338,15 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         VkValidationFeaturesEXT validationFeatures = {};
         std::vector<VkValidationFeatureEnableEXT> enabledValidationFeatures = {};
         std::vector<VkValidationFeatureDisableEXT> disabledValidationFeatures = {};
-        if (getRHI()->isDebugLayersEnabled())
+        if (debugLayerOptions.isDebugLayersEnabled())
         {
-            if (getRHI()->getDebugLayerOptions().GPUAssistedValidation)
+            if (debugLayerOptions.GPUAssistedValidation)
             {
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
                 enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
             }
 
-            if (!getRHI()->getDebugLayerOptions().coreValidation)
+            if (!debugLayerOptions.coreValidation)
             {
                 disabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT);
             }
@@ -416,11 +417,34 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     if (!instance)
     {
-        return SLANG_FAIL;
+        // If we fail to create a VkInstance we have the following senarios:
+        // 1. If debug settings are not enabled, fail
+        // 2. If debug settings are required, fail.
+        // 3. If debug settings are *not* required, we
+        //    need to try and make a device with progressively
+        //    less debug layer settings enabled as a backup.
+        if(!debugLayerOptions.isDebugLayersEnabled() || debugLayerOptions.required)
+            return SLANG_FAIL;
+
+        // If GPU-AV is enabled, disable that option first, then recursively
+        // try to create a device.
+        DebugLayerOptions newDebugLayerOptions = debugLayerOptions;
+        if(debugLayerOptions.GPUAssistedValidation)
+        {
+            printWarning("GPU based validation requested but not available.");
+            newDebugLayerOptions.GPUAssistedValidation = false;
+        }
+        // If Core is enabled, disable that option next.
+        else if(debugLayerOptions.coreValidation)
+        {
+            printWarning("Core validation requested but not available.");
+            newDebugLayerOptions.coreValidation = false;
+        }
+        return initVulkanInstanceAndDevice(desc, availableFeatures, availableCapabilities, newDebugLayerOptions);
     }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((desc.enableRayTracingValidation || getRHI()->isDebugLayersEnabled()) && m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((desc.enableRayTracingValidation || debugLayerOptions.isDebugLayersEnabled()) && m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
@@ -1308,7 +1332,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     SLANG_RETURN_ON_FAIL(m_module.init());
     SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
     descriptorSetAllocator.m_api = &m_api;
-    SLANG_RETURN_ON_FAIL(initVulkanInstanceAndDevice(desc, availableFeatures, availableCapabilities));
+    SLANG_RETURN_ON_FAIL(initVulkanInstanceAndDevice(
+        desc,
+        availableFeatures,
+        availableCapabilities,
+        getRHI()->getDebugLayerOptions())
+    );
 
     VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};

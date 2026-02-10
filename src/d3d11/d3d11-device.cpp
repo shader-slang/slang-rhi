@@ -85,7 +85,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 #endif
 
-    m_dxgiFactory = getDXGIFactory();
+    m_dxgiFactory = getDXGIFactory(getRHI()->getDebugLayerOptions(), this);
 
     AdapterImpl* adapter = nullptr;
     SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
@@ -146,6 +146,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
     if (getRHI()->isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
     {
+        if(getRHI()->getDebugLayerOptions().required)
+            return SLANG_FAIL;
         printWarning("Debug layer requested but not available.\n");
     }
 

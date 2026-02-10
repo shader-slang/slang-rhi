@@ -447,6 +447,11 @@ public:
         m_options.GPUAssistedValidation = true;
         return *this;
     }
+    DebugLayerOptionsBuilder& require()
+    {
+        m_options.required = true;
+        return *this;
+    }
     operator DebugLayerOptions() const { return m_options; }
 
 private:
@@ -463,7 +468,7 @@ struct GpuTestInfo
     bool hasDebugLayerOptions;
     DebugLayerOptions debugLayerOptions;
 };
-static_assert(std::is_trivial_v<GpuTestInfo>, "GpuTestInfo must be trivial");
+static_assert(std::is_trivially_copyable_v<GpuTestInfo>, "GpuTestInfo must be trivially copyable");
 
 int registerGpuTest(
     const char* name,

@@ -204,7 +204,10 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
         // We will keep consistent with this failure.
         if (!m_D3D12GetDebugInterface)
         {
-            printWarning("D3D12GetDebugInterface is missing\n");
+            if(getRHI()->getDebugLayerOptions().required)
+                return SLANG_FAIL;
+
+            printWarning("D3D12GetDebugInterface is missing.\n");
             return SLANG_OK;
         }
 
@@ -221,6 +224,9 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
                 }
                 else
                 {
+                    if(getRHI()->getDebugLayerOptions().required)
+                        return SLANG_FAIL;
+
                     printWarning("Unable to disable the previously enabled debug layers.\n");
                     return SLANG_OK;
                 }
@@ -234,6 +240,9 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
         }
         else
         {
+            if(getRHI()->getDebugLayerOptions().required)
+                return SLANG_FAIL;
+
             printWarning("Debug layer requested but not available.\n");
             return SLANG_OK;
         }
@@ -252,6 +261,9 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
             }
             else
             {
+                if(getRHI()->getDebugLayerOptions().required)
+                    return SLANG_FAIL;
+
                 printWarning("GPU based validation requested but not available.\n");
                 return SLANG_OK;
             }
@@ -340,7 +352,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 #endif
 
-    m_dxgiFactory = getDXGIFactory();
+    m_dxgiFactory = getDXGIFactory(getRHI()->getDebugLayerOptions(), this);
     AdapterImpl* adapter = nullptr;
 
     if (!desc.existingDeviceHandles.handles[0])

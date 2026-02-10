@@ -171,7 +171,7 @@ public:
         msg += "[" + doctest::String(enumToString(source)) + "] ";
         msg += message;
 
-        if (type == DebugMessageType::Info || type == DebugMessageType::Warning)
+        if (type == DebugMessageType::Info)
         {
             if (options().verbose)
             {
@@ -181,6 +181,12 @@ public:
             {
                 INFO(msg);
             }
+        }
+        // `DebugMessageType::Warning` is seperate from `DebugMessageType::Info`
+        // Since `INFO()` does not output if `options().verbose == false`
+        else if (type == DebugMessageType::Warning)
+        {
+            MESSAGE(msg);
         }
         else if (type == DebugMessageType::Error)
         {

@@ -5,6 +5,7 @@
 #include <slang-com-helper.h>
 #include <slang-com-ptr.h>
 #include <slang-rhi.h>
+#include "device.h"
 
 #include <d3dcommon.h>
 #include <dxgi.h>
@@ -43,7 +44,7 @@ Result compileHLSLShader(
 
 SharedLibraryHandle getDXGIModule();
 Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory);
-ComPtr<IDXGIFactory> getDXGIFactory();
+ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device* device);
 
 Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
 Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters);

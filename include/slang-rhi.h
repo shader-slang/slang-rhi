@@ -3579,10 +3579,16 @@ public:
 /// Options for downstream API debug layers.
 struct DebugLayerOptions
 {
+    /// If true, when device creation fails to enable a specified
+    ///     option, fail device creation.
+    /// Else, when device creation fails to enable a specified
+    ///     option, emit a warning.
+    bool required = false;
+
     /// Enable core debug layers (D3D12 | Vulkan).
-    bool coreValidation;
+    bool coreValidation = false;
     /// Enable GPU assisted/based debug layer (D3D12 | Vulkan).
-    bool GPUAssistedValidation;
+    bool GPUAssistedValidation = false;
 
     bool operator==(const DebugLayerOptions& other) const
     {
