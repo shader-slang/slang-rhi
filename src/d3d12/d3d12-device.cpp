@@ -200,15 +200,18 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
             m_D3D12GetDebugInterface =
                 (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
 
+        bool debugLayersRequired = getRHI()->getDebugLayerOptions().required;
+
         // With our vulkan backend we fail to create a valid VkInstance and return SLANG_FAIL.
         // We will keep consistent with this failure.
         if (!m_D3D12GetDebugInterface)
         {
-            if(getRHI()->getDebugLayerOptions().required)
-                return SLANG_FAIL;
-
-            printWarning("D3D12GetDebugInterface is missing.\n");
-            return SLANG_OK;
+            printMessage(
+                debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+                DebugMessageSource::Layer,
+                "Debug layers requested but D3D12GetDebugInterface is not available.\n"
+            );
+            return debugLayersRequired ? SLANG_FAIL : SLANG_OK;
         }
 
         if (SLANG_SUCCEEDED(m_D3D12GetDebugInterface(IID_PPV_ARGS(m_dxDebug.writeRef()))))
@@ -224,11 +227,12 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
                 }
                 else
                 {
-                    if(getRHI()->getDebugLayerOptions().required)
-                        return SLANG_FAIL;
-
-                    printWarning("Unable to disable the previously enabled debug layers.\n");
-                    return SLANG_OK;
+                    printMessage(
+                        debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+                        DebugMessageSource::Layer,
+                        "Unable to disable the previously enabled debug layers.\n"
+                    );
+                    return debugLayersRequired ? SLANG_FAIL : SLANG_OK;
                 }
             }
             // If debug layers are signaled to be enabled, enable them if not done already
@@ -240,11 +244,12 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
         }
         else
         {
-            if(getRHI()->getDebugLayerOptions().required)
-                return SLANG_FAIL;
-
-            printWarning("Debug layer requested but not available.\n");
-            return SLANG_OK;
+            printMessage(
+                debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+                DebugMessageSource::Layer,
+                "Debug layers requested but not available.\n"
+            );
+            return debugLayersRequired ? SLANG_FAIL : SLANG_OK;
         }
 
         auto willGPUAssistedValidationBeEnabled = getRHI()->getDebugLayerOptions().GPUAssistedValidation;
@@ -261,11 +266,12 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
             }
             else
             {
-                if(getRHI()->getDebugLayerOptions().required)
-                    return SLANG_FAIL;
-
-                printWarning("GPU based validation requested but not available.\n");
-                return SLANG_OK;
+                printMessage(
+                    debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+                    DebugMessageSource::Layer,
+                    "GPU based validation requested but not available.\n"
+                );
+                return debugLayersRequired ? SLANG_FAIL : SLANG_OK;
             }
         }
     }
