@@ -146,9 +146,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
     if (getRHI()->isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
     {
-        if(getRHI()->getDebugLayerOptions().required)
+        bool debugLayersRequired = getRHI()->getDebugLayerOptions().required;
+        printMessage(
+            debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+            DebugMessageSource::Layer,
+            "Debug layers requested but not available.\n"
+        );
+        if (debugLayersRequired)
             return SLANG_FAIL;
-        printWarning("Debug layer requested but not available.\n");
     }
 
 #if SLANG_RHI_ENABLE_AFTERMATH
