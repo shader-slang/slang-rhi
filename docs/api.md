@@ -47,10 +47,12 @@
 | `getCooperativeVectorProperties`   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `getCooperativeVectorMatrixSize`   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `convertCooperativeVectorMatrix`   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
+| `isCooperativeMatrixSupported` (3) | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `reportHeaps`                      | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 
 (1) dummy implementation only
 (2) returns nullptr but succeeds
+(3) returns false when not supported
 
 ## `IBuffer` interface
 
