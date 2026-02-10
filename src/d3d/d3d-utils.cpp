@@ -317,7 +317,7 @@ Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory)
     }
 }
 
-// Get `getDXGIFactory`.
+// Get `DXGIFactory`.
 // Warnings will be emitted via the `device` (if not present), else, stderr.
 ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device* device)
 {
@@ -341,7 +341,7 @@ ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device*
         if (SLANG_FAILED(createDXGIFactory(debugLayerOptions.isDebugLayersEnabled(), f)))
         {
             // If debug was enabled && debug is *not* required, try again without debug
-            if(debugLayerOptions.isDebugLayersEnabled() && !debugLayerOptions.required)
+            if (debugLayerOptions.isDebugLayersEnabled() && !debugLayerOptions.required)
             {
                 if (device)
                     device->printWarning("Failed to create a debug DXGIFactory.");
@@ -354,7 +354,7 @@ ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device*
         }
         previousDebugLayerOptions = debugLayerOptions;
         return f;
-    }();   
+    }();
     return factory;
 }
 

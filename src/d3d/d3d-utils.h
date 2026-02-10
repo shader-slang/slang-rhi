@@ -1,11 +1,11 @@
 #pragma once
 
+#include "device.h"
 #include "core/common.h"
 
 #include <slang-com-helper.h>
 #include <slang-com-ptr.h>
 #include <slang-rhi.h>
-#include "device.h"
 
 #include <d3dcommon.h>
 #include <dxgi.h>
