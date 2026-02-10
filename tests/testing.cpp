@@ -1074,7 +1074,7 @@ int registerGpuTest(
         info->deviceType = deviceType;
         info->flags = flags;
         info->hasDebugLayerOptions = debugLayerOptions.has_value();
-        info->debugLayerOptions = debugLayerOptions.value_or({});
+        info->debugLayerOptions = debugLayerOptions.value_or(DebugLayerOptions{});
 
         char* testName = reinterpret_cast<char*>(info + 1);
         snprintf(testName, testNameLen, "%s.%s", name, deviceTypeToString(deviceType));
