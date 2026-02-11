@@ -18,6 +18,8 @@
 #include "core/short_vector.h"
 #include "core/common.h"
 
+#include <algorithm>
+
 namespace rhi::d3d12 {
 
 template<typename T>
@@ -759,13 +761,59 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
                 {
                     format = dstView->m_texture->m_format;
                 }
-                m_cmdList->ResolveSubresource(
-                    dstView->m_texture->m_resource.getResource(),
-                    0, // TODO iterate subresources
-                    srcView->m_texture->m_resource.getResource(),
-                    0, // TODO iterate subresources
-                    format
-                );
+
+                // Resolve all subresources in the specified range
+                const SubresourceRange& srcRange = srcView->m_desc.subresourceRange;
+                const SubresourceRange& dstRange = dstView->m_desc.subresourceRange;
+                const TextureDesc& srcDesc = srcView->m_texture->m_desc;
+                const TextureDesc& dstDesc = dstView->m_texture->m_desc;
+
+                uint32_t srcMipCount =
+                    srcRange.mipCount == kAllMips ? srcDesc.mipLevelCount - srcRange.mip : srcRange.mipCount;
+                uint32_t dstMipCount =
+                    dstRange.mipCount == kAllMips ? dstDesc.mipLevelCount - dstRange.mip : dstRange.mipCount;
+                uint32_t srcLayerCount =
+                    srcRange.layerCount == kAllLayers ? srcDesc.arraySize - srcRange.layer : srcRange.layerCount;
+                uint32_t dstLayerCount =
+                    dstRange.layerCount == kAllLayers ? dstDesc.arraySize - dstRange.layer : dstRange.layerCount;
+
+                // Ensure both views have matching subresource counts
+                uint32_t mipCount = std::min(srcMipCount, dstMipCount);
+                uint32_t layerCount = std::min(srcLayerCount, dstLayerCount);
+
+                for (uint32_t layerOffset = 0; layerOffset < layerCount; ++layerOffset)
+                {
+                    for (uint32_t mipOffset = 0; mipOffset < mipCount; ++mipOffset)
+                    {
+                        uint32_t srcMip = srcRange.mip + mipOffset;
+                        uint32_t dstMip = dstRange.mip + mipOffset;
+                        uint32_t srcLayer = srcRange.layer + layerOffset;
+                        uint32_t dstLayer = dstRange.layer + layerOffset;
+
+                        uint32_t srcSubresource = getSubresourceIndex(
+                            srcMip,
+                            srcLayer,
+                            0, // planeIndex - assuming single plane for now
+                            srcDesc.mipLevelCount,
+                            srcDesc.arraySize
+                        );
+                        uint32_t dstSubresource = getSubresourceIndex(
+                            dstMip,
+                            dstLayer,
+                            0, // planeIndex - assuming single plane for now
+                            dstDesc.mipLevelCount,
+                            dstDesc.arraySize
+                        );
+
+                        m_cmdList->ResolveSubresource(
+                            dstView->m_texture->m_resource.getResource(),
+                            dstSubresource,
+                            srcView->m_texture->m_resource.getResource(),
+                            srcSubresource,
+                            format
+                        );
+                    }
+                }
             }
         }
     }
