@@ -767,8 +767,8 @@ void SurfaceImpl::destroySharedTexture(SharedTexture& sharedTexture)
 
 Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
-    // Set CUDA context current for this thread (required for CUDA API calls in createSwapchain/createFrameData).
-    m_deviceImpl->setCudaContextCurrent();
+    // Push/pop CUDA context to restore caller's context (e.g., PyTorch) after configuration.
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
 
     setConfig(config);
 
@@ -842,8 +842,8 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
 Result SurfaceImpl::present()
 {
-    // Set CUDA context current for this thread (required for cuStreamSynchronize).
-    m_deviceImpl->setCudaContextCurrent();
+    // Push/pop CUDA context to restore caller's context (e.g., PyTorch) after presentation.
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
 
     if (!m_configured)
     {
