@@ -10,9 +10,10 @@
 using namespace rhi;
 using namespace linalg::aliases;
 
-#define USE_RAYTRACING_PIPELINE 1
+#define USE_RAYTRACING_PIPELINE 0
 
-struct RNG {
+struct RNG
+{
     std::mt19937 generator;
 
     RNG(uint32_t seed = 123456789)
@@ -20,20 +21,11 @@ struct RNG {
     {
     }
 
-    uint32_t nextU32()
-    {
-        return generator();
-    }
+    uint32_t nextU32() { return generator(); }
 
-    float nextFloat()
-    {
-        return float(nextU32()) * (1.f / float(0xFFFFFFFF));
-    }
+    float nextFloat() { return float(nextU32()) * (1.f / float(0xFFFFFFFF)); }
 
-    float3 nextFloat3()
-    {
-        return float3(nextFloat(), nextFloat(), nextFloat());
-    }
+    float3 nextFloat3() { return float3(nextFloat(), nextFloat(), nextFloat()); }
 };
 
 struct Camera
@@ -689,7 +681,7 @@ struct Scene
         cursor["indices"].setBinding(indexBuffer);
         cursor["transforms"].setBinding(transformsBuffer);
         cursor["inverseTransposeTransforms"].setBinding(inverseTransposeTransformsBuffer);
-        camera->bind(cursor["camera"]);
+        // camera->bind(cursor["camera"]);
     }
 };
 
@@ -763,6 +755,7 @@ struct PathTracer
             IShaderObject* shaderObject = passEncoder->bindPipeline(rayTracingPipeline, shaderTable);
             ShaderCursor cursor = ShaderCursor(shaderObject);
             scene->bind(cursor["g_scene"]);
+            scene->camera->bind(cursor["g_camera"]);
             cursor = ShaderCursor(shaderObject->getEntryPoint(0));
             cursor["output"].setBinding(output);
             cursor["frame"].setData(frame);
@@ -776,6 +769,7 @@ struct PathTracer
             IShaderObject* shaderObject = passEncoder->bindPipeline(computePipeline);
             ShaderCursor cursor = ShaderCursor(shaderObject);
             scene->bind(cursor["g_scene"]);
+            scene->camera->bind(cursor["g_camera"]);
             cursor = ShaderCursor(shaderObject->getEntryPoint(0));
             cursor["output"].setBinding(output);
             cursor["frame"].setData(frame);

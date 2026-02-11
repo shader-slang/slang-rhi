@@ -81,9 +81,13 @@ struct RNG
 struct Camera
 {
     float3 position;
+    float pad0;
     float3 imageU;
+    float pad1;
     float3 imageV;
+    float pad2;
     float3 imageW;
+    float pad3;
 
     Ray get_ray(float2 uv)
     {
@@ -122,6 +126,8 @@ struct InstanceDesc
 
 struct Scene
 {
+    // Camera camera;
+
     RaytracingAccelerationStructure tlas;
 
     StructuredBuffer<MaterialDesc> materialDescs;
@@ -131,8 +137,6 @@ struct Scene
     StructuredBuffer<uint> indices;
     StructuredBuffer<float4x4> transforms;
     StructuredBuffer<float4x4> inverseTransposeTransforms;
-
-    Camera camera;
 
     MaterialDesc getMaterial(HitInfo hitInfo)
     {
@@ -204,15 +208,16 @@ float3 diffuseBrdfSample(float3 wi, float2 uv, out float pdf)
 
 float3 envmap(float3 dir)
 {
-    return float3(1);
-    // float3 env = float3(0);
-    // env += saturate(dot(dir, float3(0, 1, 0))) * float3(0.5, 0.5, 1);
-    // const float3 LIGHT_DIR = normalize(float3(0.5, 1, -0.8));
-    // env += saturate(smoothstep(0.95, 0.96, dot(dir, LIGHT_DIR))) * float3(10);
-    // return env;
+    // return float3(1);
+    float3 env = float3(0);
+    env += saturate(dot(dir, float3(0, 1, 0))) * float3(0.5, 0.5, 1);
+    const float3 LIGHT_DIR = normalize(float3(0.5, 1, -0.8));
+    env += saturate(smoothstep(0.95, 0.96, dot(dir, LIGHT_DIR))) * float3(10);
+    return env;
 }
 
 ParameterBlock<Scene> g_scene;
+ConstantBuffer<Camera> g_camera;
 
 #if USE_RAYTRACING_PIPELINE
 
@@ -276,7 +281,7 @@ void renderRaygen(RWTexture2D<float4> output, uniform uint frame)
         RNG rng = RNG(pixel, frame * spp + i);
         float2 uv = float2(pixel + rng.next2D()) / float2(dim);
         uv.y = 1 - uv.y;
-        Ray ray = g_scene.camera.get_ray(uv);
+        Ray ray = g_camera.get_ray(uv);
         Path path = Path(pixel, ray, rng);
         TraceRay(
             g_scene.tlas,
@@ -300,8 +305,9 @@ HitInfo intersect(Ray ray)
 {
     HitInfo hit = {};
 
-    RayQuery<RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> q;
-    q.TraceRayInline(g_scene.tlas, 0, 0xff, ray.toRayDesc());
+    // RayQuery<RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> q;
+    RayQuery q;
+    q.TraceRayInline(g_scene.tlas, RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES, 0xff, ray.toRayDesc());
     while (q.Proceed())
         ;
     if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
@@ -359,10 +365,11 @@ void renderCompute(uint3 tid: SV_DispatchThreadID, RWTexture2D<float4> output, u
         RNG rng = RNG(pixel, frame * spp + i);
         float2 uv = float2(pixel + rng.next2D()) / float2(dim);
         uv.y = 1 - uv.y;
-        Ray ray = g_scene.camera.get_ray(uv);
+        Ray ray = g_camera.get_ray(uv);
         Path path = Path(pixel, ray, rng);
         tracePath(path);
         L += path.L;
+        // L += envmap(ray.dir);
     }
     L /= spp;
     output[pixel] = float4(L, 1);

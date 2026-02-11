@@ -204,6 +204,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     if (m_device->supportsRaytracing())
     {
         addFeature(Feature::AccelerationStructure);
+        addFeature(Feature::RayQuery);
     }
 
     m_hasArgumentBufferTier2 = m_device->argumentBuffersSupport() >= MTL::ArgumentBuffersTier2;

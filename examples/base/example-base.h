@@ -345,10 +345,10 @@ static int main(int argc, const char** argv)
 
     std::vector<DeviceType> deviceTypes = {
         // DeviceType::D3D11,
-        DeviceType::D3D12,
-        DeviceType::CUDA,
+        // DeviceType::D3D12,
+        // DeviceType::CUDA,
         // DeviceType::Vulkan,
-        // DeviceType::Metal,
+        DeviceType::Metal,
         // DeviceType::CPU,
         // DeviceType::CUDA,
         // Exclude for now as WGPU backend is not fully functional
