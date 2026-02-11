@@ -14,17 +14,27 @@ ITaskPool* ThreadPool::getInterface(const Guid& guid)
 
 ThreadPool::ThreadPool(uint32_t threadCount)
 {
-    if (threadCount == 0)
-        threadCount = std::max(1u, std::thread::hardware_concurrency());
-
-    m_workers.reserve(threadCount);
-    for (uint32_t i = 0; i < threadCount; ++i)
-        m_workers.emplace_back(&ThreadPool::workerLoop, this);
+    startWorkers(threadCount);
 }
 
 ThreadPool::~ThreadPool()
 {
-    // Signal all workers to shut down.
+    shutdownWorkers();
+}
+
+void ThreadPool::startWorkers(uint32_t count)
+{
+    // count == 0 means serial mode — no worker threads.
+    if (count == 0)
+        return;
+
+    m_workers.reserve(count);
+    for (uint32_t i = 0; i < count; ++i)
+        m_workers.emplace_back(&ThreadPool::workerLoop, this);
+}
+
+void ThreadPool::shutdownWorkers()
+{
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_shutdown = true;
@@ -33,6 +43,23 @@ ThreadPool::~ThreadPool()
 
     for (auto& worker : m_workers)
         worker.join();
+
+    m_workers.clear();
+    m_shutdown = false;
+}
+
+void ThreadPool::setThreadCount(uint32_t count)
+{
+    // Wait for all pending work before resizing.
+    waitAll();
+    shutdownWorkers();
+    startWorkers(count);
+}
+
+uint32_t ThreadPool::getThreadCount() const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return static_cast<uint32_t>(m_workers.size());
 }
 
 void ThreadPool::workerLoop()
@@ -95,6 +122,15 @@ ITaskPool::TaskHandle ThreadPool::submitTask(
     task->func = func;
     task->payload = payload;
     task->payloadDeleter = payloadDeleter;
+
+    // Serial mode (0 workers): execute immediately on the calling thread.
+    // Dependencies are guaranteed complete since they also executed inline.
+    if (m_workers.empty())
+    {
+        func(payload);
+        task->done = true;
+        return static_cast<TaskHandle>(task);
+    }
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);

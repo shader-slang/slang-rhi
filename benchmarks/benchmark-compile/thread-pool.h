@@ -15,6 +15,10 @@ namespace rhi {
 /// A parallel ITaskPool implementation backed by a real thread pool.
 /// Workers pull tasks from a shared queue. Task dependencies are honored:
 /// a task is not scheduled until all its dependency tasks are complete.
+///
+/// The thread count can be changed dynamically via setThreadCount().
+/// When the thread count is 0, the pool operates in serial mode:
+/// tasks are executed immediately on the calling thread (like BlockingTaskPool).
 class ThreadPool : public ITaskPool, public ComObject
 {
 public:
@@ -23,9 +27,17 @@ public:
     ITaskPool* getInterface(const Guid& guid);
 
     /// Create a thread pool.
-    /// \param threadCount Number of worker threads. 0 means std::thread::hardware_concurrency().
+    /// \param threadCount Number of worker threads. 0 means serial (execute inline).
     explicit ThreadPool(uint32_t threadCount = 0);
     ~ThreadPool();
+
+    /// Dynamically change the number of worker threads.
+    /// Waits for all pending tasks to complete, shuts down existing workers,
+    /// then starts the new number of workers. 0 means serial mode.
+    void setThreadCount(uint32_t count);
+
+    /// Returns the current number of worker threads (0 = serial).
+    uint32_t getThreadCount() const;
 
     // ITaskPool interface
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
@@ -60,10 +72,12 @@ private:
     };
 
     void workerLoop();
+    void shutdownWorkers();  // Signal workers to stop and join all threads.
+    void startWorkers(uint32_t count); // Spawn count worker threads.
 
     std::vector<std::thread> m_workers;
     std::queue<Task*> m_readyQueue;
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::condition_variable m_workerCV;     // Workers wait for ready tasks.
     std::condition_variable m_completionCV; // Waiters wait for task completion.
     bool m_shutdown = false;

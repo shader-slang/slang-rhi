@@ -55,8 +55,6 @@ static StderrDebugCallback g_debugCallback;
 
 struct BenchmarkConfig
 {
-    uint32_t threadCount = 0;
-    bool serial = false;
     int iterations = 5;
     bool verbose = false;
 
@@ -64,6 +62,7 @@ struct BenchmarkConfig
     std::optional<DeviceType> pinnedDeviceType;
     std::optional<int> pinnedModuleCount;
     std::optional<SizeLevel> pinnedSizeLevel;
+    std::optional<uint32_t> pinnedThreadCount; // nullopt = auto-vary; 0 = serial (no pool)
 };
 
 static BenchmarkConfig g_config;
@@ -71,9 +70,6 @@ static BenchmarkConfig g_config;
 // Global seed counter — incremented for every iteration across all configurations
 // to ensure no two iterations ever share a seed (and thus module/function names).
 static int globalSeedCounter = 0;
-
-// Shared state.
-static ComPtr<ITaskPool> g_taskPool;
 
 // Device types to benchmark (ray tracing capable).
 static const DeviceType kAllDeviceTypes[] = {
@@ -313,6 +309,7 @@ static BenchmarkStats computeStats(const std::vector<double>& durationsMs)
 struct BenchmarkRow
 {
     const char* deviceTypeName;
+    uint32_t threadCount;           // 0 = serial (no task pool)
     int moduleCount;
     SizeLevel sizeLevel;
     BenchmarkStats frontendStats;   // Slang frontend: parse, type-check, link/optimize IR
@@ -325,20 +322,27 @@ struct BenchmarkRow
 static void printResultTable(const std::vector<BenchmarkRow>& rows)
 {
     // Header
-    printf("%-13s| %-6s| %-8s| %12s | %12s | %12s | %12s | %12s |\n",
-        "Device Type", "# Mods", "Size",
+    printf("%-13s| %-8s| %-6s| %-8s| %12s | %12s | %12s | %12s | %12s |\n",
+        "Device Type", "Threads", "# Mods", "Size",
         "Frontend(ms)", "Codegen(ms)", "Downstrm(ms)", "Driver (ms)", "Total (ms)");
 
     // Separator
-    printf("%-13s| %-6s| %-8s| %12s | %12s | %12s | %12s | %12s |\n",
-        "-------------", "------", "--------",
+    printf("%-13s| %-8s| %-6s| %-8s| %12s | %12s | %12s | %12s | %12s |\n",
+        "-------------", "--------", "------", "--------",
         "------------", "------------", "------------", "------------", "------------");
 
     // Rows
     for (const auto& row : rows)
     {
-        printf("%-13s| %-6d| %-8s| %12.2f | %12.2f | %12.2f | %12.2f | %12.2f |\n",
+        char threadsStr[16];
+        if (row.threadCount == 0)
+            snprintf(threadsStr, sizeof(threadsStr), "serial");
+        else
+            snprintf(threadsStr, sizeof(threadsStr), "%u", row.threadCount);
+
+        printf("%-13s| %-8s| %-6d| %-8s| %12.2f | %12.2f | %12.2f | %12.2f | %12.2f |\n",
             row.deviceTypeName,
+            threadsStr,
             row.moduleCount,
             sizeLevelName(row.sizeLevel),
             row.frontendStats.meanMs,
@@ -404,7 +408,7 @@ static void parseArgs(int argc, char* argv[])
         }
         else if (strcmp(argv[i], "--threads") == 0 && i + 1 < argc)
         {
-            g_config.threadCount = static_cast<uint32_t>(atoi(argv[++i]));
+            g_config.pinnedThreadCount = static_cast<uint32_t>(atoi(argv[++i]));
         }
         else if (strcmp(argv[i], "--iterations") == 0 && i + 1 < argc)
         {
@@ -412,7 +416,7 @@ static void parseArgs(int argc, char* argv[])
         }
         else if (strcmp(argv[i], "--serial") == 0)
         {
-            g_config.serial = true;
+            g_config.pinnedThreadCount = 0; // 0 = serial (no task pool)
         }
         else if (strcmp(argv[i], "--verbose") == 0 || strcmp(argv[i], "-v") == 0)
         {
@@ -425,9 +429,9 @@ static void parseArgs(int argc, char* argv[])
             printf("  --device <type>      Pin device type: vulkan, d3d12, cuda (default: all)\n");
             printf("  --modules <n>        Pin module count (default: auto-vary 1,2,4,8,16)\n");
             printf("  --size <level>       Pin module size: simple, complex (default: auto-vary)\n");
-            printf("  --threads <n>        Thread pool size, 0 = hardware threads (default: 0)\n");
+            printf("  --threads <n>        Pin thread count (default: auto-vary 1,2,4,...,hwThreads)\n");
             printf("  --iterations <n>     Iterations per configuration (default: 5)\n");
-            printf("  --serial             Use blocking task pool (no threads) for baseline\n");
+            printf("  --serial             Pin to serial mode (no task pool)\n");
             printf("  --verbose, -v        Enable debug callbacks and validation\n");
 
             printf("  --help               Show this help message\n");
@@ -444,9 +448,33 @@ static void parseArgs(int argc, char* argv[])
 // Benchmark runner
 // ---------------------------------------------------------------------------
 
-static int runBenchmarks(IRHI* rhi)
+/// Build the list of thread counts to benchmark.
+static std::vector<uint32_t> buildThreadCountList()
 {
-    // Build the device type list.
+    if (g_config.pinnedThreadCount)
+    {
+        return {*g_config.pinnedThreadCount};
+    }
+
+    // Auto-vary: serial (0), then powers of 2 from 1 up to hardware_concurrency.
+    uint32_t hwThreads = std::thread::hardware_concurrency();
+    if (hwThreads == 0)
+        hwThreads = 1;
+
+    std::vector<uint32_t> counts;
+    counts.push_back(0); // serial baseline
+    for (uint32_t t = 1; t <= hwThreads; t *= 2)
+        counts.push_back(t);
+    // Always include the actual hardware thread count if it isn't a power of 2.
+    if (counts.back() != hwThreads)
+        counts.push_back(hwThreads);
+
+    return counts;
+}
+
+static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
+{
+    // Build the configuration axes.
     std::vector<DeviceType> deviceTypes;
     if (g_config.pinnedDeviceType)
     {
@@ -466,8 +494,14 @@ static int runBenchmarks(IRHI* rhi)
         ? std::vector<SizeLevel>{*g_config.pinnedSizeLevel}
         : std::vector<SizeLevel>{SizeLevel::Simple, SizeLevel::Complex};
 
+    std::vector<uint32_t> threadCounts = buildThreadCountList();
+
     std::vector<BenchmarkRow> results;
     int failures = 0;
+
+    // Loop order: device → modules → size → threads
+    // This groups thread-count variations together in the output table,
+    // making it easy to see the effect of parallelism for each configuration.
 
     for (auto deviceType : deviceTypes)
     {
@@ -510,136 +544,143 @@ static int runBenchmarks(IRHI* rhi)
         {
             for (auto sizeLevel : sizeLevels)
             {
-                // Each iteration uses a unique seed to defeat all caching:
-                // - RHI level: new ShaderProgram object → compileShaders() runs fresh
-                // - Driver level: unique entry point names → different binary code
-                std::vector<double> frontendMs;    // compileModules: parse, type-check, link/optimize IR
-                std::vector<double> codegenMs;     // Slang backend codegen (IR → target source)
-                std::vector<double> downstreamMs;  // Downstream compiler (NVRTC/DXC)
-                std::vector<double> driverOnlyMs;  // Driver pipeline creation
-                std::vector<double> totalMs;       // End-to-end wall clock
-                frontendMs.reserve(g_config.iterations);
-                codegenMs.reserve(g_config.iterations);
-                downstreamMs.reserve(g_config.iterations);
-                driverOnlyMs.reserve(g_config.iterations);
-                totalMs.reserve(g_config.iterations);
-
-                for (int iter = 0; iter < g_config.iterations; ++iter)
+                for (auto threadCount : threadCounts)
                 {
-                    // Seed must be globally unique across ALL configs (module count,
-                    // size level, iteration) to prevent:
-                    // - Slang module cache returning stale modules (same name, different source)
-                    // - Driver shader cache reusing compiled shaders from earlier configs
-                    int seed = globalSeedCounter++;
+                    // Resize the pool for this thread count (0 = serial).
+                    pool->setThreadCount(threadCount);
+
+                    // Each iteration uses a unique seed to defeat all caching:
+                    // - RHI level: new ShaderProgram object → compileShaders() runs fresh
+                    // - Driver level: unique entry point names → different binary code
+                    std::vector<double> frontendMs;    // compileModules: parse, type-check, link/optimize IR
+                    std::vector<double> codegenMs;     // Slang backend codegen (IR → target source)
+                    std::vector<double> downstreamMs;  // Downstream compiler (NVRTC/DXC)
+                    std::vector<double> driverOnlyMs;  // Driver pipeline creation
+                    std::vector<double> totalMs;       // End-to-end wall clock
+                    frontendMs.reserve(g_config.iterations);
+                    codegenMs.reserve(g_config.iterations);
+                    downstreamMs.reserve(g_config.iterations);
+                    driverOnlyMs.reserve(g_config.iterations);
+                    totalMs.reserve(g_config.iterations);
+
+                    for (int iter = 0; iter < g_config.iterations; ++iter)
+                    {
+                        // Seed must be globally unique across ALL configs (thread count,
+                        // module count, size level, iteration) to prevent:
+                        // - Slang module cache returning stale modules (same name, different source)
+                        // - Driver shader cache reusing compiled shaders from earlier configs
+                        int seed = globalSeedCounter++;
+
+                        if (g_config.verbose)
+                        {
+                            fprintf(stderr, "[verbose] %s (threads=%u): %d mods, %s, iter %d/%d: generating...\n",
+                                deviceTypeName, threadCount, moduleCount, sizeLevelName(sizeLevel),
+                                iter + 1, g_config.iterations);
+                            fflush(stderr);
+                        }
+
+                        // Generate modules with unique names for this iteration.
+                        auto modules = generateSyntheticModules({moduleCount, sizeLevel, seed});
+
+                        // --- Timed: Slang frontend (parse, type-check, link/optimize IR) ---
+                        // compileModules now forces getLayout() which triggers Slang's linker.
+                        auto tFE0 = std::chrono::high_resolution_clock::now();
+                        auto program = compileModules(device, modules);
+                        auto tFE1 = std::chrono::high_resolution_clock::now();
+
+                        if (!program)
+                        {
+                            fprintf(stderr, "  Error: compileModules failed for %d modules, size=%s, iter=%d\n",
+                                moduleCount, sizeLevelName(sizeLevel), iter);
+                            ++failures;
+                            break;
+                        }
+
+                        double feTime = std::chrono::duration<double, std::milli>(tFE1 - tFE0).count();
+
+                        if (g_config.verbose)
+                        {
+                            fprintf(stderr, "[verbose]   compileModules done (%.2f ms), creating pipeline...\n", feTime);
+                            fflush(stderr);
+                        }
+
+                        // Snapshot Slang's cumulative compiler timers BEFORE pipeline creation.
+                        double slangTotalBefore = 0, slangDownstreamBefore = 0;
+                        if (globalSession)
+                            globalSession->getCompilerElapsedTime(&slangTotalBefore, &slangDownstreamBefore);
+
+                        // --- Timed: pipeline creation (Slang codegen + driver) ---
+                        // Linking is already done (getLayout called in compileModules), so this
+                        // only triggers getEntryPointCode() (codegen) + createRayTracingPipeline2().
+                        auto t0 = std::chrono::high_resolution_clock::now();
+                        auto pipeline = createRayTracingPipeline(device, program, modules);
+                        auto t1 = std::chrono::high_resolution_clock::now();
+
+                        // Snapshot Slang's cumulative compiler timers AFTER pipeline creation.
+                        double slangTotalAfter = 0, slangDownstreamAfter = 0;
+                        if (globalSession)
+                            globalSession->getCompilerElapsedTime(&slangTotalAfter, &slangDownstreamAfter);
+
+                        if (!pipeline)
+                        {
+                            fprintf(stderr, "  Error: createRayTracingPipeline failed on iteration %d "
+                                "for %d modules, size=%s\n",
+                                iter, moduleCount, sizeLevelName(sizeLevel));
+                            ++failures;
+                            break;
+                        }
+
+                        double pipelineTime = std::chrono::duration<double, std::milli>(t1 - t0).count();
+
+                        // Slang's getCompilerElapsedTime returns cumulative seconds.
+                        // "total" = all Slang compiler time during pipeline creation.
+                        // "downstream" = time in downstream compilers (NVRTC, DXC, etc.).
+                        // Slang codegen = total - downstream.
+                        double slangTotalDelta = (slangTotalAfter - slangTotalBefore) * 1000.0;     // sec → ms
+                        double downstreamDelta = (slangDownstreamAfter - slangDownstreamBefore) * 1000.0;
+                        double slangCodegenTime = slangTotalDelta - downstreamDelta;
+
+                        // Driver time = pipeline wall clock minus all Slang time.
+                        // This captures the REAL first-time driver compilation cost
+                        // (e.g., vkCreateRayTracingPipelinesKHR compiling SPIR-V to GPU ISA).
+                        double driverTime = pipelineTime - slangTotalDelta;
+                        if (driverTime < 0) driverTime = 0; // Guard against timing imprecision.
+
+                        frontendMs.push_back(feTime);
+                        codegenMs.push_back(slangCodegenTime);
+                        downstreamMs.push_back(downstreamDelta);
+                        driverOnlyMs.push_back(driverTime);
+                        totalMs.push_back(feTime + pipelineTime);
+
+                        if (g_config.verbose)
+                        {
+                            fprintf(stderr, "[verbose]   iter %d/%d complete (fe=%.2f ms, pipe=%.2f ms)\n",
+                                iter + 1, g_config.iterations, feTime, pipelineTime);
+                            fflush(stderr);
+                        }
+                    }
 
                     if (g_config.verbose)
                     {
-                        fprintf(stderr, "[verbose] %s: %d mods, %s, iter %d/%d: generating...\n",
-                            deviceTypeName, moduleCount, sizeLevelName(sizeLevel),
-                            iter + 1, g_config.iterations);
+                        fprintf(stderr, "[verbose]   config done (threads=%u, %d mods, %s): %zu successful iterations\n",
+                            threadCount, moduleCount, sizeLevelName(sizeLevel), frontendMs.size());
                         fflush(stderr);
                     }
 
-                    // Generate modules with unique names for this iteration.
-                    auto modules = generateSyntheticModules({moduleCount, sizeLevel, seed});
-
-                    // --- Timed: Slang frontend (parse, type-check, link/optimize IR) ---
-                    // compileModules now forces getLayout() which triggers Slang's linker.
-                    auto tFE0 = std::chrono::high_resolution_clock::now();
-                    auto program = compileModules(device, modules);
-                    auto tFE1 = std::chrono::high_resolution_clock::now();
-
-                    if (!program)
+                    if (!frontendMs.empty())
                     {
-                        fprintf(stderr, "  Error: compileModules failed for %d modules, size=%s, iter=%d\n",
-                            moduleCount, sizeLevelName(sizeLevel), iter);
-                        ++failures;
-                        break;
+                        BenchmarkRow row;
+                        row.deviceTypeName = deviceTypeName;
+                        row.threadCount = threadCount;
+                        row.moduleCount = moduleCount;
+                        row.sizeLevel = sizeLevel;
+                        row.frontendStats = computeStats(frontendMs);
+                        row.codegenStats = computeStats(codegenMs);
+                        row.downstreamStats = computeStats(downstreamMs);
+                        row.driverStats = computeStats(driverOnlyMs);
+                        row.totalStats = computeStats(totalMs);
+                        results.push_back(row);
                     }
-
-                    double feTime = std::chrono::duration<double, std::milli>(tFE1 - tFE0).count();
-
-                    if (g_config.verbose)
-                    {
-                        fprintf(stderr, "[verbose]   compileModules done (%.2f ms), creating pipeline 1...\n", feTime);
-                        fflush(stderr);
-                    }
-
-                    // Snapshot Slang's cumulative compiler timers BEFORE pipeline creation.
-                    double slangTotalBefore = 0, slangDownstreamBefore = 0;
-                    if (globalSession)
-                        globalSession->getCompilerElapsedTime(&slangTotalBefore, &slangDownstreamBefore);
-
-                    // --- Timed: pipeline creation (Slang codegen + driver) ---
-                    // Linking is already done (getLayout called in compileModules), so this
-                    // only triggers getEntryPointCode() (codegen) + createRayTracingPipeline2().
-                    auto t0 = std::chrono::high_resolution_clock::now();
-                    auto pipeline1 = createRayTracingPipeline(device, program, modules);
-                    auto t1 = std::chrono::high_resolution_clock::now();
-
-                    // Snapshot Slang's cumulative compiler timers AFTER pipeline creation.
-                    double slangTotalAfter = 0, slangDownstreamAfter = 0;
-                    if (globalSession)
-                        globalSession->getCompilerElapsedTime(&slangTotalAfter, &slangDownstreamAfter);
-
-                    if (!pipeline1)
-                    {
-                        fprintf(stderr, "  Error: createRayTracingPipeline failed on iteration %d "
-                            "for %d modules, size=%s\n",
-                            iter, moduleCount, sizeLevelName(sizeLevel));
-                        ++failures;
-                        break;
-                    }
-
-                    double pipelineTime = std::chrono::duration<double, std::milli>(t1 - t0).count();
-
-                    // Slang's getCompilerElapsedTime returns cumulative seconds.
-                    // "total" = all Slang compiler time during pipeline creation.
-                    // "downstream" = time in downstream compilers (NVRTC, DXC, etc.).
-                    // Slang codegen = total - downstream.
-                    double slangTotalDelta = (slangTotalAfter - slangTotalBefore) * 1000.0;     // sec → ms
-                    double downstreamDelta = (slangDownstreamAfter - slangDownstreamBefore) * 1000.0;
-                    double slangCodegenTime = slangTotalDelta - downstreamDelta;
-
-                    // Driver time = pipeline wall clock minus all Slang time.
-                    // This captures the REAL first-time driver compilation cost
-                    // (e.g., vkCreateRayTracingPipelinesKHR compiling SPIR-V to GPU ISA).
-                    double driverTime = pipelineTime - slangTotalDelta;
-                    if (driverTime < 0) driverTime = 0; // Guard against timing imprecision.
-
-                    frontendMs.push_back(feTime);
-                    codegenMs.push_back(slangCodegenTime);
-                    downstreamMs.push_back(downstreamDelta);
-                    driverOnlyMs.push_back(driverTime);
-                    totalMs.push_back(feTime + pipelineTime);
-
-                    if (g_config.verbose)
-                    {
-                        fprintf(stderr, "[verbose]   iter %d/%d complete (fe=%.2f ms, pipe=%.2f ms)\n",
-                            iter + 1, g_config.iterations, feTime, pipelineTime);
-                        fflush(stderr);
-                    }
-                }
-
-                if (g_config.verbose)
-                {
-                    fprintf(stderr, "[verbose]   config done (%d mods, %s): %zu successful iterations\n",
-                        moduleCount, sizeLevelName(sizeLevel), frontendMs.size());
-                    fflush(stderr);
-                }
-
-                if (!frontendMs.empty())
-                {
-                    BenchmarkRow row;
-                    row.deviceTypeName = deviceTypeName;
-                    row.moduleCount = moduleCount;
-                    row.sizeLevel = sizeLevel;
-                    row.frontendStats = computeStats(frontendMs);
-                    row.codegenStats = computeStats(codegenMs);
-                    row.downstreamStats = computeStats(downstreamMs);
-                    row.driverStats = computeStats(driverOnlyMs);
-                    row.totalStats = computeStats(totalMs);
-                    results.push_back(row);
                 }
             }
         }
@@ -770,10 +811,8 @@ int main(int argc, char* argv[])
     // - __GL_SHADER_DISK_CACHE=0: disables NVIDIA's Vulkan/OpenGL shader disk cache
 #ifdef _WIN32
     _putenv("OPTIX_CACHE_MAXSIZE=0");
-    _putenv("__GL_SHADER_DISK_CACHE=0");
 #else
     putenv(const_cast<char*>("OPTIX_CACHE_MAXSIZE=0"));
-    putenv(const_cast<char*>("__GL_SHADER_DISK_CACHE=0"));
 #endif
 
     // Clear any cached shaders from previous runs.
@@ -790,33 +829,30 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // 3. Set up task pool.
-    if (!g_config.serial)
+    // 3. Create a single thread pool and register it with the RHI once.
+    //    We dynamically resize it via setThreadCount() for each benchmark config.
+    ComPtr<ThreadPool> taskPool(new ThreadPool(0)); // Start in serial mode.
     {
-        g_taskPool = new ThreadPool(g_config.threadCount);
-        Result r = rhi->setTaskPool(g_taskPool);
+        Result r = rhi->setTaskPool(taskPool);
         if (SLANG_FAILED(r))
         {
             fprintf(stderr, "Error: setTaskPool failed (0x%08x)\n", static_cast<int>(r));
             return 1;
         }
-
-        uint32_t effectiveThreads = g_config.threadCount;
-        if (effectiveThreads == 0)
-            effectiveThreads = std::thread::hardware_concurrency();
-        printf("Using parallel thread pool with %u threads\n", effectiveThreads);
     }
-    else
+
+    // 4. Print thread count plan.
+    auto threadCounts = buildThreadCountList();
+    printf("Thread counts to benchmark:");
+    for (auto tc : threadCounts)
     {
-        printf("Using serial (blocking) task pool\n");
+        if (tc == 0)
+            printf(" serial");
+        else
+            printf(" %u", tc);
     }
+    printf("\n\n");
 
-    // 4. Run benchmarks (creates/destroys devices internally).
-    printf("\n");
-    int result = runBenchmarks(rhi);
-
-    // Cleanup.
-    g_taskPool.setNull();
-
-    return result;
+    // 5. Run benchmarks (creates/destroys devices internally, resizes pool per config).
+    return runBenchmarks(rhi, taskPool.get());
 }
