@@ -20,6 +20,12 @@ Vulkan       | 16    | simple  |        40.65 |        30.06 |         2.24 |   
 D3D12        | 16    | simple  |        39.48 |        53.37 |        27.73 |        71.51 |       192.09 |
 CUDA         | 16    | simple  |        39.71 |        92.38 |      1967.69 |       158.26 |      2258.04 |
 
+**Column legend**: **Frontend** = Slang parse, type-check, link/optimize IR |
+**Codegen** = Slang IR to target code (SPIR-V / HLSL / CUDA) |
+**Downstream** = DXC (D3D12), NVRTC (CUDA), or N/A (Vulkan) |
+**Driver** = GPU driver pipeline creation |
+**Total** = end-to-end wall-clock
+
 ## Building
 
 The benchmark is built automatically when `SLANG_RHI_BUILD_BENCHMARKS` is ON
@@ -195,29 +201,27 @@ timers (e.g., RHI bookkeeping, memory allocation).
 ### Timing Diagram
 
 ```mermaid
-gantt
-    title Compilation Timeline
-    dateFormat X
-    axisFormat %s
+flowchart LR
+    subgraph Total["Total (wall-clock)"]
+        direction LR
+        subgraph FE["Frontend (wall-clock)"]
+            direction TB
+            A["loadModuleFromSource\nfindEntryPointByName\ncreateCompositeComponentType\ngetLayout — IR link/opt\ncreateShaderProgram"]
+        end
+        subgraph Pipe["Pipeline Creation (wall-clock)"]
+            direction LR
+            CG["Codegen\nSlang IR\n→ target"]
+            DS["Downstream\nDXC / NVRTC"]
+            DR["Driver\ntarget → GPU ISA"]
+            CG --> DS --> DR
+        end
+        FE --> Pipe
+    end
 
-    section Frontend (wall-clock)
-    loadModuleFromSource           :f1, 0, 3
-    findEntryPointByName           :f2, after f1, 1
-    createCompositeComponentType   :f3, after f2, 1
-    getLayout (IR link/opt)        :f4, after f3, 4
-    createShaderProgram            :f5, after f4, 1
-
-    section Pipeline Creation (wall-clock)
-    Codegen: Slang IR → target     :crit, cg, after f5, 3
-    Downstream: DXC / NVRTC        :active, ds, after cg, 4
-    Driver: target → GPU ISA       :dr, after ds, 5
-
-    section Measured Columns
-    Frontend(ms) = wall-clock      :milestone, m1, 0, 0
-    Codegen(ms) = slangTotal − downstream :milestone, m2, after f5, 0
-    Downstrm(ms) = downstream delta :milestone, m3, after cg, 0
-    Driver(ms) = pipeline − slangTotal :milestone, m4, after ds, 0
-    Total(ms) = frontend + pipeline :milestone, m5, after dr, 0
+    style FE fill:#4a9eff,color:#fff
+    style CG fill:#f5a623,color:#fff
+    style DS fill:#d0021b,color:#fff
+    style DR fill:#7b61ff,color:#fff
 ```
 
 ## Defeating Compilation Caches
