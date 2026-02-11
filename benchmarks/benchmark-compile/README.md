@@ -194,19 +194,30 @@ timers (e.g., RHI bookkeeping, memory allocation).
 
 ### Timing Diagram
 
-```
-|<------------- Total (wall-clock) --------------------------------->|
-|                                                                     |
-|<-- Frontend (wall-clock) -->|<---- Pipeline Creation (wall-clock) ->|
-|                             |                                       |
-| loadModuleFromSource        |  getEntryPointCode   |  driver API    |
-| findEntryPointByName        |  (triggers codegen   |  call (e.g.,   |
-| createCompositeComponentType|   + downstream)      |  vkCreate...)  |
-| getLayout (IR link/opt)     |                      |                |
-| createShaderProgram         |<- Codegen -><-Down ->|<-- Driver ---->|
-|                             |  (Slang IR   stream  | (SPIR-V/DXIL/ |
-|                             |   → target)  (DXC/   |  PTX → ISA)   |
-|                             |              NVRTC)  |                |
+```mermaid
+gantt
+    title Compilation Timeline
+    dateFormat X
+    axisFormat %s
+
+    section Frontend (wall-clock)
+    loadModuleFromSource           :f1, 0, 3
+    findEntryPointByName           :f2, after f1, 1
+    createCompositeComponentType   :f3, after f2, 1
+    getLayout (IR link/opt)        :f4, after f3, 4
+    createShaderProgram            :f5, after f4, 1
+
+    section Pipeline Creation (wall-clock)
+    Codegen: Slang IR → target     :crit, cg, after f5, 3
+    Downstream: DXC / NVRTC        :active, ds, after cg, 4
+    Driver: target → GPU ISA       :dr, after ds, 5
+
+    section Measured Columns
+    Frontend(ms) = wall-clock      :milestone, m1, 0, 0
+    Codegen(ms) = slangTotal − downstream :milestone, m2, after f5, 0
+    Downstrm(ms) = downstream delta :milestone, m3, after cg, 0
+    Driver(ms) = pipeline − slangTotal :milestone, m4, after ds, 0
+    Total(ms) = frontend + pipeline :milestone, m5, after dr, 0
 ```
 
 ## Defeating Compilation Caches
