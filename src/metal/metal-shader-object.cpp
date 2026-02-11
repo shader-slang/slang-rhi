@@ -1,5 +1,6 @@
 #include "metal-shader-object.h"
 #include "metal-device.h"
+#include "metal-acceleration-structure.h"
 #include "metal-buffer.h"
 #include "metal-texture.h"
 #include "metal-sampler.h"
@@ -254,10 +255,12 @@ Result BindingDataBuilder::bindAsValue(
                 }
             }
             break;
+        case slang::BindingType::RayTracingAccelerationStructure:
+            // Acceleration structures are bound via argument buffers, not directly
+            break;
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:
             break;
-
         default:
             SLANG_RHI_ASSERT_FAILURE("Unsupported binding type");
             return SLANG_FAIL;
@@ -508,6 +511,22 @@ Result BindingDataBuilder::writeArgumentBuffer(
             }
         }
         break;
+        case slang::BindingType::RayTracingAccelerationStructure:
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
+                AccelerationStructureImpl* accelerationStructure =
+                    checked_cast<AccelerationStructureImpl*>(slot.resource.get());
+                if (accelerationStructure)
+                {
+                    auto resourceId = accelerationStructure->m_accelerationStructure->gpuResourceID();
+                    memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
+                    SLANG_RETURN_ON_FAIL(
+                        addUsedResource(m_bindingData, accelerationStructure->m_accelerationStructure.get())
+                    );
+                }
+            }
+            break;
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:
             break;
