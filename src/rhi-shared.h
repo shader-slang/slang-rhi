@@ -332,7 +332,7 @@ inline uint32_t heightInBlocks(const FormatInfo& formatInfo, uint32_t size)
     return formatInfo.isCompressed ? (size + formatInfo.blockHeight - 1) / formatInfo.blockHeight : size;
 }
 
-inline bool isNativeHandleValidAtomic(const NativeHandle& handle)
+inline bool isNativeHandleValidAtomic(NativeHandle& handle)
 {
     return std::atomic_ref(handle.type).load(std::memory_order_acquire) != NativeHandleType::Undefined;
 }
@@ -343,7 +343,7 @@ inline void setNativeHandleAtomic(NativeHandle& handle, NativeHandleType type, u
     std::atomic_ref(handle.type).store(type, std::memory_order_release);
 }
 
-inline bool isDescriptorHandleValidAtomic(const DescriptorHandle& handle)
+inline bool isDescriptorHandleValidAtomic(DescriptorHandle& handle)
 {
     return std::atomic_ref(handle.type).load(std::memory_order_acquire) != DescriptorHandleType::Undefined;
 }
