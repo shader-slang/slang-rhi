@@ -829,7 +829,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/main.cpp
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
-        tests/test-atomic-bfloat16.cpp
+        tests/test-device-features.cpp
         tests/test-block-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless.cpp

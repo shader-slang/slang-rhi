@@ -164,7 +164,8 @@ enum class DeviceType
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
-    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
+    /* CUDA specific features */                                                                  \
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
