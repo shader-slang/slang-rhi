@@ -214,14 +214,12 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
         info.memory = m_buffer.m_memory;
         info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
-        PFN_vkGetMemoryWin32HandleKHR vkCreateSharedHandle;
-        vkCreateSharedHandle = api.vkGetMemoryWin32HandleKHR;
-        if (!vkCreateSharedHandle)
+        if (!api.vkGetMemoryWin32HandleKHR)
         {
             return SLANG_FAIL;
         }
         HANDLE handle = NULL;
-        SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api.m_device, &info, &handle));
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(api.m_device, &info, &handle));
         setNativeHandleAtomic(m_sharedHandle, NativeHandleType::Win32, (uint64_t)handle);
 #else
         VkMemoryGetFdInfoKHR info = {};
@@ -230,15 +228,12 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
         info.memory = m_buffer.m_memory;
         info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 
-        auto api = m_buffer.m_api;
-        PFN_vkGetMemoryFdKHR vkCreateSharedHandle;
-        vkCreateSharedHandle = api.vkGetMemoryFdKHR;
-        if (!vkCreateSharedHandle)
+        if (!api.vkGetMemoryFdKHR)
         {
             return SLANG_FAIL;
         }
         int handle = 0;
-        SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api.m_device, &info, &handle));
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(api.m_device, &info, &handle));
         setNativeHandleAtomic(m_sharedHandle, NativeHandleType::FileDescriptor, (uint64_t)handle);
 #endif
     }
