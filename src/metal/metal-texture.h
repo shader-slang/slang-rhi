@@ -10,9 +10,14 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
+    virtual void deleteThis() override;
+
     NS::SharedPtr<MTL::Texture> m_texture;
     MTL::TextureType m_textureType;
     MTL::PixelFormat m_pixelFormat;
+    // True if this texture is created from a swap chain buffer.
+    // Swap chain textures are deleted immediately when deleteThis() is called.
+    bool m_isSwapchainTexture = false;
 
     RefPtr<TextureViewImpl> m_defaultView;
 

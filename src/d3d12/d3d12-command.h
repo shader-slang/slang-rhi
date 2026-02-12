@@ -4,8 +4,7 @@
 #include "d3d12-shader-object.h"
 #include "d3d12-constant-buffer-pool.h"
 
-#include <deque>
-#include <list>
+#include "core/ring-queue.h"
 
 namespace rhi::d3d12 {
 
@@ -26,6 +25,16 @@ public:
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
 
+    // Deferred delete queue for GPU resources.
+    // Resources are held here until the GPU has finished using them.
+    struct DeferredDelete
+    {
+        uint64_t submissionID;
+        Resource* resource;
+    };
+    std::mutex m_deferredDeleteQueueMutex;
+    RingQueue<DeferredDelete> m_deferredDeleteQueue;
+
 #if SLANG_RHI_ENABLE_AFTERMATH
     GFSDK_Aftermath_ContextHandle m_aftermathContext;
 #endif
@@ -34,12 +43,20 @@ public:
     ~CommandQueueImpl();
 
     Result init(uint32_t queueIndex);
+    void shutdown();
 
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
     Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
     void retireCommandBuffer(CommandBufferImpl* commandBuffer);
     void retireCommandBuffers();
     uint64_t updateLastFinishedID();
+
+    /// Queue a resource for deferred deletion. The resource will be deleted
+    /// once the GPU has finished all work submitted up to this point.
+    void deferDelete(Resource* resource);
+
+    /// Delete deferred resources that are no longer in use by the GPU.
+    void executeDeferredDeletes();
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;

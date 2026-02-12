@@ -10,10 +10,15 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
+    virtual void deleteThis() override;
+
     D3D12Resource m_resource;
     DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
     bool m_isTypeless = false;
     D3D12_RESOURCE_STATES m_defaultState = D3D12_RESOURCE_STATE_COMMON;
+    // True if this texture is created from a swap chain buffer.
+    // Swap chain textures are deleted immediately when deleteThis() is called.
+    bool m_isSwapchainTexture = false;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
