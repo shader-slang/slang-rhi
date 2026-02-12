@@ -157,8 +157,8 @@ static std::string generateClosestHitComplex(int index, int seed)
             {
                 for (int pf = 0; pf < functionsPerLayer; ++pf)
                 {
-                    ss << "    t" << (pf % 10) << " = layer" << (layer - 1) << "_func" << pf
-                       << "_" << index << "_s" << seed << "(t0, t1, t2);\n";
+                    ss << "    t" << (pf % 10) << " = layer" << (layer - 1) << "_func" << pf << "_" << index << "_s"
+                       << seed << "(t0, t1, t2);\n";
                 }
             }
 
@@ -167,7 +167,8 @@ static std::string generateClosestHitComplex(int index, int seed)
             ss << "    t3 = normalize(t0 + t3 + t6 + float3(0.001, 0.001, 0.001));\n";
             ss << "    t7 = t3 * t8 + t4;\n";
 
-            ss << "    return normalize(t0 + t1 + t2 + t3 + t4 + t5 + t6 + t7 + t8 + t9 + float3(0.001, 0.001, 0.001));\n";
+            ss << "    return normalize(t0 + t1 + t2 + t3 + t4 + t5 + t6 + t7 + t8 + t9 + float3(0.001, 0.001, "
+                  "0.001));\n";
             ss << "}\n\n";
         }
     }
@@ -183,8 +184,8 @@ static std::string generateClosestHitComplex(int index, int seed)
     int topLayer = numLayers - 1;
     for (int f = 0; f < functionsPerLayer; ++f)
     {
-        ss << "    acc = acc + layer" << topLayer << "_func" << f << "_" << index << "_s" << seed
-           << "(result, float3(" << (f + 1) << ", " << (f + 2) << ", " << (f + 3) << "), acc);\n";
+        ss << "    acc = acc + layer" << topLayer << "_func" << f << "_" << index << "_s" << seed << "(result, float3("
+           << (f + 1) << ", " << (f + 2) << ", " << (f + 3) << "), acc);\n";
     }
 
     // Also call a few mid-layer functions to prevent dead-code elimination.
@@ -229,11 +230,13 @@ std::vector<SyntheticModuleDesc> generateSyntheticModules(const SyntheticModuleP
     for (int i = 0; i < params.moduleCount; ++i)
     {
         std::string entryPointName = "closestHit_" + std::to_string(i) + "_s" + std::to_string(params.seed);
-        modules.push_back(SyntheticModuleDesc{
-            generateClosestHit(i, params.sizeLevel, params.seed),
-            std::move(entryPointName),
-            SLANG_STAGE_CLOSEST_HIT,
-        });
+        modules.push_back(
+            SyntheticModuleDesc{
+                generateClosestHit(i, params.sizeLevel, params.seed),
+                std::move(entryPointName),
+                SLANG_STAGE_CLOSEST_HIT,
+            }
+        );
     }
 
     return modules;

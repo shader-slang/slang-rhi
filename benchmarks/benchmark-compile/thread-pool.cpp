@@ -70,7 +70,13 @@ void ThreadPool::workerLoop()
 
         {
             std::unique_lock<std::mutex> lock(m_mutex);
-            m_workerCV.wait(lock, [this] { return !m_readyQueue.empty() || m_shutdown; });
+            m_workerCV.wait(
+                lock,
+                [this]
+                {
+                    return !m_readyQueue.empty() || m_shutdown;
+                }
+            );
 
             if (m_shutdown && m_readyQueue.empty())
                 return;
@@ -179,7 +185,13 @@ void ThreadPool::waitTask(TaskHandle handle)
     Task* task = static_cast<Task*>(handle);
 
     std::unique_lock<std::mutex> lock(m_mutex);
-    m_completionCV.wait(lock, [task] { return task->done; });
+    m_completionCV.wait(
+        lock,
+        [task]
+        {
+            return task->done;
+        }
+    );
 }
 
 bool ThreadPool::isTaskDone(TaskHandle handle)
@@ -194,7 +206,13 @@ bool ThreadPool::isTaskDone(TaskHandle handle)
 void ThreadPool::waitAll()
 {
     std::unique_lock<std::mutex> lock(m_mutex);
-    m_completionCV.wait(lock, [this] { return m_pendingCount == 0; });
+    m_completionCV.wait(
+        lock,
+        [this]
+        {
+            return m_pendingCount == 0;
+        }
+    );
 }
 
 } // namespace rhi

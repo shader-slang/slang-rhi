@@ -72,7 +72,7 @@ private:
     };
 
     void workerLoop();
-    void shutdownWorkers();  // Signal workers to stop and join all threads.
+    void shutdownWorkers();            // Signal workers to stop and join all threads.
     void startWorkers(uint32_t count); // Spawn count worker threads.
 
     std::vector<std::thread> m_workers;

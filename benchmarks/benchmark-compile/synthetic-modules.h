@@ -22,9 +22,9 @@ struct SyntheticModuleDesc
 
 struct SyntheticModuleParams
 {
-    int moduleCount = 8;                       // Number of closesthit modules
+    int moduleCount = 8; // Number of closesthit modules
     SizeLevel sizeLevel = SizeLevel::Simple;
-    int seed = 0;                              // Unique seed to defeat compilation caches
+    int seed = 0; // Unique seed to defeat compilation caches
 };
 
 /// Generates a set of ray tracing modules for benchmarking.

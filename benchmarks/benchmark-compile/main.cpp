@@ -35,13 +35,18 @@ public:
     ) override
     {
         const char* typeStr = "info";
-        if (type == DebugMessageType::Warning) typeStr = "warning";
-        if (type == DebugMessageType::Error) typeStr = "error";
+        if (type == DebugMessageType::Warning)
+            typeStr = "warning";
+        if (type == DebugMessageType::Error)
+            typeStr = "error";
 
         const char* sourceStr = "unknown";
-        if (source == DebugMessageSource::Layer) sourceStr = "layer";
-        if (source == DebugMessageSource::Driver) sourceStr = "driver";
-        if (source == DebugMessageSource::Slang) sourceStr = "slang";
+        if (source == DebugMessageSource::Layer)
+            sourceStr = "layer";
+        if (source == DebugMessageSource::Driver)
+            sourceStr = "driver";
+        if (source == DebugMessageSource::Slang)
+            sourceStr = "slang";
 
         fprintf(stderr, "[%s/%s] %s\n", sourceStr, typeStr, message);
     }
@@ -83,10 +88,7 @@ static const int kAllDeviceTypeCount = sizeof(kAllDeviceTypes) / sizeof(kAllDevi
 // Helper: compile synthetic Slang modules into a linked IShaderProgram
 // ---------------------------------------------------------------------------
 
-static ComPtr<IShaderProgram> compileModules(
-    IDevice* device,
-    const std::vector<SyntheticModuleDesc>& modules
-)
+static ComPtr<IShaderProgram> compileModules(IDevice* device, const std::vector<SyntheticModuleDesc>& modules)
 {
     ComPtr<slang::ISession> slangSession;
     device->getSlangSession(slangSession.writeRef());
@@ -111,17 +113,18 @@ static ComPtr<IShaderProgram> compileModules(
         std::string moduleName = "module_" + mod.entryPointName;
         auto srcBlob = UnownedBlob::create(mod.source.data(), mod.source.size());
 
-        slang::IModule* slangModule = slangSession->loadModuleFromSource(
-            moduleName.c_str(),
-            moduleName.c_str(),
-            srcBlob,
-            diagnosticsBlob.writeRef()
-        );
+        slang::IModule* slangModule =
+            slangSession
+                ->loadModuleFromSource(moduleName.c_str(), moduleName.c_str(), srcBlob, diagnosticsBlob.writeRef());
         if (!slangModule)
         {
             if (diagnosticsBlob)
-                fprintf(stderr, "Slang error (module %zu): %s\n", i,
-                    static_cast<const char*>(diagnosticsBlob->getBufferPointer()));
+                fprintf(
+                    stderr,
+                    "Slang error (module %zu): %s\n",
+                    i,
+                    static_cast<const char*>(diagnosticsBlob->getBufferPointer())
+                );
             else
                 fprintf(stderr, "Slang error: failed to load module %zu\n", i);
             return nullptr;
@@ -135,8 +138,7 @@ static ComPtr<IShaderProgram> compileModules(
         slangModule->findEntryPointByName(mod.entryPointName.c_str(), entryPoint.writeRef());
         if (!entryPoint)
         {
-            fprintf(stderr, "Error: entry point '%s' not found in module %zu\n",
-                mod.entryPointName.c_str(), i);
+            fprintf(stderr, "Error: entry point '%s' not found in module %zu\n", mod.entryPointName.c_str(), i);
             return nullptr;
         }
         entryPoints.push_back(entryPoint);
@@ -159,8 +161,11 @@ static ComPtr<IShaderProgram> compileModules(
         if (SLANG_FAILED(result))
         {
             if (diagnosticsBlob)
-                fprintf(stderr, "Slang compose error: %s\n",
-                    static_cast<const char*>(diagnosticsBlob->getBufferPointer()));
+                fprintf(
+                    stderr,
+                    "Slang compose error: %s\n",
+                    static_cast<const char*>(diagnosticsBlob->getBufferPointer())
+                );
             return nullptr;
         }
     }
@@ -173,16 +178,18 @@ static ComPtr<IShaderProgram> compileModules(
 
     if (g_config.verbose)
     {
-        fprintf(stderr, "[verbose] Composed program: %u entry points\n",
-            (unsigned)layout->getEntryPointCount());
+        fprintf(stderr, "[verbose] Composed program: %u entry points\n", (unsigned)layout->getEntryPointCount());
         for (uint32_t i = 0; i < (uint32_t)layout->getEntryPointCount(); i++)
         {
             auto ep = layout->getEntryPointByIndex(i);
-            fprintf(stderr, "  [%u] name=\"%s\" nameOverride=\"%s\" stage=%d\n",
+            fprintf(
+                stderr,
+                "  [%u] name=\"%s\" nameOverride=\"%s\" stage=%d\n",
                 i,
                 ep->getName() ? ep->getName() : "(null)",
                 ep->getNameOverride() ? ep->getNameOverride() : "(null)",
-                (int)ep->getStage());
+                (int)ep->getStage()
+            );
         }
     }
 
@@ -196,8 +203,7 @@ static ComPtr<IShaderProgram> compileModules(
     {
         fprintf(stderr, "createShaderProgram error (0x%08x)\n", static_cast<int>(result));
         if (diagnosticsBlob)
-            fprintf(stderr, "  diagnostics: %s\n",
-                static_cast<const char*>(diagnosticsBlob->getBufferPointer()));
+            fprintf(stderr, "  diagnostics: %s\n", static_cast<const char*>(diagnosticsBlob->getBufferPointer()));
         return nullptr;
     }
 
@@ -242,16 +248,24 @@ static ComPtr<IRayTracingPipeline> createRayTracingPipeline(
 
     if (g_config.verbose)
     {
-        fprintf(stderr, "[verbose] createRayTracingPipeline: %u hit groups, maxRecursion=%d, "
+        fprintf(
+            stderr,
+            "[verbose] createRayTracingPipeline: %u hit groups, maxRecursion=%d, "
             "maxPayload=%u, maxAttribs=%u\n",
-            rtDesc.hitGroupCount, rtDesc.maxRecursion,
-            (unsigned)rtDesc.maxRayPayloadSize, (unsigned)rtDesc.maxAttributeSizeInBytes);
+            rtDesc.hitGroupCount,
+            rtDesc.maxRecursion,
+            (unsigned)rtDesc.maxRayPayloadSize,
+            (unsigned)rtDesc.maxAttributeSizeInBytes
+        );
         for (uint32_t i = 0; i < rtDesc.hitGroupCount; i++)
         {
-            fprintf(stderr, "  hitGroup[%u]: name=\"%s\" closestHit=\"%s\"\n",
+            fprintf(
+                stderr,
+                "  hitGroup[%u]: name=\"%s\" closestHit=\"%s\"\n",
                 i,
                 hitGroups[i].hitGroupName ? hitGroups[i].hitGroupName : "(null)",
-                hitGroups[i].closestHitEntryPoint ? hitGroups[i].closestHitEntryPoint : "(null)");
+                hitGroups[i].closestHitEntryPoint ? hitGroups[i].closestHitEntryPoint : "(null)"
+            );
         }
     }
 
@@ -309,7 +323,7 @@ static BenchmarkStats computeStats(const std::vector<double>& durationsMs)
 struct BenchmarkRow
 {
     const char* deviceTypeName;
-    uint32_t threadCount;           // 0 = serial (no task pool)
+    uint32_t threadCount; // 0 = serial (no task pool)
     int moduleCount;
     SizeLevel sizeLevel;
     BenchmarkStats frontendStats;   // Slang frontend: parse, type-check, link/optimize IR
@@ -322,14 +336,32 @@ struct BenchmarkRow
 static void printResultTable(const std::vector<BenchmarkRow>& rows)
 {
     // Header
-    printf("%-13s| %-8s| %-6s| %-8s| %12s | %12s | %12s | %12s | %12s |\n",
-        "Device Type", "Threads", "# Mods", "Size",
-        "Frontend(ms)", "Codegen(ms)", "Downstrm(ms)", "Driver (ms)", "Total (ms)");
+    printf(
+        "%-13s| %-8s| %-6s| %-8s| %12s | %12s | %12s | %12s | %12s |\n",
+        "Device Type",
+        "Threads",
+        "# Mods",
+        "Size",
+        "Frontend(ms)",
+        "Codegen(ms)",
+        "Downstrm(ms)",
+        "Driver (ms)",
+        "Total (ms)"
+    );
 
     // Separator
-    printf("%-13s| %-8s| %-6s| %-8s| %12s | %12s | %12s | %12s | %12s |\n",
-        "-------------", "--------", "------", "--------",
-        "------------", "------------", "------------", "------------", "------------");
+    printf(
+        "%-13s| %-8s| %-6s| %-8s| %12s | %12s | %12s | %12s | %12s |\n",
+        "-------------",
+        "--------",
+        "------",
+        "--------",
+        "------------",
+        "------------",
+        "------------",
+        "------------",
+        "------------"
+    );
 
     // Rows
     for (const auto& row : rows)
@@ -340,7 +372,8 @@ static void printResultTable(const std::vector<BenchmarkRow>& rows)
         else
             snprintf(threadsStr, sizeof(threadsStr), "%u", row.threadCount);
 
-        printf("%-13s| %-8s| %-6d| %-8s| %12.2f | %12.2f | %12.2f | %12.2f | %12.2f |\n",
+        printf(
+            "%-13s| %-8s| %-6d| %-8s| %12.2f | %12.2f | %12.2f | %12.2f | %12.2f |\n",
             row.deviceTypeName,
             threadsStr,
             row.moduleCount,
@@ -349,7 +382,8 @@ static void printResultTable(const std::vector<BenchmarkRow>& rows)
             row.codegenStats.meanMs,
             row.downstreamStats.meanMs,
             row.driverStats.meanMs,
-            row.totalStats.meanMs);
+            row.totalStats.meanMs
+        );
     }
 }
 
@@ -486,13 +520,12 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
             deviceTypes.push_back(kAllDeviceTypes[i]);
     }
 
-    std::vector<int> moduleCounts = g_config.pinnedModuleCount
-        ? std::vector<int>{*g_config.pinnedModuleCount}
-        : std::vector<int>{1, 2, 4, 8, 16};
+    std::vector<int> moduleCounts =
+        g_config.pinnedModuleCount ? std::vector<int>{*g_config.pinnedModuleCount} : std::vector<int>{1, 2, 4, 8, 16};
 
     std::vector<SizeLevel> sizeLevels = g_config.pinnedSizeLevel
-        ? std::vector<SizeLevel>{*g_config.pinnedSizeLevel}
-        : std::vector<SizeLevel>{SizeLevel::Simple, SizeLevel::Complex};
+                                            ? std::vector<SizeLevel>{*g_config.pinnedSizeLevel}
+                                            : std::vector<SizeLevel>{SizeLevel::Simple, SizeLevel::Complex};
 
     std::vector<uint32_t> threadCounts = buildThreadCountList();
 
@@ -527,8 +560,7 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
             Result r = rhi->createDevice(deviceDesc, device.writeRef());
             if (SLANG_FAILED(r) || !device)
             {
-                printf("Skipping %s (device creation failed: 0x%08x)\n",
-                    deviceTypeName, static_cast<int>(r));
+                printf("Skipping %s (device creation failed: 0x%08x)\n", deviceTypeName, static_cast<int>(r));
                 continue;
             }
         }
@@ -552,11 +584,11 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
                     // Each iteration uses a unique seed to defeat all caching:
                     // - RHI level: new ShaderProgram object → compileShaders() runs fresh
                     // - Driver level: unique entry point names → different binary code
-                    std::vector<double> frontendMs;    // compileModules: parse, type-check, link/optimize IR
-                    std::vector<double> codegenMs;     // Slang backend codegen (IR → target source)
-                    std::vector<double> downstreamMs;  // Downstream compiler (NVRTC/DXC)
-                    std::vector<double> driverOnlyMs;  // Driver pipeline creation
-                    std::vector<double> totalMs;       // End-to-end wall clock
+                    std::vector<double> frontendMs;   // compileModules: parse, type-check, link/optimize IR
+                    std::vector<double> codegenMs;    // Slang backend codegen (IR → target source)
+                    std::vector<double> downstreamMs; // Downstream compiler (NVRTC/DXC)
+                    std::vector<double> driverOnlyMs; // Driver pipeline creation
+                    std::vector<double> totalMs;      // End-to-end wall clock
                     frontendMs.reserve(g_config.iterations);
                     codegenMs.reserve(g_config.iterations);
                     downstreamMs.reserve(g_config.iterations);
@@ -573,9 +605,16 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
 
                         if (g_config.verbose)
                         {
-                            fprintf(stderr, "[verbose] %s (threads=%u): %d mods, %s, iter %d/%d: generating...\n",
-                                deviceTypeName, threadCount, moduleCount, sizeLevelName(sizeLevel),
-                                iter + 1, g_config.iterations);
+                            fprintf(
+                                stderr,
+                                "[verbose] %s (threads=%u): %d mods, %s, iter %d/%d: generating...\n",
+                                deviceTypeName,
+                                threadCount,
+                                moduleCount,
+                                sizeLevelName(sizeLevel),
+                                iter + 1,
+                                g_config.iterations
+                            );
                             fflush(stderr);
                         }
 
@@ -590,8 +629,13 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
 
                         if (!program)
                         {
-                            fprintf(stderr, "  Error: compileModules failed for %d modules, size=%s, iter=%d\n",
-                                moduleCount, sizeLevelName(sizeLevel), iter);
+                            fprintf(
+                                stderr,
+                                "  Error: compileModules failed for %d modules, size=%s, iter=%d\n",
+                                moduleCount,
+                                sizeLevelName(sizeLevel),
+                                iter
+                            );
                             ++failures;
                             break;
                         }
@@ -600,7 +644,11 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
 
                         if (g_config.verbose)
                         {
-                            fprintf(stderr, "[verbose]   compileModules done (%.2f ms), creating pipeline...\n", feTime);
+                            fprintf(
+                                stderr,
+                                "[verbose]   compileModules done (%.2f ms), creating pipeline...\n",
+                                feTime
+                            );
                             fflush(stderr);
                         }
 
@@ -623,9 +671,14 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
 
                         if (!pipeline)
                         {
-                            fprintf(stderr, "  Error: createRayTracingPipeline failed on iteration %d "
+                            fprintf(
+                                stderr,
+                                "  Error: createRayTracingPipeline failed on iteration %d "
                                 "for %d modules, size=%s\n",
-                                iter, moduleCount, sizeLevelName(sizeLevel));
+                                iter,
+                                moduleCount,
+                                sizeLevelName(sizeLevel)
+                            );
                             ++failures;
                             break;
                         }
@@ -636,7 +689,7 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
                         // "total" = all Slang compiler time during pipeline creation.
                         // "downstream" = time in downstream compilers (NVRTC, DXC, etc.).
                         // Slang codegen = total - downstream.
-                        double slangTotalDelta = (slangTotalAfter - slangTotalBefore) * 1000.0;     // sec → ms
+                        double slangTotalDelta = (slangTotalAfter - slangTotalBefore) * 1000.0; // sec → ms
                         double downstreamDelta = (slangDownstreamAfter - slangDownstreamBefore) * 1000.0;
                         double slangCodegenTime = slangTotalDelta - downstreamDelta;
 
@@ -644,7 +697,8 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
                         // This captures the REAL first-time driver compilation cost
                         // (e.g., vkCreateRayTracingPipelinesKHR compiling SPIR-V to GPU ISA).
                         double driverTime = pipelineTime - slangTotalDelta;
-                        if (driverTime < 0) driverTime = 0; // Guard against timing imprecision.
+                        if (driverTime < 0)
+                            driverTime = 0; // Guard against timing imprecision.
 
                         frontendMs.push_back(feTime);
                         codegenMs.push_back(slangCodegenTime);
@@ -654,16 +708,28 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
 
                         if (g_config.verbose)
                         {
-                            fprintf(stderr, "[verbose]   iter %d/%d complete (fe=%.2f ms, pipe=%.2f ms)\n",
-                                iter + 1, g_config.iterations, feTime, pipelineTime);
+                            fprintf(
+                                stderr,
+                                "[verbose]   iter %d/%d complete (fe=%.2f ms, pipe=%.2f ms)\n",
+                                iter + 1,
+                                g_config.iterations,
+                                feTime,
+                                pipelineTime
+                            );
                             fflush(stderr);
                         }
                     }
 
                     if (g_config.verbose)
                     {
-                        fprintf(stderr, "[verbose]   config done (threads=%u, %d mods, %s): %zu successful iterations\n",
-                            threadCount, moduleCount, sizeLevelName(sizeLevel), frontendMs.size());
+                        fprintf(
+                            stderr,
+                            "[verbose]   config done (threads=%u, %d mods, %s): %zu successful iterations\n",
+                            threadCount,
+                            moduleCount,
+                            sizeLevelName(sizeLevel),
+                            frontendMs.size()
+                        );
                         fflush(stderr);
                     }
 
