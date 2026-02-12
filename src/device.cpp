@@ -11,6 +11,7 @@ namespace rhi {
 
 namespace testing {
 bool gDebugDisableStateTracking = false;
+std::atomic<uint64_t> gResourceCount{0};
 } // namespace testing
 
 // ----------------------------------------------------------------------------

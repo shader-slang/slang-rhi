@@ -4,6 +4,8 @@
 #include "cuda-constant-buffer-pool.h"
 #include "cuda-shader-object.h"
 
+#include "core/ring-queue.h"
+
 namespace rhi::cuda {
 
 struct SubmitEvent
@@ -25,10 +27,21 @@ public:
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
     std::list<SubmitEvent> m_submitEvents;
 
+    // Deferred delete queue for GPU resources.
+    // Resources are held here until the GPU has finished using them.
+    struct DeferredDelete
+    {
+        uint64_t submissionID;
+        Resource* resource;
+    };
+    std::mutex m_deferredDeleteQueueMutex;
+    RingQueue<DeferredDelete> m_deferredDeleteQueue;
+
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
 
     Result init();
+    void shutdown();
 
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
     Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
@@ -39,6 +52,13 @@ public:
 
     Result signalFence(CUstream stream, uint64_t* outId);
     Result updateFence();
+
+    /// Queue a resource for deferred deletion. The resource will be deleted
+    /// once the GPU has finished all work submitted up to this point.
+    void deferDelete(Resource* resource);
+
+    /// Delete deferred resources that are no longer in use by the GPU.
+    void executeDeferredDeletes();
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;

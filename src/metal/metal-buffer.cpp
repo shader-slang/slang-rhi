@@ -11,6 +11,11 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl() {}
 
+void BufferImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 DeviceAddress BufferImpl::getDeviceAddress()
 {
     return m_buffer->gpuAddress();
