@@ -6,9 +6,7 @@
 #include <slang-rhi.h>
 #include <slang.h>
 
-#include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -283,37 +281,11 @@ static ComPtr<IRayTracingPipeline> createRayTracingPipeline(
 // Statistics helpers
 // ---------------------------------------------------------------------------
 
-struct BenchmarkStats
+static double computeMean(const std::vector<double>& values)
 {
-    double minMs;
-    double maxMs;
-    double meanMs;
-    double stddevMs;
-};
-
-static BenchmarkStats computeStats(const std::vector<double>& durationsMs)
-{
-    BenchmarkStats stats = {};
-
-    if (durationsMs.empty())
-        return stats;
-
-    stats.minMs = *std::min_element(durationsMs.begin(), durationsMs.end());
-    stats.maxMs = *std::max_element(durationsMs.begin(), durationsMs.end());
-    stats.meanMs = std::accumulate(durationsMs.begin(), durationsMs.end(), 0.0) / durationsMs.size();
-
-    if (durationsMs.size() > 1)
-    {
-        double sumSqDiff = 0.0;
-        for (double d : durationsMs)
-        {
-            double diff = d - stats.meanMs;
-            sumSqDiff += diff * diff;
-        }
-        stats.stddevMs = std::sqrt(sumSqDiff / (durationsMs.size() - 1));
-    }
-
-    return stats;
+    if (values.empty())
+        return 0.0;
+    return std::accumulate(values.begin(), values.end(), 0.0) / values.size();
 }
 
 // ---------------------------------------------------------------------------
@@ -326,11 +298,11 @@ struct BenchmarkRow
     uint32_t threadCount; // 0 = serial (no task pool)
     int moduleCount;
     SizeLevel sizeLevel;
-    BenchmarkStats frontendStats;   // Slang frontend: parse, type-check, link/optimize IR
-    BenchmarkStats codegenStats;    // Slang backend codegen: IR → target source (SPIR-V, CUDA, HLSL)
-    BenchmarkStats downstreamStats; // Downstream compiler: NVRTC (CUDA→PTX), DXC (HLSL→DXIL), or N/A
-    BenchmarkStats driverStats;     // Driver pipeline creation: optixModuleCreate, vkCreateRTPipeline, etc.
-    BenchmarkStats totalStats;      // Wall-clock total (frontend + codegen + downstream + driver)
+    double frontendMs;   // Slang frontend: parse, type-check, link/optimize IR
+    double codegenMs;    // Slang backend codegen: IR → target source (SPIR-V, CUDA, HLSL)
+    double downstreamMs; // Downstream compiler: NVRTC (CUDA→PTX), DXC (HLSL→DXIL), or N/A
+    double driverMs;     // Driver pipeline creation: optixModuleCreate, vkCreateRTPipeline, etc.
+    double totalMs;      // Wall-clock total (frontend + codegen + downstream + driver)
 };
 
 static void printResultTable(const std::vector<BenchmarkRow>& rows)
@@ -378,11 +350,11 @@ static void printResultTable(const std::vector<BenchmarkRow>& rows)
             threadsStr,
             row.moduleCount,
             sizeLevelName(row.sizeLevel),
-            row.frontendStats.meanMs,
-            row.codegenStats.meanMs,
-            row.downstreamStats.meanMs,
-            row.driverStats.meanMs,
-            row.totalStats.meanMs
+            row.frontendMs,
+            row.codegenMs,
+            row.downstreamMs,
+            row.driverMs,
+            row.totalMs
         );
     }
 }
@@ -740,11 +712,11 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
                         row.threadCount = threadCount;
                         row.moduleCount = moduleCount;
                         row.sizeLevel = sizeLevel;
-                        row.frontendStats = computeStats(frontendMs);
-                        row.codegenStats = computeStats(codegenMs);
-                        row.downstreamStats = computeStats(downstreamMs);
-                        row.driverStats = computeStats(driverOnlyMs);
-                        row.totalStats = computeStats(totalMs);
+                        row.frontendMs = computeMean(frontendMs);
+                        row.codegenMs = computeMean(codegenMs);
+                        row.downstreamMs = computeMean(downstreamMs);
+                        row.driverMs = computeMean(driverOnlyMs);
+                        row.totalMs = computeMean(totalMs);
                         results.push_back(row);
                     }
                 }
