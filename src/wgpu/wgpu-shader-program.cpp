@@ -32,10 +32,16 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     module.entryPointName = entryPointInfo->getNameOverride();
     module.code = std::string((char*)kernelCode->getBufferPointer(), kernelCode->getBufferSize());
 
+#if SLANG_WASM
+    WGPUShaderSourceWGSL wgslDesc = {};
+    wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    wgslDesc.code = WGPUStringView{module.code.c_str(), module.code.size()};
+#else
     WGPUShaderModuleWGSLDescriptor wgslDesc = {};
     wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
     wgslDesc.code.data = module.code.c_str();
     wgslDesc.code.length = module.code.size();
+#endif
     WGPUShaderModuleDescriptor desc = {};
     desc.nextInChain = (WGPUChainedStruct*)&wgslDesc;
 

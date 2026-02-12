@@ -6,14 +6,22 @@ namespace rhi::wgpu {
 
 API::~API()
 {
+#if !SLANG_WASM
     if (m_module)
     {
         unloadSharedLibrary(m_module);
     }
+#endif
 }
 
 Result API::init()
 {
+#if SLANG_WASM
+#define LINK_STATIC(name) wgpu##name = (WGPUProc##name)::wgpu##name;
+    SLANG_RHI_WGPU_PROCS(LINK_STATIC)
+#undef LINK_STATIC
+    return SLANG_OK;
+#else
 #if SLANG_WINDOWS_FAMILY
     const char* libraryNames[] = {"dawn.dll", "webgpu_dawn.dll"};
 #elif SLANG_LINUX_FAMILY
@@ -45,6 +53,7 @@ Result API::init()
     SLANG_RHI_WGPU_PROCS(LOAD_PROC)
 #undef LOAD_PROC
     return SLANG_OK;
+#endif
 }
 
 } // namespace rhi::wgpu

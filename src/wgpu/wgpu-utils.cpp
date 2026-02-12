@@ -61,9 +61,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::R16Sint:
         return WGPUTextureFormat_R16Sint;
     case Format::R16Unorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_R16Unorm;
+#endif
     case Format::R16Snorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_R16Snorm;
+#endif
     case Format::R16Float:
         return WGPUTextureFormat_R16Float;
 
@@ -72,9 +80,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::RG16Sint:
         return WGPUTextureFormat_RG16Sint;
     case Format::RG16Unorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_RG16Unorm;
+#endif
     case Format::RG16Snorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_RG16Snorm;
+#endif
     case Format::RG16Float:
         return WGPUTextureFormat_RG16Float;
 
@@ -83,9 +99,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::RGBA16Sint:
         return WGPUTextureFormat_RGBA16Sint;
     case Format::RGBA16Unorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_RGBA16Unorm;
+#endif
     case Format::RGBA16Snorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_RGBA16Snorm;
+#endif
     case Format::RGBA16Float:
         return WGPUTextureFormat_RGBA16Float;
 
