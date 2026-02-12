@@ -764,14 +764,16 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
 // Driver cache clearing
 // ---------------------------------------------------------------------------
 
-/// Clear NVIDIA's shader disk caches (DXCache, GLCache) under %LOCALAPPDATA%\NVIDIA.
-/// Also clears the OptiX cache. This ensures every benchmark run measures real
-/// compilation work, not cached results from a previous run.
-static void clearDriverShaderCaches()
+/// Clear NVIDIA's shader disk caches under %LOCALAPPDATA%\NVIDIA on Windows.
+/// Clears DXCache (D3D12) and GLCache (Vulkan/GL).
+///
+/// The OptiX cache is not cleared here — it is disabled at runtime via
+/// OPTIX_CACHE_MAXSIZE=0 on all platforms.
+#ifdef _WIN32
+static void clearWinDriverShaderCaches()
 {
     namespace fs = std::filesystem;
 
-#ifdef _WIN32
     const char* localAppData = getenv("LOCALAPPDATA");
     if (!localAppData)
         return;
@@ -797,46 +799,8 @@ static void clearDriverShaderCaches()
         if (count > 0)
             fprintf(stderr, "Cleared %d entries from %s\n", count, cacheDir.string().c_str());
     }
-
-    // Also clear the OptiX cache (typically %LOCALAPPDATA%\NVIDIA\OptixCache).
-    fs::path optixCache = nvidiaDir / "OptixCache";
-    {
-        std::error_code ec;
-        if (fs::exists(optixCache, ec))
-        {
-            int count = 0;
-            for (auto& entry : fs::directory_iterator(optixCache, ec))
-            {
-                fs::remove_all(entry.path(), ec);
-                if (!ec)
-                    ++count;
-            }
-            if (count > 0)
-                fprintf(stderr, "Cleared %d entries from %s\n", count, optixCache.string().c_str());
-        }
-    }
-#else
-    // On Linux, NVIDIA caches are typically in ~/.nv/ComputeCache
-    const char* home = getenv("HOME");
-    if (!home)
-        return;
-
-    fs::path nvCacheDir = fs::path(home) / ".nv" / "ComputeCache";
-    std::error_code ec;
-    if (fs::exists(nvCacheDir, ec))
-    {
-        int count = 0;
-        for (auto& entry : fs::directory_iterator(nvCacheDir, ec))
-        {
-            fs::remove_all(entry.path(), ec);
-            if (!ec)
-                ++count;
-        }
-        if (count > 0)
-            fprintf(stderr, "Cleared %d entries from %s\n", count, nvCacheDir.string().c_str());
-    }
-#endif
 }
+#endif
 
 // ---------------------------------------------------------------------------
 // Main
@@ -844,17 +808,22 @@ static void clearDriverShaderCaches()
 
 int main(int argc, char* argv[])
 {
-    // Disable driver-level disk caches to prevent caching DURING the run.
-    // - OPTIX_CACHE_MAXSIZE=0: disables OptiX shader cache
-    // - __GL_SHADER_DISK_CACHE=0: disables NVIDIA's Vulkan/OpenGL shader disk cache
+    // Disable driver-level shader disk caches to ensure cold-cache measurements.
+    // OPTIX_CACHE_MAXSIZE=0 disables the OptiX shader cache on all platforms.
+    //
+    // On Windows, __GL_SHADER_DISK_CACHE is not supported — there is no env var
+    // to control NVIDIA's DXCache/GLCache. We must manually delete the cached
+    // files from %LOCALAPPDATA%\NVIDIA\{DXCache,GLCache} instead.
+    //
+    // On Linux, __GL_SHADER_DISK_CACHE=0 disables the Vulkan/GL shader disk
+    // cache, so manual deletion is not needed.
 #ifdef _WIN32
     _putenv("OPTIX_CACHE_MAXSIZE=0");
+    clearWinDriverShaderCaches();
 #else
     putenv(const_cast<char*>("OPTIX_CACHE_MAXSIZE=0"));
+    putenv(const_cast<char*>("__GL_SHADER_DISK_CACHE=0"));
 #endif
-
-    // Clear any cached shaders from previous runs.
-    clearDriverShaderCaches();
 
     // 1. Parse CLI flags.
     parseArgs(argc, argv);
