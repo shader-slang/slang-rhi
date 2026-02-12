@@ -89,7 +89,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
             return SLANG_FAIL;
         }
         HANDLE handle = NULL;
-        SLANG_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(device->m_device, &info, &handle) != VK_SUCCESS);
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(device->m_device, &info, &handle));
         setNativeHandleAtomic(m_sharedHandle, NativeHandleType::Win32, (uint64_t)handle);
 #else
         VkMemoryGetFdInfoKHR info = {};
@@ -103,7 +103,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
             return SLANG_FAIL;
         }
         int handle = 0;
-        SLANG_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(device->m_device, &info, &handle) != VK_SUCCESS);
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(device->m_device, &info, &handle));
         setNativeHandleAtomic(m_sharedHandle, NativeHandleType::FileDescriptor, (uint64_t)handle);
 #endif
     }
