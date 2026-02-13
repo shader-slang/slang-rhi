@@ -25,13 +25,17 @@ public:
     {
     }
 
-    ~VKBufferHandleRAII()
+    ~VKBufferHandleRAII() { reset(); }
+
+    void reset()
     {
-        if (m_api)
-        {
-            m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
-        }
+        if (!m_api)
+            return;
+        m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
+        m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+        m_buffer = VK_NULL_HANDLE;
+        m_memory = VK_NULL_HANDLE;
+        m_api = nullptr;
     }
 
     VkBuffer m_buffer;
@@ -48,7 +52,6 @@ public:
     virtual void deleteThis() override;
 
     VKBufferHandleRAII m_buffer;
-    VKBufferHandleRAII m_uploadBuffer;
 
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 
