@@ -17,10 +17,13 @@ struct SubmitEvent
 class CommandQueueImpl : public CommandQueue
 {
 public:
+    static constexpr size_t kMaxSubmitsWithoutEvent = 128;
+
     CUstream m_stream;
 
     uint64_t m_lastSubmittedID = 0;
     uint64_t m_lastFinishedID = 0;
+    uint64_t m_submitsSinceEvent = 0;
 
     std::mutex m_mutex;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;

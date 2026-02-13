@@ -42,11 +42,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 
     // Select a page size to store the allocation
     uint32_t pageSize = 0;
-    if (size <= 1 * 1024 * 1024)
-        pageSize = 8 * 1024 * 1024;
-    else if (size <= 8 * 1024 * 1024)
-        pageSize = 64 * 1024 * 1024;
-    else if (size <= 64 * 1024 * 1024)
+    if (size <= 64 * 1024 * 1024)
         pageSize = 256 * 1024 * 1024;
     else
         pageSize = math::calcAligned(size, 256 * 1024 * 1024);
