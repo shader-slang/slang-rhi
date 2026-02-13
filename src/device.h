@@ -9,6 +9,7 @@
 
 #include "staging-heap.h"
 
+#include "rhi.h"
 #include "rhi-shared-fwd.h"
 
 #include <atomic>
@@ -23,6 +24,8 @@ class Heap;
 namespace testing {
 // Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
 extern bool gDebugDisableStateTracking;
+// Counter for tracking active Resource instances (for testing deferred delete)
+extern std::atomic<uint64_t> gResourceCount;
 } // namespace testing
 
 // Base class for adapters.
@@ -143,6 +146,12 @@ public:
         static NullDebugCallback instance;
         return &instance;
     }
+};
+
+struct LiveDeviceTracker
+{
+    LiveDeviceTracker() { checked_cast<RHI*>(getRHI())->incrementLiveDeviceCount(); }
+    ~LiveDeviceTracker() { checked_cast<RHI*>(getRHI())->decrementLiveDeviceCount(); }
 };
 
 // Device implementation shared by all platforms.
@@ -314,6 +323,12 @@ public:
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
 
+    // Provides a default implementation that reports unsupported.
+    virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
+        const CooperativeMatrixDesc& desc,
+        bool* outSupported
+    ) override;
+
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
         CooperativeVectorProperties* properties,
@@ -455,6 +470,8 @@ public:
     std::vector<Heap*> m_globalHeaps;
 
     IDebugCallback* m_debugCallback = nullptr;
+
+    LiveDeviceTracker m_liveDeviceTracker;
 };
 
 /// Mark the default adapter in the list, preferring the first discrete adapter.

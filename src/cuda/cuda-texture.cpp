@@ -147,6 +147,13 @@ TextureImpl::~TextureImpl()
     }
 }
 
+void TextureImpl::deleteThis()
+{
+    m_defaultView.setNull();
+    m_sampler.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     if (m_cudaArray)

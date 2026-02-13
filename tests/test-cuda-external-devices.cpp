@@ -3,7 +3,6 @@
 #if SLANG_RHI_ENABLE_CUDA
 
 #include <random>
-#include "../src/core/span.h"
 #include "../src/cuda/cuda-device.h"
 #include "../src/cuda/cuda-api.h"
 #include "../src/cuda/cuda-utils.h"
@@ -102,9 +101,9 @@ void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool exp
     }
 
     if (!expect_fail_to_copy)
-        compareComputeResult(device, dst, span<uint8_t>(data));
+        compareComputeResult(device, dst, std::span<uint8_t>(data));
     else
-        compareComputeResult(device, dst, span<uint8_t>(zeros));
+        compareComputeResult(device, dst, std::span<uint8_t>(zeros));
 }
 
 GPU_TEST_CASE("cuda-external-device", CUDA)

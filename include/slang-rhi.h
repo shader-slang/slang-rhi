@@ -2266,6 +2266,39 @@ union DeviceOrHostAddressConst
     const void* hostAddress;
 };
 
+enum class CooperativeMatrixComponentType
+{
+    Float16 = 0,
+    Float32 = 1,
+    Bfloat16 = 2,
+    FloatE4M3 = 3,
+    FloatE5M2 = 4,
+    Int8 = 5,
+    Uint8 = 6,
+    Int16 = 7,
+    Uint16 = 8,
+    Int32 = 9,
+    Uint32 = 10,
+};
+
+enum class CooperativeMatrixScope
+{
+    Subgroup = 0,
+    Workgroup = 1,
+};
+
+struct CooperativeMatrixDesc
+{
+    uint32_t m = 0;
+    uint32_t n = 0;
+    uint32_t k = 0;
+    CooperativeMatrixComponentType aType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType bType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType cType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType resultType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixScope scope = CooperativeMatrixScope::Subgroup;
+};
+
 enum class CooperativeVectorComponentType
 {
     Float16 = 0,
@@ -3068,12 +3101,15 @@ struct DeviceDesc
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t requiredOptixVersion = 0;
 
-    /// Enable RHI validation layer.
+    /// Enable validation for the Slang-RHI API.
+    /// This does not enable downstream API debug layers (D3D12/Vulkan validation layers).
     bool enableValidation = false;
-    /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
+    /// Enable downstream API raytracing validation (CUDA | D3D12 | Vulkan).
     bool enableRayTracingValidation = false;
-    /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
+    /// Enable NVIDIA Aftermath (D3D11 | D3D12 | Vulkan).
     bool enableAftermath = false;
+
+    /// Requires `this->enableAftermath == true`.
     /// Aftermath configuration.
     AftermathFlags aftermathFlags = AftermathFlags::Default;
     /// Debug callback. If not null, this will be called for each debug message.
@@ -3482,6 +3518,13 @@ public:
         return getTextureRowAlignment(Format::Undefined, outAlignment);
     };
 
+    /// Returns true if the cooperative matrix configuration is supported by the device.
+    /// Implementations should return SLANG_OK and set *outSupported = false if unsupported.
+    virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
+        const CooperativeMatrixDesc& desc,
+        bool* outSupported
+    ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
         CooperativeVectorProperties* properties,
         uint32_t* propertiesCount
@@ -3574,9 +3617,50 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
 };
 
+/// Options for downstream API debug layers.
+struct DebugLayerOptions
+{
+    /// Require debug layers to be enabled.
+    /// If true, device creation fails if requested debug layers cannot be enabled.
+    /// If false, device creation warns if requested debug layers cannot be enabled, but succeeds anyway.
+    bool required = false;
+
+    /// Enable core debug layers (D3D11 | D3D12 | Vulkan).
+    bool coreValidation = false;
+
+    /// Enable GPU assisted/based debug layer (D3D12 | Vulkan).
+    bool GPUAssistedValidation = false;
+
+    bool operator==(const DebugLayerOptions& other) const
+    {
+        return coreValidation == other.coreValidation && GPUAssistedValidation == other.GPUAssistedValidation &&
+               required == other.required;
+    }
+
+    bool operator!=(const DebugLayerOptions& other) const { return !(*this == other); }
+
+    bool isDebugLayersEnabled() const { return coreValidation == true || GPUAssistedValidation == true; }
+};
+
 class IRHI
 {
 public:
+    /// Check is downstream debug layer is enabled
+    inline bool isDebugLayersEnabled() { return getDebugLayerOptions().isDebugLayersEnabled(); }
+
+    /// Deprecated. Enable core-validation debug layers, if available.
+    /// This function may or may-not actually enable debug layers
+    /// when called. Even if layers are enabled, it may do so in
+    /// an incorrect way. It is highly advised to not use this function.
+    virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
+
+    /// Change downstream debug layer options.
+    /// Fails if not all devices are released.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setDebugLayerOptions(DebugLayerOptions options) = 0;
+
+    /// Get current downstream debug layer options.
+    virtual SLANG_NO_THROW DebugLayerOptions SLANG_MCALL getDebugLayerOptions() = 0;
+
     virtual SLANG_NO_THROW const FormatInfo& SLANG_MCALL getFormatInfo(Format format) = 0;
 
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDeviceTypeName(DeviceType type) = 0;
@@ -3597,10 +3681,6 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(getAdapters(type, blob.writeRef()));
         return AdapterList(blob);
     }
-
-    /// Enable debug layers, if available.
-    /// If this is called, it must be called before creating any devices.
-    virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
 
     /// Creates a device.
     virtual SLANG_NO_THROW Result SLANG_MCALL createDevice(const DeviceDesc& desc, IDevice** outDevice) = 0;

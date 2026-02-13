@@ -63,6 +63,9 @@ protected:
     x(vkGetPhysicalDeviceProperties2) \
     x(vkCreateDebugUtilsMessengerEXT) \
     x(vkDestroyDebugUtilsMessengerEXT) \
+    x(vkGetPhysicalDeviceCooperativeMatrixPropertiesNV) \
+    x(vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV) \
+    x(vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR) \
     x(vkGetPhysicalDeviceCooperativeVectorPropertiesNV) \
     /* */
 

@@ -1,5 +1,6 @@
 #include <slang-rhi.h>
 
+#include "rhi.h"
 #include "debug-layer/debug-device.h"
 #include "rhi-shared.h"
 
@@ -28,7 +29,6 @@ Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 Result reportD3DLiveObjects();
-void enableD3D12DebugLayerIfAvailable();
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Global Functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
@@ -133,33 +133,40 @@ inline const FormatInfo& _getFormatInfo(Format format)
     return s_formatInfos[size_t(format)];
 }
 
-class RHI : public IRHI
+void RHI::incrementLiveDeviceCount()
 {
-public:
-    bool debugLayersEnabled = false;
+    m_liveDeviceCount++;
+}
 
-    virtual const FormatInfo& getFormatInfo(Format format) override { return _getFormatInfo(format); }
-    virtual const char* getDeviceTypeName(DeviceType type) override;
-    virtual bool isDeviceTypeSupported(DeviceType type) override;
-    virtual const char* getFeatureName(Feature feature) override;
-    virtual const char* getCapabilityName(Capability capability) override;
+void RHI::decrementLiveDeviceCount()
+{
+    m_liveDeviceCount--;
+}
 
-    virtual IAdapter* getAdapter(DeviceType type, uint32_t index) override;
-    virtual Result getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob) override;
-    virtual void enableDebugLayers() override;
-    virtual Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
+void RHI::enableDebugLayers()
+{
+    m_debugLayerOptions.coreValidation = true;
+}
 
-    virtual Result createBlob(const void* data, size_t size, ISlangBlob** outBlob) override;
+Result RHI::setDebugLayerOptions(DebugLayerOptions options)
+{
+    if (m_liveDeviceCount != 0)
+        return SLANG_FAIL;
+    m_debugLayerOptions = options;
+    return SLANG_OK;
+}
 
-    virtual Result reportLiveObjects() override;
-    virtual Result setTaskPool(ITaskPool* scheduler) override;
+DebugLayerOptions RHI::getDebugLayerOptions()
+{
+    return m_debugLayerOptions;
+}
 
-    static RHI* getInstance()
-    {
-        static RHI instance;
-        return &instance;
-    }
-};
+
+const FormatInfo& RHI::getFormatInfo(Format format)
+{
+    return _getFormatInfo(format);
+}
+
 
 const char* RHI::getDeviceTypeName(DeviceType type)
 {
@@ -357,16 +364,6 @@ inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
     }
 }
 
-void RHI::enableDebugLayers()
-{
-    if (debugLayersEnabled)
-        return;
-#if SLANG_RHI_ENABLE_D3D12
-    enableD3D12DebugLayerIfAvailable();
-#endif
-    debugLayersEnabled = true;
-}
-
 Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
 {
     ComPtr<IDevice> innerDevice;
@@ -418,11 +415,6 @@ Result RHI::reportLiveObjects()
 Result RHI::setTaskPool(ITaskPool* taskPool)
 {
     return setGlobalTaskPool(taskPool);
-}
-
-bool isDebugLayersEnabled()
-{
-    return RHI::getInstance()->debugLayersEnabled;
 }
 
 } // namespace rhi

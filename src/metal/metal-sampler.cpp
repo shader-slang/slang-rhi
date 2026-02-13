@@ -11,6 +11,11 @@ SamplerImpl::SamplerImpl(Device* device, const SamplerDesc& desc)
 
 SamplerImpl::~SamplerImpl() {}
 
+void SamplerImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result SamplerImpl::init()
 {
     NS::SharedPtr<MTL::SamplerDescriptor> samplerDesc = NS::TransferPtr(MTL::SamplerDescriptor::alloc()->init());

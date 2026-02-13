@@ -5,6 +5,7 @@
 #include "core/common.h"
 
 #include <vector>
+#include <span>
 
 namespace rhi {
 
@@ -17,9 +18,9 @@ public:
         const SlangDesc& desc,
         SlangCompileTarget compileTarget,
         const char* defaultProfileName,
-        span<const Capability> capabilities = {},
-        span<const slang::PreprocessorMacroDesc> additionalPreprocessorMacros = {},
-        span<const slang::CompilerOptionEntry> additionalCompilerOptions = {}
+        std::span<const Capability> capabilities = {},
+        std::span<const slang::PreprocessorMacroDesc> additionalPreprocessorMacros = {},
+        std::span<const slang::CompilerOptionEntry> additionalCompilerOptions = {}
     )
     {
         if (desc.slangGlobalSession)

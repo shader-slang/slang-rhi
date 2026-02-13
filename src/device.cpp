@@ -11,6 +11,7 @@ namespace rhi {
 
 namespace testing {
 bool gDebugDisableStateTracking = false;
+std::atomic<uint64_t> gResourceCount{0};
 } // namespace testing
 
 // ----------------------------------------------------------------------------
@@ -936,6 +937,17 @@ Result Device::createSurface(WindowHandle windowHandle, ISurface** outSurface)
     SLANG_UNUSED(windowHandle);
     *outSurface = nullptr;
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
+{
+    SLANG_UNUSED(desc);
+    if (!outSupported)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    *outSupported = false;
+    return SLANG_OK;
 }
 
 Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)

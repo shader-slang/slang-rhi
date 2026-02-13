@@ -21,6 +21,11 @@ SamplerImpl::~SamplerImpl()
     device->m_api.vkDestroySampler(device->m_api.m_device, m_sampler, nullptr);
 }
 
+void SamplerImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::VkSampler;

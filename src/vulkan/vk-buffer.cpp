@@ -179,6 +179,11 @@ BufferImpl::~BufferImpl()
     }
 }
 
+void BufferImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 DeviceAddress BufferImpl::getDeviceAddress()
 {
     if (!m_buffer.m_api->vkGetBufferDeviceAddress)
