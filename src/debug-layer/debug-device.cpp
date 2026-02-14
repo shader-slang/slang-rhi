@@ -930,4 +930,22 @@ Result DebugDevice::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
     return baseObject->reportHeaps(heapReports, heapCount);
 }
 
+Result DebugDevice::setCudaContextCurrent()
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->setCudaContextCurrent();
+}
+
+Result DebugDevice::pushCudaContext()
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->pushCudaContext();
+}
+
+Result DebugDevice::popCudaContext()
+{
+    SLANG_RHI_API_FUNC;
+    return baseObject->popCudaContext();
+}
+
 } // namespace rhi::debug
