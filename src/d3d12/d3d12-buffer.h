@@ -12,16 +12,12 @@ public:
 
     virtual void deleteThis() override;
 
-    /// The resource in gpu memory, allocated on the correct heap relative to the cpu access flag
-    D3D12Resource m_resource;
-    D3D12_RESOURCE_STATES m_defaultState;
-
-    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-
+    // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
+    // IBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-
+    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
         Format format,
@@ -30,6 +26,18 @@ public:
     ) override;
 
 public:
+    D3D12_CPU_DESCRIPTOR_HANDLE getSRV(Format format, uint32_t stride, const BufferRange& range);
+    D3D12_CPU_DESCRIPTOR_HANDLE getUAV(
+        Format format,
+        uint32_t stride,
+        const BufferRange& range,
+        BufferImpl* counter = nullptr
+    );
+
+    /// The resource in gpu memory, allocated on the correct heap relative to the cpu access flag
+    D3D12Resource m_resource;
+    D3D12_RESOURCE_STATES m_defaultState;
+
     struct ViewKey
     {
         Format format;
@@ -58,14 +66,6 @@ public:
 
     std::unordered_map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_srvs;
     std::unordered_map<ViewKey, CPUDescriptorAllocation, ViewKeyHasher> m_uavs;
-
-    D3D12_CPU_DESCRIPTOR_HANDLE getSRV(Format format, uint32_t stride, const BufferRange& range);
-    D3D12_CPU_DESCRIPTOR_HANDLE getUAV(
-        Format format,
-        uint32_t stride,
-        const BufferRange& range,
-        BufferImpl* counter = nullptr
-    );
 
     struct DescriptorHandleKey
     {
