@@ -8,6 +8,22 @@
 
 namespace rhi {
 
+Heap::Heap(Device* device, const HeapDesc& desc)
+    : DeviceChild(device)
+{
+    m_desc = desc;
+    m_descHolder.holdString(m_desc.label);
+}
+
+Heap::~Heap()
+{
+    // Free all pages
+    for (Page* page : m_pages)
+    {
+        delete page;
+    }
+}
+
 Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 {
     // Allow device implementation to fix up descriptor

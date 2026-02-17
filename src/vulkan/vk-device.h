@@ -4,6 +4,7 @@
 #include "vk-bindless-descriptor-set.h"
 
 #include <string>
+#include <vector>
 
 namespace rhi::vk {
 
@@ -18,12 +19,13 @@ class DeviceImpl : public Device
 public:
     using Device::readBuffer;
 
-    Result initVulkanInstanceAndDevice(
+    Result initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions);
+    Result initVulkanDevice(
         const DeviceDesc& desc,
-        bool enableValidationLayer,
         std::vector<Feature>& availableFeatures,
         std::vector<Capability>& availableCapabilities
     );
+
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
@@ -127,6 +129,11 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
+        const CooperativeMatrixDesc& desc,
+        bool* outSupported
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
         CooperativeVectorProperties* properties,
         uint32_t* propertiesCount
@@ -167,6 +174,8 @@ public:
 
     DeviceImpl();
     ~DeviceImpl();
+
+    void deferDelete(Resource* resource);
 
 public:
     VkBool32 handleDebugMessage(
@@ -218,6 +227,22 @@ public:
 
     VulkanDeviceQueue m_deviceQueue;
     uint32_t m_queueFamilyIndex;
+
+    struct CooperativeMatrixFlexibleProperty
+    {
+        uint32_t mGranularity = 0;
+        uint32_t nGranularity = 0;
+        uint32_t kGranularity = 0;
+        CooperativeMatrixComponentType aType = CooperativeMatrixComponentType::Float16;
+        CooperativeMatrixComponentType bType = CooperativeMatrixComponentType::Float16;
+        CooperativeMatrixComponentType cType = CooperativeMatrixComponentType::Float16;
+        CooperativeMatrixComponentType resultType = CooperativeMatrixComponentType::Float16;
+        CooperativeMatrixScope scope = CooperativeMatrixScope::Subgroup;
+    };
+
+    bool m_cooperativeMatrixPropertiesInitialized = false;
+    std::vector<CooperativeMatrixDesc> m_cooperativeMatrixFixedProperties;
+    std::vector<CooperativeMatrixFlexibleProperty> m_cooperativeMatrixFlexibleProperties;
     RefPtr<CommandQueueImpl> m_queue;
 
     DescriptorSetAllocator descriptorSetAllocator;

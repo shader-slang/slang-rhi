@@ -16,11 +16,15 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
+    virtual void deleteThis() override;
+
     VkImage m_image = VK_NULL_HANDLE;
     VkFormat m_vkformat = VK_FORMAT_UNDEFINED;
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
-    bool m_isWeakImageReference = false;
-
+    // True if this texture is created from a swap chain buffer.
+    // Swap chain textures are deleted immediately when deleteThis() is called.
+    // Swap chain textures do not own the underlying image memory.
+    bool m_isSwapchainTexture = false;
     bool m_isSwapchainInitialState = false;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

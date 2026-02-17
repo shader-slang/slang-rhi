@@ -190,6 +190,8 @@ public:
 
     ~DeviceImpl();
 
+    void deferDelete(Resource* resource);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureSizes* outSizes
@@ -267,6 +269,7 @@ public:
 
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* desc);
+    inline Result setupDebugLayer(SharedLibraryHandle d3dModule);
 };
 
 } // namespace rhi::d3d12
@@ -275,6 +278,5 @@ namespace rhi {
 
 IAdapter* getD3D12Adapter(uint32_t index);
 Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
-void enableD3D12DebugLayerIfAvailable();
 
 } // namespace rhi

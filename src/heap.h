@@ -106,12 +106,8 @@ public:
     };
 
 
-    Heap(Device* device, const HeapDesc& desc)
-        : DeviceChild(device)
-    {
-        m_desc = desc;
-        m_descHolder.holdString(m_desc.label);
-    }
+    Heap(Device* device, const HeapDesc& desc);
+    virtual ~Heap();
 
     virtual void makeExternal() override { establishStrongReferenceToDevice(); }
     virtual void makeInternal() override { breakStrongReferenceToDevice(); }
@@ -146,7 +142,6 @@ public:
     HeapDesc m_desc;
     StructHolder m_descHolder;
     uint32_t m_nextPageId = 1;
-
 
     std::vector<Page*> m_pages;
 };

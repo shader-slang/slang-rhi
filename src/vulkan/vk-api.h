@@ -63,6 +63,9 @@ protected:
     x(vkGetPhysicalDeviceProperties2) \
     x(vkCreateDebugUtilsMessengerEXT) \
     x(vkDestroyDebugUtilsMessengerEXT) \
+    x(vkGetPhysicalDeviceCooperativeMatrixPropertiesNV) \
+    x(vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV) \
+    x(vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR) \
     x(vkGetPhysicalDeviceCooperativeVectorPropertiesNV) \
     /* */
 
@@ -522,6 +525,16 @@ struct VulkanExtendedFeatures
     // Shader demote to helper invocation features
     VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT shaderDemoteToHelperInvocationFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT
+    };
+
+    // Shader bfloat16 features
+    VkPhysicalDeviceShaderBfloat16FeaturesKHR shaderBfloat16Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR
+    };
+
+    // Cooperative Matrix 2 features
+    VkPhysicalDeviceCooperativeMatrix2FeaturesNV cooperativeMatrix2Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
     };
 };
 

@@ -147,7 +147,11 @@ DeviceImpl::~DeviceImpl()
         m_api.vkDestroySampler(m_device, m_defaultSampler, nullptr);
     }
 
-    m_queue.setNull();
+    if (m_queue)
+    {
+        m_queue->shutdown();
+        m_queue.setNull();
+    }
     m_deviceQueue.destroy();
 
     descriptorSetAllocator.close();
@@ -162,6 +166,13 @@ DeviceImpl::~DeviceImpl()
         if (m_api.m_instance != VK_NULL_HANDLE && !m_existingDeviceHandles.handles[0])
             m_api.vkDestroyInstance(m_api.m_instance, nullptr);
     }
+}
+
+void DeviceImpl::deferDelete(Resource* resource)
+{
+    SLANG_RHI_ASSERT(m_queue != nullptr);
+    m_queue->deferDelete(resource);
+    resource->breakStrongReferenceToDevice();
 }
 
 VkBool32 DeviceImpl::handleDebugMessage(
@@ -273,16 +284,8 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstanceAndDevice(
-    const DeviceDesc& desc,
-    bool enableValidationLayer,
-    std::vector<Feature>& availableFeatures,
-    std::vector<Capability>& availableCapabilities
-)
+Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions)
 {
-    availableFeatures.clear();
-    availableCapabilities.clear();
-
     // Initialize Vulkan instance.
     VkInstance instance = VK_NULL_HANDLE;
     if (!desc.existingDeviceHandles.handles[0])
@@ -316,10 +319,13 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 #endif
 #endif
 
-        if (enableValidationLayer)
+        if (debugLayerOptions.isDebugLayersEnabled())
         {
             instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+            if (debugLayerOptions.GPUAssistedValidation)
+                instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
         VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -333,9 +339,27 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         const char* layerNames[] = {nullptr};
 
         VkValidationFeaturesEXT validationFeatures = {};
-        VkValidationFeatureEnableEXT enabledValidationFeatures[1] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
-        if (enableValidationLayer)
+        std::vector<VkValidationFeatureEnableEXT> enabledValidationFeatures = {};
+        std::vector<VkValidationFeatureDisableEXT> disabledValidationFeatures = {};
+        if (debugLayerOptions.isDebugLayersEnabled())
         {
+            if (debugLayerOptions.GPUAssistedValidation)
+            {
+                enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+                enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+            }
+
+            if (!debugLayerOptions.coreValidation)
+            {
+                disabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT);
+            }
+            else
+            {
+                // Cannot use DebugPrintf if `CoreValidation` is disabled
+                if (m_extendedDesc.enableDebugPrintf)
+                    enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
+            }
+
             uint32_t layerCount;
             m_api.vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -356,14 +380,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 instanceCreateInfo.enabledLayerCount = SLANG_COUNT_OF(layerNames);
                 instanceCreateInfo.ppEnabledLayerNames = layerNames;
 
-                if (m_extendedDesc.enableDebugPrintf)
-                {
-                    // Include support for printf
-                    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-                    validationFeatures.enabledValidationFeatureCount = 1;
-                    validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
-                    instanceCreateInfo.pNext = &validationFeatures;
-                }
+                validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+                validationFeatures.enabledValidationFeatureCount = enabledValidationFeatures.size();
+                validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures.data();
+                validationFeatures.disabledValidationFeatureCount = disabledValidationFeatures.size();
+                validationFeatures.pDisabledValidationFeatures = disabledValidationFeatures.data();
+                instanceCreateInfo.pNext = &validationFeatures;
             }
         }
         uint32_t apiVersionsToTry[] = {
@@ -402,13 +424,15 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     }
     SLANG_RETURN_ON_FAIL(m_api.initInstanceProcs(instance));
 
-    if ((desc.enableRayTracingValidation || enableValidationLayer) && m_api.vkCreateDebugUtilsMessengerEXT)
+    if ((desc.enableRayTracingValidation || debugLayerOptions.isDebugLayersEnabled()) &&
+        m_api.vkCreateDebugUtilsMessengerEXT)
     {
         VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
             VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
         };
-        messengerCreateInfo.messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+        messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+        messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+        messengerCreateInfo.messageSeverity |= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         messengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                                           VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                           VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
@@ -419,6 +443,19 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback)
         );
     }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::initVulkanDevice(
+    const DeviceDesc& desc,
+    std::vector<Feature>& availableFeatures,
+    std::vector<Capability>& availableCapabilities
+)
+{
+    SLANG_RHI_ASSERT(m_api.m_instance != VK_NULL_HANDLE);
+
+    availableFeatures.clear();
+    availableCapabilities.clear();
 
     // Initialize Vulkan physical device.
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -428,10 +465,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
+        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr));
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
         SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data())
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data())
         );
 
         // Find the physical device that matches the selected adapter UUID.
@@ -556,6 +593,8 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vertexAttributeRobustnessFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.fragmentShaderInterlockFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -867,15 +906,22 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             deviceExtensions.push_back(VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME);
         }
 
-        // Only enable raytracing validation if both requested and supported
-        if (desc.enableRayTracingValidation && extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
+        if (desc.enableRayTracingValidation)
         {
-            SIMPLE_EXTENSION_FEATURE(
-                extendedFeatures.rayTracingValidationFeatures,
-                rayTracingValidation,
-                VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
-                { availableFeatures.push_back(Feature::RayTracingValidation); }
-            );
+            // If unsupported, fail
+            if (!extendedFeatures.rayTracingValidationFeatures.rayTracingValidation)
+            {
+                printWarning("Raytracing validation requested but not available.\n");
+            }
+            else
+            {
+                SIMPLE_EXTENSION_FEATURE(
+                    extendedFeatures.rayTracingValidationFeatures,
+                    rayTracingValidation,
+                    VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME,
+                    { availableFeatures.push_back(Feature::RayTracingValidation); }
+                );
+            }
         }
 
         SIMPLE_EXTENSION_FEATURE(
@@ -934,9 +980,39 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         // VK_EXT_shader_float8 is required for cooperative matrix types FloatE4M3 and FloatE5M2.
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderFloat8Features,
-            shaderFloat8CooperativeMatrix,
+            shaderFloat8,
             VK_EXT_SHADER_FLOAT8_EXTENSION_NAME,
-            {}
+            {
+                availableFeatures.push_back(Feature::Float8);
+                availableCapabilities.push_back(Capability::SPV_EXT_float8);
+                availableCapabilities.push_back(Capability::spvFloat8EXT);
+                if (extendedFeatures.shaderFloat8Features.shaderFloat8CooperativeMatrix)
+                {
+                    availableCapabilities.push_back(Capability::spvFloat8CooperativeMatrixEXT);
+                }
+            }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.shaderBfloat16Features,
+            shaderBFloat16Type,
+            VK_KHR_SHADER_BFLOAT16_EXTENSION_NAME,
+            {
+                availableFeatures.push_back(Feature::Bfloat16);
+                availableCapabilities.push_back(Capability::SPV_KHR_bfloat16);
+                availableCapabilities.push_back(Capability::spvBfloat16KHR);
+            }
+        );
+
+        SIMPLE_EXTENSION_FEATURE(
+            extendedFeatures.cooperativeMatrix2Features,
+            cooperativeMatrixWorkgroupScope,
+            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+            {
+                availableFeatures.push_back(Feature::CooperativeMatrix2);
+                availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
+                availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
+            }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -996,7 +1072,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
                 availableCapabilities.push_back(Capability::SPV_NV_ray_tracing_motion_blur);
                 availableCapabilities.push_back(Capability::spvRayTracingMotionBlurNV);
             }
-        )
+        );
 
 #undef SIMPLE_EXTENSION_FEATURE
 
@@ -1244,14 +1320,39 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    std::vector<Feature> availableFeatures;
-    std::vector<Capability> availableCapabilities;
+    // Initialize Vulkan API and loader.
     SLANG_RETURN_ON_FAIL(m_module.init());
     SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
     descriptorSetAllocator.m_api = &m_api;
-    SLANG_RETURN_ON_FAIL(
-        initVulkanInstanceAndDevice(desc, isDebugLayersEnabled(), availableFeatures, availableCapabilities)
-    );
+
+    // Initialize Vulkan instance.
+    DebugLayerOptions debugLayerOptions = getRHI()->getDebugLayerOptions();
+    Result instanceResult = initVulkanInstance(desc, debugLayerOptions);
+    // If instance creation failed due to missing debug layers,
+    // disable debug layers and try again (if they were optional).
+    if (SLANG_FAILED(instanceResult) && debugLayerOptions.isDebugLayersEnabled())
+    {
+        bool debugLayersRequired = debugLayerOptions.required;
+        printMessage(
+            debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+            DebugMessageSource::Layer,
+            "Debug layers requested but not available.\n"
+        );
+        if (debugLayersRequired)
+            return SLANG_FAIL;
+        debugLayerOptions = {};
+        instanceResult = initVulkanInstance(desc, debugLayerOptions);
+    }
+    if (SLANG_FAILED(instanceResult))
+    {
+        printError("Failed to create Vulkan instance.\n");
+        return instanceResult;
+    }
+
+    // Initialize Vulkan device and query available features and capabilities.
+    std::vector<Feature> availableFeatures;
+    std::vector<Capability> availableCapabilities;
+    SLANG_RETURN_ON_FAIL(initVulkanDevice(desc, availableFeatures, availableCapabilities));
 
     VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
@@ -1524,8 +1625,9 @@ void DeviceImpl::waitForGpu()
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)
-        return SLANG_FAIL;
-    m_queue->establishStrongReferenceToDevice();
+    {
+        return SLANG_E_INVALID_ARG;
+    }
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
@@ -1855,6 +1957,166 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
         *outAlignment = 1;
         break;
     }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
+{
+    if (!outSupported)
+        return SLANG_E_INVALID_ARG;
+
+    *outSupported = false;
+
+    if (desc.m == 0 || desc.n == 0 || desc.k == 0)
+        return SLANG_OK;
+
+    if (!m_api.m_extendedFeatures.cooperativeMatrix1Features.cooperativeMatrix ||
+        !m_api.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)
+    {
+        return SLANG_OK;
+    }
+
+    if (!m_cooperativeMatrixPropertiesInitialized)
+    {
+        m_cooperativeMatrixPropertiesInitialized = true;
+        m_cooperativeMatrixFixedProperties.clear();
+        m_cooperativeMatrixFlexibleProperties.clear();
+
+        uint32_t count = 0;
+        m_api.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(m_api.m_physicalDevice, &count, nullptr);
+        if (count == 0)
+            return SLANG_OK;
+
+        std::vector<VkCooperativeMatrixPropertiesKHR> props(count);
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            props[i].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
+            props[i].pNext = nullptr;
+        }
+
+        m_api.vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(m_api.m_physicalDevice, &count, props.data());
+
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            CooperativeMatrixComponentType aType;
+            CooperativeMatrixComponentType bType;
+            CooperativeMatrixComponentType cType;
+            CooperativeMatrixComponentType resultType;
+            CooperativeMatrixScope scope;
+            if (!translateCooperativeMatrixComponentType(props[i].AType, aType) ||
+                !translateCooperativeMatrixComponentType(props[i].BType, bType) ||
+                !translateCooperativeMatrixComponentType(props[i].CType, cType) ||
+                !translateCooperativeMatrixComponentType(props[i].ResultType, resultType) ||
+                !translateCooperativeMatrixScope(props[i].scope, scope))
+            {
+                continue;
+            }
+
+            CooperativeMatrixDesc fixedProp = {};
+            fixedProp.m = props[i].MSize;
+            fixedProp.n = props[i].NSize;
+            fixedProp.k = props[i].KSize;
+            fixedProp.aType = aType;
+            fixedProp.bType = bType;
+            fixedProp.cType = cType;
+            fixedProp.resultType = resultType;
+            fixedProp.scope = scope;
+            m_cooperativeMatrixFixedProperties.push_back(fixedProp);
+        }
+
+        if (m_api.m_extendedFeatures.cooperativeMatrix2Features.cooperativeMatrixFlexibleDimensions &&
+            m_api.vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV)
+        {
+            uint32_t flexCount = 0;
+            m_api.vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
+                m_api.m_physicalDevice,
+                &flexCount,
+                nullptr
+            );
+            if (flexCount > 0)
+            {
+                std::vector<VkCooperativeMatrixFlexibleDimensionsPropertiesNV> flexProps(
+                    flexCount,
+                    {VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_FLEXIBLE_DIMENSIONS_PROPERTIES_NV}
+                );
+                m_api.vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
+                    m_api.m_physicalDevice,
+                    &flexCount,
+                    flexProps.data()
+                );
+                for (uint32_t i = 0; i < flexCount; ++i)
+                {
+                    CooperativeMatrixComponentType aType;
+                    CooperativeMatrixComponentType bType;
+                    CooperativeMatrixComponentType cType;
+                    CooperativeMatrixComponentType resultType;
+                    CooperativeMatrixScope scope;
+                    if (!translateCooperativeMatrixComponentType(flexProps[i].AType, aType) ||
+                        !translateCooperativeMatrixComponentType(flexProps[i].BType, bType) ||
+                        !translateCooperativeMatrixComponentType(flexProps[i].CType, cType) ||
+                        !translateCooperativeMatrixComponentType(flexProps[i].ResultType, resultType) ||
+                        !translateCooperativeMatrixScope(flexProps[i].scope, scope))
+                    {
+                        continue;
+                    }
+
+                    if (flexProps[i].MGranularity == 0 || flexProps[i].NGranularity == 0 ||
+                        flexProps[i].KGranularity == 0)
+                    {
+                        continue;
+                    }
+
+                    SLANG_RHI_ASSERT(math::isPowerOf2(flexProps[i].MGranularity));
+                    SLANG_RHI_ASSERT(math::isPowerOf2(flexProps[i].NGranularity));
+                    SLANG_RHI_ASSERT(math::isPowerOf2(flexProps[i].KGranularity));
+
+                    CooperativeMatrixFlexibleProperty flexProp = {};
+                    flexProp.mGranularity = flexProps[i].MGranularity;
+                    flexProp.nGranularity = flexProps[i].NGranularity;
+                    flexProp.kGranularity = flexProps[i].KGranularity;
+                    flexProp.aType = aType;
+                    flexProp.bType = bType;
+                    flexProp.cType = cType;
+                    flexProp.resultType = resultType;
+                    flexProp.scope = scope;
+                    m_cooperativeMatrixFlexibleProperties.push_back(flexProp);
+                }
+            }
+        }
+    }
+
+    for (const auto& prop : m_cooperativeMatrixFixedProperties)
+    {
+        if (prop.scope != desc.scope)
+            continue;
+        if (prop.aType != desc.aType || prop.bType != desc.bType || prop.cType != desc.cType ||
+            prop.resultType != desc.resultType)
+            continue;
+        if (prop.m == desc.m && prop.n == desc.n && prop.k == desc.k)
+        {
+            *outSupported = true;
+            return SLANG_OK;
+        }
+    }
+
+    for (const auto& prop : m_cooperativeMatrixFlexibleProperties)
+    {
+        if (prop.scope != desc.scope)
+            continue;
+        if (prop.aType != desc.aType || prop.bType != desc.bType || prop.cType != desc.cType ||
+            prop.resultType != desc.resultType)
+            continue;
+        if (prop.mGranularity == 0 || prop.nGranularity == 0 || prop.kGranularity == 0)
+            continue;
+        if (desc.m < prop.mGranularity || desc.n < prop.nGranularity || desc.k < prop.kGranularity)
+            continue;
+        if ((desc.m & (prop.mGranularity - 1)) != 0 || (desc.n & (prop.nGranularity - 1)) != 0 ||
+            (desc.k & (prop.kGranularity - 1)) != 0)
+            continue;
+        *outSupported = true;
+        return SLANG_OK;
+    }
+
     return SLANG_OK;
 }
 

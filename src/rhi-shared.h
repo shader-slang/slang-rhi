@@ -59,7 +59,10 @@ public:
     Resource(Device* device)
         : DeviceChild(device)
     {
+        ++testing::gResourceCount;
     }
+
+    virtual ~Resource() { --testing::gResourceCount; }
 };
 
 class Buffer : public IBuffer, public Resource
@@ -328,7 +331,5 @@ inline uint32_t heightInBlocks(const FormatInfo& formatInfo, uint32_t size)
 {
     return formatInfo.isCompressed ? (size + formatInfo.blockHeight - 1) / formatInfo.blockHeight : size;
 }
-
-bool isDebugLayersEnabled();
 
 } // namespace rhi
