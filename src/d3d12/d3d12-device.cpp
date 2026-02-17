@@ -312,7 +312,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    if (SLANG_SUCCEEDED(setupDebugLayer(d3dModule)))
+    if (SLANG_FAILED(setupDebugLayer(d3dModule)))
         return SLANG_FAIL;
 
     // Get D3D12 entry points.
