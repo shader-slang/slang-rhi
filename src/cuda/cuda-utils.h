@@ -18,6 +18,7 @@ namespace rhi::cuda {
 class DeviceImpl;
 
 /// Helper class to push/pop CUDA context on the stack.
+/// Checks if the correct context is already current before pushing (optimization).
 class ContextScope
 {
 public:
