@@ -721,6 +721,7 @@ void CommandQueueImpl::shutdown()
     // where lazy events optimization means m_submitEvents is empty.
     // Without this, heap destruction could call cuMemFree while GPU is still using memory!
     SLANG_CUDA_ASSERT_ON_FAIL(cuCtxSynchronize());
+    m_lastFinishedID = m_lastSubmittedID;
 
     // Retire finished command buffers, which should be all of them now
     retireCommandBuffers();
@@ -729,7 +730,6 @@ void CommandQueueImpl::shutdown()
     // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
     // Execute remaining deferred deletes.
-    m_lastFinishedID = m_lastSubmittedID;
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
 
@@ -887,6 +887,7 @@ Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
 {
     // Increment submit count
     m_lastSubmittedID++;
+    m_submitsSinceEvent = 0;
 
     // Record submission event so we can detect completion
     SubmitEvent ev;
@@ -912,7 +913,11 @@ Result CommandQueueImpl::updateFence()
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
             SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
-            m_lastFinishedID = submitIt->submitID;
+
+            // If called after a context sync, m_lastFinishedID may already have been
+            // skipped to the end, so only overwrite it if this event's ID is greater.
+            if (submitIt->submitID > m_lastFinishedID)
+                m_lastFinishedID = submitIt->submitID;
 
             // Remove the event from the list.
             submitIt = m_submitEvents.erase(submitIt);
@@ -965,7 +970,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
         // Lazy events: only create events for multi-stream workloads.
         // Single-stream uses cuStreamQuery() instead - zero event overhead.
-        bool needsEvent = (requestedStream != m_stream);
+        bool needsEvent = (requestedStream != m_stream) || m_submitsSinceEvent > kMaxSubmitsWithoutEvent;
 
         if (needsEvent)
         {
@@ -978,6 +983,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         {
             // Single-stream lazy mode: just increment ID, no event
             m_lastSubmittedID++;
+            m_submitsSinceEvent++;
             commandBuffer->m_submissionID = m_lastSubmittedID;
         }
 
@@ -997,6 +1003,7 @@ Result CommandQueueImpl::waitOnHost()
 {
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
+    m_lastFinishedID = m_lastSubmittedID;
 
     // Retire command buffers that have completed.
     retireCommandBuffers();

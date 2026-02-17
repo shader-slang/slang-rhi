@@ -172,7 +172,7 @@ GPU_TEST_CASE("heap-allocate", CUDA | Vulkan)
     HeapReport report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size);
     CHECK_EQ(report.numAllocations, 1);
-    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
+    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024); // assume 1 small page of 256 MB
     CHECK_EQ(report.numPages, 1);
 
     REQUIRE_CALL(heap->free(allocation));
@@ -180,7 +180,7 @@ GPU_TEST_CASE("heap-allocate", CUDA | Vulkan)
     report = heap->report();
     CHECK_EQ(report.totalAllocated, 0);
     CHECK_EQ(report.numAllocations, 0);
-    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
+    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024); // assume 1 small page of 256 MB
     CHECK_EQ(report.numPages, 1);
 
     REQUIRE_CALL(heap->removeEmptyPages());
@@ -214,7 +214,7 @@ GPU_TEST_CASE("heap-cuda-immediate-retirement", CUDA)
     HeapReport report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size);
     CHECK_EQ(report.numAllocations, 1);
-    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
+    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024); // assume 1 small page of 256 MB
     CHECK_EQ(report.numPages, 1);
 
     // Actually USE the heap allocation - write a pattern to it via shader
@@ -228,7 +228,7 @@ GPU_TEST_CASE("heap-cuda-immediate-retirement", CUDA)
     report = heap->report();
     CHECK_EQ(report.totalAllocated, 0); // Immediate retirement (same stream)
     CHECK_EQ(report.numAllocations, 0);
-    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
+    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024); // assume 1 small page of 256 MB
     CHECK_EQ(report.numPages, 1);
 
     REQUIRE_CALL(heap->removeEmptyPages());
@@ -260,7 +260,7 @@ GPU_TEST_CASE("heap-vulkan-deferred-retirement", Vulkan)
     HeapReport report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size);
     CHECK_EQ(report.numAllocations, 1);
-    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024); // assume 1 small page of 8 MB
+    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024); // assume 1 small page of 256 MB
     CHECK_EQ(report.numPages, 1);
 
     // Actually USE the heap allocation - write a pattern to it via shader
@@ -272,7 +272,7 @@ GPU_TEST_CASE("heap-vulkan-deferred-retirement", Vulkan)
     report = heap->report();
     CHECK_EQ(report.totalAllocated, allocDesc.size); // Still allocated (deferred)
     CHECK_EQ(report.numAllocations, 1);
-    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024);
+    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024);
     CHECK_EQ(report.numPages, 1);
 
     // Wait for the queue to complete
@@ -285,7 +285,7 @@ GPU_TEST_CASE("heap-vulkan-deferred-retirement", Vulkan)
     report = heap->report();
     CHECK_EQ(report.totalAllocated, 0);
     CHECK_EQ(report.numAllocations, 0);
-    CHECK_EQ(report.totalMemUsage, 8 * 1024 * 1024);
+    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024);
     CHECK_EQ(report.numPages, 1);
 
     REQUIRE_CALL(heap->removeEmptyPages());
