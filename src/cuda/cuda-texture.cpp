@@ -181,6 +181,8 @@ CUtexObject TextureImpl::getTexObject(
     const SubresourceRange& range
 )
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     std::lock_guard<std::mutex> lock(m_mutex);
 
     ViewKey key = {format, samplerSettings, range};
@@ -236,6 +238,8 @@ CUtexObject TextureImpl::getTexObject(
 
 CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     std::lock_guard<std::mutex> lock(m_mutex);
 
     CUsurfObject& surfObject = m_surfObjects[range];
@@ -258,6 +262,8 @@ CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     TextureDesc desc = fixupTextureDesc(desc_);
 
     RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
@@ -494,6 +500,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
         *outTexture = nullptr;
         return SLANG_OK;
     }
+    SLANG_CUDA_CTX_SCOPE(this);
 
     RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
 
@@ -647,6 +654,8 @@ Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHand
 
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Undefined)

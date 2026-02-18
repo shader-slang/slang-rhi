@@ -32,6 +32,8 @@ Result ComputePipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     TimePoint startTime = Timer::now();
 
     ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
@@ -153,6 +155,8 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;

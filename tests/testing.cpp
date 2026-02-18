@@ -870,9 +870,6 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     if (SLANG_FAILED(createResult))
         RETURN_NOT_AVAILABLE("failed to create device");
 
-    // Set CUDA context current (no-op for non-CUDA devices).
-    device->setCudaContextCurrent();
-
     // Try compiling a trivial shader.
     ComPtr<slang::ISession> session = device->getSlangSession();
     if (!session)
@@ -1006,12 +1003,6 @@ static void gpuTestTrampoline()
         if (createDevice)
         {
             device = createTestingDevice(&ctx, deviceType, cacheDevice);
-        }
-        // Set CUDA context current before running tests (no-op for non-CUDA devices).
-        // This simulates how SlangPy will call it at entry points like Function.call().
-        if (device)
-        {
-            device->setCudaContextCurrent();
         }
         info->func(&ctx, device);
     }

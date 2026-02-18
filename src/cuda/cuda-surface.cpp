@@ -140,6 +140,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_deviceImpl = device;
     m_windowHandle = windowHandle;
 
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
+
     SLANG_RETURN_ON_FAIL(createVulkanInstance());
 
     switch (windowHandle.type)
@@ -208,6 +210,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 
 Result SurfaceImpl::createVulkanInstance()
 {
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
+
     SLANG_RETURN_ON_FAIL(m_module.init());
     SLANG_RETURN_ON_FAIL(m_api.initGlobalProcs(m_module));
 
@@ -268,6 +272,8 @@ Result SurfaceImpl::createVulkanInstance()
 
 Result SurfaceImpl::createVulkanDevice()
 {
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
+
     uint32_t physicalDeviceCount = 0;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_instance, &physicalDeviceCount, nullptr));
 
@@ -391,6 +397,8 @@ Result SurfaceImpl::createVulkanDevice()
 
 Result SurfaceImpl::createSwapchain()
 {
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
+
     VkExtent2D imageExtent = {m_config.width, m_config.height};
 
     // It is necessary to query the caps -> otherwise the LunarG verification layer will
@@ -499,6 +507,8 @@ void SurfaceImpl::destroySwapchain()
 
 Result SurfaceImpl::createFrameData(FrameData& frameData)
 {
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
+
     frameData = {0};
 
     // Create command pool.
@@ -633,6 +643,8 @@ void SurfaceImpl::destroyFrameData(FrameData& frameData)
 
 Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
 {
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
+
     VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
     imageInfo.extent = VkExtent3D{m_config.width, m_config.height, 1};
@@ -767,7 +779,6 @@ void SurfaceImpl::destroySharedTexture(SharedTexture& sharedTexture)
 
 Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
-    // Push/pop CUDA context to restore caller's context (e.g., PyTorch) after configuration.
     SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
 
     setConfig(config);
@@ -795,6 +806,8 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
 
 Result SurfaceImpl::unconfigure()
 {
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
+
     if (!m_configured)
     {
         return SLANG_OK;
@@ -807,6 +820,8 @@ Result SurfaceImpl::unconfigure()
 
 Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 {
+    SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
+
     *outTexture = nullptr;
 
     if (!m_configured)
@@ -842,7 +857,6 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
 Result SurfaceImpl::present()
 {
-    // Push/pop CUDA context to restore caller's context (e.g., PyTorch) after presentation.
     SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
 
     if (!m_configured)
@@ -1071,6 +1085,8 @@ Result SurfaceImpl::present()
 
 Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurface)
 {
+    SLANG_CUDA_CTX_SCOPE(this);
+
     RefPtr<SurfaceImpl> surface = new SurfaceImpl();
     SLANG_RETURN_ON_FAIL(surface->init(this, windowHandle));
     returnComPtr(outSurface, surface);

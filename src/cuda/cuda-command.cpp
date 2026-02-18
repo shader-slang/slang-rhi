@@ -716,6 +716,8 @@ CommandQueueImpl::~CommandQueueImpl()
 
 Result CommandQueueImpl::init()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     // On CUDA, treat the graphics stream as the default stream, identified
     // by a NULL ptr. When we support async compute queues on D3D/Vulkan,
     // they will be equivalent to secondary, non-default streams in CUDA.
@@ -848,6 +850,8 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
 
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
@@ -906,6 +910,8 @@ Result CommandQueueImpl::updateFence()
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     // Lazy retirement: don't retire on every submit - only on pool exhaustion,
     // explicit sync, or memory pressure. Eliminates per-submit overhead.
 
@@ -966,6 +972,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
 
@@ -1006,6 +1014,8 @@ CommandEncoderImpl::~CommandEncoderImpl()
 
 Result CommandEncoderImpl::init()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_RETURN_ON_FAIL(m_queue->getOrCreateCommandBuffer(m_commandBuffer.writeRef()));
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
@@ -1064,6 +1074,8 @@ static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<Ref
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     // Skip tracking device-local buffers - CUDA stream ordering guarantees safety
     trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
 
@@ -1083,6 +1095,8 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
@@ -1101,11 +1115,13 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 CommandBufferImpl::CommandBufferImpl(Device* device)
     : CommandBuffer(device)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     m_constantBufferPool.init(checked_cast<DeviceImpl*>(device));
 }
 
 Result CommandBufferImpl::reset()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     m_bindingCache.reset();
     m_constantBufferPool.reset();
     return CommandBuffer::reset();

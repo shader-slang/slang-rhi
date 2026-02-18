@@ -22,6 +22,8 @@ QueryPoolImpl::~QueryPoolImpl()
 
 Result QueryPoolImpl::init()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&m_startEvent, 0), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventRecord(m_startEvent, 0), this);
     m_events.resize(m_desc.count);
@@ -34,6 +36,8 @@ Result QueryPoolImpl::init()
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     for (uint32_t i = 0; i < count; i++)
     {
         float time = 0.0f;
@@ -61,6 +65,8 @@ PlainBufferProxyQueryPoolImpl::~PlainBufferProxyQueryPoolImpl()
 
 Result PlainBufferProxyQueryPoolImpl::init()
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&m_buffer, m_desc.count * sizeof(uint64_t)), this);
     return SLANG_OK;
 }
@@ -72,6 +78,8 @@ Result PlainBufferProxyQueryPoolImpl::reset()
 
 Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
 {
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(
         cuMemcpyDtoH(data, m_buffer + queryIndex * sizeof(uint64_t), count * sizeof(uint64_t)),

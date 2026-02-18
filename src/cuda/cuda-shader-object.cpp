@@ -13,6 +13,8 @@ void shaderObjectSetBinding(
     slang::BindingType bindingType
 )
 {
+    SLANG_CUDA_CTX_SCOPE(checked_cast<DeviceImpl*>(shaderObject->m_device.get()));
+
     uint8_t* dst = shaderObject->m_data.data();
 
     switch (bindingType)
