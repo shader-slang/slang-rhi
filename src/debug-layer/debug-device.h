@@ -194,6 +194,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() override;
 
+    /// Validate that the correct CUDA context is current (CUDA devices only).
+    /// Emits a warning if the wrong context or no context is active.
+    void validateCudaContext();
+
 private:
     DebugContext m_ctx;
 };
