@@ -75,6 +75,21 @@ Result DebugShaderObject::setData(const ShaderOffset& offset, const void* data, 
 {
     SLANG_RHI_API_FUNC;
     checkNotFinalized();
+    Size availableSize = baseObject->getSize();
+    Size endOffset = offset.uniformOffset + size;
+    if (offset.uniformOffset >= availableSize || endOffset > availableSize)
+    {
+        auto layout = baseObject->getElementTypeLayout();
+        const char* typeName = layout ? layout->getName() : "<unknown>";
+        RHI_VALIDATION_ERROR_FORMAT(
+            "ShaderObject::setData out of bounds: type=%s offset=%zu size=%zu available=%zu",
+            typeName,
+            size_t(offset.uniformOffset),
+            size_t(size),
+            size_t(availableSize)
+        );
+        return SLANG_E_INVALID_ARG;
+    }
     return baseObject->setData(offset, data, size);
 }
 
