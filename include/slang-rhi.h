@@ -3574,6 +3574,28 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() = 0;
 };
 
+/// RAII helper that pushes a device's CUDA context on construction and pops it on destruction.
+/// For non-CUDA devices, this is a no-op.
+/// Usage: SLANG_DEVICE_SCOPE(device);
+class DeviceScope
+{
+public:
+    DeviceScope(IDevice* device)
+        : m_device(device)
+    {
+        m_device->pushCudaContext();
+    }
+    ~DeviceScope() { m_device->popCudaContext(); }
+
+    DeviceScope(const DeviceScope&) = delete;
+    DeviceScope& operator=(const DeviceScope&) = delete;
+
+private:
+    IDevice* m_device;
+};
+
+#define SLANG_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
+
 class ITaskPool : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xab272cee, 0xa546, 0x4ae6, {0xbd, 0x0d, 0xcd, 0xab, 0xa9, 0x3f, 0x6d, 0xa6});
