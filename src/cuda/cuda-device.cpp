@@ -292,6 +292,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_ownsContext = true;
     }
 
+    // If no CUDA context is current, set ours so it persists after initialization.
+    // If another context is already current, leave it alone — callers should use
+    // setCudaContextCurrent() to explicitly manage the active context.
+    {
+        CUcontext currentContext = nullptr;
+        cuCtxGetCurrent(&currentContext);
+        if (currentContext == nullptr)
+        {
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSetCurrent(m_ctx.context), this);
+        }
+    }
+
+    // Push/pop our context for the remainder of initialization.
     SLANG_CUDA_CTX_SCOPE(this);
 
     // Initialize device info
