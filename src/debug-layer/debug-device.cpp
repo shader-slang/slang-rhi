@@ -8,6 +8,10 @@
 
 #include "core/short_vector.h"
 
+#if SLANG_RHI_ENABLE_CUDA
+#include <slang-rhi/cuda-driver-api.h>
+#endif
+
 #include <vector>
 
 namespace rhi::debug {
@@ -98,6 +102,7 @@ Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
 Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     if (uint32_t(desc.type) > uint32_t(TextureType::TextureCubeArray))
     {
@@ -251,6 +256,7 @@ Result DebugDevice::createTextureFromSharedHandle(
 Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     BufferDesc patchedDesc = desc;
     std::string label;
@@ -315,6 +321,7 @@ Result DebugDevice::unmapBuffer(IBuffer* buffer)
 Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     if (desc.minFilter > TextureFilteringMode::Linear)
     {
@@ -418,6 +425,7 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
 Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     TextureViewDesc patchedDesc = desc;
     std::string label;
@@ -453,6 +461,7 @@ Result DebugDevice::createAccelerationStructure(
 )
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     AccelerationStructureDesc patchedDesc = desc;
     std::string label;
@@ -552,6 +561,7 @@ Result DebugDevice::createShaderProgram(
 )
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     ShaderProgramDesc patchedDesc = desc;
     std::string label;
@@ -567,6 +577,7 @@ Result DebugDevice::createShaderProgram(
 Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     if (desc.program == nullptr)
     {
@@ -598,6 +609,7 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRender
 Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     if (desc.program == nullptr)
     {
@@ -619,6 +631,7 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComp
 Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     if (desc.program == nullptr)
     {
@@ -652,6 +665,9 @@ Result DebugDevice::readTexture(
     void* outData
 )
 {
+    SLANG_RHI_API_FUNC;
+    validateCudaContext();
+
     const TextureDesc& desc = texture->getDesc();
 
     if (layer > desc.getLayerCount())
@@ -698,6 +714,9 @@ Result DebugDevice::readTexture(
     SubresourceLayout* outLayout
 )
 {
+    SLANG_RHI_API_FUNC;
+    validateCudaContext();
+
     const TextureDesc& desc = texture->getDesc();
 
     if (layer > desc.getLayerCount())
@@ -727,12 +746,16 @@ Result DebugDevice::readTexture(
 Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
+
     return baseObject->readBuffer(buffer, offset, size, outData);
 }
 
 Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
+
     return baseObject->readBuffer(buffer, offset, size, outBlob);
 }
 
@@ -745,6 +768,7 @@ const DeviceInfo& DebugDevice::getInfo() const
 Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     QueryPoolDesc patchedDesc = desc;
     std::string label;
@@ -763,6 +787,7 @@ Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outP
 Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 {
     SLANG_RHI_API_FUNC;
+    validateCudaContext();
 
     FenceDesc patchedDesc = desc;
     std::string label;
@@ -797,6 +822,9 @@ Result DebugDevice::waitForFences(
 
 Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
 {
+    SLANG_RHI_API_FUNC;
+    validateCudaContext();
+
     HeapDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)
@@ -946,6 +974,46 @@ Result DebugDevice::popCudaContext()
 {
     SLANG_RHI_API_FUNC;
     return baseObject->popCudaContext();
+}
+
+void DebugDevice::validateCudaContext()
+{
+#if SLANG_RHI_ENABLE_CUDA
+    if (ctx->deviceType != DeviceType::CUDA)
+        return;
+
+    // Get the expected context from the device.
+    DeviceNativeHandles handles;
+    baseObject->getNativeDeviceHandles(&handles);
+    CUcontext expectedContext = nullptr;
+    for (const auto& handle : handles.handles)
+    {
+        if (handle.type == NativeHandleType::CUcontext)
+        {
+            expectedContext = (CUcontext)handle.value;
+            break;
+        }
+    }
+    if (!expectedContext)
+        return;
+
+    // Check the current context.
+    CUcontext currentContext = nullptr;
+    cuCtxGetCurrent(&currentContext);
+    if (currentContext == nullptr)
+    {
+        RHI_VALIDATION_WARNING(
+            "No CUDA context is current. Use setCudaContextCurrent() or SLANG_DEVICE_SCOPE to set the device context."
+        );
+    }
+    else if (currentContext != expectedContext)
+    {
+        RHI_VALIDATION_WARNING(
+            "Wrong CUDA context is current. Use setCudaContextCurrent() or SLANG_DEVICE_SCOPE to set the correct "
+            "device context."
+        );
+    }
+#endif
 }
 
 } // namespace rhi::debug
