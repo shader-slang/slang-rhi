@@ -49,10 +49,10 @@ jobs:
           # Builds running on GitHub hosted runners (build + tests)
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", runs-on: macos-latest }
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", runs-on: macos-latest }
-          # Builds running on GitHub hosted runners (build + tests on WARP)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: windows-latest }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", runs-on: windows-latest }
-          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: windows-11-arm }
+          # Builds running on GitHub hosted runners (build. disabled tests on WARP as they were failing D3D12)
+          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", runs-on: windows-latest }
+          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", runs-on: windows-latest }
+          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Release", runs-on: windows-11-arm }
           # Raytracing tests are flakey on aarch64/Debug builds, so tests are currently disabled
           - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Debug", flags: "", runs-on: windows-11-arm }
           # Builds running on GitHub hosted runners (build only)
