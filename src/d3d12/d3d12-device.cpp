@@ -313,7 +313,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     SLANG_RETURN_ON_FAIL(setupDebugLayer(d3dModule));
-    
+
     // Get D3D12 entry points.
     {
         m_D3D12CreateDevice = (PFN_D3D12_CREATE_DEVICE)loadProc(d3dModule, "D3D12CreateDevice");
