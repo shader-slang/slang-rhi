@@ -947,10 +947,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     &m_raytracingValidationHandle
                 ));
             }
-        }
-        else
-        {
-            printWarning("Raytracing validation requested but not available.\n");
+            else
+            {
+                printWarning("Raytracing validation requested but not available.\n");
+            }
         }
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
