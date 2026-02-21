@@ -78,7 +78,6 @@ private:
         uintptr_t begin;
         uintptr_t end;
     };
-    static_assert(sizeof(Page) == 32);
 
     size_t m_pageSize;
     Page* m_pages = nullptr;

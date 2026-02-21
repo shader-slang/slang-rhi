@@ -2102,13 +2102,21 @@ enum class WindowHandleType
     NSWindow,
     XlibWindow,
     AndroidWindow,
+#if SLANG_WASM
+    WGPUCanvas,
+#endif
 };
 
 struct WindowHandle
 {
     WindowHandleType type = WindowHandleType::Undefined;
+#if SLANG_WASM
+    char canvasSelector[128];
+#else
     uint64_t handleValues[2];
+#endif
 
+#if !SLANG_WASM
     static WindowHandle fromHwnd(void* hwnd)
     {
         WindowHandle handle = {};
@@ -2138,6 +2146,21 @@ struct WindowHandle
         handle.handleValues[0] = (uint64_t)(window);
         return handle;
     }
+#else
+    static WindowHandle fromWGPUCanvas(const char* canvasSelector)
+    {
+        WindowHandle handle = {};
+        handle.type = WindowHandleType::WGPUCanvas;
+        if (canvasSelector)
+        {
+            size_t i = 0;
+            for (; i < sizeof(handle.canvasSelector) - 1 && canvasSelector[i]; ++i)
+                handle.canvasSelector[i] = canvasSelector[i];
+            handle.canvasSelector[i] = 0;
+        }
+        return handle;
+    }
+#endif
 };
 
 enum class LoadOp
