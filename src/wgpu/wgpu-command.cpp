@@ -6,9 +6,6 @@
 #include "wgpu-shader-object.h"
 #include "wgpu-utils.h"
 
-#ifdef SLANG_WASM
-#include <emscripten.h>
-#endif
 
 #include "../strings.h"
 

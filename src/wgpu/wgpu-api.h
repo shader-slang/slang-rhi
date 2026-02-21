@@ -9,6 +9,7 @@
 #include <dawn/webgpu.h>
 #else
 #include <webgpu/webgpu.h>
+#include <emscripten.h>
 #endif
 
 // clang-format off

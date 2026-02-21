@@ -4,9 +4,6 @@
 
 #include "core/deferred.h"
 
-#ifdef SLANG_WASM
-#include <emscripten.h>
-#endif
 
 namespace rhi::wgpu {
 
