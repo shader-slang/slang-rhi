@@ -271,6 +271,16 @@ endmacro()
 # Fetch slang
 if(SLANG_RHI_FETCH_SLANG)
     set(SLANG_VERSION ${SLANG_RHI_FETCH_SLANG_VERSION})
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        # Emscripten WASM releases are available starting from v2026.3.1
+        set(SLANG_WASM_MIN_VERSION "2026.3.1")
+        if(SLANG_VERSION VERSION_LESS SLANG_WASM_MIN_VERSION)
+            message(STATUS "Slang ${SLANG_VERSION} did not release WASM libraries, overriding to ${SLANG_WASM_MIN_VERSION}")
+            set(SLANG_VERSION ${SLANG_WASM_MIN_VERSION})
+        endif()
+    endif()
+
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -291,6 +301,8 @@ if(SLANG_RHI_FETCH_SLANG)
         else()
             set(SLANG_URL "${SLANG_URL}-macos-aarch64.zip")
         endif()
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        set(SLANG_URL "${SLANG_URL}-wasm-libs.zip")
     endif()
 
     message(STATUS "Fetching Slang ${SLANG_VERSION} ...")
@@ -305,7 +317,11 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
     function(slang_rhi_add_library_slang)
-        add_library(slang SHARED IMPORTED GLOBAL)
+        if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+            add_library(slang STATIC IMPORTED GLOBAL)
+        else()
+            add_library(slang SHARED IMPORTED GLOBAL)
+        endif()
 
         # Slang renamed the compiler library from slang to slang-compiler in v2025.21
         # Detect if the old or new library name is used.
@@ -314,6 +330,8 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
         elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.so)
             set(SLANG_LIB_NAME slang-compiler)
         elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.dylib)
+            set(SLANG_LIB_NAME slang-compiler)
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
             set(SLANG_LIB_NAME slang-compiler)
         else()
             set(SLANG_LIB_NAME slang)
@@ -334,6 +352,17 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
             set_target_properties(slang PROPERTIES
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.dylib
+            )
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+            set_target_properties(slang PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
+                IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.a
+            )
+            target_link_libraries(slang INTERFACE
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcompiler-core.a
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcore.a
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/liblz4.a
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libminiz.a
             )
         endif()
     endfunction()
