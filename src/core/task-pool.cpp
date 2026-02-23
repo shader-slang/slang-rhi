@@ -261,7 +261,7 @@ struct ThreadedTaskPool::Pool
                     else
                     {
                         // Dependency is already done, decrement the counter.
-                        if (task->depsRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                        if (task->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
                         {
                             readyToEnqueue = true;
                         }
@@ -344,7 +344,7 @@ void ThreadedTaskPool::Pool::workerThread()
             for (Task* child : task->children)
             {
                 // Decrement the child's dependency counter.
-                if (child->depsRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                if (child->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
                 {
                     // All dependencies satisfied; enqueue the child.
                     enqueue(child);
