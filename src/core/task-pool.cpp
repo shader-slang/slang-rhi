@@ -8,7 +8,9 @@
 
 namespace rhi {
 
+// ----------------------------------------------------------------------------
 // BlockingTaskPool
+// ----------------------------------------------------------------------------
 
 struct BlockingTaskPool::Task
 {
@@ -81,7 +83,9 @@ bool BlockingTaskPool::isTaskDone(TaskHandle task)
 
 void BlockingTaskPool::waitAll() {}
 
+// ----------------------------------------------------------------------------
 // ThreadedTaskPool
+// ----------------------------------------------------------------------------
 
 struct ThreadedTaskPool::Task
 {
@@ -416,15 +420,19 @@ void ThreadedTaskPool::waitAll()
     m_pool->waitAll();
 }
 
+// ----------------------------------------------------------------------------
 // Global task pool
+// ----------------------------------------------------------------------------
 
 static std::mutex s_globalTaskPoolMutex;
 static ComPtr<ITaskPool> s_globalTaskPool;
+static std::atomic<ITaskPool*> s_cachedGlobalTaskPool{nullptr};
 
 Result setGlobalTaskPool(ITaskPool* taskPool)
 {
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
     s_globalTaskPool = taskPool;
+    s_cachedGlobalTaskPool.store(taskPool, std::memory_order_release);
     return SLANG_OK;
 }
 
@@ -440,18 +448,18 @@ Result initGlobalTaskPool(int workerCount)
 
 ITaskPool* globalTaskPool()
 {
-    static std::atomic<ITaskPool*> taskPool;
-    if (taskPool)
+    ITaskPool* cached = s_cachedGlobalTaskPool.load(std::memory_order_acquire);
+    if (cached)
     {
-        return taskPool;
+        return cached;
     }
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
     if (!s_globalTaskPool)
     {
         s_globalTaskPool = new ThreadedTaskPool(-1);
     }
-    taskPool = s_globalTaskPool.get();
-    return taskPool;
+    s_cachedGlobalTaskPool.store(s_globalTaskPool.get(), std::memory_order_release);
+    return s_globalTaskPool.get();
 }
 
 } // namespace rhi
