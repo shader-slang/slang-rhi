@@ -163,8 +163,9 @@ enum class DeviceType
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     /* Metal specific features */                                                                 \
-    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        )
-// clang-format on
+    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
+    /* CUDA specific features */                                                                  \
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
 enum class Feature
@@ -3559,7 +3560,41 @@ public:
     /// @param heapCount [in/out] On input: size of heapReports buffer (ignored if heapReports is null). On output:
     /// number of heaps available or written
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) = 0;
+
+    /// Set the device's CUDA context as current on this thread.
+    /// For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() = 0;
+
+    /// Push the device's CUDA context onto the current thread's context stack.
+    /// Must be paired with popCudaContext(). For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() = 0;
+
+    /// Pop the CUDA context from the current thread's context stack.
+    /// For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() = 0;
 };
+
+/// RAII helper that pushes a device's CUDA context on construction and pops it on destruction.
+/// For non-CUDA devices, this is a no-op.
+/// Usage: SLANG_DEVICE_SCOPE(device);
+class DeviceScope
+{
+public:
+    DeviceScope(IDevice* device)
+        : m_device(device)
+    {
+        m_device->pushCudaContext();
+    }
+    ~DeviceScope() { m_device->popCudaContext(); }
+
+    DeviceScope(const DeviceScope&) = delete;
+    DeviceScope& operator=(const DeviceScope&) = delete;
+
+private:
+    IDevice* m_device;
+};
+
+#define SLANG_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
 
 class ITaskPool : public ISlangUnknown
 {
