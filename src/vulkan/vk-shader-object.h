@@ -20,7 +20,7 @@ struct BindingDataBuilder
     DescriptorSetAllocator* m_descriptorSetAllocator;
 
     // TODO remove
-    span<const VkPushConstantRange> m_pushConstantRanges;
+    std::span<const VkPushConstantRange> m_pushConstantRanges;
 
 
     /// Bind this object as a root shader object

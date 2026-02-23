@@ -12,6 +12,8 @@ public:
     SamplerImpl(Device* device, const SamplerDesc& desc);
     ~SamplerImpl();
 
+    virtual void deleteThis() override;
+
     Result init();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

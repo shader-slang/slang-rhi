@@ -10,10 +10,6 @@ static thread_local std::atomic<uint32_t> g_contextStackDepth = 0;
 
 ContextScope::ContextScope(const DeviceImpl* device)
 {
-    // TEMP Perf fix: Get current context before pushing it, as the push
-    // seemingly has significant impacts on cpu and gpu. This should be
-    // removed in favour of just not pushing/popping context regularly,
-    // as cuCtxGetCurrent is not free.
     CUcontext currentContext = nullptr;
     cuCtxGetCurrent(&currentContext);
     if (currentContext != device->m_ctx.context)

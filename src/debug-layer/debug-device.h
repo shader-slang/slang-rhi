@@ -159,6 +159,10 @@ public:
         size_t* outAlignment
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
+        const CooperativeMatrixDesc& desc,
+        bool* outSupported
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
         CooperativeVectorProperties* properties,
         uint32_t* propertiesCount
@@ -185,6 +189,14 @@ public:
         IShaderTable** outTable
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() override;
+
+    /// Validate that the correct CUDA context is current (CUDA devices only).
+    /// Emits a warning if the wrong context or no context is active.
+    void validateCudaContext();
 
 private:
     DebugContext m_ctx;

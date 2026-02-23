@@ -42,6 +42,11 @@ BufferImpl::~BufferImpl()
     }
 }
 
+void BufferImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 DeviceAddress BufferImpl::getDeviceAddress()
 {
     return (DeviceAddress)m_resource.getResource()->GetGPUVirtualAddress();

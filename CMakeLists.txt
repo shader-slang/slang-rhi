@@ -140,7 +140,7 @@ endif()
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.24" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2026.2" CACHE STRING "Slang version to fetch")
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -583,6 +583,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         -Wno-missing-field-initializers
         -Wno-sign-compare
         -Wno-subobject-linkage
+        -Wno-stringop-overread
     >
     $<$<CXX_COMPILER_ID:Clang>:
         -Wall -Wextra -Wpedantic
@@ -852,7 +853,7 @@ target_compile_definitions(slang-rhi
     $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
-target_compile_features(slang-rhi PRIVATE cxx_std_17)
+target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Tests currently require linking statically due to reaching into internal details of the RHI implementation.
@@ -869,8 +870,10 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
+        tests/test-acceleration-structure-creation-with-validation.cpp
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
+        tests/test-device-features.cpp
         tests/test-block-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless.cpp
@@ -897,8 +900,10 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-compute-indirect.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
+        tests/test-cooperative-matrix.cpp
         tests/test-cooperative-vector.cpp
         tests/test-cuda-external-devices.cpp
+        tests/test-deferred-delete.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
         tests/test-fence.cpp
@@ -937,6 +942,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-shader-cache.cpp
         tests/test-shader-object-large.cpp
         tests/test-shader-object-resource-tracking.cpp
+        tests/test-ring-queue.cpp
         tests/test-short-vector.cpp
         tests/test-staging-heap.cpp
         tests/test-static-vector.cpp
@@ -966,7 +972,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
-    target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
+    target_compile_features(slang-rhi-tests PRIVATE cxx_std_20)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
@@ -985,7 +991,7 @@ if(SLANG_RHI_BUILD_EXAMPLES)
     if(NOT EMSCRIPTEN)
         function(add_example name source)
             add_executable(${name} ${source})
-            target_compile_features(${name} PRIVATE cxx_std_17)
+            target_compile_features(${name} PRIVATE cxx_std_20)
             get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
             target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
             target_include_directories(${name} PRIVATE examples/base)
@@ -997,7 +1003,6 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         add_example(example-triangle examples/triangle/example-triangle.cpp)
 
     else()
-        message(STATUS "Building wasm examples with emscripten")
         add_executable(wasm-test examples/wasm/wasm-test.cpp)
         target_compile_features(wasm-test PRIVATE cxx_std_17)
         target_link_libraries(wasm-test PRIVATE slang-rhi slang)

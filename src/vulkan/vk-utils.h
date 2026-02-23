@@ -103,4 +103,7 @@ CooperativeVectorComponentType translateCooperativeVectorComponentType(VkCompone
 VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout);
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout);
 
+bool translateCooperativeMatrixComponentType(VkComponentTypeKHR type, CooperativeMatrixComponentType& outType);
+bool translateCooperativeMatrixScope(VkScopeKHR scope, CooperativeMatrixScope& outScope);
+
 } // namespace rhi::vk
