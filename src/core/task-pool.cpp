@@ -170,7 +170,10 @@ struct ThreadedTaskPool::Pool
         {
             Task* task = m_queue.front();
             m_queue.pop();
-            releaseTask(task);
+            // Null check to silence GCC -Wstringop-overflow (it inlines releaseTask
+            // and cannot prove queue elements are non-null).
+            if (task)
+                releaseTask(task);
         }
     }
 
