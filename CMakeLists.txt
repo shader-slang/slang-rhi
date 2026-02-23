@@ -965,7 +965,6 @@ if(SLANG_RHI_BUILD_BENCHMARKS)
     add_executable(benchmark-compile
         benchmarks/benchmark-compile/main.cpp
         benchmarks/benchmark-compile/synthetic-modules.cpp
-        benchmarks/benchmark-compile/thread-pool.cpp
     )
     target_compile_features(benchmark-compile PRIVATE cxx_std_20)
     target_compile_definitions(benchmark-compile PRIVATE NOMINMAX)

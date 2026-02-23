@@ -1,5 +1,4 @@
 #include "synthetic-modules.h"
-#include "thread-pool.h"
 
 #include "core/blob.h"
 
@@ -15,6 +14,7 @@
 #include <numeric>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace rhi;
@@ -478,7 +478,7 @@ static std::vector<uint32_t> buildThreadCountList()
     return counts;
 }
 
-static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
+static int runBenchmarks(IRHI* rhi)
 {
     // Build the configuration axes.
     std::vector<DeviceType> deviceTypes;
@@ -504,55 +504,62 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
     std::vector<BenchmarkRow> results;
     int failures = 0;
 
-    // Loop order: device → modules → size → threads
-    // This groups thread-count variations together in the output table,
-    // making it easy to see the effect of parallelism for each configuration.
+    // Loop order: device → threads → modules → size
+    // The thread count loop is outside device creation so that we can call
+    // rhi->initTaskPool() (which requires no live devices) for each count.
 
     for (auto deviceType : deviceTypes)
     {
         const char* deviceTypeName = rhi->getDeviceTypeName(deviceType);
 
-        // Try to create the device; skip if unsupported.
         if (!rhi->isDeviceTypeSupported(deviceType))
         {
             printf("Skipping %s (not supported on this platform)\n", deviceTypeName);
             continue;
         }
 
-        ComPtr<IDevice> device;
-        {
-            DeviceDesc deviceDesc = {};
-            deviceDesc.deviceType = deviceType;
-            if (g_config.verbose)
-            {
-                deviceDesc.debugCallback = &g_debugCallback;
-                deviceDesc.enableValidation = true;
-            }
-
-            Result r = rhi->createDevice(deviceDesc, device.writeRef());
-            if (SLANG_FAILED(r) || !device)
-            {
-                printf("Skipping %s (device creation failed: 0x%08x)\n", deviceTypeName, static_cast<int>(r));
-                continue;
-            }
-        }
-
         printf("Benchmarking %s ...\n", deviceTypeName);
 
-        // Get the Slang global session for compiler elapsed time queries.
-        ComPtr<slang::ISession> slangSession;
-        device->getSlangSession(slangSession.writeRef());
-        slang::IGlobalSession* globalSession = slangSession ? slangSession->getGlobalSession() : nullptr;
-
-        for (auto moduleCount : moduleCounts)
+        for (auto threadCount : threadCounts)
         {
-            for (auto sizeLevel : sizeLevels)
+            // Initialize the task pool for this thread count.
+            // 0 creates a BlockingTaskPool (serial); >0 creates a ThreadedTaskPool.
             {
-                for (auto threadCount : threadCounts)
+                Result r = rhi->initTaskPool(static_cast<int>(threadCount));
+                if (SLANG_FAILED(r))
                 {
-                    // Resize the pool for this thread count (0 = serial).
-                    pool->setThreadCount(threadCount);
+                    fprintf(stderr, "Error: initTaskPool(%u) failed (0x%08x)\n", threadCount, static_cast<int>(r));
+                    continue;
+                }
+            }
 
+            ComPtr<IDevice> device;
+            {
+                DeviceDesc deviceDesc = {};
+                deviceDesc.deviceType = deviceType;
+                if (g_config.verbose)
+                {
+                    deviceDesc.debugCallback = &g_debugCallback;
+                    deviceDesc.enableValidation = true;
+                }
+
+                Result r = rhi->createDevice(deviceDesc, device.writeRef());
+                if (SLANG_FAILED(r) || !device)
+                {
+                    printf("Skipping %s (device creation failed: 0x%08x)\n", deviceTypeName, static_cast<int>(r));
+                    break;
+                }
+            }
+
+            // Get the Slang global session for compiler elapsed time queries.
+            ComPtr<slang::ISession> slangSession;
+            device->getSlangSession(slangSession.writeRef());
+            slang::IGlobalSession* globalSession = slangSession ? slangSession->getGlobalSession() : nullptr;
+
+            for (auto moduleCount : moduleCounts)
+            {
+                for (auto sizeLevel : sizeLevels)
+                {
                     // Each iteration uses a unique seed to defeat all caching:
                     // - RHI level: new ShaderProgram object → compileShaders() runs fresh
                     // - Driver level: unique entry point names → different binary code
@@ -721,26 +728,25 @@ static int runBenchmarks(IRHI* rhi, ThreadPool* pool)
                     }
                 }
             }
-        }
 
-        // Release Slang session reference before device — the session destructor
-        // may depend on device-owned resources (global session, etc.).
-        slangSession.setNull();
-        globalSession = nullptr;
+            // Release Slang session reference before device — the session destructor
+            // may depend on device-owned resources (global session, etc.).
+            slangSession.setNull();
+            globalSession = nullptr;
 
-        if (g_config.verbose)
-        {
-            fprintf(stderr, "[verbose] Releasing %s device...\n", deviceTypeName);
-            fflush(stderr);
-        }
+            if (g_config.verbose)
+            {
+                fprintf(stderr, "[verbose] Releasing %s device (threads=%u)...\n", deviceTypeName, threadCount);
+                fflush(stderr);
+            }
 
-        // Release device before moving to the next one.
-        device.setNull();
+            device.setNull();
 
-        if (g_config.verbose)
-        {
-            fprintf(stderr, "[verbose] %s device released.\n", deviceTypeName);
-            fflush(stderr);
+            if (g_config.verbose)
+            {
+                fprintf(stderr, "[verbose] %s device released (threads=%u).\n", deviceTypeName, threadCount);
+                fflush(stderr);
+            }
         }
     }
 
@@ -836,19 +842,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // 3. Create a single thread pool and register it with the RHI once.
-    //    We dynamically resize it via setThreadCount() for each benchmark config.
-    ComPtr<ThreadPool> taskPool(new ThreadPool(0)); // Start in serial mode.
-    {
-        Result r = rhi->setTaskPool(taskPool);
-        if (SLANG_FAILED(r))
-        {
-            fprintf(stderr, "Error: setTaskPool failed (0x%08x)\n", static_cast<int>(r));
-            return 1;
-        }
-    }
-
-    // 4. Print thread count plan.
+    // 3. Print thread count plan.
     auto threadCounts = buildThreadCountList();
     printf("Thread counts to benchmark:");
     for (auto tc : threadCounts)
@@ -860,6 +854,6 @@ int main(int argc, char* argv[])
     }
     printf("\n\n");
 
-    // 5. Run benchmarks (creates/destroys devices internally, resizes pool per config).
-    return runBenchmarks(rhi, taskPool.get());
+    // 4. Run benchmarks (creates/destroys devices internally, swaps task pool per config).
+    return runBenchmarks(rhi);
 }

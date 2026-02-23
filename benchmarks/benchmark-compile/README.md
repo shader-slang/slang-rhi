@@ -105,9 +105,10 @@ Vulkan      | 1       | 1     | complex |        64.80 |       51.90 |        51
 Vulkan      | 4       | 1     | complex |        65.10 |       52.00 |        511.50 |       18.15 |     645.75 |
 ```
 
-The loop order is **device → modules → size → threads**, so thread-count
-variations are grouped together for each configuration, making it easy to see
-the effect of parallelism.
+The loop order is **device → threads → modules → size**. The thread count
+loop is outermost (after device type) because `rhi->initTaskPool()` requires
+no live devices, so the device is created after the pool is configured for
+each thread count.
 
 ## Timing Breakdown
 
@@ -332,21 +333,18 @@ the compiler with:
 
 ## Thread Pool
 
-The benchmark includes a custom `ITaskPool` implementation (`ThreadPool` class
-in `thread-pool.h` / `thread-pool.cpp`) backed by `std::thread`. It supports:
+The benchmark uses the core `ITaskPool` implementations from slang-rhi
+(`BlockingTaskPool` and `ThreadedTaskPool` in `src/core/task-pool.h`). For
+each thread-count configuration, the benchmark calls `rhi->initTaskPool()` to
+install a fresh pool before creating the device:
 
-- **Dynamic resizing** via `setThreadCount()`: waits for pending tasks, shuts
-  down existing workers, then starts the requested number of workers. When set
-  to 0, the pool operates in serial mode — tasks execute immediately on the
-  calling thread.
-- Task dependency tracking (tasks aren't scheduled until all dependencies
-  complete)
-- `waitTask()` / `waitAll()` for synchronization
+- `initTaskPool(0)` creates a `BlockingTaskPool` (serial — tasks execute
+  immediately on the calling thread).
+- `initTaskPool(n)` (n > 0) creates a `ThreadedTaskPool` with n worker
+  threads.
 
-A single `ThreadPool` is created at startup and registered with the RHI via
-`rhi->setTaskPool()`. The benchmark then calls `pool->setThreadCount()` for
-each thread-count configuration, avoiding the RHI's set-once restriction on
-`setTaskPool()`.
+Because `initTaskPool()` requires no live devices, the device is created after
+the pool is configured and destroyed before the next pool swap.
 
 By default, the benchmark auto-varies thread counts: serial (0), then powers
 of 2 from 1 up to `hardware_concurrency()`. Use `--threads <n>` to pin a
