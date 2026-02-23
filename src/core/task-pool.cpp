@@ -435,6 +435,9 @@ static std::mutex s_globalTaskPoolMutex;
 static ComPtr<ITaskPool> s_globalTaskPool;
 static std::atomic<ITaskPool*> s_cachedGlobalTaskPool{nullptr};
 
+// WARNING: setGlobalTaskPool must only be called when no devices are alive
+// and no other threads are using the global task pool. Calling it concurrently
+// with globalTaskPool() may result in use-after-free.
 Result setGlobalTaskPool(ITaskPool* taskPool)
 {
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
