@@ -2,6 +2,7 @@
 
 #include "core/assert.h"
 
+#include "wgpu-device.h"
 #include <cstring>
 
 namespace rhi::wgpu {
@@ -596,6 +597,51 @@ WGPUStoreOp translateStoreOp(StoreOp op)
     }
     SLANG_RHI_ASSERT_FAILURE("Invalid StoreOp value");
     return WGPUStoreOp_Undefined;
+}
+
+// Synchronously waits for a WebGPU future to complete, using native blocking on desktop and safe, adaptive event-loop
+// polling in WebAssembly to prevent browser deadlocks.
+WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, uint64_t timeoutNS)
+{
+    WGPUFutureWaitInfo futures[1] = {{future}};
+
+#if SLANG_WASM
+    WGPUWaitStatus waitStatus = WGPUWaitStatus_Success;
+    double startMS = (timeoutNS != UINT64_MAX) ? emscripten_get_now() : 0.0;
+    int spinCount = 0;
+
+    while (true)
+    {
+        waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, 0);
+
+        if (futures[0].completed)
+            break;
+
+        if (timeoutNS != UINT64_MAX)
+        {
+            if ((emscripten_get_now() - startMS) * 1000000.0 >= timeoutNS)
+                return WGPUWaitStatus_TimedOut;
+        }
+
+        if (spinCount < 5) // adaptive yielding
+        {
+            emscripten_sleep(0);
+        }
+        else
+        {
+            emscripten_sleep(1);
+        }
+        spinCount++;
+    }
+    return waitStatus;
+#else
+    return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+#endif
+}
+
+WGPUWaitStatus wait(WGPUContext& ctx, WGPUFuture future, uint64_t timeoutNS)
+{
+    return wait(ctx.api, ctx.instance, future, timeoutNS);
 }
 
 } // namespace rhi::wgpu

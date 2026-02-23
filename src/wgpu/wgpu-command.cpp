@@ -966,23 +966,7 @@ Result CommandQueueImpl::waitOnHost()
         };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = device->m_ctx.api.wgpuQueueOnSubmittedWorkDone(m_queue, callbackInfo);
-        constexpr size_t futureCount = 1;
-        WGPUFutureWaitInfo futures[futureCount] = {{future}};
-#if SLANG_WASM
-        uint64_t timeoutNS = 0;
-        WGPUWaitStatus waitStatus = WGPUWaitStatus_Success;
-        while (true)
-        {
-            waitStatus = device->m_ctx.api.wgpuInstanceWaitAny(device->m_ctx.instance, futureCount, futures, timeoutNS);
-            if (futures[0].completed)
-                break;
-            emscripten_sleep(1);
-        }
-#else
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            device->m_ctx.api.wgpuInstanceWaitAny(device->m_ctx.instance, futureCount, futures, timeoutNS);
-#endif
+        WGPUWaitStatus waitStatus = wgpu::wait(device->m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
