@@ -205,7 +205,7 @@ if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
 endif()
 
 # Dawn WebGPU (not used for Emscripten - uses emdawnwebgpu port instead)
-if(NOT DEFINED SLANG_RHI_DAWN_URL AND NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+if(NOT DEFINED SLANG_RHI_DAWN_URL AND NOT EMSCRIPTEN)
     set(DAWN_VERSION "135.0.7049.80")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
@@ -353,7 +353,7 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.dylib
             )
-        elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        elseif(EMSCRIPTEN)
             set_target_properties(slang PROPERTIES
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.a
@@ -510,14 +510,15 @@ if(SLANG_RHI_ENABLE_WGPU AND NOT EMSCRIPTEN)
         copy_file(${dawn_SOURCE_DIR}/lib/libdawn.dylib .)
     endif()
     target_link_libraries(slang-rhi PRIVATE slang-rhi-dawn)
-elseif(SLANG_RHI_ENABLE_WGPU AND EMSCRIPTEN)
+endif()
+
+if(SLANG_RHI_ENABLE_WGPU AND EMSCRIPTEN)
     # For Emscripten, WebGPU headers are provided by emdawnwebgpu port
-    # Add compile option to use the port which provides include paths
     target_compile_options(slang-rhi PRIVATE "--use-port=emdawnwebgpu")
 endif()
 
 # Fetch glfw
-if((SLANG_RHI_BUILD_TESTS AND SLANG_RHI_BUILD_TESTS_WITH_GLFW) OR SLANG_RHI_BUILD_EXAMPLES)
+if(((SLANG_RHI_BUILD_TESTS AND SLANG_RHI_BUILD_TESTS_WITH_GLFW) OR SLANG_RHI_BUILD_EXAMPLES) AND NOT EMSCRIPTEN)
     FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG master)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -981,19 +982,36 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
-    function(add_example name source)
-        add_executable(${name} ${source})
-        target_compile_features(${name} PRIVATE cxx_std_17)
-        get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
-        target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
-        target_include_directories(${name} PRIVATE examples/base)
-        target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
-    endfunction()
+    if(NOT EMSCRIPTEN)
+        function(add_example name source)
+            add_executable(${name} ${source})
+            target_compile_features(${name} PRIVATE cxx_std_17)
+            get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
+            target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
+            target_include_directories(${name} PRIVATE examples/base)
+            target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
+        endfunction()
 
-    add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
-    add_example(example-surface examples/surface/example-surface.cpp)
-    add_example(example-triangle examples/triangle/example-triangle.cpp)
+        add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
+        add_example(example-surface examples/surface/example-surface.cpp)
+        add_example(example-triangle examples/triangle/example-triangle.cpp)
+
+    else()
+        message(STATUS "Building wasm examples with emscripten")
+        add_executable(wasm-test examples/wasm/wasm-test.cpp)
+        target_compile_features(wasm-test PRIVATE cxx_std_17)
+        target_link_libraries(wasm-test PRIVATE slang-rhi slang)
+        set_target_properties(wasm-test PROPERTIES 
+            OUTPUT_NAME "wasm-test"
+            SUFFIX ".html"
+        )
+        target_link_options(wasm-test PRIVATE 
+            "--use-port=emdawnwebgpu"
+            "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/examples/wasm/index.html"
+        )
+    endif()
 endif()
+
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
 add_dependencies(slang-rhi slang-rhi-copy-files)

@@ -606,16 +606,18 @@ WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, ui
     WGPUFutureWaitInfo futures[1] = {{future}};
 
 #if SLANG_WASM
-    WGPUWaitStatus waitStatus = WGPUWaitStatus_Success;
     double startMS = (timeoutNS != UINT64_MAX) ? emscripten_get_now() : 0.0;
     int spinCount = 0;
 
     while (true)
     {
-        waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, 0);
+        WGPUWaitStatus status = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, 0);
+
+        if (status == WGPUWaitStatus_Error)
+            return WGPUWaitStatus_Error;
 
         if (futures[0].completed)
-            break;
+            return WGPUWaitStatus_Success;
 
         if (timeoutNS != UINT64_MAX)
         {
@@ -623,17 +625,10 @@ WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, ui
                 return WGPUWaitStatus_TimedOut;
         }
 
-        if (spinCount < 5) // adaptive yielding
-        {
-            emscripten_sleep(0);
-        }
-        else
-        {
-            emscripten_sleep(1);
-        }
+        // adaptive yielding
+        emscripten_sleep((spinCount < 5) ? 0 : 1);
         spinCount++;
     }
-    return waitStatus;
 #else
     return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
 #endif
