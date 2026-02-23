@@ -350,14 +350,16 @@ void ThreadedTaskPool::Pool::workerThread()
             std::lock_guard<std::mutex> lock(task->waitMutex);
             task->waitCV.notify_all();
         }
+        // Release the pool's reference.
+        // This must happen before decrementing m_tasksRemaining so that
+        // waitAll() only returns after all payload deleters have been called.
+        releaseTask(task);
         // Decrement the remaining task counter and notify waiters.
         if (m_tasksRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
         {
             std::lock_guard<std::mutex> lock(m_waitMutex);
             m_waitCV.notify_all();
         }
-        // Release the pool's reference.
-        releaseTask(task);
     }
 }
 
