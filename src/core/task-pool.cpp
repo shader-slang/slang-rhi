@@ -35,10 +35,10 @@ ITaskPool::TaskHandle BlockingTaskPool::submitTask(
 {
     SLANG_RHI_ASSERT(func);
     SLANG_RHI_ASSERT(depsCount == 0 || deps);
-
-    // Dependent tasks are guaranteed to be done.
-    SLANG_UNUSED(deps);
-    SLANG_UNUSED(depsCount);
+    for (size_t i = 0; i < depsCount; i++)
+    {
+        SLANG_RHI_ASSERT(deps[i]);
+    }
 
     // Create task just to defer the payload deletion.
     Task* task = new Task();
@@ -403,6 +403,8 @@ ITaskPool::TaskHandle ThreadedTaskPool::submitTask(
 
 void* ThreadedTaskPool::getTaskPayload(TaskHandle task)
 {
+    SLANG_RHI_ASSERT(task);
+
     return static_cast<Task*>(task)->payload;
 }
 
