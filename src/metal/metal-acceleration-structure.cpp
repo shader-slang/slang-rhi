@@ -235,6 +235,11 @@ Result AccelerationStructureBuildDescConverter::convert(
             boundingBoxDescriptor->setBoundingBoxBufferOffset(proceduralPrimitives.aabbBuffers[0].offset);
             boundingBoxDescriptor->setBoundingBoxStride(proceduralPrimitives.aabbStride);
             boundingBoxDescriptor->setBoundingBoxCount(proceduralPrimitives.primitiveCount);
+
+            boundingBoxDescriptor->setOpaque(is_set(proceduralPrimitives.flags, AccelerationStructureGeometryFlags::Opaque));
+            boundingBoxDescriptor->setAllowDuplicateIntersectionFunctionInvocation(
+                !is_set(proceduralPrimitives.flags, AccelerationStructureGeometryFlags::NoDuplicateAnyHitInvocation)
+            );
         }
 
         // Set the geometry descriptors array on the primitive descriptor
