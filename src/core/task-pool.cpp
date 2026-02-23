@@ -184,6 +184,7 @@ struct ThreadedTaskPool::Pool
     void retainTask(Task* task, size_t count = 1)
     {
         SLANG_RHI_ASSERT(task);
+        SLANG_RHI_ASSERT(task->pool == this);
 
         task->refCount.fetch_add(count, std::memory_order_relaxed);
     }
@@ -191,6 +192,7 @@ struct ThreadedTaskPool::Pool
     void releaseTask(Task* task)
     {
         SLANG_RHI_ASSERT(task);
+        SLANG_RHI_ASSERT(task->pool == this);
 
         if (task->refCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
         {
@@ -205,6 +207,7 @@ struct ThreadedTaskPool::Pool
     void enqueue(Task* task)
     {
         SLANG_RHI_ASSERT(task);
+        SLANG_RHI_ASSERT(task->pool == this);
 
         {
             std::lock_guard<std::mutex> lock(m_queueMutex);
@@ -221,15 +224,15 @@ struct ThreadedTaskPool::Pool
 
         Task* task = new Task();
 
-        // Increment the reference count by 2.
-        // One reference is for the pool, the other is for the caller.
-        retainTask(task, 2);
-
         task->func = func;
         task->payload = payload;
         task->payloadDeleter = payloadDeleter;
         task->pool = this;
         task->depsRemaining = depsCount;
+
+        // Increment the reference count by 2.
+        // One reference is for the pool, the other is for the caller.
+        retainTask(task, 2);
 
         m_tasksRemaining.fetch_add(1, std::memory_order_relaxed);
 
@@ -247,6 +250,7 @@ struct ThreadedTaskPool::Pool
                 Task* dep = deps[i];
                 SLANG_RHI_ASSERT(dep);
                 SLANG_RHI_ASSERT(dep->refCount.load(std::memory_order_acquire) > 0);
+                SLANG_RHI_ASSERT(dep->pool == this);
                 {
                     std::lock_guard<std::mutex> lock(dep->childrenMutex);
                     if (!dep->done.load(std::memory_order_acquire))
@@ -279,6 +283,7 @@ struct ThreadedTaskPool::Pool
     bool isTaskDone(Task* task)
     {
         SLANG_RHI_ASSERT(task);
+        SLANG_RHI_ASSERT(task->pool == this);
 
         return task->done.load(std::memory_order_acquire);
     }
@@ -286,6 +291,7 @@ struct ThreadedTaskPool::Pool
     void waitTask(Task* task)
     {
         SLANG_RHI_ASSERT(task);
+        SLANG_RHI_ASSERT(task->pool == this);
 
         std::unique_lock<std::mutex> lock(task->waitMutex);
         task->waitCV.wait(
@@ -440,9 +446,13 @@ Result initGlobalTaskPool(int workerCount)
 {
     ComPtr<ITaskPool> pool;
     if (workerCount == 0)
+    {
         pool = new BlockingTaskPool();
+    }
     else
+    {
         pool = new ThreadedTaskPool(workerCount < 0 ? -1 : workerCount);
+    }
     return setGlobalTaskPool(pool);
 }
 
