@@ -414,7 +414,16 @@ Result RHI::reportLiveObjects()
 
 Result RHI::setTaskPool(ITaskPool* taskPool)
 {
+    if (m_liveDeviceCount != 0)
+        return SLANG_FAIL;
     return setGlobalTaskPool(taskPool);
+}
+
+Result RHI::initTaskPool(int workerCount)
+{
+    if (m_liveDeviceCount != 0)
+        return SLANG_FAIL;
+    return initGlobalTaskPool(workerCount);
 }
 
 } // namespace rhi
