@@ -8,6 +8,22 @@
 
 namespace rhi {
 
+Heap::Heap(Device* device, const HeapDesc& desc)
+    : DeviceChild(device)
+{
+    m_desc = desc;
+    m_descHolder.holdString(m_desc.label);
+}
+
+Heap::~Heap()
+{
+    // Free all pages
+    for (Page* page : m_pages)
+    {
+        delete page;
+    }
+}
+
 Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 {
     // Allow device implementation to fix up descriptor
@@ -26,11 +42,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 
     // Select a page size to store the allocation
     uint32_t pageSize = 0;
-    if (size <= 1 * 1024 * 1024)
-        pageSize = 8 * 1024 * 1024;
-    else if (size <= 8 * 1024 * 1024)
-        pageSize = 64 * 1024 * 1024;
-    else if (size <= 64 * 1024 * 1024)
+    if (size <= 64 * 1024 * 1024)
         pageSize = 256 * 1024 * 1024;
     else
         pageSize = math::calcAligned(size, 256 * 1024 * 1024);

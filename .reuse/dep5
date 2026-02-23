@@ -8,10 +8,6 @@ Copyright: 2016, Carnegie Mellon University and NVIDIA Corporation
            2024 The Khronos Group, Inc.
 License: Apache-2.0 WITH LLVM-exception
 
-Files: src/core/span.h
-Copyright: Tristan Brindle 2018
-License: BSL-1.0
-
 Files: src/core/offset-allocator.h src/core/offset-allocator.cpp tests/test-offset-allocator.cpp
 Copyright: Sebastian Aaltonen 2023
 License: MIT

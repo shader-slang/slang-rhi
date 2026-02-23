@@ -130,7 +130,7 @@ GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
         );
         // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
         // dstDevice
-        compareComputeResult(dstDevice, dstTexture, 0, 0, span(texData, texData + 16));
+        compareComputeResult(dstDevice, dstTexture, 0, 0, std::span(texData, texData + 16));
 
         setUpAndRunShader(dstDevice, dstTexture, floatResults, "copyTexFloat4");
         compareComputeResult(

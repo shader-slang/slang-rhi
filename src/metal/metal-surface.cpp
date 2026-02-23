@@ -84,6 +84,7 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     texture->m_texture = NS::RetainPtr(m_currentDrawable->texture());
     texture->m_textureType = texture->m_texture->textureType();
     texture->m_pixelFormat = texture->m_texture->pixelFormat();
+    texture->m_isSwapchainTexture = true;
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;

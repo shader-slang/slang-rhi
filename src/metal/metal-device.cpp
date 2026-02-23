@@ -83,8 +83,23 @@ DeviceImpl::~DeviceImpl()
         captureManager->stopCapture();
     }
 
-    m_queue.setNull();
+    m_uploadHeap.release();
+    m_readbackHeap.release();
+
+    if (m_queue)
+    {
+        m_queue->shutdown();
+        m_queue.setNull();
+    }
+
     m_clearEngine.release();
+}
+
+void DeviceImpl::deferDelete(Resource* resource)
+{
+    SLANG_RHI_ASSERT(m_queue != nullptr);
+    m_queue->deferDelete(resource);
+    resource->breakStrongReferenceToDevice();
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -268,17 +283,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     return SLANG_OK;
 }
 
-// void DeviceImpl::waitForGpu() { m_deviceQueue.flushAndWait(); }
-
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     AUTORELEASEPOOL
 
     if (type != QueueType::Graphics)
     {
-        return SLANG_FAIL;
+        return SLANG_E_INVALID_ARG;
     }
-    m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }

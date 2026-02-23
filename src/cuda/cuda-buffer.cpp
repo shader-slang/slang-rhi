@@ -24,6 +24,11 @@ BufferImpl::~BufferImpl()
     }
 }
 
+void BufferImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 DeviceAddress BufferImpl::getDeviceAddress()
 {
     return reinterpret_cast<DeviceAddress>(m_cudaMemory);
@@ -64,8 +69,6 @@ Result BufferImpl::getDescriptorHandle(
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     auto desc = fixupBufferDesc(desc_);
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
     HeapAllocDesc allocDesc;
@@ -91,8 +94,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
 Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!handle)
     {
         *outBuffer = nullptr;

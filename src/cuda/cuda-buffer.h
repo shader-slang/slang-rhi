@@ -11,6 +11,8 @@ public:
     BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
+    virtual void deleteThis() override;
+
     void* m_cudaExternalMemory = nullptr;
     void* m_cudaMemory = nullptr;
     HeapAlloc m_alloc;

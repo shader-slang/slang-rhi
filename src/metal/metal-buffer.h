@@ -13,6 +13,8 @@ public:
     BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
+    virtual void deleteThis() override;
+
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

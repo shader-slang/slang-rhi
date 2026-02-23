@@ -1,5 +1,5 @@
 #include "d3d-utils.h"
-
+#include "rhi-shared.h"
 #include "core/common.h"
 
 #include <dxgi1_6.h>
@@ -317,17 +317,42 @@ Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory)
     }
 }
 
-bool isDebugLayersEnabled();
-
-ComPtr<IDXGIFactory> getDXGIFactory()
+// Get `DXGIFactory`.
+// Warnings will be emitted via the `device` (if not present), else, stderr.
+ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device* device)
 {
-    static ComPtr<IDXGIFactory> factory = []()
+    static ComPtr<IDXGIFactory> factory;
+    /// Tracks if the current DXGIFactory created is debug.
+    static DebugLayerOptions previousDebugLayerOptions;
+
+    // Try to remake our current `factory` if:
+    // 1. factory is null
+    // 2. The current `getDXGIFactory` settings do not match the previous settings.
+    if (factory == ComPtr<IDXGIFactory>() || previousDebugLayerOptions != debugLayerOptions)
+    {
+        factory.setNull();
+    }
+    else
+        return factory;
+
+    factory = [&debugLayerOptions, &device]()
     {
         ComPtr<IDXGIFactory> f;
-        if (SLANG_FAILED(createDXGIFactory(isDebugLayersEnabled(), f)))
+        if (SLANG_FAILED(createDXGIFactory(debugLayerOptions.isDebugLayersEnabled(), f)))
         {
+            // If debug was enabled && debug is *not* required, try again without debug
+            if (debugLayerOptions.isDebugLayersEnabled() && !debugLayerOptions.required)
+            {
+                if (device)
+                    device->printWarning("Failed to create a debug DXGIFactory.");
+                else
+                    fprintf(stderr, "WARNING: Failed to create a debug DXGIFactory.");
+                DebugLayerOptions newDebugLayerOptions = DebugLayerOptions();
+                return getDXGIFactory(newDebugLayerOptions, device);
+            }
             return ComPtr<IDXGIFactory>();
         }
+        previousDebugLayerOptions = debugLayerOptions;
         return f;
     }();
     return factory;
@@ -379,7 +404,7 @@ Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>
 
 Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters)
 {
-    ComPtr<IDXGIFactory> factory = getDXGIFactory();
+    ComPtr<IDXGIFactory> factory = getDXGIFactory(getRHI()->getDebugLayerOptions(), nullptr);
     if (!factory)
     {
         return SLANG_FAIL;

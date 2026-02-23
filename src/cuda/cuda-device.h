@@ -35,6 +35,8 @@ public:
     DeviceImpl();
     ~DeviceImpl();
 
+    void deferDelete(Resource* resource);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
@@ -200,6 +202,10 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() override;
 };
 
 } // namespace rhi::cuda

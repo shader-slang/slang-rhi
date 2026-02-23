@@ -24,6 +24,12 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     }
 }
 
+void AccelerationStructureImpl::deleteThis()
+{
+    m_buffer.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::D3D12DeviceAddress;

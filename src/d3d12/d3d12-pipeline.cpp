@@ -329,6 +329,9 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
 
     if (program->isMeshShaderProgram())
     {
+        if (!m_device5)
+            return SLANG_E_NOT_AVAILABLE;
+
         D3DX12_MESH_SHADER_PIPELINE_STATE_DESC meshDesc = {};
         for (auto& shaderBin : program->m_shaders)
         {

@@ -40,7 +40,7 @@ struct RayTracingTriangleIntersectionTest
         const std::vector<const char*>& raygenNames,
         const std::vector<HitGroupProgramNames>& hitGroupProgramNames,
         const std::vector<const char*>& missNames,
-        span<ExpectedPixel> expectedPixels,
+        std::span<ExpectedPixel> expectedPixels,
         unsigned rgIdx = 0,
         RayTracingPipelineFlags flags = RayTracingPipelineFlags::None
     )
@@ -94,7 +94,7 @@ struct RayTracingTriangleIntersectionTest
         resultTexture = device->createTexture(resultTextureDesc);
     }
 
-    void checkTestResults(span<ExpectedPixel> expectedPixels)
+    void checkTestResults(std::span<ExpectedPixel> expectedPixels)
     {
         ComPtr<ISlangBlob> resultBlob;
         SubresourceLayout layout;

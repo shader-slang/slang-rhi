@@ -1,5 +1,4 @@
 #include "testing.h"
-#include "core/span.h"
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -63,7 +62,7 @@ struct TestRecord
     float expectedColor[4];
 };
 
-static void testSampler(IDevice* device, const SamplerDesc& samplerDesc, span<TestRecord> testRecords)
+static void testSampler(IDevice* device, const SamplerDesc& samplerDesc, std::span<TestRecord> testRecords)
 {
     ComPtr<ISampler> sampler;
     REQUIRE_CALL(device->createSampler(samplerDesc, sampler.writeRef()));

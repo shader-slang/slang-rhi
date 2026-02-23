@@ -485,7 +485,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         computePipeline->m_threadGroupSize[0],
         computePipeline->m_threadGroupSize[1],
         computePipeline->m_threadGroupSize[2],
-        computePipeline->m_sharedMemorySize,
+        0,
         m_stream,
         nullptr,
         extraOptions
@@ -683,7 +683,26 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 {
 }
 
-CommandQueueImpl::~CommandQueueImpl()
+CommandQueueImpl::~CommandQueueImpl() {}
+
+Result CommandQueueImpl::init()
+{
+    // On CUDA, treat the graphics stream as the default stream, identified
+    // by a NULL ptr. When we support async compute queues on D3D/Vulkan,
+    // they will be equivalent to secondary, non-default streams in CUDA.
+    if (m_type == QueueType::Graphics)
+    {
+        m_stream = nullptr;
+    }
+    else
+    {
+        SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
+    }
+
+    return SLANG_OK;
+}
+
+void CommandQueueImpl::shutdown()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
@@ -702,35 +721,23 @@ CommandQueueImpl::~CommandQueueImpl()
     // where lazy events optimization means m_submitEvents is empty.
     // Without this, heap destruction could call cuMemFree while GPU is still using memory!
     SLANG_CUDA_ASSERT_ON_FAIL(cuCtxSynchronize());
+    m_lastFinishedID = m_lastSubmittedID;
 
     // Retire finished command buffers, which should be all of them now
     retireCommandBuffers();
     SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
+
+    // Release all command buffers in order to release all resources they may hold.
+    m_commandBuffersPool.clear();
+    // Execute remaining deferred deletes.
+    executeDeferredDeletes();
+    SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
 
     // Destroy non-default streams (default stream uses nullptr, nothing to destroy)
     if (m_stream)
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
     }
-}
-
-Result CommandQueueImpl::init()
-{
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    // On CUDA, treat the graphics stream as the default stream, identified
-    // by a NULL ptr. When we support async compute queues on D3D/Vulkan,
-    // they will be equivalent to secondary, non-default streams in CUDA.
-    if (m_type == QueueType::Graphics)
-    {
-        m_stream = nullptr;
-    }
-    else
-    {
-        SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
-    }
-
-    return SLANG_OK;
 }
 
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
@@ -839,6 +846,9 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
         cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
 
+    // Delete deferred resources that are no longer in use by the GPU.
+    executeDeferredDeletes();
+
     // Flush device heaps to process any pending frees
     // Note: With same-stream immediate reuse, most allocations are retired immediately
     // and never enter the pending list. This flush now only processes the rare
@@ -848,10 +858,25 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
     return SLANG_OK;
 }
 
+void CommandQueueImpl::deferDelete(Resource* resource)
+{
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    m_deferredDeleteQueue.push({m_lastSubmittedID, resource});
+}
+
+void CommandQueueImpl::executeDeferredDeletes()
+{
+    uint64_t lastFinishedID = m_lastFinishedID;
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
+    {
+        delete m_deferredDeleteQueue.front().resource;
+        m_deferredDeleteQueue.pop();
+    }
+}
+
 Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
@@ -862,6 +887,7 @@ Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
 {
     // Increment submit count
     m_lastSubmittedID++;
+    m_submitsSinceEvent = 0;
 
     // Record submission event so we can detect completion
     SubmitEvent ev;
@@ -887,7 +913,11 @@ Result CommandQueueImpl::updateFence()
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
             SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
-            m_lastFinishedID = submitIt->submitID;
+
+            // If called after a context sync, m_lastFinishedID may already have been
+            // skipped to the end, so only overwrite it if this event's ID is greater.
+            if (submitIt->submitID > m_lastFinishedID)
+                m_lastFinishedID = submitIt->submitID;
 
             // Remove the event from the list.
             submitIt = m_submitEvents.erase(submitIt);
@@ -910,8 +940,6 @@ Result CommandQueueImpl::updateFence()
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     // Lazy retirement: don't retire on every submit - only on pool exhaustion,
     // explicit sync, or memory pressure. Eliminates per-submit overhead.
 
@@ -942,7 +970,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
         // Lazy events: only create events for multi-stream workloads.
         // Single-stream uses cuStreamQuery() instead - zero event overhead.
-        bool needsEvent = (requestedStream != m_stream);
+        bool needsEvent = (requestedStream != m_stream) || m_submitsSinceEvent > kMaxSubmitsWithoutEvent;
 
         if (needsEvent)
         {
@@ -955,6 +983,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         {
             // Single-stream lazy mode: just increment ID, no event
             m_lastSubmittedID++;
+            m_submitsSinceEvent++;
             commandBuffer->m_submissionID = m_lastSubmittedID;
         }
 
@@ -972,10 +1001,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
+    m_lastFinishedID = m_lastSubmittedID;
 
     // Retire command buffers that have completed.
     retireCommandBuffers();
@@ -1014,8 +1042,6 @@ CommandEncoderImpl::~CommandEncoderImpl()
 
 Result CommandEncoderImpl::init()
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     SLANG_RETURN_ON_FAIL(m_queue->getOrCreateCommandBuffer(m_commandBuffer.writeRef()));
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
@@ -1074,8 +1100,6 @@ static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<Ref
 
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     // Skip tracking device-local buffers - CUDA stream ordering guarantees safety
     trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
 
@@ -1095,8 +1119,6 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
 
 Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
@@ -1115,13 +1137,11 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 CommandBufferImpl::CommandBufferImpl(Device* device)
     : CommandBuffer(device)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     m_constantBufferPool.init(checked_cast<DeviceImpl*>(device));
 }
 
 Result CommandBufferImpl::reset()
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     m_bindingCache.reset();
     m_constantBufferPool.reset();
     return CommandBuffer::reset();
