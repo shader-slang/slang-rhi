@@ -71,8 +71,15 @@ private:
 };
 
 /// Set the global task scheduler.
-/// Must be called before first accessing the global task pool.
+/// Can be called to replace the current task pool when no devices are alive.
 Result setGlobalTaskPool(ITaskPool* taskPool);
+
+/// Initialize the global task pool with the given worker count.
+/// A value of 0 creates a BlockingTaskPool.
+/// A value of -1 creates a ThreadedTaskPool with std::thread::hardware_concurrency() worker threads.
+/// Any positive value creates a ThreadedTaskPool with that many worker threads.
+/// Can be called to replace the current task pool when no devices are alive.
+Result initGlobalTaskPool(int workerCount);
 
 /// Returns the global task pool.
 ITaskPool* globalTaskPool();

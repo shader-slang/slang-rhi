@@ -3620,8 +3620,6 @@ private:
 /// - A dependency task handle must still be valid (not yet released) when passed to `submitTask()`.
 /// - Once a task is submitted, its dependencies may be released immediately by the caller.
 ///
-/// A global task pool is available via `globalTaskPool()` and can be overridden with
-/// `setGlobalTaskPool()` before first access.
 class ITaskPool : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xab272cee, 0xa546, 0x4ae6, {0xbd, 0x0d, 0xcd, 0xab, 0xa9, 0x3f, 0x6d, 0xa6});
@@ -3738,7 +3736,7 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
 
     /// Change downstream debug layer options.
-    /// Fails if not all devices are released.
+    /// Fails if any devices are currently alive.
     virtual SLANG_NO_THROW Result SLANG_MCALL setDebugLayerOptions(DebugLayerOptions options) = 0;
 
     /// Get current downstream debug layer options.
@@ -3790,8 +3788,16 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL reportLiveObjects() = 0;
 
     /// Set the global task pool for the RHI.
-    /// Must be called before any devices are created.
+    /// Fails if any devices are currently alive.
     virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPool(ITaskPool* taskPool) = 0;
+
+    /// Initialize the global task pool with the specified number of worker threads.
+    /// A value of -1 (default) creates a `ThreadedTaskPool` with `std::thread::hardware_concurrency()` worker threads.
+    /// A value of 0 creates a `BlockingTaskPool` (tasks execute synchronously in the calling thread).
+    /// A positive value creates a `ThreadedTaskPool` with that many worker threads.
+    /// If not called before first use, a `ThreadedTaskPool` with `std::thread::hardware_concurrency()` threads is
+    /// created by default. Fails if any devices are currently alive.
+    virtual SLANG_NO_THROW Result SLANG_MCALL initTaskPool(int workerCount = -1) = 0;
 };
 
 // Extended descs.

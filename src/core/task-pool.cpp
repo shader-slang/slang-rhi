@@ -424,12 +424,18 @@ static ComPtr<ITaskPool> s_globalTaskPool;
 Result setGlobalTaskPool(ITaskPool* taskPool)
 {
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
-    if (s_globalTaskPool)
-    {
-        return SLANG_FAIL;
-    }
     s_globalTaskPool = taskPool;
     return SLANG_OK;
+}
+
+Result initGlobalTaskPool(int workerCount)
+{
+    ComPtr<ITaskPool> pool;
+    if (workerCount == 0)
+        pool = new BlockingTaskPool();
+    else
+        pool = new ThreadedTaskPool(workerCount < 0 ? -1 : workerCount);
+    return setGlobalTaskPool(pool);
 }
 
 ITaskPool* globalTaskPool()
@@ -442,7 +448,7 @@ ITaskPool* globalTaskPool()
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
     if (!s_globalTaskPool)
     {
-        s_globalTaskPool = new BlockingTaskPool();
+        s_globalTaskPool = new ThreadedTaskPool(-1);
     }
     taskPool = s_globalTaskPool.get();
     return taskPool;

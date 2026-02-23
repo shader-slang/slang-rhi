@@ -32,6 +32,7 @@ public:
 
     virtual Result reportLiveObjects() override;
     virtual Result setTaskPool(ITaskPool* scheduler) override;
+    virtual Result initTaskPool(int workerCount) override;
 
     static RHI* getInstance()
     {
