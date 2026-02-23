@@ -236,7 +236,9 @@ Result AccelerationStructureBuildDescConverter::convert(
             boundingBoxDescriptor->setBoundingBoxStride(proceduralPrimitives.aabbStride);
             boundingBoxDescriptor->setBoundingBoxCount(proceduralPrimitives.primitiveCount);
 
-            boundingBoxDescriptor->setOpaque(is_set(proceduralPrimitives.flags, AccelerationStructureGeometryFlags::Opaque));
+            boundingBoxDescriptor->setOpaque(
+                is_set(proceduralPrimitives.flags, AccelerationStructureGeometryFlags::Opaque)
+            );
             boundingBoxDescriptor->setAllowDuplicateIntersectionFunctionInvocation(
                 !is_set(proceduralPrimitives.flags, AccelerationStructureGeometryFlags::NoDuplicateAnyHitInvocation)
             );
