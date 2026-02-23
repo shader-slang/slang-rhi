@@ -3597,6 +3597,31 @@ private:
 
 #define SLANG_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
 
+/// \brief Interface for a task pool that supports dependency-based scheduling.
+///
+/// Tasks are submitted with `submitTask()`, which returns an opaque `TaskHandle`.
+/// Each task executes a user-provided function with an associated payload.
+/// Tasks may declare dependencies on other tasks, forming a directed acyclic graph (DAG).
+/// A task will not execute until all of its dependencies have completed.
+///
+/// **Ownership model:**
+/// `submitTask()` returns a `TaskHandle` that the caller owns. The caller must eventually
+/// call `releaseTask()` to release this handle. The task pool also holds an internal
+/// reference while the task is pending or executing, so the task remains alive until
+/// both the pool and the caller have released their references.
+///
+/// **Payload lifetime:**
+/// If a `payloadDeleter` is provided, it is called when the last reference to the task
+/// is released (i.e. after both the pool and the caller have released). The payload
+/// remains valid and accessible via `getTaskPayload()` until that point.
+///
+/// **Dependency rules:**
+/// - Dependencies must not form cycles, doing so might result in a deadlock.
+/// - A dependency task handle must still be valid (not yet released) when passed to `submitTask()`.
+/// - Once a task is submitted, its dependencies may be released immediately by the caller.
+///
+/// A global task pool is available via `globalTaskPool()` and can be overridden with
+/// `setGlobalTaskPool()` before first access.
 class ITaskPool : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xab272cee, 0xa546, 0x4ae6, {0xbd, 0x0d, 0xcd, 0xab, 0xa9, 0x3f, 0x6d, 0xa6});
@@ -3604,15 +3629,20 @@ class ITaskPool : public ISlangUnknown
 public:
     typedef void* TaskHandle;
 
-    /// \brief Submit a new task.
-    /// The returned task must be released with `releaseTask()` when no longer needed
-    /// for specifying dependencies or issuing `waitTask()`.
-    /// \param func Function to execute.
-    /// \param payload Payload to pass to the function.
-    /// \param payloadDeleter Optional payload deleter (called when task is destroyed).
-    /// \param deps Parent tasks to wait for.
-    /// \param depsCount Number of parent tasks.
-    /// \return The new task.
+    /// \brief Submit a new task for execution.
+    ///
+    /// Submits a task that will call `func(payload)` once all dependencies in `deps` have
+    /// completed. The returned `TaskHandle` must eventually be released with `releaseTask()`.
+    ///
+    /// If `depsCount` is 0, the task is immediately eligible for execution.
+    /// If any dependency is already complete at the time of submission, it is handled correctly.
+    ///
+    /// \param func Function to execute. Must not be null.
+    /// \param payload Opaque data passed to `func`. May be null.
+    /// \param payloadDeleter Optional deleter called with `payload` when the task is destroyed. May be null if no cleanup is needed.
+    /// \param deps Array of `TaskHandle`s that must complete before this task runs. May be null if `depsCount` is 0.
+    /// \param depsCount Number of entries in `deps`.
+    /// \return A handle to the submitted task. The caller must release this with `releaseTask()`.
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
         void (*func)(void*),
         void* payload,
@@ -3621,25 +3651,43 @@ public:
         size_t depsCount
     ) = 0;
 
-    /// \brief Get the task payload data.
-    /// \param task Task to get the payload for.
-    /// \return The payload.
+    /// \brief Get the payload associated with a task.
+    ///
+    /// Returns the `payload` pointer that was passed to `submitTask()`. The payload remains
+    /// valid until the task is fully released (i.e. after the caller calls `releaseTask()`
+    /// and the pool has finished executing the task).
+    ///
+    /// \param task Task handle. Must not be null.
+    /// \return The payload pointer.
     virtual SLANG_NO_THROW void* SLANG_MCALL getTaskPayload(TaskHandle task) = 0;
 
-    /// \brief Release a task.
-    /// \param task Task to release.
+    /// \brief Release the caller's reference to a task.
+    ///
+    /// Releases the caller's ownership of the task handle. If this is the last reference
+    /// (i.e. the task has already completed and the pool has released its internal reference),
+    /// the task is destroyed.
+    ///
+    /// A task may be released before it has finished executing, the pool's internal reference
+    /// keeps it alive until completion.
+    ///
+    /// \param task Task handle to release. Must not be null. Must not be used after this call.
     virtual SLANG_NO_THROW void SLANG_MCALL releaseTask(TaskHandle task) = 0;
 
-    /// \brief Wait for a task to finish.
-    /// \param task Task to wait for.
+    /// \brief Block the calling thread until a task has finished executing.
+    ///
+    /// \param task Task handle to wait on. Must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) = 0;
 
-    /// \brief Check if a task is done.
-    /// \param task Task to check.
-    /// \return True if the task is done.
+    /// \brief Check whether a task has finished executing (non-blocking).
+    ///
+    /// \param task Task handle to check. Must not be null.
+    /// \return True if the task has completed, false if it is still pending or executing.
     virtual SLANG_NO_THROW bool SLANG_MCALL isTaskDone(TaskHandle task) = 0;
 
-    /// \brief Wait for all tasks in the pool to finish.
+    /// \brief Block the calling thread until all submitted tasks have finished.
+    ///
+    /// Waits for every task that has been submitted to this pool (and not yet completed)
+    /// to finish executing. Does not release any task handles.
     virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
 };
 
