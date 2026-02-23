@@ -163,8 +163,8 @@ struct ThreadedTaskPool::Pool
         {
             std::lock_guard<std::mutex> lock(m_queueMutex);
             m_stop.store(true);
+            m_queueCV.notify_all();
         }
-        m_queueCV.notify_all();
         for (std::thread& worker : m_workerThreads)
         {
             if (worker.joinable())
@@ -212,9 +212,8 @@ struct ThreadedTaskPool::Pool
         {
             std::lock_guard<std::mutex> lock(m_queueMutex);
             m_queue.push(task);
+            m_queueCV.notify_one();
         }
-
-        m_queueCV.notify_one();
     }
 
     Task* submitTask(void (*func)(void*), void* payload, void (*payloadDeleter)(void*), Task** deps, size_t depsCount)
