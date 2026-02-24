@@ -111,17 +111,6 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         );
     }
 
-    RefPtr<PipelineData> pipelineData = new PipelineData();
-
-    pipelineData->rayGenTableOffset = rayGenTableOffset;
-    pipelineData->missTableOffset = missTableOffset;
-    pipelineData->hitGroupTableOffset = hitGroupTableOffset;
-    pipelineData->callableTableOffset = callableTableOffset;
-    pipelineData->rayGenRecordStride = raygenRecordSize;
-    pipelineData->missRecordStride = missRecordSize;
-    pipelineData->hitGroupRecordStride = hitGroupRecordSize;
-    pipelineData->callableRecordStride = callableRecordSize;
-
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
@@ -133,7 +122,19 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         SLANG_RHI_ASSERT_FAILURE("Failed to create shader table buffer");
         return nullptr;
     }
+
+    RefPtr<PipelineData> pipelineData = new PipelineData();
+
     pipelineData->buffer = checked_cast<BufferImpl*>(buffer.get());
+
+    pipelineData->rayGenTableOffset = rayGenTableOffset;
+    pipelineData->missTableOffset = missTableOffset;
+    pipelineData->hitGroupTableOffset = hitGroupTableOffset;
+    pipelineData->callableTableOffset = callableTableOffset;
+    pipelineData->rayGenRecordStride = raygenRecordSize;
+    pipelineData->missRecordStride = missRecordSize;
+    pipelineData->hitGroupRecordStride = hitGroupRecordSize;
+    pipelineData->callableRecordStride = callableRecordSize;
 
     m_pipelineData.emplace(pipeline, pipelineData);
     return pipelineData.get();
