@@ -10,9 +10,6 @@ GPU_TEST_CASE("ray-tracing-raygen-entrypoint", ALL)
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
 
-    if (device->getDeviceType() == DeviceType::Vulkan)
-        SKIP("Vulkan does not handle entry point parameters correctly yet");
-
     ComPtr<IShaderProgram> program;
     REQUIRE_CALL(loadProgram(device, "test-ray-tracing-raygen-entrypoint", {"rayGenA", "rayGenB"}, program.writeRef()));
 
@@ -84,9 +81,6 @@ GPU_TEST_CASE("ray-tracing-raygen-entrypoint-2", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
-
-    if (device->getDeviceType() == DeviceType::Vulkan)
-        SKIP("Vulkan does not handle entry point parameters correctly yet");
 
     if (device->getDeviceType() == DeviceType::CUDA)
         SKIP("CUDA/OptiX uses __ldg to load entrypoint parameters which uses non-coherent read-only data cache");
