@@ -1096,6 +1096,11 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     {
         m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
         m_shaderTablePipelineData = m_shaderTable->getPipelineData(m_rayTracingPipeline);
+        if (!m_shaderTablePipelineData)
+        {
+            m_rayTracingStateValid = false;
+            return;
+        }
         DeviceAddress shaderTableAddr = m_shaderTablePipelineData->buffer->getDeviceAddress();
 
         // Raygen address, stride, and size are set at dispatch time since each raygen

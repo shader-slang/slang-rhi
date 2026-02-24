@@ -1105,6 +1105,11 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
         ShaderTableImpl::PipelineData* shaderTablePipelineData = m_shaderTable->getPipelineData(m_rayTracingPipeline);
+        if (!shaderTablePipelineData)
+        {
+            m_rayTracingStateValid = false;
+            return;
+        }
         DeviceAddress shaderTableAddr = shaderTablePipelineData->buffer->getDeviceAddress();
 
         m_dispatchRaysDesc = {};
