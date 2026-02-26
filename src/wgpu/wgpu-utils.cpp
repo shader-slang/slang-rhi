@@ -634,7 +634,7 @@ WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, ui
 #endif
 }
 
-WGPUWaitStatus wait(WGPUContext& ctx, WGPUFuture future, uint64_t timeoutNS)
+WGPUWaitStatus wait(Context& ctx, WGPUFuture future, uint64_t timeoutNS)
 {
     return wait(ctx.api, ctx.instance, future, timeoutNS);
 }

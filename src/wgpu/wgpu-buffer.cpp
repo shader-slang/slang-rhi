@@ -4,7 +4,6 @@
 
 #include "core/deferred.h"
 
-
 namespace rhi::wgpu {
 
 BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)

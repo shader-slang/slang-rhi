@@ -68,7 +68,7 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
         WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
         WGPUAdapter adapter = nullptr;
     };
-    AdapterRequestState* state = new AdapterRequestState();
+    AdapterRequestState state;
 
     {
         WGPURequestAdapterCallbackInfo callbackInfo = {};
@@ -87,21 +87,18 @@ static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdap
             requestState->status = status_;
             requestState->adapter = adapter_;
         };
-        callbackInfo.userdata1 = state;
+        callbackInfo.userdata1 = &state;
         callbackInfo.userdata2 = nullptr;
 
         WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
         WGPUWaitStatus waitStatus = wgpu::wait(api, instance, future);
-        if (waitStatus != WGPUWaitStatus_Success || state->status != WGPURequestAdapterStatus_Success)
+        if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestAdapterStatus_Success)
         {
-            delete state;
             return SLANG_FAIL;
         }
     }
 
-    WGPUAdapter resultAdapter = state->adapter;
-    delete state;
-
+    WGPUAdapter resultAdapter = state.adapter;
     if (!resultAdapter)
     {
         return SLANG_FAIL;
@@ -213,7 +210,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             WGPUDevice device = nullptr;
             std::string message;
         };
-        DeviceRequestState* state = new DeviceRequestState();
+        DeviceRequestState state;
 
         WGPURequestDeviceCallbackInfo callbackInfo = {};
 #if SLANG_WASM
@@ -233,7 +230,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             if (message.length > 0)
                 requestState->message.assign(message.data, message.length);
         };
-        callbackInfo.userdata1 = state;
+        callbackInfo.userdata1 = &state;
         callbackInfo.userdata2 = nullptr;
 
 #if !SLANG_WASM
@@ -257,13 +254,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
         WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
-        if (waitStatus != WGPUWaitStatus_Success || state->status != WGPURequestDeviceStatus_Success)
+        if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestDeviceStatus_Success)
         {
-            delete state;
             return SLANG_FAIL;
         }
-        m_ctx.device = state->device;
-        delete state;
+        m_ctx.device = state.device;
     }
 
     // Query device limits.

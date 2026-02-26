@@ -6,11 +6,9 @@
 #include "wgpu-shader-object.h"
 #include "wgpu-utils.h"
 
-
 #include "../strings.h"
 
 #include "core/deferred.h"
-
 
 namespace rhi::wgpu {
 

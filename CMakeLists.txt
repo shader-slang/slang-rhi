@@ -271,16 +271,6 @@ endmacro()
 # Fetch slang
 if(SLANG_RHI_FETCH_SLANG)
     set(SLANG_VERSION ${SLANG_RHI_FETCH_SLANG_VERSION})
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-        # Emscripten WASM releases are available starting from v2026.3.1
-        set(SLANG_WASM_MIN_VERSION "2026.3.1")
-        if(SLANG_VERSION VERSION_LESS SLANG_WASM_MIN_VERSION)
-            message(STATUS "Slang ${SLANG_VERSION} did not release WASM libraries, overriding to ${SLANG_WASM_MIN_VERSION}")
-            set(SLANG_VERSION ${SLANG_WASM_MIN_VERSION})
-        endif()
-    endif()
-
     set(SLANG_URL "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}/slang-${SLANG_VERSION}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -353,7 +343,7 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.dylib
             )
-        elseif(EMSCRIPTEN)
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
             set_target_properties(slang PROPERTIES
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.a
