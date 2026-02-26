@@ -84,7 +84,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_surface = m_device->m_ctx.api.wgpuInstanceCreateSurface(m_device->m_ctx.instance, &desc);
 
     // Query capabilities
-    WGPUSurfaceCapabilities capabilities;
+    WGPUSurfaceCapabilities capabilities = {};
     m_device->m_ctx.api.wgpuSurfaceGetCapabilities(m_surface, m_device->m_ctx.adapter, &capabilities);
 
     // Get supported formats
