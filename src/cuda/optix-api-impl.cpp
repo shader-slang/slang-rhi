@@ -1200,10 +1200,11 @@ public:
         sbt.raygenRecord += info.sbtOffset;
         SLANG_RHI_ASSERT(info.entryPointIndex < bindingData->entryPointCount);
         SLANG_RHI_ASSERT(bindingData->entryPoints[info.entryPointIndex].size <= info.paramsSize);
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyHtoD(
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyHtoDAsync(
             sbt.raygenRecord + sizeof(SbtRecord),
             bindingData->entryPoints[info.entryPointIndex].data,
-            bindingData->entryPoints[info.entryPointIndex].size
+            bindingData->entryPoints[info.entryPointIndex].size,
+            stream
         ));
 
         SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(

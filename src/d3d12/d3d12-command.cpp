@@ -60,6 +60,7 @@ public:
     RefPtr<ShaderTableImpl> m_shaderTable;
     D3D12_DISPATCH_RAYS_DESC m_dispatchRaysDesc = {};
     UINT64 m_rayGenTableAddr = 0;
+    UINT64 m_rayGenRecordStride = 0;
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -1103,39 +1104,40 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     {
         m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
-        BufferImpl* shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
-        DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
+        ShaderTableImpl::PipelineData* shaderTableData = m_shaderTable->getPipelineData(m_rayTracingPipeline);
+        DeviceAddress shaderTableAddr = shaderTableData->buffer->getDeviceAddress();
 
         m_dispatchRaysDesc = {};
 
         // Raygen index is set at dispatch time.
-        m_rayGenTableAddr = shaderTableAddr + m_shaderTable->m_rayGenTableOffset;
+        m_rayGenTableAddr = shaderTableAddr + shaderTableData->rayGenTableOffset;
+        m_rayGenRecordStride = shaderTableData->rayGenRecordStride;
         m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress = shaderTableAddr;
-        m_dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = m_shaderTable->m_rayGenRecordStride;
+        m_dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = shaderTableData->rayGenRecordStride;
 
         if (m_shaderTable->m_missShaderCount > 0)
         {
-            m_dispatchRaysDesc.MissShaderTable.StartAddress = shaderTableAddr + m_shaderTable->m_missTableOffset;
+            m_dispatchRaysDesc.MissShaderTable.StartAddress = shaderTableAddr + shaderTableData->missTableOffset;
             m_dispatchRaysDesc.MissShaderTable.SizeInBytes =
-                m_shaderTable->m_missShaderCount * m_shaderTable->m_missRecordStride;
-            m_dispatchRaysDesc.MissShaderTable.StrideInBytes = m_shaderTable->m_missRecordStride;
+                m_shaderTable->m_missShaderCount * shaderTableData->missRecordStride;
+            m_dispatchRaysDesc.MissShaderTable.StrideInBytes = shaderTableData->missRecordStride;
         }
 
         if (m_shaderTable->m_hitGroupCount > 0)
         {
-            m_dispatchRaysDesc.HitGroupTable.StartAddress = shaderTableAddr + m_shaderTable->m_hitGroupTableOffset;
+            m_dispatchRaysDesc.HitGroupTable.StartAddress = shaderTableAddr + shaderTableData->hitGroupTableOffset;
             m_dispatchRaysDesc.HitGroupTable.SizeInBytes =
-                m_shaderTable->m_hitGroupCount * m_shaderTable->m_hitGroupRecordStride;
-            m_dispatchRaysDesc.HitGroupTable.StrideInBytes = m_shaderTable->m_hitGroupRecordStride;
+                m_shaderTable->m_hitGroupCount * shaderTableData->hitGroupRecordStride;
+            m_dispatchRaysDesc.HitGroupTable.StrideInBytes = shaderTableData->hitGroupRecordStride;
         }
 
         if (m_shaderTable->m_callableShaderCount > 0)
         {
             m_dispatchRaysDesc.CallableShaderTable.StartAddress =
-                shaderTableAddr + m_shaderTable->m_callableTableOffset;
+                shaderTableAddr + shaderTableData->callableTableOffset;
             m_dispatchRaysDesc.CallableShaderTable.SizeInBytes =
-                m_shaderTable->m_callableShaderCount * m_shaderTable->m_callableRecordStride;
-            m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = m_shaderTable->m_callableRecordStride;
+                m_shaderTable->m_callableShaderCount * shaderTableData->callableRecordStride;
+            m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = shaderTableData->callableRecordStride;
         }
     }
 
@@ -1151,7 +1153,7 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
         return;
 
     m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress =
-        m_rayGenTableAddr + cmd.rayGenShaderIndex * m_shaderTable->m_rayGenRecordStride;
+        m_rayGenTableAddr + cmd.rayGenShaderIndex * m_rayGenRecordStride;
     m_dispatchRaysDesc.Width = cmd.width;
     m_dispatchRaysDesc.Height = cmd.height;
     m_dispatchRaysDesc.Depth = cmd.depth;

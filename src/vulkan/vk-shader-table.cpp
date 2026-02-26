@@ -128,8 +128,11 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     bufferDesc.usage = BufferUsage::ShaderTable | BufferUsage::CopyDestination;
     bufferDesc.defaultState = ResourceState::General;
     bufferDesc.size = tableSize;
-    device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef());
-
+    if (SLANG_FAILED(device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef())))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to create shader table buffer");
+        return nullptr;
+    }
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer.get());
     m_buffers.emplace(pipeline, bufferImpl);
     return bufferImpl;
