@@ -40,6 +40,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     WGPUSurfaceSourceXlibWindow descXlib = {};
 #elif SLANG_APPLE_FAMILY
     WGPUSurfaceSourceMetalLayer descMetal = {};
+#elif SLANG_WASM
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector descCanvas = {};
 #endif
 
     switch (windowHandle.type)
@@ -65,6 +67,15 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         descXlib.window = (uint64_t)windowHandle.handleValues[1];
         desc.nextInChain = (WGPUChainedStruct*)&descXlib;
         break;
+#elif SLANG_WASM
+    case WindowHandleType::WGPUCanvas:
+        descCanvas.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
+        {
+            const char* selector = windowHandle.canvasSelector;
+            descCanvas.selector = {selector, strlen(selector)};
+        }
+        desc.nextInChain = (WGPUChainedStruct*)&descCanvas;
+        break;
 #endif
     default:
         return SLANG_E_INVALID_HANDLE;
@@ -73,7 +84,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_surface = m_device->m_ctx.api.wgpuInstanceCreateSurface(m_device->m_ctx.instance, &desc);
 
     // Query capabilities
-    WGPUSurfaceCapabilities capabilities;
+    WGPUSurfaceCapabilities capabilities = {};
     m_device->m_ctx.api.wgpuSurfaceGetCapabilities(m_surface, m_device->m_ctx.adapter, &capabilities);
 
     // Get supported formats
@@ -103,6 +114,13 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         usage |= TextureUsage::UnorderedAccess;
     if (capabilities.usages & WGPUTextureUsage_RenderAttachment)
         usage |= TextureUsage::RenderTarget;
+
+#if SLANG_WASM
+    // wgpuSurfaceGetCapabilities might return 0 usages if the adapter was created
+    // without a compatible surface. Force RenderTarget as it's required for swapchains.
+    if (usage == TextureUsage::None)
+        usage = TextureUsage::RenderTarget;
+#endif
 
     m_info.preferredFormat = preferredFormat;
     m_info.formats = m_supportedFormats.data();
@@ -207,7 +225,12 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     WGPUSurfaceTexture surfaceTexture;
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
+#if SLANG_WASM
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
+        surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal)
+#else
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success)
+#endif
     {
         return SLANG_FAIL;
     }
@@ -235,7 +258,9 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
+#if !SLANG_WASM
     m_device->m_ctx.api.wgpuSurfacePresent(m_surface);
+#endif
     return SLANG_OK;
 }
 
