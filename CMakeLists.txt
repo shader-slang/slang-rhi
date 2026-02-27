@@ -997,11 +997,11 @@ if(SLANG_RHI_BUILD_EXAMPLES)
         add_executable(wasm-test examples/wasm/wasm-test.cpp)
         target_compile_features(wasm-test PRIVATE cxx_std_17)
         target_link_libraries(wasm-test PRIVATE slang-rhi slang)
-        set_target_properties(wasm-test PROPERTIES 
+        set_target_properties(wasm-test PROPERTIES
             OUTPUT_NAME "wasm-test"
             SUFFIX ".html"
         )
-        target_link_options(wasm-test PRIVATE 
+        target_link_options(wasm-test PRIVATE
             "--use-port=emdawnwebgpu"
             "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/examples/wasm/index.html"
         )

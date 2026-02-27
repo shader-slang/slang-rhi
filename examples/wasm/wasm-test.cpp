@@ -14,7 +14,7 @@ int main()
 {
     printf("=== slang-rhi WASM Test (Local Build Verification) ===\n");
     printf("Creating RHI instance...\n");
- 
+
     IRHI* rhi = getRHI();
     if (!rhi)
     {
@@ -34,18 +34,18 @@ int main()
         IDevice* device = nullptr;
         DeviceDesc desc = {};
         desc.deviceType = DeviceType::WGPU;
-        
+
         Result res = rhi->createDevice(desc, &device);
-        
+
         if (SLANG_SUCCEEDED(res) && device)
         {
             printf("OK: WebGPU device created successfully!\n");
-            
+
             // Create a queue
             printf("Testing Queue creation...\n");
             ICommandQueue* queue = nullptr;
             device->getQueue(QueueType::Graphics, &queue);
-            
+
             if (queue)
             {
                 printf("OK: Queue created\n");
@@ -65,7 +65,11 @@ int main()
             }
             else
             {
-                printf("FAILED: Invalid handle validation failed (Result: %x, Buffer: %p)\n", invalidRes, invalidBuffer);
+                printf(
+                    "FAILED: Invalid handle validation failed (Result: %x, Buffer: %p)\n",
+                    invalidRes,
+                    invalidBuffer
+                );
             }
 
             // Test buffer creation and mapping (triggers wgpu::wait)
@@ -75,15 +79,16 @@ int main()
             bufferDesc.size = 1024;
             bufferDesc.usage = BufferUsage::ShaderResource;
             bufferDesc.memoryType = MemoryType::ReadBack;
-            
+
             uint32_t initData[256];
-            for (int i = 0; i < 256; ++i) initData[i] = i;
+            for (int i = 0; i < 256; ++i)
+                initData[i] = i;
 
             res = device->createBuffer(bufferDesc, initData, &buffer);
             if (SLANG_SUCCEEDED(res) && buffer)
             {
                 printf("OK: Buffer created and initialized\n");
-                
+
                 void* mappedData = nullptr;
                 res = device->mapBuffer(buffer, CpuAccessMode::Read, &mappedData);
                 if (SLANG_SUCCEEDED(res) && mappedData)
@@ -110,7 +115,7 @@ int main()
             {
                 printf("FAILED: Buffer creation failed (Result: %x)\n", res);
             }
-            
+
             device->release();
         }
         else
