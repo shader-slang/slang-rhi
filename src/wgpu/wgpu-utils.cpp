@@ -174,6 +174,19 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::BC7UnormSrgb:
         return WGPUTextureFormat_BC7RGBAUnormSrgb;
 
+    case Format::ASTC4x4Unorm:
+        return WGPUTextureFormat_ASTC4x4Unorm;
+    case Format::ASTC4x4UnormSrgb:
+        return WGPUTextureFormat_ASTC4x4UnormSrgb;
+    case Format::ASTC6x6Unorm:
+        return WGPUTextureFormat_ASTC6x6Unorm;
+    case Format::ASTC6x6UnormSrgb:
+        return WGPUTextureFormat_ASTC6x6UnormSrgb;
+    case Format::ASTC8x8Unorm:
+        return WGPUTextureFormat_ASTC8x8Unorm;
+    case Format::ASTC8x8UnormSrgb:
+        return WGPUTextureFormat_ASTC8x8UnormSrgb;
+
     default:
         return WGPUTextureFormat_Undefined;
     }

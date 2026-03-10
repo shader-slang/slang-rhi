@@ -104,6 +104,13 @@ const FormatMapping& getFormatMapping(Format format)
         { Format::BC6HSfloat,       DXGI_FORMAT_BC6H_TYPELESS,          DXGI_FORMAT_BC6H_SF16,                  DXGI_FORMAT_BC6H_SF16               },
         { Format::BC7Unorm,         DXGI_FORMAT_BC7_TYPELESS,           DXGI_FORMAT_BC7_UNORM,                  DXGI_FORMAT_BC7_UNORM               },
         { Format::BC7UnormSrgb,     DXGI_FORMAT_BC7_TYPELESS,           DXGI_FORMAT_BC7_UNORM_SRGB,             DXGI_FORMAT_BC7_UNORM_SRGB          },
+
+        { Format::ASTC4x4Unorm,     DXGI_FORMAT_UNKNOWN,                DXGI_FORMAT_UNKNOWN,                    DXGI_FORMAT_UNKNOWN                 },
+        { Format::ASTC4x4UnormSrgb, DXGI_FORMAT_UNKNOWN,                DXGI_FORMAT_UNKNOWN,                    DXGI_FORMAT_UNKNOWN                 },
+        { Format::ASTC6x6Unorm,     DXGI_FORMAT_UNKNOWN,                DXGI_FORMAT_UNKNOWN,                    DXGI_FORMAT_UNKNOWN                 },
+        { Format::ASTC6x6UnormSrgb, DXGI_FORMAT_UNKNOWN,                DXGI_FORMAT_UNKNOWN,                    DXGI_FORMAT_UNKNOWN                 },
+        { Format::ASTC8x8Unorm,     DXGI_FORMAT_UNKNOWN,                DXGI_FORMAT_UNKNOWN,                    DXGI_FORMAT_UNKNOWN                 },
+        { Format::ASTC8x8UnormSrgb, DXGI_FORMAT_UNKNOWN,                DXGI_FORMAT_UNKNOWN,                    DXGI_FORMAT_UNKNOWN                 },
         // clang-format on
     };
 

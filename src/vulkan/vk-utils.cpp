@@ -177,6 +177,19 @@ VkFormat getVkFormat(Format format)
     case Format::BC7UnormSrgb:
         return VK_FORMAT_BC7_SRGB_BLOCK;
 
+    case Format::ASTC4x4Unorm:
+        return VK_FORMAT_ASTC_4x4_UNORM_BLOCK;
+    case Format::ASTC4x4UnormSrgb:
+        return VK_FORMAT_ASTC_4x4_SRGB_BLOCK;
+    case Format::ASTC6x6Unorm:
+        return VK_FORMAT_ASTC_6x6_UNORM_BLOCK;
+    case Format::ASTC6x6UnormSrgb:
+        return VK_FORMAT_ASTC_6x6_SRGB_BLOCK;
+    case Format::ASTC8x8Unorm:
+        return VK_FORMAT_ASTC_8x8_UNORM_BLOCK;
+    case Format::ASTC8x8UnormSrgb:
+        return VK_FORMAT_ASTC_8x8_SRGB_BLOCK;
+
     default:
         return VK_FORMAT_UNDEFINED;
     }
