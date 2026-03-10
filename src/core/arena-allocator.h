@@ -33,11 +33,11 @@ public:
     void* allocate(size_t size, size_t alignment = 16)
     {
         m_pos = (m_pos + alignment - 1) & ~(alignment - 1);
-        if (!m_page || m_pos + size > m_page->end)
+        if (!m_page || m_pos + size > m_page->end())
         {
             size_t requiredSize = max(size + alignment + sizeof(Page), m_pageSize);
             Page* next = m_page ? m_page->next : nullptr;
-            if (!next || ((next->begin + alignment - 1) & ~(alignment - 1)) + size > next->end)
+            if (!next || ((next->begin() + alignment - 1) & ~(alignment - 1)) + size > next->end())
             {
                 Page* newPage = allocatePage(requiredSize);
                 newPage->next = next;
@@ -48,7 +48,7 @@ public:
                 next = newPage;
             }
             m_page = next;
-            m_pos = (m_page->begin + alignment - 1) & ~(alignment - 1);
+            m_pos = (m_page->begin() + alignment - 1) & ~(alignment - 1);
         }
         void* result = (void*)m_pos;
         m_pos += size;
@@ -69,7 +69,7 @@ public:
     void reset()
     {
         m_page = m_pages;
-        m_pos = m_page ? m_page->begin : 0;
+        m_pos = m_page ? m_page->begin() : 0;
     }
 
 private:
@@ -77,10 +77,10 @@ private:
     {
         Page* next;
         size_t size;
-        uintptr_t begin;
-        uintptr_t end;
+        uintptr_t begin() const { return reinterpret_cast<uintptr_t>(this) + sizeof(Page); }
+        uintptr_t end() const { return begin() + size; }
     };
-    static_assert(sizeof(Page) == 32);
+    static_assert(sizeof(Page) == 16);
 
     size_t m_pageSize;
     Page* m_pages = nullptr;
@@ -94,8 +94,6 @@ private:
         Page* page = reinterpret_cast<Page*>(data);
         page->next = nullptr;
         page->size = totalSize - sizeof(Page);
-        page->begin = reinterpret_cast<uintptr_t>(data) + sizeof(Page);
-        page->end = page->begin + page->size;
         return page;
     }
 
