@@ -12,6 +12,7 @@
 
 #include "core/stable_vector.h"
 #include "core/string.h"
+#include "core/task-pool.h"
 #include "cooperative-vector-utils.h"
 
 #define OPTIX_DONT_INCLUDE_CUDA
@@ -651,28 +652,105 @@ public:
         optixModuleCompileOptions.numPayloadTypes = 0;
         optixModuleCompileOptions.payloadTypes = nullptr;
 
-        // Create optix modules & program groups
-        std::vector<OptixModule> optixModules;
+        // Create optix modules (parallel) & program groups (sequential)
+        const size_t moduleCount = program->m_modules.size();
+        std::vector<OptixModule> optixModules(moduleCount);
         std::map<std::string, uint32_t> moduleIndexByEntryPointName;
         std::vector<OptixProgramGroup> optixProgramGroups;
         std::map<std::string, uint32_t> programGroupIndexByName;
         std::vector<uint32_t> raygenEntryPointIndices;
-        for (const auto& module : program->m_modules)
+
+        // Pre-populate entry point name -> module index mapping.
+        for (size_t i = 0; i < moduleCount; ++i)
         {
-            SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                optixModuleCreate(
-                    m_deviceContext,
-                    &optixModuleCompileOptions,
-                    &optixPipelineCompileOptions,
-                    static_cast<const char*>(module.code->getBufferPointer()),
-                    module.code->getBufferSize(),
-                    nullptr,
-                    0,
-                    &optixModules.emplace_back()
-                ),
-                m_device
+            moduleIndexByEntryPointName[program->m_modules[i].entryPointName] = static_cast<uint32_t>(i);
+        }
+
+        // Per-task state for parallel optixModuleCreate.
+        struct ModuleCompileTask
+        {
+            OptixDeviceContext deviceContext;
+            const OptixModuleCompileOptions* moduleOptions;
+            const OptixPipelineCompileOptions* pipelineOptions;
+            const char* ptxCode;
+            size_t ptxSize;
+            OptixModule* outModule;
+            OptixResult result;
+            size_t moduleIndex;
+            const char* entryPointName;
+        };
+
+        std::vector<ModuleCompileTask> taskPayloads(moduleCount);
+        ITaskPool* taskPool = globalTaskPool();
+        std::vector<ITaskPool::TaskHandle> taskHandles(moduleCount);
+
+        // Submit parallel module compilation tasks.
+        for (size_t i = 0; i < moduleCount; ++i)
+        {
+            const auto& module = program->m_modules[i];
+            auto& task = taskPayloads[i];
+            task.deviceContext = m_deviceContext;
+            task.moduleOptions = &optixModuleCompileOptions;
+            task.pipelineOptions = &optixPipelineCompileOptions;
+            task.ptxCode = static_cast<const char*>(module.code->getBufferPointer());
+            task.ptxSize = module.code->getBufferSize();
+            task.outModule = &optixModules[i];
+            task.result = OPTIX_SUCCESS;
+            task.moduleIndex = i;
+            task.entryPointName = module.entryPointName.c_str();
+
+            taskHandles[i] = taskPool->submitTask(
+                [](void* payload)
+                {
+                    auto* t = static_cast<ModuleCompileTask*>(payload);
+                    t->result = optixModuleCreate(
+                        t->deviceContext,
+                        t->moduleOptions,
+                        t->pipelineOptions,
+                        t->ptxCode,
+                        t->ptxSize,
+                        nullptr,
+                        0,
+                        t->outModule
+                    );
+                },
+                &task,
+                nullptr,
+                nullptr,
+                0
             );
-            moduleIndexByEntryPointName[module.entryPointName] = optixModules.size() - 1;
+        }
+
+        // Wait for all module compilation tasks and release handles.
+        for (size_t i = 0; i < moduleCount; ++i)
+        {
+            taskPool->waitTask(taskHandles[i]);
+            taskPool->releaseTask(taskHandles[i]);
+        }
+
+        // Check for compilation errors.
+        // TODO: destroy successfully created OptixModules on error
+        for (size_t i = 0; i < moduleCount; ++i)
+        {
+            if (isOptixError(taskPayloads[i].result))
+            {
+                char errorMsg[512];
+                snprintf(
+                    errorMsg,
+                    sizeof(errorMsg),
+                    "optixModuleCreate failed for module %zu ('%s')",
+                    taskPayloads[i].moduleIndex,
+                    taskPayloads[i].entryPointName
+                );
+                reportOptixError(taskPayloads[i].result, errorMsg, __FILE__, __LINE__, m_device);
+                return SLANG_FAIL;
+            }
+        }
+
+        // Create program groups for raygen, miss, and callable modules.
+        for (size_t i = 0; i < moduleCount; ++i)
+        {
+            const auto& module = program->m_modules[i];
 
             OptixProgramGroupDesc optixProgramGroupDesc = {};
             OptixProgramGroupOptions optixProgramGroupOptions = {};
@@ -683,7 +761,7 @@ public:
             {
             case SLANG_STAGE_RAY_GENERATION:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-                optixProgramGroupDesc.raygen.module = optixModules.back();
+                optixProgramGroupDesc.raygen.module = optixModules[i];
                 entryFunctionName = "__raygen__" + module.entryPointName;
                 optixProgramGroupDesc.raygen.entryFunctionName = entryFunctionName.data();
                 // Raygen entrypoint parameters are passed via the shader binding table.
@@ -708,14 +786,14 @@ public:
                 break;
             case SLANG_STAGE_MISS:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
-                optixProgramGroupDesc.miss.module = optixModules.back();
+                optixProgramGroupDesc.miss.module = optixModules[i];
                 entryFunctionName = "__miss__" + module.entryPointName;
                 optixProgramGroupDesc.miss.entryFunctionName = entryFunctionName.data();
                 break;
             case SLANG_STAGE_CALLABLE:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
                 // TODO: support continuation callables
-                optixProgramGroupDesc.callables.moduleDC = optixModules.back();
+                optixProgramGroupDesc.callables.moduleDC = optixModules[i];
                 entryFunctionName = "__callable__" + module.entryPointName;
                 optixProgramGroupDesc.callables.entryFunctionNameDC = entryFunctionName.data();
                 break;
