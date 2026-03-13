@@ -446,7 +446,7 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     {
         DescriptorHandle tmp;
         SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocTextureHandle(this, access, &tmp));
-        handle.set(tmp.type, tmp.value);
+        handle.set(tmp);
     }
 
     *outHandle = handle.get();

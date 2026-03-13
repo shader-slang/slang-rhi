@@ -65,6 +65,9 @@ public:
         std::atomic_ref(m_handle.type).store(type, std::memory_order_release);
     }
 
+    /// Convenience overload that takes a NativeHandle.
+    void set(const NativeHandle& handle) { set(handle.type, handle.value); }
+
     /// Returns a snapshot of the handle using atomic acquire load on the type field.
     NativeHandle get() const
     {
@@ -104,6 +107,9 @@ public:
         m_handle.value = value;
         std::atomic_ref(m_handle.type).store(type, std::memory_order_release);
     }
+
+    /// Convenience overload that takes a DescriptorHandle.
+    void set(const DescriptorHandle& handle) { set(handle.type, handle.value); }
 
     /// Returns a snapshot of the handle using atomic acquire load on the type field.
     DescriptorHandle get() const

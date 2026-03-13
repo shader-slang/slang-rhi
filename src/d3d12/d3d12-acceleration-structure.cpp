@@ -68,7 +68,7 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
     {
         DescriptorHandle tmp;
         SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &tmp));
-        m_descriptorHandle.set(tmp.type, tmp.value);
+        m_descriptorHandle.set(tmp);
     }
 
     *outHandle = m_descriptorHandle.get();
