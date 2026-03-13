@@ -57,6 +57,7 @@
 | `getSharedHandle`     | n/a | n/a  | n/a   | yes   | yes    | n/a   | n/a  |
 | `getDeviceAddress`    | yes | yes  | n/a   | yes   | yes    | yes   | n/a  |
 | `getDescriptorHandle` | n/a | n/a  | n/a   | yes   | yes    | n/a   | n/a  |
+| `getNativeHandle`     | n/a | yes  | n/a   | yes   | yes    | yes   | yes  |
 
 ## `ITexture` interface
 
@@ -67,6 +68,7 @@
 | `createView`           | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getDefaultView`       | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getSubresourceLayout` | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getNativeHandle`      | n/a | yes  | n/a   | yes   | yes    | yes   | yes  |
 
 ## `ITextureView` interface
 
@@ -76,6 +78,7 @@
 | `getTexture`                               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getDescriptorHandle`                      | n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
 | `getCombinedTextureSamplerDescriptorHandle`| n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
+| `getNativeHandle`                          | n/a | n/a  | n/a   | n/a   | n/a    | yes   | yes  |
 
 ## `ISampler` interface
 
@@ -83,6 +86,7 @@
 |-----------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`             | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getDescriptorHandle` | n/a | n/a  | n/a   | yes   | yes    | n/a   | n/a  |
+| `getNativeHandle`     | n/a | n/a  | n/a   | yes   | yes    | yes   | yes  |
 
 ## `IFence` interface
 
@@ -90,8 +94,8 @@
 |-------------------|-----|------|-------|-------|--------|-------|------|
 | `getCurrentValue` | no  | no   | n/a   | no    | no     | no    | no   |
 | `setCurrentValue` | no  | no   | n/a   | no    | no     | no    | no   |
-| `getNativeHandle` | n/a | n/a  | n/a   | no    | no     | no    | n/a  |
-| `getSharedHandle` | n/a | n/a  | n/a   | no    | no     | n/a   | n/a  |
+| `getNativeHandle` | n/a | n/a  | n/a   | yes   | yes    | yes   | n/a  |
+| `getSharedHandle` | n/a | n/a  | n/a   | yes   | yes    | n/a   | n/a  |
 
 ## `IShaderObject` interface
 
@@ -99,18 +103,12 @@ Not thread-safe. All operations must be synchronized externally.
 
 ## `IShaderTable` interface
 
-## `IPipeline` interface
-
-| API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-------------------|-----|------|-------|-------|--------|-------|------|
-| `getProgram`      | no  | no   | no    | no    | no     | no    | no   |
-| `getNativeHandle` | n/a | no   | no    | no    | no     | no    | no   |
-
 ## `IRenderPipeline` interface
 
 | API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`         | n/a | n/a  | yes   | yes   | yes    | yes   | yes  |
+| `getProgram`      | n/a | n/a  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle` | n/a | n/a  | n/a   | yes   | yes    | yes   | yes  |
 
 ## `IComputePipeline` interface
@@ -118,6 +116,7 @@ Not thread-safe. All operations must be synchronized externally.
 | API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`         | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getProgram`      | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle` | n/a | yes  | n/a   | yes   | yes    | yes   | yes  |
 
 ## `IRayTracingPipeline` interface
@@ -125,6 +124,7 @@ Not thread-safe. All operations must be synchronized externally.
 | API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`         | n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
+| `getProgram`      | n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
 | `getNativeHandle` | n/a | yes  | n/a   | yes   | yes    | n/a   | n/a  |
 
 ## `IQueryPool` interface
@@ -189,6 +189,7 @@ Not thread-safe. All operations must be synchronized externally.
 | `getHandle`           | n/a | yes  | n/a   | yes   | yes    | yes   | n/a  |
 | `getDeviceAddress`    | n/a | yes  | n/a   | yes   | yes    | yes   | n/a  |
 | `getDescriptorHandle` | n/a | n/a  | n/a   | yes   | yes    | n/a   | n/a  |
+| `getNativeHandle`     | n/a | yes  | no    | yes   | yes    | yes   | n/a  |
 
 ## `IHeap` interface
 
