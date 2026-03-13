@@ -1144,6 +1144,23 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
         const auto& entryPointData = m_bindingData->entryPointData[raygenInfo.entryPointIndex];
         if (entryPointData.data && entryPointData.size > 0)
         {
+            // Insert a barrier to ensure any shader reads of the SBT are finished before we update it.
+            VkMemoryBarrier preUpdateBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+            preUpdateBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            preUpdateBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            m_api.vkCmdPipelineBarrier(
+                m_cmdBuffer,
+                VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                0,
+                1,
+                &preUpdateBarrier,
+                0,
+                nullptr,
+                0,
+                nullptr
+            );
+
             // Use vkCmdUpdateBuffer to copy entry point data to the SBT.
             // The data is written at the raygen's sbtOffset (after the shader group handle).
             VkDeviceSize dstOffset = raygenInfo.sbtOffset;
@@ -1157,16 +1174,16 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
             );
 
             // Insert a barrier to ensure the update is visible before tracing rays.
-            VkMemoryBarrier memoryBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
-            memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            VkMemoryBarrier postUpdateBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+            postUpdateBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            postUpdateBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
             m_api.vkCmdPipelineBarrier(
                 m_cmdBuffer,
                 VK_PIPELINE_STAGE_TRANSFER_BIT,
                 VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
                 0,
                 1,
-                &memoryBarrier,
+                &postUpdateBarrier,
                 0,
                 nullptr,
                 0,
