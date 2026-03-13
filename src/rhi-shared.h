@@ -78,7 +78,8 @@ public:
     }
 
 private:
-    NativeHandle m_handle = {};
+    // mutable is required on macos/clang because std::atomic_ref requires non-const objects even for loads.
+    mutable NativeHandle m_handle = {};
 };
 
 /// Wrapper around DescriptorHandle that enforces atomic acquire/release semantics on the type field.
@@ -121,7 +122,8 @@ public:
     }
 
 private:
-    DescriptorHandle m_handle = {};
+    // mutable is required on macos/clang because std::atomic_ref requires non-const objects even for loads.
+    mutable DescriptorHandle m_handle = {};
 };
 
 class Fence : public IFence, public DeviceChild
