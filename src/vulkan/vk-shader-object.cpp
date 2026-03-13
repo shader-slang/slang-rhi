@@ -270,12 +270,19 @@ Result BindingDataBuilder::bindAsRoot(
 
     // Allocate entry point data storage for ray tracing SBT.
     size_t entryPointCount = specializedLayout->m_entryPoints.size();
-    m_bindingData->entryPointData = m_allocator->allocate<BindingDataImpl::EntryPointData>(entryPointCount);
     m_bindingData->entryPointCount = (uint32_t)entryPointCount;
-    for (size_t i = 0; i < entryPointCount; ++i)
+    if (specializedLayout->findEntryPointIndex(VK_SHADER_STAGE_RAYGEN_BIT_KHR) != -1)
     {
-        m_bindingData->entryPointData[i].data = nullptr;
-        m_bindingData->entryPointData[i].size = 0;
+        m_bindingData->entryPointData = m_allocator->allocate<BindingDataImpl::EntryPointData>(entryPointCount);
+        for (size_t i = 0; i < entryPointCount; ++i)
+        {
+            m_bindingData->entryPointData[i].data = nullptr;
+            m_bindingData->entryPointData[i].size = 0;
+        }
+    }
+    else
+    {
+        m_bindingData->entryPointData = nullptr;
     }
 
     BindingOffset offset = {};
@@ -341,6 +348,7 @@ Result BindingDataBuilder::bindAsEntryPoint(
         if (layout->getSlangLayout()->getStage() == SLANG_STAGE_RAY_GENERATION)
         {
             // For raygen entry points, ordinary data is stored in the SBT, not as push constants.
+            SLANG_RHI_ASSERT(m_bindingData->entryPointData && entryPointIndex < m_bindingData->entryPointCount);
             BindingDataImpl::EntryPointData& epData = m_bindingData->entryPointData[entryPointIndex];
             epData.size = shaderObject->m_data.size();
             epData.data = m_allocator->allocate(epData.size);
