@@ -3,8 +3,6 @@
 #include "d3d12-buffer.h"
 #include "d3d12-pipeline.h"
 
-#include "core/string.h"
-
 namespace rhi::d3d12 {
 
 ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
@@ -55,15 +53,15 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     uint32_t tableSize = callableTableOffset + callableTableSize;
 
-    ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
-    pipeline->m_stateObject->QueryInterface(stateObjectProperties.writeRef());
-
     auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
     {
         if (!name.empty())
         {
-            void* shaderId = stateObjectProperties->GetShaderIdentifier(string::to_wstring(name).data());
-            memcpy(dest, shaderId, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+            auto it = pipeline->m_shaderIdentifierByName.find(name);
+            if (it != pipeline->m_shaderIdentifierByName.end())
+            {
+                memcpy(dest, it->second, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+            }
         }
         if (overwrite && overwrite->size > 0)
         {
