@@ -1074,7 +1074,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
 
     bool updatePipeline = !m_rayTracingStateValid || cmd.pipeline != m_rayTracingPipeline;
     bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
-    bool updateShaderTable = !m_rayTracingStateValid || cmd.shaderTable != m_shaderTable;
+    bool updateShaderTable = updatePipeline || cmd.shaderTable != m_shaderTable;
 
     auto& api = m_device->m_api;
 
