@@ -9,6 +9,7 @@ Add parameter validation to `DebugDevice` methods that currently only do label p
 - Use `RHI_VALIDATION_WARNING(...)` for suspicious but technically allowed usage.
 - Look at the existing `createTexture` and `createSampler` validation in `debug-device.cpp` as style reference.
 - The `SLANG_RHI_API_FUNC` macro is used at the top of each method.
+- **Documentation**: After implementing validation for each step, update the corresponding method's doc comment in [slang-rhi.h](include/slang-rhi.h) to document parameter constraints, valid usage rules, and error conditions (e.g., `@param desc ... size must be > 0`, `@returns SLANG_E_INVALID_ARG if ...`). Use the validation checks as the source of truth for what to document.
 
 ### Steps
 

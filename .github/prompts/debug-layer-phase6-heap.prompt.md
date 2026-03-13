@@ -7,6 +7,7 @@ Add basic parameter validation to `DebugHeap` methods that are currently pure fo
 - `DebugHeap` wraps `IHeap`. All 5 methods currently just forward without any checks.
 - This is low priority but straightforward to add.
 - Use `RHI_VALIDATION_ERROR(...)` / `RHI_VALIDATION_WARNING(...)` consistent with the rest of the debug layer.
+- **Documentation**: After implementing validation for each step, update the corresponding method's doc comment in [slang-rhi.h](include/slang-rhi.h) to document parameter constraints, valid usage rules, and error conditions. Use the validation checks as the source of truth for what to document.
 
 ### Steps
 

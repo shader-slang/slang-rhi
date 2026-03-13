@@ -8,6 +8,7 @@ Add pipeline-bound tracking and parameter validation to `DebugRayTracingPassEnco
 - A new `bool m_pipelineBound = false` field will need to be added (same pattern as Phases 3–4).
 - Track whether a shader table was provided during `bindPipeline`.
 - Use `RHI_VALIDATION_ERROR(...)` / `RHI_VALIDATION_WARNING(...)` consistent with the rest of the debug layer.
+- **Documentation**: After implementing validation for each step, update the corresponding method's doc comment in [slang-rhi.h](include/slang-rhi.h) to document parameter constraints, valid usage rules, and error conditions. Use the validation checks as the source of truth for what to document.
 
 ### Steps
 

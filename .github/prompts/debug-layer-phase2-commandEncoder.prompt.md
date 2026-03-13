@@ -8,6 +8,7 @@ Add parameter and range validation to `DebugCommandEncoder` methods that current
 - Use `RHI_VALIDATION_ERROR(...)` and return `SLANG_E_INVALID_ARG` for invalid usage. Use `RHI_VALIDATION_WARNING(...)` for suspicious usage.
 - Look at the existing `copyTexture`, `clearBuffer`, and `clearTextureDepthStencil` validation as style reference.
 - The inner encoder is accessed via `getBaseEncoder()`.
+- **Documentation**: After implementing validation for each step, update the corresponding method's doc comment in [slang-rhi.h](include/slang-rhi.h) to document parameter constraints, valid usage rules, and error conditions. Use the validation checks as the source of truth for what to document.
 
 ### Steps
 
