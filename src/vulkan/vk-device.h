@@ -261,6 +261,7 @@ public:
     std::mutex m_textureDescriptorMutex;
     std::mutex m_samplerMutex;
     std::mutex m_accelerationStructureMutex;
+    std::mutex m_fenceMutex;
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     /// Aftermath crash dumper (null if Aftermath is not enabled).

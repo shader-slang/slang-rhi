@@ -278,6 +278,7 @@ public:
     std::mutex m_textureDescriptorMutex;
     std::mutex m_samplerMutex;
     std::mutex m_accelerationStructureMutex;
+    std::mutex m_fenceMutex;
 
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* desc);
