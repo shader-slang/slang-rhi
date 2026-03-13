@@ -9,6 +9,7 @@ Add parameter and range validation to `DebugCommandEncoder` methods that current
 - Look at the existing `copyTexture`, `clearBuffer`, and `clearTextureDepthStencil` validation as style reference.
 - The inner encoder is accessed via `getBaseEncoder()`.
 - **Documentation**: After implementing validation for each step, update the corresponding method's doc comment in [slang-rhi.h](include/slang-rhi.h) to document parameter constraints, valid usage rules, and error conditions. Use the validation checks as the source of truth for what to document.
+- **Research**: The bullet points in each step are an initial starting point only. Before implementing each step, read the method's implementation across all backends (`src/vulkan/`, `src/d3d12/`, `src/metal/`, `src/wgpu/`, `src/cpu/`, `src/cuda/`) and the shared base in `src/` to fully understand valid parameter ranges, implicit assumptions, and failure modes. This deeper understanding should inform both better validation checks and more accurate documentation.
 
 ### Steps
 

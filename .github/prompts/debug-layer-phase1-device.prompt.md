@@ -10,6 +10,7 @@ Add parameter validation to `DebugDevice` methods that currently only do label p
 - Look at the existing `createTexture` and `createSampler` validation in `debug-device.cpp` as style reference.
 - The `SLANG_RHI_API_FUNC` macro is used at the top of each method.
 - **Documentation**: After implementing validation for each step, update the corresponding method's doc comment in [slang-rhi.h](include/slang-rhi.h) to document parameter constraints, valid usage rules, and error conditions (e.g., `@param desc ... size must be > 0`, `@returns SLANG_E_INVALID_ARG if ...`). Use the validation checks as the source of truth for what to document.
+- **Research**: The bullet points in each step are an initial starting point only. Before implementing each step, read the method's implementation across all backends (`src/vulkan/`, `src/d3d12/`, `src/metal/`, `src/wgpu/`, `src/cpu/`, `src/cuda/`) and the shared base in `src/` to fully understand valid parameter ranges, implicit assumptions, and failure modes. This deeper understanding should inform both better validation checks and more accurate documentation.
 
 ### Steps
 
