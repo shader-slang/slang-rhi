@@ -130,7 +130,7 @@ public:
 protected:
     FenceDesc m_desc;
     StructHolder m_descHolder;
-    AtomicNativeHandle sharedHandle;
+    AtomicNativeHandle m_sharedHandle;
 };
 
 class Resource : public DeviceChild

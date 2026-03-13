@@ -109,9 +109,9 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     // Check if a shared handle already exists.
-    if (sharedHandle)
+    if (m_sharedHandle)
     {
-        *outHandle = sharedHandle.get();
+        *outHandle = m_sharedHandle.get();
         return SLANG_OK;
     }
 
@@ -123,7 +123,7 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 
     HANDLE handle = NULL;
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetSemaphoreWin32HandleKHR(device->m_api.m_device, &handleInfo, &handle));
-    sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
+    m_sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
 #else
     VkSemaphoreGetFdInfoKHR fdInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
     fdInfo.pNext = nullptr;
@@ -132,9 +132,9 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 
     int fd = 0;
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetSemaphoreFdKHR(device->m_api.m_device, &fdInfo, &fd));
-    sharedHandle.set(NativeHandleType::FileDescriptor, (uint64_t)fd);
+    m_sharedHandle.set(NativeHandleType::FileDescriptor, (uint64_t)fd);
 #endif
-    *outHandle = sharedHandle.get();
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 }
 

@@ -63,9 +63,9 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 #else
     // Check if a shared handle already exists.
-    if (sharedHandle)
+    if (m_sharedHandle)
     {
-        *outHandle = sharedHandle.get();
+        *outHandle = m_sharedHandle.get();
         return SLANG_OK;
     }
 
@@ -73,8 +73,8 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
     m_fence->GetDevice(IID_PPV_ARGS(devicePtr.writeRef()));
     HANDLE handle = NULL;
     SLANG_RETURN_ON_FAIL(devicePtr->CreateSharedHandle(m_fence, NULL, GENERIC_ALL, nullptr, &handle));
-    sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
-    *outHandle = sharedHandle.get();
+    m_sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 #endif
 }
