@@ -59,10 +59,16 @@ DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
         return 0;
     }
 
-    VkAccelerationStructureDeviceAddressInfoKHR info = {};
-    info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-    info.accelerationStructure = m_vkHandle;
-    m_deviceAddress = (DeviceAddress)device->m_api.vkGetAccelerationStructureDeviceAddressKHR(device->m_device, &info);
+    std::lock_guard<std::mutex> lock(device->m_accelerationStructureMutex);
+
+    if (!m_deviceAddress)
+    {
+        VkAccelerationStructureDeviceAddressInfoKHR info = {};
+        info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+        info.accelerationStructure = m_vkHandle;
+        m_deviceAddress =
+            (DeviceAddress)device->m_api.vkGetAccelerationStructureDeviceAddressKHR(device->m_device, &info);
+    }
 
     return m_deviceAddress;
 }

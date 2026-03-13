@@ -257,10 +257,15 @@ DeviceAddress BufferImpl::getDeviceAddress()
         return 0;
     }
 
-    VkBufferDeviceAddressInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    info.buffer = m_buffer.m_buffer;
-    m_deviceAddress = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
+    std::lock_guard<std::mutex> lock(device->m_bufferMutex);
+
+    if (!m_deviceAddress)
+    {
+        VkBufferDeviceAddressInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        info.buffer = m_buffer.m_buffer;
+        m_deviceAddress = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
+    }
 
     return m_deviceAddress;
 }
