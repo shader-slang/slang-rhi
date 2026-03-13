@@ -34,7 +34,8 @@ struct BindingDataBuilder
     Result bindAsEntryPoint(
         ShaderObject* shaderObject,
         const BindingOffset& inOffset,
-        EntryPointLayout* specializedLayout
+        EntryPointLayout* specializedLayout,
+        uint32_t entryPointIndex
     );
 
     /// Bind the ordinary data buffer if needed.
@@ -92,6 +93,14 @@ public:
         TextureViewImpl* textureView;
         ResourceState state;
     };
+    /// Entry point data for copying to shader binding table (ray tracing)
+    struct EntryPointData
+    {
+        // Host memory pointer to entry point uniform data
+        void* data;
+        // Size of the data in bytess
+        size_t size;
+    };
 
     /// Required buffer states.
     BufferState* bufferStates;
@@ -113,6 +122,10 @@ public:
     VkPushConstantRange* pushConstantRanges;
     void** pushConstantData;
     uint32_t pushConstantCount;
+
+    /// Entry point data (for ray tracing SBT).
+    EntryPointData* entryPointData;
+    uint32_t entryPointCount;
 };
 
 struct BindingCache

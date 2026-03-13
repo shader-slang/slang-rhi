@@ -729,6 +729,41 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         stateObject->SetName(string::to_wstring(desc.label).c_str());
     }
 
+    // Query shader identifiers and cache them for later use in shader binding tables.
+    // Only ray generation, miss, and callable shaders and hit groups have shader identifiers.
+    std::map<std::string, void*> shaderIdentifierByName;
+    {
+        ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
+        stateObject->QueryInterface(stateObjectProperties.writeRef());
+        if (stateObjectProperties)
+        {
+            for (const ShaderBinary& shader : program->m_shaders)
+            {
+                if (shader.stage != SLANG_STAGE_RAY_GENERATION && shader.stage != SLANG_STAGE_MISS &&
+                    shader.stage != SLANG_STAGE_CALLABLE)
+                    continue;
+                std::string name = shader.entryPointInfo->getNameOverride();
+                void* id = stateObjectProperties->GetShaderIdentifier(string::to_wstring(name).data());
+                if (id)
+                {
+                    shaderIdentifierByName[name] = id;
+                }
+            }
+            for (uint32_t i = 0; i < desc.hitGroupCount; i++)
+            {
+                if (desc.hitGroups[i].hitGroupName)
+                {
+                    std::string name = desc.hitGroups[i].hitGroupName;
+                    void* id = stateObjectProperties->GetShaderIdentifier(string::to_wstring(name).data());
+                    if (id)
+                    {
+                        shaderIdentifierByName[name] = id;
+                    }
+                }
+            }
+        }
+    }
+
     // Report the pipeline creation time.
     if (m_shaderCompilationReporter)
     {
@@ -746,6 +781,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_stateObject = stateObject;
+    pipeline->m_shaderIdentifierByName = std::move(shaderIdentifierByName);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }

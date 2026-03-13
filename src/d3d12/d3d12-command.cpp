@@ -1104,40 +1104,47 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     {
         m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
-        ShaderTableImpl::PipelineData* shaderTableData = m_shaderTable->getPipelineData(m_rayTracingPipeline);
-        DeviceAddress shaderTableAddr = shaderTableData->buffer->getDeviceAddress();
+        ShaderTableImpl::PipelineData* shaderTablePipelineData = m_shaderTable->getPipelineData(m_rayTracingPipeline);
+        if (!shaderTablePipelineData)
+        {
+            m_rayTracingStateValid = false;
+            return;
+        }
+        DeviceAddress shaderTableAddr = shaderTablePipelineData->buffer->getDeviceAddress();
 
         m_dispatchRaysDesc = {};
 
         // Raygen index is set at dispatch time.
-        m_rayGenTableAddr = shaderTableAddr + shaderTableData->rayGenTableOffset;
-        m_rayGenRecordStride = shaderTableData->rayGenRecordStride;
+        m_rayGenTableAddr = shaderTableAddr + shaderTablePipelineData->rayGenTableOffset;
+        m_rayGenRecordStride = shaderTablePipelineData->rayGenRecordStride;
         m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress = shaderTableAddr;
-        m_dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = shaderTableData->rayGenRecordStride;
+        m_dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = shaderTablePipelineData->rayGenRecordStride;
 
         if (m_shaderTable->m_missShaderCount > 0)
         {
-            m_dispatchRaysDesc.MissShaderTable.StartAddress = shaderTableAddr + shaderTableData->missTableOffset;
+            m_dispatchRaysDesc.MissShaderTable.StartAddress =
+                shaderTableAddr + shaderTablePipelineData->missTableOffset;
             m_dispatchRaysDesc.MissShaderTable.SizeInBytes =
-                m_shaderTable->m_missShaderCount * shaderTableData->missRecordStride;
-            m_dispatchRaysDesc.MissShaderTable.StrideInBytes = shaderTableData->missRecordStride;
+                m_shaderTable->m_missShaderCount * shaderTablePipelineData->missRecordStride;
+            m_dispatchRaysDesc.MissShaderTable.StrideInBytes = shaderTablePipelineData->missRecordStride;
         }
 
         if (m_shaderTable->m_hitGroupCount > 0)
         {
-            m_dispatchRaysDesc.HitGroupTable.StartAddress = shaderTableAddr + shaderTableData->hitGroupTableOffset;
+            m_dispatchRaysDesc.HitGroupTable.StartAddress =
+                shaderTableAddr + shaderTablePipelineData->hitGroupTableOffset;
             m_dispatchRaysDesc.HitGroupTable.SizeInBytes =
-                m_shaderTable->m_hitGroupCount * shaderTableData->hitGroupRecordStride;
-            m_dispatchRaysDesc.HitGroupTable.StrideInBytes = shaderTableData->hitGroupRecordStride;
+                m_shaderTable->m_hitGroupCount * shaderTablePipelineData->hitGroupRecordStride;
+            m_dispatchRaysDesc.HitGroupTable.StrideInBytes = shaderTablePipelineData->hitGroupRecordStride;
         }
 
         if (m_shaderTable->m_callableShaderCount > 0)
         {
             m_dispatchRaysDesc.CallableShaderTable.StartAddress =
-                shaderTableAddr + shaderTableData->callableTableOffset;
+                shaderTableAddr + shaderTablePipelineData->callableTableOffset;
             m_dispatchRaysDesc.CallableShaderTable.SizeInBytes =
-                m_shaderTable->m_callableShaderCount * shaderTableData->callableRecordStride;
-            m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = shaderTableData->callableRecordStride;
+                m_shaderTable->m_callableShaderCount * shaderTablePipelineData->callableRecordStride;
+            m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = shaderTablePipelineData->callableRecordStride;
         }
     }
 
@@ -1150,6 +1157,9 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
     if (!m_rayTracingStateValid)
+        return;
+
+    if (cmd.rayGenShaderIndex >= m_shaderTable->m_rayGenShaderCount)
         return;
 
     m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress =
