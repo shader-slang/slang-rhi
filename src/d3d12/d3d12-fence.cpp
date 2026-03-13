@@ -62,20 +62,24 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 #if !SLANG_WINDOWS_FAMILY
     return SLANG_E_NOT_AVAILABLE;
 #else
-    // Check if a shared handle already exists.
-    if (sharedHandle)
+    if (m_sharedHandle)
     {
-        *outHandle = sharedHandle;
+        *outHandle = m_sharedHandle.get();
         return SLANG_OK;
     }
 
-    ComPtr<ID3D12Device> devicePtr;
-    m_fence->GetDevice(IID_PPV_ARGS(devicePtr.writeRef()));
-    SLANG_RETURN_ON_FAIL(
-        devicePtr->CreateSharedHandle(m_fence, NULL, GENERIC_ALL, nullptr, (HANDLE*)&sharedHandle.value)
-    );
-    sharedHandle.type = NativeHandleType::Win32;
-    *outHandle = sharedHandle;
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_fenceMutex);
+
+    if (!m_sharedHandle)
+    {
+        HANDLE handle = NULL;
+        SLANG_RETURN_ON_FAIL(device->m_device->CreateSharedHandle(m_fence, NULL, GENERIC_ALL, nullptr, &handle));
+        m_sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
+    }
+
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 #endif
 }

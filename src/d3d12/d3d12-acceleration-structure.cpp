@@ -15,7 +15,7 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
 
     if (m_descriptorHandle)
     {
-        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle.get());
     }
 
     if (m_descriptor)
@@ -51,19 +51,27 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    if (m_descriptorHandle)
+    {
+        *outHandle = m_descriptorHandle.get();
+        return SLANG_OK;
+    }
+
     if (!device->m_bindlessDescriptorSet)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
 
+    std::lock_guard lock(device->m_accelerationStructureMutex);
+
     if (!m_descriptorHandle)
     {
-        SLANG_RETURN_ON_FAIL(
-            device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &m_descriptorHandle)
-        );
+        DescriptorHandle tmp;
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &tmp));
+        m_descriptorHandle.set(tmp);
     }
 
-    *outHandle = m_descriptorHandle;
+    *outHandle = m_descriptorHandle.get();
     return SLANG_OK;
 }
 
