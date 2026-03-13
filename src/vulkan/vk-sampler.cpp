@@ -56,6 +56,7 @@ Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
         SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &tmp));
         m_descriptorHandle.set(tmp);
     }
+
     *outHandle = m_descriptorHandle.get();
     return SLANG_OK;
 }
