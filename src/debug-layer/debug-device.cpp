@@ -258,6 +258,26 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
     SLANG_RHI_API_FUNC;
     validateCudaContext();
 
+    if (!outBuffer)
+    {
+        RHI_VALIDATION_ERROR("'outBuffer' is null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.size == 0)
+    {
+        RHI_VALIDATION_ERROR("Buffer size must be greater than 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.usage == BufferUsage::None)
+    {
+        RHI_VALIDATION_ERROR("Buffer usage must be specified.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.elementSize > 0 && desc.size % desc.elementSize != 0)
+    {
+        RHI_VALIDATION_WARNING("Buffer size is not a multiple of element size.");
+    }
+
     BufferDesc patchedDesc = desc;
     std::string label;
     if (!patchedDesc.label)

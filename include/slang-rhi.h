@@ -3207,7 +3207,12 @@ public:
         ITexture** outTexture
     ) = 0;
 
-    /// Create a buffer resource
+    /// Create a buffer resource.
+    /// @param desc Buffer descriptor. `desc.size` must be > 0 and `desc.usage` must not be `BufferUsage::None`.
+    ///             If `desc.elementSize` > 0, `desc.size` should ideally be a multiple of `desc.elementSize`.
+    /// @param initData Optional pointer to initial data to fill the buffer with.
+    /// @param[out] outBuffer Pointer to receive the created buffer. Must not be null.
+    /// @returns SLANG_E_INVALID_ARG if `desc.size` is 0, `desc.usage` is `BufferUsage::None`, or `outBuffer` is null.
     virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
         const BufferDesc& desc,
         const void* initData,
