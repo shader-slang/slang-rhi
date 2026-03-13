@@ -208,7 +208,8 @@ Result BindlessDescriptorSet::allocBufferHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    setDescriptorHandleAtomic(*outHandle, type, slot);
+    outHandle->value = slot;
+    outHandle->type = type;
 
     return SLANG_OK;
 }
@@ -256,7 +257,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    setDescriptorHandleAtomic(*outHandle, type, m_firstTextureHandle + slot);
+    outHandle->value = m_firstTextureHandle + slot;
+    outHandle->type = type;
 
     return SLANG_OK;
 }
@@ -285,7 +287,8 @@ Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHa
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::Sampler, slot);
+    outHandle->value = slot;
+    outHandle->type = DescriptorHandleType::Sampler;
 
     return SLANG_OK;
 }
@@ -320,7 +323,8 @@ Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::CombinedTextureSampler, slot);
+    outHandle->value = slot;
+    outHandle->type = DescriptorHandleType::CombinedTextureSampler;
 
     return SLANG_OK;
 }
@@ -354,11 +358,8 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     const auto& api = m_device->m_api;
     api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
 
-    setDescriptorHandleAtomic(
-        *outHandle,
-        DescriptorHandleType::AccelerationStructure,
-        m_firstAccelerationStructureHandle + slot
-    );
+    outHandle->value = m_firstAccelerationStructureHandle + slot;
+    outHandle->type = DescriptorHandleType::AccelerationStructure;
 
     return SLANG_OK;
 }

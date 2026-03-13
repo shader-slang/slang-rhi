@@ -77,7 +77,8 @@ Result BindlessDescriptorSet::allocBufferHandle(
             bufferImpl->getSRV(format, 0, range),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
-        setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::Buffer, m_srvUavHeapOffset + slot);
+        outHandle->value = m_srvUavHeapOffset + slot;
+        outHandle->type = DescriptorHandleType::Buffer;
         break;
     case DescriptorHandleAccess::ReadWrite:
         m_device->m_device->CopyDescriptorsSimple(
@@ -86,8 +87,8 @@ Result BindlessDescriptorSet::allocBufferHandle(
             bufferImpl->getUAV(format, 0, range),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
+        outHandle->value = m_srvUavHeapOffset + slot;
         outHandle->type = DescriptorHandleType::RWBuffer;
-        setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::RWBuffer, m_srvUavHeapOffset + slot);
         break;
     default:
         return SLANG_E_INVALID_ARG;
@@ -117,11 +118,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
             textureViewImpl->getSRV(),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
-        setDescriptorHandleAtomic(
-            *outHandle,
-            DescriptorHandleType::Texture,
-            m_srvUavHeapOffset + m_firstTextureHandle + slot
-        );
+        outHandle->value = m_srvUavHeapOffset + m_firstTextureHandle + slot;
+        outHandle->type = DescriptorHandleType::Texture;
         break;
     case DescriptorHandleAccess::ReadWrite:
         m_device->m_device->CopyDescriptorsSimple(
@@ -130,11 +128,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
             textureViewImpl->getUAV(),
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
         );
-        setDescriptorHandleAtomic(
-            *outHandle,
-            DescriptorHandleType::RWTexture,
-            m_srvUavHeapOffset + m_firstTextureHandle + slot
-        );
+        outHandle->value = m_srvUavHeapOffset + m_firstTextureHandle + slot;
+        outHandle->type = DescriptorHandleType::RWTexture;
         break;
     default:
         return SLANG_E_INVALID_ARG;
@@ -158,7 +153,8 @@ Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHa
         D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
     );
 
-    setDescriptorHandleAtomic(*outHandle, DescriptorHandleType::Sampler, m_samplerHeapOffset + slot);
+    outHandle->value = m_samplerHeapOffset + slot;
+    outHandle->type = DescriptorHandleType::Sampler;
 
     return SLANG_OK;
 }
@@ -181,11 +177,8 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
     );
 
-    setDescriptorHandleAtomic(
-        *outHandle,
-        DescriptorHandleType::AccelerationStructure,
-        m_srvUavHeapOffset + m_firstAccelerationStructureHandle + slot
-    );
+    outHandle->value = m_srvUavHeapOffset + m_firstAccelerationStructureHandle + slot;
+    outHandle->type = DescriptorHandleType::AccelerationStructure;
 
     return SLANG_OK;
 }
