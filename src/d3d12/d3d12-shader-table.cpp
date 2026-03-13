@@ -55,13 +55,10 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
     {
-        if (!name.empty())
+        auto it = pipeline->m_shaderIdentifierByName.find(name);
+        if (it != pipeline->m_shaderIdentifierByName.end())
         {
-            auto it = pipeline->m_shaderIdentifierByName.find(name);
-            if (it != pipeline->m_shaderIdentifierByName.end())
-            {
-                memcpy(dest, it->second, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-            }
+            memcpy(dest, it->second, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
         }
         if (overwrite && overwrite->size > 0)
         {
