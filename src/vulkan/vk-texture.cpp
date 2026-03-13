@@ -35,9 +35,9 @@ TextureImpl::~TextureImpl()
     if (m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        ::CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.get().value);
 #else
-        ::close((int)m_sharedHandle.value);
+        ::close((int)m_sharedHandle.get().value);
 #endif
     }
 }
@@ -63,9 +63,9 @@ Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
 {
-    if (isNativeHandleValidAtomic(m_sharedHandle))
+    if (m_sharedHandle)
     {
-        *outHandle = m_sharedHandle;
+        *outHandle = m_sharedHandle.get();
         return SLANG_OK;
     }
 
@@ -75,7 +75,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     std::lock_guard<std::mutex> lock(device->m_textureMutex);
 
     // If a shared handle doesn't exist, create one and store it.
-    if (!isNativeHandleValidAtomic(m_sharedHandle))
+    if (!m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
         VkMemoryGetWin32HandleInfoKHR info = {};
@@ -90,7 +90,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
         }
         HANDLE handle = NULL;
         SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(device->m_device, &info, &handle));
-        setNativeHandleAtomic(m_sharedHandle, NativeHandleType::Win32, (uint64_t)handle);
+        m_sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
 #else
         VkMemoryGetFdInfoKHR info = {};
         info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
@@ -104,11 +104,11 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
         }
         int handle = 0;
         SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(device->m_device, &info, &handle));
-        setNativeHandleAtomic(m_sharedHandle, NativeHandleType::FileDescriptor, (uint64_t)handle);
+        m_sharedHandle.set(NativeHandleType::FileDescriptor, (uint64_t)handle);
 #endif
     }
 
-    *outHandle = m_sharedHandle;
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 }
 
@@ -220,7 +220,7 @@ TextureViewImpl::~TextureViewImpl()
     {
         if (handle)
         {
-            device->m_bindlessDescriptorSet->freeHandle(handle);
+            device->m_bindlessDescriptorSet->freeHandle(handle.get());
         }
     }
 }
@@ -232,11 +232,11 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
 {
-    DescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
+    AtomicDescriptorHandle& handle = m_descriptorHandle[access == DescriptorHandleAccess::Read ? 0 : 1];
 
-    if (isDescriptorHandleValidAtomic(handle))
+    if (handle)
     {
-        *outHandle = handle;
+        *outHandle = handle.get();
         return SLANG_OK;
     }
 
@@ -249,22 +249,24 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
 
     std::lock_guard<std::mutex> lock(device->m_textureDescriptorMutex);
 
-    if (!isDescriptorHandleValidAtomic(handle))
+    if (!handle)
     {
-        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocTextureHandle(this, access, &handle));
+        DescriptorHandle tmp;
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocTextureHandle(this, access, &tmp));
+        handle.set(tmp.type, tmp.value);
     }
 
-    *outHandle = handle;
+    *outHandle = handle.get();
     return SLANG_OK;
 }
 
 Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
 {
-    DescriptorHandle& handle = m_descriptorHandle[2];
+    AtomicDescriptorHandle& handle = m_descriptorHandle[2];
 
-    if (isDescriptorHandleValidAtomic(handle))
+    if (handle)
     {
-        *outHandle = handle;
+        *outHandle = handle.get();
         return SLANG_OK;
     }
 
@@ -277,19 +279,19 @@ Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHand
 
     std::lock_guard<std::mutex> lock(device->m_textureDescriptorMutex);
 
-    if (!isDescriptorHandleValidAtomic(handle))
+    if (!handle)
     {
         Sampler* sampler = m_sampler ? m_sampler : m_texture->m_sampler;
         if (!sampler)
         {
             return SLANG_FAIL;
         }
-        SLANG_RETURN_ON_FAIL(
-            device->m_bindlessDescriptorSet->allocCombinedTextureSamplerHandle(this, sampler, &handle)
-        );
+        DescriptorHandle tmp;
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocCombinedTextureSamplerHandle(this, sampler, &tmp));
+        handle.set(tmp.type, tmp.value);
     }
 
-    *outHandle = handle;
+    *outHandle = handle.get();
     return SLANG_OK;
 }
 

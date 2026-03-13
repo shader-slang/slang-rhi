@@ -172,9 +172,9 @@ BufferImpl::~BufferImpl()
     if (m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
-        ::CloseHandle((HANDLE)m_sharedHandle.value);
+        ::CloseHandle((HANDLE)m_sharedHandle.get().value);
 #else
-        ::close((int)m_sharedHandle.value);
+        ::close((int)m_sharedHandle.get().value);
 #endif
     }
 }
@@ -193,9 +193,9 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
-    if (isNativeHandleValidAtomic(m_sharedHandle))
+    if (m_sharedHandle)
     {
-        *outHandle = m_sharedHandle;
+        *outHandle = m_sharedHandle.get();
         return SLANG_OK;
     }
 
@@ -205,7 +205,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     std::lock_guard<std::mutex> lock(device->m_bufferMutex);
 
     // If a shared handle doesn't exist, create one and store it.
-    if (!isNativeHandleValidAtomic(m_sharedHandle))
+    if (!m_sharedHandle)
     {
 #if SLANG_WINDOWS_FAMILY
         VkMemoryGetWin32HandleInfoKHR info = {};
@@ -220,7 +220,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
         }
         HANDLE handle = NULL;
         SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(api.m_device, &info, &handle));
-        setNativeHandleAtomic(m_sharedHandle, NativeHandleType::Win32, (uint64_t)handle);
+        m_sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
 #else
         VkMemoryGetFdInfoKHR info = {};
         info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
@@ -234,11 +234,11 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
         }
         int handle = 0;
         SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(api.m_device, &info, &handle));
-        setNativeHandleAtomic(m_sharedHandle, NativeHandleType::FileDescriptor, (uint64_t)handle);
+        m_sharedHandle.set(NativeHandleType::FileDescriptor, (uint64_t)handle);
 #endif
     }
 
-    *outHandle = m_sharedHandle;
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 }
 

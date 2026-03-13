@@ -38,6 +38,86 @@ struct DescStructHeader
     DescStructHeader* next;
 };
 
+/// Wrapper around NativeHandle that enforces atomic acquire/release semantics on the type field.
+/// This prevents accidental non-atomic reads on handles that may be accessed from multiple threads
+/// (e.g. double-checked locking in getSharedHandle).
+class AtomicNativeHandle
+{
+public:
+    AtomicNativeHandle() = default;
+
+    AtomicNativeHandle(const AtomicNativeHandle&) = delete;
+    AtomicNativeHandle& operator=(const AtomicNativeHandle&) = delete;
+
+    /// Atomic acquire load — returns true if the handle has been set.
+    bool isValid() const
+    {
+        return std::atomic_ref(m_handle.type).load(std::memory_order_acquire) != NativeHandleType::Undefined;
+    }
+
+    /// Delegates to isValid().
+    explicit operator bool() const { return isValid(); }
+
+    /// Writes value first, then performs an atomic release store on type.
+    void set(NativeHandleType type, uint64_t value)
+    {
+        m_handle.value = value;
+        std::atomic_ref(m_handle.type).store(type, std::memory_order_release);
+    }
+
+    /// Returns a snapshot of the handle using atomic acquire load on the type field.
+    NativeHandle get() const
+    {
+        NativeHandle result;
+        result.type = std::atomic_ref(m_handle.type).load(std::memory_order_acquire);
+        result.value = m_handle.value;
+        return result;
+    }
+
+private:
+    NativeHandle m_handle = {};
+};
+
+/// Wrapper around DescriptorHandle that enforces atomic acquire/release semantics on the type field.
+/// This prevents accidental non-atomic reads on handles that may be accessed from multiple threads
+/// (e.g. double-checked locking in getDescriptorHandle).
+class AtomicDescriptorHandle
+{
+public:
+    AtomicDescriptorHandle() = default;
+
+    AtomicDescriptorHandle(const AtomicDescriptorHandle&) = delete;
+    AtomicDescriptorHandle& operator=(const AtomicDescriptorHandle&) = delete;
+
+    /// Atomic acquire load — returns true if the handle has been set.
+    bool isValid() const
+    {
+        return std::atomic_ref(m_handle.type).load(std::memory_order_acquire) != DescriptorHandleType::Undefined;
+    }
+
+    /// Delegates to isValid().
+    explicit operator bool() const { return isValid(); }
+
+    /// Writes value first, then performs an atomic release store on type.
+    void set(DescriptorHandleType type, uint64_t value)
+    {
+        m_handle.value = value;
+        std::atomic_ref(m_handle.type).store(type, std::memory_order_release);
+    }
+
+    /// Returns a snapshot of the handle using atomic acquire load on the type field.
+    DescriptorHandle get() const
+    {
+        DescriptorHandle result;
+        result.type = std::atomic_ref(m_handle.type).load(std::memory_order_acquire);
+        result.value = m_handle.value;
+        return result;
+    }
+
+private:
+    DescriptorHandle m_handle = {};
+};
+
 class Fence : public IFence, public DeviceChild
 {
 public:
@@ -331,86 +411,6 @@ inline uint32_t heightInBlocks(const FormatInfo& formatInfo, uint32_t size)
 {
     return formatInfo.isCompressed ? (size + formatInfo.blockHeight - 1) / formatInfo.blockHeight : size;
 }
-
-/// Wrapper around NativeHandle that enforces atomic acquire/release semantics on the type field.
-/// This prevents accidental non-atomic reads on handles that may be accessed from multiple threads
-/// (e.g. double-checked locking in getSharedHandle).
-class AtomicNativeHandle
-{
-public:
-    AtomicNativeHandle() = default;
-
-    AtomicNativeHandle(const AtomicNativeHandle&) = delete;
-    AtomicNativeHandle& operator=(const AtomicNativeHandle&) = delete;
-
-    /// Atomic acquire load — returns true if the handle has been set.
-    bool isValid() const
-    {
-        return std::atomic_ref(m_handle.type).load(std::memory_order_acquire) != NativeHandleType::Undefined;
-    }
-
-    /// Delegates to isValid().
-    explicit operator bool() const { return isValid(); }
-
-    /// Writes value first, then performs an atomic release store on type.
-    void set(NativeHandleType type, uint64_t value)
-    {
-        m_handle.value = value;
-        std::atomic_ref(m_handle.type).store(type, std::memory_order_release);
-    }
-
-    /// Returns a snapshot of the handle using atomic acquire load on the type field.
-    NativeHandle get() const
-    {
-        NativeHandle result;
-        result.type = std::atomic_ref(m_handle.type).load(std::memory_order_acquire);
-        result.value = m_handle.value;
-        return result;
-    }
-
-private:
-    NativeHandle m_handle = {};
-};
-
-/// Wrapper around DescriptorHandle that enforces atomic acquire/release semantics on the type field.
-/// This prevents accidental non-atomic reads on handles that may be accessed from multiple threads
-/// (e.g. double-checked locking in getDescriptorHandle).
-class AtomicDescriptorHandle
-{
-public:
-    AtomicDescriptorHandle() = default;
-
-    AtomicDescriptorHandle(const AtomicDescriptorHandle&) = delete;
-    AtomicDescriptorHandle& operator=(const AtomicDescriptorHandle&) = delete;
-
-    /// Atomic acquire load — returns true if the handle has been set.
-    bool isValid() const
-    {
-        return std::atomic_ref(m_handle.type).load(std::memory_order_acquire) != DescriptorHandleType::Undefined;
-    }
-
-    /// Delegates to isValid().
-    explicit operator bool() const { return isValid(); }
-
-    /// Writes value first, then performs an atomic release store on type.
-    void set(DescriptorHandleType type, uint64_t value)
-    {
-        m_handle.value = value;
-        std::atomic_ref(m_handle.type).store(type, std::memory_order_release);
-    }
-
-    /// Returns a snapshot of the handle using atomic acquire load on the type field.
-    DescriptorHandle get() const
-    {
-        DescriptorHandle result;
-        result.type = std::atomic_ref(m_handle.type).load(std::memory_order_acquire);
-        result.value = m_handle.value;
-        return result;
-    }
-
-private:
-    DescriptorHandle m_handle = {};
-};
 
 inline bool isNativeHandleValidAtomic(NativeHandle& handle)
 {

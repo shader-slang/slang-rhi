@@ -65,17 +65,16 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
     // Check if a shared handle already exists.
     if (sharedHandle)
     {
-        *outHandle = sharedHandle;
+        *outHandle = sharedHandle.get();
         return SLANG_OK;
     }
 
     ComPtr<ID3D12Device> devicePtr;
     m_fence->GetDevice(IID_PPV_ARGS(devicePtr.writeRef()));
-    SLANG_RETURN_ON_FAIL(
-        devicePtr->CreateSharedHandle(m_fence, NULL, GENERIC_ALL, nullptr, (HANDLE*)&sharedHandle.value)
-    );
-    sharedHandle.type = NativeHandleType::Win32;
-    *outHandle = sharedHandle;
+    HANDLE handle = NULL;
+    SLANG_RETURN_ON_FAIL(devicePtr->CreateSharedHandle(m_fence, NULL, GENERIC_ALL, nullptr, &handle));
+    sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
+    *outHandle = sharedHandle.get();
     return SLANG_OK;
 #endif
 }

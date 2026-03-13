@@ -14,7 +14,7 @@ SamplerImpl::~SamplerImpl()
 
     if (m_descriptorHandle)
     {
-        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle.get());
     }
 
     device->m_cpuSamplerHeap->free(m_descriptor);
@@ -43,7 +43,7 @@ Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 
     if (m_descriptorHandle)
     {
-        *outHandle = m_descriptorHandle;
+        *outHandle = m_descriptorHandle.get();
         return SLANG_OK;
     }
 
@@ -51,9 +51,11 @@ Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 
     if (!m_descriptorHandle)
     {
-        SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &m_descriptorHandle));
+        DescriptorHandle tmp;
+        SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &tmp));
+        m_descriptorHandle.set(tmp.type, tmp.value);
     }
-    *outHandle = m_descriptorHandle;
+    *outHandle = m_descriptorHandle.get();
     return SLANG_OK;
 }
 

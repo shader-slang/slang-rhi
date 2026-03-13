@@ -15,7 +15,7 @@ SamplerImpl::~SamplerImpl()
 
     if (m_descriptorHandle)
     {
-        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle.get());
     }
 
     device->m_api.vkDestroySampler(device->m_api.m_device, m_sampler, nullptr);
@@ -42,9 +42,11 @@ Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
     }
     if (!m_descriptorHandle)
     {
-        SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &m_descriptorHandle));
+        DescriptorHandle tmp;
+        SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &tmp));
+        m_descriptorHandle.set(tmp.type, tmp.value);
     }
-    *outHandle = m_descriptorHandle;
+    *outHandle = m_descriptorHandle.get();
     return SLANG_OK;
 }
 

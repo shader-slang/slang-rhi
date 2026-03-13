@@ -16,7 +16,7 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
 
     if (m_descriptorHandle)
     {
-        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle.get());
     }
 
     device->m_api.vkDestroyAccelerationStructureKHR(device->m_device, m_vkHandle, nullptr);
@@ -69,9 +69,9 @@ DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
-    if (isDescriptorHandleValidAtomic(m_descriptorHandle))
+    if (m_descriptorHandle)
     {
-        *outHandle = m_descriptorHandle;
+        *outHandle = m_descriptorHandle.get();
         return SLANG_OK;
     }
 
@@ -84,14 +84,14 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
 
     std::lock_guard<std::mutex> lock(device->m_accelerationStructureMutex);
 
-    if (!isDescriptorHandleValidAtomic(m_descriptorHandle))
+    if (!m_descriptorHandle)
     {
-        SLANG_RETURN_ON_FAIL(
-            device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &m_descriptorHandle)
-        );
+        DescriptorHandle tmp;
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, &tmp));
+        m_descriptorHandle.set(tmp.type, tmp.value);
     }
 
-    *outHandle = m_descriptorHandle;
+    *outHandle = m_descriptorHandle.get();
     return SLANG_OK;
 }
 
