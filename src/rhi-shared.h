@@ -38,9 +38,9 @@ struct DescStructHeader
     DescStructHeader* next;
 };
 
-/// Wrapper around NativeHandle that enforces atomic acquire/release semantics on the type field.
-/// This prevents accidental non-atomic reads on handles that may be accessed from multiple threads
-/// (e.g. double-checked locking in getSharedHandle).
+/// Thread-safe handle storing a native handle type and value.
+/// Uses an atomic type field with acquire/release semantics to safely publish
+/// the value to concurrent readers (e.g. double-checked locking in getSharedHandle).
 class AtomicNativeHandle
 {
 public:
@@ -50,10 +50,7 @@ public:
     AtomicNativeHandle& operator=(const AtomicNativeHandle&) = delete;
 
     /// Atomic acquire load — returns true if the handle has been set.
-    bool isValid() const
-    {
-        return std::atomic_ref(m_handle.type).load(std::memory_order_acquire) != NativeHandleType::Undefined;
-    }
+    bool isValid() const { return m_type.load(std::memory_order_acquire) != NativeHandleType::Undefined; }
 
     /// Delegates to isValid().
     explicit operator bool() const { return isValid(); }
@@ -61,8 +58,8 @@ public:
     /// Writes value first, then performs an atomic release store on type.
     void set(NativeHandleType type, uint64_t value)
     {
-        m_handle.value = value;
-        std::atomic_ref(m_handle.type).store(type, std::memory_order_release);
+        m_value = value;
+        m_type.store(type, std::memory_order_release);
     }
 
     /// Convenience overload that takes a NativeHandle.
@@ -72,19 +69,19 @@ public:
     NativeHandle get() const
     {
         NativeHandle result;
-        result.type = std::atomic_ref(m_handle.type).load(std::memory_order_acquire);
-        result.value = m_handle.value;
+        result.type = m_type.load(std::memory_order_acquire);
+        result.value = m_value;
         return result;
     }
 
 private:
-    // mutable is required on macos/clang because std::atomic_ref requires non-const objects even for loads.
-    mutable NativeHandle m_handle = {};
+    std::atomic<NativeHandleType> m_type{NativeHandleType::Undefined};
+    uint64_t m_value = 0;
 };
 
-/// Wrapper around DescriptorHandle that enforces atomic acquire/release semantics on the type field.
-/// This prevents accidental non-atomic reads on handles that may be accessed from multiple threads
-/// (e.g. double-checked locking in getDescriptorHandle).
+/// Thread-safe handle storing a descriptor handle type and value.
+/// Uses an atomic type field with acquire/release semantics to safely publish
+/// the value to concurrent readers (e.g. double-checked locking in getDescriptorHandle).
 class AtomicDescriptorHandle
 {
 public:
@@ -94,10 +91,7 @@ public:
     AtomicDescriptorHandle& operator=(const AtomicDescriptorHandle&) = delete;
 
     /// Atomic acquire load — returns true if the handle has been set.
-    bool isValid() const
-    {
-        return std::atomic_ref(m_handle.type).load(std::memory_order_acquire) != DescriptorHandleType::Undefined;
-    }
+    bool isValid() const { return m_type.load(std::memory_order_acquire) != DescriptorHandleType::Undefined; }
 
     /// Delegates to isValid().
     explicit operator bool() const { return isValid(); }
@@ -105,8 +99,8 @@ public:
     /// Writes value first, then performs an atomic release store on type.
     void set(DescriptorHandleType type, uint64_t value)
     {
-        m_handle.value = value;
-        std::atomic_ref(m_handle.type).store(type, std::memory_order_release);
+        m_value = value;
+        m_type.store(type, std::memory_order_release);
     }
 
     /// Convenience overload that takes a DescriptorHandle.
@@ -116,14 +110,14 @@ public:
     DescriptorHandle get() const
     {
         DescriptorHandle result;
-        result.type = std::atomic_ref(m_handle.type).load(std::memory_order_acquire);
-        result.value = m_handle.value;
+        result.type = m_type.load(std::memory_order_acquire);
+        result.value = m_value;
         return result;
     }
 
 private:
-    // mutable is required on macos/clang because std::atomic_ref requires non-const objects even for loads.
-    mutable DescriptorHandle m_handle = {};
+    std::atomic<DescriptorHandleType> m_type{DescriptorHandleType::Undefined};
+    uint64_t m_value = 0;
 };
 
 class Fence : public IFence, public DeviceChild
