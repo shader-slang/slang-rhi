@@ -98,7 +98,7 @@ public:
 
     BreakableReference<TextureImpl> m_texture;
     /// Descriptor handles (texture read, texture write, combined texture/sampler).
-    DescriptorHandle m_descriptorHandle[3] = {};
+    AtomicDescriptorHandle m_descriptorHandle[3];
 };
 
 } // namespace rhi::vk

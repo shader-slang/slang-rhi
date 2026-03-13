@@ -91,6 +91,7 @@ public:
         }
     };
 
+    /// Uses plain DescriptorHandle (not AtomicDescriptorHandle) because all access is guarded by a mutex.
     std::unordered_map<DescriptorHandleKey, DescriptorHandle, DescriptorHandleKeyHasher> m_descriptorHandles;
 };
 

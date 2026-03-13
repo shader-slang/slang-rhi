@@ -50,7 +50,7 @@ public:
 protected:
     FenceDesc m_desc;
     StructHolder m_descHolder;
-    NativeHandle sharedHandle = {};
+    AtomicNativeHandle sharedHandle;
 };
 
 class Resource : public DeviceChild
@@ -90,7 +90,7 @@ public:
 public:
     BufferDesc m_desc;
     StructHolder m_descHolder;
-    NativeHandle m_sharedHandle;
+    AtomicNativeHandle m_sharedHandle;
 };
 
 struct SubResourceLayout
@@ -158,7 +158,7 @@ public:
     TextureDesc m_desc;
     StructHolder m_descHolder;
     RefPtr<Sampler> m_sampler;
-    NativeHandle m_sharedHandle;
+    AtomicNativeHandle m_sharedHandle;
 };
 
 class TextureView : public ITextureView, public Resource
