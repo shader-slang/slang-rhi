@@ -751,20 +751,24 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     createInfo.stageCount = (uint32_t)program->m_stageCreateInfos.size();
     createInfo.pStages = program->m_stageCreateInfos.data();
 
-    // Build Dictionary from entry point name to entry point index (stageCreateInfos index)
-    // for all hit shaders - findShaderIndexByName
+    // Build a map from entry point name to entry point index
+    // (which matches stageCreateInfos index) for all entry points.
     std::map<std::string, uint32_t> entryPointIndexByName;
-
-    std::map<std::string, uint32_t> shaderGroupIndexByName;
-
-    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroupInfos;
     for (uint32_t i = 0; i < createInfo.stageCount; ++i)
     {
-        auto stageCreateInfo = program->m_stageCreateInfos[i];
+        entryPointIndexByName.emplace(program->m_modules[i].entryPointName, i);
+    }
+
+    std::map<std::string, uint32_t> shaderGroupIndexByName;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroupInfos;
+
+    // Create shader groups for ray generation, miss and callable shaders.
+    for (uint32_t i = 0; i < createInfo.stageCount; ++i)
+    {
         auto entryPointName = program->m_modules[i].entryPointName;
-        entryPointIndexByName.emplace(entryPointName, i);
-        if (stageCreateInfo.stage & (VK_SHADER_STAGE_ANY_HIT_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
-                                     VK_SHADER_STAGE_INTERSECTION_BIT_KHR))
+        auto stageCreateInfo = program->m_stageCreateInfos[i];
+        if (!(stageCreateInfo.stage &
+              (VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR | VK_SHADER_STAGE_CALLABLE_BIT_KHR)))
             continue;
 
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupInfo = {
@@ -785,6 +789,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         shaderGroupIndexByName.emplace(shaderGroupName, shaderGroupIndex);
     }
 
+    // Create shader groups for hit groups.
     for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
     {
         VkRayTracingShaderGroupCreateInfoKHR shaderGroupInfo = {
@@ -867,6 +872,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipeline->m_program = program;
     pipeline->m_rootObjectLayout = program->m_rootShaderObjectLayout;
     pipeline->m_pipeline = vkPipeline;
+    pipeline->m_entryPointIndexByName = std::move(entryPointIndexByName);
     pipeline->m_shaderGroupIndexByName = std::move(shaderGroupIndexByName);
     pipeline->m_shaderGroupCount = shaderGroupInfos.size();
     returnComPtr(outPipeline, pipeline);

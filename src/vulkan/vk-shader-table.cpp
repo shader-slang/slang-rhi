@@ -14,20 +14,12 @@ ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
 {
 }
 
-/// Find the entry point index in the root object layout by name.
-static uint32_t findEntryPointIndexByName(
-    RootShaderObjectLayoutImpl* layout,
-    slang::ProgramLayout* programLayout,
-    const std::string& name
-)
+/// Find the entry point index using the cached map on the pipeline.
+static uint32_t findEntryPointIndexByName(RayTracingPipelineImpl* pipeline, const std::string& name)
 {
-    SlangUInt count = programLayout->getEntryPointCount();
-    for (SlangUInt i = 0; i < count; ++i)
-    {
-        auto ep = programLayout->getEntryPointByIndex(i);
-        if (ep->getName() == name)
-            return i;
-    }
+    auto it = pipeline->m_entryPointIndexByName.find(name);
+    if (it != pipeline->m_entryPointIndexByName.end())
+        return it->second;
     return uint32_t(-1);
 }
 
@@ -46,7 +38,6 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     uint32_t handleSize = rtpProps.shaderGroupHandleSize;
 
     RootShaderObjectLayoutImpl* rootLayout = pipeline->m_rootObjectLayout;
-    slang::ProgramLayout* programLayout = rootLayout->getSlangProgramLayout();
 
     // Build raygen infos and calculate per-raygen record sizes based on entry point params.
     // Each raygen shader gets its own record size based on its actual parameter requirements.
@@ -57,7 +48,7 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     {
         // Get the entry point index and parameter size for this raygen shader, if it exists in the root layout.
         const std::string& entryPointName = m_rayGenShaderEntryPointNames[i];
-        uint32_t entryPointIndex = findEntryPointIndexByName(rootLayout, programLayout, entryPointName);
+        uint32_t entryPointIndex = findEntryPointIndexByName(pipeline, entryPointName);
         size_t paramsSize = entryPointIndex == uint32_t(-1) ? 0 : rootLayout->getEntryPoint(entryPointIndex).paramsSize;
 
         // Record size = handle + params, considering any shader record overwrite
