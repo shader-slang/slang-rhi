@@ -121,6 +121,13 @@ static const FormatInfo s_formatInfos[] = {
     { Format::BC6HSfloat,       "BC6HSfloat",       nullptr,            FormatKind::Float,          3,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  false, false, false, false, true,  true,  true  },
     { Format::BC7Unorm,         "BC7Unorm",         nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
     { Format::BC7UnormSrgb,     "BC7UnormSrgb",     nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
+
+    { Format::ASTC4x4Unorm,     "ASTC4x4Unorm",     nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, false, true,  true  },
+    { Format::ASTC4x4UnormSrgb, "ASTC4x4UnormSrgb", nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 16, 4,  4,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
+    { Format::ASTC6x6Unorm,     "ASTC6x6Unorm",     nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 36, 6,  6,  true,  true,  true,  true,  false, false, false, false, true,  true  },
+    { Format::ASTC6x6UnormSrgb, "ASTC6x6UnormSrgb", nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 36, 6,  6,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
+    { Format::ASTC8x8Unorm,     "ASTC8x8Unorm",     nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 64, 8,  8,  true,  true,  true,  true,  false, false, false, false, true,  true  },
+    { Format::ASTC8x8UnormSrgb, "ASTC8x8UnormSrgb", nullptr,            FormatKind::Normalized,     4,  SLANG_SCALAR_TYPE_FLOAT32,  16, 64, 8,  8,  true,  true,  true,  true,  false, false, false, true,  true,  true  },
     // clang-format on
 };
 

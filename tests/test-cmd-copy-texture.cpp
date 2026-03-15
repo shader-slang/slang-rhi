@@ -468,8 +468,8 @@ GPU_TEST_CASE("cmd-copy-texture-offset-nomip", D3D11 | D3D12 | Vulkan | WGPU | C
 
             Extent3D size = data.desc.size;
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
-            offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
-            offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
+            offset.x = math::calcAlignedDown(offset.x, data.formatInfo.blockWidth);
+            offset.y = math::calcAlignedDown(offset.y, data.formatInfo.blockHeight);
 
             // Create command encoder
             auto queue = device->getQueue(QueueType::Graphics);
@@ -518,12 +518,12 @@ GPU_TEST_CASE("cmd-copy-texture-sizeoffset-nomip", D3D11 | D3D12 | Vulkan | WGPU
 
             Extent3D size = data.desc.size;
             Offset3D offset = {size.width / 4, size.height / 4, size.depth / 4};
-            offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
-            offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
+            offset.x = math::calcAlignedDown(offset.x, data.formatInfo.blockWidth);
+            offset.y = math::calcAlignedDown(offset.y, data.formatInfo.blockHeight);
 
             Extent3D extent = {max(size.width / 4, 1u), max(size.height / 4, 1u), max(size.depth / 4, 1u)};
-            extent.width = math::calcAligned2(extent.width, data.formatInfo.blockWidth);
-            extent.height = math::calcAligned2(extent.height, data.formatInfo.blockHeight);
+            extent.width = math::calcAligned(extent.width, data.formatInfo.blockWidth);
+            extent.height = math::calcAligned(extent.height, data.formatInfo.blockHeight);
 
             // fprintf(stderr, "Copy:\n  %s\n  %s\n", newTexture->getDesc().label, c->getTexture()->getDesc().label);
 
@@ -696,6 +696,54 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D11 | D3D12 | Vulkan | WGPU | CUD
     );
 }
 
+GPU_TEST_CASE("cmd-copy-texture-compressed-npot-mips", WGPU)
+{
+    TextureTestOptions options(device);
+    options.addVariants(
+        TextureType::Texture2D,
+        std::vector<Format>{Format::ASTC6x6Unorm, Format::ASTC8x8Unorm},
+        TTArray::Off,
+        TTMip::On,
+        TextureInitMode::Random,
+        TTFmtDepth::Off,
+        TTPowerOf2::Off
+    );
+
+    runTextureTest(
+        options,
+        [](TextureTestContext* c)
+        {
+            auto device = c->getDevice();
+
+            TextureData& srcData = c->getTextureData();
+            ComPtr<ITexture> srcTexture = c->getTexture();
+
+            TextureData dstData;
+            dstData.init(device, srcData.desc, TextureInitMode::Invalid);
+
+            ComPtr<ITexture> dstTexture;
+            REQUIRE_CALL(dstData.createTexture(dstTexture.writeRef()));
+
+            auto queue = device->getQueue(QueueType::Graphics);
+            auto commandEncoder = queue->createCommandEncoder();
+
+            commandEncoder->copyTexture(
+                dstTexture,
+                {0, 1, 1, 1},
+                {0, 0, 0},
+                srcTexture,
+                {0, 1, 1, 1},
+                {0, 0, 0},
+                Extent3D::kWholeTexture
+            );
+            queue->submit(commandEncoder->finish());
+
+            srcData.checkMipLevelsEqual(dstTexture, 0, 1);
+            dstData.checkMipLevelsEqual(dstTexture, 0, 0);
+        }
+    );
+}
+
 GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D11 | D3D12 | Vulkan | WGPU | CUDA)
 {
     TextureTestOptions options(device);
@@ -727,8 +775,8 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D11 | D3D12 | Vulkan | WGPU | CU
 
             // Calculate offset for mip level 1 (quarter of mip1 size)
             Offset3D offset = {mip1Size.width / 4, mip1Size.height / 4, mip1Size.depth / 4};
-            offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
-            offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
+            offset.x = math::calcAlignedDown(offset.x, data.formatInfo.blockWidth);
+            offset.y = math::calcAlignedDown(offset.y, data.formatInfo.blockHeight);
 
             // Create command encoder
             auto queue = device->getQueue(QueueType::Graphics);
@@ -786,8 +834,8 @@ GPU_TEST_CASE("cmd-copy-texture-offset-mip1", D3D11 | D3D12 | Vulkan | WGPU | CU
 
             // Calculate offset for mip level 1 (quarter of mip1 size)
             Offset3D offset = {mip1Size.width / 4, mip1Size.height / 4, mip1Size.depth / 4};
-            offset.x = math::calcAligned2(offset.x, data.formatInfo.blockWidth);
-            offset.y = math::calcAligned2(offset.y, data.formatInfo.blockHeight);
+            offset.x = math::calcAlignedDown(offset.x, data.formatInfo.blockWidth);
+            offset.y = math::calcAlignedDown(offset.y, data.formatInfo.blockHeight);
 
             // Create command encoder
             auto queue = device->getQueue(QueueType::Graphics);
