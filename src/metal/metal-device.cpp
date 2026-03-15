@@ -230,13 +230,47 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     addCapability(Capability::metal);
 
+    auto supportsAnyGPUFamilyInRange = [&](MTL::GPUFamily first, MTL::GPUFamily last)
+    {
+        for (int family = int(first); family <= int(last); ++family)
+        {
+            if (m_device->supportsFamily(MTL::GPUFamily(family)))
+                return true;
+        }
+        return false;
+    };
+
+    auto isBCFormat = [&](Format format)
+    {
+        return format >= Format::BC1Unorm && format <= Format::BC7UnormSrgb;
+    };
+
+    auto isASTCFormat = [&](Format format)
+    {
+        return format >= Format::ASTC4x4Unorm && format <= Format::ASTC8x8UnormSrgb;
+    };
+
+    // Match Metal Feature Set Tables:
+    // - ASTC pixel formats: Apple2+
+    // - BC pixel formats: query directly via supportsBCTextureCompression().
+    const bool supportASTC =
+        supportsAnyGPUFamilyInRange(MTL::GPUFamilyApple2, MTL::GPUFamilyApple9);
+    const bool supportBC = m_device->supportsBCTextureCompression();
+
     // Initialize format support table.
     // TODO: add table based on https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
     for (size_t formatIndex = 0; formatIndex < size_t(Format::_Count); ++formatIndex)
     {
         Format format = Format(formatIndex);
         FormatSupport formatSupport = FormatSupport::None;
-        if (translatePixelFormat(format) != MTL::PixelFormatInvalid)
+
+        bool isFormatSupported = true;
+        if (isBCFormat(format))
+            isFormatSupported = supportBC;
+        else if (isASTCFormat(format))
+            isFormatSupported = supportASTC;
+
+        if (isFormatSupported && translatePixelFormat(format) != MTL::PixelFormatInvalid)
         {
             // depth/stencil formats?
             formatSupport |= FormatSupport::CopySource;

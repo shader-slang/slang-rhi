@@ -1078,6 +1078,12 @@ Format kStandardFormats[] = {
     Format::RGB10A2Unorm,
     Format::BC1Unorm,
     Format::BC1UnormSrgb,
+    Format::ASTC4x4Unorm,
+    Format::ASTC4x4UnormSrgb,
+    Format::ASTC6x6Unorm,
+    Format::ASTC6x6UnormSrgb,
+    Format::ASTC8x8Unorm,
+    Format::ASTC8x8UnormSrgb,
     Format::R64Uint,
 };
 
@@ -1255,6 +1261,19 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
 
 void TextureTestOptions::applyTextureSize(int state, TextureTestVariant variant)
 {
+    // Normalize base test dimensions for compressed formats so generated regions
+    // and offsets remain block-valid; later mips may still end on partial blocks.
+    for (auto& testDesc : variant.descriptors)
+    {
+        const FormatInfo& info = getFormatInfo(testDesc.desc.format);
+        if (!info.isCompressed)
+            continue;
+        if (testDesc.desc.size.width > 1)
+            testDesc.desc.size.width = uint32_t(math::calcAligned(testDesc.desc.size.width, info.blockWidth));
+        if (testDesc.desc.size.height > 1)
+            testDesc.desc.size.height = uint32_t(math::calcAligned(testDesc.desc.size.height, info.blockHeight));
+    }
+
     if (is_set(variant.powerOf2, TTPowerOf2::On))
     {
         // Textures are configured with power-of-2 sizes by default so just pass through.
