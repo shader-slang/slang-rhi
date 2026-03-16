@@ -20,8 +20,6 @@ ID3D11ShaderResourceView* BufferImpl::getSRV(Format format, const BufferRange& r
 
     ViewKey key = {format, range};
 
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     ComPtr<ID3D11ShaderResourceView>& srv = m_srvs[key];
     if (srv)
         return srv.get();
@@ -64,8 +62,6 @@ ID3D11UnorderedAccessView* BufferImpl::getUAV(Format format, const BufferRange& 
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     ViewKey key = {format, range};
-
-    std::lock_guard<std::mutex> lock(m_mutex);
 
     ComPtr<ID3D11UnorderedAccessView>& uav = m_uavs[key];
     if (uav)

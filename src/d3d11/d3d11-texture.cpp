@@ -21,6 +21,7 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
@@ -31,8 +32,6 @@ ID3D11RenderTargetView* TextureImpl::getRTV(Format format, const SubresourceRang
 
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
-
-    std::lock_guard<std::mutex> lock(m_mutex);
 
     ComPtr<ID3D11RenderTargetView>& rtv = m_rtvs[key];
     if (rtv)
@@ -93,8 +92,6 @@ ID3D11DepthStencilView* TextureImpl::getDSV(Format format, const SubresourceRang
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
 
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     ComPtr<ID3D11DepthStencilView>& dsv = m_dsvs[key];
     if (dsv)
         return dsv;
@@ -148,8 +145,6 @@ ID3D11ShaderResourceView* TextureImpl::getSRV(Format format, const SubresourceRa
 
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
-
-    std::lock_guard<std::mutex> lock(m_mutex);
 
     ComPtr<ID3D11ShaderResourceView>& srv = m_srvs[key];
     if (srv)
@@ -221,8 +216,6 @@ ID3D11UnorderedAccessView* TextureImpl::getUAV(Format format, const SubresourceR
 
     SubresourceRange range = resolveSubresourceRange(range_);
     ViewKey key = {format, range};
-
-    std::lock_guard<std::mutex> lock(m_mutex);
 
     ComPtr<ID3D11UnorderedAccessView>& uav = m_uavs[key];
     if (uav)

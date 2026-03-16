@@ -19,8 +19,8 @@
 | `createBuffer`                     | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createBufferFromNativeHandle`     | :x:     | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createBufferFromSharedHandle`     | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
-| `mapBuffer`                        | yes     | :x:  | yes   | yes   | yes    | yes     | yes  |
-| `unmapBuffer`                      | yes     | :x:  | yes   | yes   | yes    | yes     | yes  |
+| `mapBuffer`                        | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
+| `unmapBuffer`                      | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createSampler`                    | yes (2) | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createTextureView`                | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createSurface`                    | :x:     | yes  | yes   | yes   | yes    | yes     | yes  |

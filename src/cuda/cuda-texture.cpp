@@ -178,6 +178,7 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
@@ -188,8 +189,6 @@ CUtexObject TextureImpl::getTexObject(
     const SubresourceRange& range
 )
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     ViewKey key = {format, samplerSettings, range};
     CUtexObject& texObject = m_texObjects[key];
     if (texObject)
@@ -243,8 +242,6 @@ CUtexObject TextureImpl::getTexObject(
 
 CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     CUsurfObject& surfObject = m_surfObjects[range];
     if (surfObject)
         return surfObject;
@@ -631,12 +628,10 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     switch (access)
     {
     case DescriptorHandleAccess::Read:
-        outHandle->type = DescriptorHandleType::Texture;
-        outHandle->value = (uint64_t)getTexObject();
+        *outHandle = DescriptorHandle{DescriptorHandleType::Texture, (uint64_t)getTexObject()};
         break;
     case DescriptorHandleAccess::ReadWrite:
-        outHandle->type = DescriptorHandleType::RWTexture;
-        outHandle->value = (uint64_t)getSurfObject();
+        *outHandle = DescriptorHandle{DescriptorHandleType::RWTexture, (uint64_t)getSurfObject()};
         break;
     default:
         return SLANG_E_INVALID_ARG;
