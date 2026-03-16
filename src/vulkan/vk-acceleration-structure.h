@@ -26,7 +26,7 @@ public:
     VkAccelerationStructureKHR m_vkHandle = VK_NULL_HANDLE;
     RefPtr<BufferImpl> m_buffer;
     DeviceAddress m_deviceAddress = 0;
-    DescriptorHandle m_descriptorHandle;
+    AtomicDescriptorHandle m_descriptorHandle;
 };
 
 struct AccelerationStructureBuildDescConverter

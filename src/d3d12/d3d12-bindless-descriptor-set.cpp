@@ -62,6 +62,8 @@ Result BindlessDescriptorSet::allocBufferHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_bufferAllocator.allocate(&slot));
 
@@ -101,6 +103,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_textureAllocator.allocate(&slot));
 
@@ -136,6 +140,8 @@ Result BindlessDescriptorSet::allocTextureHandle(
 
 Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHandle* outHandle)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_samplerAllocator.allocate(&slot));
 
@@ -158,6 +164,8 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     DescriptorHandle* outHandle
 )
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     uint32_t slot;
     SLANG_RETURN_ON_FAIL(m_accelerationStructureAllocator.allocate(&slot));
 
@@ -177,6 +185,8 @@ Result BindlessDescriptorSet::allocAccelerationStructureHandle(
 
 Result BindlessDescriptorSet::freeHandle(const DescriptorHandle& handle)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
     switch (handle.type)
     {
     case DescriptorHandleType::Buffer:
