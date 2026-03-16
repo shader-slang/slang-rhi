@@ -10,31 +10,26 @@
 #include "debug-shader-object.h"
 #include "debug-surface.h"
 
+#include "strings.h"
+
 #include <vector>
 
 namespace rhi::debug {
 
-#ifdef __FUNCSIG__
-#define SLANG_FUNC_SIG __FUNCSIG__
-#elif defined(__PRETTY_FUNCTION__)
-#define SLANG_FUNC_SIG __FUNCSIG__
-#elif defined(__FUNCTION__)
-#define SLANG_FUNC_SIG __FUNCTION__
-#else
-#define SLANG_FUNC_SIG "UnknownFunction"
-#endif
-
 extern thread_local const char* _currentFunctionName;
-struct SetCurrentFuncRAII
-{
-    SetCurrentFuncRAII(const char* funcName) { _currentFunctionName = funcName; }
-    ~SetCurrentFuncRAII() { _currentFunctionName = nullptr; }
-};
-#define SLANG_RHI_API_FUNC SetCurrentFuncRAII setFuncNameRAII(SLANG_FUNC_SIG)
-#define SLANG_RHI_API_FUNC_NAME(x) SetCurrentFuncRAII setFuncNameRAII(x)
 
-/// Returns the public API function name from a `SLANG_FUNC_SIG` string.
-std::string _rhiGetFuncName(const char* input);
+struct ScopedAPIName
+{
+    ScopedAPIName(const char* name) { _currentFunctionName = name; }
+    ~ScopedAPIName() { _currentFunctionName = nullptr; }
+};
+
+#define SLANG_RHI_DEBUG_API(interface, method) ScopedAPIName scopedAPIName(#interface "::" #method)
+
+inline const char* getAPIName()
+{
+    return _currentFunctionName ? _currentFunctionName : "<unknown function>";
+}
 
 template<typename... TArgs>
 char* _rhiDiagnoseFormat(
@@ -66,43 +61,21 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
     ctx->debugCallback->handleMessage(type, DebugMessageSource::Layer, buffer);
 }
 
-#define RHI_VALIDATION_ERROR(message)                                                                                  \
-    _rhiDiagnoseImpl(                                                                                                  \
-        ctx,                                                                                                           \
-        DebugMessageType::Error,                                                                                       \
-        "%s: %s",                                                                                                      \
-        _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
-        message                                                                                                        \
-    )
+#define RHI_VALIDATION_ERROR(message) _rhiDiagnoseImpl(ctx, DebugMessageType::Error, "%s: %s", getAPIName(), message)
+
 #define RHI_VALIDATION_WARNING(message)                                                                                \
-    _rhiDiagnoseImpl(                                                                                                  \
-        ctx,                                                                                                           \
-        DebugMessageType::Warning,                                                                                     \
-        "%s: %s",                                                                                                      \
-        _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
-        message                                                                                                        \
-    )
-#define RHI_VALIDATION_INFO(message)                                                                                   \
-    _rhiDiagnoseImpl(                                                                                                  \
-        ctx,                                                                                                           \
-        DebugMessageType::Info,                                                                                        \
-        "%s: %s",                                                                                                      \
-        _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                         \
-        message                                                                                                        \
-    )
+    _rhiDiagnoseImpl(ctx, DebugMessageType::Warning, "%s: %s", getAPIName(), message)
+
+#define RHI_VALIDATION_INFO(message) _rhiDiagnoseImpl(ctx, DebugMessageType::Info, "%s: %s", getAPIName(), message)
+
 #define RHI_VALIDATION_FORMAT(type, format, ...)                                                                       \
     {                                                                                                                  \
         char shortBuffer[256];                                                                                         \
         std::vector<char> bufferArray;                                                                                 \
         auto message = _rhiDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, __VA_ARGS__);         \
-        _rhiDiagnoseImpl(                                                                                              \
-            ctx,                                                                                                       \
-            type,                                                                                                      \
-            "%s: %s",                                                                                                  \
-            _rhiGetFuncName(_currentFunctionName ? _currentFunctionName : SLANG_FUNC_SIG).c_str(),                     \
-            message                                                                                                    \
-        );                                                                                                             \
+        _rhiDiagnoseImpl(ctx, type, "%s: %s", getAPIName(), message);                                                  \
     }
+
 #define RHI_VALIDATION_ERROR_FORMAT(...) RHI_VALIDATION_FORMAT(DebugMessageType::Error, __VA_ARGS__)
 
 #define SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(typeName)                                                                   \

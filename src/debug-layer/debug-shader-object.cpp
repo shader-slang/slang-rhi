@@ -5,7 +5,8 @@ namespace rhi::debug {
 
 ShaderObjectContainerType DebugShaderObject::getContainerType()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, getContainerType);
+
     return baseObject->getContainerType();
 }
 
@@ -40,19 +41,22 @@ void DebugShaderObject::checkNotFinalized()
 
 slang::TypeLayoutReflection* DebugShaderObject::getElementTypeLayout()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, getElementTypeLayout);
+
     return baseObject->getElementTypeLayout();
 }
 
 uint32_t DebugShaderObject::getEntryPointCount()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, getEntryPointCount);
+
     return baseObject->getEntryPointCount();
 }
 
 Result DebugShaderObject::getEntryPoint(uint32_t index, IShaderObject** entryPoint)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, getEntryPoint);
+
     if (m_entryPoints.empty())
     {
         for (uint32_t i = 0; i < getEntryPointCount(); i++)
@@ -67,31 +71,36 @@ Result DebugShaderObject::getEntryPoint(uint32_t index, IShaderObject** entryPoi
         RHI_VALIDATION_ERROR("`index` must not exceed `entryPointCount`.");
         return SLANG_FAIL;
     }
+
     returnComPtr(entryPoint, m_entryPoints[index]);
     return SLANG_OK;
 }
 
 Result DebugShaderObject::setData(const ShaderOffset& offset, const void* data, Size size)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, setData);
+
     checkNotFinalized();
+
     return baseObject->setData(offset, data, size);
 }
 
 Result DebugShaderObject::reserveData(const ShaderOffset& offset, Size size, void** outData)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, reserveData);
+
     checkNotFinalized();
+
     return baseObject->reserveData(offset, size, outData);
 }
 
 Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** object)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, getObject);
 
     ComPtr<IShaderObject> innerObject;
-    auto resultCode = baseObject->getObject(offset, innerObject.writeRef());
-    SLANG_RETURN_ON_FAIL(resultCode);
+    SLANG_RETURN_ON_FAIL(baseObject->getObject(offset, innerObject.writeRef()));
+
     RefPtr<DebugShaderObject> debugShaderObject;
     auto it = m_objects.find(ShaderOffsetKey{offset});
     if (it != m_objects.end())
@@ -100,43 +109,53 @@ Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** 
         if (debugShaderObject->baseObject == innerObject)
         {
             returnComPtr(object, debugShaderObject);
-            return resultCode;
+            return SLANG_OK;
         }
     }
+
     debugShaderObject = new DebugShaderObject(ctx);
     debugShaderObject->baseObject = innerObject;
     debugShaderObject->m_typeName = string::from_cstr(innerObject->getElementTypeLayout()->getName());
     m_objects.emplace(ShaderOffsetKey{offset}, debugShaderObject);
+
     returnComPtr(object, debugShaderObject);
-    return resultCode;
+    return SLANG_OK;
 }
 
 Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, setObject);
+
     checkNotFinalized();
+
     auto objectImpl = getDebugObj(object);
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
     // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
     // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
     // objectImpl->checkCompleteness();
+
     return baseObject->setObject(offset, getInnerObj(object));
 }
 
 Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& binding)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, setBinding);
+
     checkNotFinalized();
+
     // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
     // m_bindings[ShaderOffsetKey{offset}] = binding;
     // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
+
     return baseObject->setBinding(offset, binding);
 }
 
 Result DebugShaderObject::setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, setDescriptorHandle);
+
     checkNotFinalized();
+
     return baseObject->setDescriptorHandle(offset, handle);
 }
 
@@ -146,43 +165,52 @@ Result DebugShaderObject::setSpecializationArgs(
     uint32_t count
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, setSpecializationArgs);
+
     checkNotFinalized();
+
     return baseObject->setSpecializationArgs(offset, args, count);
 }
 
 const void* DebugShaderObject::getRawData()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, getRawData);
+
     return baseObject->getRawData();
 }
 
 size_t DebugShaderObject::getSize()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, getSize);
+
     return baseObject->getSize();
 }
 
 Result DebugShaderObject::setConstantBufferOverride(IBuffer* constantBuffer)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, setConstantBufferOverride);
+
     checkNotFinalized();
+
     return baseObject->setConstantBufferOverride(constantBuffer);
 }
 
 Result DebugShaderObject::finalize()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, finalize);
+
     if (baseObject->isFinalized())
     {
         RHI_VALIDATION_ERROR("The shader object is already finalized.");
     }
+
     return baseObject->finalize();
 }
 
 bool DebugShaderObject::isFinalized()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, isFinalized);
+
     return baseObject->isFinalized();
 }
 
@@ -192,8 +220,10 @@ Result DebugRootShaderObject::setSpecializationArgs(
     uint32_t count
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IShaderObject, setSpecializationArgs);
+
     checkNotFinalized();
+
     return baseObject->setSpecializationArgs(offset, args, count);
 }
 

@@ -5,7 +5,8 @@ namespace rhi::debug {
 
 Result DebugCommandBuffer::getNativeHandle(NativeHandle* outHandle)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandBuffer, getNativeHandle);
+
     return baseObject->getNativeHandle(outHandle);
 }
 
