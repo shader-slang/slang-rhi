@@ -106,7 +106,6 @@ Result SurfaceImpl::present()
     MTL::CommandBuffer* commandBuffer = m_device->m_commandQueue->commandBuffer();
     commandBuffer->presentDrawable(m_currentDrawable.get());
     commandBuffer->commit();
-    // Note: you don't want to do a release here - just use the auto release pool.
     m_currentDrawable.reset();
 
     return SLANG_OK;
