@@ -706,6 +706,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
         ADD_PROPERTIES(Float16, FloatE5M2, FloatE5M2, Float16, Float16);
 #undef ADD_PROPERTIES
     }
+
     return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 

@@ -227,6 +227,7 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
@@ -241,7 +242,7 @@ slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mip)
     slang_prelude::TextureDimensions dimensions = {};
 
     TextureImpl* texture = m_texture;
-    auto& desc = texture->_getDesc();
+    auto& desc = texture->m_desc;
     auto baseShape = texture->m_baseShape;
 
     dimensions.arrayElementCount = desc.arrayLength;
@@ -286,7 +287,7 @@ void TextureViewImpl::SampleLevel(
 {
     TextureImpl* texture = m_texture;
     auto baseShape = texture->m_baseShape;
-    auto& desc = texture->_getDesc();
+    auto& desc = texture->m_desc;
     int32_t rank = baseShape->rank;
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
@@ -345,7 +346,7 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
 {
     TextureImpl* texture = m_texture;
     auto baseShape = texture->m_baseShape;
-    auto& desc = texture->_getDesc();
+    auto& desc = texture->m_desc;
 
     int32_t rank = baseShape->rank;
     int32_t baseCoordCount = baseShape->baseCoordCount;

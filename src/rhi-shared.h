@@ -50,7 +50,7 @@ public:
 protected:
     FenceDesc m_desc;
     StructHolder m_descHolder;
-    NativeHandle sharedHandle = {};
+    NativeHandle m_sharedHandle = {};
 };
 
 class Resource : public DeviceChild
@@ -331,5 +331,7 @@ inline uint32_t heightInBlocks(const FormatInfo& formatInfo, uint32_t size)
 {
     return formatInfo.isCompressed ? (size + formatInfo.blockHeight - 1) / formatInfo.blockHeight : size;
 }
+
+bool isDebugLayersEnabled();
 
 } // namespace rhi

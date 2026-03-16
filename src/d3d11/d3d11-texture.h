@@ -10,11 +10,20 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
+    // ITexture implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
+
+public:
+    ID3D11RenderTargetView* getRTV(Format format, const SubresourceRange& range);
+    ID3D11DepthStencilView* getDSV(Format format, const SubresourceRange& range);
+    ID3D11ShaderResourceView* getSRV(Format format, const SubresourceRange& range);
+    ID3D11UnorderedAccessView* getUAV(Format format, const SubresourceRange& range);
+
     ComPtr<ID3D11Resource> m_resource;
     DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
     bool m_isTypeless = false;
+    RefPtr<TextureViewImpl> m_defaultView;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
     struct ViewKey
     {
@@ -37,17 +46,10 @@ public:
         }
     };
 
-    RefPtr<TextureViewImpl> m_defaultView;
-    std::mutex m_mutex;
     std::unordered_map<ViewKey, ComPtr<ID3D11RenderTargetView>, ViewKeyHasher> m_rtvs;
     std::unordered_map<ViewKey, ComPtr<ID3D11DepthStencilView>, ViewKeyHasher> m_dsvs;
     std::unordered_map<ViewKey, ComPtr<ID3D11ShaderResourceView>, ViewKeyHasher> m_srvs;
     std::unordered_map<ViewKey, ComPtr<ID3D11UnorderedAccessView>, ViewKeyHasher> m_uavs;
-
-    ID3D11RenderTargetView* getRTV(Format format, const SubresourceRange& range);
-    ID3D11DepthStencilView* getDSV(Format format, const SubresourceRange& range);
-    ID3D11ShaderResourceView* getSRV(Format format, const SubresourceRange& range);
-    ID3D11UnorderedAccessView* getUAV(Format format, const SubresourceRange& range);
 };
 
 class TextureViewImpl : public TextureView
@@ -55,9 +57,14 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
+    // RefObject implementation
     virtual void makeExternal() override { m_texture.establishStrongReference(); }
     virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
+    // ITextureView implementation
+    virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
+
+public:
     ID3D11RenderTargetView* getRTV()
     {
         if (!m_rtv)
@@ -86,13 +93,7 @@ public:
         return m_uav;
     }
 
-    // ITextureView implementation
-    virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() override { return m_texture; }
-
-public:
     BreakableReference<TextureImpl> m_texture;
-
-private:
     ID3D11RenderTargetView* m_rtv = nullptr;
     ID3D11DepthStencilView* m_dsv = nullptr;
     ID3D11ShaderResourceView* m_srv = nullptr;
