@@ -97,6 +97,11 @@ Result BufferImpl::getDescriptorHandle(
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
     range = resolveBufferRange(range);
 
     DescriptorHandleKey key = {access, format, range};
@@ -105,11 +110,6 @@ Result BufferImpl::getDescriptorHandle(
     {
         *outHandle = handle;
         return SLANG_OK;
-    }
-
-    if (!device->m_bindlessDescriptorSet)
-    {
-        return SLANG_E_NOT_AVAILABLE;
     }
 
     if (!handle)
