@@ -1079,11 +1079,7 @@ Format kStandardFormats[] = {
     Format::BC1Unorm,
     Format::BC1UnormSrgb,
     Format::ASTC4x4Unorm,
-    Format::ASTC4x4UnormSrgb,
-    Format::ASTC6x6Unorm,
     Format::ASTC6x6UnormSrgb,
-    Format::ASTC8x8Unorm,
-    Format::ASTC8x8UnormSrgb,
     Format::R64Uint,
 };
 
