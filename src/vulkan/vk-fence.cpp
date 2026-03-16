@@ -111,7 +111,15 @@ Result FenceImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 {
+    if (m_sharedHandle)
+    {
+        *outHandle = m_sharedHandle.get();
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
+
+    std::lock_guard<std::mutex> lock(device->m_fenceMutex);
 
     if (!m_sharedHandle)
     {
@@ -126,7 +134,7 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
             device->m_api.vkGetSemaphoreWin32HandleKHR(device->m_api.m_device, &handleInfo, &handle),
             device
         );
-        m_sharedHandle = NativeHandle{NativeHandleType::Win32, (uint64_t)handle};
+        m_sharedHandle.set(NativeHandleType::Win32, (uint64_t)handle);
 #else
         VkSemaphoreGetFdInfoKHR fdInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
         fdInfo.pNext = nullptr;
@@ -135,11 +143,11 @@ Result FenceImpl::getSharedHandle(NativeHandle* outHandle)
 
         int fd = 0;
         SLANG_VK_RETURN_ON_FAIL_REPORT(device->m_api.vkGetSemaphoreFdKHR(device->m_api.m_device, &fdInfo, &fd), device);
-        m_sharedHandle = NativeHandle{NativeHandleType::FileDescriptor, (uint64_t)fd};
+        m_sharedHandle.set(NativeHandleType::FileDescriptor, (uint64_t)fd);
 #endif
     }
 
-    *outHandle = m_sharedHandle;
+    *outHandle = m_sharedHandle.get();
     return SLANG_OK;
 }
 

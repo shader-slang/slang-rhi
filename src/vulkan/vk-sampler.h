@@ -20,7 +20,7 @@ public:
 
 public:
     VkSampler m_sampler;
-    DescriptorHandle m_descriptorHandle;
+    AtomicDescriptorHandle m_descriptorHandle;
 };
 
 } // namespace rhi::vk
