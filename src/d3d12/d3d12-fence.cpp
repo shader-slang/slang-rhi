@@ -11,7 +11,15 @@ FenceImpl::FenceImpl(Device* device, const FenceDesc& desc)
 FenceImpl::~FenceImpl()
 {
     if (m_waitEvent)
+    {
         ::CloseHandle(m_waitEvent);
+    }
+    if (m_sharedHandle)
+    {
+#if SLANG_WINDOWS_FAMILY
+        ::CloseHandle((HANDLE)m_sharedHandle.value);
+#endif
+    }
 }
 
 Result FenceImpl::init()
