@@ -128,6 +128,9 @@ public:
         Allocation m_allocation;
     };
 
+    // Destructor.
+    ~StagingHeap();
+
     // Initialize with device pointer.
     void initialize(Device* device, Size pageSize, MemoryType memoryType);
 
