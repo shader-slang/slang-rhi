@@ -7,17 +7,6 @@ namespace rhi {
 
 const std::thread::id NO_THREAD_ID;
 
-StagingHeap::~StagingHeap()
-{
-    // Unmap all pages.
-    for (auto& page_pair : m_pages)
-    {
-        Page* page = page_pair.second;
-        if (page->getMapped())
-            page->unmap(m_device);
-    }
-}
-
 void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryType)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
