@@ -16,43 +16,53 @@ DebugRenderPassEncoder::DebugRenderPassEncoder(DebugContext* ctx, DebugCommandEn
 
 IShaderObject* DebugRenderPassEncoder::bindPipeline(IRenderPipeline* pipeline)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, bindPipeline);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
     m_rootObject->reset();
     m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
+
     return m_rootObject;
 }
 
 void DebugRenderPassEncoder::bindPipeline(IRenderPipeline* pipeline, IShaderObject* rootObject)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, bindPipeline);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
 }
 
 void DebugRenderPassEncoder::setRenderState(const RenderState& state)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, setRenderState);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->setRenderState(state);
 }
 
 void DebugRenderPassEncoder::draw(const DrawArguments& args)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, draw);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->draw(args);
 }
 
 void DebugRenderPassEncoder::drawIndexed(const DrawArguments& args)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, drawIndexed);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->drawIndexed(args);
 }
 
@@ -62,9 +72,11 @@ void DebugRenderPassEncoder::drawIndirect(
     BufferOffsetPair countBuffer
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, drawIndirect);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->drawIndirect(maxDrawCount, argBuffer, countBuffer);
 }
 
@@ -74,58 +86,72 @@ void DebugRenderPassEncoder::drawIndexedIndirect(
     BufferOffsetPair countBuffer
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, drawIndexedIndirect);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->drawIndexedIndirect(maxDrawCount, argBuffer, countBuffer);
 }
 
 void DebugRenderPassEncoder::drawMeshTasks(uint32_t x, uint32_t y, uint32_t z)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, drawMeshTasks);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->drawMeshTasks(x, y, z);
 }
 
 void DebugRenderPassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, pushDebugGroup);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->pushDebugGroup(name, color);
 }
 
 void DebugRenderPassEncoder::popDebugGroup()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, popDebugGroup);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->popDebugGroup();
 }
 
 void DebugRenderPassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, insertDebugMarker);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->insertDebugMarker(name, color);
 }
 
 void DebugRenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, writeTimestamp);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
+
     baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
 void DebugRenderPassEncoder::end()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRenderPassEncoder, end);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRenderPass();
     m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+
     baseObject->end();
 }
 
@@ -138,76 +164,94 @@ DebugComputePassEncoder::DebugComputePassEncoder(DebugContext* ctx, DebugCommand
 
 IShaderObject* DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, bindPipeline);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
     m_rootObject->reset();
     m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
+
     return m_rootObject;
 }
 
 void DebugComputePassEncoder::bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, bindPipeline);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
+
     baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
 }
 
 void DebugComputePassEncoder::dispatchCompute(uint32_t x, uint32_t y, uint32_t z)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, dispatchCompute);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
+
     baseObject->dispatchCompute(x, y, z);
 }
 
 void DebugComputePassEncoder::dispatchComputeIndirect(BufferOffsetPair argBuffer)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, dispatchComputeIndirect);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
+
     baseObject->dispatchComputeIndirect(argBuffer);
 }
 
 void DebugComputePassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, pushDebugGroup);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
+
     baseObject->pushDebugGroup(name, color);
 }
 
 void DebugComputePassEncoder::popDebugGroup()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, popDebugGroup);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
+
     baseObject->popDebugGroup();
 }
 
 void DebugComputePassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, insertDebugMarker);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
+
     baseObject->insertDebugMarker(name, color);
 }
 
 void DebugComputePassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, writeTimestamp);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
+
     baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
 void DebugComputePassEncoder::end()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IComputePassEncoder, end);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireComputePass();
     m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+
     baseObject->end();
 }
 
@@ -220,11 +264,13 @@ DebugRayTracingPassEncoder::DebugRayTracingPassEncoder(DebugContext* ctx, DebugC
 
 IShaderObject* DebugRayTracingPassEncoder::bindPipeline(IRayTracingPipeline* pipeline, IShaderTable* shaderTable)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRayTracingPassEncoder, bindPipeline);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
     m_rootObject->reset();
     m_rootObject->baseObject = baseObject->bindPipeline(pipeline, shaderTable);
+
     return m_rootObject;
 }
 
@@ -234,9 +280,11 @@ void DebugRayTracingPassEncoder::bindPipeline(
     IShaderObject* rootObject
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRayTracingPassEncoder, bindPipeline);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
+
     baseObject->bindPipeline(pipeline, shaderTable, getInnerObj(rootObject));
 }
 
@@ -247,50 +295,62 @@ void DebugRayTracingPassEncoder::dispatchRays(
     uint32_t depth
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRayTracingPassEncoder, dispatchRays);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
+
     baseObject->dispatchRays(rayGenShaderIndex, width, height, depth);
 }
 
 void DebugRayTracingPassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRayTracingPassEncoder, pushDebugGroup);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
+
     baseObject->pushDebugGroup(name, color);
 }
 
 void DebugRayTracingPassEncoder::popDebugGroup()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRayTracingPassEncoder, popDebugGroup);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
+
     baseObject->popDebugGroup();
 }
 
 void DebugRayTracingPassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRayTracingPassEncoder, insertDebugMarker);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
+
     baseObject->insertDebugMarker(name, color);
 }
 
 void DebugRayTracingPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRayTracingPassEncoder, writeTimestamp);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
+
     baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
 }
 
 void DebugRayTracingPassEncoder::end()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IRayTracingPassEncoder, end);
+
     m_commandEncoder->requireOpen();
     m_commandEncoder->requireRayTracingPass();
     m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+
     baseObject->end();
 }
 
@@ -304,47 +364,57 @@ DebugCommandEncoder::DebugCommandEncoder(DebugContext* ctx)
 
 IRenderPassEncoder* DebugCommandEncoder::beginRenderPass(const RenderPassDesc& desc)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, beginRenderPass);
+
     requireOpen();
     requireNoPass();
     m_passState = PassState::RenderPass;
     m_renderPassEncoder.baseObject = baseObject->beginRenderPass(desc);
+
     return &m_renderPassEncoder;
 }
 
 IComputePassEncoder* DebugCommandEncoder::beginComputePass()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, beginComputePass);
+
     requireOpen();
     requireNoPass();
     m_passState = PassState::ComputePass;
     m_computePassEncoder.baseObject = baseObject->beginComputePass();
+
     return &m_computePassEncoder;
 }
 
 IRayTracingPassEncoder* DebugCommandEncoder::beginRayTracingPass()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, beginRayTracingPass);
+
     requireOpen();
     requireNoPass();
     m_passState = PassState::RayTracingPass;
     m_rayTracingPassEncoder.baseObject = baseObject->beginRayTracingPass();
+
     return &m_rayTracingPassEncoder;
 }
 
 void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, copyBuffer);
+
     requireOpen();
     requireNoPass();
+
     baseObject->copyBuffer(dst, dstOffset, src, srcOffset, size);
 }
 
 Result DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, uploadBufferData);
+
     requireOpen();
     requireNoPass();
+
     return baseObject->uploadBufferData(dst, offset, size, data);
 }
 
@@ -358,7 +428,8 @@ void DebugCommandEncoder::copyTexture(
     Extent3D extent
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, copyTexture);
+
     requireOpen();
     requireNoPass();
 
@@ -474,7 +545,8 @@ Result DebugCommandEncoder::uploadTextureData(
     uint32_t subresourceDataCount
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, uploadTextureData);
+
     requireOpen();
     requireNoPass();
 
@@ -505,7 +577,8 @@ Result DebugCommandEncoder::uploadTextureData(
 
 void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, clearBuffer);
+
     requireOpen();
     requireNoPass();
     if (range.offset % 4 != 0)
@@ -518,30 +591,37 @@ void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
         RHI_VALIDATION_ERROR("The range size must be a multiple of 4.");
         return;
     }
+
     baseObject->clearBuffer(buffer, range);
 }
 
 void DebugCommandEncoder::clearTextureFloat(ITexture* texture, SubresourceRange subresourceRange, float clearValue[4])
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, clearTextureFloat);
+
     requireOpen();
     requireNoPass();
+
     baseObject->clearTextureFloat(texture, subresourceRange, clearValue);
 }
 
 void DebugCommandEncoder::clearTextureUint(ITexture* texture, SubresourceRange subresourceRange, uint32_t clearValue[4])
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, clearTextureUint);
+
     requireOpen();
     requireNoPass();
+
     baseObject->clearTextureUint(texture, subresourceRange, clearValue);
 }
 
 void DebugCommandEncoder::clearTextureSint(ITexture* texture, SubresourceRange subresourceRange, int32_t clearValue[4])
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, clearTextureSint);
+
     requireOpen();
     requireNoPass();
+
     baseObject->clearTextureSint(texture, subresourceRange, clearValue);
 }
 
@@ -554,7 +634,8 @@ void DebugCommandEncoder::clearTextureDepthStencil(
     uint8_t stencilValue
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, clearTextureDepthStencil);
+
     requireOpen();
     requireNoPass();
     const FormatInfo& formatInfo = getFormatInfo(texture->getDesc().format);
@@ -592,6 +673,7 @@ void DebugCommandEncoder::clearTextureDepthStencil(
     default:
         break;
     }
+
     baseObject->clearTextureDepthStencil(texture, subresourceRange, clearDepth, depthValue, clearStencil, stencilValue);
 }
 
@@ -603,9 +685,11 @@ void DebugCommandEncoder::resolveQuery(
     uint64_t offset
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, resolveQuery);
+
     requireOpen();
     requireNoPass();
+
     baseObject->resolveQuery(getInnerObj(queryPool), index, count, buffer, offset);
 }
 
@@ -621,7 +705,8 @@ void DebugCommandEncoder::copyTextureToBuffer(
     Extent3D extent
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, copyTextureToBuffer);
+
     requireOpen();
     requireNoPass();
 
@@ -653,7 +738,8 @@ void DebugCommandEncoder::copyBufferToTexture(
     Extent3D extent
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, copyBufferToTexture);
+
     requireOpen();
     requireNoPass();
 
@@ -682,7 +768,8 @@ void DebugCommandEncoder::buildAccelerationStructure(
     const AccelerationStructureQueryDesc* queryDescs
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, buildAccelerationStructure);
+
     requireOpen();
     requireNoPass();
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
@@ -695,6 +782,7 @@ void DebugCommandEncoder::buildAccelerationStructure(
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
     validateAccelerationStructureBuildDesc(ctx, desc);
+
     baseObject->buildAccelerationStructure(desc, dst, src, scratchBuffer, propertyQueryCount, innerQueryDescs.data());
 }
 
@@ -704,9 +792,11 @@ void DebugCommandEncoder::copyAccelerationStructure(
     AccelerationStructureCopyMode mode
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, copyAccelerationStructure);
+
     requireOpen();
     requireNoPass();
+
     baseObject->copyAccelerationStructure(dst, src, mode);
 }
 
@@ -717,7 +807,8 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
     const AccelerationStructureQueryDesc* queryDescs
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, queryAccelerationStructureProperties);
+
     requireOpen();
     requireNoPass();
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
@@ -729,6 +820,7 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
     {
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
+
     baseObject->queryAccelerationStructureProperties(
         accelerationStructureCount,
         accelerationStructures,
@@ -739,23 +831,28 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
 
 void DebugCommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, serializeAccelerationStructure);
+
     requireOpen();
     requireNoPass();
+
     baseObject->serializeAccelerationStructure(dst, src);
 }
 
 void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, deserializeAccelerationStructure);
+
     requireOpen();
     requireNoPass();
+
     baseObject->deserializeAccelerationStructure(dst, src);
 }
 
 void DebugCommandEncoder::executeClusterOperation(const ClusterOperationDesc& desc)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, executeClusterOperation);
+
     requireOpen();
     requireNoPass();
 
@@ -838,7 +935,8 @@ void DebugCommandEncoder::convertCooperativeVectorMatrix(
     uint32_t matrixCount
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, convertCooperativeVectorMatrix);
+
     requireOpen();
     requireNoPass();
 
@@ -867,75 +965,90 @@ void DebugCommandEncoder::convertCooperativeVectorMatrix(
 
 void DebugCommandEncoder::setBufferState(IBuffer* buffer, ResourceState state)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, setBufferState);
+
     requireOpen();
     requireNoPass();
+
     baseObject->setBufferState(buffer, state);
 }
 
 void DebugCommandEncoder::setTextureState(ITexture* texture, SubresourceRange subresourceRange, ResourceState state)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, setTextureState);
+
     requireOpen();
     requireNoPass();
+
     baseObject->setTextureState(texture, subresourceRange, state);
 }
 
 void DebugCommandEncoder::globalBarrier()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, globalBarrier);
+
     requireOpen();
     requireNoPass();
+
     baseObject->globalBarrier();
 }
 
 void DebugCommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, pushDebugGroup);
+
     requireOpen();
     requireNoPass();
+
     baseObject->pushDebugGroup(name, color);
 }
 
 void DebugCommandEncoder::popDebugGroup()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, popDebugGroup);
+
     requireOpen();
     requireNoPass();
+
     baseObject->popDebugGroup();
 }
 
 void DebugCommandEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, insertDebugMarker);
+
     requireOpen();
     requireNoPass();
+
     baseObject->insertDebugMarker(name, color);
 }
 
 void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, uint32_t index)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, writeTimestamp);
+
     requireOpen();
+
     baseObject->writeTimestamp(getInnerObj(pool), index);
 }
 
 Result DebugCommandEncoder::finish(ICommandBuffer** outCommandBuffer)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, finish);
+
     requireOpen();
     requireNoPass();
     RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
-    auto result = baseObject->finish(outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
+    SLANG_RETURN_ON_FAIL(baseObject->finish(outObject->baseObject.writeRef()));
+
     returnComPtr(outCommandBuffer, outObject);
-    return result;
+    return SLANG_OK;
 }
 
 Result DebugCommandEncoder::getNativeHandle(NativeHandle* outHandle)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandEncoder, getNativeHandle);
+
     return baseObject->getNativeHandle(outHandle);
 }
 

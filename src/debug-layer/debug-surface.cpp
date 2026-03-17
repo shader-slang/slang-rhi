@@ -5,20 +5,22 @@ namespace rhi::debug {
 
 const SurfaceInfo& DebugSurface::getInfo()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ISurface, getInfo);
 
     return baseObject->getInfo();
 }
 
 const SurfaceConfig* DebugSurface::getConfig()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ISurface, getConfig);
 
     return baseObject->getConfig();
 }
 
 Result DebugSurface::configure(const SurfaceConfig& config)
 {
+    SLANG_RHI_DEBUG_API(ISurface, configure);
+
     const SurfaceInfo& info = baseObject->getInfo();
 
     m_configured = false;
@@ -64,6 +66,8 @@ Result DebugSurface::configure(const SurfaceConfig& config)
 
 Result DebugSurface::unconfigure()
 {
+    SLANG_RHI_DEBUG_API(ISurface, unconfigure);
+
     if (!m_configured)
     {
         RHI_VALIDATION_WARNING("Surface is not configured.");
@@ -81,7 +85,7 @@ Result DebugSurface::unconfigure()
 
 Result DebugSurface::acquireNextImage(ITexture** outTexture)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ISurface, acquireNextImage);
 
     if (!m_configured)
     {
@@ -107,7 +111,7 @@ Result DebugSurface::acquireNextImage(ITexture** outTexture)
 
 Result DebugSurface::present()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ISurface, present);
 
     if (!m_configured)
     {

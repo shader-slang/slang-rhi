@@ -177,7 +177,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->printWarning(S_CommandEncoder_##x " command is not supported!")
+#define NOT_SUPPORTED(interface, method) m_device->printWarning(#interface "::" #method " is not supported!")
 
 void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -1477,7 +1477,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
 
 #else  // SLANG_RHI_ENABLE_NVAPI
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(executeClusterOperation);
+    NOT_SUPPORTED(ICommandEncoder, executeClusterOperation);
 #endif // SLANG_RHI_ENABLE_NVAPI
 }
 

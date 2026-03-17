@@ -21,19 +21,6 @@ SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(QueryPool)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Heap)
 
-std::string _rhiGetFuncName(const char* input)
-{
-    std::string_view str(input);
-    auto prefixIndex = str.find("Debug");
-    if (prefixIndex == std::string::npos)
-        return input;
-    auto endIndex = str.find_last_of('(');
-    if (endIndex == std::string::npos)
-        endIndex = str.length();
-    auto startIndex = prefixIndex + 5;
-    return 'I' + std::string(str.substr(startIndex, endIndex - startIndex));
-}
-
 std::string subresourceRangeToString(const SubresourceRange& range)
 {
     return string::format(

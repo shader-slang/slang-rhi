@@ -32,54 +32,57 @@ Result DebugDevice::queryInterface(const SlangUUID& uuid, void** outObject) noex
 
 Result DebugDevice::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
+    SLANG_RHI_DEBUG_API(IDevice, getNativeDeviceHandles);
+
     return baseObject->getNativeDeviceHandles(outHandles);
 }
 
 Result DebugDevice::getFeatures(uint32_t* outFeatureCount, Feature* outFeatures)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getFeatures);
 
     return baseObject->getFeatures(outFeatureCount, outFeatures);
 }
 
 bool DebugDevice::hasFeature(Feature feature)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, hasFeature);
 
     return baseObject->hasFeature(feature);
 }
 
 bool DebugDevice::hasFeature(const char* feature)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, hasFeature);
 
     return baseObject->hasFeature(feature);
 }
 
 Result DebugDevice::getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getCapabilities);
 
     return baseObject->getCapabilities(outCapabilityCount, outCapabilities);
 }
 
 bool DebugDevice::hasCapability(Capability capability)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, hasCapability);
 
     return baseObject->hasCapability(capability);
 }
 
 bool DebugDevice::hasCapability(const char* capability)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, hasCapability);
 
     return baseObject->hasCapability(capability);
 }
 
 Result DebugDevice::getFormatSupport(Format format, FormatSupport* outFormatSupport)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getFormatSupport);
+
     return baseObject->getFormatSupport(format, outFormatSupport);
 }
 
@@ -88,20 +91,20 @@ DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
 {
     ctx->deviceType = deviceType;
     ctx->debugCallback = debugCallback;
-    SLANG_RHI_API_FUNC_NAME("CreateDevice");
     RHI_VALIDATION_INFO("Debug layer is enabled.");
 }
 
 Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getSlangSession);
 
     return baseObject->getSlangSession(outSlangSession);
 }
 
 Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData* initData, ITexture** outTexture)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createTexture);
+
     validateCudaContext();
 
     if (uint32_t(desc.type) > uint32_t(TextureType::TextureCubeArray))
@@ -236,7 +239,7 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
 
 Result DebugDevice::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createTextureFromNativeHandle);
 
     return baseObject->createTextureFromNativeHandle(handle, desc, outTexture);
 }
@@ -248,14 +251,15 @@ Result DebugDevice::createTextureFromSharedHandle(
     ITexture** outTexture
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createTextureFromSharedHandle);
 
     return baseObject->createTextureFromSharedHandle(handle, desc, size, outTexture);
 }
 
 Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, IBuffer** outBuffer)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createBuffer);
+
     validateCudaContext();
 
     BufferDesc patchedDesc = desc;
@@ -271,21 +275,21 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
 
 Result DebugDevice::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createBufferFromNativeHandle);
 
     return baseObject->createBufferFromNativeHandle(handle, desc, outBuffer);
 }
 
 Result DebugDevice::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createBufferFromSharedHandle);
 
     return baseObject->createBufferFromSharedHandle(handle, desc, outBuffer);
 }
 
 Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, mapBuffer);
 
     switch (mode)
     {
@@ -313,14 +317,15 @@ Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outDat
 
 Result DebugDevice::unmapBuffer(IBuffer* buffer)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, unmapBuffer);
 
     return baseObject->unmapBuffer(buffer);
 }
 
 Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createSampler);
+
     validateCudaContext();
 
     if (desc.minFilter > TextureFilteringMode::Linear)
@@ -424,7 +429,8 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
 
 Result DebugDevice::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createTextureView);
+
     validateCudaContext();
 
     TextureViewDesc patchedDesc = desc;
@@ -443,15 +449,19 @@ Result DebugDevice::getAccelerationStructureSizes(
     AccelerationStructureSizes* outSizes
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getAccelerationStructureSizes);
+
     SLANG_RETURN_ON_FAIL(validateAccelerationStructureBuildDesc(ctx, desc));
+
     return baseObject->getAccelerationStructureSizes(desc, outSizes);
 }
 
 Result DebugDevice::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getClusterOperationSizes);
+
     SLANG_RETURN_ON_FAIL(validateClusterOperationParams(ctx, params));
+
     return baseObject->getClusterOperationSizes(params, outSizes);
 }
 
@@ -460,7 +470,8 @@ Result DebugDevice::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createAccelerationStructure);
+
     validateCudaContext();
 
     AccelerationStructureDesc patchedDesc = desc;
@@ -476,31 +487,31 @@ Result DebugDevice::createAccelerationStructure(
 
 Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurface)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createSurface);
 
     RefPtr<DebugSurface> outObject = new DebugSurface(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createSurface(windowHandle, outObject->baseObject.writeRef()));
+
     returnComPtr(outSurface, outObject);
     return SLANG_OK;
 }
 
 Result DebugDevice::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createInputLayout);
 
     return baseObject->createInputLayout(desc, outLayout);
 }
 
 Result DebugDevice::getQueue(QueueType type, ICommandQueue** outQueue)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getQueue);
 
     RefPtr<DebugCommandQueue> outObject = new DebugCommandQueue(ctx);
-    auto result = baseObject->getQueue(type, outObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
+    SLANG_RETURN_ON_FAIL(baseObject->getQueue(type, outObject->baseObject.writeRef()));
+
     returnComPtr(outQueue, outObject);
-    return result;
+    return SLANG_OK;
 }
 
 Result DebugDevice::createShaderObject(
@@ -510,17 +521,18 @@ Result DebugDevice::createShaderObject(
     IShaderObject** outShaderObject
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createShaderObject);
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    auto result = baseObject->createShaderObject(session, type, containerType, outObject->baseObject.writeRef());
+    SLANG_RETURN_ON_FAIL(
+        baseObject->createShaderObject(session, type, containerType, outObject->baseObject.writeRef())
+    );
     outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
-    if (SLANG_FAILED(result))
-        return result;
+
     returnComPtr(outShaderObject, outObject);
-    return result;
+    return SLANG_OK;
 }
 
 Result DebugDevice::createShaderObjectFromTypeLayout(
@@ -528,30 +540,28 @@ Result DebugDevice::createShaderObjectFromTypeLayout(
     IShaderObject** outShaderObject
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createShaderObjectFromTypeLayout);
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
-    auto result = baseObject->createShaderObjectFromTypeLayout(typeLayout, outObject->baseObject.writeRef());
+    SLANG_RETURN_ON_FAIL(baseObject->createShaderObjectFromTypeLayout(typeLayout, outObject->baseObject.writeRef()));
     auto type = typeLayout->getType();
     outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;
     outObject->m_slangType = type;
-    if (SLANG_FAILED(result))
-        return result;
+
     returnComPtr(outShaderObject, outObject);
-    return result;
+    return SLANG_OK;
 }
 
 Result DebugDevice::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createRootShaderObject);
 
     RefPtr<DebugShaderObject> outRootObject = new DebugShaderObject(ctx);
-    auto result = baseObject->createRootShaderObject(program, outRootObject->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
+    SLANG_RETURN_ON_FAIL(baseObject->createRootShaderObject(program, outRootObject->baseObject.writeRef()));
+
     returnComPtr(outObject, outRootObject);
-    return result;
+    return SLANG_OK;
 }
 
 Result DebugDevice::createShaderProgram(
@@ -560,7 +570,8 @@ Result DebugDevice::createShaderProgram(
     ISlangBlob** outDiagnostics
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createShaderProgram);
+
     validateCudaContext();
 
     ShaderProgramDesc patchedDesc = desc;
@@ -576,7 +587,8 @@ Result DebugDevice::createShaderProgram(
 
 Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createRenderPipeline);
+
     validateCudaContext();
 
     if (desc.program == nullptr)
@@ -608,7 +620,8 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRender
 
 Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createComputePipeline);
+
     validateCudaContext();
 
     if (desc.program == nullptr)
@@ -630,7 +643,8 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComp
 
 Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createRayTracingPipeline);
+
     validateCudaContext();
 
     if (desc.program == nullptr)
@@ -652,7 +666,7 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
 
 Result DebugDevice::getCompilationReportList(ISlangBlob** outReportListBlob)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getCompilationReportList);
 
     return baseObject->getCompilationReportList(outReportListBlob);
 }
@@ -665,7 +679,8 @@ Result DebugDevice::readTexture(
     void* outData
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, readTexture);
+
     validateCudaContext();
 
     const TextureDesc& desc = texture->getDesc();
@@ -714,7 +729,8 @@ Result DebugDevice::readTexture(
     SubresourceLayout* outLayout
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, readTexture);
+
     validateCudaContext();
 
     const TextureDesc& desc = texture->getDesc();
@@ -745,7 +761,8 @@ Result DebugDevice::readTexture(
 
 Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, readBuffer);
+
     validateCudaContext();
 
     return baseObject->readBuffer(buffer, offset, size, outData);
@@ -753,7 +770,8 @@ Result DebugDevice::readBuffer(IBuffer* buffer, Offset offset, Size size, void* 
 
 Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISlangBlob** outBlob)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, readBuffer);
+
     validateCudaContext();
 
     return baseObject->readBuffer(buffer, offset, size, outBlob);
@@ -761,13 +779,15 @@ Result DebugDevice::readBuffer(IBuffer* buffer, size_t offset, size_t size, ISla
 
 const DeviceInfo& DebugDevice::getInfo() const
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getInfo);
+
     return baseObject->getInfo();
 }
 
 Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createQueryPool);
+
     validateCudaContext();
 
     QueryPoolDesc patchedDesc = desc;
@@ -780,13 +800,15 @@ Result DebugDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outP
 
     RefPtr<DebugQueryPool> result = new DebugQueryPool(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createQueryPool(patchedDesc, result->baseObject.writeRef()));
+
     returnComPtr(outPool, result);
     return SLANG_OK;
 }
 
 Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createFence);
+
     validateCudaContext();
 
     FenceDesc patchedDesc = desc;
@@ -799,6 +821,7 @@ Result DebugDevice::createFence(const FenceDesc& desc, IFence** outFence)
 
     RefPtr<DebugFence> result = new DebugFence(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createFence(patchedDesc, result->baseObject.writeRef()));
+
     returnComPtr(outFence, result);
     return SLANG_OK;
 }
@@ -811,18 +834,21 @@ Result DebugDevice::waitForFences(
     uint64_t timeout
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, waitForFences);
+
     short_vector<IFence*> innerFences;
     for (uint32_t i = 0; i < fenceCount; i++)
     {
         innerFences.push_back(getInnerObj(fences[i]));
     }
+
     return baseObject->waitForFences(fenceCount, innerFences.data(), fenceValues, waitForAll, timeout);
 }
 
 Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createHeap);
+
     validateCudaContext();
 
     HeapDesc patchedDesc = desc;
@@ -835,31 +861,36 @@ Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
 
     RefPtr<DebugHeap> result = new DebugHeap(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createHeap(patchedDesc, result->baseObject.writeRef()));
+
     returnComPtr(outHeap, result);
     return SLANG_OK;
 }
 
 Result DebugDevice::getTextureAllocationInfo(const TextureDesc& desc, size_t* outSize, size_t* outAlignment)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getTextureAllocationInfo);
+
     return baseObject->getTextureAllocationInfo(desc, outSize, outAlignment);
 }
 
 Result DebugDevice::getTextureRowAlignment(Format format, size_t* outAlignment)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getTextureRowAlignment);
+
     return baseObject->getTextureRowAlignment(format, outAlignment);
 }
 
 Result DebugDevice::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, isCooperativeMatrixSupported);
+
     return baseObject->isCooperativeMatrixSupported(desc, outSupported);
 }
 
 Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getCooperativeVectorProperties);
+
     return baseObject->getCooperativeVectorProperties(properties, propertiesCount);
 }
 
@@ -872,7 +903,7 @@ Result DebugDevice::getCooperativeVectorMatrixSize(
     size_t* outSize
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, getCooperativeVectorMatrixSize);
 
     if (rowCount < 1 || rowCount > 128)
     {
@@ -916,7 +947,7 @@ Result DebugDevice::convertCooperativeVectorMatrix(
     uint32_t matrixCount
 )
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, convertCooperativeVectorMatrix);
 
     if (!dstBuffer)
     {
@@ -946,33 +977,36 @@ Result DebugDevice::convertCooperativeVectorMatrix(
 
 Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, createShaderTable);
 
     return baseObject->createShaderTable(desc, outTable);
 }
 
 Result DebugDevice::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, reportHeaps);
 
     return baseObject->reportHeaps(heapReports, heapCount);
 }
 
 Result DebugDevice::setCudaContextCurrent()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, setCudaContextCurrent);
+
     return baseObject->setCudaContextCurrent();
 }
 
 Result DebugDevice::pushCudaContext()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, pushCudaContext);
+
     return baseObject->pushCudaContext();
 }
 
 Result DebugDevice::popCudaContext()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(IDevice, popCudaContext);
+
     return baseObject->popCudaContext();
 }
 
