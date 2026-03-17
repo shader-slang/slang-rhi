@@ -166,7 +166,7 @@ inline bool isValidEnum(E value)
 
 inline bool isValidFormat(Format value)
 {
-    return isValidEnum<Format, Format::BC7UnormSrgb>(value);
+    return isValidEnum<Format, static_cast<Format>(static_cast<int>(Format::_Count) - 1)>(value);
 }
 
 inline bool isValidIndexFormat(IndexFormat value)
