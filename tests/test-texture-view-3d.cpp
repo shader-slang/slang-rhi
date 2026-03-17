@@ -184,9 +184,7 @@ struct TestTextureViews
             // Texture size
             Extent3D size = {16 /*width*/, 16 /*height*/, 16 /*depth*/};
             // This subrange/textureView will give a 8x8x8 texture and verifies a fix for issue #220
-            // We use 3 for layer as this was previously used for FirstWSlice and we want
-            // to verify that selecting a subset of depth slices is not currently supported.
-            SubresourceRange range = {3 /*layer*/, 1 /*layerCount*/, 1 /*mip*/, 4 /*mipCount*/};
+            SubresourceRange range = {0 /*layer*/, 1 /*layerCount*/, 1 /*mip*/, 4 /*mipCount*/};
             testTextureViewUnorderedAccess(type, 5 /*mipCount*/, size, range, subData);
         }
     }
