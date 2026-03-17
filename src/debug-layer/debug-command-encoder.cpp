@@ -759,10 +759,14 @@ IRenderPassEncoder* DebugCommandEncoder::beginRenderPass(const RenderPassDesc& d
     if (hasErrors)
         return nullptr;
 
+    auto innerEncoder = baseObject->beginRenderPass(desc);
+    if (!innerEncoder)
+        return nullptr;
+
     m_passState = PassState::RenderPass;
     m_renderPassEncoder.m_pipelineBound = false;
     m_renderPassEncoder.m_indexBufferBound = false;
-    m_renderPassEncoder.baseObject = baseObject->beginRenderPass(desc);
+    m_renderPassEncoder.baseObject = innerEncoder;
 
     return &m_renderPassEncoder;
 }
@@ -773,9 +777,14 @@ IComputePassEncoder* DebugCommandEncoder::beginComputePass()
 
     requireOpen();
     requireNoPass();
+
+    auto innerEncoder = baseObject->beginComputePass();
+    if (!innerEncoder)
+        return nullptr;
+
     m_passState = PassState::ComputePass;
     m_computePassEncoder.m_pipelineBound = false;
-    m_computePassEncoder.baseObject = baseObject->beginComputePass();
+    m_computePassEncoder.baseObject = innerEncoder;
 
     return &m_computePassEncoder;
 }
@@ -786,9 +795,14 @@ IRayTracingPassEncoder* DebugCommandEncoder::beginRayTracingPass()
 
     requireOpen();
     requireNoPass();
+
+    auto innerEncoder = baseObject->beginRayTracingPass();
+    if (!innerEncoder)
+        return nullptr;
+
     m_passState = PassState::RayTracingPass;
     m_rayTracingPassEncoder.m_pipelineBound = false;
-    m_rayTracingPassEncoder.baseObject = baseObject->beginRayTracingPass();
+    m_rayTracingPassEncoder.baseObject = innerEncoder;
 
     return &m_rayTracingPassEncoder;
 }
