@@ -829,12 +829,12 @@ void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* sr
         RHI_VALIDATION_WARNING("size is 0.");
         return;
     }
-    if (srcOffset + size > src->getDesc().size)
+    if (!checkSizePlusOffsetInRange(srcOffset, size, src->getDesc().size))
     {
         RHI_VALIDATION_ERROR("Source range out of bounds.");
         return;
     }
-    if (dstOffset + size > dst->getDesc().size)
+    if (!checkSizePlusOffsetInRange(dstOffset, size, dst->getDesc().size))
     {
         RHI_VALIDATION_ERROR("Destination range out of bounds.");
         return;
@@ -885,7 +885,7 @@ Result DebugCommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size s
         RHI_VALIDATION_WARNING("size is 0.");
         return SLANG_OK;
     }
-    if (offset + size > dst->getDesc().size)
+    if (!checkSizePlusOffsetInRange(offset, size, dst->getDesc().size))
     {
         RHI_VALIDATION_ERROR("Destination range out of bounds.");
         return SLANG_E_INVALID_ARG;
@@ -1309,12 +1309,12 @@ void DebugCommandEncoder::resolveQuery(
         RHI_VALIDATION_WARNING("count is 0.");
         return;
     }
-    if (index + count > queryPool->getDesc().count)
+    if (!checkSizePlusOffsetInRange(index, count, queryPool->getDesc().count))
     {
         RHI_VALIDATION_ERROR("Query range out of bounds (index + count exceeds query pool size).");
         return;
     }
-    if (offset + count * sizeof(uint64_t) > buffer->getDesc().size)
+    if (!checkSizePlusOffsetInRange(offset, count * sizeof(uint64_t), buffer->getDesc().size))
     {
         RHI_VALIDATION_ERROR(
             "Destination range out of bounds (offset + count * sizeof(uint64_t) exceeds buffer size)."

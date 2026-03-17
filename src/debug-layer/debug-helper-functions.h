@@ -154,6 +154,22 @@ Result validateConvertCooperativeVectorMatrix(
 );
 
 // ----------------------------------------------------------------------------
+// Validation helpers
+// ----------------------------------------------------------------------------
+
+/// Check that offset and size are within the total size while avoiding overlow.
+/// Returns true if the offset and size are valid.
+template<typename T>
+bool checkSizePlusOffsetInRange(T offset, T size, T totalSize)
+{
+    if (offset > totalSize)
+        return false;
+    if (size > totalSize - offset)
+        return false;
+    return true;
+}
+
+// ----------------------------------------------------------------------------
 // Enum validation helpers
 // ----------------------------------------------------------------------------
 

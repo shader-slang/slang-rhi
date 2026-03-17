@@ -14,9 +14,10 @@ Result DebugQueryPool::getResult(uint32_t queryIndex, uint32_t count, uint64_t* 
 {
     SLANG_RHI_DEBUG_API(IQueryPool, getResult);
 
-    if (queryIndex + count > baseObject->getDesc().count)
+    if (!checkSizePlusOffsetInRange(queryIndex, count, baseObject->getDesc().count))
     {
-        RHI_VALIDATION_ERROR("'queryIndex' is out of bounds.");
+        RHI_VALIDATION_ERROR("'queryIndex' and 'count' must specify a valid range within the query pool.");
+        return SLANG_E_INVALID_ARG;
     }
 
     return baseObject->getResult(queryIndex, count, data);
