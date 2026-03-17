@@ -55,7 +55,7 @@ Result DebugShaderObject::setData(const ShaderOffset& offset, const void* data, 
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setData);
 
-    checkNotFinalized();
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
     return baseObject->setData(offset, data, size);
 }
@@ -64,7 +64,7 @@ Result DebugShaderObject::reserveData(const ShaderOffset& offset, Size size, voi
 {
     SLANG_RHI_DEBUG_API(IShaderObject, reserveData);
 
-    checkNotFinalized();
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
     return baseObject->reserveData(offset, size, outData);
 }
@@ -101,7 +101,7 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setObject);
 
-    checkNotFinalized();
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
     auto objectImpl = getDebugObj(object);
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
@@ -116,7 +116,7 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& 
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setBinding);
 
-    checkNotFinalized();
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
     // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
     // m_bindings[ShaderOffsetKey{offset}] = binding;
@@ -129,7 +129,7 @@ Result DebugShaderObject::setDescriptorHandle(const ShaderOffset& offset, const 
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setDescriptorHandle);
 
-    checkNotFinalized();
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
     return baseObject->setDescriptorHandle(offset, handle);
 }
@@ -142,7 +142,7 @@ Result DebugShaderObject::setSpecializationArgs(
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setSpecializationArgs);
 
-    checkNotFinalized();
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
     return baseObject->setSpecializationArgs(offset, args, count);
 }
@@ -165,7 +165,7 @@ Result DebugShaderObject::setConstantBufferOverride(IBuffer* constantBuffer)
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setConstantBufferOverride);
 
-    checkNotFinalized();
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
     return baseObject->setConstantBufferOverride(constantBuffer);
 }
@@ -210,12 +210,14 @@ void DebugShaderObject::checkCompleteness()
     // }
 }
 
-void DebugShaderObject::checkNotFinalized()
+Result DebugShaderObject::checkNotFinalized()
 {
     if (baseObject->isFinalized())
     {
         RHI_VALIDATION_ERROR("The shader object is finalized and must not be modified.");
+        return SLANG_E_INVALID_ARG;
     }
+    return SLANG_OK;
 }
 
 // ----------------------------------------------------------------------------
@@ -230,7 +232,7 @@ Result DebugRootShaderObject::setSpecializationArgs(
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setSpecializationArgs);
 
-    checkNotFinalized();
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
     return baseObject->setSpecializationArgs(offset, args, count);
 }

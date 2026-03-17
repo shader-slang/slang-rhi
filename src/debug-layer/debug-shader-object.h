@@ -76,7 +76,7 @@ public:
 
 public:
     void checkCompleteness();
-    void checkNotFinalized();
+    Result checkNotFinalized();
 
     // Type name of an ordinary shader object.
     std::string m_typeName;
