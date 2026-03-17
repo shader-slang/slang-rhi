@@ -153,4 +153,173 @@ Result validateConvertCooperativeVectorMatrix(
     uint32_t matrixCount
 );
 
+// ----------------------------------------------------------------------------
+// Enum validation helpers
+// ----------------------------------------------------------------------------
+
+/// Check that a sequential enum value is in [0, LastValue].
+template<typename E, E LastValue>
+inline bool isValidEnum(E value)
+{
+    return static_cast<int>(value) >= 0 && static_cast<int>(value) <= static_cast<int>(LastValue);
+}
+
+inline bool isValidFormat(Format value)
+{
+    return isValidEnum<Format, Format::BC7UnormSrgb>(value);
+}
+
+inline bool isValidIndexFormat(IndexFormat value)
+{
+    return isValidEnum<IndexFormat, IndexFormat::Uint32>(value);
+}
+
+inline bool isValidMemoryType(MemoryType value)
+{
+    return isValidEnum<MemoryType, MemoryType::ReadBack>(value);
+}
+
+inline bool isValidCpuAccessMode(CpuAccessMode value)
+{
+    return isValidEnum<CpuAccessMode, CpuAccessMode::Write>(value);
+}
+
+inline bool isValidTextureType(TextureType value)
+{
+    return isValidEnum<TextureType, TextureType::TextureCubeArray>(value);
+}
+
+inline bool isValidTextureAspect(TextureAspect value)
+{
+    return isValidEnum<TextureAspect, TextureAspect::StencilOnly>(value);
+}
+
+inline bool isValidResourceState(ResourceState value)
+{
+    return isValidEnum<ResourceState, ResourceState::AccelerationStructureBuildInput>(value);
+}
+
+inline bool isValidLoadOp(LoadOp value)
+{
+    return isValidEnum<LoadOp, LoadOp::DontCare>(value);
+}
+
+inline bool isValidStoreOp(StoreOp value)
+{
+    return isValidEnum<StoreOp, StoreOp::DontCare>(value);
+}
+
+inline bool isValidQueryType(QueryType value)
+{
+    return isValidEnum<QueryType, QueryType::AccelerationStructureCurrentSize>(value);
+}
+
+inline bool isValidAccelerationStructureCopyMode(AccelerationStructureCopyMode value)
+{
+    return isValidEnum<AccelerationStructureCopyMode, AccelerationStructureCopyMode::Compact>(value);
+}
+
+inline bool isValidComparisonFunc(ComparisonFunc value)
+{
+    return isValidEnum<ComparisonFunc, ComparisonFunc::Always>(value);
+}
+
+inline bool isValidTextureFilteringMode(TextureFilteringMode value)
+{
+    return isValidEnum<TextureFilteringMode, TextureFilteringMode::Linear>(value);
+}
+
+inline bool isValidTextureAddressingMode(TextureAddressingMode value)
+{
+    return isValidEnum<TextureAddressingMode, TextureAddressingMode::MirrorOnce>(value);
+}
+
+inline bool isValidTextureReductionOp(TextureReductionOp value)
+{
+    return isValidEnum<TextureReductionOp, TextureReductionOp::Maximum>(value);
+}
+
+inline bool isValidPrimitiveTopology(PrimitiveTopology value)
+{
+    return isValidEnum<PrimitiveTopology, PrimitiveTopology::PatchList>(value);
+}
+
+// ----------------------------------------------------------------------------
+// Flags validation helpers
+// ----------------------------------------------------------------------------
+
+/// Check that a bitmask enum value has no bits set outside allValidBits.
+template<typename E>
+inline bool isValidFlags(E value, E allValidBits)
+{
+    using U = std::underlying_type_t<E>;
+    return (static_cast<U>(value) & ~static_cast<U>(allValidBits)) == 0;
+}
+
+inline bool isValidBufferUsage(BufferUsage value)
+{
+    const BufferUsage allValidBits =
+        BufferUsage::VertexBuffer | BufferUsage::IndexBuffer | BufferUsage::ConstantBuffer |
+        BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::IndirectArgument |
+        BufferUsage::CopySource | BufferUsage::CopyDestination | BufferUsage::AccelerationStructure |
+        BufferUsage::AccelerationStructureBuildInput | BufferUsage::ShaderTable | BufferUsage::Shared;
+    return isValidFlags(value, allValidBits);
+}
+
+inline bool isValidTextureUsage(TextureUsage value)
+{
+    const TextureUsage allValidBits =
+        TextureUsage::ShaderResource | TextureUsage::UnorderedAccess | TextureUsage::RenderTarget |
+        TextureUsage::DepthStencil | TextureUsage::Present | TextureUsage::CopySource | TextureUsage::CopyDestination |
+        TextureUsage::ResolveSource | TextureUsage::ResolveDestination | TextureUsage::Typeless | TextureUsage::Shared;
+    return isValidFlags(value, allValidBits);
+}
+
+inline bool isValidHeapUsage(HeapUsage value)
+{
+    const HeapUsage allValidBits = HeapUsage::Shared;
+    return isValidFlags(value, allValidBits);
+}
+
+inline bool isValidAccelerationStructureBuildFlags(AccelerationStructureBuildFlags value)
+{
+    const AccelerationStructureBuildFlags allValidBits =
+        AccelerationStructureBuildFlags::AllowUpdate | AccelerationStructureBuildFlags::AllowCompaction |
+        AccelerationStructureBuildFlags::PreferFastTrace | AccelerationStructureBuildFlags::PreferFastBuild |
+        AccelerationStructureBuildFlags::MinimizeMemory | AccelerationStructureBuildFlags::CreateMotion;
+    return isValidFlags(value, allValidBits);
+}
+
+// ----------------------------------------------------------------------------
+// Subresource range validation
+// ----------------------------------------------------------------------------
+
+/// Validate a SubresourceRange against a TextureDesc.
+/// Returns true if the range is valid. Resolves sentinel values (kAllMips, kAllLayers)
+/// and checks that the range is within the texture bounds.
+inline bool validateSubresourceRange(const SubresourceRange& range, const TextureDesc& desc)
+{
+    uint32_t totalMips = desc.mipCount;
+    uint32_t totalLayers = desc.getLayerCount();
+
+    // Resolve sentinel values.
+    uint32_t mipCount = (range.mipCount == kAllMips) ? (totalMips - min(range.mip, totalMips)) : range.mipCount;
+    uint32_t layerCount =
+        (range.layerCount == kAllLayers) ? (totalLayers - min(range.layer, totalLayers)) : range.layerCount;
+
+    // Check mip bounds.
+    if (range.mip >= totalMips)
+        return false;
+    if (mipCount == 0 || range.mip + mipCount > totalMips)
+        return false;
+
+    // Check layer bounds.
+    if (range.layer >= totalLayers)
+        return false;
+    if (layerCount == 0 || range.layer + layerCount > totalLayers)
+        return false;
+
+    return true;
+}
+
 } // namespace rhi::debug
