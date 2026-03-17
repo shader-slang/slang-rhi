@@ -3,47 +3,22 @@
 
 namespace rhi::debug {
 
-ShaderObjectContainerType DebugShaderObject::getContainerType()
-{
-    SLANG_RHI_DEBUG_API(IShaderObject, getContainerType);
-
-    return baseObject->getContainerType();
-}
-
-void DebugShaderObject::checkCompleteness()
-{
-    // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
-    // auto layout = baseObject->getElementTypeLayout();
-    // for (SlangInt i = 0; i < layout->getBindingRangeCount(); i++)
-    // {
-    //     if (layout->getBindingRangeBindingCount(i) != 0)
-    //     {
-    //         if (!m_initializedBindingRanges.count(i))
-    //         {
-    //             auto var = layout->getBindingRangeLeafVariable(i);
-    //             RHI_VALIDATION_ERROR_FORMAT(
-    //                 "shader parameter '%s' is not initialized in the shader object of type '%s'.",
-    //                 var->getName(),
-    //                 m_slangType->getName()
-    //             );
-    //         }
-    //     }
-    // }
-}
-
-void DebugShaderObject::checkNotFinalized()
-{
-    if (baseObject->isFinalized())
-    {
-        RHI_VALIDATION_ERROR("The shader object is finalized and must not be modified.");
-    }
-}
+// ----------------------------------------------------------------------------
+// DebugShaderObject
+// ----------------------------------------------------------------------------
 
 slang::TypeLayoutReflection* DebugShaderObject::getElementTypeLayout()
 {
     SLANG_RHI_DEBUG_API(IShaderObject, getElementTypeLayout);
 
     return baseObject->getElementTypeLayout();
+}
+
+ShaderObjectContainerType DebugShaderObject::getContainerType()
+{
+    SLANG_RHI_DEBUG_API(IShaderObject, getContainerType);
+
+    return baseObject->getContainerType();
 }
 
 uint32_t DebugShaderObject::getEntryPointCount()
@@ -66,9 +41,9 @@ Result DebugShaderObject::getEntryPoint(uint32_t index, IShaderObject** entryPoi
             m_entryPoints.push_back(entryPointObj);
         }
     }
-    if (index > m_entryPoints.size())
+    if (index >= m_entryPoints.size())
     {
-        RHI_VALIDATION_ERROR("`index` must not exceed `entryPointCount`.");
+        RHI_VALIDATION_ERROR("'index' must not exceed 'entryPointCount'.");
         return SLANG_FAIL;
     }
 
@@ -213,6 +188,39 @@ bool DebugShaderObject::isFinalized()
 
     return baseObject->isFinalized();
 }
+
+void DebugShaderObject::checkCompleteness()
+{
+    // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
+    // auto layout = baseObject->getElementTypeLayout();
+    // for (SlangInt i = 0; i < layout->getBindingRangeCount(); i++)
+    // {
+    //     if (layout->getBindingRangeBindingCount(i) != 0)
+    //     {
+    //         if (!m_initializedBindingRanges.count(i))
+    //         {
+    //             auto var = layout->getBindingRangeLeafVariable(i);
+    //             RHI_VALIDATION_ERROR_FORMAT(
+    //                 "shader parameter '%s' is not initialized in the shader object of type '%s'.",
+    //                 var->getName(),
+    //                 m_slangType->getName()
+    //             );
+    //         }
+    //     }
+    // }
+}
+
+void DebugShaderObject::checkNotFinalized()
+{
+    if (baseObject->isFinalized())
+    {
+        RHI_VALIDATION_ERROR("The shader object is finalized and must not be modified.");
+    }
+}
+
+// ----------------------------------------------------------------------------
+// DebugRootShaderObject
+// ----------------------------------------------------------------------------
 
 Result DebugRootShaderObject::setSpecializationArgs(
     const ShaderOffset& offset,
