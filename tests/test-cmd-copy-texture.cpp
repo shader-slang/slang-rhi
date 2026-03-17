@@ -696,13 +696,13 @@ GPU_TEST_CASE("cmd-copy-texture-acrossmips", D3D11 | D3D12 | Vulkan | WGPU | CUD
     );
 }
 
-GPU_TEST_CASE("cmd-copy-texture-compressed-npot-mips", WGPU)
+GPU_TEST_CASE("cmd-copy-texture-compressed-npot-mips", Metal | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(
         TextureType::Texture2D,
         std::vector<Format>{Format::ASTC6x6Unorm, Format::ASTC8x8Unorm},
-        TTArray::Off,
+        TTArray::Both,
         TTMip::On,
         TextureInitMode::Random,
         TTFmtDepth::Off,
@@ -727,19 +727,24 @@ GPU_TEST_CASE("cmd-copy-texture-compressed-npot-mips", WGPU)
             auto queue = device->getQueue(QueueType::Graphics);
             auto commandEncoder = queue->createCommandEncoder();
 
-            commandEncoder->copyTexture(
-                dstTexture,
-                {0, 1, 1, 1},
-                {0, 0, 0},
-                srcTexture,
-                {0, 1, 1, 1},
-                {0, 0, 0},
-                Extent3D::kWholeTexture
-            );
+            for (uint32_t layer = 0; layer < srcData.desc.getLayerCount(); layer++)
+            {
+                for (uint32_t mip = 0; mip < srcData.desc.mipCount; mip++)
+                {
+                    commandEncoder->copyTexture(
+                        dstTexture,
+                        {layer, 1, mip, 1},
+                        {0, 0, 0},
+                        srcTexture,
+                        {layer, 1, mip, 1},
+                        {0, 0, 0},
+                        Extent3D::kWholeTexture
+                    );
+                }
+            }
             queue->submit(commandEncoder->finish());
 
-            srcData.checkMipLevelsEqual(dstTexture, 0, 1);
-            dstData.checkMipLevelsEqual(dstTexture, 0, 0);
+            srcData.checkEqual(dstTexture);
         }
     );
 }

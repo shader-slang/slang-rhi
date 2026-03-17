@@ -161,8 +161,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
     TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
 
-    const SubresourceRange& srcSubresource = cmd.srcSubresource;
-    const SubresourceRange& dstSubresource = cmd.dstSubresource;
+    SubresourceRange srcSubresource = cmd.srcSubresource;
+    SubresourceRange dstSubresource = cmd.dstSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Offset3D& dstOffset = cmd.dstOffset;
     const Extent3D& extent = cmd.extent;
@@ -176,19 +176,54 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     }
     else
     {
+        // Fix up sub resource ranges.
+        if (dstSubresource.layerCount == 0)
+            dstSubresource.layerCount = dst->m_desc.getLayerCount();
+        if (dstSubresource.mipCount == 0)
+            dstSubresource.mipCount = dst->m_desc.mipCount;
+        if (srcSubresource.layerCount == 0)
+            srcSubresource.layerCount = src->m_desc.getLayerCount();
+        if (srcSubresource.mipCount == 0)
+            srcSubresource.mipCount = src->m_desc.mipCount;
+
+        Extent3D srcTextureSize = src->m_desc.size;
         for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
         {
-            encoder->copyFromTexture(
-                src->m_texture.get(),
-                srcSubresource.layer + layer,
-                srcSubresource.mip,
-                MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
-                MTL::Size(extent.width, extent.height, extent.depth),
-                dst->m_texture.get(),
-                dstSubresource.layer + layer,
-                dstSubresource.mip,
-                MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
-            );
+            for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipCount; mipOffset++)
+            {
+                uint32_t srcMip = srcSubresource.mip + mipOffset;
+                uint32_t dstMip = dstSubresource.mip + mipOffset;
+
+                Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMip);
+                Extent3D adjustedExtent = extent;
+                if (adjustedExtent.width == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
+                    adjustedExtent.width = srcMipSize.width - srcOffset.x;
+                }
+                if (adjustedExtent.height == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
+                    adjustedExtent.height = srcMipSize.height - srcOffset.y;
+                }
+                if (adjustedExtent.depth == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
+                    adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+                }
+
+                encoder->copyFromTexture(
+                    src->m_texture.get(),
+                    srcSubresource.layer + layer,
+                    srcMip,
+                    MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
+                    MTL::Size(adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth),
+                    dst->m_texture.get(),
+                    dstSubresource.layer + layer,
+                    dstMip,
+                    MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
+                );
+            }
         }
     }
 }

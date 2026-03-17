@@ -44,13 +44,13 @@ GPU_TEST_CASE("cmd-upload-texture-simple", D3D12 | Vulkan | Metal | CUDA | WGPU)
     );
 }
 
-GPU_TEST_CASE("cmd-upload-texture-compressed-npot-mips", WGPU)
+GPU_TEST_CASE("cmd-upload-texture-compressed-npot-mips", Metal | Vulkan | WGPU)
 {
     TextureTestOptions options(device);
     options.addVariants(
         TextureType::Texture2D,
         std::vector<Format>{Format::ASTC6x6Unorm, Format::ASTC8x8Unorm},
-        TTArray::Off,
+        TTArray::Both,
         TTMip::On,
         TextureInitMode::None,
         TTFmtDepth::Off,
