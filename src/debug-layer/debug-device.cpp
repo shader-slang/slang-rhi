@@ -90,6 +90,9 @@ Result DebugDevice::getFormatSupport(Format format, FormatSupport* outFormatSupp
 DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
     : DebugObject(&m_ctx)
 {
+    // Devices are created through IRHI::createDevice.
+    SLANG_RHI_DEBUG_API(IRHI, createDevice);
+
     ctx->deviceType = deviceType;
     ctx->debugCallback = debugCallback;
     RHI_VALIDATION_INFO("Debug layer is enabled.");
@@ -450,17 +453,27 @@ Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outDat
         break;
     }
 
-    if (m_mappedBuffers.count(buffer))
+#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
     {
-        RHI_VALIDATION_ERROR("Buffer is already mapped.");
-        return SLANG_E_INVALID_ARG;
+        std::lock_guard<std::mutex> lock(m_mappedBuffersMutex);
+        if (m_mappedBuffers.count(buffer))
+        {
+            RHI_VALIDATION_ERROR("Buffer is already mapped.");
+            return SLANG_E_INVALID_ARG;
+        }
     }
+#endif
 
     Result result = baseObject->mapBuffer(buffer, mode, outData);
+
+#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
     if (SLANG_SUCCEEDED(result))
     {
+        std::lock_guard<std::mutex> lock(m_mappedBuffersMutex);
         m_mappedBuffers.insert(buffer);
     }
+#endif
+
     return result;
 }
 
@@ -473,14 +486,28 @@ Result DebugDevice::unmapBuffer(IBuffer* buffer)
         RHI_VALIDATION_ERROR("'buffer' must not be null.");
         return SLANG_E_INVALID_ARG;
     }
-    if (!m_mappedBuffers.count(buffer))
+
+#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
     {
-        RHI_VALIDATION_ERROR("Buffer is not mapped.");
-        return SLANG_E_INVALID_ARG;
+        std::lock_guard<std::mutex> lock(m_mappedBuffersMutex);
+        if (!m_mappedBuffers.count(buffer))
+        {
+            RHI_VALIDATION_ERROR("Buffer is not mapped.");
+            return SLANG_E_INVALID_ARG;
+        }
     }
+#endif
 
     Result result = baseObject->unmapBuffer(buffer);
-    m_mappedBuffers.erase(buffer);
+
+#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
+    if (SLANG_SUCCEEDED(result))
+    {
+        std::lock_guard<std::mutex> lock(m_mappedBuffersMutex);
+        m_mappedBuffers.erase(buffer);
+    }
+#endif
+
     return result;
 }
 
