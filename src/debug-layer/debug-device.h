@@ -2,6 +2,8 @@
 
 #include "debug-base.h"
 
+#include <unordered_set>
+
 namespace rhi::debug {
 
 class DebugDevice : public DebugObject<IDevice>
@@ -10,10 +12,12 @@ public:
     Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) noexcept override;
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF;
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
+    IDevice* getInterface(const Guid& guid);
+
+    DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback);
 
 public:
-    DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback);
-    IDevice* getInterface(const Guid& guid);
+    // IDevice implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;
@@ -194,9 +198,13 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() override;
 
+public:
     /// Validate that the correct CUDA context is current (CUDA devices only).
     /// Emits a warning if the wrong context or no context is active.
     void validateCudaContext();
+
+    /// Set of currently mapped buffers for double-map/double-unmap detection.
+    std::unordered_set<IBuffer*> m_mappedBuffers;
 
 private:
     DebugContext m_ctx;
