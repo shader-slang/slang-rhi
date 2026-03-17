@@ -13,12 +13,10 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
-public:
-    DebugCommandEncoder* m_commandEncoder;
-    RefPtr<DebugRootShaderObject> m_rootObject;
-
     DebugRenderPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
 
+public:
+    // IRenderPassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IRenderPipeline* pipeline) override;
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IRenderPipeline* pipeline, IShaderObject* rootObject) override;
 
@@ -44,6 +42,12 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
+
+public:
+    DebugCommandEncoder* m_commandEncoder;
+    RefPtr<DebugRootShaderObject> m_rootObject;
+    bool m_pipelineBound = false;
+    bool m_indexBufferBound = false;
 };
 
 class DebugComputePassEncoder : public UnownedDebugObject<IComputePassEncoder>
@@ -54,12 +58,10 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
-public:
-    DebugCommandEncoder* m_commandEncoder;
-    RefPtr<DebugRootShaderObject> m_rootObject;
-
     DebugComputePassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
 
+public:
+    // IComputePassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) override;
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
         IComputePipeline* pipeline,
@@ -76,6 +78,11 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
+
+public:
+    DebugCommandEncoder* m_commandEncoder;
+    RefPtr<DebugRootShaderObject> m_rootObject;
+    bool m_pipelineBound = false;
 };
 
 class DebugRayTracingPassEncoder : public UnownedDebugObject<IRayTracingPassEncoder>
@@ -86,12 +93,10 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
 
-public:
-    DebugCommandEncoder* m_commandEncoder;
-    RefPtr<DebugRootShaderObject> m_rootObject;
-
     DebugRayTracingPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
 
+public:
+    // IRayTracingPassEncoder implementation
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(
         IRayTracingPipeline* pipeline,
         IShaderTable* shaderTable
@@ -116,6 +121,11 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
+
+public:
+    DebugCommandEncoder* m_commandEncoder;
+    RefPtr<DebugRootShaderObject> m_rootObject;
+    bool m_pipelineBound = false;
 };
 
 class DebugCommandEncoder : public DebugObject<ICommandEncoder>
@@ -124,9 +134,10 @@ public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
     ICommandEncoder* getInterface(const Guid& guid);
 
-public:
     DebugCommandEncoder(DebugContext* ctx);
 
+public:
+    // ICommandEncoder implementation
     virtual SLANG_NO_THROW const CommandEncoderDesc& SLANG_MCALL getDesc() override;
 
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) override;
