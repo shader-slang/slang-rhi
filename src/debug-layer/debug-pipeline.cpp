@@ -3,6 +3,10 @@
 
 namespace rhi::debug {
 
+// ----------------------------------------------------------------------------
+// DebugRenderPipeline
+// ----------------------------------------------------------------------------
+
 Result DebugRenderPipeline::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_DEBUG_API(IRenderPipeline, getNativeHandle);
@@ -10,12 +14,20 @@ Result DebugRenderPipeline::getNativeHandle(NativeHandle* outHandle)
     return baseObject->getNativeHandle(outHandle);
 }
 
+// ----------------------------------------------------------------------------
+// DebugComputePipeline
+// ----------------------------------------------------------------------------
+
 Result DebugComputePipeline::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_DEBUG_API(IComputePipeline, getNativeHandle);
 
     return baseObject->getNativeHandle(outHandle);
 }
+
+// ----------------------------------------------------------------------------
+// DebugRayTracingPipeline
+// ----------------------------------------------------------------------------
 
 Result DebugRayTracingPipeline::getNativeHandle(NativeHandle* outHandle)
 {
