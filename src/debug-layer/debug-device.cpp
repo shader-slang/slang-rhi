@@ -1005,12 +1005,12 @@ Result DebugDevice::readTexture(
 
     const TextureDesc& desc = texture->getDesc();
 
-    if (layer > desc.getLayerCount())
+    if (layer >= desc.getLayerCount())
     {
         RHI_VALIDATION_ERROR("Layer out of bounds.");
         return SLANG_E_INVALID_ARG;
     }
-    if (mip > desc.mipCount)
+    if (mip >= desc.mipCount)
     {
         RHI_VALIDATION_ERROR("Mip out of bounds.");
         return SLANG_E_INVALID_ARG;
@@ -1055,12 +1055,12 @@ Result DebugDevice::readTexture(
 
     const TextureDesc& desc = texture->getDesc();
 
-    if (layer > desc.getLayerCount())
+    if (layer >= desc.getLayerCount())
     {
         RHI_VALIDATION_ERROR("Layer out of bounds.");
         return SLANG_E_INVALID_ARG;
     }
-    if (mip > desc.mipCount)
+    if (mip >= desc.mipCount)
     {
         RHI_VALIDATION_ERROR("Mip out of bounds.");
         return SLANG_E_INVALID_ARG;

@@ -901,24 +901,24 @@ void DebugCommandEncoder::copyTexture(
     requireNoPass();
 
     const TextureDesc& srcDesc = src->getDesc();
-    if (srcSubresource.layer > srcDesc.getLayerCount())
+    if (srcSubresource.layer >= srcDesc.getLayerCount())
     {
         RHI_VALIDATION_ERROR("Source layer is out of bounds.");
         return;
     }
-    if (srcSubresource.mip > srcDesc.mipCount)
+    if (srcSubresource.mip >= srcDesc.mipCount)
     {
         RHI_VALIDATION_ERROR("Source mip is out of bounds.");
         return;
     }
 
     const TextureDesc& dstDesc = dst->getDesc();
-    if (dstSubresource.layer > dstDesc.getLayerCount())
+    if (dstSubresource.layer >= dstDesc.getLayerCount())
     {
         RHI_VALIDATION_ERROR("Destination layer is out of bounds.");
         return;
     }
-    if (dstSubresource.mip > dstDesc.mipCount)
+    if (dstSubresource.mip >= dstDesc.mipCount)
     {
         RHI_VALIDATION_ERROR("Destination mip is out of bounds.");
         return;
