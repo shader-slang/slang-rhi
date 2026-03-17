@@ -185,6 +185,12 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
         return SLANG_E_INVALID_ARG;
     }
 
+    if (!buildDesc.inputs)
+    {
+        RHI_VALIDATION_ERROR("AccelerationStructureBuildDesc::inputs must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     AccelerationStructureBuildInputType type = buildDesc.inputs[0].type;
     for (uint32_t i = 1; i < buildDesc.inputCount; ++i)
     {

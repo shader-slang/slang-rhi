@@ -914,6 +914,17 @@ void DebugCommandEncoder::copyTexture(
     requireOpen();
     requireNoPass();
 
+    if (!src)
+    {
+        RHI_VALIDATION_ERROR("'src' must not be null.");
+        return;
+    }
+    if (!dst)
+    {
+        RHI_VALIDATION_ERROR("'dst' must not be null.");
+        return;
+    }
+
     const TextureDesc& srcDesc = src->getDesc();
     if (srcSubresource.layer >= srcDesc.getLayerCount())
     {
@@ -1342,6 +1353,17 @@ void DebugCommandEncoder::copyTextureToBuffer(
     requireOpen();
     requireNoPass();
 
+    if (!src)
+    {
+        RHI_VALIDATION_ERROR("'src' must not be null.");
+        return;
+    }
+    if (!dst)
+    {
+        RHI_VALIDATION_ERROR("'dst' must not be null.");
+        return;
+    }
+
     const TextureDesc& desc = src->getDesc();
 
     if (srcLayer >= desc.getLayerCount())
@@ -1374,6 +1396,17 @@ void DebugCommandEncoder::copyBufferToTexture(
 
     requireOpen();
     requireNoPass();
+
+    if (!dst)
+    {
+        RHI_VALIDATION_ERROR("'dst' must not be null.");
+        return;
+    }
+    if (!src)
+    {
+        RHI_VALIDATION_ERROR("'src' must not be null.");
+        return;
+    }
 
     const TextureDesc& desc = dst->getDesc();
 
