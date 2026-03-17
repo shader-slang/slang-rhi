@@ -37,6 +37,35 @@ TEST_CASE("arena-allocator")
         }
     }
 
+    SUBCASE("first-allocation-larger-than-page")
+    {
+        // The first page is allocated with exactly m_pageSize bytes (including the Page header).
+        // If the first allocation requires more usable space than m_pageSize - sizeof(Page header),
+        // it will write past the end of the page.
+        // Use a small page size so the allocation exceeds it.
+        ArenaAllocator allocator(64);
+
+        // Allocate more than the page size. This should still succeed and not corrupt memory.
+        size_t largeSize = 256;
+        void* a = allocator.allocate(largeSize, 16);
+        CHECK(a != nullptr);
+        CHECK(((uintptr_t)a % 16) == 0);
+
+        // Write to the entire allocation to detect out-of-bounds issues (e.g. with ASan).
+        std::memset(a, 0xAB, largeSize);
+
+        // A subsequent small allocation should not overlap.
+        void* b = allocator.allocate(32, 16);
+        CHECK(b != nullptr);
+        CHECK(((uintptr_t)b % 16) == 0);
+
+        uintptr_t aBegin = (uintptr_t)a;
+        uintptr_t aEnd = aBegin + largeSize;
+        uintptr_t bBegin = (uintptr_t)b;
+        uintptr_t bEnd = bBegin + 32;
+        CHECK_UNARY((bBegin >= aEnd) || (bEnd <= aBegin));
+    }
+
     SUBCASE("reset")
     {
         ArenaAllocator allocator(1024);
@@ -57,5 +86,40 @@ TEST_CASE("arena-allocator")
             void* a = allocator.allocate(100);
             CHECK(a == allocations[i]);
         }
+    }
+
+    SUBCASE("reset-with-larger-allocation")
+    {
+        // After reset, reused pages may be too small for a larger allocation.
+        // The allocator must detect this and allocate a new page.
+        ArenaAllocator allocator(128);
+
+        // First pass: small allocations that fit in small pages.
+        for (size_t i = 0; i < 10; i++)
+        {
+            void* a = allocator.allocate(16, 16);
+            CHECK(a != nullptr);
+            std::memset(a, 0xAB, 16);
+        }
+
+        allocator.reset();
+
+        // Second pass: request a large allocation that exceeds the reused page size.
+        size_t largeSize = 512;
+        void* a = allocator.allocate(largeSize, 16);
+        CHECK(a != nullptr);
+        CHECK(((uintptr_t)a % 16) == 0);
+        std::memset(a, 0xCD, largeSize);
+
+        // A subsequent allocation should not overlap.
+        void* b = allocator.allocate(32, 16);
+        CHECK(b != nullptr);
+        CHECK(((uintptr_t)b % 16) == 0);
+
+        uintptr_t aBegin = (uintptr_t)a;
+        uintptr_t aEnd = aBegin + largeSize;
+        uintptr_t bBegin = (uintptr_t)b;
+        uintptr_t bEnd = bBegin + 32;
+        CHECK_UNARY((bBegin >= aEnd) || (bEnd <= aBegin));
     }
 }

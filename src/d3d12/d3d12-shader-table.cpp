@@ -3,8 +3,6 @@
 #include "d3d12-buffer.h"
 #include "d3d12-pipeline.h"
 
-#include "core/string.h"
-
 namespace rhi::d3d12 {
 
 ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
@@ -55,15 +53,12 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     uint32_t tableSize = callableTableOffset + callableTableSize;
 
-    ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
-    pipeline->m_stateObject->QueryInterface(stateObjectProperties.writeRef());
-
     auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
     {
-        if (!name.empty())
+        auto it = pipeline->m_shaderIdentifierByName.find(name);
+        if (it != pipeline->m_shaderIdentifierByName.end())
         {
-            void* shaderId = stateObjectProperties->GetShaderIdentifier(string::to_wstring(name).data());
-            memcpy(dest, shaderId, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+            memcpy(dest, it->second, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
         }
         if (overwrite && overwrite->size > 0)
         {
@@ -111,17 +106,6 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         );
     }
 
-    RefPtr<PipelineData> pipelineData = new PipelineData();
-
-    pipelineData->rayGenTableOffset = rayGenTableOffset;
-    pipelineData->missTableOffset = missTableOffset;
-    pipelineData->hitGroupTableOffset = hitGroupTableOffset;
-    pipelineData->callableTableOffset = callableTableOffset;
-    pipelineData->rayGenRecordStride = raygenRecordSize;
-    pipelineData->missRecordStride = missRecordSize;
-    pipelineData->hitGroupRecordStride = hitGroupRecordSize;
-    pipelineData->callableRecordStride = callableRecordSize;
-
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.memoryType = MemoryType::DeviceLocal;
@@ -133,7 +117,19 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         SLANG_RHI_ASSERT_FAILURE("Failed to create shader table buffer");
         return nullptr;
     }
+
+    RefPtr<PipelineData> pipelineData = new PipelineData();
+
     pipelineData->buffer = checked_cast<BufferImpl*>(buffer.get());
+
+    pipelineData->rayGenTableOffset = rayGenTableOffset;
+    pipelineData->missTableOffset = missTableOffset;
+    pipelineData->hitGroupTableOffset = hitGroupTableOffset;
+    pipelineData->callableTableOffset = callableTableOffset;
+    pipelineData->rayGenRecordStride = raygenRecordSize;
+    pipelineData->missRecordStride = missRecordSize;
+    pipelineData->hitGroupRecordStride = hitGroupRecordSize;
+    pipelineData->callableRecordStride = callableRecordSize;
 
     m_pipelineData.emplace(pipeline, pipelineData);
     return pipelineData.get();

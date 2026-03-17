@@ -39,8 +39,7 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
-    outHandle->type = DescriptorHandleType::AccelerationStructure;
-    outHandle->value = (uint64_t)m_handle;
+    *outHandle = DescriptorHandle{DescriptorHandleType::AccelerationStructure, (uint64_t)m_handle};
     return SLANG_OK;
 }
 

@@ -321,6 +321,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         addFeature(Feature::Half);
     }
+    if (api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Subgroups))
+    {
+        addFeature(Feature::WaveOps);
+    }
 
     addCapability(Capability::wgsl);
 
