@@ -461,20 +461,19 @@ Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outDat
             RHI_VALIDATION_ERROR("Buffer is already mapped.");
             return SLANG_E_INVALID_ARG;
         }
+
+        Result result = baseObject->mapBuffer(buffer, mode, outData);
+
+        if (SLANG_SUCCEEDED(result))
+        {
+            m_mappedBuffers.insert(buffer);
+        }
+
+        return result;
     }
+#else
+    return baseObject->mapBuffer(buffer, mode, outData);
 #endif
-
-    Result result = baseObject->mapBuffer(buffer, mode, outData);
-
-#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
-    if (SLANG_SUCCEEDED(result))
-    {
-        std::lock_guard<std::mutex> lock(m_mappedBuffersMutex);
-        m_mappedBuffers.insert(buffer);
-    }
-#endif
-
-    return result;
 }
 
 Result DebugDevice::unmapBuffer(IBuffer* buffer)
@@ -495,20 +494,19 @@ Result DebugDevice::unmapBuffer(IBuffer* buffer)
             RHI_VALIDATION_ERROR("Buffer is not mapped.");
             return SLANG_E_INVALID_ARG;
         }
+
+        Result result = baseObject->unmapBuffer(buffer);
+
+        if (SLANG_SUCCEEDED(result))
+        {
+            m_mappedBuffers.erase(buffer);
+        }
+
+        return result;
     }
+#else
+    return baseObject->unmapBuffer(buffer);
 #endif
-
-    Result result = baseObject->unmapBuffer(buffer);
-
-#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
-    if (SLANG_SUCCEEDED(result))
-    {
-        std::lock_guard<std::mutex> lock(m_mappedBuffersMutex);
-        m_mappedBuffers.erase(buffer);
-    }
-#endif
-
-    return result;
 }
 
 Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler)
@@ -586,6 +584,8 @@ Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler
         RHI_VALIDATION_ERROR("maxAnisotropy exceeds maximum supported value of 16.");
         return SLANG_E_INVALID_ARG;
     }
+    // Anisotropic filtering replaces both min and mag filters, so both must be linear.
+    // This is required by D3D12 and Vulkan specs.
     if (desc.maxAnisotropy > 1 &&
         (desc.minFilter == TextureFilteringMode::Point || desc.magFilter == TextureFilteringMode::Point))
     {

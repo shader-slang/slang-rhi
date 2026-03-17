@@ -6,7 +6,9 @@
 
 /// Enabling this will add validation to track mapped buffers and warn on double maps/unmaps.
 /// This is disabled by default as it adds overhead to map/unmap calls and requires storing a pointer in a set.
+#ifndef SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
 #define SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION 0
+#endif
 
 namespace rhi::debug {
 
