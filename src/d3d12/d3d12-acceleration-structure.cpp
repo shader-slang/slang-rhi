@@ -49,6 +49,12 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
+    if (m_descriptorHandle)
+    {
+        *outHandle = m_descriptorHandle;
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (!device->m_bindlessDescriptorSet)

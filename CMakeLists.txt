@@ -143,7 +143,7 @@ set(SLANG_RHI_FETCH_SLANG_VERSION "2026.4.1" CACHE STRING "Slang version to fetc
 
 # DirectXShaderCompiler
 if(NOT DEFINED SLANG_RHI_DXC_URL)
-    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
+    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2602/dxc_2026_02_20.zip")
 endif()
 
 # WinPixEventRuntime
@@ -153,7 +153,7 @@ endif()
 
 # Agility SDK
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_URL)
-    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.616.1")
+    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.619.1")
 endif()
 # If using a preview version of Agility SDK, set this to D3D12_PREVIEW_SDK_VERSION
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)

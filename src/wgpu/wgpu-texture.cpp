@@ -40,6 +40,7 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }

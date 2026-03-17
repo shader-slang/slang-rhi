@@ -47,21 +47,23 @@ public:
 
     virtual void deleteThis() override;
 
-    VKBufferHandleRAII m_buffer;
-    VKBufferHandleRAII m_uploadBuffer;
-
-    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-
+    // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
+    // IBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-
+    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
         Format format,
         BufferRange range,
         DescriptorHandle* outHandle
     ) override;
+
+public:
+    VKBufferHandleRAII m_buffer;
+    VKBufferHandleRAII m_uploadBuffer;
+    DeviceAddress m_deviceAddress = 0;
 
     struct ViewKey
     {
@@ -82,7 +84,6 @@ public:
         }
     };
 
-    std::mutex m_mutex;
     std::unordered_map<ViewKey, VkBufferView, ViewKeyHasher> m_views;
 
     VkBufferView getView(Format format, const BufferRange& range);
