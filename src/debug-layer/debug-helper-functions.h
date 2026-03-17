@@ -58,7 +58,7 @@ void _rhiDiagnoseImpl(DebugContext* ctx, DebugMessageType type, const char* form
     char shortBuffer[256];
     std::vector<char> bufferArray;
     auto buffer = _rhiDiagnoseFormat(shortBuffer, sizeof(shortBuffer), bufferArray, format, args...);
-    ctx->debugCallback->handleMessage(type, DebugMessageSource::Layer, buffer);
+    ctx->debugCallback->handleMessage(DebugMessage{type, DebugMessageSource::Layer, buffer});
 }
 
 #define RHI_VALIDATION_ERROR(message) _rhiDiagnoseImpl(ctx, DebugMessageType::Error, "%s: %s", getAPIName(), message)

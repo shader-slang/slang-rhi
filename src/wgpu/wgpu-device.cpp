@@ -130,19 +130,19 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 void DeviceImpl::reportError(const char* func, WGPUStringView message)
 {
     std::string msg = "WGPU error in " + std::string(func) + ": " + std::string(message.data, message.length);
-    m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
+    m_debugCallback->handleMessage(DebugMessage{DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str()});
 }
 
 void DeviceImpl::reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message)
 {
     std::string msg = "WGPU device lost: " + std::string(message.data, message.length);
-    m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
+    m_debugCallback->handleMessage(DebugMessage{DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str()});
 }
 
 void DeviceImpl::reportUncapturedError(WGPUErrorType type, WGPUStringView message)
 {
     std::string msg = "WGPU uncaptured error: " + std::string(message.data, message.length);
-    m_debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str());
+    m_debugCallback->handleMessage(DebugMessage{DebugMessageType::Error, DebugMessageSource::Driver, msg.c_str()});
     this->m_lastUncapturedError = type;
 }
 

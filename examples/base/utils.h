@@ -55,13 +55,9 @@ namespace rhi {
 class DebugPrinter : public IDebugCallback
 {
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
-        DebugMessageType type,
-        DebugMessageSource source,
-        const char* message
-    ) override
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(const DebugMessage& msg) override
     {
-        printf("[%s] (%s) %s\n", enumToString(type), enumToString(source), message);
+        printf("[%s] (%s) %s\n", enumToString(msg.type), enumToString(msg.source), msg.message);
         fflush(stdout);
     }
 

@@ -118,15 +118,11 @@ public:
 
     void clear() { output.clear(); }
 
-    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
-        DebugMessageType type,
-        DebugMessageSource source,
-        const char* message
-    ) override
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(const DebugMessage& msg) override
     {
-        output += "[" + std::string(rhi::enumToString(type)) + "] ";
-        output += "[" + std::string(rhi::enumToString(source)) + "] ";
-        output += message;
+        output += "[" + std::string(rhi::enumToString(msg.type)) + "] ";
+        output += "[" + std::string(rhi::enumToString(msg.source)) + "] ";
+        output += msg.message;
         output += "\n";
     }
 };
@@ -136,61 +132,57 @@ static CaptureDebugCallback sCaptureDebugCallback;
 class DebugCallback : public IDebugCallback
 {
 public:
-    bool shouldIgnoreMessage(DebugMessageType type, DebugMessageSource source, const char* message)
+    bool shouldIgnoreMessage(const DebugMessage& msg)
     {
-        if (type != DebugMessageType::Error)
+        if (msg.type != DebugMessageType::Error)
             return false;
 
         // These 2 messages pop up as the vulkan validation layer doesn't pick up on CoopVec yet
-        if (strstr(message, "VK_NV_cooperative_vector is not supported by this layer"))
+        if (strstr(msg.message, "VK_NV_cooperative_vector is not supported by this layer"))
             return true;
-        if (strstr(message, "includes a structure with unknown VkStructureType (1000491000)"))
+        if (strstr(msg.message, "includes a structure with unknown VkStructureType (1000491000)"))
             return true;
 
         // Redundant warning about old architectures
-        if (strstr(message, "nvrtc: warning : Architectures prior to"))
+        if (strstr(msg.message, "nvrtc: warning : Architectures prior to"))
             return true;
 
         return false;
     }
 
 
-    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
-        DebugMessageType type,
-        DebugMessageSource source,
-        const char* message
-    ) override
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(const DebugMessage& msg) override
     {
         if (!doctest::is_running_in_test)
             return;
 
-        if (shouldIgnoreMessage(type, source, message))
+        if (shouldIgnoreMessage(msg))
             return;
 
-        doctest::String msg = "[" + doctest::String(enumToString(type)) + "] ";
-        msg += "[" + doctest::String(enumToString(source)) + "] ";
-        msg += message;
+        doctest::String str = "[" + doctest::String(enumToString(msg.type)) + "] ";
+        str += "[" + doctest::String(enumToString(msg.source)) + "] ";
+        str += msg.message;
 
-        if (type == DebugMessageType::Info)
+        if (msg.type == DebugMessageType::Info)
         {
             if (options().verbose)
             {
-                MESSAGE(msg);
+                MESSAGE(str);
             }
             else
             {
-                INFO(msg);
+                INFO(str);
             }
         }
         // `DebugMessageType::Warning` is seperate from `DebugMessageType::Info`
         // Since `INFO()` does not output if `options().verbose == false`
-        else if (type == DebugMessageType::Warning)
+        else if (msg.type == DebugMessageType::Warning)
         {
-            MESSAGE(msg);
+            MESSAGE(str);
         }
-        else if (type == DebugMessageType::Error)
+        else if (msg.type == DebugMessageType::Error)
         {
-            FAIL(msg);
+            FAIL(str);
         }
     }
 };

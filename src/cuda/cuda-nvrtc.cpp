@@ -224,7 +224,7 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
                     "- /usr/lib/x86_64-linux-gnu\n"
 #endif
                     ;
-                debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, msg);
+                debugCallback->handleMessage(DebugMessage{DebugMessageType::Error, DebugMessageSource::Layer, msg});
             }
             return SLANG_FAIL;
         }
@@ -274,7 +274,7 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
             msg += "Searched for headers (cuda_runtime.h) in following directories:\n";
             for (const auto& path : candidatePaths)
                 msg += "- " + path.string() + "\n";
-            debugCallback->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, msg.c_str());
+            debugCallback->handleMessage(DebugMessage{DebugMessageType::Error, DebugMessageSource::Layer, msg.c_str()});
         }
         return SLANG_FAIL;
     }

@@ -2995,14 +2995,16 @@ enum class DebugMessageSource
     Driver,
     Slang
 };
+struct DebugMessage
+{
+    DebugMessageType type;
+    DebugMessageSource source;
+    const char* message;
+};
 class IDebugCallback
 {
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
-        DebugMessageType type,
-        DebugMessageSource source,
-        const char* message
-    ) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(const DebugMessage& msg) = 0;
 };
 
 struct SlangDesc

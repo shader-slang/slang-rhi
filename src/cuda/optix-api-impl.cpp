@@ -1498,7 +1498,7 @@ bool initialize(IDebugCallback* debugCallback)
                 optixGetErrorString(result),
                 optixGetErrorName(result)
             );
-            debugCallback->handleMessage(DebugMessageType::Warning, DebugMessageSource::Layer, msg.data());
+            debugCallback->handleMessage(DebugMessage{DebugMessageType::Warning, DebugMessageSource::Layer, msg.data()});
         }
     }
     return result == OPTIX_SUCCESS;

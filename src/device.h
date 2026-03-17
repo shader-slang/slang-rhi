@@ -130,16 +130,7 @@ protected:
 class NullDebugCallback : public IDebugCallback
 {
 public:
-    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
-        DebugMessageType type,
-        DebugMessageSource source,
-        const char* message
-    ) override
-    {
-        SLANG_UNUSED(type);
-        SLANG_UNUSED(source);
-        SLANG_UNUSED(message);
-    }
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(const DebugMessage& msg) override { SLANG_UNUSED(msg); }
 
     static IDebugCallback* getInstance()
     {
@@ -393,7 +384,7 @@ public:
 public:
     inline void handleMessage(DebugMessageType type, DebugMessageSource source, const char* message)
     {
-        m_debugCallback->handleMessage(type, source, message);
+        m_debugCallback->handleMessage(DebugMessage{type, source, message});
     }
 
     void printMessage(DebugMessageType type, DebugMessageSource source, const char* message, ...);

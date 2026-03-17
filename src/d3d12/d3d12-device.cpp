@@ -147,7 +147,7 @@ static void validationMessageCallback(
         break;
     }
 
-    device->m_debugCallback->handleMessage(type, DebugMessageSource::Driver, pDescription);
+    device->handleMessage(type, DebugMessageSource::Driver, pDescription);
 }
 
 #if SLANG_RHI_ENABLE_NVAPI
@@ -181,7 +181,7 @@ static void __stdcall raytracingValidationMessageCallback(
     else if (msgSize >= int(sizeof(msg)))
         msg[sizeof(msg) - 1] = 0;
 
-    device->m_debugCallback->handleMessage(type, DebugMessageSource::Driver, msg);
+    device->handleMessage(type, DebugMessageSource::Driver, msg);
 }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
