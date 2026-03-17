@@ -1477,7 +1477,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
 
 #else  // SLANG_RHI_ENABLE_NVAPI
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(executeClusterOperation);
+    NOT_SUPPORTED(ICommandEncoder, executeClusterOperation);
 #endif // SLANG_RHI_ENABLE_NVAPI
 }
 
