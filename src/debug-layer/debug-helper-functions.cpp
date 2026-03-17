@@ -786,8 +786,30 @@ Result validateConvertCooperativeVectorMatrix(
             break;
         }
 
-        minDstBufferSize = std::max(minDstBufferSize, dstDescs[i].offset + dstDescs[i].size);
-        minSrcBufferSize = std::max(minSrcBufferSize, srcDescs[i].offset + srcDescs[i].size);
+        {
+            size_t dstEnd = dstDescs[i].offset + dstDescs[i].size;
+            if (dstDescs[i].offset > dstEnd)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].offset + dstDescs[%d].size overflows.", i, i);
+                valid = false;
+            }
+            else
+            {
+                minDstBufferSize = std::max(minDstBufferSize, dstEnd);
+            }
+        }
+        {
+            size_t srcEnd = srcDescs[i].offset + srcDescs[i].size;
+            if (srcDescs[i].offset > srcEnd)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].offset + srcDescs[%d].size overflows.", i, i);
+                valid = false;
+            }
+            else
+            {
+                minSrcBufferSize = std::max(minSrcBufferSize, srcEnd);
+            }
+        }
     }
 
     if (dstBufferSize < minDstBufferSize)
