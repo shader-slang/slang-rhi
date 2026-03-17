@@ -2393,6 +2393,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
+    /// Write a GPU timestamp into a query pool.
+    /// @param queryPool The query pool to write into. Must not be null.
+    /// @param queryIndex Index of the query within the pool. Must be less than the pool's count.
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL end() = 0;
@@ -2403,22 +2406,99 @@ class IRenderPassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x4f904e1a, 0xa5ed, 0x4496, {0xaa, 0xc6, 0xde, 0xcf, 0x68, 0x1e, 0x6c, 0x74});
 
 public:
+    /// Bind a render pipeline and return its root shader object for parameter binding.
+    ///
+    /// @param pipeline The render pipeline to bind. Must not be null.
+    /// @return The root shader object for setting pipeline parameters, or nullptr on error.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - `pipeline` must not be null.
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IRenderPipeline* pipeline) = 0;
+
+    /// Bind a render pipeline with a pre-populated root shader object.
+    ///
+    /// @param pipeline The render pipeline to bind. Must not be null.
+    /// @param rootObject A pre-populated shader object providing pipeline parameters.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - `pipeline` must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IRenderPipeline* pipeline, IShaderObject* rootObject) = 0;
 
+    /// Set the render state for subsequent draw calls.
+    ///
+    /// @param state The render state to set, including viewports, scissor rects, vertex buffers,
+    ///              index buffer, and stencil reference value.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - `state.viewportCount` must not exceed 16 (the fixed array size).
+    ///   - `state.scissorRectCount` must not exceed 16 (the fixed array size).
+    ///   - `state.vertexBufferCount` must not exceed 16 (the fixed array size).
+    ///   - `state.indexFormat` must be a valid `IndexFormat` value.
+    ///   - Viewports with non-positive width or height produce a warning.
+    ///   - Null vertex buffer bindings produce a warning.
     virtual SLANG_NO_THROW void SLANG_MCALL setRenderState(const RenderState& state) = 0;
+
+    /// Issue a non-indexed draw call.
+    ///
+    /// @param args Draw arguments specifying vertex count, instance count, and start locations.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - A render pipeline must be bound via `bindPipeline` before calling `draw`.
+    ///   - `args.instanceCount == 0` produces a warning (no-op draw).
     virtual SLANG_NO_THROW void SLANG_MCALL draw(const DrawArguments& args) = 0;
+
+    /// Issue an indexed draw call.
+    ///
+    /// @param args Draw arguments specifying vertex count, instance count, and start locations.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - A render pipeline must be bound via `bindPipeline` before calling `drawIndexed`.
+    ///   - An index buffer must be set via `setRenderState` before calling `drawIndexed`.
+    ///   - `args.instanceCount == 0` produces a warning (no-op draw).
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexed(const DrawArguments& args) = 0;
+
+    /// Issue an indirect draw call.
+    ///
+    /// @param maxDrawCount Maximum number of draws to execute.
+    /// @param argBuffer Buffer containing draw arguments. Must not be null.
+    /// @param countBuffer Optional buffer containing the actual draw count.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - A render pipeline must be bound via `bindPipeline`.
+    ///   - `argBuffer.buffer` must not be null.
+    ///   - `maxDrawCount == 0` produces a warning (no-op draw).
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndirect(
         uint32_t maxDrawCount,
         BufferOffsetPair argBuffer,
         BufferOffsetPair countBuffer = {}
     ) = 0;
+
+    /// Issue an indexed indirect draw call.
+    ///
+    /// @param maxDrawCount Maximum number of draws to execute.
+    /// @param argBuffer Buffer containing indexed draw arguments. Must not be null.
+    /// @param countBuffer Optional buffer containing the actual draw count.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - A render pipeline must be bound via `bindPipeline`.
+    ///   - An index buffer must be set via `setRenderState`.
+    ///   - `argBuffer.buffer` must not be null.
+    ///   - `maxDrawCount == 0` produces a warning (no-op draw).
     virtual SLANG_NO_THROW void SLANG_MCALL drawIndexedIndirect(
         uint32_t maxDrawCount,
         BufferOffsetPair argBuffer,
         BufferOffsetPair countBuffer = {}
     ) = 0;
+
+    /// Dispatch mesh shader tasks.
+    ///
+    /// @param x Number of task groups in the X dimension.
+    /// @param y Number of task groups in the Y dimension.
+    /// @param z Number of task groups in the Z dimension.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - A render pipeline must be bound via `bindPipeline`.
+    ///   - If any dimension is 0, a warning is produced (no-op dispatch).
     virtual SLANG_NO_THROW void SLANG_MCALL drawMeshTasks(uint32_t x, uint32_t y, uint32_t z) = 0;
 };
 
@@ -2427,10 +2507,42 @@ class IComputePassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x8479334f, 0xfb45, 0x471c, {0xb7, 0x75, 0x94, 0xa5, 0x76, 0x72, 0x32, 0xc8});
 
 public:
+    /// Bind a compute pipeline and return its root shader object for parameter binding.
+    ///
+    /// @param pipeline The compute pipeline to bind. Must not be null.
+    /// @return The root shader object for setting pipeline parameters, or nullptr on error.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - `pipeline` must not be null.
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IComputePipeline* pipeline) = 0;
+
+    /// Bind a compute pipeline with a pre-populated root shader object.
+    ///
+    /// @param pipeline The compute pipeline to bind. Must not be null.
+    /// @param rootObject A pre-populated shader object providing pipeline parameters.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - `pipeline` must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(IComputePipeline* pipeline, IShaderObject* rootObject) = 0;
 
+    /// Dispatch compute work groups.
+    ///
+    /// @param x Number of work groups in the X dimension.
+    /// @param y Number of work groups in the Y dimension.
+    /// @param z Number of work groups in the Z dimension.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - A compute pipeline must be bound via `bindPipeline`.
+    ///   - If any dimension is 0, a warning is produced (no-op dispatch).
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchCompute(uint32_t x, uint32_t y, uint32_t z) = 0;
+
+    /// Dispatch compute work groups using indirect arguments from a buffer.
+    ///
+    /// @param argBuffer Buffer and offset containing the dispatch arguments. Must not be null.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - A compute pipeline must be bound via `bindPipeline`.
+    ///   - `argBuffer.buffer` must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchComputeIndirect(BufferOffsetPair argBuffer) = 0;
 };
 
@@ -2439,16 +2551,46 @@ class IRayTracingPassEncoder : public IPassEncoder
     SLANG_COM_INTERFACE(0x4fe41081, 0x819c, 0x4fdc, {0x80, 0x78, 0x40, 0x31, 0x9c, 0x01, 0xff, 0xad});
 
 public:
+    /// Bind a ray tracing pipeline and shader table, returning a root shader object for parameter
+    /// binding.
+    ///
+    /// @param pipeline The ray tracing pipeline to bind. Must not be null.
+    /// @param shaderTable The shader table to use for dispatch. Must not be null.
+    /// @return Root shader object for parameter binding, or nullptr if validation fails.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - `pipeline` must not be null.
+    ///   - `shaderTable` must not be null.
     virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(
         IRayTracingPipeline* pipeline,
         IShaderTable* shaderTable
     ) = 0;
+
+    /// Bind a ray tracing pipeline and shader table with an explicit root shader object.
+    ///
+    /// @param pipeline The ray tracing pipeline to bind. Must not be null.
+    /// @param shaderTable The shader table to use for dispatch. Must not be null.
+    /// @param rootObject The root shader object for parameter binding.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - `pipeline` must not be null.
+    ///   - `shaderTable` must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
         IRayTracingPipeline* pipeline,
         IShaderTable* shaderTable,
         IShaderObject* rootObject
     ) = 0;
 
+    /// Dispatch ray tracing work.
+    ///
+    /// @param rayGenShaderIndex Index of the ray generation shader in the shader table.
+    /// @param width Number of rays in the x dimension.
+    /// @param height Number of rays in the y dimension.
+    /// @param depth Number of rays in the z dimension.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - A ray tracing pipeline must be bound via `bindPipeline`.
+    ///   - A warning is issued if any of `width`, `height`, or `depth` is 0.
     virtual SLANG_NO_THROW void SLANG_MCALL dispatchRays(
         uint32_t rayGenShaderIndex,
         uint32_t width,
@@ -2473,10 +2615,47 @@ class ICommandEncoder : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW const CommandEncoderDesc& SLANG_MCALL getDesc() = 0;
 
+    /// Begin a render pass.
+    ///
+    /// @param desc Render pass descriptor specifying color and depth/stencil attachments.
+    ///
+    /// The following constraints are validated by the debug layer:
+    ///   - `colorAttachmentCount` must not exceed 8.
+    ///   - For each color attachment with a non-null view:
+    ///     - The view's texture must have `TextureUsage::RenderTarget` usage.
+    ///     - The effective format (view format, or texture format if view format is `Undefined`)
+    ///       must not be a depth/stencil format.
+    ///     - `loadOp` and `storeOp` must be valid `LoadOp`/`StoreOp` enum values.
+    ///   - If a depth/stencil attachment with a non-null view is provided:
+    ///     - The view's texture must have `TextureUsage::DepthStencil` usage.
+    ///     - The effective format must be a depth/stencil format.
+    ///     - `depthLoadOp`, `depthStoreOp`, `stencilLoadOp`, and `stencilStoreOp` must be valid
+    ///       enum values.
+    ///   - Sample counts must be consistent across all attachments.
+    ///
+    /// @return Pointer to the render pass encoder, or nullptr if validation fails.
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) = 0;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() = 0;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() = 0;
 
+    /// Copy data from one buffer to another.
+    ///
+    /// @param dst Destination buffer. Must not be null. Must have CopyDestination usage flag.
+    /// @param dstOffset Byte offset into the destination buffer. dstOffset + size must not exceed
+    ///                  the destination buffer size.
+    /// @param src Source buffer. Must not be null. Must have CopySource usage flag.
+    /// @param srcOffset Byte offset into the source buffer. srcOffset + size must not exceed
+    ///                  the source buffer size.
+    /// @param size Number of bytes to copy. A size of 0 is valid but produces a warning and is
+    ///             skipped.
+    ///
+    /// If dst and src refer to the same buffer, the source and destination ranges must not overlap.
+    /// Overlapping same-buffer copies are undefined behavior on all major APIs and will be skipped
+    /// with a warning.
+    ///
+    /// @note The debug layer validates all parameters and skips the call if any are invalid.
+    ///       Errors: null buffers, out-of-bounds ranges, missing usage flags.
+    ///       Warnings: zero-size copies, overlapping same-buffer ranges.
     virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(
         IBuffer* dst,
         Offset dstOffset,
@@ -2534,6 +2713,21 @@ public:
         uint32_t subresourceDataCount
     ) = 0;
 
+    /// Upload host data to a buffer.
+    ///
+    /// The data is staged to an internal upload heap and then copied to the destination buffer.
+    ///
+    /// @param dst Destination buffer. Must not be null. Must have CopyDestination usage.
+    /// @param offset Byte offset into the destination buffer.
+    /// @param size Number of bytes to upload. A size of 0 is a no-op (warning).
+    /// @param data Pointer to source data. Must not be null.
+    /// @returns SLANG_OK on success, SLANG_E_INVALID_ARG if parameters are invalid.
+    ///
+    /// Errors:
+    /// - `dst` is null.
+    /// - `data` is null.
+    /// - `offset + size` exceeds the destination buffer size.
+    /// - `dst` does not have CopyDestination usage.
     virtual SLANG_NO_THROW Result SLANG_MCALL uploadBufferData(
         IBuffer* dst,
         Offset offset,
@@ -2545,24 +2739,104 @@ public:
 
     inline void clearBuffer(IBuffer* buffer, uint64_t offset, uint64_t size) { clearBuffer(buffer, {offset, size}); }
 
+    /// Clear a texture's color data with float values.
+    ///
+    /// @param texture The texture to clear. Must not be null.
+    /// @param subresourceRange The range of subresources to clear. Must be within the texture bounds.
+    /// @param clearValue An array of 4 float values to clear to.
+    ///
+    /// Valid usage:
+    /// - `texture` must have `RenderTarget` or `UnorderedAccess` usage.
+    /// - `texture` must not have a depth/stencil format (use `clearTextureDepthStencil` instead).
+    /// - For best results, the texture format should be float or normalized; using an integer format
+    ///   will produce a warning.
+    ///
+    /// Errors:
+    /// - `texture` is null.
+    /// - Subresource range is out of bounds.
+    /// - Texture does not have `RenderTarget` or `UnorderedAccess` usage.
+    /// - Texture has a depth/stencil format.
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureFloat(
         ITexture* texture,
         SubresourceRange subresourceRange,
         float clearValue[4]
     ) = 0;
 
+    /// Clear a texture's color data with unsigned integer values.
+    ///
+    /// @param texture The texture to clear. Must not be null.
+    /// @param subresourceRange The range of subresources to clear. Must be within the texture bounds.
+    /// @param clearValue An array of 4 uint32_t values to clear to.
+    ///
+    /// Valid usage:
+    /// - `texture` must have `RenderTarget` or `UnorderedAccess` usage.
+    /// - `texture` must not have a depth/stencil format (use `clearTextureDepthStencil` instead).
+    /// - For best results, the texture format should be an unsigned integer format; using a
+    ///   signed integer, float or normalized format will produce a warning.
+    ///
+    /// Errors:
+    /// - `texture` is null.
+    /// - Subresource range is out of bounds.
+    /// - Texture does not have `RenderTarget` or `UnorderedAccess` usage.
+    /// - Texture has a depth/stencil format.
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureUint(
         ITexture* texture,
         SubresourceRange subresourceRange,
         uint32_t clearValue[4]
     ) = 0;
 
+    /// Clear a texture's color data with signed integer values.
+    ///
+    /// @param texture The texture to clear. Must not be null.
+    /// @param subresourceRange The range of subresources to clear. Must be within the texture bounds.
+    /// @param clearValue An array of 4 int32_t values to clear to.
+    ///
+    /// Valid usage:
+    /// - `texture` must have `RenderTarget` or `UnorderedAccess` usage.
+    /// - `texture` must not have a depth/stencil format (use `clearTextureDepthStencil` instead).
+    /// - For best results, the texture format should be a signed integer format; using an
+    ///   unsigned integer, float or normalized format will produce a warning.
+    ///
+    /// Errors:
+    /// - `texture` is null.
+    /// - Subresource range is out of bounds.
+    /// - Texture does not have `RenderTarget` or `UnorderedAccess` usage.
+    /// - Texture has a depth/stencil format.
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureSint(
         ITexture* texture,
         SubresourceRange subresourceRange,
         int32_t clearValue[4]
     ) = 0;
 
+    /// Clear a texture's depth and/or stencil data.
+    ///
+    /// @param texture The texture to clear. Must not be null. Must have a depth/stencil format.
+    /// @param subresourceRange The range of subresources to clear. Must be within the texture bounds.
+    /// @param clearDepth Whether to clear the depth component.
+    /// @param depthValue The depth clear value. Should be in the [0, 1] range.
+    /// @param clearStencil Whether to clear the stencil component.
+    /// @param stencilValue The stencil clear value.
+    ///
+    /// Valid usage:
+    /// - At least one of `clearDepth` or `clearStencil` must be true.
+    /// - `texture` format must have a depth or stencil component.
+    /// - On D3D11/D3D12: `texture` must have `DepthStencil` usage.
+    /// - On Vulkan: `texture` must have `CopyDestination` usage.
+    /// - If `clearDepth` is true, the format should have a depth component.
+    /// - If `clearStencil` is true, the format should have a stencil component.
+    /// - Not supported on CPU, CUDA, or WebGPU backends.
+    ///
+    /// Errors:
+    /// - `texture` is null.
+    /// - Subresource range is out of bounds.
+    /// - Texture format has no depth or stencil component.
+    /// - Texture is missing the required usage flag for the current backend.
+    ///
+    /// Warnings:
+    /// - Both `clearDepth` and `clearStencil` are false (nothing to clear).
+    /// - `clearDepth` is true but format has no depth component.
+    /// - `clearStencil` is true but format has no stencil component.
+    /// - `depthValue` is outside the [0, 1] range.
     virtual SLANG_NO_THROW void SLANG_MCALL clearTextureDepthStencil(
         ITexture* texture,
         SubresourceRange subresourceRange,
@@ -2572,6 +2846,22 @@ public:
         uint8_t stencilValue
     ) = 0;
 
+    /// Resolve query results into a buffer.
+    ///
+    /// Each query result is written as a uint64_t value. The buffer must be large enough
+    /// to hold `count` uint64_t values starting at `offset`.
+    ///
+    /// @param queryPool The query pool to resolve results from. Must not be null.
+    /// @param index The index of the first query to resolve.
+    /// @param count The number of queries to resolve. Must be > 0.
+    /// @param buffer The destination buffer. Must not be null.
+    /// @param offset Byte offset into the destination buffer.
+    ///
+    /// Validation (debug layer):
+    /// - `queryPool` and `buffer` must not be null.
+    /// - `count == 0` produces a warning and the call is skipped.
+    /// - `index + count` must not exceed the query pool's count.
+    /// - `offset + count * sizeof(uint64_t)` must not exceed the buffer size.
     virtual SLANG_NO_THROW void SLANG_MCALL resolveQuery(
         IQueryPool* queryPool,
         uint32_t index,
@@ -2589,6 +2879,10 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
+    /// Copy an acceleration structure.
+    /// @param dst Destination acceleration structure. Must not be null.
+    /// @param src Source acceleration structure. Must not be null.
+    /// @param mode Copy mode (Clone or Compact). Must be a valid AccelerationStructureCopyMode value.
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
         IAccelerationStructure* dst,
         IAccelerationStructure* src,
@@ -2602,11 +2896,19 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
+    /// Serialize an acceleration structure to a buffer.
+    ///
+    /// @param dst Destination buffer and offset. dst.buffer must not be null.
+    /// @param src Source acceleration structure. Must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL serializeAccelerationStructure(
         BufferOffsetPair dst,
         IAccelerationStructure* src
     ) = 0;
 
+    /// Deserialize an acceleration structure from a buffer.
+    ///
+    /// @param dst Destination acceleration structure. Must not be null.
+    /// @param src Source buffer and offset. src.buffer must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
         IAccelerationStructure* dst,
         BufferOffsetPair src
@@ -2622,8 +2924,22 @@ public:
         uint32_t matrixCount
     ) = 0;
 
+    /// Transition a buffer to a new resource state for subsequent GPU operations.
+    /// Must be called outside of a render/compute/ray-tracing pass.
+    /// @param buffer The buffer to transition. Must not be null.
+    /// @param state The target resource state. Must be a valid ResourceState value.
+    ///   Setting state to ResourceState::Undefined generates a debug warning.
+    ///   Non-device-local buffers (upload/readback) are silently skipped by backends.
     virtual SLANG_NO_THROW void SLANG_MCALL setBufferState(IBuffer* buffer, ResourceState state) = 0;
 
+    /// Transition a texture (or subresource range) to a new resource state for subsequent GPU operations.
+    /// Must be called outside of a render/compute/ray-tracing pass.
+    /// @param texture The texture to transition. Must not be null.
+    /// @param subresourceRange The subresource range to transition. Use kEntireTexture for the whole texture.
+    ///   Sentinel values kAllMips/kAllLayers are resolved against the texture dimensions.
+    ///   The range must be within the texture's mip and layer bounds.
+    /// @param state The target resource state. Must be a valid ResourceState value.
+    ///   Setting state to ResourceState::Undefined generates a debug warning.
     virtual SLANG_NO_THROW void SLANG_MCALL setTextureState(
         ITexture* texture,
         SubresourceRange subresourceRange,
@@ -2632,6 +2948,7 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL globalBarrier() = 0;
 
+    /// Convenience overload that transitions all subresources of a texture to the given state.
     inline void setTextureState(ITexture* texture, ResourceState state)
     {
         setTextureState(texture, kEntireTexture, state);
@@ -2641,6 +2958,9 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() = 0;
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
+    /// Write a GPU timestamp into a query pool.
+    /// @param queryPool The query pool to write into. Must not be null.
+    /// @param queryIndex Index of the query within the pool. Must be less than the pool's count.
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(
@@ -2882,8 +3202,20 @@ class IHeap : public ISlangUnknown
     SLANG_COM_INTERFACE(0x1c3b8f2a, 0x4d5e, 0x4b6c, {0x9f, 0x7d, 0x3e, 0x1c, 0x8b, 0x6f, 0x2c, 0x5a});
 
 public:
+    /// Allocate memory from the heap.
+    ///
+    /// @param desc Allocation descriptor. `desc.size` must be greater than 0.
+    ///             `desc.alignment` must be 0 (default alignment) or a power of 2.
+    /// @param[out] outAllocation Receives the allocation result. Must not be null.
+    /// @return SLANG_OK on success, SLANG_E_INVALID_ARG if parameters are invalid,
+    ///         or SLANG_E_OUT_OF_MEMORY if the heap cannot satisfy the request.
     virtual SLANG_NO_THROW Result SLANG_MCALL allocate(const HeapAllocDesc& desc, HeapAlloc* outAllocation) = 0;
 
+    /// Free a previously allocated heap allocation.
+    ///
+    /// @param allocation The allocation to free. Must be a valid allocation returned by allocate().
+    ///                   Passing an invalid allocation (where `isValid()` returns false) triggers a
+    ///                   debug layer warning.
     virtual SLANG_NO_THROW Result SLANG_MCALL free(HeapAlloc allocation) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL report(HeapReport* outReport) = 0;
@@ -3228,6 +3560,21 @@ public:
     ///
     ///     effectiveElementCount = (isArray ? arrayElementCount : 1) * (isCube ? 6 : 1);
     ///
+    /// @param desc Texture descriptor.
+    ///   - `type` must be a valid TextureType.
+    ///   - `format` must be a valid Format (not Undefined).
+    ///   - `usage` must contain only valid TextureUsage flags. None triggers a warning.
+    ///   - `memoryType` must be a valid MemoryType.
+    ///   - `defaultState` must be a valid ResourceState (Undefined is allowed and auto-derived).
+    ///   - `size` width/height/depth must each be >= 1.
+    ///   - `arrayLength` must be >= 1; must be 1 for non-array texture types.
+    ///   - `mipCount` must be >= 1 or kAllMips.
+    ///   - `sampleCount` must be a power of 2 for multisample types; must be 1 for non-multisample types.
+    ///   - RenderTarget and DepthStencil usage are mutually exclusive.
+    ///   - DepthStencil usage requires a depth format.
+    /// @param initData Optional initial data for all subresources. Must be null for multisample textures.
+    /// @param[out] outTexture Pointer to receive the created texture. Must not be null.
+    /// @returns SLANG_E_INVALID_ARG if any parameter is invalid.
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
         const TextureDesc& desc,
         const SubresourceData* initData,
@@ -3246,12 +3593,23 @@ public:
         return texture;
     }
 
+    /// Create a texture from an existing native API handle.
+    /// @param handle Native API handle for the texture resource.
+    /// @param desc Texture descriptor describing the resource.
+    /// @param[out] outTexture Must not be null. Receives the created texture.
+    /// @returns SLANG_E_INVALID_ARG if outTexture is null.
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
         NativeHandle handle,
         const TextureDesc& desc,
         ITexture** outTexture
     ) = 0;
 
+    /// Create a texture from a shared handle (for cross-process/cross-device sharing).
+    /// @param handle Shared handle for the texture resource.
+    /// @param desc Texture descriptor describing the resource.
+    /// @param size Size of the shared resource in bytes.
+    /// @param[out] outTexture Must not be null. Receives the created texture.
+    /// @returns SLANG_E_INVALID_ARG if outTexture is null.
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromSharedHandle(
         NativeHandle handle,
         const TextureDesc& desc,
@@ -3259,7 +3617,15 @@ public:
         ITexture** outTexture
     ) = 0;
 
-    /// Create a buffer resource
+    /// Create a buffer resource.
+    ///
+    /// @param desc Buffer descriptor. `desc.size` must be > 0, `desc.usage` must not be `BufferUsage::None`,
+    ///             and `desc.memoryType` must be a valid `MemoryType` value.
+    ///             If `desc.elementSize > 0`, `desc.size` should be a multiple of `desc.elementSize`
+    ///             (a warning is issued otherwise).
+    /// @param initData Optional pointer to initial data to fill the buffer with.
+    /// @param[out] outBuffer Pointer to receive the created buffer. Must not be null.
+    /// @returns SLANG_E_INVALID_ARG if any parameter constraint is violated.
     virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
         const BufferDesc& desc,
         const void* initData,
@@ -3273,21 +3639,56 @@ public:
         return buffer;
     }
 
+    /// Create a buffer from an existing native API handle.
+    /// @param handle Native API handle for the buffer resource.
+    /// @param desc Buffer descriptor describing the resource.
+    /// @param[out] outBuffer Must not be null. Receives the created buffer.
+    /// @returns SLANG_E_INVALID_ARG if outBuffer is null.
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
         NativeHandle handle,
         const BufferDesc& desc,
         IBuffer** outBuffer
     ) = 0;
 
+    /// Create a buffer from a shared handle (for cross-process/cross-device sharing).
+    /// @param handle Shared handle for the buffer resource.
+    /// @param desc Buffer descriptor describing the resource.
+    /// @param[out] outBuffer Must not be null. Receives the created buffer.
+    /// @returns SLANG_E_INVALID_ARG if outBuffer is null.
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
         NativeHandle handle,
         const BufferDesc& desc,
         IBuffer** outBuffer
     ) = 0;
 
+    /// Map a buffer for CPU access.
+    /// @param buffer Must not be null. Must not already be mapped.
+    /// @param mode Must be a valid CpuAccessMode. Read requires MemoryType::ReadBack; Write requires
+    /// MemoryType::Upload.
+    /// @param[out] outData Must not be null. Receives a pointer to the mapped memory.
+    /// @returns SLANG_E_INVALID_ARG if buffer is null, outData is null, mode is invalid,
+    ///   memory type doesn't match the access mode, or buffer is already mapped.
     virtual SLANG_NO_THROW Result SLANG_MCALL mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData) = 0;
+
+    /// Unmap a previously mapped buffer.
+    /// @param buffer Must not be null. Must be currently mapped.
+    /// @returns SLANG_E_INVALID_ARG if buffer is null or buffer is not mapped.
     virtual SLANG_NO_THROW Result SLANG_MCALL unmapBuffer(IBuffer* buffer) = 0;
 
+    /// Create a sampler state object.
+    /// @param desc Sampler descriptor.
+    ///   - `minFilter`, `magFilter`, `mipFilter` must be valid TextureFilteringMode values.
+    ///   - `reductionOp` must be a valid TextureReductionOp value.
+    ///   - `addressU`, `addressV`, `addressW` must be valid TextureAddressingMode values.
+    ///     ClampToBorder and MirrorOnce are not supported on WebGPU.
+    ///   - `comparisonFunc` must be a valid ComparisonFunc value.
+    ///   - `maxAnisotropy` should be in [1, 16]. 0 is warned; values > 16 are warned.
+    ///     Anisotropic filtering (maxAnisotropy > 1) requires Linear min/mag filters.
+    ///   - `minLOD` should be <= `maxLOD`.
+    ///   - `mipLODBias` should be in [-16, 15.99].
+    ///   - When using ClampToBorder, `borderColor` components must be in [0, 1].
+    /// @param[out] outSampler Pointer to receive the created sampler. Must not be null.
+    /// @returns SLANG_E_INVALID_ARG if any parameter is invalid.
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) = 0;
 
     inline ComPtr<ISampler> createSampler(const SamplerDesc& desc)
@@ -3297,6 +3698,14 @@ public:
         return sampler;
     }
 
+    /// Create a texture view for a given texture.
+    /// @param texture The source texture. Must not be null.
+    /// @param desc View descriptor. `format` may be `Format::Undefined` to inherit from the texture.
+    ///   `aspect` must be a valid `TextureAspect` value.
+    ///   `subresourceRange` must be within the texture's mip and layer bounds.
+    /// @param[out] outView Pointer to receive the created texture view. Must not be null.
+    /// @returns SLANG_E_INVALID_ARG if any parameter is invalid (null pointers, invalid enums,
+    ///   out-of-bounds subresource range).
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureView(
         ITexture* texture,
         const TextureViewDesc& desc,
@@ -3319,6 +3728,13 @@ public:
         return surface;
     }
 
+    /// Create an input layout object describing the vertex buffer layout for rendering pipelines.
+    /// @param desc Input layout descriptor. If inputElementCount > 0, inputElements must be non-null.
+    ///        If vertexStreamCount > 0, vertexStreams must be non-null. Each input element's bufferSlotIndex
+    ///        must be less than vertexStreamCount, and each element must have a valid, non-Undefined format.
+    /// @param outLayout Must be non-null. Receives the created input layout.
+    /// @returns SLANG_E_INVALID_ARG if outLayout is null, arrays are null when counts are non-zero,
+    ///          an element's bufferSlotIndex exceeds vertexStreamCount, or an element has an invalid format.
     virtual SLANG_NO_THROW Result SLANG_MCALL createInputLayout(
         const InputLayoutDesc& desc,
         IInputLayout** outLayout
@@ -3417,11 +3833,28 @@ public:
         return object;
     }
 
+    /// Create a shader table for ray tracing.
+    /// @param desc Shader table descriptor.
+    ///   - `program` must be non-null.
+    ///   - If `rayGenShaderCount > 0`, `rayGenShaderEntryPointNames` must be non-null.
+    ///   - If `missShaderCount > 0`, `missShaderEntryPointNames` must be non-null.
+    ///   - If `hitGroupCount > 0`, `hitGroupNames` must be non-null.
+    ///   - If `callableShaderCount > 0`, `callableShaderEntryPointNames` must be non-null.
+    /// @param outTable Output shader table. Must be non-null.
+    /// @returns SLANG_E_INVALID_ARG if any of the above constraints are violated.
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderTable(
         const ShaderTableDesc& desc,
         IShaderTable** outTable
     ) = 0;
 
+    /// Create a shader program from a descriptor.
+    /// @param desc Shader program descriptor.
+    ///   - At least one of `slangGlobalScope` or `slangEntryPointCount > 0` must be provided.
+    ///   - If `slangEntryPointCount > 0`, `slangEntryPoints` must be non-null.
+    /// @param outProgram Output shader program. Must be non-null.
+    /// @param outDiagnosticBlob Optional output for compilation diagnostics.
+    /// @returns SLANG_E_INVALID_ARG if outProgram is null, if neither a global scope nor entry
+    ///   points are provided, or if slangEntryPoints is null when slangEntryPointCount > 0.
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderProgram(
         const ShaderProgramDesc& desc,
         IShaderProgram** outProgram,
@@ -3508,8 +3941,20 @@ public:
         SubresourceLayout* outLayout
     ) = 0;
 
+    /// Read data from a buffer into a pre-allocated memory region.
+    /// @param buffer Source buffer. Must not be null.
+    /// @param offset Byte offset into the buffer to start reading from.
+    /// @param size Number of bytes to read. Must be greater than 0. `offset + size` must not exceed buffer size.
+    /// @param[out] outData Destination pointer. Must not be null.
+    /// @returns SLANG_E_INVALID_ARG if buffer is null, outData is null, size is 0, or read range exceeds buffer size.
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData) = 0;
 
+    /// Read data from a buffer into an allocated blob.
+    /// @param buffer Source buffer. Must not be null.
+    /// @param offset Byte offset into the buffer to start reading from.
+    /// @param size Number of bytes to read. Must be greater than 0. `offset + size` must not exceed buffer size.
+    /// @param[out] outBlob Receives the blob containing the read data. Must not be null.
+    /// @returns SLANG_E_INVALID_ARG if buffer is null, outBlob is null, size is 0, or read range exceeds buffer size.
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
         IBuffer* buffer,
         Offset offset,
@@ -3517,6 +3962,10 @@ public:
         ISlangBlob** outBlob
     ) = 0;
 
+    /// Create a query pool.
+    /// @param desc Query pool descriptor. `desc.count` must be greater than 0. `desc.type` must be a valid QueryType.
+    /// @param[out] outPool Must not be null. Receives the created query pool.
+    /// @returns SLANG_E_INVALID_ARG if outPool is null, desc.count is 0, or desc.type is invalid.
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
@@ -3529,11 +3978,22 @@ public:
         ClusterOperationSizes* outSizes
     ) = 0;
 
+    /// Create an acceleration structure for ray tracing.
+    /// @param desc Descriptor specifying acceleration structure properties. size must be > 0.
+    /// flags must contain only valid AccelerationStructureBuildFlags bits. If CreateMotion flag
+    /// is set, the device must support Feature::RayTracingMotionBlur. If CreateMotion flag is set
+    /// with motionInfo.enabled, motionInfo.maxInstances must be > 0.
+    /// @param outAccelerationStructure Must not be null.
+    /// @returns SLANG_E_INVALID_ARG if validation fails.
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
     ) = 0;
 
+    /// Create a fence for GPU/CPU synchronization.
+    /// @param desc Fence descriptor.
+    /// @param[out] outFence Must not be null. Receives the created fence.
+    /// @returns SLANG_E_INVALID_ARG if outFence is null.
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) = 0;
 
     inline ComPtr<IFence> createFence(const FenceDesc& desc)
