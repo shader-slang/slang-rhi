@@ -157,10 +157,10 @@ Result validateConvertCooperativeVectorMatrix(
 // Validation helpers
 // ----------------------------------------------------------------------------
 
-/// Check that offset and size are within the total size while avoiding overlow.
+/// Check that a subrange [offset, offset+size) is within the total size while avoiding overflow.
 /// Returns true if the offset and size are valid.
 template<typename T>
-bool checkSizePlusOffsetInRange(T offset, T size, T totalSize)
+bool isValidSubrange(T offset, T size, T totalSize)
 {
     if (offset > totalSize)
         return false;
