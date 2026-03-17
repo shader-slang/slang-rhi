@@ -16,7 +16,7 @@ Result DebugQueryPool::getResult(uint32_t queryIndex, uint32_t count, uint64_t* 
 
     if (queryIndex + count > baseObject->getDesc().count)
     {
-        RHI_VALIDATION_ERROR("index is out of bounds.");
+        RHI_VALIDATION_ERROR("'queryIndex' is out of bounds.");
     }
 
     return baseObject->getResult(queryIndex, count, data);
