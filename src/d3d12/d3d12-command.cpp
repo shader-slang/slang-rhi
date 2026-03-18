@@ -15,6 +15,7 @@
 #include "../strings.h"
 #include "../format-conversion.h"
 
+#include "core/string.h"
 #include "core/short_vector.h"
 #include "core/common.h"
 
@@ -2122,6 +2123,14 @@ Result CommandBufferImpl::reset()
     m_constantBufferPool.reset();
     m_bindingCache.reset();
     return CommandBuffer::reset();
+}
+
+void CommandBufferImpl::setLabel(const char* label)
+{
+    if (m_d3dCommandList && label)
+    {
+        m_d3dCommandList->SetName(string::to_wstring(label).c_str());
+    }
 }
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)

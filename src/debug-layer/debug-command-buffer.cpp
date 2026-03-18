@@ -12,7 +12,7 @@ Result DebugCommandBuffer::getNativeHandle(NativeHandle* outHandle)
 
 void DebugCommandBuffer::setLabel(const char* label)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandBuffer, setLabel);
     baseObject->setLabel(label);
 }
 

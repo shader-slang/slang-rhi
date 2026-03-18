@@ -134,7 +134,9 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     endPassEncoder();
 
-    commandBuffer->m_commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, nullptr);
+    WGPUCommandBufferDescriptor cmdBufDesc = {};
+    cmdBufDesc.label = commandBuffer->m_label.empty() ? translateString(nullptr) : translateString(commandBuffer->m_label.c_str());
+    commandBuffer->m_commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, &cmdBufDesc);
     if (!commandBuffer->m_commandBuffer)
     {
         return SLANG_FAIL;
@@ -1057,6 +1059,14 @@ Result CommandBufferImpl::reset()
     m_constantBufferPool.reset();
     m_bindingCache.reset(device);
     return CommandBuffer::reset();
+}
+
+void CommandBufferImpl::setLabel(const char* label)
+{
+    if (label)
+    {
+        m_label = label;
+    }
 }
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)

@@ -4,6 +4,8 @@
 #include "wgpu-shader-object.h"
 #include "wgpu-constant-buffer-pool.h"
 
+#include <string>
+
 namespace rhi::wgpu {
 
 class CommandQueueImpl : public CommandQueue
@@ -47,12 +49,15 @@ public:
     ConstantBufferPool m_constantBufferPool;
     BindingCache m_bindingCache;
 
+    std::string m_label;
+
     CommandBufferImpl(Device* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
 
     virtual Result reset() override;
 
     // ICommandBuffer implementation
+    virtual SLANG_NO_THROW void SLANG_MCALL setLabel(const char* label) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

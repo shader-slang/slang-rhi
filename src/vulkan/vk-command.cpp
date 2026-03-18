@@ -2236,6 +2236,14 @@ Result CommandBufferImpl::reset()
     return CommandBuffer::reset();
 }
 
+void CommandBufferImpl::setLabel(const char* label)
+{
+    if (m_commandBuffer && label)
+    {
+        getDevice<DeviceImpl>()->_labelObject((uint64_t)m_commandBuffer, VK_OBJECT_TYPE_COMMAND_BUFFER, label);
+    }
+}
+
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::VkCommandBuffer;
