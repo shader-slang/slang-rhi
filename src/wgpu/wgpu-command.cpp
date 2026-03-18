@@ -1068,6 +1068,10 @@ void CommandBufferImpl::setLabel(const char* label)
     {
         m_label = label;
     }
+    else
+    {
+        m_label.clear();
+    }
 }
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
