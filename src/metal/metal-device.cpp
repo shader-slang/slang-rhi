@@ -253,8 +253,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Match Metal Feature Set Tables:
     // - ASTC pixel formats: Apple2+
     // - BC pixel formats: query directly via supportsBCTextureCompression().
-    const bool supportASTC =
-        supportsAnyGPUFamilyInRange(MTL::GPUFamilyApple2, MTL::GPUFamilyApple9);
+    const bool supportASTC = supportsAnyGPUFamilyInRange(MTL::GPUFamilyApple2, MTL::GPUFamilyApple9);
     const bool supportBC = m_device->supportsBCTextureCompression();
 
     // Initialize format support table.

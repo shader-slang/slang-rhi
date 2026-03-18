@@ -1061,26 +1061,10 @@ bool FormatFilter::filter(Format format) const
 
 // Nice selection of formats to test
 Format kStandardFormats[] = {
-    Format::D16Unorm,
-    Format::D32FloatS8Uint,
-    Format::D32Float,
-    Format::RGBA32Uint,
-    Format::RGB32Uint,
-    Format::RGBA32Float,
-    Format::R32Float,
-    Format::RGBA16Float,
-    Format::RGBA16Uint,
-    Format::RGBA8Uint,
-    Format::RGBA8Unorm,
-    Format::RGBA8UnormSrgb,
-    Format::RGBA16Snorm,
-    Format::RGBA8Snorm,
-    Format::RGB10A2Unorm,
-    Format::BC1Unorm,
-    Format::BC1UnormSrgb,
-    Format::ASTC4x4Unorm,
-    Format::ASTC6x6UnormSrgb,
-    Format::R64Uint,
+    Format::D16Unorm,    Format::D32FloatS8Uint, Format::D32Float,     Format::RGBA32Uint,       Format::RGB32Uint,
+    Format::RGBA32Float, Format::R32Float,       Format::RGBA16Float,  Format::RGBA16Uint,       Format::RGBA8Uint,
+    Format::RGBA8Unorm,  Format::RGBA8UnormSrgb, Format::RGBA16Snorm,  Format::RGBA8Snorm,       Format::RGB10A2Unorm,
+    Format::BC1Unorm,    Format::BC1UnormSrgb,   Format::ASTC4x4Unorm, Format::ASTC6x6UnormSrgb, Format::R64Uint,
 };
 
 void TextureTestOptions::postProcessVariant(int state, TextureTestVariant variant)

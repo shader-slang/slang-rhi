@@ -657,7 +657,8 @@ struct TestFormats
         }
 
         {
-            uint8_t texData[] = {35u, 168u, 176u, 39u, 146u, 26u, 223u, 123u, 79u, 126u, 228u, 25u, 224u, 214u, 141u, 109u};
+            uint8_t texData[] =
+                {35u, 168u, 176u, 39u, 146u, 26u, 223u, 123u, 79u, 126u, 228u, 25u, 224u, 214u, 141u, 109u};
             SubresourceData subData = {(void*)texData, 16, 0};
             // clang-format off
             std::array expected = {
