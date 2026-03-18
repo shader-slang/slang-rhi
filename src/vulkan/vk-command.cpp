@@ -2230,6 +2230,7 @@ Result CommandBufferImpl::reset()
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_commandList.reset();
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkResetCommandPool(device->m_device, m_commandPool, 0));
+    device->_labelObject((uint64_t)m_commandBuffer, VK_OBJECT_TYPE_COMMAND_BUFFER, "");
     m_constantBufferPool.reset();
     m_descriptorSetAllocator.reset();
     m_bindingCache.reset();

@@ -2118,6 +2118,8 @@ Result CommandBufferImpl::reset()
     };
     m_d3dCommandList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
 
+    m_d3dCommandList->SetName(L"");
+
     m_cbvSrvUavArena.reset();
     m_samplerArena.reset();
     m_constantBufferPool.reset();
