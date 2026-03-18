@@ -1072,6 +1072,15 @@ void CommandBufferImpl::setLabel(const char* label)
     {
         m_label.clear();
     }
+
+    if (m_commandBuffer)
+    {
+        DeviceImpl* device = getDevice<DeviceImpl>();
+        device->m_ctx.api.wgpuCommandBufferSetLabel(
+            m_commandBuffer,
+            translateString(m_label.empty() ? nullptr : m_label.c_str())
+        );
+    }
 }
 
 Result CommandBufferImpl::getNativeHandle(NativeHandle* outHandle)
