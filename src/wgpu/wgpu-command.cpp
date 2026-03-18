@@ -1058,6 +1058,7 @@ Result CommandBufferImpl::reset()
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_constantBufferPool.reset();
     m_bindingCache.reset(device);
+    m_label.clear();
     return CommandBuffer::reset();
 }
 
