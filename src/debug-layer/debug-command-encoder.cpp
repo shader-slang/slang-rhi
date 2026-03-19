@@ -362,6 +362,11 @@ DebugCommandEncoder::DebugCommandEncoder(DebugContext* ctx)
 {
 }
 
+const CommandEncoderDesc& DebugCommandEncoder::getDesc()
+{
+    return baseObject->getDesc();
+}
+
 IRenderPassEncoder* DebugCommandEncoder::beginRenderPass(const RenderPassDesc& desc)
 {
     SLANG_RHI_DEBUG_API(ICommandEncoder, beginRenderPass);
@@ -1032,14 +1037,14 @@ void DebugCommandEncoder::writeTimestamp(IQueryPool* pool, uint32_t index)
     baseObject->writeTimestamp(getInnerObj(pool), index);
 }
 
-Result DebugCommandEncoder::finish(ICommandBuffer** outCommandBuffer)
+Result DebugCommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
     SLANG_RHI_DEBUG_API(ICommandEncoder, finish);
 
     requireOpen();
     requireNoPass();
     RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->finish(outObject->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->finish(desc, outObject->baseObject.writeRef()));
 
     returnComPtr(outCommandBuffer, outObject);
     return SLANG_OK;

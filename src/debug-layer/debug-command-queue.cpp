@@ -14,12 +14,12 @@ QueueType DebugCommandQueue::getType()
     return baseObject->getType();
 }
 
-Result DebugCommandQueue::createCommandEncoder(ICommandEncoder** outEncoder)
+Result DebugCommandQueue::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
 {
     SLANG_RHI_DEBUG_API(ICommandQueue, createCommandEncoder);
 
     RefPtr<DebugCommandEncoder> encoder = new DebugCommandEncoder(ctx);
-    SLANG_RETURN_ON_FAIL(baseObject->createCommandEncoder(encoder->baseObject.writeRef()));
+    SLANG_RETURN_ON_FAIL(baseObject->createCommandEncoder(desc, encoder->baseObject.writeRef()));
 
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;

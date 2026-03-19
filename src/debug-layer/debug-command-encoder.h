@@ -127,6 +127,8 @@ public:
 public:
     DebugCommandEncoder(DebugContext* ctx);
 
+    virtual SLANG_NO_THROW const CommandEncoderDesc& SLANG_MCALL getDesc() override;
+
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) override;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() override;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() override;
@@ -289,7 +291,10 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(
+        const CommandBufferDesc& desc,
+        ICommandBuffer** outCommandBuffer
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
