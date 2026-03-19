@@ -427,8 +427,8 @@ Result CommandEncoderImpl::init()
 
 Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
-    SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->setDesc(desc);
+    SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;

@@ -2029,14 +2029,14 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
 
 Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
-    SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
-    CommandRecorder recorder(getDevice<DeviceImpl>());
-    SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     m_commandBuffer->setDesc(desc);
     if (desc.label)
     {
         m_commandBuffer->m_d3dCommandList->SetName(string::to_wstring(desc.label).c_str());
     }
+    SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
+    CommandRecorder recorder(getDevice<DeviceImpl>());
+    SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;
