@@ -2164,11 +2164,7 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     if (desc.label)
     {
         DeviceImpl* device = getDevice<DeviceImpl>();
-        device->_labelObject(
-            (uint64_t)m_commandBuffer->m_commandBuffer,
-            VK_OBJECT_TYPE_COMMAND_BUFFER,
-            desc.label
-        );
+        device->_labelObject((uint64_t)m_commandBuffer->m_commandBuffer, VK_OBJECT_TYPE_COMMAND_BUFFER, desc.label);
     }
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
