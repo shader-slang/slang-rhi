@@ -81,7 +81,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     {
         return SLANG_FAIL;
     }
-    std::memcpy(outData, rawData->bytes(), count * sizeof(uint64_t));
+    std::memcpy(outData, rawData->mutableBytes(), count * sizeof(uint64_t));
 
     return SLANG_OK;
 }
