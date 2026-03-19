@@ -1571,6 +1571,12 @@ Result DebugDevice::reportHeaps(HeapReport* heapReports, uint32_t* heapCount)
 {
     SLANG_RHI_DEBUG_API(IDevice, reportHeaps);
 
+    if (!heapCount)
+    {
+        RHI_VALIDATION_ERROR("'heapCount' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->reportHeaps(heapReports, heapCount);
 }
 

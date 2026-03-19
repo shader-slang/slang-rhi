@@ -63,6 +63,12 @@ Result DebugShaderObject::setData(const ShaderOffset& offset, const void* data, 
 
     SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
+    if (!data && size > 0)
+    {
+        RHI_VALIDATION_ERROR("'data' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->setData(offset, data, size);
 }
 
@@ -120,6 +126,12 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
     SLANG_RHI_DEBUG_API(IShaderObject, setObject);
 
     SLANG_RETURN_ON_FAIL(checkNotFinalized());
+
+    if (!object)
+    {
+        RHI_VALIDATION_ERROR("'object' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     auto objectImpl = getDebugObj(object);
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
