@@ -2156,11 +2156,16 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
 
 Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    bool hadLabel = m_commandBuffer->m_desc.label != nullptr;
     m_commandBuffer->setDesc(desc);
-    if (desc.label)
+    if (hadLabel)
     {
-        DeviceImpl* device = getDevice<DeviceImpl>();
-        device->_labelObject((uint64_t)m_commandBuffer->m_commandBuffer, VK_OBJECT_TYPE_COMMAND_BUFFER, desc.label);
+        device->_labelObject(
+            (uint64_t)m_commandBuffer->m_commandBuffer,
+            VK_OBJECT_TYPE_COMMAND_BUFFER,
+            m_commandBuffer->m_desc.label
+        );
     }
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->m_constantBufferPool.finish();

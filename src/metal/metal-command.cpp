@@ -1210,10 +1210,11 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     AUTORELEASEPOOL
 
     DeviceImpl* device = getDevice<DeviceImpl>();
+    bool hadLabel = m_commandBuffer->m_desc.label != nullptr;
     m_commandBuffer->setDesc(desc);
-    if (desc.label)
+    if (hadLabel)
     {
-        m_commandBuffer->m_commandBuffer->setLabel(createString(desc.label).get());
+        m_commandBuffer->m_commandBuffer->setLabel(createString(m_commandBuffer->m_desc.label).get());
     }
     SLANG_RETURN_ON_FAIL(resolvePipelines(device));
     CommandRecorder recorder(device);
