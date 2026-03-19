@@ -52,6 +52,9 @@ void _unpackUInt16Texel(const void* texelData, void* outData, size_t outSize);
 template<int N>
 void _unpackUInt32Texel(const void* texelData, void* outData, size_t outSize);
 
+template<int N>
+void _unpackSInt32Texel(const void* texelData, void* outData, size_t outSize);
+
 struct CPUFormatInfoMap
 {
     CPUFormatInfoMap()
@@ -59,6 +62,7 @@ struct CPUFormatInfoMap
         memset(m_infos, 0, sizeof(m_infos));
 
         set(Format::RGBA32Uint, &_unpackUInt32Texel<4>);
+        set(Format::RGBA32Sint, &_unpackSInt32Texel<4>);
 
         set(Format::RGBA32Float, &_unpackFloatTexel<4>);
         set(Format::RGB32Float, &_unpackFloatTexel<3>);
