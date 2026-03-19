@@ -961,6 +961,36 @@ void DebugCommandEncoder::copyTexture(
         return;
     }
 
+    if (srcSubresource.layerCount != 0)
+    {
+        if (srcSubresource.layer + srcSubresource.layerCount > srcDesc.getLayerCount())
+        {
+            RHI_VALIDATION_ERROR("Source layer range (layer + layerCount) exceeds source texture layer count.");
+            return;
+        }
+        if (dstSubresource.layer + dstSubresource.layerCount > dstDesc.getLayerCount())
+        {
+            RHI_VALIDATION_ERROR(
+                "Destination layer range (layer + layerCount) exceeds destination texture layer count."
+            );
+            return;
+        }
+    }
+
+    if (srcSubresource.mipCount != 0)
+    {
+        if (srcSubresource.mip + srcSubresource.mipCount > srcDesc.mipCount)
+        {
+            RHI_VALIDATION_ERROR("Source mip range (mip + mipCount) exceeds source texture mip count.");
+            return;
+        }
+        if (dstSubresource.mip + dstSubresource.mipCount > dstDesc.mipCount)
+        {
+            RHI_VALIDATION_ERROR("Destination mip range (mip + mipCount) exceeds destination texture mip count.");
+            return;
+        }
+    }
+
     if (srcSubresource.layerCount == 0 && srcDesc.getLayerCount() != dstDesc.getLayerCount())
     {
         RHI_VALIDATION_ERROR("Copy layer count is 0, so source and destination texture layer count must match.");
