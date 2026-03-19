@@ -42,6 +42,7 @@ GPU_TEST_CASE("ray-tracing-shader-table-multi-pipeline", ALL)
     {
         ShaderTableDesc shaderTableDesc = {};
         const char* rayGenNames[] = {"rayGen"};
+        shaderTableDesc.program = programA;
         shaderTableDesc.rayGenShaderCount = SLANG_COUNT_OF(rayGenNames);
         shaderTableDesc.rayGenShaderEntryPointNames = rayGenNames;
         REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));

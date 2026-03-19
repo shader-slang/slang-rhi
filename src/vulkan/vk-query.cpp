@@ -48,8 +48,13 @@ QueryPoolImpl::~QueryPoolImpl()
     device->m_api.vkDestroyQueryPool(device->m_api.m_device, m_pool, nullptr);
 }
 
-Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetQueryPoolResults(
@@ -58,7 +63,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
         queryIndex,
         count,
         sizeof(uint64_t) * count,
-        data,
+        outData,
         sizeof(uint64_t),
         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
     ));
