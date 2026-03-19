@@ -270,6 +270,12 @@ Result DebugRootShaderObject::setSpecializationArgs(
 
     SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
+    if (count > 0 && !args)
+    {
+        RHI_VALIDATION_ERROR("'args' must not be null when 'count' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->setSpecializationArgs(offset, args, count);
 }
 

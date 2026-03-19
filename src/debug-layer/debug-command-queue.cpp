@@ -45,6 +45,11 @@ Result DebugCommandQueue::submit(const SubmitDesc& desc)
         RHI_VALIDATION_ERROR("'desc.waitFences' must not be null when 'waitFenceCount' > 0.");
         return SLANG_E_INVALID_ARG;
     }
+    if (desc.waitFenceCount > 0 && !desc.waitFenceValues)
+    {
+        RHI_VALIDATION_ERROR("'desc.waitFenceValues' must not be null when 'waitFenceCount' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
     if (desc.signalFenceCount > 0 && !desc.signalFences)
     {
         RHI_VALIDATION_ERROR("'desc.signalFences' must not be null when 'signalFenceCount' > 0.");
