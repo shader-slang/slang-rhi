@@ -2379,6 +2379,8 @@ class ICommandBuffer : public ISlangUnknown
     SLANG_COM_INTERFACE(0x58e5d83f, 0xad31, 0x44ea, {0xa4, 0xd1, 0x5e, 0x65, 0x9c, 0xd9, 0xa7, 0x57});
 
 public:
+    virtual SLANG_NO_THROW const CommandBufferDesc& SLANG_MCALL getDesc() = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
