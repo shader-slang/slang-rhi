@@ -414,6 +414,13 @@ public:
         return SLANG_OK;
     }
 
+    void setDesc(const CommandBufferDesc& desc)
+    {
+        m_desc = desc;
+        m_descHolder.reset();
+        m_descHolder.holdString(m_desc.label);
+    }
+
     // ICommandBuffer implementation
     virtual SLANG_NO_THROW const CommandBufferDesc& SLANG_MCALL getDesc() override { return m_desc; }
 
