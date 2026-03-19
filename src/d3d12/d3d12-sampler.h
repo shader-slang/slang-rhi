@@ -7,16 +7,20 @@ namespace rhi::d3d12 {
 class SamplerImpl : public Sampler
 {
 public:
-    CPUDescriptorAllocation m_descriptor;
-    DescriptorHandle m_descriptorHandle;
-
     SamplerImpl(Device* device, const SamplerDesc& desc);
     ~SamplerImpl();
 
     virtual void deleteThis() override;
 
+    // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    // ISampler implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
+
+public:
+    CPUDescriptorAllocation m_descriptor;
+    DescriptorHandle m_descriptorHandle;
 };
 
 } // namespace rhi::d3d12

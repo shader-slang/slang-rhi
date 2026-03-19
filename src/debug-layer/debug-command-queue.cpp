@@ -9,24 +9,26 @@ namespace rhi::debug {
 
 QueueType DebugCommandQueue::getType()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandQueue, getType);
+
     return baseObject->getType();
 }
 
 Result DebugCommandQueue::createCommandEncoder(ICommandEncoder** outEncoder)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandQueue, createCommandEncoder);
+
     RefPtr<DebugCommandEncoder> encoder = new DebugCommandEncoder(ctx);
-    auto result = baseObject->createCommandEncoder(encoder->baseObject.writeRef());
-    if (SLANG_FAILED(result))
-        return result;
+    SLANG_RETURN_ON_FAIL(baseObject->createCommandEncoder(encoder->baseObject.writeRef()));
+
     returnComPtr(outEncoder, encoder);
-    return result;
+    return SLANG_OK;
 }
 
 Result DebugCommandQueue::submit(const SubmitDesc& desc)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandQueue, submit);
+
     short_vector<ICommandBuffer*> innerCommandBuffers;
     short_vector<IFence*> innerWaitFences;
     short_vector<IFence*> innerSignalFences;
@@ -49,22 +51,26 @@ Result DebugCommandQueue::submit(const SubmitDesc& desc)
         getDebugObj(desc.signalFences[i])->maxValueToSignal =
             max(getDebugObj(desc.signalFences[i])->maxValueToSignal, desc.signalFenceValues[i]);
     }
+
     SubmitDesc innerDesc = desc;
     innerDesc.commandBuffers = innerCommandBuffers.data();
     innerDesc.waitFences = innerWaitFences.data();
     innerDesc.signalFences = innerSignalFences.data();
+
     return baseObject->submit(innerDesc);
 }
 
 Result DebugCommandQueue::waitOnHost()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandQueue, waitOnHost);
+
     return baseObject->waitOnHost();
 }
 
 Result DebugCommandQueue::getNativeHandle(NativeHandle* outHandle)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ICommandQueue, getNativeHandle);
+
     return baseObject->getNativeHandle(outHandle);
 }
 

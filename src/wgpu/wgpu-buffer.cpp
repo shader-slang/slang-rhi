@@ -19,11 +19,6 @@ BufferImpl::~BufferImpl()
     }
 }
 
-DeviceAddress BufferImpl::getDeviceAddress()
-{
-    return 0;
-}
-
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::WGPUBuffer;
@@ -35,6 +30,11 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+DeviceAddress BufferImpl::getDeviceAddress()
+{
+    return 0;
 }
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)

@@ -64,6 +64,10 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         return SLANG_FAIL;
     }
 
+    // Scoped pool drains autoreleased temporaries from nextDrawable() at
+    // function exit. The drawable itself survives via NS::RetainPtr.
+    AUTORELEASEPOOL
+
     m_currentDrawable = NS::RetainPtr(m_metalLayer->nextDrawable());
     if (!m_currentDrawable)
     {
@@ -97,10 +101,11 @@ Result SurfaceImpl::present()
         return SLANG_FAIL;
     }
 
+    AUTORELEASEPOOL
+
     MTL::CommandBuffer* commandBuffer = m_device->m_commandQueue->commandBuffer();
     commandBuffer->presentDrawable(m_currentDrawable.get());
     commandBuffer->commit();
-    commandBuffer->release();
     m_currentDrawable.reset();
 
     return SLANG_OK;

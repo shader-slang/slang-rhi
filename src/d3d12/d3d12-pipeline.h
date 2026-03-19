@@ -35,6 +35,7 @@ class RayTracingPipelineImpl : public RayTracingPipeline
 public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     ComPtr<ID3D12StateObject> m_stateObject;
+    std::map<std::string, void*> m_shaderIdentifierByName;
 
     RayTracingPipelineImpl(Device* device, const RayTracingPipelineDesc& desc);
 

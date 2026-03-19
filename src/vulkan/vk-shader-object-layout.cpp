@@ -919,9 +919,6 @@ void RootShaderObjectLayoutImpl::Builder::addGlobalParams(slang::VariableLayoutR
     // for global-scope parameters of uniform/ordinary type.
     //
     _addDescriptorRangesAsValue(globalsLayout->getTypeLayout(), offset);
-
-    // Binding offset handling has been simplified after pending data removal.
-    //
 }
 
 void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryPointLayout)
@@ -929,26 +926,48 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     auto slangEntryPointLayout = entryPointLayout->getSlangLayout();
     auto entryPointVarLayout = slangEntryPointLayout->getVarLayout();
 
-    // The offset information for each entry point needs to
-    // be handled uniformly now that pending data has been removed.
-    // was recorded in the global-scope layout.
-    //
-    // TODO(tfoley): Double-check that this is correct.
-
+    // Get the base offset from Slang's reflection for this entry point.
     BindingOffset entryPointOffset(entryPointVarLayout);
 
     EntryPointInfo info;
     info.layout = entryPointLayout;
     info.offset = entryPointOffset;
+    info.paramsSize = entryPointLayout->getTotalOrdinaryDataSize();
 
-    // Similar to the case for the global scope, we expect the
-    // type layout for the entry point parameters to be either
-    // a `struct EntryPointParams` or a `PushConstantBuffer<EntryPointParams>`.
-    // Rather than deal with the different cases here, we will
-    // trust the `_addDescriptorRangesAsValue` code to handle
-    // either case correctly.
-    //
-    _addDescriptorRangesAsValue(entryPointVarLayout->getTypeLayout(), entryPointOffset);
+    auto entryPointTypeLayout = entryPointVarLayout->getTypeLayout();
+
+    if (slangEntryPointLayout->getStage() == SLANG_STAGE_RAY_GENERATION)
+    {
+        // For raygen entry points, ordinary data is stored in the shader binding table (SBT),
+        // not in push constants or a constant buffer.
+
+        // Slang wraps entry point parameters in ConstantBuffer<T> or PushConstantBuffer<T>.
+        // We unwrap the wrapper and process only the inner descriptor ranges, without adding
+        // a constant buffer descriptor or push constant range.
+        uint32_t subObjectRangeCount = entryPointTypeLayout->getSubObjectRangeCount();
+        for (uint32_t r = 0; r < subObjectRangeCount; ++r)
+        {
+            auto bindingRangeIndex = entryPointTypeLayout->getSubObjectRangeBindingRangeIndex(r);
+            auto bindingType = entryPointTypeLayout->getBindingRangeType(bindingRangeIndex);
+
+            if (bindingType == slang::BindingType::ConstantBuffer || bindingType == slang::BindingType::PushConstant)
+            {
+                auto wrapperLayout = entryPointTypeLayout->getBindingRangeLeafTypeLayout(bindingRangeIndex);
+                auto elementVarLayout = wrapperLayout->getElementVarLayout();
+
+                BindingOffset elementOffset = entryPointOffset;
+                elementOffset += BindingOffset(elementVarLayout);
+
+                _addDescriptorRangesAsValue(elementVarLayout->getTypeLayout(), elementOffset);
+            }
+        }
+    }
+    else
+    {
+        // For non-raygen entry points, process normally. The ConstantBuffer/PushConstant
+        // handling in _addDescriptorRangesAsValue will set up push constants and descriptors.
+        _addDescriptorRangesAsValue(entryPointTypeLayout, entryPointOffset);
+    }
 
     m_entryPoints.push_back(info);
 
