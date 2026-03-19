@@ -107,6 +107,13 @@ inline const FormatMapping& getFormatMapping(Format format)
         { Format::BC6HSfloat,       CU_AD_FORMAT_BC6H_SF16,         CU_RES_VIEW_FORMAT_SIGNED_BC6H,     16, 3,  0           },
         { Format::BC7Unorm,         CU_AD_FORMAT_BC7_UNORM,         CU_RES_VIEW_FORMAT_UNSIGNED_BC7,    16, 4,  0           },
         { Format::BC7UnormSrgb,     CU_AD_FORMAT_BC7_UNORM_SRGB,    CU_RES_VIEW_FORMAT_UNSIGNED_BC7,    16, 4,  FLAG_SRGB   },
+
+        { Format::ASTC4x4Unorm,     CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC4x4UnormSrgb, CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC6x6Unorm,     CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC6x6UnormSrgb, CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC8x8Unorm,     CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC8x8UnormSrgb, CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
         // clang-format on
     };
 

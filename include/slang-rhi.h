@@ -401,6 +401,14 @@ enum class Format
     BC7Unorm,
     BC7UnormSrgb,
 
+    // ASTC compressed formats
+    ASTC4x4Unorm,
+    ASTC4x4UnormSrgb,
+    ASTC6x6Unorm,
+    ASTC6x6UnormSrgb,
+    ASTC8x8Unorm,
+    ASTC8x8UnormSrgb,
+
     _Count,
 };
 

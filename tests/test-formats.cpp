@@ -144,6 +144,21 @@ struct TestFormats
         bcSize.height = 4;
         bcSize.depth = 1;
 
+        Extent3D astc4Size = {};
+        astc4Size.width = 4;
+        astc4Size.height = 4;
+        astc4Size.depth = 1;
+
+        Extent3D astc6Size = {};
+        astc6Size.width = 6;
+        astc6Size.height = 6;
+        astc6Size.depth = 1;
+
+        Extent3D astc8Size = {};
+        astc8Size.width = 8;
+        astc8Size.height = 8;
+        astc8Size.depth = 1;
+
         // Note: D32Float and D16Unorm are not directly tested as they are only used for raster. These
         // are the same as R32Float and R16Unorm, respectively, when passed to a shader.
 
@@ -639,6 +654,73 @@ struct TestFormats
 
             testFormat(Format::BC7Unorm, bcSize, &subData, expected);
             testFormat(Format::BC7UnormSrgb, bcSize, &subData, expectedSRGB);
+        }
+
+        {
+            uint8_t texData[] =
+                {35u, 168u, 176u, 39u, 146u, 26u, 223u, 123u, 79u, 126u, 228u, 25u, 224u, 214u, 141u, 109u};
+            SubresourceData subData = {(void*)texData, 16, 0};
+            // clang-format off
+            std::array expected = {
+                0.066666667f, 0.266666667f, 0.533333333f, 0.933333333f,
+                0.164705882f, 0.380392157f, 0.619607843f, 0.921568627f,
+                0.274509804f, 0.501960784f, 0.717647059f, 0.909803922f,
+                0.392156863f, 0.631372549f, 0.819607843f, 0.894117647f
+            };
+            std::array expectedSRGB = {
+                0.005605392f, 0.057805430f, 0.246201327f, 0.933333333f,
+                0.023153366f, 0.119538428f, 0.341914425f, 0.921568627f,
+                0.061246054f, 0.215860500f, 0.473531496f, 0.909803922f,
+                0.127437680f, 0.356400144f, 0.637596874f, 0.894117647f
+            };
+            // clang-format on
+
+            testFormat(Format::ASTC4x4Unorm, astc4Size, &subData, expected);
+            testFormat(Format::ASTC4x4UnormSrgb, astc4Size, &subData, expectedSRGB);
+        }
+
+        {
+            uint8_t texData[] = {125u, 200u, 227u, 167u, 138u, 23u, 59u, 158u, 107u, 27u, 0u, 65u, 89u, 200u, 61u, 15u};
+            SubresourceData subData = {(void*)texData, 16, 0};
+            // clang-format off
+            std::array expected = {
+                0.141176471f, 0.427450980f, 0.713725490f, 0.858823529f,
+                0.141176471f, 0.427450980f, 0.713725490f, 0.858823529f,
+                0.364705882f, 0.560784314f, 0.760784314f, 0.858823529f,
+                0.501960784f, 0.643137255f, 0.788235294f, 0.858823529f
+            };
+            std::array expectedSRGB = {
+                0.017641954f, 0.152926152f, 0.467783796f, 0.858823529f,
+                0.017641954f, 0.152926152f, 0.467783796f, 0.858823529f,
+                0.109461711f, 0.274677312f, 0.539479489f, 0.858823529f,
+                0.215860500f, 0.371237680f, 0.584078418f, 0.858823529f
+            };
+            // clang-format on
+
+            testFormat(Format::ASTC6x6Unorm, astc6Size, &subData, expected);
+            testFormat(Format::ASTC6x6UnormSrgb, astc6Size, &subData, expectedSRGB);
+        }
+
+        {
+            uint8_t texData[] = {221u, 40u, 84u, 56u, 139u, 83u, 126u, 214u, 95u, 182u, 1u, 177u, 189u, 1u, 82u, 239u};
+            SubresourceData subData = {(void*)texData, 16, 0};
+            // clang-format off
+            std::array expected = {
+                0.384313725f, 0.615686275f, 0.501960784f, 0.890196078f,
+                0.384313725f, 0.615686275f, 0.501960784f, 0.890196078f,
+                0.384313725f, 0.615686275f, 0.501960784f, 0.890196078f,
+                0.368627451f, 0.631372549f, 0.623529412f, 0.890196078f
+            };
+            std::array expectedSRGB = {
+                0.122138772f, 0.337163615f, 0.215860500f, 0.890196078f,
+                0.122138772f, 0.337163615f, 0.215860500f, 0.890196078f,
+                0.122138772f, 0.337163615f, 0.215860500f, 0.890196078f,
+                0.111932428f, 0.356400144f, 0.346704056f, 0.890196078f
+            };
+            // clang-format on
+
+            testFormat(Format::ASTC8x8Unorm, astc8Size, &subData, expected);
+            testFormat(Format::ASTC8x8UnormSrgb, astc8Size, &subData, expectedSRGB);
         }
     }
 };

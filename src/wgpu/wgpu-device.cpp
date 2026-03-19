@@ -325,6 +325,7 @@ void DeviceImpl::initializeFormatSupport()
     API& api = m_ctx.api;
     bool supportDepth32FloatStencil8 = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Depth32FloatStencil8);
     bool supportBC = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_TextureCompressionBC);
+    bool supportASTC = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_TextureCompressionASTC);
     bool supportBGRA8UnormStorage = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_BGRA8UnormStorage);
     bool supportFloat32Filterable = api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Float32Filterable);
     bool supportFloat32Blendable = true; // api.wgpuDeviceHasFeature(m_ctx.device, WGPUFeatureName_Float32Blendable);
@@ -485,6 +486,13 @@ void DeviceImpl::initializeFormatSupport()
     set(Format::BC6HSfloat,     FLOAT | COPY_SRC | COPY_DST, supportBC);
     set(Format::BC7Unorm,       FLOAT | COPY_SRC | COPY_DST, supportBC);
     set(Format::BC7UnormSrgb,   FLOAT | COPY_SRC | COPY_DST, supportBC);
+
+    set(Format::ASTC4x4Unorm,     FLOAT | COPY_SRC | COPY_DST, supportASTC);
+    set(Format::ASTC4x4UnormSrgb, FLOAT | COPY_SRC | COPY_DST, supportASTC);
+    set(Format::ASTC6x6Unorm,     FLOAT | COPY_SRC | COPY_DST, supportASTC);
+    set(Format::ASTC6x6UnormSrgb, FLOAT | COPY_SRC | COPY_DST, supportASTC);
+    set(Format::ASTC8x8Unorm,     FLOAT | COPY_SRC | COPY_DST, supportASTC);
+    set(Format::ASTC8x8UnormSrgb, FLOAT | COPY_SRC | COPY_DST, supportASTC);
     // clang-format on
 }
 

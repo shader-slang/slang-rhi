@@ -258,10 +258,10 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
             // Align copy sizes to format block dimensions
-            copySize.width = math::calcAligned2(copySize.width, srcFormatInfo.blockWidth);
-            copySize.height = math::calcAligned2(copySize.height, srcFormatInfo.blockHeight);
-            copySize.width = math::calcAligned2(copySize.width, dstFormatInfo.blockWidth);
-            copySize.height = math::calcAligned2(copySize.height, dstFormatInfo.blockHeight);
+            copySize.width = math::calcAligned(copySize.width, srcFormatInfo.blockWidth);
+            copySize.height = math::calcAligned(copySize.height, srcFormatInfo.blockHeight);
+            copySize.width = math::calcAligned(copySize.width, dstFormatInfo.blockWidth);
+            copySize.height = math::calcAligned(copySize.height, dstFormatInfo.blockHeight);
 
             m_ctx.api.wgpuCommandEncoderCopyTextureToTexture(m_commandEncoder, &source, &destination, &copySize);
         }
@@ -389,8 +389,8 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             dstRegion.texture = dst->m_texture;
 
             WGPUExtent3D copySize;
-            copySize.width = math::calcAligned2(srLayout->size.width, srLayout->blockWidth);
-            copySize.height = math::calcAligned2(srLayout->size.height, srLayout->blockHeight);
+            copySize.width = math::calcAligned(srLayout->size.width, srLayout->blockWidth);
+            copySize.height = math::calcAligned(srLayout->size.height, srLayout->blockHeight);
             copySize.depthOrArrayLayers = srLayout->size.depth;
 
             m_ctx.api.wgpuCommandEncoderCopyBufferToTexture(m_commandEncoder, &srcRegion, &dstRegion, &copySize);

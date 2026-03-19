@@ -120,6 +120,13 @@ inline size_t calcAligned(size_t size, size_t alignment)
     return divideRoundedUp(size, alignment) * alignment;
 }
 
+/// Calculate aligned-down size taking into account alignment.
+inline size_t calcAlignedDown(size_t size, size_t alignment)
+{
+    SLANG_RHI_ASSERT(alignment != 0);
+    return (size / alignment) * alignment;
+}
+
 /// More optimal calculate size taking into account alignment that only supports power of 2.
 inline size_t calcAligned2(size_t size, size_t alignment)
 {
