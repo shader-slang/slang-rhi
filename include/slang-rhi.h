@@ -2695,7 +2695,22 @@ class ICommandQueue : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(
+        const CommandEncoderDesc& desc,
+        ICommandEncoder** outEncoder
+    ) = 0;
+
+    inline Result createCommandEncoder(ICommandEncoder** outEncoder)
+    {
+        return createCommandEncoder(CommandEncoderDesc{}, outEncoder);
+    }
+
+    inline ComPtr<ICommandEncoder> createCommandEncoder(const CommandEncoderDesc& desc)
+    {
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_NULL_ON_FAIL(createCommandEncoder(desc, encoder.writeRef()));
+        return encoder;
+    }
 
     inline ComPtr<ICommandEncoder> createCommandEncoder()
     {
