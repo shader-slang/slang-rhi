@@ -114,7 +114,10 @@ Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** 
 
     debugShaderObject = new DebugShaderObject(ctx);
     debugShaderObject->baseObject = innerObject;
-    debugShaderObject->m_typeName = string::from_cstr(innerObject->getElementTypeLayout()->getName());
+    if (innerObject)
+    {
+        debugShaderObject->m_typeName = string::from_cstr(innerObject->getElementTypeLayout()->getName());
+    }
     m_objects.emplace(ShaderOffsetKey{offset}, debugShaderObject);
 
     returnComPtr(outObject, debugShaderObject);
