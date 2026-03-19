@@ -918,7 +918,7 @@ void CommandEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
     m_commandList->write(std::move(cmd));
 }
 
-Result CommandEncoder::finish(ICommandBuffer** outCommandBuffer)
+Result CommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
     // iterate over commands and specialize pipelines
     return SLANG_FAIL;
