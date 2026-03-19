@@ -1214,6 +1214,10 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     CommandRecorder recorder(device);
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     m_commandBuffer->setDesc(desc);
+    if (desc.label)
+    {
+        m_commandBuffer->m_commandBuffer->setLabel(createString(desc.label).get());
+    }
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;

@@ -50,7 +50,7 @@ public:
     {
     }
 
-    Result record(CommandBufferImpl* commandBuffer);
+    Result record(CommandBufferImpl* commandBuffer, const char* encoderLabel = nullptr);
 
     void cmdCopyBuffer(const commands::CopyBuffer& cmd);
     void cmdCopyTexture(const commands::CopyTexture& cmd);
@@ -97,13 +97,15 @@ public:
     void endPassEncoder();
 };
 
-Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
+Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* encoderLabel)
 {
     auto existingError = m_device->getAndClearLastUncapturedError();
     if (existingError != WGPUErrorType_NoError)
         m_device->printWarning("Web GPU device had reported error before command record.");
 
-    m_commandEncoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, nullptr);
+    WGPUCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.label = translateString(encoderLabel);
+    m_commandEncoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, &encoderDesc);
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(m_commandEncoder); });
     if (!m_commandEncoder)
     {
@@ -134,7 +136,9 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     endPassEncoder();
 
-    commandBuffer->m_commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, nullptr);
+    WGPUCommandBufferDescriptor commandBufferDesc = {};
+    commandBufferDesc.label = translateString(commandBuffer->m_desc.label);
+    commandBuffer->m_commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, &commandBufferDesc);
     if (!commandBuffer->m_commandBuffer)
     {
         return SLANG_FAIL;
@@ -1017,9 +1021,9 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
 {
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->m_constantBufferPool.finish();
-    CommandRecorder recorder(getDevice<DeviceImpl>());
-    SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
     m_commandBuffer->setDesc(desc);
+    CommandRecorder recorder(getDevice<DeviceImpl>());
+    SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer, m_desc.label));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;
