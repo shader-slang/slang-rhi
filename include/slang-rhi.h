@@ -78,6 +78,9 @@ enum class StructType
     DeviceDesc,
     HeapDesc,
 
+    CommandEncoderDesc,
+    CommandBufferDesc,
+
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
 
