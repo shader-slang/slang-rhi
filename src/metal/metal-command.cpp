@@ -1045,11 +1045,11 @@ uint64_t CommandQueueImpl::updateLastFinishedID()
     return m_lastFinishedID;
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
 {
     AUTORELEASEPOOL
 
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this, desc);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
@@ -1173,8 +1173,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
-    : CommandEncoder(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue, const CommandEncoderDesc& desc)
+    : CommandEncoder(device, desc)
     , m_queue(queue)
 {
 }
@@ -1205,11 +1205,17 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     );
 }
 
-Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
+Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
     AUTORELEASEPOOL
 
     DeviceImpl* device = getDevice<DeviceImpl>();
+    bool hadLabel = m_commandBuffer->m_desc.label != nullptr;
+    m_commandBuffer->setDesc(desc);
+    if (hadLabel)
+    {
+        m_commandBuffer->m_commandBuffer->setLabel(createString(m_commandBuffer->m_desc.label).get());
+    }
     SLANG_RETURN_ON_FAIL(resolvePipelines(device));
     CommandRecorder recorder(device);
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));

@@ -13,6 +13,7 @@ public:
 
 public:
     ICommandBuffer* getInterface(const Guid& guid);
+    virtual SLANG_NO_THROW const CommandBufferDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
