@@ -461,19 +461,18 @@ Result DebugDevice::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outDat
             RHI_VALIDATION_ERROR("Buffer is already mapped.");
             return SLANG_E_INVALID_ARG;
         }
-
-        Result result = baseObject->mapBuffer(buffer, mode, outData);
-
-        if (SLANG_SUCCEEDED(result))
-        {
-            m_mappedBuffers.insert(buffer);
-        }
-
-        return result;
     }
-#else
-    return baseObject->mapBuffer(buffer, mode, outData);
 #endif
+    Result result = baseObject->mapBuffer(buffer, mode, outData);
+#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
+    if (SLANG_SUCCEEDED(result))
+    {
+        std::lock_guard<std::mutex> lock(m_mappedBuffersMutex);
+        m_mappedBuffers.insert(buffer);
+    }
+#endif
+
+    return result;
 }
 
 Result DebugDevice::unmapBuffer(IBuffer* buffer)
@@ -494,19 +493,18 @@ Result DebugDevice::unmapBuffer(IBuffer* buffer)
             RHI_VALIDATION_ERROR("Buffer is not mapped.");
             return SLANG_E_INVALID_ARG;
         }
-
-        Result result = baseObject->unmapBuffer(buffer);
-
-        if (SLANG_SUCCEEDED(result))
-        {
-            m_mappedBuffers.erase(buffer);
-        }
-
-        return result;
     }
-#else
-    return baseObject->unmapBuffer(buffer);
 #endif
+    Result result = baseObject->unmapBuffer(buffer);
+#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
+    if (SLANG_SUCCEEDED(result))
+    {
+        std::lock_guard<std::mutex> lock(m_mappedBuffersMutex);
+        m_mappedBuffers.erase(buffer);
+    }
+#endif
+
+    return result;
 }
 
 Result DebugDevice::createSampler(const SamplerDesc& desc, ISampler** outSampler)
