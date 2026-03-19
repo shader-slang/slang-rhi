@@ -85,6 +85,11 @@ Result QueryPoolImpl::init()
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
     m_commandList->Reset(m_commandAllocator, nullptr);
     m_commandList->ResolveQueryData(
         m_queryHeap,
@@ -166,6 +171,11 @@ Result PlainBufferProxyQueryPoolImpl::reset()
 
 Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (m_resultDirty)

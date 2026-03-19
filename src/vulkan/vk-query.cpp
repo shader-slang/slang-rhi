@@ -50,6 +50,11 @@ QueryPoolImpl::~QueryPoolImpl()
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetQueryPoolResults(

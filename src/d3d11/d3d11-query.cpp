@@ -36,6 +36,11 @@ ID3D11Query* QueryPoolImpl::getQuery(uint32_t index)
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
     D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
     while (S_OK !=

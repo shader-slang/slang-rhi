@@ -34,6 +34,11 @@ Result QueryPoolImpl::init()
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
     for (uint32_t i = 0; i < count; i++)
     {
         float time = 0.0f;
@@ -72,6 +77,11 @@ Result PlainBufferProxyQueryPoolImpl::reset()
 
 Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(
         cuMemcpyDtoH(outData, m_buffer + queryIndex * sizeof(uint64_t), count * sizeof(uint64_t)),
