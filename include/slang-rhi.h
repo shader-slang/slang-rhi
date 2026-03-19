@@ -2469,6 +2469,8 @@ class ICommandEncoder : public ISlangUnknown
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
 
 public:
+    virtual SLANG_NO_THROW const CommandEncoderDesc& SLANG_MCALL getDesc() = 0;
+
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) = 0;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() = 0;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() = 0;
@@ -2639,7 +2641,19 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(
+        const CommandBufferDesc& desc,
+        ICommandBuffer** outCommandBuffer
+    ) = 0;
+
+    inline Result finish(ICommandBuffer** outCommandBuffer) { return finish(CommandBufferDesc{}, outCommandBuffer); }
+
+    inline ComPtr<ICommandBuffer> finish(const CommandBufferDesc& desc)
+    {
+        ComPtr<ICommandBuffer> commandBuffer;
+        SLANG_RETURN_NULL_ON_FAIL(finish(desc, commandBuffer.writeRef()));
+        return commandBuffer;
+    }
 
     inline ComPtr<ICommandBuffer> finish()
     {
