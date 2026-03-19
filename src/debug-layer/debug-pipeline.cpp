@@ -11,6 +11,12 @@ Result DebugRenderPipeline::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_DEBUG_API(IRenderPipeline, getNativeHandle);
 
+    if (!outHandle)
+    {
+        RHI_VALIDATION_ERROR("'outHandle' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->getNativeHandle(outHandle);
 }
 
@@ -22,6 +28,12 @@ Result DebugComputePipeline::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_DEBUG_API(IComputePipeline, getNativeHandle);
 
+    if (!outHandle)
+    {
+        RHI_VALIDATION_ERROR("'outHandle' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->getNativeHandle(outHandle);
 }
 
@@ -32,6 +44,12 @@ Result DebugComputePipeline::getNativeHandle(NativeHandle* outHandle)
 Result DebugRayTracingPipeline::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_DEBUG_API(IRayTracingPipeline, getNativeHandle);
+
+    if (!outHandle)
+    {
+        RHI_VALIDATION_ERROR("'outHandle' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     return baseObject->getNativeHandle(outHandle);
 }

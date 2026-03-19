@@ -12,6 +12,12 @@ Result DebugCommandBuffer::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_DEBUG_API(ICommandBuffer, getNativeHandle);
 
+    if (!outHandle)
+    {
+        RHI_VALIDATION_ERROR("'outHandle' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->getNativeHandle(outHandle);
 }
 

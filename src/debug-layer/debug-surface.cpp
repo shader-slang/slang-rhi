@@ -87,6 +87,12 @@ Result DebugSurface::acquireNextImage(ITexture** outTexture)
 {
     SLANG_RHI_DEBUG_API(ISurface, acquireNextImage);
 
+    if (!outTexture)
+    {
+        RHI_VALIDATION_ERROR("'outTexture' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     if (!m_configured)
     {
         RHI_VALIDATION_ERROR("Surface is not configured.");

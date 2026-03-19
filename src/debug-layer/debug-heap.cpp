@@ -43,6 +43,12 @@ Result DebugHeap::report(HeapReport* outReport)
 {
     SLANG_RHI_DEBUG_API(IHeap, report);
 
+    if (!outReport)
+    {
+        RHI_VALIDATION_ERROR("'outReport' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->report(outReport);
 }
 
