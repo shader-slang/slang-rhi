@@ -2365,6 +2365,15 @@ struct MarkerColor
     float b;
 };
 
+struct CommandBufferDesc
+{
+    StructType structType = StructType::CommandBufferDesc;
+    const void* next = nullptr;
+
+    /// The name of the command buffer for debugging purposes.
+    const char* label = nullptr;
+};
+
 class ICommandBuffer : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x58e5d83f, 0xad31, 0x44ea, {0xa4, 0xd1, 0x5e, 0x65, 0x9c, 0xd9, 0xa7, 0x57});
@@ -2444,6 +2453,15 @@ public:
         uint32_t height,
         uint32_t depth
     ) = 0;
+};
+
+struct CommandEncoderDesc
+{
+    StructType structType = StructType::CommandEncoderDesc;
+    const void* next = nullptr;
+
+    /// The name of the command encoder for debugging purposes.
+    const char* label = nullptr;
 };
 
 class ICommandEncoder : public ISlangUnknown
