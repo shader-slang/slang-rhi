@@ -48,7 +48,7 @@ QueryPoolImpl::~QueryPoolImpl()
     device->m_api.vkDestroyQueryPool(device->m_api.m_device, m_pool, nullptr);
 }
 
-Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
@@ -58,7 +58,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
         queryIndex,
         count,
         sizeof(uint64_t) * count,
-        data,
+        outData,
         sizeof(uint64_t),
         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
     ));

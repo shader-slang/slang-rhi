@@ -1078,6 +1078,17 @@ Result DebugCommandEncoder::uploadTextureData(
     requireOpen();
     requireNoPass();
 
+    if (!dst)
+    {
+        RHI_VALIDATION_ERROR("'dst' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!subresourceData)
+    {
+        RHI_VALIDATION_ERROR("'subresourceData' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     if (subresourceRange.mipCount != 1)
     {
         if (offset.x != 0 || offset.y != 0 || offset.z != 0)
@@ -1111,6 +1122,12 @@ void DebugCommandEncoder::clearBuffer(IBuffer* buffer, BufferRange range)
 
     requireOpen();
     requireNoPass();
+
+    if (!buffer)
+    {
+        RHI_VALIDATION_ERROR("'buffer' must not be null.");
+        return;
+    }
     if (range.offset % 4 != 0)
     {
         RHI_VALIDATION_ERROR("The range offset must be a multiple of 4.");
@@ -1471,6 +1488,23 @@ void DebugCommandEncoder::buildAccelerationStructure(
 
     requireOpen();
     requireNoPass();
+
+    if (!dst)
+    {
+        RHI_VALIDATION_ERROR("'dst' must not be null.");
+        return;
+    }
+    if (!scratchBuffer.buffer)
+    {
+        RHI_VALIDATION_ERROR("'scratchBuffer.buffer' must not be null.");
+        return;
+    }
+    if (propertyQueryCount > 0 && !queryDescs)
+    {
+        RHI_VALIDATION_ERROR("'queryDescs' must not be null when 'propertyQueryCount' > 0.");
+        return;
+    }
+
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
     for (uint32_t i = 0; i < propertyQueryCount; ++i)
     {
@@ -1526,6 +1560,18 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
 
     requireOpen();
     requireNoPass();
+
+    if (accelerationStructureCount > 0 && !accelerationStructures)
+    {
+        RHI_VALIDATION_ERROR("'accelerationStructures' must not be null when 'accelerationStructureCount' > 0.");
+        return;
+    }
+    if (queryCount > 0 && !queryDescs)
+    {
+        RHI_VALIDATION_ERROR("'queryDescs' must not be null when 'queryCount' > 0.");
+        return;
+    }
+
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
     for (uint32_t i = 0; i < queryCount; ++i)
     {
@@ -1827,6 +1873,13 @@ Result DebugCommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer
 
     requireOpen();
     requireNoPass();
+
+    if (!outCommandBuffer)
+    {
+        RHI_VALIDATION_ERROR("'outCommandBuffer' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     RefPtr<DebugCommandBuffer> outObject = new DebugCommandBuffer(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->finish(desc, outObject->baseObject.writeRef()));
 
@@ -1837,6 +1890,12 @@ Result DebugCommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer
 Result DebugCommandEncoder::getNativeHandle(NativeHandle* outHandle)
 {
     SLANG_RHI_DEBUG_API(ICommandEncoder, getNativeHandle);
+
+    if (!outHandle)
+    {
+        RHI_VALIDATION_ERROR("'outHandle' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     return baseObject->getNativeHandle(outHandle);
 }

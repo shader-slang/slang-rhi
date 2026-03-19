@@ -11,7 +11,11 @@ public:
 
     Result init();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
+        uint32_t queryIndex,
+        uint32_t count,
+        uint64_t* outData
+    ) override;
 
     void writeTimestamp(ID3D12GraphicsCommandList* cmdList, uint32_t index);
 
@@ -42,7 +46,11 @@ public:
     Result init(uint32_t stride);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
+        uint32_t queryIndex,
+        uint32_t count,
+        uint64_t* outData
+    ) override;
 
 public:
     QueryType m_queryType;

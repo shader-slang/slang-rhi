@@ -28,17 +28,23 @@ uint32_t DebugShaderObject::getEntryPointCount()
     return baseObject->getEntryPointCount();
 }
 
-Result DebugShaderObject::getEntryPoint(uint32_t index, IShaderObject** entryPoint)
+Result DebugShaderObject::getEntryPoint(uint32_t index, IShaderObject** outEntryPoint)
 {
     SLANG_RHI_DEBUG_API(IShaderObject, getEntryPoint);
+
+    if (!outEntryPoint)
+    {
+        RHI_VALIDATION_ERROR("'outEntryPoint' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     if (m_entryPoints.empty())
     {
         for (uint32_t i = 0; i < getEntryPointCount(); i++)
         {
-            RefPtr<DebugShaderObject> entryPointObj = new DebugShaderObject(ctx);
-            SLANG_RETURN_ON_FAIL(baseObject->getEntryPoint(i, entryPointObj->baseObject.writeRef()));
-            m_entryPoints.push_back(entryPointObj);
+            RefPtr<DebugShaderObject> entryPoint = new DebugShaderObject(ctx);
+            SLANG_RETURN_ON_FAIL(baseObject->getEntryPoint(i, entryPoint->baseObject.writeRef()));
+            m_entryPoints.push_back(entryPoint);
         }
     }
     if (index >= m_entryPoints.size())
@@ -47,7 +53,7 @@ Result DebugShaderObject::getEntryPoint(uint32_t index, IShaderObject** entryPoi
         return SLANG_FAIL;
     }
 
-    returnComPtr(entryPoint, m_entryPoints[index]);
+    returnComPtr(outEntryPoint, m_entryPoints[index]);
     return SLANG_OK;
 }
 
@@ -66,12 +72,24 @@ Result DebugShaderObject::reserveData(const ShaderOffset& offset, Size size, voi
 
     SLANG_RETURN_ON_FAIL(checkNotFinalized());
 
+    if (!outData)
+    {
+        RHI_VALIDATION_ERROR("'outData' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->reserveData(offset, size, outData);
 }
 
-Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** object)
+Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** outObject)
 {
     SLANG_RHI_DEBUG_API(IShaderObject, getObject);
+
+    if (!outObject)
+    {
+        RHI_VALIDATION_ERROR("'outObject' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     ComPtr<IShaderObject> innerObject;
     SLANG_RETURN_ON_FAIL(baseObject->getObject(offset, innerObject.writeRef()));
@@ -83,7 +101,7 @@ Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** 
         debugShaderObject = it->second;
         if (debugShaderObject->baseObject == innerObject)
         {
-            returnComPtr(object, debugShaderObject);
+            returnComPtr(outObject, debugShaderObject);
             return SLANG_OK;
         }
     }
@@ -93,7 +111,7 @@ Result DebugShaderObject::getObject(const ShaderOffset& offset, IShaderObject** 
     debugShaderObject->m_typeName = string::from_cstr(innerObject->getElementTypeLayout()->getName());
     m_objects.emplace(ShaderOffsetKey{offset}, debugShaderObject);
 
-    returnComPtr(object, debugShaderObject);
+    returnComPtr(outObject, debugShaderObject);
     return SLANG_OK;
 }
 
@@ -143,6 +161,12 @@ Result DebugShaderObject::setSpecializationArgs(
     SLANG_RHI_DEBUG_API(IShaderObject, setSpecializationArgs);
 
     SLANG_RETURN_ON_FAIL(checkNotFinalized());
+
+    if (count > 0 && !args)
+    {
+        RHI_VALIDATION_ERROR("'args' must not be null when 'count' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     return baseObject->setSpecializationArgs(offset, args, count);
 }

@@ -83,7 +83,7 @@ Result QueryPoolImpl::init()
     return SLANG_OK;
 }
 
-Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
     m_commandList->Reset(m_commandAllocator, nullptr);
     m_commandList->ResolveQueryData(
@@ -106,7 +106,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
     int8_t* mappedData = nullptr;
     D3D12_RANGE readRange = {sizeof(uint64_t) * queryIndex, sizeof(uint64_t) * (queryIndex + count)};
     m_readBackBuffer.getResource()->Map(0, &readRange, (void**)&mappedData);
-    memcpy(data, mappedData + sizeof(uint64_t) * queryIndex, sizeof(uint64_t) * count);
+    memcpy(outData, mappedData + sizeof(uint64_t) * queryIndex, sizeof(uint64_t) * count);
     m_readBackBuffer.getResource()->Unmap(0, nullptr);
     return SLANG_OK;
 }
@@ -164,7 +164,7 @@ Result PlainBufferProxyQueryPoolImpl::reset()
     return SLANG_OK;
 }
 
-Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
+Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
@@ -210,7 +210,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t co
         m_resultDirty = false;
     }
 
-    memcpy(data, m_result.data() + queryIndex * m_stride, count * m_stride);
+    memcpy(outData, m_result.data() + queryIndex * m_stride, count * m_stride);
 
     return SLANG_OK;
 }

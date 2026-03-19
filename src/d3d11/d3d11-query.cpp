@@ -34,7 +34,7 @@ ID3D11Query* QueryPoolImpl::getQuery(uint32_t index)
     return m_queries[index].get();
 }
 
-Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData;
@@ -49,7 +49,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
     for (uint32_t i = 0; i < count; i++)
     {
         SLANG_RETURN_ON_FAIL(
-            device->m_immediateContext->GetData(m_queries[queryIndex + i], data + i, sizeof(uint64_t), 0)
+            device->m_immediateContext->GetData(m_queries[queryIndex + i], outData + i, sizeof(uint64_t), 0)
         );
     }
     return SLANG_OK;

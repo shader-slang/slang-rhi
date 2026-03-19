@@ -35,12 +35,24 @@ Result DebugDevice::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     SLANG_RHI_DEBUG_API(IDevice, getNativeDeviceHandles);
 
+    if (!outHandles)
+    {
+        RHI_VALIDATION_ERROR("'outHandles' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->getNativeDeviceHandles(outHandles);
 }
 
 Result DebugDevice::getFeatures(uint32_t* outFeatureCount, Feature* outFeatures)
 {
     SLANG_RHI_DEBUG_API(IDevice, getFeatures);
+
+    if (!outFeatureCount)
+    {
+        RHI_VALIDATION_ERROR("'outFeatureCount' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     return baseObject->getFeatures(outFeatureCount, outFeatures);
 }
@@ -63,6 +75,12 @@ Result DebugDevice::getCapabilities(uint32_t* outCapabilityCount, Capability* ou
 {
     SLANG_RHI_DEBUG_API(IDevice, getCapabilities);
 
+    if (!outCapabilityCount)
+    {
+        RHI_VALIDATION_ERROR("'outCapabilityCount' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->getCapabilities(outCapabilityCount, outCapabilities);
 }
 
@@ -84,6 +102,12 @@ Result DebugDevice::getFormatSupport(Format format, FormatSupport* outFormatSupp
 {
     SLANG_RHI_DEBUG_API(IDevice, getFormatSupport);
 
+    if (!outFormatSupport)
+    {
+        RHI_VALIDATION_ERROR("'outFormatSupport' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->getFormatSupport(format, outFormatSupport);
 }
 
@@ -101,6 +125,12 @@ DebugDevice::DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback)
 Result DebugDevice::getSlangSession(slang::ISession** outSlangSession)
 {
     SLANG_RHI_DEBUG_API(IDevice, getSlangSession);
+
+    if (!outSlangSession)
+    {
+        RHI_VALIDATION_ERROR("'outSlangSession' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     return baseObject->getSlangSession(outSlangSession);
 }
@@ -685,6 +715,12 @@ Result DebugDevice::getAccelerationStructureSizes(
 {
     SLANG_RHI_DEBUG_API(IDevice, getAccelerationStructureSizes);
 
+    if (!outSizes)
+    {
+        RHI_VALIDATION_ERROR("'outSizes' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     SLANG_RETURN_ON_FAIL(validateAccelerationStructureBuildDesc(ctx, desc));
 
     return baseObject->getAccelerationStructureSizes(desc, outSizes);
@@ -693,6 +729,12 @@ Result DebugDevice::getAccelerationStructureSizes(
 Result DebugDevice::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     SLANG_RHI_DEBUG_API(IDevice, getClusterOperationSizes);
+
+    if (!outSizes)
+    {
+        RHI_VALIDATION_ERROR("'outSizes' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     SLANG_RETURN_ON_FAIL(validateClusterOperationParams(ctx, params));
 
@@ -750,6 +792,12 @@ Result DebugDevice::createAccelerationStructure(
 Result DebugDevice::createSurface(WindowHandle windowHandle, ISurface** outSurface)
 {
     SLANG_RHI_DEBUG_API(IDevice, createSurface);
+
+    if (!outSurface)
+    {
+        RHI_VALIDATION_ERROR("'outSurface' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     RefPtr<DebugSurface> outObject = new DebugSurface(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createSurface(windowHandle, outObject->baseObject.writeRef()));
@@ -809,6 +857,12 @@ Result DebugDevice::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     SLANG_RHI_DEBUG_API(IDevice, getQueue);
 
+    if (!outQueue)
+    {
+        RHI_VALIDATION_ERROR("'outQueue' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     RefPtr<DebugCommandQueue> outObject = new DebugCommandQueue(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->getQueue(type, outObject->baseObject.writeRef()));
 
@@ -824,6 +878,12 @@ Result DebugDevice::createShaderObject(
 )
 {
     SLANG_RHI_DEBUG_API(IDevice, createShaderObject);
+
+    if (!outShaderObject)
+    {
+        RHI_VALIDATION_ERROR("'outShaderObject' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
     SLANG_RETURN_ON_FAIL(
@@ -844,6 +904,12 @@ Result DebugDevice::createShaderObjectFromTypeLayout(
 {
     SLANG_RHI_DEBUG_API(IDevice, createShaderObjectFromTypeLayout);
 
+    if (!outShaderObject)
+    {
+        RHI_VALIDATION_ERROR("'outShaderObject' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createShaderObjectFromTypeLayout(typeLayout, outObject->baseObject.writeRef()));
     auto type = typeLayout->getType();
@@ -858,6 +924,12 @@ Result DebugDevice::createShaderObjectFromTypeLayout(
 Result DebugDevice::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
     SLANG_RHI_DEBUG_API(IDevice, createRootShaderObject);
+
+    if (!outObject)
+    {
+        RHI_VALIDATION_ERROR("'outObject' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     RefPtr<DebugShaderObject> outRootObject = new DebugShaderObject(ctx);
     SLANG_RETURN_ON_FAIL(baseObject->createRootShaderObject(program, outRootObject->baseObject.writeRef()));
@@ -909,6 +981,11 @@ Result DebugDevice::createRenderPipeline(const RenderPipelineDesc& desc, IRender
 
     validateCudaContext();
 
+    if (!outPipeline)
+    {
+        RHI_VALIDATION_ERROR("'outPipeline' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
     if (desc.program == nullptr)
     {
         RHI_VALIDATION_ERROR("Program must be specified.");
@@ -942,6 +1019,11 @@ Result DebugDevice::createComputePipeline(const ComputePipelineDesc& desc, IComp
 
     validateCudaContext();
 
+    if (!outPipeline)
+    {
+        RHI_VALIDATION_ERROR("'outPipeline' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
     if (desc.program == nullptr)
     {
         RHI_VALIDATION_ERROR("Program must be specified.");
@@ -965,6 +1047,11 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
 
     validateCudaContext();
 
+    if (!outPipeline)
+    {
+        RHI_VALIDATION_ERROR("'outPipeline' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
     if (desc.program == nullptr)
     {
         RHI_VALIDATION_ERROR("Program must be specified.");
@@ -986,6 +1073,12 @@ Result DebugDevice::getCompilationReportList(ISlangBlob** outReportListBlob)
 {
     SLANG_RHI_DEBUG_API(IDevice, getCompilationReportList);
 
+    if (!outReportListBlob)
+    {
+        RHI_VALIDATION_ERROR("'outReportListBlob' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->getCompilationReportList(outReportListBlob);
 }
 
@@ -1000,6 +1093,17 @@ Result DebugDevice::readTexture(
     SLANG_RHI_DEBUG_API(IDevice, readTexture);
 
     validateCudaContext();
+
+    if (!texture)
+    {
+        RHI_VALIDATION_ERROR("'texture' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!outData)
+    {
+        RHI_VALIDATION_ERROR("'outData' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     const TextureDesc& desc = texture->getDesc();
 
@@ -1050,6 +1154,17 @@ Result DebugDevice::readTexture(
     SLANG_RHI_DEBUG_API(IDevice, readTexture);
 
     validateCudaContext();
+
+    if (!texture)
+    {
+        RHI_VALIDATION_ERROR("'texture' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!outBlob)
+    {
+        RHI_VALIDATION_ERROR("'outBlob' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     const TextureDesc& desc = texture->getDesc();
 
@@ -1218,9 +1333,25 @@ Result DebugDevice::waitForFences(
 {
     SLANG_RHI_DEBUG_API(IDevice, waitForFences);
 
+    if (fenceCount > 0 && !fences)
+    {
+        RHI_VALIDATION_ERROR("'fences' must not be null when 'fenceCount' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (fenceCount > 0 && !fenceValues)
+    {
+        RHI_VALIDATION_ERROR("'fenceValues' must not be null when 'fenceCount' > 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     short_vector<IFence*> innerFences;
     for (uint32_t i = 0; i < fenceCount; i++)
     {
+        if (!fences[i])
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'fences[%u]' must not be null.", i);
+            return SLANG_E_INVALID_ARG;
+        }
         innerFences.push_back(getInnerObj(fences[i]));
     }
 
@@ -1232,6 +1363,12 @@ Result DebugDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
     SLANG_RHI_DEBUG_API(IDevice, createHeap);
 
     validateCudaContext();
+
+    if (!outHeap)
+    {
+        RHI_VALIDATION_ERROR("'outHeap' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     HeapDesc patchedDesc = desc;
     std::string label;
@@ -1252,12 +1389,29 @@ Result DebugDevice::getTextureAllocationInfo(const TextureDesc& desc, size_t* ou
 {
     SLANG_RHI_DEBUG_API(IDevice, getTextureAllocationInfo);
 
+    if (!outSize)
+    {
+        RHI_VALIDATION_ERROR("'outSize' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!outAlignment)
+    {
+        RHI_VALIDATION_ERROR("'outAlignment' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->getTextureAllocationInfo(desc, outSize, outAlignment);
 }
 
 Result DebugDevice::getTextureRowAlignment(Format format, size_t* outAlignment)
 {
     SLANG_RHI_DEBUG_API(IDevice, getTextureRowAlignment);
+
+    if (!outAlignment)
+    {
+        RHI_VALIDATION_ERROR("'outAlignment' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     return baseObject->getTextureRowAlignment(format, outAlignment);
 }
@@ -1266,12 +1420,24 @@ Result DebugDevice::isCooperativeMatrixSupported(const CooperativeMatrixDesc& de
 {
     SLANG_RHI_DEBUG_API(IDevice, isCooperativeMatrixSupported);
 
+    if (!outSupported)
+    {
+        RHI_VALIDATION_ERROR("'outSupported' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->isCooperativeMatrixSupported(desc, outSupported);
 }
 
 Result DebugDevice::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)
 {
     SLANG_RHI_DEBUG_API(IDevice, getCooperativeVectorProperties);
+
+    if (!propertiesCount)
+    {
+        RHI_VALIDATION_ERROR("'propertiesCount' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     return baseObject->getCooperativeVectorProperties(properties, propertiesCount);
 }
@@ -1286,6 +1452,12 @@ Result DebugDevice::getCooperativeVectorMatrixSize(
 )
 {
     SLANG_RHI_DEBUG_API(IDevice, getCooperativeVectorMatrixSize);
+
+    if (!outSize)
+    {
+        RHI_VALIDATION_ERROR("'outSize' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     if (rowCount < 1 || rowCount > 128)
     {
