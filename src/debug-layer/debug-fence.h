@@ -8,11 +8,12 @@ class DebugFence : public DebugObject<IFence>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
+    IFence* getInterface(const Guid& guid);
 
     SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugFence);
 
 public:
-    IFence* getInterface(const Guid& guid);
+    // IFence implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getCurrentValue(uint64_t* outValue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setCurrentValue(uint64_t value) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
