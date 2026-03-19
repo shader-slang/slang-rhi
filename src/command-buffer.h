@@ -190,6 +190,7 @@ public:
 
 public:
     CommandEncoderDesc m_desc;
+    StructHolder m_descHolder;
 
     // Current command list to write to. Must be set by the derived class.
     CommandList* m_commandList = nullptr;
@@ -202,12 +203,14 @@ public:
     // This is populated during command encoding and later used when asynchronously resolving pipelines.
     std::vector<RefPtr<ExtendedShaderObjectTypeListObject>> m_pipelineSpecializationArgs;
 
-    CommandEncoder(Device* device)
+    CommandEncoder(Device* device, const CommandEncoderDesc& desc)
         : DeviceChild(device)
+        , m_desc(desc)
         , m_renderPassEncoder(this)
         , m_computePassEncoder(this)
         , m_rayTracingPassEncoder(this)
     {
+        m_descHolder.holdString(m_desc.label);
     }
 
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) = 0;
@@ -416,6 +419,7 @@ public:
 
 public:
     CommandBufferDesc m_desc;
+    StructHolder m_descHolder;
     ArenaAllocator m_allocator;
     CommandList m_commandList;
     std::set<RefPtr<RefObject>> m_trackedObjects;
