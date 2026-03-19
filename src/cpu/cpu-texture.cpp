@@ -81,6 +81,18 @@ void _unpackUInt32Texel(const void* texelData, void* outData, size_t outSize)
     memcpy(outData, temp, outSize);
 }
 
+template<int N>
+void _unpackSInt32Texel(const void* texelData, void* outData, size_t outSize)
+{
+    auto input = (const int32_t*)texelData;
+
+    int32_t temp[4] = {0, 0, 0, 0};
+    for (int i = 0; i < N; ++i)
+        temp[i] = input[i];
+
+    memcpy(outData, temp, outSize);
+}
+
 TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
     : Texture(device, desc)
 {
