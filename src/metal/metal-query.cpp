@@ -72,8 +72,16 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     }
 
     NS::Data* rawData = m_counterSampleBuffer->resolveCounterRange(NS::Range(queryIndex, count));
+    if (!rawData)
+    {
+        return SLANG_FAIL;
+    }
     static_assert(sizeof(MTL::CounterResultTimestamp) == sizeof(uint64_t));
-    std::memcpy(outData, rawData, count * sizeof(uint64_t));
+    if (rawData->length() < count * sizeof(uint64_t))
+    {
+        return SLANG_FAIL;
+    }
+    std::memcpy(outData, rawData->bytes(), count * sizeof(uint64_t));
 
     return SLANG_OK;
 }
