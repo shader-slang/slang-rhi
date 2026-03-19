@@ -189,6 +189,8 @@ public:
     ICommandEncoder* getInterface(const Guid& guid);
 
 public:
+    CommandEncoderDesc m_desc;
+
     // Current command list to write to. Must be set by the derived class.
     CommandList* m_commandList = nullptr;
 
@@ -218,6 +220,8 @@ public:
     Result resolvePipelines(Device* device);
 
     // ICommandEncoder implementation
+    virtual SLANG_NO_THROW const CommandEncoderDesc& SLANG_MCALL getDesc() override { return m_desc; }
+
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) override;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() override;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() override;
@@ -376,7 +380,10 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(
+        const CommandBufferDesc& desc,
+        ICommandBuffer** outCommandBuffer
+    ) override;
 };
 
 class CommandBuffer : public ICommandBuffer, public DeviceChild
@@ -404,6 +411,11 @@ public:
         return SLANG_OK;
     }
 
+    // ICommandBuffer implementation
+    virtual SLANG_NO_THROW const CommandBufferDesc& SLANG_MCALL getDesc() override { return m_desc; }
+
+public:
+    CommandBufferDesc m_desc;
     ArenaAllocator m_allocator;
     CommandList m_commandList;
     std::set<RefPtr<RefObject>> m_trackedObjects;
