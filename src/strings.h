@@ -146,6 +146,11 @@
 #define S_PrimitiveTopology_TriangleStrip "TriangleStrip"
 #define S_PrimitiveTopology_PatchList "PatchList"
 
+// AccelerationStructureKind
+#define S_AccelerationStructureKind_Unknown "Unknown"
+#define S_AccelerationStructureKind_BottomLevel "BottomLevel"
+#define S_AccelerationStructureKind_TopLevel "TopLevel"
+
 // QueryType
 #define S_QueryType_Timestamp "Timestamp"
 #define S_QueryType_AccelerationStructureCompactedSize "AccelerationStructureCompactedSize"
