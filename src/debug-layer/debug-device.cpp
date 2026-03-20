@@ -755,6 +755,11 @@ Result DebugDevice::createAccelerationStructure(
         RHI_VALIDATION_ERROR("'outAccelerationStructure' must not be null.");
         return SLANG_E_INVALID_ARG;
     }
+    if (!isValidAccelerationStructureKind(desc.kind))
+    {
+        RHI_VALIDATION_ERROR("Invalid acceleration structure kind.");
+        return SLANG_E_INVALID_ARG;
+    }
     if (desc.size == 0)
     {
         RHI_VALIDATION_ERROR("Acceleration structure size must be greater than 0.");
