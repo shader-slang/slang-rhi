@@ -970,6 +970,21 @@ VkSamplerReductionMode translateReductionOp(TextureReductionOp op)
     return VkSamplerReductionMode(0);
 }
 
+VkAccelerationStructureTypeKHR translateAccelerationStructureKind(AccelerationStructureKind kind)
+{
+    switch (kind)
+    {
+    case AccelerationStructureKind::BottomLevel:
+        return VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    case AccelerationStructureKind::TopLevel:
+        return VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    default:
+        return VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid AccelerationStructureKind value");
+    return VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
+}
+
 VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type)
 {
     switch (type)

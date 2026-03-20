@@ -1777,18 +1777,7 @@ Result DeviceImpl::createAccelerationStructure(
     createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
     createInfo.offset = 0;
     createInfo.size = desc.size;
-    switch (desc.kind)
-    {
-    case AccelerationStructureKind::BottomLevel:
-        createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-        break;
-    case AccelerationStructureKind::TopLevel:
-        createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-        break;
-    default:
-        createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
-        break;
-    }
+    createInfo.type = translateAccelerationStructureKind(desc.kind);
     if (is_set(desc.flags, AccelerationStructureBuildFlags::CreateMotion))
     {
         createInfo.createFlags |= VK_ACCELERATION_STRUCTURE_CREATE_MOTION_BIT_NV;
