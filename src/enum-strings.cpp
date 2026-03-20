@@ -377,6 +377,20 @@ const char* enumToString(PrimitiveTopology value)
     return S_INVALID;
 }
 
+const char* enumToString(AccelerationStructureKind value)
+{
+    switch (value)
+    {
+    case AccelerationStructureKind::Unknown:
+        return S_AccelerationStructureKind_Unknown;
+    case AccelerationStructureKind::BottomLevel:
+        return S_AccelerationStructureKind_BottomLevel;
+    case AccelerationStructureKind::TopLevel:
+        return S_AccelerationStructureKind_TopLevel;
+    }
+    return S_INVALID;
+}
+
 const char* enumToString(QueryType value)
 {
     switch (value)

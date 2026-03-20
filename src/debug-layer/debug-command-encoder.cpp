@@ -1504,6 +1504,27 @@ void DebugCommandEncoder::buildAccelerationStructure(
         RHI_VALIDATION_ERROR("'queryDescs' must not be null when 'propertyQueryCount' > 0.");
         return;
     }
+    if (SLANG_FAILED(validateAccelerationStructureBuildDesc(ctx, desc)))
+    {
+        return;
+    }
+    AccelerationStructureKind dstKind = dst->getDesc().kind;
+    if (desc.inputs[0].type == AccelerationStructureBuildInputType::Instances)
+    {
+        if (dstKind != AccelerationStructureKind::TopLevel && dstKind != AccelerationStructureKind::Unknown)
+        {
+            RHI_VALIDATION_ERROR("Destination acceleration structure must be of kind TopLevel or Unknown.");
+            return;
+        }
+    }
+    else
+    {
+        if (dstKind != AccelerationStructureKind::BottomLevel && dstKind != AccelerationStructureKind::Unknown)
+        {
+            RHI_VALIDATION_ERROR("Destination acceleration structure must be of kind BottomLevel or Unknown.");
+            return;
+        }
+    }
 
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
     for (uint32_t i = 0; i < propertyQueryCount; ++i)
@@ -1514,7 +1535,6 @@ void DebugCommandEncoder::buildAccelerationStructure(
     {
         innerQueryDesc.queryPool = getInnerObj(innerQueryDesc.queryPool);
     }
-    validateAccelerationStructureBuildDesc(ctx, desc);
 
     baseObject->buildAccelerationStructure(desc, dst, src, scratchBuffer, propertyQueryCount, innerQueryDescs.data());
 }

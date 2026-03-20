@@ -78,7 +78,6 @@ public:
 
     // IBuffer interface
     virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
@@ -86,6 +85,9 @@ public:
         BufferRange range,
         DescriptorHandle* outHandle
     ) override;
+
+    // IResource interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
     BufferDesc m_desc;
@@ -138,7 +140,6 @@ public:
 
     // ITexture interface
     virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override { return m_desc; };
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createView(
         const TextureViewDesc& desc,
@@ -153,6 +154,9 @@ public:
     {
         return getSubresourceRegionLayout(mip, {0, 0, 0}, Extent3D::kWholeTexture, rowAlignment, outLayout);
     }
+
+    // IResource interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
     TextureDesc m_desc;
@@ -171,7 +175,6 @@ public:
     TextureView(Device* device, const TextureViewDesc& desc);
 
     // ITextureView interface
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result getDescriptorHandle(
         DescriptorHandleAccess access,
@@ -180,6 +183,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
         DescriptorHandle* outHandle
     ) override;
+
+    // IResource interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
     TextureViewDesc m_desc;
@@ -197,7 +203,7 @@ public:
     Sampler(Device* device, const SamplerDesc& desc);
 
     // ISampler interface
-    virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 
     // IResource interface
@@ -218,6 +224,7 @@ public:
     AccelerationStructure(Device* device, const AccelerationStructureDesc& desc);
 
     // IAccelerationStructure interface
+    virtual SLANG_NO_THROW const AccelerationStructureDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 

@@ -90,6 +90,7 @@ struct TriangleBLAS
 
         ComPtr<IAccelerationStructure> draftAS;
         AccelerationStructureDesc draftCreateDesc;
+        draftCreateDesc.kind = AccelerationStructureKind::BottomLevel;
         draftCreateDesc.size = sizes.accelerationStructureSize;
         REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
 
@@ -107,6 +108,7 @@ struct TriangleBLAS
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
+        createDesc.kind = AccelerationStructureKind::BottomLevel;
         createDesc.size = compactedSize;
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
@@ -249,6 +251,7 @@ struct SphereBLAS
 
         ComPtr<IAccelerationStructure> draftAS;
         AccelerationStructureDesc draftCreateDesc;
+        draftCreateDesc.kind = AccelerationStructureKind::BottomLevel;
         draftCreateDesc.size = sizes.accelerationStructureSize;
         REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
 
@@ -266,6 +269,7 @@ struct SphereBLAS
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
+        createDesc.kind = AccelerationStructureKind::BottomLevel;
         createDesc.size = compactedSize;
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
@@ -363,6 +367,7 @@ struct SingleCustomGeometryBLAS
 
         ComPtr<IAccelerationStructure> draftAS;
         AccelerationStructureDesc draftCreateDesc;
+        draftCreateDesc.kind = AccelerationStructureKind::BottomLevel;
         draftCreateDesc.size = sizes.accelerationStructureSize;
         REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
 
@@ -380,6 +385,7 @@ struct SingleCustomGeometryBLAS
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
+        createDesc.kind = AccelerationStructureKind::BottomLevel;
         createDesc.size = compactedSize;
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
@@ -478,6 +484,7 @@ struct SingleTriangleVertexMotionBLAS
 
         ComPtr<IAccelerationStructure> draftAS;
         AccelerationStructureDesc draftCreateDesc;
+        draftCreateDesc.kind = AccelerationStructureKind::BottomLevel;
         draftCreateDesc.size = sizes.accelerationStructureSize;
         REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
 
@@ -495,6 +502,7 @@ struct SingleTriangleVertexMotionBLAS
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
+        createDesc.kind = AccelerationStructureKind::BottomLevel;
         createDesc.size = compactedSize;
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
@@ -588,6 +596,7 @@ struct LssBLAS
 
         ComPtr<IAccelerationStructure> draftAS;
         AccelerationStructureDesc draftCreateDesc;
+        draftCreateDesc.kind = AccelerationStructureKind::BottomLevel;
         draftCreateDesc.size = sizes.accelerationStructureSize;
         REQUIRE_CALL(device->createAccelerationStructure(draftCreateDesc, draftAS.writeRef()));
 
@@ -605,6 +614,7 @@ struct LssBLAS
         uint64_t compactedSize = 0;
         compactedSizeQuery->getResult(0, 1, &compactedSize);
         AccelerationStructureDesc createDesc;
+        createDesc.kind = AccelerationStructureKind::BottomLevel;
         createDesc.size = compactedSize;
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, blas.writeRef()));
 
@@ -729,6 +739,7 @@ struct TLAS
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
         AccelerationStructureDesc createDesc{};
+        createDesc.kind = AccelerationStructureKind::TopLevel;
         createDesc.size = sizes.accelerationStructureSize;
 
         REQUIRE_CALL(device->createAccelerationStructure(createDesc, tlas.writeRef()));
@@ -808,6 +819,7 @@ struct VertexMotionInstanceTLAS
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
         AccelerationStructureDesc createDesc;
+        createDesc.kind = AccelerationStructureKind::TopLevel;
         createDesc.size = sizes.accelerationStructureSize;
 
         createDesc.motionInfo.enabled = true;
@@ -888,6 +900,7 @@ struct MatrixMotionInstanceTLAS
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
         AccelerationStructureDesc createDesc{};
+        createDesc.kind = AccelerationStructureKind::TopLevel;
         createDesc.size = sizes.accelerationStructureSize;
         createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
 
@@ -968,6 +981,7 @@ struct SrtMotionInstanceTLAS
         ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchBufferDesc);
 
         AccelerationStructureDesc createDesc{};
+        createDesc.kind = AccelerationStructureKind::TopLevel;
         createDesc.size = sizes.accelerationStructureSize;
         createDesc.flags = AccelerationStructureBuildFlags::CreateMotion;
 

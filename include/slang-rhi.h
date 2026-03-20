@@ -1446,11 +1446,19 @@ struct AccelerationStructureMotionCreateInfo
     uint32_t maxInstances = 0;
 };
 
+enum class AccelerationStructureKind
+{
+    Unknown,
+    BottomLevel,
+    TopLevel,
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
     const void* next = nullptr;
 
+    AccelerationStructureKind kind = AccelerationStructureKind::Unknown;
     uint64_t size;
     AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
 
@@ -1464,6 +1472,7 @@ class IAccelerationStructure : public IResource
     SLANG_COM_INTERFACE(0x38b056d5, 0x63de, 0x49ca, {0xa0, 0xed, 0x62, 0xa1, 0xbe, 0xc3, 0xd4, 0x65});
 
 public:
+    virtual SLANG_NO_THROW const AccelerationStructureDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;

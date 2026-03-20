@@ -98,6 +98,8 @@ VkStencilOpState translateStencilState(DepthStencilOpDesc desc);
 
 VkSamplerReductionMode translateReductionOp(TextureReductionOp op);
 
+VkAccelerationStructureTypeKHR translateAccelerationStructureKind(AccelerationStructureKind kind);
+
 VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type);
 CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type);
 VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout);

@@ -230,6 +230,11 @@ inline bool isValidQueryType(QueryType value)
     return isValidEnum<QueryType, QueryType::AccelerationStructureCurrentSize>(value);
 }
 
+inline bool isValidAccelerationStructureKind(AccelerationStructureKind value)
+{
+    return isValidEnum<AccelerationStructureKind, AccelerationStructureKind::TopLevel>(value);
+}
+
 inline bool isValidAccelerationStructureCopyMode(AccelerationStructureCopyMode value)
 {
     return isValidEnum<AccelerationStructureCopyMode, AccelerationStructureCopyMode::Compact>(value);

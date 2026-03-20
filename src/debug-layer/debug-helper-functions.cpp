@@ -102,7 +102,7 @@ std::string createSamplerLabel(const SamplerDesc& desc)
 
 std::string createAccelerationStructureLabel(const AccelerationStructureDesc& desc)
 {
-    return string::format("Unnamed acceleration structure (size=%llu)", desc.size);
+    return string::format("Unnamed acceleration structure (kind=%s, size=%llu)", enumToString(desc.kind), desc.size);
 }
 
 std::string createFenceLabel(const FenceDesc& desc)

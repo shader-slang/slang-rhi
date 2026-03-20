@@ -583,6 +583,7 @@ static void testClusterTracing(
     ComPtr<IBuffer> tlasScratch = device->createBuffer(tlasScratchDesc);
 
     AccelerationStructureDesc createDesc = {};
+    createDesc.kind = AccelerationStructureKind::TopLevel;
     createDesc.size = tlasSizes.accelerationStructureSize;
     ComPtr<IAccelerationStructure> TLAS;
     REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
