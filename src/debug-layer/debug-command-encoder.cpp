@@ -1516,6 +1516,24 @@ void DebugCommandEncoder::buildAccelerationStructure(
     }
     validateAccelerationStructureBuildDesc(ctx, desc);
 
+    AccelerationStructureKind dstKind = dst->getDesc().kind;
+    if (desc.inputs[0].type == AccelerationStructureBuildInputType::Instances)
+    {
+        if (dstKind != AccelerationStructureKind::TopLevel && dstKind != AccelerationStructureKind::Unknown)
+        {
+            RHI_VALIDATION_ERROR("Destination acceleration structure must be of kind TopLevel or Unknown.");
+            return;
+        }
+    }
+    else
+    {
+        if (dstKind != AccelerationStructureKind::BottomLevel && dstKind != AccelerationStructureKind::Unknown)
+        {
+            RHI_VALIDATION_ERROR("Destination acceleration structure must be of kind BottomLevel or Unknown.");
+            return;
+        }
+    }
+
     baseObject->buildAccelerationStructure(desc, dst, src, scratchBuffer, propertyQueryCount, innerQueryDescs.data());
 }
 
