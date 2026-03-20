@@ -1448,9 +1448,6 @@ struct AccelerationStructureMotionCreateInfo
 
 enum class AccelerationStructureKind
 {
-    /// Unknown kind. On Vulkan, creates the acceleration structure with
-    /// VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR. Note that Vulkan validation may reject
-    /// GENERIC acceleration structures used as BLAS instance references.
     Unknown,
     BottomLevel,
     TopLevel,
