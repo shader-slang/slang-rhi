@@ -974,12 +974,12 @@ VkAccelerationStructureTypeKHR translateAccelerationStructureKind(AccelerationSt
 {
     switch (kind)
     {
+    case AccelerationStructureKind::Unknown:
+        return VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
     case AccelerationStructureKind::BottomLevel:
         return VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
     case AccelerationStructureKind::TopLevel:
         return VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-    default:
-        return VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
     }
     SLANG_RHI_ASSERT_FAILURE("Invalid AccelerationStructureKind value");
     return VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
