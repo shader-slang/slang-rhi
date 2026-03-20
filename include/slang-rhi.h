@@ -1446,11 +1446,22 @@ struct AccelerationStructureMotionCreateInfo
     uint32_t maxInstances = 0;
 };
 
+enum class AccelerationStructureKind
+{
+    /// Unknown kind. On Vulkan, creates the acceleration structure with
+    /// VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR. Note that Vulkan validation may reject
+    /// GENERIC acceleration structures used as BLAS instance references.
+    Unknown,
+    BottomLevel,
+    TopLevel,
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
     const void* next = nullptr;
 
+    AccelerationStructureKind kind = AccelerationStructureKind::Unknown;
     uint64_t size;
     AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
 
