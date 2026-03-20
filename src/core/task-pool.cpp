@@ -338,25 +338,29 @@ void ThreadedTaskPool::Pool::workerThread()
         // Execute the task function.
         task->func(task->payload);
         // Mark the task as done and notify child tasks.
+        // We must hold waitMutex around setting done and notifying, so that
+        // waitTask() cannot observe done==true and release the task before
+        // we finish touching it. We must also hold childrenMutex to safely
+        // process the children list.
         {
-            std::lock_guard<std::mutex> lock(task->childrenMutex);
-            task->done.store(true, std::memory_order_release);
-            for (Task* child : task->children)
+            std::lock_guard<std::mutex> waitLock(task->waitMutex);
             {
-                // Decrement the child's dependency counter.
-                if (child->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
+                std::lock_guard<std::mutex> childLock(task->childrenMutex);
+                task->done.store(true, std::memory_order_release);
+                for (Task* child : task->children)
                 {
-                    // All dependencies satisfied; enqueue the child.
-                    enqueue(child);
+                    // Decrement the child's dependency counter.
+                    if (child->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
+                    {
+                        // All dependencies satisfied; enqueue the child.
+                        enqueue(child);
+                    }
+                    // Release the extra reference taken when adding as a dependency.
+                    releaseTask(child);
                 }
-                // Release the extra reference taken when adding as a dependency.
-                releaseTask(child);
+                task->children.clear();
             }
-            task->children.clear();
-        }
-        // Notify waitTask() waiters.
-        {
-            std::lock_guard<std::mutex> lock(task->waitMutex);
+            // Notify waitTask() waiters.
             task->waitCV.notify_all();
         }
         // Release the pool's reference.
