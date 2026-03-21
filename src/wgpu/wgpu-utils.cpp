@@ -2,6 +2,7 @@
 
 #include "core/assert.h"
 
+#include "wgpu-device.h"
 #include <cstring>
 
 namespace rhi::wgpu {
@@ -61,9 +62,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::R16Sint:
         return WGPUTextureFormat_R16Sint;
     case Format::R16Unorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_R16Unorm;
+#endif
     case Format::R16Snorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_R16Snorm;
+#endif
     case Format::R16Float:
         return WGPUTextureFormat_R16Float;
 
@@ -72,9 +81,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::RG16Sint:
         return WGPUTextureFormat_RG16Sint;
     case Format::RG16Unorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_RG16Unorm;
+#endif
     case Format::RG16Snorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_RG16Snorm;
+#endif
     case Format::RG16Float:
         return WGPUTextureFormat_RG16Float;
 
@@ -83,9 +100,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::RGBA16Sint:
         return WGPUTextureFormat_RGBA16Sint;
     case Format::RGBA16Unorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_RGBA16Unorm;
+#endif
     case Format::RGBA16Snorm:
+#if SLANG_WASM
+        return WGPUTextureFormat_Undefined;
+#else
         return WGPUTextureFormat_RGBA16Snorm;
+#endif
     case Format::RGBA16Float:
         return WGPUTextureFormat_RGBA16Float;
 
@@ -585,6 +610,46 @@ WGPUStoreOp translateStoreOp(StoreOp op)
     }
     SLANG_RHI_ASSERT_FAILURE("Invalid StoreOp value");
     return WGPUStoreOp_Undefined;
+}
+
+// Synchronously waits for a WebGPU future to complete, using native blocking on desktop and safe, adaptive event-loop
+// polling in WebAssembly to prevent browser deadlocks.
+WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, uint64_t timeoutNS)
+{
+    WGPUFutureWaitInfo futures[1] = {{future}};
+
+#if SLANG_WASM
+    double startMS = (timeoutNS != UINT64_MAX) ? emscripten_get_now() : 0.0;
+    int spinCount = 0;
+
+    while (true)
+    {
+        WGPUWaitStatus status = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, 0);
+
+        if (status == WGPUWaitStatus_Error)
+            return WGPUWaitStatus_Error;
+
+        if (futures[0].completed)
+            return WGPUWaitStatus_Success;
+
+        if (timeoutNS != UINT64_MAX)
+        {
+            if ((emscripten_get_now() - startMS) * 1000000.0 >= timeoutNS)
+                return WGPUWaitStatus_TimedOut;
+        }
+
+        // adaptive yielding
+        emscripten_sleep((spinCount < 5) ? 0 : 1);
+        spinCount++;
+    }
+#else
+    return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+#endif
+}
+
+WGPUWaitStatus wait(Context& ctx, WGPUFuture future, uint64_t timeoutNS)
+{
+    return wait(ctx.api, ctx.instance, future, timeoutNS);
 }
 
 } // namespace rhi::wgpu
