@@ -6,6 +6,8 @@
 
 #include "doctest-reporter.h"
 
+#include "core/task-pool.h"
+
 // Due to current issues in slang we don't enable Agility SDK yet
 SLANG_RHI_EXPORT_AGILITY_SDK
 
@@ -101,6 +103,11 @@ int main(int argc, const char** argv)
     }
 
     rhi::testing::cleanupTestTempDirectories();
+
+    // The global task pool is lazily created as a RefObject stored in a static variable.
+    // It must be explicitly released before the leak check since static destructors run
+    // after main() returns.
+    rhi::setGlobalTaskPool(nullptr);
 
 #if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
     if (!rhi::RefObjectTracker::instance().objects.empty())
