@@ -20,8 +20,9 @@ inline WGPUTextureViewDimension getViewDimension(SlangResourceShape shape)
     case SLANG_TEXTURE_3D:
         return WGPUTextureViewDimension_3D;
     default:
-        return WGPUTextureViewDimension_Undefined;
+        break;
     }
+    return WGPUTextureViewDimension_Undefined;
 }
 
 inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
@@ -52,6 +53,8 @@ inline WGPUTextureSampleType getSampleType(slang::TypeReflection* type)
     case slang::TypeReflection::ScalarType::Float32:
     case slang::TypeReflection::ScalarType::Float64:
         return WGPUTextureSampleType_Float;
+    default:
+        break;
     }
     return WGPUTextureSampleType_Undefined;
 }
