@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include <atomic>
 #include <mutex>
 
 namespace rhi {
@@ -175,6 +176,127 @@ private:
     uint32_t m_numPages{0};
 };
 
+/// Reference-counting wrapper over BlockAllocator. This is a workaround that
+/// allows loading slang-rhi multiple times in different shared libraries in the
+/// same process. Reference-counting avoids multiple initialization and
+/// deinitialization in case slang-rhi is loaded using dlopen(..., RTLD_GLOBAL).
+///
+/// Note that this class cannot be protected by std::mutex, since the mutex
+/// itself would be subject to multiple initialization and deinitialization. So,
+/// we'll have to deal with dlopen/dlclose race by using a low-level spinlock.
+/// Only constructor and destructor need to be protected, since these are the
+/// potential bounds for the lifespan of the underlying allocator.
+///
+/// See https://github.com/shader-slang/slang/issues/10785 for details.
+template<typename T>
+class RefCountedBlockAllocator
+{
+public:
+    /// Constructor
+    ///
+    /// First reference initializes the underlying BlockAllocator
+    RefCountedBlockAllocator(size_t blocksPerPage)
+    {
+        ScopedSpinlockGuard lock{s_allocatorLock};
+
+        SLANG_RHI_ASSERT(s_refcount >= 0);
+        if (s_refcount == 0)
+        {
+            s_allocator = new BlockAllocator<T>(blocksPerPage);
+        }
+        ++s_refcount;
+    }
+
+    /// Destructor
+    ///
+    /// Last reference deletes the underlying BlockAllocator
+    ~RefCountedBlockAllocator()
+    {
+        ScopedSpinlockGuard lock{s_allocatorLock};
+
+        SLANG_RHI_ASSERT(s_refcount > 0);
+        --s_refcount;
+        if (s_refcount == 0)
+        {
+            delete s_allocator;
+            s_allocator = nullptr;
+        }
+    }
+
+    // non-copyable, non-movable
+    RefCountedBlockAllocator(const RefCountedBlockAllocator&) = delete;
+    RefCountedBlockAllocator& operator=(const RefCountedBlockAllocator&) & = delete;
+    RefCountedBlockAllocator(RefCountedBlockAllocator&&) = delete;
+    RefCountedBlockAllocator& operator=(RefCountedBlockAllocator&&) & = delete;
+
+    /// Allocate a block (thread safe).
+    /// @return Pointer to allocated block, or nullptr if allocation fails
+    T* allocate()
+    {
+        SLANG_RHI_ASSERT(s_refcount > 0);
+        return s_allocator->allocate();
+    }
+
+    /// Free a block (thread safe).
+    /// @param ptr Pointer to block to free
+    void free(T* ptr)
+    {
+        SLANG_RHI_ASSERT(s_refcount > 0);
+        s_allocator->free(ptr);
+    }
+
+    /// Return the underlying allocator
+    BlockAllocator<T> &getUnderlyingAllocator()
+    {
+        SLANG_RHI_ASSERT(s_refcount > 0);
+        return *s_allocator;
+    }
+
+private:
+    static int s_refcount;
+    static std::atomic<bool> s_allocatorLock; // spinlock state
+    static BlockAllocator<T>* s_allocator; // the underlying allocator
+
+    /// Scoped spin lock guard, similar to std::lock_guard
+    ///
+    /// This implementation is not optimized for contention. It only provides
+    /// thread safety for the rare case of dlopen/dlclose race.
+    struct ScopedSpinlockGuard
+    {
+        std::atomic<bool> &m_spinlock;
+
+        /// Acquire the lock
+        ScopedSpinlockGuard(std::atomic<bool> &spinlock) :
+            m_spinlock{spinlock}
+        {
+            bool expected;
+
+            // spin until we get the lock
+            while (true)
+            {
+                expected = false;
+                if (m_spinlock.compare_exchange_weak(
+                        expected,
+                        true,
+                        std::memory_order_acquire,
+                        std::memory_order_relaxed))
+                    break;
+            }
+        }
+
+        /// Release the lock
+        ~ScopedSpinlockGuard()
+        {
+            m_spinlock.store(false, std::memory_order_release);
+        }
+
+        ScopedSpinlockGuard(const ScopedSpinlockGuard&) = delete;
+        ScopedSpinlockGuard& operator=(const ScopedSpinlockGuard&) & = delete;
+        ScopedSpinlockGuard(ScopedSpinlockGuard&&) = delete;
+        ScopedSpinlockGuard& operator=(ScopedSpinlockGuard&&) & = delete;
+    };
+};
+
 /// Macro to declare block allocator support for a class.
 /// The block size is automatically determined from sizeof(ClassName).
 #define SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ClassName)                                                                   \
@@ -183,13 +305,17 @@ public:                                                                         
     void operator delete(void* ptr);                                                                                   \
                                                                                                                        \
 private:                                                                                                               \
-    static ::rhi::BlockAllocator<ClassName> s_allocator;
+    static ::rhi::RefCountedBlockAllocator<ClassName> s_allocator;
 
 /// Macro to implement block allocator operators in .cpp file.
 /// @param ClassName The class name to implement block allocation for.
 /// @param BlocksPerPage Number of blocks to allocate per page.
 #define SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(ClassName, BlocksPerPage)                                                  \
-    ::rhi::BlockAllocator<ClassName> ClassName::s_allocator(BlocksPerPage);                                            \
+    ::rhi::RefCountedBlockAllocator<ClassName> ClassName::s_allocator(BlocksPerPage);                                  \
+    template<typename T> using rhi_RefCountedBlockAllocator = ::rhi::RefCountedBlockAllocator<T>;                      \
+    template<> int rhi_RefCountedBlockAllocator<ClassName>::s_refcount{0};                                             \
+    template<> std::atomic<bool> rhi_RefCountedBlockAllocator<ClassName>::s_allocatorLock{false};                      \
+    template<> ::rhi::BlockAllocator<ClassName>* rhi_RefCountedBlockAllocator<ClassName>::s_allocator{nullptr};        \
                                                                                                                        \
     void* ClassName::operator new(size_t count)                                                                        \
     {                                                                                                                  \

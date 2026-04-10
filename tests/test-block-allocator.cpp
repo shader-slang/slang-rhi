@@ -458,7 +458,7 @@ public:
     }
 
     // For testing - expose allocator
-    static BlockAllocator<TestMacroClass>& getAllocator() { return s_allocator; }
+    static BlockAllocator<TestMacroClass>& getAllocator() { return s_allocator.getUnderlyingAllocator(); }
 };
 
 SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(TestMacroClass, 32)
