@@ -77,6 +77,7 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
         {
             outPaths.push_back(std::filesystem::path(path) / "lib64");
             outPaths.push_back(std::filesystem::path(path) / "lib");
+            outPaths.push_back(std::filesystem::path(path) / "targets" / "x86_64-linux" / "lib");
         }
     }
     // Next, check default installation paths.
@@ -104,6 +105,11 @@ inline void findNVRTCPaths(std::vector<std::filesystem::path>& outPaths)
             if (std::find(outPaths.begin(), outPaths.end(), path) == outPaths.end())
             {
                 outPaths.push_back(path);
+            }
+            std::filesystem::path targetPath = version / "targets" / "x86_64-linux" / "lib";
+            if (std::find(outPaths.begin(), outPaths.end(), targetPath) == outPaths.end())
+            {
+                outPaths.push_back(targetPath);
             }
         }
     }
@@ -221,6 +227,7 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
                     "- C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\vX.Y\n"
 #elif SLANG_LINUX_FAMILY
                     "- /usr/local/cuda-x.y\n"
+                    "- /usr/local/cuda-x.y/targets/x86_64-linux\n"
                     "- /usr/lib/x86_64-linux-gnu\n"
 #endif
                     ;

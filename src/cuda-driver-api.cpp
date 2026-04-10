@@ -32,6 +32,7 @@ extern "C" bool rhiCudaDriverApiInit()
     };
 #elif SLANG_LINUX_FAMILY
     const char* cudaPaths[] = {
+        "libcuda.so.1",
         "libcuda.so",
         nullptr,
     };
