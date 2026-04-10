@@ -246,7 +246,7 @@ public:
     }
 
     /// Return the underlying allocator
-    BlockAllocator<T> &getUnderlyingAllocator()
+    BlockAllocator<T>& getUnderlyingAllocator()
     {
         SLANG_RHI_ASSERT(s_refcount > 0);
         return *s_allocator;
@@ -255,7 +255,7 @@ public:
 private:
     static int s_refcount;
     static std::atomic<bool> s_allocatorLock; // spinlock state
-    static BlockAllocator<T>* s_allocator; // the underlying allocator
+    static BlockAllocator<T>* s_allocator;    // the underlying allocator
 
     /// Scoped spin lock guard, similar to std::lock_guard
     ///
@@ -263,11 +263,11 @@ private:
     /// thread safety for the rare case of dlopen/dlclose race.
     struct ScopedSpinlockGuard
     {
-        std::atomic<bool> &m_spinlock;
+        std::atomic<bool>& m_spinlock;
 
         /// Acquire the lock
-        ScopedSpinlockGuard(std::atomic<bool> &spinlock) :
-            m_spinlock{spinlock}
+        ScopedSpinlockGuard(std::atomic<bool>& spinlock)
+            : m_spinlock{spinlock}
         {
             bool expected;
 
@@ -275,20 +275,14 @@ private:
             while (true)
             {
                 expected = false;
-                if (m_spinlock.compare_exchange_weak(
-                        expected,
-                        true,
-                        std::memory_order_acquire,
-                        std::memory_order_relaxed))
+                if (m_spinlock
+                        .compare_exchange_weak(expected, true, std::memory_order_acquire, std::memory_order_relaxed))
                     break;
             }
         }
 
         /// Release the lock
-        ~ScopedSpinlockGuard()
-        {
-            m_spinlock.store(false, std::memory_order_release);
-        }
+        ~ScopedSpinlockGuard() { m_spinlock.store(false, std::memory_order_release); }
 
         ScopedSpinlockGuard(const ScopedSpinlockGuard&) = delete;
         ScopedSpinlockGuard& operator=(const ScopedSpinlockGuard&) & = delete;
@@ -312,10 +306,14 @@ private:                                                                        
 /// @param BlocksPerPage Number of blocks to allocate per page.
 #define SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(ClassName, BlocksPerPage)                                                  \
     ::rhi::RefCountedBlockAllocator<ClassName> ClassName::s_allocator(BlocksPerPage);                                  \
-    template<typename T> using rhi_RefCountedBlockAllocator = ::rhi::RefCountedBlockAllocator<T>;                      \
-    template<> int rhi_RefCountedBlockAllocator<ClassName>::s_refcount{0};                                             \
-    template<> std::atomic<bool> rhi_RefCountedBlockAllocator<ClassName>::s_allocatorLock{false};                      \
-    template<> ::rhi::BlockAllocator<ClassName>* rhi_RefCountedBlockAllocator<ClassName>::s_allocator{nullptr};        \
+    template<typename T>                                                                                               \
+    using rhi_RefCountedBlockAllocator = ::rhi::RefCountedBlockAllocator<T>;                                           \
+    template<>                                                                                                         \
+    int rhi_RefCountedBlockAllocator<ClassName>::s_refcount{0};                                                        \
+    template<>                                                                                                         \
+    std::atomic<bool> rhi_RefCountedBlockAllocator<ClassName>::s_allocatorLock{false};                                 \
+    template<>                                                                                                         \
+    ::rhi::BlockAllocator<ClassName>* rhi_RefCountedBlockAllocator<ClassName>::s_allocator{nullptr};                   \
                                                                                                                        \
     void* ClassName::operator new(size_t count)                                                                        \
     {                                                                                                                  \
