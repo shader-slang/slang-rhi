@@ -87,8 +87,7 @@ void BlockingTaskPool::waitAll() {}
 
 ITaskPool::TaskGroupHandle BlockingTaskPool::createTaskGroup()
 {
-    static char sentinel;
-    return &sentinel;
+    return new char;
 }
 
 void BlockingTaskPool::waitTaskGroup(TaskGroupHandle group)
@@ -100,7 +99,7 @@ void BlockingTaskPool::waitTaskGroup(TaskGroupHandle group)
 void BlockingTaskPool::releaseTaskGroup(TaskGroupHandle group)
 {
     SLANG_RHI_ASSERT(group);
-    SLANG_UNUSED(group);
+    delete static_cast<char*>(group);
 }
 
 // ----------------------------------------------------------------------------
@@ -250,7 +249,10 @@ struct ThreadedTaskPool::Pool
             std::lock_guard<std::mutex> lock(m_queueMutex);
             m_queue.push(task);
             m_queueCV.notify_one();
-            m_stealCV.notify_all();
+            // Only wake one work-stealing waiter per enqueue to avoid thundering herd.
+            // The completion path in executeTask() uses notify_all() to wake all waiters
+            // so they can recheck their specific conditions (done, pending==0, etc.).
+            m_stealCV.notify_one();
         }
     }
 
@@ -265,6 +267,7 @@ struct ThreadedTaskPool::Pool
     {
         SLANG_RHI_ASSERT(func);
         SLANG_RHI_ASSERT(depsCount == 0 || deps);
+        SLANG_RHI_ASSERT(!m_stop.load(std::memory_order_relaxed));
 
         Task* task = new Task();
 
@@ -316,6 +319,8 @@ struct ThreadedTaskPool::Pool
                     else
                     {
                         // Dependency is already done, decrement the counter.
+                        // Relaxed ordering is safe here because dep->childrenMutex provides
+                        // the necessary acquire/release synchronization.
                         if (task->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
                         {
                             readyToEnqueue = true;
@@ -408,6 +413,8 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     // Wrap in try/catch to ensure the worker thread survives and the
     // task-completion bookkeeping (done flag, children, group, counters)
     // always runs. Without this, an exception would deadlock waiters.
+    // NOTE: If a task throws, it is still marked as done and its children
+    // will execute. There is currently no failure propagation mechanism.
     try
     {
         task->func(task->payload);
@@ -441,6 +448,10 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     // waitAll() only returns after all payload deleters have been called.
     releaseTask(task);
     // Decrement the group pending counter.
+    // Safety: group is user-managed, but this is safe because waitTaskGroup()
+    // only returns when pending==0, which requires ALL tasks in the group to
+    // have completed this fetch_sub. Therefore no task can still be accessing
+    // the group when the user calls releaseTaskGroup() after waitTaskGroup().
     if (group)
     {
         group->pending.fetch_sub(1, std::memory_order_acq_rel);
