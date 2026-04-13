@@ -135,17 +135,17 @@ def main() -> int:
 
             fixed_lines.append(fixed_line)
 
-        # If changes, write out the fixed file
-        if changed:
-            write_text_preserve_newlines(path, "".join(fixed_lines))
-
         # If any lines still contain non-ASCII after fixing, report them as errors.
-        for line_no in unresolved_lines:
-            print(
-                f"{path}:{line_no}: line still contains non-ASCII characters after automatic fixing",
-                file=sys.stderr,
-            )
+        if unresolved_lines:
+            for line_no in unresolved_lines:
+                print(
+                    f"{path}:{line_no}: line still contains non-ASCII characters after automatic fixing",
+                    file=sys.stderr,
+                )
             had_error = True
+        elif changed:
+            # Only write the fixed file when all characters were resolved.
+            write_text_preserve_newlines(path, "".join(fixed_lines))
 
     return 1 if had_error else 0
 
