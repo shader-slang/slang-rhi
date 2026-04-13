@@ -27,5 +27,4 @@ exclude: |
       build/.*|
       external/.*|
       src/cuda/kernels/.*|
-      tools/.*|
   )$
