@@ -128,10 +128,6 @@ struct ThreadedTaskPool::Task
     // Flag indicating the task has finished.
     std::atomic<bool> done{false};
 
-    // Mutex and condition variable for waitTask().
-    std::mutex waitMutex;
-    std::condition_variable waitCV;
-
     // List of tasks that depend on this task.
     std::vector<Task*> children;
     std::mutex childrenMutex;
@@ -143,8 +139,6 @@ struct ThreadedTaskPool::Task
 struct TaskGroup
 {
     std::atomic<size_t> pending{0};
-    std::mutex mutex;
-    std::condition_variable cv;
 };
 
 struct ThreadedTaskPool::Pool
@@ -167,10 +161,6 @@ struct ThreadedTaskPool::Pool
 
     // Total number of tasks not yet completed.
     std::atomic<size_t> m_tasksRemaining{0};
-
-    // Mutex and condition variable for waitAll().
-    std::mutex m_waitMutex;
-    std::condition_variable m_waitCV;
 
     void workerThread();
 
@@ -286,6 +276,9 @@ struct ThreadedTaskPool::Pool
         task->group = group;
 
         // Increment the group counter before enqueuing (critical for correctness).
+        // Relaxed ordering is sufficient: the submitting thread has sequenced-before
+        // visibility, and cross-thread synchronization is provided by m_queueMutex
+        // in enqueue()/tryDequeue().
         if (group)
         {
             group->pending.fetch_add(1, std::memory_order_relaxed);
@@ -425,53 +418,38 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     // Capture the group pointer before we potentially release the task.
     TaskGroup* group = task->group;
     // Mark the task as done and notify child tasks.
-    // We must hold waitMutex around setting done and notifying, so that
-    // waitTask() cannot observe done==true and release the task before
-    // we finish touching it. We must also hold childrenMutex to safely
-    // process the children list.
+    // We hold childrenMutex to safely process the children list and to
+    // synchronize with submitTask() which checks done under the same lock.
     {
-        std::lock_guard<std::mutex> waitLock(task->waitMutex);
+        std::lock_guard<std::mutex> childLock(task->childrenMutex);
+        task->done.store(true, std::memory_order_release);
+        for (Task* child : task->children)
         {
-            std::lock_guard<std::mutex> childLock(task->childrenMutex);
-            task->done.store(true, std::memory_order_release);
-            for (Task* child : task->children)
+            // Decrement the child's dependency counter.
+            if (child->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
             {
-                // Decrement the child's dependency counter.
-                if (child->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
-                {
-                    // All dependencies satisfied; enqueue the child.
-                    enqueue(child);
-                }
-                // Release the extra reference taken when adding as a dependency.
-                releaseTask(child);
+                // All dependencies satisfied; enqueue the child.
+                enqueue(child);
             }
-            task->children.clear();
+            // Release the extra reference taken when adding as a dependency.
+            releaseTask(child);
         }
-        // Notify waitTask() waiters.
-        task->waitCV.notify_all();
+        task->children.clear();
     }
     // Release the pool's reference.
     // This must happen before decrementing m_tasksRemaining so that
     // waitAll() only returns after all payload deleters have been called.
     releaseTask(task);
-    // Decrement the group pending counter and notify waiters.
+    // Decrement the group pending counter.
     if (group)
     {
-        if (group->pending.fetch_sub(1, std::memory_order_acq_rel) == 1)
-        {
-            std::lock_guard<std::mutex> lock(group->mutex);
-            group->cv.notify_all();
-        }
+        group->pending.fetch_sub(1, std::memory_order_acq_rel);
     }
-    // Decrement the remaining task counter and notify waiters.
+    // Decrement the remaining task counter.
+    m_tasksRemaining.fetch_sub(1, std::memory_order_acq_rel);
     // Notify stealCV so that work-stealing wait loops wake up
     // and recheck their conditions. Must hold m_queueMutex to prevent
     // lost wakeups (notification arriving between predicate check and wait).
-    if (m_tasksRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
-    {
-        std::lock_guard<std::mutex> lock(m_waitMutex);
-        m_waitCV.notify_all();
-    }
     {
         std::lock_guard<std::mutex> lock(m_queueMutex);
         m_stealCV.notify_all();
