@@ -452,76 +452,32 @@ void testGroupWithDependencies(ITaskPool* pool)
     pool->releaseTaskGroup(group);
 }
 
-TEST_CASE("task-pool-blocking")
+void testTaskPool(ITaskPool* pool, int iterations)
 {
-    ComPtr<ITaskPool> pool(new BlockingTaskPool());
-
     SUBCASE("simple")
     {
-        testSimple(pool);
-    }
-    SUBCASE("wait-all")
-    {
-        testWaitAll(pool);
-    }
-    SUBCASE("simple-dependency")
-    {
-        testSimpleDependency(pool);
-    }
-    SUBCASE("recursive-dependency")
-    {
-        testRecursiveDependency(pool);
-    }
-    SUBCASE("fibonacci")
-    {
-        testFibonacci(pool);
-    }
-    SUBCASE("group-basic")
-    {
-        testGroupBasic(pool);
-    }
-    SUBCASE("group-sub-tasks")
-    {
-        testGroupSubTasks(pool);
-    }
-    SUBCASE("group-empty")
-    {
-        testGroupEmpty(pool);
-    }
-    SUBCASE("group-with-dependencies")
-    {
-        testGroupWithDependencies(pool);
-    }
-}
-
-TEST_CASE("task-pool-threaded")
-{
-    ComPtr<ITaskPool> pool(new ThreadedTaskPool());
-
-    SUBCASE("simple")
-    {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < iterations; ++i)
         {
             testSimple(pool);
         }
     }
     SUBCASE("wait-all")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < iterations; ++i)
         {
             testWaitAll(pool);
         }
     }
     SUBCASE("simple-dependency")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < iterations; ++i)
         {
             testSimpleDependency(pool);
         }
     }
     SUBCASE("recursive-dependency")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < iterations; ++i)
         {
             testRecursiveDependency(pool);
         }
@@ -532,32 +488,50 @@ TEST_CASE("task-pool-threaded")
     }
     SUBCASE("group-basic")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < iterations; ++i)
         {
             testGroupBasic(pool);
         }
     }
     SUBCASE("group-sub-tasks")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < iterations; ++i)
         {
             testGroupSubTasks(pool);
         }
     }
     SUBCASE("group-empty")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < iterations; ++i)
         {
             testGroupEmpty(pool);
         }
     }
     SUBCASE("group-with-dependencies")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < iterations; ++i)
         {
             testGroupWithDependencies(pool);
         }
     }
+}
+
+TEST_CASE("task-pool-blocking")
+{
+    ComPtr<ITaskPool> pool(new BlockingTaskPool());
+    testTaskPool(pool, 1);
+}
+
+TEST_CASE("task-pool-threaded")
+{
+    ComPtr<ITaskPool> pool(new ThreadedTaskPool());
+    testTaskPool(pool, 10);
+}
+
+TEST_CASE("task-pool-threaded-single-worker")
+{
+    ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
+    testTaskPool(pool, 1);
 }
 
 // Work-stealing tests: use a single worker thread to force scenarios that
