@@ -152,7 +152,12 @@ struct ThreadedTaskPool::Pool
     // Queue of tasks ready for execution.
     std::queue<ThreadedTaskPool::Task*> m_queue;
     std::mutex m_queueMutex;
+    // Condition variable for worker threads (notified when queue gets items or stop).
     std::condition_variable m_queueCV;
+    // Condition variable for work-stealing waiters (notified on enqueue and task completion).
+    // Shares m_queueMutex with m_queueCV but only wakes work-stealing threads, avoiding
+    // thundering herd on worker threads.
+    std::condition_variable m_stealCV;
 
     // Flag to signal worker threads to stop.
     std::atomic<bool> m_stop{false};
@@ -168,6 +173,16 @@ struct ThreadedTaskPool::Pool
     std::condition_variable m_waitCV;
 
     void workerThread();
+
+    // Try to dequeue a ready task from the queue. Returns nullptr if the queue is empty.
+    Task* tryDequeue();
+
+    // Execute a task and perform all completion bookkeeping (done flag, children,
+    // group counter, tasksRemaining counter, reference release). Used by both
+    // workerThread() and work-stealing wait loops.
+    void executeTask(Task* task);
+
+    void waitTaskGroup(TaskGroup* group);
 
     Pool(int workerCount)
     {
@@ -245,6 +260,7 @@ struct ThreadedTaskPool::Pool
             std::lock_guard<std::mutex> lock(m_queueMutex);
             m_queue.push(task);
             m_queueCV.notify_one();
+            m_stealCV.notify_all();
         }
     }
 
@@ -338,28 +354,129 @@ struct ThreadedTaskPool::Pool
         SLANG_RHI_ASSERT(task);
         SLANG_RHI_ASSERT(task->pool == this);
 
-        std::unique_lock<std::mutex> lock(task->waitMutex);
-        task->waitCV.wait(
-            lock,
-            [task]
+        while (!task->done.load(std::memory_order_acquire))
+        {
+            // Try to steal and execute a task from the queue.
+            if (Task* stolen = tryDequeue())
             {
-                return task->done.load(std::memory_order_acquire);
+                executeTask(stolen);
+                continue;
             }
-        );
+            // Queue is empty; wait for either a new task to be enqueued
+            // or the target task to complete.
+            std::unique_lock<std::mutex> lock(m_queueMutex);
+            m_stealCV.wait(
+                lock,
+                [this, task]
+                {
+                    return task->done.load(std::memory_order_acquire) || !m_queue.empty();
+                }
+            );
+        }
     }
 
     void waitAll()
     {
-        std::unique_lock<std::mutex> lock(m_waitMutex);
-        m_waitCV.wait(
-            lock,
-            [this]
+        while (m_tasksRemaining.load(std::memory_order_acquire) != 0)
+        {
+            // Try to steal and execute a task from the queue.
+            if (Task* stolen = tryDequeue())
             {
-                return m_tasksRemaining.load(std::memory_order_acquire) == 0;
+                executeTask(stolen);
+                continue;
             }
-        );
+            // Queue is empty; wait for either a new task to be enqueued
+            // or all tasks to complete.
+            std::unique_lock<std::mutex> lock(m_queueMutex);
+            m_stealCV.wait(
+                lock,
+                [this]
+                {
+                    return m_tasksRemaining.load(std::memory_order_acquire) == 0 || !m_queue.empty();
+                }
+            );
+        }
     }
 };
+
+ThreadedTaskPool::Task* ThreadedTaskPool::Pool::tryDequeue()
+{
+    std::lock_guard<std::mutex> lock(m_queueMutex);
+    if (m_queue.empty())
+        return nullptr;
+    Task* task = m_queue.front();
+    m_queue.pop();
+    return task;
+}
+
+void ThreadedTaskPool::Pool::executeTask(Task* task)
+{
+    // Execute the task function.
+    // Wrap in try/catch to ensure the worker thread survives and the
+    // task-completion bookkeeping (done flag, children, group, counters)
+    // always runs. Without this, an exception would deadlock waiters.
+    try
+    {
+        task->func(task->payload);
+    } catch (...)
+    {
+        SLANG_RHI_ASSERT_FAILURE("Task threw an exception");
+    }
+    // Capture the group pointer before we potentially release the task.
+    TaskGroup* group = task->group;
+    // Mark the task as done and notify child tasks.
+    // We must hold waitMutex around setting done and notifying, so that
+    // waitTask() cannot observe done==true and release the task before
+    // we finish touching it. We must also hold childrenMutex to safely
+    // process the children list.
+    {
+        std::lock_guard<std::mutex> waitLock(task->waitMutex);
+        {
+            std::lock_guard<std::mutex> childLock(task->childrenMutex);
+            task->done.store(true, std::memory_order_release);
+            for (Task* child : task->children)
+            {
+                // Decrement the child's dependency counter.
+                if (child->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
+                {
+                    // All dependencies satisfied; enqueue the child.
+                    enqueue(child);
+                }
+                // Release the extra reference taken when adding as a dependency.
+                releaseTask(child);
+            }
+            task->children.clear();
+        }
+        // Notify waitTask() waiters.
+        task->waitCV.notify_all();
+    }
+    // Release the pool's reference.
+    // This must happen before decrementing m_tasksRemaining so that
+    // waitAll() only returns after all payload deleters have been called.
+    releaseTask(task);
+    // Decrement the group pending counter and notify waiters.
+    if (group)
+    {
+        if (group->pending.fetch_sub(1, std::memory_order_acq_rel) == 1)
+        {
+            std::lock_guard<std::mutex> lock(group->mutex);
+            group->cv.notify_all();
+        }
+    }
+    // Decrement the remaining task counter and notify waiters.
+    // Notify stealCV so that work-stealing wait loops wake up
+    // and recheck their conditions. Must hold m_queueMutex to prevent
+    // lost wakeups (notification arriving between predicate check and wait).
+    if (m_tasksRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
+    {
+        std::lock_guard<std::mutex> lock(m_waitMutex);
+        m_waitCV.notify_all();
+    }
+    {
+        std::lock_guard<std::mutex> lock(m_queueMutex);
+        m_stealCV.notify_all();
+    }
+}
 
 void ThreadedTaskPool::Pool::workerThread()
 {
@@ -381,64 +498,32 @@ void ThreadedTaskPool::Pool::workerThread()
             task = m_queue.front();
             m_queue.pop();
         }
-        // Execute the task function.
-        // Wrap in try/catch to ensure the worker thread survives and the
-        // task-completion bookkeeping (done flag, children, group, counters)
-        // always runs. Without this, an exception would deadlock waiters.
-        try
+        executeTask(task);
+    }
+}
+
+void ThreadedTaskPool::Pool::waitTaskGroup(TaskGroup* group)
+{
+    SLANG_RHI_ASSERT(group);
+
+    while (group->pending.load(std::memory_order_acquire) != 0)
+    {
+        // Try to steal and execute a task from the queue.
+        if (Task* stolen = tryDequeue())
         {
-            task->func(task->payload);
-        } catch (...)
-        {
-            SLANG_RHI_ASSERT_FAILURE("Task threw an exception");
+            executeTask(stolen);
+            continue;
         }
-        // Capture the group pointer before we potentially release the task.
-        TaskGroup* group = task->group;
-        // Mark the task as done and notify child tasks.
-        // We must hold waitMutex around setting done and notifying, so that
-        // waitTask() cannot observe done==true and release the task before
-        // we finish touching it. We must also hold childrenMutex to safely
-        // process the children list.
-        {
-            std::lock_guard<std::mutex> waitLock(task->waitMutex);
+        // Queue is empty; wait for either a new task to be enqueued
+        // or all group tasks to complete.
+        std::unique_lock<std::mutex> lock(m_queueMutex);
+        m_stealCV.wait(
+            lock,
+            [this, group]
             {
-                std::lock_guard<std::mutex> childLock(task->childrenMutex);
-                task->done.store(true, std::memory_order_release);
-                for (Task* child : task->children)
-                {
-                    // Decrement the child's dependency counter.
-                    if (child->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
-                    {
-                        // All dependencies satisfied; enqueue the child.
-                        enqueue(child);
-                    }
-                    // Release the extra reference taken when adding as a dependency.
-                    releaseTask(child);
-                }
-                task->children.clear();
+                return group->pending.load(std::memory_order_acquire) == 0 || !m_queue.empty();
             }
-            // Notify waitTask() waiters.
-            task->waitCV.notify_all();
-        }
-        // Release the pool's reference.
-        // This must happen before decrementing m_tasksRemaining so that
-        // waitAll() only returns after all payload deleters have been called.
-        releaseTask(task);
-        // Decrement the group pending counter and notify waiters.
-        if (group)
-        {
-            if (group->pending.fetch_sub(1, std::memory_order_acq_rel) == 1)
-            {
-                std::lock_guard<std::mutex> lock(group->mutex);
-                group->cv.notify_all();
-            }
-        }
-        // Decrement the remaining task counter and notify waiters.
-        if (m_tasksRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
-        {
-            std::lock_guard<std::mutex> lock(m_waitMutex);
-            m_waitCV.notify_all();
-        }
+        );
     }
 }
 
@@ -507,15 +592,7 @@ void ThreadedTaskPool::waitTaskGroup(TaskGroupHandle group)
 {
     SLANG_RHI_ASSERT(group);
 
-    TaskGroup* g = static_cast<TaskGroup*>(group);
-    std::unique_lock<std::mutex> lock(g->mutex);
-    g->cv.wait(
-        lock,
-        [g]
-        {
-            return g->pending.load(std::memory_order_acquire) == 0;
-        }
-    );
+    m_pool->waitTaskGroup(static_cast<TaskGroup*>(group));
 }
 
 void ThreadedTaskPool::releaseTaskGroup(TaskGroupHandle group)

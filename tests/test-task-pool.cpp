@@ -559,3 +559,203 @@ TEST_CASE("task-pool-threaded")
         }
     }
 }
+
+// Work-stealing tests: use a single worker thread to force scenarios that
+// would deadlock without work-stealing in wait functions.
+
+// A task callback calls waitTask on another task. With 1 worker thread and
+// no work-stealing, the worker blocks and the waited-on task never runs.
+void testWorkStealingWaitTaskFromCallback(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    std::atomic<int> result{0};
+
+    // Task A: sets result to 1.
+    auto taskA = pool->submitTask(
+        [](void* p)
+        {
+            static_cast<std::atomic<int>*>(p)->store(1, std::memory_order_relaxed);
+        },
+        &result,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    // Task B: waits on A from inside its callback, then sets result to 2.
+    struct Payload
+    {
+        ITaskPool* pool;
+        ITaskPool::TaskHandle taskA;
+        std::atomic<int>* result;
+    };
+    Payload payload{pool, taskA, &result};
+
+    auto taskB = pool->submitTask(
+        [](void* p)
+        {
+            auto* ctx = static_cast<Payload*>(p);
+            ctx->pool->waitTask(ctx->taskA);
+            CHECK(ctx->result->load(std::memory_order_relaxed) == 1);
+            ctx->result->store(2, std::memory_order_relaxed);
+        },
+        &payload,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    pool->waitTask(taskB);
+    CHECK(result.load() == 2);
+
+    pool->releaseTask(taskA);
+    pool->releaseTask(taskB);
+}
+
+// Nested wait chain: task C waits on B, B waits on A. With 1 worker thread,
+// this requires two levels of work-stealing to avoid deadlock.
+void testWorkStealingNestedWait(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    std::atomic<int> order{0};
+
+    auto taskA = pool->submitTask(
+        [](void* p)
+        {
+            static_cast<std::atomic<int>*>(p)->fetch_add(1, std::memory_order_relaxed);
+        },
+        &order,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    struct WaitPayload
+    {
+        ITaskPool* pool;
+        ITaskPool::TaskHandle dep;
+        std::atomic<int>* order;
+    };
+    WaitPayload payloadB{pool, taskA, &order};
+
+    auto taskB = pool->submitTask(
+        [](void* p)
+        {
+            auto* ctx = static_cast<WaitPayload*>(p);
+            ctx->pool->waitTask(ctx->dep);
+            ctx->order->fetch_add(1, std::memory_order_relaxed);
+        },
+        &payloadB,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    WaitPayload payloadC{pool, taskB, &order};
+
+    auto taskC = pool->submitTask(
+        [](void* p)
+        {
+            auto* ctx = static_cast<WaitPayload*>(p);
+            ctx->pool->waitTask(ctx->dep);
+            ctx->order->fetch_add(1, std::memory_order_relaxed);
+        },
+        &payloadC,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    pool->waitTask(taskC);
+    CHECK(order.load() == 3);
+
+    pool->releaseTask(taskA);
+    pool->releaseTask(taskB);
+    pool->releaseTask(taskC);
+}
+
+// A task callback uses waitTaskGroup to wait on sub-tasks it spawns.
+// With 1 worker, the callback's thread must steal sub-tasks to make progress.
+void testWorkStealingWaitGroupFromCallback(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    std::atomic<int> sum{0};
+
+    struct Payload
+    {
+        ITaskPool* pool;
+        std::atomic<int>* sum;
+    };
+    Payload payload{pool, &sum};
+
+    auto task = pool->submitTask(
+        [](void* p)
+        {
+            auto* ctx = static_cast<Payload*>(p);
+            auto group = ctx->pool->createTaskGroup();
+
+            static constexpr int N = 10;
+            ITaskPool::TaskHandle subtasks[N];
+            for (int i = 0; i < N; ++i)
+            {
+                subtasks[i] = ctx->pool->submitTask(
+                    [](void* p2)
+                    {
+                        static_cast<std::atomic<int>*>(p2)->fetch_add(1, std::memory_order_relaxed);
+                    },
+                    ctx->sum,
+                    nullptr,
+                    nullptr,
+                    0,
+                    group
+                );
+            }
+
+            ctx->pool->waitTaskGroup(group);
+            ctx->pool->releaseTaskGroup(group);
+
+            for (int i = 0; i < N; ++i)
+                ctx->pool->releaseTask(subtasks[i]);
+        },
+        &payload,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    pool->waitTask(task);
+    CHECK(sum.load() == 10);
+    pool->releaseTask(task);
+}
+
+TEST_CASE("task-pool-work-stealing")
+{
+    // Use a single worker thread to force work-stealing in wait functions.
+    // Without work-stealing, these tests would deadlock.
+    ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
+
+    SUBCASE("wait-task-from-callback")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testWorkStealingWaitTaskFromCallback(pool);
+        }
+    }
+    SUBCASE("nested-wait")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testWorkStealingNestedWait(pool);
+        }
+    }
+    SUBCASE("wait-group-from-callback")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testWorkStealingWaitGroupFromCallback(pool);
+        }
+    }
+}

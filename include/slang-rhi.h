@@ -3745,6 +3745,9 @@ public:
 
     /// \brief Block the calling thread until a task has finished executing.
     ///
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// This makes it safe to call from a task callback without deadlock risk.
+    ///
     /// \param task Task handle to wait on. Must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) = 0;
 
@@ -3758,6 +3761,7 @@ public:
     ///
     /// Waits for every task that has been submitted to this pool (and not yet completed)
     /// to finish executing. Does not release any task handles.
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
     virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
 
     /// \brief Create a new task group for tracking a set of tasks.
@@ -3770,7 +3774,8 @@ public:
 
     /// \brief Block the calling thread until all tasks in the group have completed.
     ///
-    /// Must not be called from a pool worker thread (deadlock risk).
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// This makes it safe to call from a task callback without deadlock risk.
     /// Must not be called while other threads are still submitting tasks to the group
     /// outside of task callbacks.
     /// A group must not be reused after `waitTaskGroup` returns.
