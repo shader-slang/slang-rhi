@@ -17,7 +17,7 @@ struct RayIntrinsicResult
     float rayTCurrent;
     uint32_t rayFlags;
     uint32_t geometryIndex;
-    float triangleVertices[9]; // 3 vertices × 3 components
+    float triangleVertices[9]; // 3 vertices x 3 components
     float rayCurrentTime;
     uint32_t instanceID;
     uint32_t instanceIndex;
