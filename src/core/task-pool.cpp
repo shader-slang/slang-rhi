@@ -9,6 +9,12 @@
 
 namespace rhi {
 
+// Track work-stealing nesting depth per thread.
+// Only the outermost wait call (depth 0) is allowed to steal and execute tasks.
+// This prevents circular steal chains where a stolen task's callback waits on
+// a task that is already in-flight higher up the same thread's call stack.
+static thread_local int tls_stealDepth = 0;
+
 // ----------------------------------------------------------------------------
 // BlockingTaskPool
 // ----------------------------------------------------------------------------
@@ -347,53 +353,63 @@ struct ThreadedTaskPool::Pool
         return task->done.load(std::memory_order_acquire);
     }
 
+    // Work-stealing wait loop. Spins until `isDone` returns true, stealing and
+    // executing queued tasks when possible (only at steal-depth 0 to prevent
+    // circular chains). Falls back to blocking on m_stealCV when no work is
+    // available. At depth > 0 the predicate excludes !m_queue.empty() to avoid
+    // a spin-loop that would starve worker threads.
+    template<typename Pred>
+    void waitWithStealing(Pred isDone)
+    {
+        while (!isDone())
+        {
+            if (tls_stealDepth == 0)
+            {
+                if (Task* stolen = tryDequeue())
+                {
+                    executeTask(stolen);
+                    continue;
+                }
+            }
+            std::unique_lock<std::mutex> lock(m_queueMutex);
+            if (tls_stealDepth == 0)
+            {
+                m_stealCV.wait(
+                    lock,
+                    [&]
+                    {
+                        return isDone() || !m_queue.empty();
+                    }
+                );
+            }
+            else
+            {
+                m_stealCV.wait(lock, isDone);
+            }
+        }
+    }
+
     void waitTask(Task* task)
     {
         SLANG_RHI_ASSERT(task);
         SLANG_RHI_ASSERT(task->pool == this);
 
-        while (!task->done.load(std::memory_order_acquire))
-        {
-            // Try to steal and execute a task from the queue.
-            if (Task* stolen = tryDequeue())
+        waitWithStealing(
+            [task]
             {
-                executeTask(stolen);
-                continue;
+                return task->done.load(std::memory_order_acquire);
             }
-            // Queue is empty; wait for either a new task to be enqueued
-            // or the target task to complete.
-            std::unique_lock<std::mutex> lock(m_queueMutex);
-            m_stealCV.wait(
-                lock,
-                [this, task]
-                {
-                    return task->done.load(std::memory_order_acquire) || !m_queue.empty();
-                }
-            );
-        }
+        );
     }
 
     void waitAll()
     {
-        while (m_tasksRemaining.load(std::memory_order_acquire) != 0)
-        {
-            // Try to steal and execute a task from the queue.
-            if (Task* stolen = tryDequeue())
+        waitWithStealing(
+            [this]
             {
-                executeTask(stolen);
-                continue;
+                return m_tasksRemaining.load(std::memory_order_acquire) == 0;
             }
-            // Queue is empty; wait for either a new task to be enqueued
-            // or all tasks to complete.
-            std::unique_lock<std::mutex> lock(m_queueMutex);
-            m_stealCV.wait(
-                lock,
-                [this]
-                {
-                    return m_tasksRemaining.load(std::memory_order_acquire) == 0 || !m_queue.empty();
-                }
-            );
-        }
+        );
     }
 };
 
@@ -415,6 +431,11 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     // always runs. Without this, an exception would deadlock waiters.
     // NOTE: If a task throws, it is still marked as done and its children
     // will execute. There is currently no failure propagation mechanism.
+    // Increment steal depth so that any waitTask/waitAll/waitTaskGroup called
+    // from the task callback cannot steal tasks. This prevents circular steal
+    // chains where a stolen task's callback waits on a task already in-flight
+    // on the same thread's call stack.
+    tls_stealDepth++;
     try
     {
         task->func(task->payload);
@@ -422,6 +443,7 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     {
         SLANG_RHI_ASSERT_FAILURE("Task threw an exception");
     }
+    tls_stealDepth--;
     // Capture the group pointer before we potentially release the task.
     TaskGroup* group = task->group;
     // Mark the task as done and notify child tasks.
@@ -495,25 +517,12 @@ void ThreadedTaskPool::Pool::waitTaskGroup(TaskGroup* group)
 {
     SLANG_RHI_ASSERT(group);
 
-    while (group->pending.load(std::memory_order_acquire) != 0)
-    {
-        // Try to steal and execute a task from the queue.
-        if (Task* stolen = tryDequeue())
+    waitWithStealing(
+        [group]
         {
-            executeTask(stolen);
-            continue;
+            return group->pending.load(std::memory_order_acquire) == 0;
         }
-        // Queue is empty; wait for either a new task to be enqueued
-        // or all group tasks to complete.
-        std::unique_lock<std::mutex> lock(m_queueMutex);
-        m_stealCV.wait(
-            lock,
-            [this, group]
-            {
-                return group->pending.load(std::memory_order_acquire) == 0 || !m_queue.empty();
-            }
-        );
-    }
+    );
 }
 
 ITaskPool* ThreadedTaskPool::getInterface(const Guid& guid)

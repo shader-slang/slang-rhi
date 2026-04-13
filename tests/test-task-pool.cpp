@@ -713,21 +713,21 @@ TEST_CASE("task-pool-work-stealing")
 
     SUBCASE("wait-task-from-callback")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < 10000; ++i)
         {
             testWorkStealingWaitTaskFromCallback(pool);
         }
     }
     SUBCASE("nested-wait")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < 10000; ++i)
         {
             testWorkStealingNestedWait(pool);
         }
     }
     SUBCASE("wait-group-from-callback")
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < 10000; ++i)
         {
             testWorkStealingWaitGroupFromCallback(pool);
         }
