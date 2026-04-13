@@ -416,7 +416,7 @@ TEST_CASE("block-allocator-performance")
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-        MESSAGE("BlockAllocator: ", numAllocations, " allocations in ", duration.count(), " μs");
+        MESSAGE("BlockAllocator: ", numAllocations, " allocations in ", duration.count(), " us");
     }
 
     SUBCASE("standard-new-delete-performance")
@@ -439,7 +439,7 @@ TEST_CASE("block-allocator-performance")
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-        MESSAGE("Standard new/delete: ", numAllocations, " allocations in ", duration.count(), " μs");
+        MESSAGE("Standard new/delete: ", numAllocations, " allocations in ", duration.count(), " us");
     }
 }
 #endif

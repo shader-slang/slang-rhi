@@ -851,7 +851,7 @@ void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* sr
     }
     if (dst == src)
     {
-        // Check for overlapping ranges — overlapping same-buffer copies are undefined behavior
+        // Check for overlapping ranges - overlapping same-buffer copies are undefined behavior
         // on all major APIs (D3D12, Vulkan, Metal), so skip the call to avoid driver errors.
         if (srcOffset < dstOffset + size && dstOffset < srcOffset + size)
         {

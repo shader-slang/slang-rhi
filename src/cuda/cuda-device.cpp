@@ -293,7 +293,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     }
 
     // If no CUDA context is current, set ours so it persists after initialization.
-    // If another context is already current, leave it alone — callers should use
+    // If another context is already current, leave it alone - callers should use
     // setCudaContextCurrent() to explicitly manage the active context.
     {
         CUcontext currentContext = nullptr;
