@@ -1,6 +1,7 @@
 #include "task-pool.h"
 
 #include <condition_variable>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -189,6 +190,8 @@ struct ThreadedTaskPool::Pool
 
     ~Pool()
     {
+        // Drain all pending tasks before shutting down.
+        waitAll();
         {
             std::lock_guard<std::mutex> lock(m_queueMutex);
             m_stop.store(true);
@@ -379,7 +382,16 @@ void ThreadedTaskPool::Pool::workerThread()
             m_queue.pop();
         }
         // Execute the task function.
-        task->func(task->payload);
+        // Wrap in try/catch to ensure the worker thread survives and the
+        // task-completion bookkeeping (done flag, children, group, counters)
+        // always runs. Without this, an exception would deadlock waiters.
+        try
+        {
+            task->func(task->payload);
+        } catch (...)
+        {
+            SLANG_RHI_ASSERT_FAILURE("Task threw an exception");
+        }
         // Capture the group pointer before we potentially release the task.
         TaskGroup* group = task->group;
         // Mark the task as done and notify child tasks.
