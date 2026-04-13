@@ -3695,6 +3695,7 @@ class ITaskPool : public ISlangUnknown
 
 public:
     typedef void* TaskHandle;
+    typedef void* TaskGroupHandle;
 
     /// \brief Submit a new task for execution.
     ///
@@ -3709,13 +3710,15 @@ public:
     /// \param payloadDeleter Optional deleter called with `payload` when the task is destroyed. May be null if no cleanup is needed.
     /// \param deps Array of `TaskHandle`s that must complete before this task runs. May be null if `depsCount` is 0.
     /// \param depsCount Number of entries in `deps`.
+    /// \param group Optional task group handle. If non-null, the task is associated with the group.
     /// \return A handle to the submitted task. The caller must release this with `releaseTask()`.
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
         void (*func)(void*),
         void* payload,
         void (*payloadDeleter)(void*),
         TaskHandle* deps,
-        size_t depsCount
+        size_t depsCount,
+        TaskGroupHandle group = nullptr
     ) = 0;
 
     /// \brief Get the payload associated with a task.
@@ -3756,6 +3759,32 @@ public:
     /// Waits for every task that has been submitted to this pool (and not yet completed)
     /// to finish executing. Does not release any task handles.
     virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
+
+    /// \brief Create a new task group for tracking a set of tasks.
+    ///
+    /// A task group tracks a dynamically growing set of tasks. Tasks are associated with a
+    /// group by passing the group handle to `submitTask()`.
+    ///
+    /// \return An opaque handle to the task group.
+    virtual SLANG_NO_THROW TaskGroupHandle SLANG_MCALL createTaskGroup() = 0;
+
+    /// \brief Block the calling thread until all tasks in the group have completed.
+    ///
+    /// Must not be called from a pool worker thread (deadlock risk).
+    /// Must not be called while other threads are still submitting tasks to the group
+    /// outside of task callbacks.
+    /// A group must not be reused after `waitTaskGroup` returns.
+    ///
+    /// \param group Task group handle. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitTaskGroup(TaskGroupHandle group) = 0;
+
+    /// \brief Release a task group.
+    ///
+    /// Must be called exactly once after `waitTaskGroup` returns. Calling with tasks
+    /// still pending is undefined behavior.
+    ///
+    /// \param group Task group handle. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL releaseTaskGroup(TaskGroupHandle group) = 0;
 };
 
 class IPersistentCache : public ISlangUnknown

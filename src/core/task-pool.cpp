@@ -1,6 +1,7 @@
 #include "task-pool.h"
 
 #include <condition_variable>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -30,7 +31,8 @@ ITaskPool::TaskHandle BlockingTaskPool::submitTask(
     void* payload,
     void (*payloadDeleter)(void*),
     TaskHandle* deps,
-    size_t depsCount
+    size_t depsCount,
+    TaskGroupHandle group
 )
 {
     SLANG_RHI_ASSERT(func);
@@ -83,6 +85,24 @@ bool BlockingTaskPool::isTaskDone(TaskHandle task)
 
 void BlockingTaskPool::waitAll() {}
 
+ITaskPool::TaskGroupHandle BlockingTaskPool::createTaskGroup()
+{
+    static char sentinel;
+    return &sentinel;
+}
+
+void BlockingTaskPool::waitTaskGroup(TaskGroupHandle group)
+{
+    SLANG_RHI_ASSERT(group);
+    SLANG_UNUSED(group);
+}
+
+void BlockingTaskPool::releaseTaskGroup(TaskGroupHandle group)
+{
+    SLANG_RHI_ASSERT(group);
+    SLANG_UNUSED(group);
+}
+
 // ----------------------------------------------------------------------------
 // ThreadedTaskPool
 // ----------------------------------------------------------------------------
@@ -115,6 +135,16 @@ struct ThreadedTaskPool::Task
     // List of tasks that depend on this task.
     std::vector<Task*> children;
     std::mutex childrenMutex;
+
+    // Optional task group this task belongs to.
+    struct TaskGroup* group = nullptr;
+};
+
+struct TaskGroup
+{
+    std::atomic<size_t> pending{0};
+    std::mutex mutex;
+    std::condition_variable cv;
 };
 
 struct ThreadedTaskPool::Pool
@@ -160,6 +190,8 @@ struct ThreadedTaskPool::Pool
 
     ~Pool()
     {
+        // Drain all pending tasks before shutting down.
+        waitAll();
         {
             std::lock_guard<std::mutex> lock(m_queueMutex);
             m_stop.store(true);
@@ -216,7 +248,14 @@ struct ThreadedTaskPool::Pool
         }
     }
 
-    Task* submitTask(void (*func)(void*), void* payload, void (*payloadDeleter)(void*), Task** deps, size_t depsCount)
+    Task* submitTask(
+        void (*func)(void*),
+        void* payload,
+        void (*payloadDeleter)(void*),
+        Task** deps,
+        size_t depsCount,
+        TaskGroup* group
+    )
     {
         SLANG_RHI_ASSERT(func);
         SLANG_RHI_ASSERT(depsCount == 0 || deps);
@@ -228,6 +267,13 @@ struct ThreadedTaskPool::Pool
         task->payloadDeleter = payloadDeleter;
         task->pool = this;
         task->depsRemaining = depsCount;
+        task->group = group;
+
+        // Increment the group counter before enqueuing (critical for correctness).
+        if (group)
+        {
+            group->pending.fetch_add(1, std::memory_order_relaxed);
+        }
 
         // Increment the reference count by 2.
         // One reference is for the pool, the other is for the caller.
@@ -336,7 +382,18 @@ void ThreadedTaskPool::Pool::workerThread()
             m_queue.pop();
         }
         // Execute the task function.
-        task->func(task->payload);
+        // Wrap in try/catch to ensure the worker thread survives and the
+        // task-completion bookkeeping (done flag, children, group, counters)
+        // always runs. Without this, an exception would deadlock waiters.
+        try
+        {
+            task->func(task->payload);
+        } catch (...)
+        {
+            SLANG_RHI_ASSERT_FAILURE("Task threw an exception");
+        }
+        // Capture the group pointer before we potentially release the task.
+        TaskGroup* group = task->group;
         // Mark the task as done and notify child tasks.
         // We must hold waitMutex around setting done and notifying, so that
         // waitTask() cannot observe done==true and release the task before
@@ -367,6 +424,15 @@ void ThreadedTaskPool::Pool::workerThread()
         // This must happen before decrementing m_tasksRemaining so that
         // waitAll() only returns after all payload deleters have been called.
         releaseTask(task);
+        // Decrement the group pending counter and notify waiters.
+        if (group)
+        {
+            if (group->pending.fetch_sub(1, std::memory_order_acq_rel) == 1)
+            {
+                std::lock_guard<std::mutex> lock(group->mutex);
+                group->cv.notify_all();
+            }
+        }
         // Decrement the remaining task counter and notify waiters.
         if (m_tasksRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
         {
@@ -398,10 +464,11 @@ ITaskPool::TaskHandle ThreadedTaskPool::submitTask(
     void* payload,
     void (*payloadDeleter)(void*),
     TaskHandle* deps,
-    size_t depsCount
+    size_t depsCount,
+    TaskGroupHandle group
 )
 {
-    return m_pool->submitTask(func, payload, payloadDeleter, (Task**)deps, depsCount);
+    return m_pool->submitTask(func, payload, payloadDeleter, (Task**)deps, depsCount, static_cast<TaskGroup*>(group));
 }
 
 void* ThreadedTaskPool::getTaskPayload(TaskHandle task)
@@ -429,6 +496,35 @@ bool ThreadedTaskPool::isTaskDone(TaskHandle task)
 void ThreadedTaskPool::waitAll()
 {
     m_pool->waitAll();
+}
+
+ITaskPool::TaskGroupHandle ThreadedTaskPool::createTaskGroup()
+{
+    return new TaskGroup();
+}
+
+void ThreadedTaskPool::waitTaskGroup(TaskGroupHandle group)
+{
+    SLANG_RHI_ASSERT(group);
+
+    TaskGroup* g = static_cast<TaskGroup*>(group);
+    std::unique_lock<std::mutex> lock(g->mutex);
+    g->cv.wait(
+        lock,
+        [g]
+        {
+            return g->pending.load(std::memory_order_acquire) == 0;
+        }
+    );
+}
+
+void ThreadedTaskPool::releaseTaskGroup(TaskGroupHandle group)
+{
+    SLANG_RHI_ASSERT(group);
+
+    TaskGroup* g = static_cast<TaskGroup*>(group);
+    SLANG_RHI_ASSERT(g->pending.load(std::memory_order_acquire) == 0);
+    delete g;
 }
 
 // ----------------------------------------------------------------------------

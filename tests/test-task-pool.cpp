@@ -272,6 +272,186 @@ void testFibonacci(ITaskPool* pool)
     pool->releaseTask(task);
 }
 
+// Basic group lifecycle: create, submit tasks, wait, release.
+void testGroupBasic(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    static constexpr size_t N = 100;
+    static std::atomic<size_t> counter;
+    counter = 0;
+
+    auto group = pool->createTaskGroup();
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        ITaskPool::TaskHandle task = pool->submitTask(
+            [](void*)
+            {
+                counter.fetch_add(1, std::memory_order_relaxed);
+            },
+            nullptr,
+            nullptr,
+            nullptr,
+            0,
+            group
+        );
+        pool->releaseTask(task);
+    }
+
+    pool->waitTaskGroup(group);
+    CHECK(counter.load() == N);
+    pool->releaseTaskGroup(group);
+}
+
+// Sub-tasks spawned from callbacks are tracked by the group.
+void testGroupSubTasks(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    static std::atomic<size_t> counter;
+    counter = 0;
+
+    struct SubTaskPayload
+    {
+        ITaskPool* pool;
+        ITaskPool::TaskGroupHandle group;
+        int depth;
+    };
+
+    auto group = pool->createTaskGroup();
+
+    auto func = [](void* p)
+    {
+        SubTaskPayload* payload = static_cast<SubTaskPayload*>(p);
+        counter.fetch_add(1, std::memory_order_relaxed);
+        if (payload->depth > 0)
+        {
+            // Spawn two sub-tasks in the same group.
+            for (int i = 0; i < 2; ++i)
+            {
+                SubTaskPayload* sub = new SubTaskPayload{payload->pool, payload->group, payload->depth - 1};
+                ITaskPool::TaskHandle task = payload->pool->submitTask(
+                    [](void* p2)
+                    {
+                        SubTaskPayload* sp = static_cast<SubTaskPayload*>(p2);
+                        counter.fetch_add(1, std::memory_order_relaxed);
+                        if (sp->depth > 0)
+                        {
+                            for (int j = 0; j < 2; ++j)
+                            {
+                                SubTaskPayload* sub2 = new SubTaskPayload{sp->pool, sp->group, sp->depth - 1};
+                                ITaskPool::TaskHandle t = sp->pool->submitTask(
+                                    [](void* p3)
+                                    {
+                                        SubTaskPayload* sp2 = static_cast<SubTaskPayload*>(p3);
+                                        counter.fetch_add(1, std::memory_order_relaxed);
+                                        SLANG_UNUSED(sp2);
+                                    },
+                                    sub2,
+                                    [](void* p3)
+                                    {
+                                        delete static_cast<SubTaskPayload*>(p3);
+                                    },
+                                    nullptr,
+                                    0,
+                                    sp->group
+                                );
+                                sp->pool->releaseTask(t);
+                            }
+                        }
+                    },
+                    sub,
+                    [](void* p2)
+                    {
+                        delete static_cast<SubTaskPayload*>(p2);
+                    },
+                    nullptr,
+                    0,
+                    payload->group
+                );
+                payload->pool->releaseTask(task);
+            }
+        }
+    };
+
+    SubTaskPayload* payload = new SubTaskPayload{pool, group, 2};
+    ITaskPool::TaskHandle task = pool->submitTask(
+        func,
+        payload,
+        [](void* p)
+        {
+            delete static_cast<SubTaskPayload*>(p);
+        },
+        nullptr,
+        0,
+        group
+    );
+    pool->releaseTask(task);
+
+    pool->waitTaskGroup(group);
+    // 1 root (depth 2) + 2 children (depth 1) + 4 leaves (depth 0) = 7
+    CHECK(counter.load() == 7);
+    pool->releaseTaskGroup(group);
+}
+
+// Empty group: wait immediately after create.
+void testGroupEmpty(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    auto group = pool->createTaskGroup();
+    pool->waitTaskGroup(group);
+    pool->releaseTaskGroup(group);
+}
+
+// Group with dependencies: tasks have both a group and dependency handles.
+void testGroupWithDependencies(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    static std::atomic<size_t> order;
+    order = 0;
+
+    auto group = pool->createTaskGroup();
+
+    // First task in the group.
+    static size_t firstOrder;
+    ITaskPool::TaskHandle first = pool->submitTask(
+        [](void*)
+        {
+            firstOrder = order.fetch_add(1, std::memory_order_relaxed);
+        },
+        nullptr,
+        nullptr,
+        nullptr,
+        0,
+        group
+    );
+
+    // Second task depends on first, also in the group.
+    static size_t secondOrder;
+    ITaskPool::TaskHandle second = pool->submitTask(
+        [](void*)
+        {
+            secondOrder = order.fetch_add(1, std::memory_order_relaxed);
+        },
+        nullptr,
+        nullptr,
+        &first,
+        1,
+        group
+    );
+
+    pool->releaseTask(first);
+    pool->releaseTask(second);
+
+    pool->waitTaskGroup(group);
+    CHECK(firstOrder < secondOrder);
+    CHECK(order.load() == 2);
+    pool->releaseTaskGroup(group);
+}
+
 TEST_CASE("task-pool-blocking")
 {
     ComPtr<ITaskPool> pool(new BlockingTaskPool());
@@ -295,6 +475,22 @@ TEST_CASE("task-pool-blocking")
     SUBCASE("fibonacci")
     {
         testFibonacci(pool);
+    }
+    SUBCASE("group-basic")
+    {
+        testGroupBasic(pool);
+    }
+    SUBCASE("group-sub-tasks")
+    {
+        testGroupSubTasks(pool);
+    }
+    SUBCASE("group-empty")
+    {
+        testGroupEmpty(pool);
+    }
+    SUBCASE("group-with-dependencies")
+    {
+        testGroupWithDependencies(pool);
     }
 }
 
@@ -333,5 +529,33 @@ TEST_CASE("task-pool-threaded")
     SUBCASE("fibonacci")
     {
         testFibonacci(pool);
+    }
+    SUBCASE("group-basic")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testGroupBasic(pool);
+        }
+    }
+    SUBCASE("group-sub-tasks")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testGroupSubTasks(pool);
+        }
+    }
+    SUBCASE("group-empty")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testGroupEmpty(pool);
+        }
+    }
+    SUBCASE("group-with-dependencies")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testGroupWithDependencies(pool);
+        }
     }
 }
