@@ -373,7 +373,7 @@ Result DeviceImpl::initVulkanDevice(
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     if (!desc.existingDeviceHandles.handles[1])
     {
-        AdapterImpl* adapter = nullptr;
+        const AdapterImpl* adapter = nullptr;
         SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;

@@ -10,7 +10,7 @@ class BackendImpl : public Backend
 public:
     Result initialize();
 
-    std::vector<AdapterImpl>& getAdapters() { return m_adapters; }
+    std::span<const AdapterImpl> getAdapters() const { return m_adapters; }
 
     // Backend implementation
 

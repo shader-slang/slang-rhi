@@ -330,7 +330,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 #endif
 
     m_dxgiFactory = getDXGIFactory(getRHI()->getDebugLayerOptions(), this);
-    AdapterImpl* adapter = nullptr;
+    const AdapterImpl* adapter = nullptr;
 
     if (!desc.existingDeviceHandles.handles[0])
     {

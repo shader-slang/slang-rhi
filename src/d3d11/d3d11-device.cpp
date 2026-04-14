@@ -58,7 +58,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     m_dxgiFactory = getDXGIFactory(getRHI()->getDebugLayerOptions(), this);
 
-    AdapterImpl* adapter = nullptr;
+    const AdapterImpl* adapter = nullptr;
     SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
     m_dxgiAdapter = adapter->m_dxgiAdapter;
 

@@ -115,7 +115,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     else
     {
         // User provided no external handles, so we need to create a device and context.
-        AdapterImpl* adapter = nullptr;
+        const AdapterImpl* adapter = nullptr;
         SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, adapter->m_deviceIndex), this);
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDevicePrimaryCtxRetain(&m_ctx.context, m_ctx.device), this);
