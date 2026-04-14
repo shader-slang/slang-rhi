@@ -14,6 +14,7 @@
 
 #include <atomic>
 #include <map>
+#include <mutex>
 #include <unordered_map>
 
 namespace rhi {
@@ -123,6 +124,7 @@ protected:
         std::size_t operator()(const PipelineKey& k) const { return k.hash; }
     };
 
+    std::mutex m_mutex;
     std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
     std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
