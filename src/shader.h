@@ -11,8 +11,17 @@
 
 #include <mutex>
 #include <unordered_map>
+#include <vector>
 
 namespace rhi {
+
+/// Result of compiling a single entry point (without creating backend shader modules).
+struct CompiledEntryPoint
+{
+    slang::EntryPointReflection* entryPointInfo = nullptr;
+    ComPtr<ISlangBlob> kernelCode;
+    Result result = SLANG_OK;
+};
 
 struct SpecializationKey
 {
@@ -73,6 +82,20 @@ public:
     bool isMeshShaderProgram() const;
 
     Result compileShaders(Device* device);
+
+    /// Compile a single entry point without creating a shader module.
+    /// Thread-safe: can be called from multiple threads for different entry points.
+    Result compileEntryPoint(
+        Device* device,
+        slang::EntryPointReflection* entryPointInfo,
+        slang::IComponentType* entryPointComponent,
+        uint32_t entryPointIndex,
+        ComPtr<ISlangBlob>& outKernelCode
+    );
+
+    /// Compile all entry points in parallel using the global task pool.
+    /// Returns compiled entry points (without creating shader modules).
+    Result compileEntryPointsParallel(Device* device, std::vector<CompiledEntryPoint>& outCompiledEntryPoints);
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 

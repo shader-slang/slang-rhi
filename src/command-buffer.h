@@ -4,6 +4,7 @@
 
 #include "slang-context.h"
 #include "shader-object.h"
+#include "shader.h"
 
 #include "core/common.h"
 #include "core/arena-allocator.h"
@@ -15,8 +16,69 @@
 #include "rhi-shared-fwd.h"
 
 #include <set>
+#include <vector>
 
 namespace rhi {
+
+/// Work item for parallel pipeline resolution.
+/// Represents a single pipeline that needs to be resolved (compiled + created).
+struct PipelineWorkItem
+{
+    /// Pointer to the command slot that triggered this pipeline resolution.
+    const CommandList::CommandSlot* command = nullptr;
+
+    /// The virtual pipeline to resolve.
+    Pipeline* pipeline = nullptr;
+
+    /// Specialization args (if the pipeline is specializable).
+    ExtendedShaderObjectTypeListObject* specializationArgs = nullptr;
+
+    /// The specialized program (output of specialization step).
+    RefPtr<ShaderProgram> program;
+
+    /// Compiled entry points (output of compilation step).
+    std::vector<CompiledEntryPoint> compiledEntryPoints;
+
+    /// The resulting concrete pipeline (output of pipeline creation step).
+    RefPtr<Pipeline> concretePipeline;
+
+    /// Result code from the work item.
+    Result result = SLANG_OK;
+};
+
+/// Resolves virtual pipelines in a command list.
+/// Handles cache lookups, specialization, parallel compilation and pipeline creation.
+class PipelineResolver
+{
+public:
+    PipelineResolver(Device* device, CommandList* commandList);
+
+    /// Resolve all virtual pipelines in the command list.
+    Result resolve();
+
+private:
+    /// Update a command slot's pipeline pointer with the resolved concrete pipeline.
+    static void patchCommand(CommandList* commandList, const CommandList::CommandSlot* command, Pipeline* concrete);
+
+    /// Collect work items by scanning the command list. Cache hits are resolved inline.
+    void collectWorkItems();
+
+    /// Specialize programs for all work items (sequential, fast).
+    Result specializePrograms();
+
+    /// Compile entry points for all work items in parallel.
+    Result compileEntryPoints();
+
+    /// Create backend pipelines for all work items in parallel.
+    Result createPipelines();
+
+    /// Update caches and patch command slots with results.
+    void finalize();
+
+    Device* m_device;
+    CommandList* m_commandList;
+    std::vector<PipelineWorkItem> m_workItems;
+};
 
 struct BindingData
 {};

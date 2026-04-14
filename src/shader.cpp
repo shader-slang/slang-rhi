@@ -1,5 +1,6 @@
 #include "shader.h"
 
+#include "core/task-pool.h"
 #include "rhi-shared.h"
 
 namespace rhi {
@@ -101,6 +102,157 @@ Result ShaderProgram::init()
     return SLANG_OK;
 }
 
+Result ShaderProgram::compileEntryPoint(
+    Device* device,
+    slang::EntryPointReflection* entryPointInfo,
+    slang::IComponentType* entryPointComponent,
+    uint32_t entryPointIndex,
+    ComPtr<ISlangBlob>& outKernelCode
+)
+{
+    ComPtr<ISlangBlob> kernelCode;
+    ComPtr<ISlangBlob> diagnostics;
+    auto compileResult = device->getEntryPointCodeFromShaderCache(
+        this,
+        entryPointComponent,
+        entryPointInfo->getNameOverride(),
+        entryPointIndex,
+        0,
+        kernelCode.writeRef(),
+        diagnostics.writeRef()
+    );
+    if (diagnostics)
+    {
+        DebugMessageType msgType = DebugMessageType::Warning;
+        if (compileResult != SLANG_OK)
+            msgType = DebugMessageType::Error;
+        device->handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
+    }
+    SLANG_RETURN_ON_FAIL(compileResult);
+    outKernelCode = kernelCode;
+    return SLANG_OK;
+}
+
+Result ShaderProgram::compileEntryPointsParallel(
+    Device* device,
+    std::vector<CompiledEntryPoint>& outCompiledEntryPoints
+)
+{
+    // Build list of entry points to compile.
+    struct EntryPointWork
+    {
+        slang::EntryPointReflection* entryPointInfo;
+        slang::IComponentType* entryPointComponent;
+        uint32_t entryPointIndex;
+    };
+    std::vector<EntryPointWork> entryPoints;
+
+    if (linkedEntryPoints.size() == 0)
+    {
+        auto programReflection = linkedProgram->getLayout();
+        for (uint32_t i = 0; i < programReflection->getEntryPointCount(); i++)
+        {
+            entryPoints.push_back({programReflection->getEntryPointByIndex(i), linkedProgram, i});
+        }
+    }
+    else
+    {
+        for (auto& entryPoint : linkedEntryPoints)
+        {
+            entryPoints.push_back({entryPoint->getLayout()->getEntryPointByIndex(0), entryPoint, 0});
+        }
+    }
+
+    outCompiledEntryPoints.resize(entryPoints.size());
+
+    // If only one entry point, compile directly without task pool overhead.
+    if (entryPoints.size() <= 1)
+    {
+        for (size_t i = 0; i < entryPoints.size(); i++)
+        {
+            auto& ep = entryPoints[i];
+            outCompiledEntryPoints[i].entryPointInfo = ep.entryPointInfo;
+            outCompiledEntryPoints[i].result = compileEntryPoint(
+                device,
+                ep.entryPointInfo,
+                ep.entryPointComponent,
+                ep.entryPointIndex,
+                outCompiledEntryPoints[i].kernelCode
+            );
+        }
+    }
+    else
+    {
+        // Submit parallel compilation tasks.
+        ITaskPool* taskPool = globalTaskPool();
+
+        struct CompileTaskPayload
+        {
+            ShaderProgram* program;
+            Device* device;
+            slang::EntryPointReflection* entryPointInfo;
+            slang::IComponentType* entryPointComponent;
+            uint32_t entryPointIndex;
+            CompiledEntryPoint* output;
+        };
+
+        std::vector<ITaskPool::TaskHandle> taskHandles;
+        taskHandles.reserve(entryPoints.size());
+
+        for (size_t i = 0; i < entryPoints.size(); i++)
+        {
+            auto& ep = entryPoints[i];
+            outCompiledEntryPoints[i].entryPointInfo = ep.entryPointInfo;
+
+            auto* payload = new CompileTaskPayload{
+                this,
+                device,
+                ep.entryPointInfo,
+                ep.entryPointComponent,
+                ep.entryPointIndex,
+                &outCompiledEntryPoints[i],
+            };
+
+            auto handle = taskPool->submitTask(
+                [](void* p)
+                {
+                    auto* payload = static_cast<CompileTaskPayload*>(p);
+                    payload->output->result = payload->program->compileEntryPoint(
+                        payload->device,
+                        payload->entryPointInfo,
+                        payload->entryPointComponent,
+                        payload->entryPointIndex,
+                        payload->output->kernelCode
+                    );
+                },
+                payload,
+                [](void* p)
+                {
+                    delete static_cast<CompileTaskPayload*>(p);
+                },
+                nullptr,
+                0
+            );
+            taskHandles.push_back(handle);
+        }
+
+        // Wait for all compilation tasks to complete.
+        for (auto handle : taskHandles)
+        {
+            taskPool->waitTask(handle);
+            taskPool->releaseTask(handle);
+        }
+    }
+
+    // Check for failures.
+    for (auto& compiled : outCompiledEntryPoints)
+    {
+        SLANG_RETURN_ON_FAIL(compiled.result);
+    }
+
+    return SLANG_OK;
+}
+
 Result ShaderProgram::compileShaders(Device* device)
 {
     if (m_compiledShaders)
@@ -113,52 +265,14 @@ Result ShaderProgram::compileShaders(Device* device)
         return SLANG_OK;
     }
 
-    // For a fully specialized program, read and store its kernel code in `shaderProgram`.
-    auto compileShader = [&](slang::EntryPointReflection* entryPointInfo,
-                             slang::IComponentType* entryPointComponent,
-                             uint32_t entryPointIndex)
-    {
-        ComPtr<ISlangBlob> kernelCode;
-        ComPtr<ISlangBlob> diagnostics;
-        auto compileResult = device->getEntryPointCodeFromShaderCache(
-            this,
-            entryPointComponent,
-            entryPointInfo->getNameOverride(),
-            entryPointIndex,
-            0,
-            kernelCode.writeRef(),
-            diagnostics.writeRef()
-        );
-        if (diagnostics)
-        {
-            DebugMessageType msgType = DebugMessageType::Warning;
-            if (compileResult != SLANG_OK)
-                msgType = DebugMessageType::Error;
-            device->handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
-        }
-        SLANG_RETURN_ON_FAIL(compileResult);
-        SLANG_RETURN_ON_FAIL(createShaderModule(entryPointInfo, kernelCode));
-        return SLANG_OK;
-    };
+    // Compile all entry points (potentially in parallel).
+    std::vector<CompiledEntryPoint> compiledEntryPoints;
+    SLANG_RETURN_ON_FAIL(compileEntryPointsParallel(device, compiledEntryPoints));
 
-    if (linkedEntryPoints.size() == 0)
+    // Create shader modules sequentially (backend-specific, may not be thread-safe).
+    for (auto& compiled : compiledEntryPoints)
     {
-        // If the user does not explicitly specify entry point components, find them from
-        // `linkedEntryPoints`.
-        auto programReflection = linkedProgram->getLayout();
-        for (uint32_t i = 0; i < programReflection->getEntryPointCount(); i++)
-        {
-            SLANG_RETURN_ON_FAIL(compileShader(programReflection->getEntryPointByIndex(i), linkedProgram, i));
-        }
-    }
-    else
-    {
-        // If the user specifies entry point components via the separated entry point array,
-        // compile code from there.
-        for (auto& entryPoint : linkedEntryPoints)
-        {
-            SLANG_RETURN_ON_FAIL(compileShader(entryPoint->getLayout()->getEntryPointByIndex(0), entryPoint, 0));
-        }
+        SLANG_RETURN_ON_FAIL(createShaderModule(compiled.entryPointInfo, compiled.kernelCode));
     }
 
     m_compiledShaders = true;

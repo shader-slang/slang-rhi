@@ -473,6 +473,8 @@ Result Device::initialize(const DeviceDesc& desc)
         m_shaderCompilationReporter = new ShaderCompilationReporter(this);
     }
 
+    m_enableParallelPipelineCreation = desc.enableParallelPipelineCreation;
+
     m_persistentShaderCache = desc.persistentShaderCache;
     m_persistentPipelineCache = desc.persistentPipelineCache;
 

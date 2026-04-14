@@ -3188,6 +3188,10 @@ struct DeviceDesc
     /// Enable reporting of shader compilation timings.
     bool enableCompilationReports = false;
 
+    /// Enable parallel pipeline creation.
+    /// When enabled, multiple pipelines in a single command encoder are compiled and created in parallel.
+    bool enableParallelPipelineCreation = false;
+
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;
 

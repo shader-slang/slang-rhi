@@ -477,6 +477,7 @@ public:
     std::vector<Heap*> m_globalHeaps;
 
     IDebugCallback* m_debugCallback = nullptr;
+    bool m_enableParallelPipelineCreation = true;
 
     LiveDeviceTracker m_liveDeviceTracker;
 };

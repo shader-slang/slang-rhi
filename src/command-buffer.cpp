@@ -1,8 +1,10 @@
 #include "command-buffer.h"
 
+#include "core/task-pool.h"
 #include "rhi-shared.h"
 #include "device.h"
 #include "format-conversion.h"
+#include "pipeline.h"
 
 namespace rhi {
 
@@ -945,45 +947,360 @@ Result CommandEncoder::getPipelineSpecializationArgs(
     return SLANG_OK;
 }
 
-Result CommandEncoder::resolvePipelines(Device* device)
+// ----------------------------------------------------------------------------
+// PipelineResolver
+// ----------------------------------------------------------------------------
+
+PipelineResolver::PipelineResolver(Device* device, CommandList* commandList)
+    : m_device(device)
+    , m_commandList(commandList)
 {
-    CommandList* commandList = m_commandList;
-    auto command = commandList->getCommands();
+}
+
+void PipelineResolver::patchCommand(
+    CommandList* commandList,
+    const CommandList::CommandSlot* command,
+    Pipeline* concrete
+)
+{
+    if (command->id == CommandID::SetRenderState)
+    {
+        auto& cmd = commandList->getCommand<commands::SetRenderState>(command);
+        cmd.pipeline = static_cast<RenderPipeline*>(concrete);
+        cmd.specializationArgs = nullptr;
+    }
+    else if (command->id == CommandID::SetComputeState)
+    {
+        auto& cmd = commandList->getCommand<commands::SetComputeState>(command);
+        cmd.pipeline = static_cast<ComputePipeline*>(concrete);
+        cmd.specializationArgs = nullptr;
+    }
+    else if (command->id == CommandID::SetRayTracingState)
+    {
+        auto& cmd = commandList->getCommand<commands::SetRayTracingState>(command);
+        cmd.pipeline = static_cast<RayTracingPipeline*>(concrete);
+        cmd.specializationArgs = nullptr;
+    }
+}
+
+void PipelineResolver::collectWorkItems()
+{
+    auto command = m_commandList->getCommands();
     while (command)
     {
+        Pipeline* pipeline = nullptr;
+        ExtendedShaderObjectTypeListObject* specializationArgs = nullptr;
+
         if (command->id == CommandID::SetRenderState)
         {
-            auto& cmd = commandList->getCommand<commands::SetRenderState>(command);
-            RenderPipeline* pipeline = checked_cast<RenderPipeline*>(cmd.pipeline);
-            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
-            Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
-            cmd.pipeline = static_cast<RenderPipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
+            auto& cmd = m_commandList->getCommand<commands::SetRenderState>(command);
+            pipeline = checked_cast<RenderPipeline*>(cmd.pipeline);
+            specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
         }
         else if (command->id == CommandID::SetComputeState)
         {
-            auto& cmd = commandList->getCommand<commands::SetComputeState>(command);
-            ComputePipeline* pipeline = checked_cast<ComputePipeline*>(cmd.pipeline);
-            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
-            Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
-            cmd.pipeline = static_cast<ComputePipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
+            auto& cmd = m_commandList->getCommand<commands::SetComputeState>(command);
+            pipeline = checked_cast<ComputePipeline*>(cmd.pipeline);
+            specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
         }
         else if (command->id == CommandID::SetRayTracingState)
         {
-            auto& cmd = commandList->getCommand<commands::SetRayTracingState>(command);
-            RayTracingPipeline* pipeline = checked_cast<RayTracingPipeline*>(cmd.pipeline);
-            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
-            Pipeline* concretePipeline = nullptr;
-            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
-            cmd.pipeline = static_cast<RayTracingPipeline*>(concretePipeline);
-            cmd.specializationArgs = nullptr;
+            auto& cmd = m_commandList->getCommand<commands::SetRayTracingState>(command);
+            pipeline = checked_cast<RayTracingPipeline*>(cmd.pipeline);
+            specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
         }
+
+        if (pipeline)
+        {
+            // Skip already-concrete pipelines.
+            if (!pipeline->isVirtual())
+            {
+                command = command->next;
+                continue;
+            }
+
+            // Check if we already have a concrete pipeline cached on the virtual pipeline.
+            Pipeline* cached = pipeline->getConcretePipeline();
+            if (!cached)
+            {
+                // Check the shader cache for specializable pipelines.
+                bool isSpecializable = pipeline->m_program->isSpecializable();
+                if (isSpecializable && specializationArgs)
+                {
+                    PipelineKey pipelineKey;
+                    pipelineKey.pipeline = pipeline;
+                    for (const auto& componentID : specializationArgs->componentIDs)
+                        pipelineKey.specializationArgs.push_back(componentID);
+                    pipelineKey.updateHash();
+                    cached = m_device->m_shaderCache.getSpecializedPipeline(pipelineKey);
+                }
+            }
+
+            if (cached)
+            {
+                patchCommand(m_commandList, command, cached);
+                command = command->next;
+                continue;
+            }
+
+            // Need to create this pipeline — add a work item.
+            PipelineWorkItem item;
+            item.command = command;
+            item.pipeline = pipeline;
+            item.specializationArgs = specializationArgs;
+            m_workItems.push_back(std::move(item));
+        }
+
         command = command->next;
     }
+}
+
+Result PipelineResolver::specializePrograms()
+{
+    for (auto& item : m_workItems)
+    {
+        item.program = item.pipeline->m_program;
+        bool isSpecializable = item.program->isSpecializable();
+        if (isSpecializable)
+        {
+            if (!item.specializationArgs)
+            {
+                item.result = SLANG_FAIL;
+                continue;
+            }
+            RefPtr<ShaderProgram> specializedProgram;
+            item.result =
+                m_device->specializeProgram(item.program, *item.specializationArgs, specializedProgram.writeRef());
+            if (SLANG_FAILED(item.result))
+                continue;
+            item.program = specializedProgram;
+        }
+    }
+
+    for (auto& item : m_workItems)
+        SLANG_RETURN_ON_FAIL(item.result);
     return SLANG_OK;
+}
+
+Result PipelineResolver::compileEntryPoints()
+{
+    // Skip CPU device — no shader compilation needed.
+    if (m_device->getInfo().deviceType == DeviceType::CPU)
+        return SLANG_OK;
+
+    ITaskPool* taskPool = globalTaskPool();
+
+    struct CompileTaskPayload
+    {
+        PipelineWorkItem* item;
+        Device* device;
+    };
+
+    std::vector<ITaskPool::TaskHandle> compileHandles;
+    compileHandles.reserve(m_workItems.size());
+
+    for (auto& item : m_workItems)
+    {
+        if (item.program->m_compiledShaders)
+            continue;
+
+        auto* payload = new CompileTaskPayload{&item, m_device};
+
+        auto handle = taskPool->submitTask(
+            [](void* p)
+            {
+                auto* payload = static_cast<CompileTaskPayload*>(p);
+                payload->item->result = payload->item->program->compileEntryPointsParallel(
+                    payload->device,
+                    payload->item->compiledEntryPoints
+                );
+            },
+            payload,
+            [](void* p)
+            {
+                delete static_cast<CompileTaskPayload*>(p);
+            },
+            nullptr,
+            0
+        );
+        compileHandles.push_back(handle);
+    }
+
+    for (auto handle : compileHandles)
+    {
+        taskPool->waitTask(handle);
+        taskPool->releaseTask(handle);
+    }
+
+    for (auto& item : m_workItems)
+        SLANG_RETURN_ON_FAIL(item.result);
+    return SLANG_OK;
+}
+
+Result PipelineResolver::createPipelines()
+{
+    ITaskPool* taskPool = globalTaskPool();
+
+    struct CreatePipelinePayload
+    {
+        PipelineWorkItem* item;
+        Device* device;
+    };
+
+    std::vector<ITaskPool::TaskHandle> createHandles;
+    createHandles.reserve(m_workItems.size());
+
+    for (auto& item : m_workItems)
+    {
+        auto* payload = new CreatePipelinePayload{&item, m_device};
+
+        auto handle = taskPool->submitTask(
+            [](void* p)
+            {
+                auto* payload = static_cast<CreatePipelinePayload*>(p);
+                auto* item = payload->item;
+                auto* device = payload->device;
+
+                // Push CUDA context for CUDA devices (no-op for other backends).
+                device->pushCudaContext();
+
+                // Create shader modules from compiled entry points.
+                if (!item->program->m_compiledShaders)
+                {
+                    for (auto& compiled : item->compiledEntryPoints)
+                    {
+                        item->result = item->program->createShaderModule(compiled.entryPointInfo, compiled.kernelCode);
+                        if (SLANG_FAILED(item->result))
+                        {
+                            device->popCudaContext();
+                            return;
+                        }
+                    }
+                    item->program->m_compiledShaders = true;
+                }
+
+                // Create the backend pipeline.
+                switch (item->pipeline->getType())
+                {
+                case PipelineType::Render:
+                {
+                    RenderPipelineDesc desc = checked_cast<VirtualRenderPipeline*>(item->pipeline)->m_desc;
+                    desc.program = item->program;
+                    ComPtr<IRenderPipeline> renderPipeline;
+                    item->result = device->createRenderPipeline2(desc, renderPipeline.writeRef());
+                    if (SLANG_SUCCEEDED(item->result))
+                        item->concretePipeline = checked_cast<RenderPipeline*>(renderPipeline.get());
+                    break;
+                }
+                case PipelineType::Compute:
+                {
+                    ComputePipelineDesc desc = checked_cast<VirtualComputePipeline*>(item->pipeline)->m_desc;
+                    desc.program = item->program;
+                    ComPtr<IComputePipeline> computePipeline;
+                    item->result = device->createComputePipeline2(desc, computePipeline.writeRef());
+                    if (SLANG_SUCCEEDED(item->result))
+                        item->concretePipeline = checked_cast<ComputePipeline*>(computePipeline.get());
+                    break;
+                }
+                case PipelineType::RayTracing:
+                {
+                    RayTracingPipelineDesc desc = checked_cast<VirtualRayTracingPipeline*>(item->pipeline)->m_desc;
+                    desc.program = item->program;
+                    ComPtr<IRayTracingPipeline> rayTracingPipeline;
+                    item->result = device->createRayTracingPipeline2(desc, rayTracingPipeline.writeRef());
+                    if (SLANG_SUCCEEDED(item->result))
+                        item->concretePipeline = checked_cast<RayTracingPipeline*>(rayTracingPipeline.get());
+                    break;
+                }
+                }
+
+                device->popCudaContext();
+            },
+            payload,
+            [](void* p)
+            {
+                delete static_cast<CreatePipelinePayload*>(p);
+            },
+            nullptr,
+            0
+        );
+        createHandles.push_back(handle);
+    }
+
+    for (auto handle : createHandles)
+    {
+        taskPool->waitTask(handle);
+        taskPool->releaseTask(handle);
+    }
+
+    for (auto& item : m_workItems)
+        SLANG_RETURN_ON_FAIL(item.result);
+    return SLANG_OK;
+}
+
+void PipelineResolver::finalize()
+{
+    for (auto& item : m_workItems)
+    {
+        bool isSpecializable = item.pipeline->m_program->isSpecializable();
+
+        if (isSpecializable)
+        {
+            // Cache the specialized pipeline.
+            PipelineKey pipelineKey;
+            pipelineKey.pipeline = item.pipeline;
+            for (const auto& componentID : item.specializationArgs->componentIDs)
+                pipelineKey.specializationArgs.push_back(componentID);
+            pipelineKey.updateHash();
+            m_device->m_shaderCache.addSpecializedPipeline(pipelineKey, item.concretePipeline);
+            // Pipeline is owned by the cache.
+            item.concretePipeline->breakStrongReferenceToDevice();
+            // Program is owned by the specialized pipeline (which is owned by the cache).
+            item.concretePipeline->m_program->breakStrongReferenceToDevice();
+        }
+        else
+        {
+            // Store the concrete pipeline in the virtual one.
+            item.pipeline->setConcretePipeline(item.concretePipeline);
+        }
+
+        patchCommand(m_commandList, item.command, item.concretePipeline);
+    }
+}
+
+Result PipelineResolver::resolve()
+{
+    collectWorkItems();
+
+    if (m_workItems.empty())
+        return SLANG_OK;
+
+    // Use sequential path for single pipelines or when parallel creation is disabled.
+    if (m_workItems.size() == 1 || !m_device->m_enableParallelPipelineCreation)
+    {
+        for (auto& item : m_workItems)
+        {
+            Pipeline* concretePipeline = nullptr;
+            SLANG_RETURN_ON_FAIL(
+                m_device->getConcretePipeline(item.pipeline, item.specializationArgs, concretePipeline)
+            );
+            patchCommand(m_commandList, item.command, concretePipeline);
+        }
+        return SLANG_OK;
+    }
+
+    SLANG_RETURN_ON_FAIL(specializePrograms());
+    SLANG_RETURN_ON_FAIL(compileEntryPoints());
+    SLANG_RETURN_ON_FAIL(createPipelines());
+    finalize();
+
+    return SLANG_OK;
+}
+
+Result CommandEncoder::resolvePipelines(Device* device)
+{
+    PipelineResolver resolver(device, m_commandList);
+    return resolver.resolve();
 }
 
 // ----------------------------------------------------------------------------
