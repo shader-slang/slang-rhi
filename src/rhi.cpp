@@ -127,15 +127,22 @@ inline const FormatInfo& _getFormatInfo(Format format)
 
 Result RHI::destroy()
 {
+    // RHI can only be destroyed if there are no live devices.
     SLANG_RHI_ASSERT(m_liveDeviceCount == 0);
     if (m_liveDeviceCount != 0)
     {
         return SLANG_FAIL;
     }
+
+    // Release all backends.
     for (auto& backend : m_backends)
     {
         backend.setNull();
     }
+
+    // Release the global task pool.
+    setGlobalTaskPool(nullptr);
+
     return SLANG_OK;
 }
 
@@ -146,15 +153,7 @@ void RHI::incrementLiveDeviceCount()
 
 void RHI::decrementLiveDeviceCount()
 {
-    if (m_liveDeviceCount.fetch_sub(1) == 1)
-    {
-        // Last device destroyed - release the global task pool so it
-        // doesn't appear as a leaked object. globalTaskPool() will
-        // lazily re-create it if another device is created later.
-        // TODO: We should address this when allowing explicit control
-        // over the lifetime of the RHI instance itself.
-        setGlobalTaskPool(nullptr);
-    }
+    m_liveDeviceCount--;
 }
 
 void RHI::enableDebugLayers()
