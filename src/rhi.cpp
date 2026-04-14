@@ -140,6 +140,13 @@ inline const FormatInfo& _getFormatInfo(Format format)
     return s_formatInfos[size_t(format)];
 }
 
+Result RHI::destroy()
+{
+    if (m_liveDeviceCount != 0)
+        return SLANG_FAIL;
+    return SLANG_OK;
+}
+
 void RHI::incrementLiveDeviceCount()
 {
     m_liveDeviceCount++;
@@ -441,9 +448,38 @@ Result RHI::initTaskPool(int workerCount)
     return initGlobalTaskPool(workerCount);
 }
 
+static std::mutex s_instanceMutex;
+static RHI* s_instance = nullptr;
+
+RHI* getRHIInstance()
+{
+    std::lock_guard<std::mutex> lock(s_instanceMutex);
+    if (!s_instance)
+        s_instance = new RHI();
+    return s_instance;
+}
+
+Result destroyRHIInstance()
+{
+    std::lock_guard<std::mutex> lock(s_instanceMutex);
+    if (!s_instance)
+        return SLANG_OK;
+    Result result = s_instance->destroy();
+    if (SLANG_FAILED(result))
+        return result;
+    delete s_instance;
+    s_instance = nullptr;
+    return SLANG_OK;
+}
+
 } // namespace rhi
 
 extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance()
 {
-    return rhi::RHI::getInstance();
+    return rhi::getRHIInstance();
+}
+
+extern "C" SLANG_RHI_API SlangResult SLANG_STDCALL rhiDestroyInstance()
+{
+    return rhi::destroyRHIInstance();
 }

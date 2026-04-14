@@ -2,6 +2,7 @@
 
 #include <slang-rhi.h>
 #include <atomic>
+#include <mutex>
 
 namespace rhi {
 class RHI : public IRHI
@@ -11,8 +12,12 @@ private:
     std::atomic<uint32_t> m_liveDeviceCount = 0;
 
 public:
+    Result destroy();
+
     void incrementLiveDeviceCount();
     void decrementLiveDeviceCount();
+
+    // IRHI implementation
 
     virtual void enableDebugLayers() override;
     virtual Result setDebugLayerOptions(DebugLayerOptions options) override;
@@ -33,11 +38,6 @@ public:
     virtual Result reportLiveObjects() override;
     virtual Result setTaskPool(ITaskPool* scheduler) override;
     virtual Result initTaskPool(int workerCount) override;
-
-    static RHI* getInstance()
-    {
-        static RHI instance;
-        return &instance;
-    }
 };
+
 } // namespace rhi
