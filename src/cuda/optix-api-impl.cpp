@@ -606,9 +606,9 @@ Result executeOptixTasks(ITaskPool* taskPool, std::span<OptixTask> initialTasks)
     };
 
     // Forward declaration - the task function submits newly spawned sub-tasks.
-    static void (*executeFunc)(void*) = [](void* p)
+    static void (*executeFunc)(void*) = [](void* payload_)
     {
-        auto* payload = static_cast<OptixTaskPayload*>(p);
+        auto* payload = static_cast<OptixTaskPayload*>(payload_);
 
         // Skip execution if a previous task already failed.
         if (payload->failed->load(std::memory_order_relaxed))
