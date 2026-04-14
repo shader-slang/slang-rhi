@@ -142,6 +142,7 @@ inline const FormatInfo& _getFormatInfo(Format format)
 
 Result RHI::destroy()
 {
+    SLANG_RHI_ASSERT(m_liveDeviceCount == 0);
     if (m_liveDeviceCount != 0)
         return SLANG_FAIL;
     return SLANG_OK;
@@ -451,7 +452,7 @@ Result RHI::initTaskPool(int workerCount)
 static std::mutex s_instanceMutex;
 static RHI* s_instance = nullptr;
 
-RHI* getRHIInstance()
+static RHI* getRHIInstance()
 {
     std::lock_guard<std::mutex> lock(s_instanceMutex);
     if (!s_instance)
@@ -459,7 +460,7 @@ RHI* getRHIInstance()
     return s_instance;
 }
 
-Result destroyRHIInstance()
+static Result destroyRHIInstance()
 {
     std::lock_guard<std::mutex> lock(s_instanceMutex);
     if (!s_instance)

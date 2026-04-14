@@ -2,7 +2,6 @@
 
 #include <slang-rhi.h>
 #include <atomic>
-#include <mutex>
 
 namespace rhi {
 class RHI : public IRHI
