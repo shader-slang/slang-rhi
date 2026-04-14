@@ -147,7 +147,15 @@ void RHI::incrementLiveDeviceCount()
 
 void RHI::decrementLiveDeviceCount()
 {
-    m_liveDeviceCount--;
+    if (m_liveDeviceCount.fetch_sub(1) == 1)
+    {
+        // Last device destroyed - release the global task pool so it
+        // doesn't appear as a leaked object. globalTaskPool() will
+        // lazily re-create it if another device is created later.
+        // TODO: We should address this when allowing explicit control
+        // over the lifetime of the RHI instance itself.
+        setGlobalTaskPool(nullptr);
+    }
 }
 
 void RHI::enableDebugLayers()
