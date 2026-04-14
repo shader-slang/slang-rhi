@@ -1,6 +1,7 @@
 #include <slang-rhi.h>
 
 #include "rhi.h"
+#include "aftermath.h"
 #include "backend.h"
 #include "debug-layer/debug-device.h"
 #include "rhi-shared.h"
@@ -142,6 +143,11 @@ Result RHI::destroy()
 
     // Release the global task pool.
     setGlobalTaskPool(nullptr);
+
+    // Release the Aftermath crash dumper.
+#if SLANG_RHI_ENABLE_AFTERMATH
+    AftermathCrashDumper::clear();
+#endif
 
     return SLANG_OK;
 }

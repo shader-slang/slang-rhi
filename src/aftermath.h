@@ -97,6 +97,8 @@ public:
 
     /// Get or create the global AftermathCrashDumper instance.
     static AftermathCrashDumper* getOrCreate();
+    /// Clear the global AftermathCrashDumper instance.
+    static void clear();
     /// Wait for a crash dump to be written. Should be called after a crash is triggered.
     static void waitForDump(int timeoutSeconds = 10);
 
