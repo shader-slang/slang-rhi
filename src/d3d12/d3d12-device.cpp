@@ -1,4 +1,5 @@
 #include "d3d12-device.h"
+#include "d3d12-backend.h"
 #include "d3d12-buffer.h"
 #include "d3d12-fence.h"
 #include "d3d12-utils.h"
@@ -85,36 +86,6 @@ inline int getShaderModelFromProfileName(const char* name)
         }
     }
     return -1;
-}
-
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
-{
-    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(enumAdapters(dxgiAdapters));
-
-    for (const auto& dxgiAdapter : dxgiAdapters)
-    {
-        AdapterInfo info = getAdapterInfo(dxgiAdapter);
-        info.deviceType = DeviceType::D3D12;
-
-        AdapterImpl adapter;
-        adapter.m_info = info;
-        adapter.m_dxgiAdapter = dxgiAdapter;
-        outAdapters.push_back(adapter);
-    }
-
-    // Mark default adapter (prefer discrete if available).
-    markDefaultAdapter(outAdapters);
-
-    return SLANG_OK;
-}
-
-std::vector<AdapterImpl>& getAdapters()
-{
-    static std::vector<AdapterImpl> adapters;
-    static Result initResult = getAdaptersImpl(adapters);
-    SLANG_UNUSED(initResult);
-    return adapters;
 }
 
 static void validationMessageCallback(
@@ -278,7 +249,7 @@ inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
@@ -363,7 +334,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     if (!desc.existingDeviceHandles.handles[0])
     {
-        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
         m_dxgiAdapter = adapter->m_dxgiAdapter;
 
         const D3D_FEATURE_LEVEL featureLevels[] =
@@ -389,14 +360,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_device = (ID3D12Device*)desc.existingDeviceHandles.handles[0].value;
         AdapterLUID luid = getAdapterLUID(m_device->GetAdapterLuid());
         auto it = std::find_if(
-            getAdapters().begin(),
-            getAdapters().end(),
+            backend->getAdapters().begin(),
+            backend->getAdapters().end(),
             [&](const AdapterImpl& a)
             {
                 return luid == a.m_info.luid;
             }
         );
-        if (it == getAdapters().end())
+        if (it == backend->getAdapters().end())
         {
             return SLANG_FAIL;
         }
@@ -2088,21 +2059,3 @@ void DeviceImpl::deferDelete(Resource* resource)
 }
 
 } // namespace rhi::d3d12
-
-namespace rhi {
-
-IAdapter* getD3D12Adapter(uint32_t index)
-{
-    std::vector<d3d12::AdapterImpl>& adapters = d3d12::getAdapters();
-    return index < adapters.size() ? &adapters[index] : nullptr;
-}
-
-Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<d3d12::DeviceImpl> result = new d3d12::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-} // namespace rhi

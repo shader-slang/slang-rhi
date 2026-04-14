@@ -22,11 +22,12 @@ public:
     Result initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions);
     Result initVulkanDevice(
         const DeviceDesc& desc,
+        BackendImpl* backend,
         std::vector<Feature>& availableFeatures,
         std::vector<Capability>& availableCapabilities
     );
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
@@ -257,10 +258,3 @@ public:
 };
 
 } // namespace rhi::vk
-
-namespace rhi {
-
-IAdapter* getVKAdapter(uint32_t index);
-Result createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

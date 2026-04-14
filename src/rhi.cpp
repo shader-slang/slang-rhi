@@ -1,6 +1,7 @@
 #include <slang-rhi.h>
 
 #include "rhi.h"
+#include "backend.h"
 #include "debug-layer/debug-device.h"
 #include "rhi-shared.h"
 
@@ -11,22 +12,6 @@
 #include <vector>
 
 namespace rhi {
-
-IAdapter* getD3D11Adapter(uint32_t index);
-IAdapter* getD3D12Adapter(uint32_t index);
-IAdapter* getVKAdapter(uint32_t index);
-IAdapter* getMetalAdapter(uint32_t index);
-IAdapter* getCUDAAdapter(uint32_t index);
-IAdapter* getCPUAdapter(uint32_t index);
-IAdapter* getWGPUAdapter(uint32_t index);
-
-Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
-Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
-Result createVKDevice(const DeviceDesc* desc, IDevice** outDevice);
-Result createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
-Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
-Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
-Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
 
 Result reportD3DLiveObjects();
 
@@ -144,7 +129,13 @@ Result RHI::destroy()
 {
     SLANG_RHI_ASSERT(m_liveDeviceCount == 0);
     if (m_liveDeviceCount != 0)
+    {
         return SLANG_FAIL;
+    }
+    for (auto& backend : m_backends)
+    {
+        backend.setNull();
+    }
     return SLANG_OK;
 }
 
@@ -260,39 +251,8 @@ const char* RHI::getCapabilityName(Capability capability)
 
 IAdapter* RHI::getAdapter(DeviceType type, uint32_t index)
 {
-    switch (type)
-    {
-#if SLANG_RHI_ENABLE_D3D11
-    case DeviceType::D3D11:
-        return getD3D11Adapter(index);
-#endif
-#if SLANG_RHI_ENABLE_D3D12
-    case DeviceType::D3D12:
-        return getD3D12Adapter(index);
-#endif
-#if SLANG_RHI_ENABLE_VULKAN
-    case DeviceType::Vulkan:
-        return getVKAdapter(index);
-#endif
-#if SLANG_RHI_ENABLE_METAL
-    case DeviceType::Metal:
-        return getMetalAdapter(index);
-#endif
-#if SLANG_RHI_ENABLE_CUDA
-    case DeviceType::CUDA:
-        return getCUDAAdapter(index);
-#endif
-#if SLANG_RHI_ENABLE_CPU
-    case DeviceType::CPU:
-        return getCPUAdapter(index);
-#endif
-#if SLANG_RHI_ENABLE_WGPU
-    case DeviceType::WGPU:
-        return getWGPUAdapter(index);
-#endif
-    default:
-        return nullptr;
-    }
+    Backend* backend = getBackend(type);
+    return backend ? backend->getAdapter(index) : nullptr;
 }
 
 Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
@@ -314,95 +274,53 @@ Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
     return SLANG_OK;
 }
 
-inline Result _createDevice(const DeviceDesc* desc, IDevice** outDevice)
+Result RHI::createDeviceImpl(const DeviceDesc& desc, IDevice** outDevice)
 {
-    switch (desc->deviceType)
+    Backend* backend = getBackend(desc.deviceType);
+    if (!backend)
+        return SLANG_FAIL;
+
+    if (desc.deviceType == DeviceType::Default)
     {
-    case DeviceType::Default:
-    {
-        DeviceDesc newDesc = *desc;
+        DeviceDesc newDesc = desc;
 #if SLANG_WINDOWS_FAMILY
         newDesc.deviceType = DeviceType::D3D12;
-        if (SLANG_SUCCEEDED(_createDevice(&newDesc, outDevice)))
+        if (SLANG_SUCCEEDED(createDeviceImpl(newDesc, outDevice)))
             return SLANG_OK;
         newDesc.deviceType = DeviceType::Vulkan;
-        if (SLANG_SUCCEEDED(_createDevice(&newDesc, outDevice)))
+        if (SLANG_SUCCEEDED(createDeviceImpl(newDesc, outDevice)))
             return SLANG_OK;
 #elif SLANG_LINUX_FAMILY
         newDesc.deviceType = DeviceType::Vulkan;
-        if (SLANG_SUCCEEDED(_createDevice(&newDesc, outDevice)))
+        if (SLANG_SUCCEEDED(createDeviceImpl(newDesc, outDevice)))
             return SLANG_OK;
 #elif SLANG_APPLE_FAMILY
         newDesc.deviceType = DeviceType::Metal;
-        if (SLANG_SUCCEEDED(_createDevice(&newDesc, outDevice)))
+        if (SLANG_SUCCEEDED(createDeviceImpl(newDesc, outDevice)))
             return SLANG_OK;
 #endif
         return SLANG_FAIL;
     }
-    break;
-#if SLANG_RHI_ENABLE_D3D11
-    case DeviceType::D3D11:
-    {
-        return createD3D11Device(desc, outDevice);
-    }
-#endif
-#if SLANG_RHI_ENABLE_D3D12
-    case DeviceType::D3D12:
-    {
-        return createD3D12Device(desc, outDevice);
-    }
-#endif
-#if SLANG_RHI_ENABLE_VULKAN
-    case DeviceType::Vulkan:
-    {
-        return createVKDevice(desc, outDevice);
-    }
-#endif
-#if SLANG_RHI_ENABLE_METAL
-    case DeviceType::Metal:
-    {
-        return createMetalDevice(desc, outDevice);
-    }
-#endif
-#if SLANG_RHI_ENABLE_CUDA
-    case DeviceType::CUDA:
-    {
-        return createCUDADevice(desc, outDevice);
-    }
-#endif
-#if SLANG_RHI_ENABLE_CPU
-    case DeviceType::CPU:
-    {
-        return createCPUDevice(desc, outDevice);
-    }
-#endif
-#if SLANG_RHI_ENABLE_WGPU
-    case DeviceType::WGPU:
-    {
-        return createWGPUDevice(desc, outDevice);
-    }
-#endif
-    default:
-        return SLANG_FAIL;
-    }
+
+    return backend->createDevice(desc, outDevice);
 }
 
 Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
 {
     ComPtr<IDevice> innerDevice;
-    auto resultCode = _createDevice(&desc, innerDevice.writeRef());
-    if (SLANG_FAILED(resultCode))
-        return resultCode;
+    Result result = createDeviceImpl(desc, innerDevice.writeRef());
+    if (SLANG_FAILED(result))
+        return result;
     if (!desc.enableValidation)
     {
         returnComPtr(outDevice, innerDevice);
-        return resultCode;
+        return result;
     }
     IDebugCallback* debugCallback = checked_cast<Device*>(innerDevice.get())->m_debugCallback;
     RefPtr<debug::DebugDevice> debugDevice = new debug::DebugDevice(innerDevice->getInfo().deviceType, debugCallback);
     debugDevice->baseObject = innerDevice;
     returnComPtr(outDevice, debugDevice);
-    return resultCode;
+    return result;
 }
 
 Result RHI::createBlob(const void* data, size_t size, ISlangBlob** outBlob)
@@ -447,6 +365,68 @@ Result RHI::initTaskPool(int workerCount)
     if (m_liveDeviceCount != 0)
         return SLANG_FAIL;
     return initGlobalTaskPool(workerCount);
+}
+
+Backend* RHI::getBackend(DeviceType type)
+{
+    size_t index = size_t(type);
+    if (index >= std::size(m_backends))
+    {
+        return nullptr;
+    }
+    if (m_backends[index])
+    {
+        return m_backends[index];
+    }
+
+    RefPtr<Backend> backend;
+    Result result = SLANG_FAIL;
+    switch (type)
+    {
+#if SLANG_RHI_ENABLE_D3D11
+    case DeviceType::D3D11:
+        result = createD3D11Backend(backend.writeRef());
+        break;
+#endif
+#if SLANG_RHI_ENABLE_D3D12
+    case DeviceType::D3D12:
+        result = createD3D12Backend(backend.writeRef());
+        break;
+#endif
+#if SLANG_RHI_ENABLE_VULKAN
+    case DeviceType::Vulkan:
+        result = createVKBackend(backend.writeRef());
+        break;
+#endif
+#if SLANG_RHI_ENABLE_METAL
+    case DeviceType::Metal:
+        result = createMetalBackend(backend.writeRef());
+        break;
+#endif
+#if SLANG_RHI_ENABLE_CUDA
+    case DeviceType::CUDA:
+        result = createCUDABackend(backend.writeRef());
+        break;
+#endif
+#if SLANG_RHI_ENABLE_CPU
+    case DeviceType::CPU:
+        result = createCPUBackend(backend.writeRef());
+        break;
+#endif
+#if SLANG_RHI_ENABLE_WGPU
+    case DeviceType::WGPU:
+        result = createWGPUBackend(backend.writeRef());
+        break;
+#endif
+    default:
+        return nullptr;
+    }
+    if (SLANG_FAILED(result))
+    {
+        return nullptr;
+    }
+    m_backends[index] = backend;
+    return backend;
 }
 
 static std::mutex s_instanceMutex;

@@ -1,4 +1,5 @@
 #include "vk-device.h"
+#include "vk-backend.h"
 #include "vk-command.h"
 #include "vk-buffer.h"
 #include "vk-texture.h"
@@ -28,96 +29,6 @@
 #include <vector>
 
 namespace rhi::vk {
-
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
-{
-    VulkanModule module;
-    SLANG_RETURN_ON_FAIL(module.init());
-    SLANG_RHI_DEFERRED({ module.destroy(); });
-
-    VulkanApi api;
-    SLANG_RETURN_ON_FAIL(api.initGlobalProcs(module));
-
-    VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-    const char* instanceExtensions[] = {
-        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-#if SLANG_APPLE_FAMILY
-        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
-#endif
-    };
-    instanceCreateInfo.enabledExtensionCount = SLANG_COUNT_OF(instanceExtensions);
-    instanceCreateInfo.ppEnabledExtensionNames = &instanceExtensions[0];
-#if SLANG_APPLE_FAMILY
-    instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-    VkInstance instance;
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
-    SLANG_RHI_DEFERRED({ api.vkDestroyInstance(instance, nullptr); });
-
-    // This will fail due to not loading any extensions.
-    api.initInstanceProcs(instance);
-
-    if (!(api.vkEnumeratePhysicalDevices && api.vkGetPhysicalDeviceProperties2 &&
-          api.vkEnumerateDeviceExtensionProperties))
-    {
-        return SLANG_FAIL;
-    }
-
-    uint32_t physicalDeviceCount = 0;
-    SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
-    std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-    SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()));
-
-    for (const auto& physicalDevice : physicalDevices)
-    {
-        VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
-        VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-        props.pNext = &idProps;
-        SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceFeatures2);
-        api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
-
-        AdapterInfo info = {};
-        info.deviceType = DeviceType::Vulkan;
-        switch (props.properties.deviceType)
-        {
-        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-            info.adapterType = AdapterType::Discrete;
-            break;
-        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-            info.adapterType = AdapterType::Integrated;
-            break;
-        case VK_PHYSICAL_DEVICE_TYPE_CPU:
-            info.adapterType = AdapterType::Software;
-            break;
-        default:
-            info.adapterType = AdapterType::Unknown;
-            break;
-        }
-        string::copy_safe(info.name, sizeof(info.name), props.properties.deviceName);
-        info.vendorID = props.properties.vendorID;
-        info.deviceID = props.properties.deviceID;
-        info.luid = getAdapterLUID(idProps);
-
-        AdapterImpl adapter;
-        adapter.m_info = info;
-        memcpy(adapter.m_deviceUUID, idProps.deviceUUID, VK_UUID_SIZE);
-
-        outAdapters.push_back(adapter);
-    }
-
-    // Mark default adapter (prefer discrete if available).
-    markDefaultAdapter(outAdapters);
-
-    return SLANG_OK;
-}
-
-std::vector<AdapterImpl>& getAdapters()
-{
-    static std::vector<AdapterImpl> adapters;
-    static Result initResult = getAdaptersImpl(adapters);
-    SLANG_UNUSED(initResult);
-    return adapters;
-}
 
 DeviceImpl::DeviceImpl() {}
 
@@ -448,6 +359,7 @@ Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOp
 
 Result DeviceImpl::initVulkanDevice(
     const DeviceDesc& desc,
+    BackendImpl* backend,
     std::vector<Feature>& availableFeatures,
     std::vector<Capability>& availableCapabilities
 )
@@ -462,7 +374,7 @@ Result DeviceImpl::initVulkanDevice(
     if (!desc.existingDeviceHandles.handles[1])
     {
         AdapterImpl* adapter = nullptr;
-        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr));
@@ -1299,7 +1211,7 @@ Result DeviceImpl::initVulkanDevice(
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
@@ -1352,7 +1264,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Initialize Vulkan device and query available features and capabilities.
     std::vector<Feature> availableFeatures;
     std::vector<Capability> availableCapabilities;
-    SLANG_RETURN_ON_FAIL(initVulkanDevice(desc, availableFeatures, availableCapabilities));
+    SLANG_RETURN_ON_FAIL(initVulkanDevice(desc, backend, availableFeatures, availableCapabilities));
 
     VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
@@ -2339,21 +2251,3 @@ Result DeviceImpl::waitForFences(
 }
 
 } // namespace rhi::vk
-
-namespace rhi {
-
-IAdapter* getVKAdapter(uint32_t index)
-{
-    std::vector<vk::AdapterImpl>& adapters = vk::getAdapters();
-    return index < adapters.size() ? &adapters[index] : nullptr;
-}
-
-Result createVKDevice(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<vk::DeviceImpl> result = new vk::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-} // namespace rhi

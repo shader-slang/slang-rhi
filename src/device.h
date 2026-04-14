@@ -441,7 +441,7 @@ public:
     virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);
 
 protected:
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc);
+    Result initialize(const DeviceDesc& desc);
 
     void addFeature(Feature feature);
     void addCapability(Capability capability);

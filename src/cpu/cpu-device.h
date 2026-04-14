@@ -14,7 +14,7 @@ public:
 
     ~DeviceImpl();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
 
@@ -101,10 +101,3 @@ private:
 };
 
 } // namespace rhi::cpu
-
-namespace rhi {
-
-IAdapter* getCPUAdapter(uint32_t index);
-Result createCPUDevice(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

@@ -630,6 +630,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_CPU)
     target_sources(slang-rhi PRIVATE
+        src/cpu/cpu-backend.cpp
         src/cpu/cpu-buffer.cpp
         src/cpu/cpu-command.cpp
         src/cpu/cpu-device.cpp
@@ -652,6 +653,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_D3D11)
     target_sources(slang-rhi PRIVATE
+        src/d3d11/d3d11-backend.cpp
         src/d3d11/d3d11-buffer.cpp
         src/d3d11/d3d11-command.cpp
         src/d3d11/d3d11-constant-buffer-pool.cpp
@@ -672,6 +674,7 @@ endif()
 if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
+        src/d3d12/d3d12-backend.cpp
         src/d3d12/d3d12-bindless-descriptor-set.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
@@ -698,6 +701,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
     target_sources(slang-rhi PRIVATE
         src/vulkan/vk-acceleration-structure.cpp
         src/vulkan/vk-api.cpp
+        src/vulkan/vk-backend.cpp
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
@@ -725,6 +729,7 @@ if(SLANG_RHI_ENABLE_METAL)
     target_sources(slang-rhi PRIVATE
         src/metal/metal-acceleration-structure.cpp
         src/metal/metal-api.cpp
+        src/metal/metal-backend.cpp
         src/metal/metal-buffer.cpp
         src/metal/metal-clear-engine.cpp
         src/metal/metal-command.cpp
@@ -749,6 +754,7 @@ endif()
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
         src/cuda/cuda-acceleration-structure.cpp
+        src/cuda/cuda-backend.cpp
         src/cuda/cuda-buffer.cpp
         src/cuda/cuda-clear-engine.cpp
         src/cuda/cuda-command.cpp
@@ -781,6 +787,7 @@ endif()
 if(SLANG_RHI_ENABLE_WGPU)
     target_sources(slang-rhi PRIVATE
         src/wgpu/wgpu-api.cpp
+        src/wgpu/wgpu-backend.cpp
         src/wgpu/wgpu-buffer.cpp
         src/wgpu/wgpu-command.cpp
         src/wgpu/wgpu-constant-buffer-pool.cpp
