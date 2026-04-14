@@ -13,7 +13,7 @@
 
 namespace rhi::vk {
 
-static auto translateVkFormat = reverseMap<Format, VkFormat>(getVkFormat, Format::Undefined, Format::_Count);
+static auto translateVkFormat = reverseMap<Format, VkFormat, Format::Undefined, Format::_Count>(getVkFormat);
 
 SurfaceImpl::~SurfaceImpl()
 {
