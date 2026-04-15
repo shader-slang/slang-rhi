@@ -32,6 +32,9 @@ void ConstantBufferPool::upload(Context& ctx, WGPUCommandEncoder encoder)
     {
         if (page.usedSize > 0)
         {
+            // auto queue = ctx.api.wgpuDeviceGetQueue(ctx.device);
+            // ctx.api.wgpuQueueWriteBuffer(queue, page.buffer->m_buffer, 0, page.mappedData, page.usedSize);
+
             ctx.api.wgpuCommandEncoderCopyBufferToBuffer(
                 encoder,
                 page.stagingBuffer->m_buffer,

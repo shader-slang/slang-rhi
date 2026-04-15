@@ -119,7 +119,12 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     // wgpuSurfaceGetCapabilities might return 0 usages if the adapter was created
     // without a compatible surface. Force RenderTarget as it's required for swapchains.
     if (usage == TextureUsage::None)
-        usage = TextureUsage::RenderTarget;
+        usage = TextureUsage::None | TextureUsage::Present
+            | TextureUsage::CopySource
+            | TextureUsage::CopyDestination
+            | TextureUsage::ShaderResource
+            | TextureUsage::UnorderedAccess
+            | TextureUsage::RenderTarget;
 #endif
 
     m_info.preferredFormat = preferredFormat;

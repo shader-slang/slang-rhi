@@ -19,6 +19,19 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    uint64_t m_lastSubmittedID = 0;
+
+    std::mutex m_mutex;
+    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
+    std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
+
+    void shutdown();
+
+    Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
+    Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
+    void retireCommandBuffer(CommandBufferImpl* commandBuffer);
+    void retireCommandBuffers();
 };
 
 class CommandEncoderImpl : public CommandEncoder
@@ -46,10 +59,12 @@ public:
     WGPUCommandBuffer m_commandBuffer = nullptr;
     ConstantBufferPool m_constantBufferPool;
     BindingCache m_bindingCache;
+    uint64_t m_submissionID = 0;
 
     CommandBufferImpl(Device* device, CommandQueueImpl* queue);
     ~CommandBufferImpl();
 
+    Result init();
     virtual Result reset() override;
 
     // ICommandBuffer implementation
