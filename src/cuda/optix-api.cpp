@@ -1,7 +1,6 @@
 #include "optix-api.h"
 
 #include "cuda-device.h"
-#include "core/common.h"
 
 #if SLANG_RHI_ENABLE_OPTIX
 

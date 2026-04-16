@@ -112,6 +112,8 @@ static constexpr auto g_formatInfoMap = makeFormatInfoMap();
 
 const CPUTextureFormatInfo* _getFormatInfo(Format format)
 {
+    if (size_t(format) >= size_t(Format::_Count))
+        return nullptr;
     const CPUTextureFormatInfo& info = g_formatInfoMap[size_t(format)];
     return info.unpackFunc ? &info : nullptr;
 }

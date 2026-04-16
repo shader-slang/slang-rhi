@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 namespace rhi {
 
 /// Given a forward mapping function, perform a reverse lookup from To to From.
@@ -8,10 +10,11 @@ namespace rhi {
 template<typename From, typename To, From min, From max, typename Func>
 From reverseMapLookup(Func func, To value, From defaultValue = From(0))
 {
-    for (int i = int(min); i < int(max); i++)
+    using U = std::underlying_type_t<From>;
+    for (U i = static_cast<U>(min); i < static_cast<U>(max); i++)
     {
-        if (func(From(i)) == value)
-            return From(i);
+        if (func(static_cast<From>(i)) == value)
+            return static_cast<From>(i);
     }
     return defaultValue;
 }
