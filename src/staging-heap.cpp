@@ -5,8 +5,6 @@
 
 namespace rhi {
 
-const std::thread::id NO_THREAD_ID;
-
 void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryType)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -74,7 +72,7 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
 
     // If pages are kept mapped, then can't have multiple threads allocating from the same page,
     // so record the thread id to lock pages to.
-    auto thread_id = m_keepPagesMapped ? NO_THREAD_ID : std::this_thread::get_id();
+    auto thread_id = m_keepPagesMapped ? std::thread::id() : std::this_thread::get_id();
 
     // Attempt to allocate from page if size is less than page size.
     if (alignedSize < m_pageSize)
@@ -82,7 +80,7 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
         for (auto& page_pair : m_pages)
         {
             Page* page = page_pair.second;
-            if (page->getLockedToThread() == NO_THREAD_ID || page->getLockedToThread() == thread_id)
+            if (page->getLockedToThread() == std::thread::id() || page->getLockedToThread() == thread_id)
             {
                 std::list<Node>::iterator node;
                 if (page->allocNode(alignedSize, metadata, thread_id, node))
@@ -265,7 +263,7 @@ bool StagingHeap::Page::allocNode(
 )
 {
     // Check if page is locked to a thread, and if so, that it is the same thread.
-    SLANG_RHI_ASSERT(m_locked_to_thread == lock_to_thread || m_locked_to_thread == NO_THREAD_ID);
+    SLANG_RHI_ASSERT(m_locked_to_thread == lock_to_thread || m_locked_to_thread == std::thread::id());
 
     // Scan nodes for a free slot greater than or equal to size requested
     for (auto node = m_nodes.begin(); node != m_nodes.end(); ++node)
@@ -336,7 +334,7 @@ void StagingHeap::Page::freeNode(std::list<StagingHeap::Node>::iterator node)
 
     // Unlock thread if back to 0 allocs
     if (m_totalUsed == 0)
-        m_locked_to_thread = NO_THREAD_ID;
+        m_locked_to_thread = std::thread::id();
 }
 
 void StagingHeap::Page::checkConsistency()

@@ -5,9 +5,18 @@
 #include "backend.h"
 #include "debug-layer/debug-device.h"
 #include "rhi-shared.h"
+#include "shader-object.h"
 
 #include "core/common.h"
 #include "core/task-pool.h"
+
+#if SLANG_RHI_ENABLE_D3D11 || SLANG_RHI_ENABLE_D3D12
+#include "d3d/d3d-utils.h"
+#endif
+
+#if SLANG_RHI_ENABLE_CUDA
+#include <slang-rhi/cuda-driver-api.h>
+#endif
 
 #include <cstring>
 #include <vector>
@@ -147,6 +156,21 @@ Result RHI::destroy()
     // Release the Aftermath crash dumper.
 #if SLANG_RHI_ENABLE_AFTERMATH
     AftermathCrashDumper::clear();
+#endif
+
+    // Release block allocator pages.
+    ShaderObject::getAllocator().releasePages();
+    RootShaderObject::getAllocator().releasePages();
+
+    // Release DXGI factory and module.
+#if SLANG_RHI_ENABLE_D3D11 || SLANG_RHI_ENABLE_D3D12
+    clearDXGIFactory();
+    clearDXGIModule();
+#endif
+
+    // Release CUDA driver API.
+#if SLANG_RHI_ENABLE_CUDA
+    rhiCudaDriverApiShutdown();
 #endif
 
     return SLANG_OK;
@@ -441,7 +465,9 @@ Backend* RHI::getBackend(DeviceType type)
     return backend;
 }
 
+SLANG_RHI_STATIC_MUTEX_BEGIN
 static std::mutex s_instanceMutex;
+SLANG_RHI_STATIC_MUTEX_END
 static RHI* s_instance = nullptr;
 
 static RHI* getInstance()

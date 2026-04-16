@@ -1,8 +1,9 @@
 #include "wgpu-utils.h"
+#include "wgpu-device.h"
 
 #include "core/assert.h"
 
-#include "wgpu-device.h"
+#include <array>
 #include <cstring>
 
 namespace rhi::wgpu {
@@ -10,15 +11,17 @@ namespace rhi::wgpu {
 #if !SLANG_WASM
 WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 {
-    // Currently no toggles are needed.
-    static const std::vector<const char*> enabledToggles = {};
-    static const std::vector<const char*> disabledToggles = {};
     WGPUDawnTogglesDescriptor togglesDesc = {};
     togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
-    togglesDesc.enabledToggleCount = enabledToggles.size();
-    togglesDesc.enabledToggles = enabledToggles.data();
-    togglesDesc.disabledToggleCount = disabledToggles.size();
-    togglesDesc.disabledToggles = disabledToggles.data();
+    // Currently no toggles are needed.
+#if 0
+    static constexpr const char* enabledToggles[] = {"foo"};
+    togglesDesc.enabledToggleCount = std::size(enabledToggles);
+    togglesDesc.enabledToggles = enabledToggles;
+    static constexpr const char* disabledToggles[] = {"foo"};
+    togglesDesc.disabledToggleCount = std::size(disabledToggles);
+    togglesDesc.disabledToggles = disabledToggles;
+#endif
     return togglesDesc;
 }
 #endif

@@ -1645,8 +1645,6 @@ Result createContext(const ContextDesc& desc, Context** outContext)
     return SLANG_OK;
 }
 
-uint32_t optixVersion = OPTIX_VERSION;
-
 bool initialize(IDebugCallback* debugCallback)
 {
     OptixResult result = optixInit();

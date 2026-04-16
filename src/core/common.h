@@ -18,6 +18,24 @@
 #include "string.h"
 #include "struct-holder.h"
 
+// Suppress clang warnings for static std::mutex declarations.
+// Clang < 16 warns about global constructors/exit-time destructors for std::mutex,
+// even though it has a trivial destructor. Clang 16+ recognizes its constexpr constructor
+// and no longer emits these warnings.
+#if defined(__clang__) && (__clang_major__ < 16)
+// clang-format off
+#define SLANG_RHI_STATIC_MUTEX_BEGIN                                                                                   \
+    _Pragma("clang diagnostic push")                                                                                   \
+    _Pragma("clang diagnostic ignored \"-Wglobal-constructors\"")                                                      \
+    _Pragma("clang diagnostic ignored \"-Wexit-time-destructors\"")
+#define SLANG_RHI_STATIC_MUTEX_END                                                                                     \
+    _Pragma("clang diagnostic pop")
+// clang-format on
+#else
+#define SLANG_RHI_STATIC_MUTEX_BEGIN
+#define SLANG_RHI_STATIC_MUTEX_END
+#endif
+
 namespace rhi {
 
 // A type cast that is safer than static_cast in debug builds, and is a simple static_cast in release builds.

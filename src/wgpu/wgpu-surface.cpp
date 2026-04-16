@@ -11,8 +11,13 @@
 
 namespace rhi::wgpu {
 
-static auto translateWGPUFormat =
-    reverseMap<Format, WGPUTextureFormat, Format::Undefined, Format::_Count>(translateTextureFormat);
+static Format translateWGPUFormat(WGPUTextureFormat format)
+{
+    return reverseMapLookup<Format, WGPUTextureFormat, Format::Undefined, Format::_Count>(
+        translateTextureFormat,
+        format
+    );
+}
 
 SurfaceImpl::~SurfaceImpl()
 {
