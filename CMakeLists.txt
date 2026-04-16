@@ -504,7 +504,12 @@ list(SORT SLANG_RHI_OPTIX_VERSIONS_SORTED COMPARE NATURAL)
 list(REVERSE SLANG_RHI_OPTIX_VERSIONS_SORTED)
 set(SLANG_RHI_OPTIX_VERSIONS_X "")
 foreach(ver IN LISTS SLANG_RHI_OPTIX_VERSIONS_SORTED)
-    string(APPEND SLANG_RHI_OPTIX_VERSIONS_X " x(v${ver})")
+    # Compute OptiX version integer (major * 10000 + minor * 100)
+    string(REPLACE "_" ";" ver_parts "${ver}")
+    list(GET ver_parts 0 ver_major)
+    list(GET ver_parts 1 ver_minor)
+    math(EXPR ver_int "${ver_major} * 10000 + ${ver_minor} * 100")
+    string(APPEND SLANG_RHI_OPTIX_VERSIONS_X " x(v${ver}, ${ver_int})")
 endforeach()
 
 # Generate config header
@@ -583,6 +588,15 @@ target_compile_options(slang-rhi-warnings-as-errors INTERFACE
     $<$<CXX_COMPILER_ID:AppleClang>:-Werror>
 )
 target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
+
+# Make using non-trivial static variables in slang-rhi a compile error.
+# This avoids issues with DSOs and static initialization order.
+target_compile_options(slang-rhi PRIVATE
+    $<$<CXX_COMPILER_ID:Clang>:
+        -Wglobal-constructors
+        -Wexit-time-destructors
+    >
+)
 
 target_sources(slang-rhi PRIVATE
     src/aftermath.cpp
