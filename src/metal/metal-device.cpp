@@ -116,8 +116,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         m_info.deviceType = DeviceType::Metal;
         m_info.apiName = "Metal";
-        m_info.adapterName = "default";
-        m_info.adapterLUID = {};
+        m_info.adapterName = adapter->m_info.name;
+        m_info.adapterLUID = adapter->m_info.luid;
 
         // TODO: Most limits cannot be queried through the Metal API but are described in
         // https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
