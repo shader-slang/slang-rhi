@@ -8,6 +8,12 @@
 
 namespace rhi::wgpu {
 
+std::span<const Adapter> BackendImpl::getAdapters()
+{
+    ensureAdapters();
+    return m_adapters;
+}
+
 IAdapter* BackendImpl::getAdapter(uint32_t index)
 {
     ensureAdapters();

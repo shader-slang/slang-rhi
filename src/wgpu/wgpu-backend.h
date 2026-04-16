@@ -8,11 +8,7 @@ namespace rhi::wgpu {
 class BackendImpl : public Backend
 {
 public:
-    std::vector<Adapter>& getAdapters()
-    {
-        ensureAdapters();
-        return m_adapters;
-    }
+    std::span<const Adapter> getAdapters();
 
     // Backend implementation
 
