@@ -596,10 +596,6 @@ target_compile_options(slang-rhi PRIVATE
         -Wglobal-constructors
         -Wexit-time-destructors
     >
-    $<$<CXX_COMPILER_ID:AppleClang>:
-        -Wglobal-constructors
-        -Wexit-time-destructors
-    >
 )
 
 target_sources(slang-rhi PRIVATE

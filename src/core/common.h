@@ -22,7 +22,7 @@
 // Clang < 16 warns about global constructors/exit-time destructors for std::mutex,
 // even though it has a trivial destructor. Clang 16+ recognizes its constexpr constructor
 // and no longer emits these warnings.
-#if defined(__clang__) && (defined(__apple_build_version__) || __clang_major__ < 16)
+#if defined(__clang__) && (__clang_major__ < 16)
 // clang-format off
 #define SLANG_RHI_STATIC_MUTEX_BEGIN                                                                                   \
     _Pragma("clang diagnostic push")                                                                                   \
