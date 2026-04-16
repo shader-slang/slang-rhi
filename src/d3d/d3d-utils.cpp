@@ -333,6 +333,9 @@ Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory)
     }
 }
 
+SLANG_RHI_STATIC_MUTEX_BEGIN
+static std::mutex s_dxgiFactoryMutex;
+SLANG_RHI_STATIC_MUTEX_END
 static IDXGIFactory* s_dxgiFactory;
 static DebugLayerOptions s_previousDebugLayerOptions;
 
@@ -340,6 +343,8 @@ static DebugLayerOptions s_previousDebugLayerOptions;
 // Warnings will be emitted via the `device` (if not present), else, stderr.
 ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device* device)
 {
+    std::lock_guard<std::mutex> lock(s_dxgiFactoryMutex);
+
     // Try to remake our current `s_dxgiFactory` if:
     // 1. s_dxgiFactory is null
     // 2. The current `getDXGIFactory` settings do not match the previous settings.
@@ -354,26 +359,29 @@ ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device*
         s_dxgiFactory = nullptr;
     }
 
-    ComPtr<IDXGIFactory> dxgiFactory = [&debugLayerOptions, &device]()
+    ComPtr<IDXGIFactory> dxgiFactory;
+    if (SLANG_FAILED(createDXGIFactory(debugLayerOptions.isDebugLayersEnabled(), dxgiFactory)))
     {
-        ComPtr<IDXGIFactory> f;
-        if (SLANG_FAILED(createDXGIFactory(debugLayerOptions.isDebugLayersEnabled(), f)))
+        // If debug was enabled && debug is *not* required, try again without debug
+        if (debugLayerOptions.isDebugLayersEnabled() && !debugLayerOptions.required)
         {
-            // If debug was enabled && debug is *not* required, try again without debug
-            if (debugLayerOptions.isDebugLayersEnabled() && !debugLayerOptions.required)
+            if (device)
+                device->printWarning("Failed to create a debug DXGIFactory.");
+            else
+                fprintf(stderr, "WARNING: Failed to create a debug DXGIFactory.");
+            debugLayerOptions = DebugLayerOptions();
+            if (SLANG_FAILED(createDXGIFactory(debugLayerOptions.isDebugLayersEnabled(), dxgiFactory)))
             {
-                if (device)
-                    device->printWarning("Failed to create a debug DXGIFactory.");
-                else
-                    fprintf(stderr, "WARNING: Failed to create a debug DXGIFactory.");
-                DebugLayerOptions newDebugLayerOptions = DebugLayerOptions();
-                return getDXGIFactory(newDebugLayerOptions, device);
+                return ComPtr<IDXGIFactory>();
             }
+        }
+        else
+        {
             return ComPtr<IDXGIFactory>();
         }
-        s_previousDebugLayerOptions = debugLayerOptions;
-        return f;
-    }();
+    }
+
+    s_previousDebugLayerOptions = debugLayerOptions;
 
     if (dxgiFactory)
     {
@@ -386,6 +394,8 @@ ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device*
 
 void clearDXGIFactory()
 {
+    std::lock_guard<std::mutex> lock(s_dxgiFactoryMutex);
+
     if (s_dxgiFactory)
     {
         s_dxgiFactory->Release();
