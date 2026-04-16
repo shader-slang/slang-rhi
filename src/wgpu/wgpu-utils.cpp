@@ -1,4 +1,5 @@
 #include "wgpu-utils.h"
+#include "wgpu-device.h"
 
 #include "core/assert.h"
 
@@ -7,6 +8,7 @@
 
 namespace rhi::wgpu {
 
+#if !SLANG_WASM
 WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 {
     WGPUDawnTogglesDescriptor togglesDesc = {};
@@ -22,13 +24,16 @@ WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
 #endif
     return togglesDesc;
 }
+#endif
 
 Result createWGPUInstance(API& api, WGPUInstance* outInstance)
 {
     WGPUInstanceDescriptor instanceDesc = {};
+#if !SLANG_WASM
     instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     instanceDesc.nextInChain = &togglesDesc.chain;
+#endif
     WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
     if (!instance)
     {
@@ -49,39 +54,53 @@ Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapte
 #elif SLANG_LINUX_FAMILY
     options.backendType = WGPUBackendType_Vulkan;
 #endif
+
+#if !SLANG_WASM
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     options.nextInChain = &togglesDesc.chain;
+#endif
 
-    WGPUAdapter adapter = {};
+    struct AdapterRequestState
     {
         WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
+        WGPUAdapter adapter = nullptr;
+    };
+    AdapterRequestState state;
+
+    {
         WGPURequestAdapterCallbackInfo callbackInfo = {};
+#if !SLANG_WASM
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#else
+        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
+#endif
         callbackInfo.callback = [](WGPURequestAdapterStatus status_,
                                    WGPUAdapter adapter_,
                                    WGPUStringView message,
                                    void* userdata1,
                                    void* userdata2)
         {
-            *(WGPURequestAdapterStatus*)userdata1 = status_;
-            *(WGPUAdapter*)userdata2 = adapter_;
+            AdapterRequestState* requestState = (AdapterRequestState*)userdata1;
+            requestState->status = status_;
+            requestState->adapter = adapter_;
         };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &adapter;
+        callbackInfo.userdata1 = &state;
+        callbackInfo.userdata2 = nullptr;
+
         WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
+        WGPUWaitStatus waitStatus = wgpu::wait(api, instance, future);
+        if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestAdapterStatus_Success)
         {
             return SLANG_FAIL;
         }
     }
-    if (!adapter)
+
+    WGPUAdapter resultAdapter = state.adapter;
+    if (!resultAdapter)
     {
         return SLANG_FAIL;
     }
-    *outAdapter = adapter;
+    *outAdapter = resultAdapter;
     return SLANG_OK;
 }
 
@@ -140,9 +159,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::R16Sint:
         return WGPUTextureFormat_R16Sint;
     case Format::R16Unorm:
+#if !SLANG_WASM
         return WGPUTextureFormat_R16Unorm;
+#else
+        return WGPUTextureFormat_Undefined;
+#endif
     case Format::R16Snorm:
+#if !SLANG_WASM
         return WGPUTextureFormat_R16Snorm;
+#else
+        return WGPUTextureFormat_Undefined;
+#endif
     case Format::R16Float:
         return WGPUTextureFormat_R16Float;
 
@@ -151,9 +178,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::RG16Sint:
         return WGPUTextureFormat_RG16Sint;
     case Format::RG16Unorm:
+#if !SLANG_WASM
         return WGPUTextureFormat_RG16Unorm;
+#else
+        return WGPUTextureFormat_Undefined;
+#endif
     case Format::RG16Snorm:
+#if !SLANG_WASM
         return WGPUTextureFormat_RG16Snorm;
+#else
+        return WGPUTextureFormat_Undefined;
+#endif
     case Format::RG16Float:
         return WGPUTextureFormat_RG16Float;
 
@@ -162,9 +197,17 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::RGBA16Sint:
         return WGPUTextureFormat_RGBA16Sint;
     case Format::RGBA16Unorm:
+#if !SLANG_WASM
         return WGPUTextureFormat_RGBA16Unorm;
+#else
+        return WGPUTextureFormat_Undefined;
+#endif
     case Format::RGBA16Snorm:
+#if !SLANG_WASM
         return WGPUTextureFormat_RGBA16Snorm;
+#else
+        return WGPUTextureFormat_Undefined;
+#endif
     case Format::RGBA16Float:
         return WGPUTextureFormat_RGBA16Float;
 
@@ -664,6 +707,46 @@ WGPUStoreOp translateStoreOp(StoreOp op)
     }
     SLANG_RHI_ASSERT_FAILURE("Invalid StoreOp value");
     return WGPUStoreOp_Undefined;
+}
+
+// Synchronously waits for a WebGPU future to complete, using native blocking on desktop and safe, adaptive event-loop
+// polling in WebAssembly to prevent browser deadlocks.
+WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, uint64_t timeoutNS)
+{
+    WGPUFutureWaitInfo futures[1] = {{future}};
+
+#if !SLANG_WASM
+    return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+#else
+    double startMS = (timeoutNS != UINT64_MAX) ? emscripten_get_now() : 0.0;
+    int spinCount = 0;
+
+    while (true)
+    {
+        WGPUWaitStatus status = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, 0);
+
+        if (status == WGPUWaitStatus_Error)
+            return WGPUWaitStatus_Error;
+
+        if (futures[0].completed)
+            return WGPUWaitStatus_Success;
+
+        if (timeoutNS != UINT64_MAX)
+        {
+            if ((emscripten_get_now() - startMS) * 1000000.0 >= timeoutNS)
+                return WGPUWaitStatus_TimedOut;
+        }
+
+        // adaptive yielding
+        emscripten_sleep((spinCount < 5) ? 0 : 1);
+        spinCount++;
+    }
+#endif
+}
+
+WGPUWaitStatus wait(Context& ctx, WGPUFuture future, uint64_t timeoutNS)
+{
+    return wait(ctx.api, ctx.instance, future, timeoutNS);
 }
 
 } // namespace rhi::wgpu

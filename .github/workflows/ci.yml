@@ -59,6 +59,9 @@ jobs:
           - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
           - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
           - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
+          # Emscripten builds (build only, no tests)
+          - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Debug", runs-on: ubuntu-latest }
+          - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Release", runs-on: ubuntu-latest }
 
     runs-on: ${{ matrix.runs-on }}
 
@@ -79,8 +82,14 @@ jobs:
       - name: Setup CMake/Ninja
         uses: lukka/get-cmake@latest
 
+      - name: Setup Emscripten
+        if: matrix.compiler == 'emscripten'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 'latest'
+
       - name: Configure
-        run: cmake --preset ${{matrix.preset}} -S . -B build ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
+        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}

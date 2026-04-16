@@ -1,14 +1,16 @@
 #pragma once
 
-#include <slang-rhi.h>
-
 #include "wgpu-api.h"
+
+#include <slang-rhi.h>
 
 #include <vector>
 
 namespace rhi::wgpu {
 
+#if !SLANG_WASM
 WGPUDawnTogglesDescriptor getDawnTogglesDescriptor();
+#endif
 Result createWGPUInstance(API& api, WGPUInstance* outInstance);
 Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter);
 
@@ -36,5 +38,9 @@ WGPUBlendOperation translateBlendOperation(BlendOp op);
 
 WGPULoadOp translateLoadOp(LoadOp op);
 WGPUStoreOp translateStoreOp(StoreOp op);
+
+struct Context;
+WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, uint64_t timeoutNS = UINT64_MAX);
+WGPUWaitStatus wait(Context& ctx, WGPUFuture future, uint64_t timeoutNS = UINT64_MAX);
 
 } // namespace rhi::wgpu

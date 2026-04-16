@@ -9,7 +9,6 @@
 #include "core/common.h"
 #include "core/deferred.h"
 
-#include <cstdio>
 #include <vector>
 
 namespace rhi::wgpu {
@@ -103,51 +102,62 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         deviceImpl->reportUncapturedError(type, message);
     };
     deviceDesc.uncapturedErrorCallbackInfo.userdata1 = this;
+    deviceDesc.deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
+    deviceDesc.deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
+                                                    WGPUDeviceLostReason reason,
+                                                    WGPUStringView message,
+                                                    void* userdata1,
+                                                    void* userdata2)
+    {
+        if (reason != WGPUDeviceLostReason_Destroyed)
+        {
+            DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(userdata1);
+            deviceImpl->reportDeviceLost(reason, message);
+        }
+    };
+    deviceDesc.deviceLostCallbackInfo.userdata1 = this;
+#if !SLANG_WASM
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
+#endif
 
     {
-        WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
+        struct DeviceRequestState
+        {
+            WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
+            WGPUDevice device = nullptr;
+            std::string message;
+        };
+        DeviceRequestState state;
+
         WGPURequestDeviceCallbackInfo callbackInfo = {};
+#if !SLANG_WASM
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#else
+        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
+#endif
         callbackInfo.callback = [](WGPURequestDeviceStatus status_,
                                    WGPUDevice device,
                                    WGPUStringView message,
                                    void* userdata1,
                                    void* userdata2)
         {
-            *(WGPURequestDeviceStatus*)userdata1 = status_;
-            *(WGPUDevice*)userdata2 = device;
+            DeviceRequestState* requestState = (DeviceRequestState*)userdata1;
+            requestState->status = status_;
+            requestState->device = device;
+            if (message.length > 0)
+                requestState->message.assign(message.data, message.length);
         };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &m_ctx.device;
-
-        WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = {};
-        deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
-                                             WGPUDeviceLostReason reason,
-                                             WGPUStringView message,
-                                             void* userdata1,
-                                             void* userdata2)
-        {
-            if (reason != WGPUDeviceLostReason_Destroyed)
-            {
-                DeviceImpl* deviceimpl = static_cast<DeviceImpl*>(userdata1);
-                deviceimpl->reportDeviceLost(reason, message);
-            }
-        };
-        deviceLostCallbackInfo.userdata1 = this;
-        deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
-        deviceDesc.deviceLostCallbackInfo = deviceLostCallbackInfo;
+        callbackInfo.userdata1 = &state;
+        callbackInfo.userdata2 = nullptr;
 
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestDeviceStatus_Success)
+        WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
+        if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestDeviceStatus_Success)
         {
             return SLANG_FAIL;
         }
+        m_ctx.device = state.device;
     }
 
     // Query device limits.
@@ -457,16 +467,17 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
         WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#if !SLANG_WASM
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+#else
+        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
+#endif
         {
             *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
         };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
@@ -489,10 +500,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = this;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
         {
             return SLANG_FAIL;

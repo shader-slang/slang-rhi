@@ -64,6 +64,7 @@ endif()
 
 # Determine available backends
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(SLANG_RHI_HAS_CPU ON)
     set(SLANG_RHI_HAS_D3D11 ON)
     set(SLANG_RHI_HAS_D3D12 ON)
     set(SLANG_RHI_HAS_VULKAN ON)
@@ -71,6 +72,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(SLANG_RHI_HAS_CUDA ON)
     set(SLANG_RHI_HAS_WGPU ON)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(SLANG_RHI_HAS_CPU ON)
     set(SLANG_RHI_HAS_D3D11 OFF)
     set(SLANG_RHI_HAS_D3D12 OFF)
     set(SLANG_RHI_HAS_VULKAN ON)
@@ -78,6 +80,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(SLANG_RHI_HAS_CUDA ON)
     set(SLANG_RHI_HAS_WGPU ON)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(SLANG_RHI_HAS_CPU ON)
     set(SLANG_RHI_HAS_D3D11 OFF)
     set(SLANG_RHI_HAS_D3D12 OFF)
     set(SLANG_RHI_HAS_VULKAN ON)
@@ -85,12 +88,21 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(SLANG_RHI_HAS_CUDA OFF)
     set(SLANG_RHI_HAS_WGPU ON)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(SLANG_RHI_HAS_CPU OFF)
     set(SLANG_RHI_HAS_D3D11 OFF)
     set(SLANG_RHI_HAS_D3D12 OFF)
     set(SLANG_RHI_HAS_VULKAN ON)
     set(SLANG_RHI_HAS_METAL OFF)
     set(SLANG_RHI_HAS_CUDA OFF)
     set(SLANG_RHI_HAS_WGPU OFF)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(SLANG_RHI_HAS_CPU OFF)
+    set(SLANG_RHI_HAS_D3D11 OFF)
+    set(SLANG_RHI_HAS_D3D12 OFF)
+    set(SLANG_RHI_HAS_VULKAN OFF)
+    set(SLANG_RHI_HAS_METAL OFF)
+    set(SLANG_RHI_HAS_CUDA OFF)
+    set(SLANG_RHI_HAS_WGPU ON)
 endif()
 
 set(SLANG_RHI_HAS_AGILITY_SDK OFF)
@@ -109,7 +121,7 @@ if((SLANG_RHI_HAS_D3D11 OR SLANG_RHI_HAS_D3D12) AND (CMAKE_SYSTEM_NAME STREQUAL 
 endif()
 
 # Backend options
-option(SLANG_RHI_ENABLE_CPU "Enable CPU backend" ON)
+cmake_dependent_option(SLANG_RHI_ENABLE_CPU "Enable CPU backend" ON "SLANG_RHI_HAS_CPU" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D11 "Enable D3D11 backend" ON "SLANG_RHI_HAS_D3D11" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_D3D12 "Enable D3D12 backend" ON "SLANG_RHI_HAS_D3D12" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_AGILITY_SDK "Enable Agility SDK" ON "SLANG_RHI_HAS_AGILITY_SDK" OFF)
@@ -197,8 +209,8 @@ if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
     set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip")
 endif()
 
-# Dawn WebGPU
-if(NOT DEFINED SLANG_RHI_DAWN_URL)
+# Dawn WebGPU (not used for Emscripten - uses emdawnwebgpu port instead)
+if(NOT DEFINED SLANG_RHI_DAWN_URL AND NOT EMSCRIPTEN)
     set(DAWN_VERSION "135.0.7049.80")
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(DAWN_OS "windows")
@@ -284,6 +296,8 @@ if(SLANG_RHI_FETCH_SLANG)
         else()
             set(SLANG_URL "${SLANG_URL}-macos-aarch64.zip")
         endif()
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        set(SLANG_URL "${SLANG_URL}-wasm-libs.zip")
     endif()
 
     message(STATUS "Fetching Slang ${SLANG_VERSION} ...")
@@ -298,7 +312,11 @@ set(SLANG_RHI_SLANG_BINARY_DIR ${SLANG_RHI_SLANG_BINARY_DIR} CACHE STRING "Slang
 unset(SLANG_RHI_SLANG_INCLUDE_DIR)
 if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
     function(slang_rhi_add_library_slang)
-        add_library(slang SHARED IMPORTED GLOBAL)
+        if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+            add_library(slang STATIC IMPORTED GLOBAL)
+        else()
+            add_library(slang SHARED IMPORTED GLOBAL)
+        endif()
 
         # Slang renamed the compiler library from slang to slang-compiler in v2025.21
         # Detect if the old or new library name is used.
@@ -307,6 +325,8 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
         elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.so)
             set(SLANG_LIB_NAME slang-compiler)
         elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND EXISTS ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libslang-compiler.dylib)
+            set(SLANG_LIB_NAME slang-compiler)
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
             set(SLANG_LIB_NAME slang-compiler)
         else()
             set(SLANG_LIB_NAME slang)
@@ -327,6 +347,17 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
             set_target_properties(slang PROPERTIES
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.dylib
+            )
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+            set_target_properties(slang PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
+                IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.a
+            )
+            target_link_libraries(slang INTERFACE
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcompiler-core.a
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcore.a
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/liblz4.a
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libminiz.a
             )
         endif()
     endfunction()
@@ -461,7 +492,7 @@ if(SLANG_RHI_ENABLE_METAL)
 endif()
 
 # Fetch & setup Dawn WebGPU
-if(SLANG_RHI_ENABLE_WGPU)
+if(SLANG_RHI_ENABLE_WGPU AND NOT EMSCRIPTEN)
     message(STATUS "Fetching Dawn WebGPU ...")
     FetchPackage(dawn URL ${SLANG_RHI_DAWN_URL})
     add_library(slang-rhi-dawn INTERFACE)
@@ -476,8 +507,14 @@ if(SLANG_RHI_ENABLE_WGPU)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-dawn)
 endif()
 
+# For Emscripten, use the emdawnwebgpu port for WebGPU support.
+if(SLANG_RHI_ENABLE_WGPU AND EMSCRIPTEN)
+    # For Emscripten, WebGPU headers are provided by emdawnwebgpu port
+    target_compile_options(slang-rhi PRIVATE "--use-port=emdawnwebgpu")
+endif()
+
 # Fetch glfw
-if((SLANG_RHI_BUILD_TESTS AND SLANG_RHI_BUILD_TESTS_WITH_GLFW) OR SLANG_RHI_BUILD_EXAMPLES)
+if(((SLANG_RHI_BUILD_TESTS AND SLANG_RHI_BUILD_TESTS_WITH_GLFW) OR SLANG_RHI_BUILD_EXAMPLES) AND NOT EMSCRIPTEN)
     FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG master)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -579,6 +616,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
     >
+    $<$<BOOL:${EMSCRIPTEN}>:-Wno-c2y-extensions>
 )
 add_library(slang-rhi-warnings-as-errors INTERFACE)
 target_compile_options(slang-rhi-warnings-as-errors INTERFACE
@@ -591,12 +629,14 @@ target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as
 
 # Make using non-trivial static variables in slang-rhi a compile error.
 # This avoids issues with DSOs and static initialization order.
-target_compile_options(slang-rhi PRIVATE
-    $<$<CXX_COMPILER_ID:Clang>:
-        -Wglobal-constructors
-        -Wexit-time-destructors
-    >
-)
+if(NOT EMSCRIPTEN)
+    target_compile_options(slang-rhi PRIVATE
+        $<$<CXX_COMPILER_ID:Clang>:
+            -Wglobal-constructors
+            -Wexit-time-destructors
+        >
+    )
+endif()
 
 target_sources(slang-rhi PRIVATE
     src/aftermath.cpp
@@ -836,7 +876,7 @@ target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Tests currently require linking statically due to reaching into internal details of the RHI implementation.
-if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
+if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     add_library(doctest INTERFACE)
     target_include_directories(doctest INTERFACE external/doctest)
 
@@ -968,19 +1008,34 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
 endif()
 
 if(SLANG_RHI_BUILD_EXAMPLES)
-    function(add_example name source)
-        add_executable(${name} ${source})
-        target_compile_features(${name} PRIVATE cxx_std_20)
-        get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
-        target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
-        target_include_directories(${name} PRIVATE examples/base)
-        target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
-    endfunction()
+    if(NOT EMSCRIPTEN)
+        function(add_example name source)
+            add_executable(${name} ${source})
+            target_compile_features(${name} PRIVATE cxx_std_20)
+            get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
+            target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
+            target_include_directories(${name} PRIVATE examples/base)
+            target_link_libraries(${name} PRIVATE slang-rhi slang glfw)
+        endfunction()
 
-    add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
-    add_example(example-surface examples/surface/example-surface.cpp)
-    add_example(example-triangle examples/triangle/example-triangle.cpp)
+        add_example(example-shader-toy examples/shader-toy/example-shader-toy.cpp)
+        add_example(example-surface examples/surface/example-surface.cpp)
+        add_example(example-triangle examples/triangle/example-triangle.cpp)
+    else()
+        add_executable(wasm-test examples/wasm/wasm-test.cpp)
+        target_compile_features(wasm-test PRIVATE cxx_std_17)
+        target_link_libraries(wasm-test PRIVATE slang-rhi slang)
+        set_target_properties(wasm-test PROPERTIES
+            OUTPUT_NAME "wasm-test"
+            SUFFIX ".html"
+        )
+        target_link_options(wasm-test PRIVATE
+            "--use-port=emdawnwebgpu"
+            "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/examples/wasm/index.html"
+        )
+    endif()
 endif()
+
 
 add_custom_target(slang-rhi-copy-files ALL DEPENDS ${SLANG_RHI_COPY_FILES})
 add_dependencies(slang-rhi slang-rhi-copy-files)
