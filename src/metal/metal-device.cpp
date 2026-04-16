@@ -66,7 +66,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
     const AdapterImpl* adapter = nullptr;
-    selectAdapter(this, backend->getAdapters(), desc, adapter);
+    SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
     m_device = adapter->m_device;
     if (!m_device)
     {

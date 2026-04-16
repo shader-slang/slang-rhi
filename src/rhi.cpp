@@ -281,10 +281,6 @@ Result RHI::getAdapters(DeviceType type, ISlangBlob** outAdaptersBlob)
 
 Result RHI::createDeviceImpl(const DeviceDesc& desc, IDevice** outDevice)
 {
-    Backend* backend = getBackend(desc.deviceType);
-    if (!backend)
-        return SLANG_FAIL;
-
     if (desc.deviceType == DeviceType::Default)
     {
         DeviceDesc newDesc = desc;
@@ -306,6 +302,10 @@ Result RHI::createDeviceImpl(const DeviceDesc& desc, IDevice** outDevice)
 #endif
         return SLANG_FAIL;
     }
+
+    Backend* backend = getBackend(desc.deviceType);
+    if (!backend)
+        return SLANG_FAIL;
 
     return backend->createDevice(desc, outDevice);
 }
