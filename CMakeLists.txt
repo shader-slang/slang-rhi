@@ -623,12 +623,14 @@ target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as
 
 # Make using non-trivial static variables in slang-rhi a compile error.
 # This avoids issues with DSOs and static initialization order.
-target_compile_options(slang-rhi PRIVATE
-    $<$<CXX_COMPILER_ID:Clang>:
-        -Wglobal-constructors
-        -Wexit-time-destructors
-    >
-)
+if(NOT EMSCRIPTEN)
+    target_compile_options(slang-rhi PRIVATE
+        $<$<CXX_COMPILER_ID:Clang>:
+            -Wglobal-constructors
+            -Wexit-time-destructors
+        >
+    )
+endif()
 
 target_sources(slang-rhi PRIVATE
     src/aftermath.cpp

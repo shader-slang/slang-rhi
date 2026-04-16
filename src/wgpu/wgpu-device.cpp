@@ -102,9 +102,21 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         deviceImpl->reportUncapturedError(type, message);
     };
     deviceDesc.uncapturedErrorCallbackInfo.userdata1 = this;
-#if SLANG_WASM
     deviceDesc.deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
-#else
+    deviceDesc.deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
+                                                    WGPUDeviceLostReason reason,
+                                                    WGPUStringView message,
+                                                    void* userdata1,
+                                                    void* userdata2)
+    {
+        if (reason != WGPUDeviceLostReason_Destroyed)
+        {
+            DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(userdata1);
+            deviceImpl->reportDeviceLost(reason, message);
+        }
+    };
+    deviceDesc.deviceLostCallbackInfo.userdata1 = this;
+#if !SLANG_WASM
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
 #endif
@@ -138,25 +150,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         };
         callbackInfo.userdata1 = &state;
         callbackInfo.userdata2 = nullptr;
-
-#if !SLANG_WASM
-        WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = {};
-        deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
-                                             WGPUDeviceLostReason reason,
-                                             WGPUStringView message,
-                                             void* userdata1,
-                                             void* userdata2)
-        {
-            if (reason != WGPUDeviceLostReason_Destroyed)
-            {
-                DeviceImpl* deviceimpl = static_cast<DeviceImpl*>(userdata1);
-                deviceimpl->reportDeviceLost(reason, message);
-            }
-        };
-        deviceLostCallbackInfo.userdata1 = this;
-        deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
-        deviceDesc.deviceLostCallbackInfo = deviceLostCallbackInfo;
-#endif
 
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
         WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
