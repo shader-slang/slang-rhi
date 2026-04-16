@@ -611,8 +611,7 @@ void ThreadedTaskPool::releaseTaskGroup(TaskGroupHandle group)
 // ----------------------------------------------------------------------------
 
 static std::mutex s_globalTaskPoolMutex;
-static ComPtr<ITaskPool> s_globalTaskPool;
-static std::atomic<ITaskPool*> s_cachedGlobalTaskPool{nullptr};
+static ITaskPool* s_globalTaskPool;
 
 // WARNING: setGlobalTaskPool must only be called when no devices are alive
 // and no other threads are using the global task pool. Calling it concurrently
@@ -620,8 +619,11 @@ static std::atomic<ITaskPool*> s_cachedGlobalTaskPool{nullptr};
 Result setGlobalTaskPool(ITaskPool* taskPool)
 {
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
+    if (s_globalTaskPool)
+        s_globalTaskPool->release();
     s_globalTaskPool = taskPool;
-    s_cachedGlobalTaskPool.store(taskPool, std::memory_order_release);
+    if (s_globalTaskPool)
+        s_globalTaskPool->addRef();
     return SLANG_OK;
 }
 
@@ -641,18 +643,13 @@ Result initGlobalTaskPool(int workerCount)
 
 ITaskPool* globalTaskPool()
 {
-    ITaskPool* cached = s_cachedGlobalTaskPool.load(std::memory_order_acquire);
-    if (cached)
-    {
-        return cached;
-    }
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
     if (!s_globalTaskPool)
     {
         s_globalTaskPool = new ThreadedTaskPool(-1);
+        s_globalTaskPool->addRef();
     }
-    s_cachedGlobalTaskPool.store(s_globalTaskPool.get(), std::memory_order_release);
-    return s_globalTaskPool.get();
+    return s_globalTaskPool;
 }
 
 } // namespace rhi
