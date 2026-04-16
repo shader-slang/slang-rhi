@@ -11,6 +11,7 @@
 
 namespace rhi::vk {
 
+class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;
 class InputLayoutImpl;

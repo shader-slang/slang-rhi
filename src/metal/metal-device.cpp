@@ -1,4 +1,5 @@
 #include "metal-device.h"
+#include "metal-backend.h"
 #include "../resource-desc-utils.h"
 #include "metal-command.h"
 #include "metal-buffer.h"
@@ -19,59 +20,6 @@
 #include <vector>
 
 namespace rhi::metal {
-
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
-{
-    AUTORELEASEPOOL
-
-    auto addAdapter = [&](MTL::Device* device)
-    {
-        AdapterInfo info = {};
-        info.deviceType = DeviceType::Metal;
-        info.adapterType = device->hasUnifiedMemory() ? AdapterType::Integrated : AdapterType::Discrete;
-        const char* name = device->name()->cString(NS::ASCIIStringEncoding);
-        string::copy_safe(info.name, sizeof(info.name), name);
-        uint64_t registryID = device->registryID();
-        memcpy(&info.luid.luid[0], &registryID, sizeof(registryID));
-
-        AdapterImpl adapter;
-        adapter.m_info = info;
-        adapter.m_device = NS::RetainPtr(device);
-        outAdapters.push_back(adapter);
-    };
-
-    NS::Array* devices = MTL::CopyAllDevices();
-    if (devices->count() > 0)
-    {
-        for (int i = 0; i < devices->count(); ++i)
-        {
-            MTL::Device* device = static_cast<MTL::Device*>(devices->object(i));
-            addAdapter(device);
-        }
-    }
-    else
-    {
-        MTL::Device* device = MTL::CreateSystemDefaultDevice();
-        addAdapter(device);
-        device->release();
-    }
-
-    // Make the first adapter the default one.
-    if (!outAdapters.empty())
-    {
-        outAdapters[0].m_isDefault = true;
-    }
-
-    return SLANG_OK;
-}
-
-std::vector<AdapterImpl>& getAdapters()
-{
-    static std::vector<AdapterImpl> adapters;
-    static Result initResult = getAdaptersImpl(adapters);
-    SLANG_UNUSED(initResult);
-    return adapters;
-}
 
 DeviceImpl::DeviceImpl() {}
 
@@ -111,14 +59,14 @@ Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
     return SLANG_OK;
 }
 
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
     AUTORELEASEPOOL
 
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
-    AdapterImpl* adapter = nullptr;
-    selectAdapter(this, getAdapters(), desc, adapter);
+    const AdapterImpl* adapter = nullptr;
+    SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
     m_device = adapter->m_device;
     if (!m_device)
     {
@@ -168,8 +116,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     {
         m_info.deviceType = DeviceType::Metal;
         m_info.apiName = "Metal";
-        m_info.adapterName = "default";
-        m_info.adapterLUID = {};
+        m_info.adapterName = adapter->m_info.name;
+        m_info.adapterLUID = adapter->m_info.luid;
 
         // TODO: Most limits cannot be queried through the Metal API but are described in
         // https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
@@ -507,21 +455,3 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 }
 
 } // namespace rhi::metal
-
-namespace rhi {
-
-IAdapter* getMetalAdapter(uint32_t index)
-{
-    std::vector<metal::AdapterImpl>& adapters = metal::getAdapters();
-    return index < adapters.size() ? &adapters[index] : nullptr;
-}
-
-Result SLANG_MCALL createMetalDevice(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<metal::DeviceImpl> result = new metal::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-} // namespace rhi

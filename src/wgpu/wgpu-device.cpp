@@ -14,87 +14,6 @@
 
 namespace rhi::wgpu {
 
-static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
-{
-    // Currently no toggles are needed.
-    static const std::vector<const char*> enabledToggles = {};
-    static const std::vector<const char*> disabledToggles = {};
-    WGPUDawnTogglesDescriptor togglesDesc = {};
-    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
-    togglesDesc.enabledToggleCount = enabledToggles.size();
-    togglesDesc.enabledToggles = enabledToggles.data();
-    togglesDesc.disabledToggleCount = disabledToggles.size();
-    togglesDesc.disabledToggles = disabledToggles.data();
-    return togglesDesc;
-}
-
-static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
-{
-    WGPUInstanceDescriptor instanceDesc = {};
-    instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
-    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
-    instanceDesc.nextInChain = &togglesDesc.chain;
-    WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
-    if (!instance)
-    {
-        return SLANG_FAIL;
-    }
-    *outInstance = instance;
-    return SLANG_OK;
-}
-
-#if 0
-
-
-#endif
-
-static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
-{
-    // Request adapter.
-    WGPURequestAdapterOptions options = {};
-    options.powerPreference = WGPUPowerPreference_HighPerformance;
-#if SLANG_WINDOWS_FAMILY
-    // TODO: D3D12 Validation errors prevents use of D3D12, use Vulkan for now.
-    options.backendType = WGPUBackendType_Vulkan;
-#elif SLANG_LINUX_FAMILY
-    options.backendType = WGPUBackendType_Vulkan;
-#endif
-    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
-    options.nextInChain = &togglesDesc.chain;
-
-    WGPUAdapter adapter = {};
-    {
-        WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
-        WGPURequestAdapterCallbackInfo callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
-                                   WGPUAdapter adapter_,
-                                   WGPUStringView message,
-                                   void* userdata1,
-                                   void* userdata2)
-        {
-            *(WGPURequestAdapterStatus*)userdata1 = status_;
-            *(WGPUAdapter*)userdata2 = adapter_;
-        };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &adapter;
-        WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
-    if (!adapter)
-    {
-        return SLANG_FAIL;
-    }
-    *outAdapter = adapter;
-    return SLANG_OK;
-}
-
 Context::~Context()
 {
     if (device)
@@ -153,7 +72,7 @@ WGPUErrorType DeviceImpl::getAndClearLastUncapturedError()
     return error;
 }
 
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
@@ -629,79 +548,4 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-inline Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
-{
-    // If WGPU is not available, return no adapters.
-    API api;
-    if (SLANG_FAILED(api.init()))
-    {
-        return SLANG_OK;
-    }
-
-    WGPUInstance wgpuInstance = {};
-    SLANG_RETURN_ON_FAIL(createWGPUInstance(api, &wgpuInstance));
-    SLANG_RHI_DEFERRED({ api.wgpuInstanceRelease(wgpuInstance); });
-
-    WGPUAdapter wgpuAdapter = {};
-    SLANG_RETURN_ON_FAIL(createWGPUAdapter(api, wgpuInstance, &wgpuAdapter));
-    SLANG_RHI_DEFERRED({ api.wgpuAdapterRelease(wgpuAdapter); });
-
-    WGPUAdapterInfo wgpuAdapterInfo = {};
-    api.wgpuAdapterGetInfo(wgpuAdapter, &wgpuAdapterInfo);
-
-    AdapterInfo info = {};
-    info.deviceType = DeviceType::WGPU;
-    switch (wgpuAdapterInfo.adapterType)
-    {
-    case WGPUAdapterType_DiscreteGPU:
-        info.adapterType = AdapterType::Discrete;
-        break;
-    case WGPUAdapterType_IntegratedGPU:
-        info.adapterType = AdapterType::Integrated;
-        break;
-    case WGPUAdapterType_CPU:
-        info.adapterType = AdapterType::Software;
-        break;
-    default:
-        info.adapterType = AdapterType::Unknown;
-        break;
-    }
-    string::copy_safe(info.name, sizeof(info.name), wgpuAdapterInfo.device.data, wgpuAdapterInfo.device.length);
-    info.vendorID = wgpuAdapterInfo.vendorID;
-    info.deviceID = wgpuAdapterInfo.deviceID;
-
-    Adapter adapter;
-    adapter.m_info = info;
-    adapter.m_isDefault = true;
-    outAdapters.push_back(adapter);
-
-    return SLANG_OK;
-}
-
-std::vector<Adapter>& getAdapters()
-{
-    static std::vector<Adapter> adapters;
-    static Result initResult = getAdaptersImpl(adapters);
-    SLANG_UNUSED(initResult);
-    return adapters;
-}
-
 } // namespace rhi::wgpu
-
-namespace rhi {
-
-IAdapter* getWGPUAdapter(uint32_t index)
-{
-    std::vector<Adapter>& adapters = wgpu::getAdapters();
-    return index < adapters.size() ? &adapters[index] : nullptr;
-}
-
-Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<wgpu::DeviceImpl> result = new wgpu::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-} // namespace rhi

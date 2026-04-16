@@ -13,6 +13,7 @@
 
 namespace rhi::cpu {
 
+class BackendImpl;
 class BufferImpl;
 class TextureImpl;
 class TextureViewImpl;

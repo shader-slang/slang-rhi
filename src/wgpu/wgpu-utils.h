@@ -4,7 +4,13 @@
 
 #include "wgpu-api.h"
 
+#include <vector>
+
 namespace rhi::wgpu {
+
+WGPUDawnTogglesDescriptor getDawnTogglesDescriptor();
+Result createWGPUInstance(API& api, WGPUInstance* outInstance);
+Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter);
 
 WGPUStringView translateString(const char* str);
 

@@ -1,18 +1,27 @@
 #pragma once
 
 #include <slang-rhi.h>
+
+#include "core/smart-pointer.h"
+
 #include <atomic>
+#include <mutex>
 
 namespace rhi {
+
+class Backend;
+
 class RHI : public IRHI
 {
-private:
-    DebugLayerOptions m_debugLayerOptions = {};
-    std::atomic<uint32_t> m_liveDeviceCount = 0;
-
 public:
+    virtual ~RHI() = default;
+
+    Result destroy();
+
     void incrementLiveDeviceCount();
     void decrementLiveDeviceCount();
+
+    // IRHI implementation
 
     virtual void enableDebugLayers() override;
     virtual Result setDebugLayerOptions(DebugLayerOptions options) override;
@@ -34,10 +43,14 @@ public:
     virtual Result setTaskPool(ITaskPool* scheduler) override;
     virtual Result initTaskPool(int workerCount) override;
 
-    static RHI* getInstance()
-    {
-        static RHI instance;
-        return &instance;
-    }
+private:
+    Backend* getBackend(DeviceType type);
+    Result createDeviceImpl(const DeviceDesc& desc, IDevice** outDevice);
+
+    DebugLayerOptions m_debugLayerOptions = {};
+    std::atomic<uint32_t> m_liveDeviceCount = 0;
+    std::mutex m_backendsMutex;
+    RefPtr<Backend> m_backends[8]; // indexed by DeviceType
 };
+
 } // namespace rhi

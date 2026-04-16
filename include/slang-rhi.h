@@ -3938,6 +3938,11 @@ struct VulkanDeviceExtendedDesc
 /// Get the global interface to the RHI.
 extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance();
 
+/// Destroy the global RHI instance and release all owned resources.
+/// Fails if any devices are currently alive.
+/// After calling this, rhiGetInstance() will create a new instance on next call.
+extern "C" SLANG_RHI_API SlangResult SLANG_STDCALL rhiDestroyInstance();
+
 // Global public functions
 
 namespace rhi {
@@ -3946,6 +3951,14 @@ namespace rhi {
 inline IRHI* getRHI()
 {
     return ::rhiGetInstance();
+}
+
+/// Destroy the global RHI instance and release all owned resources.
+/// Fails if any devices are currently alive.
+/// After calling this, getRHI() will create a new instance on next call.
+inline Result destroyRHI()
+{
+    return rhiDestroyInstance();
 }
 
 inline const FormatInfo& getFormatInfo(Format format)

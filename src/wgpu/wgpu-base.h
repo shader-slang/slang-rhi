@@ -8,6 +8,7 @@
 namespace rhi::wgpu {
 
 struct Context;
+class BackendImpl;
 class DeviceImpl;
 class InputLayoutImpl;
 class BufferImpl;

@@ -35,11 +35,11 @@ public:
     DeviceImpl();
     ~DeviceImpl();
 
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
+
     void deferDelete(Resource* resource);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
-
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
         const TextureDesc& desc,
@@ -209,10 +209,3 @@ public:
 };
 
 } // namespace rhi::cuda
-
-namespace rhi {
-
-IAdapter* getCUDAAdapter(uint32_t index);
-Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi
