@@ -40,11 +40,6 @@ jobs:
           - { os: linux, compiler: msvc }
           - { os: macos, compiler: msvc }
           - { os: macos, compiler: gcc }
-          # Emscripten makes most sense on linux/wasm32
-          # TODO: Uncomment once Slang ships WASM libs
-          # - { os: windows, compiler: emscripten }
-          # - { os: macos, compiler: emscripten }
-          # - { os: linux, platform: aarch64, compiler: emscripten }
         include:
           # Builds running on self-hosted runners (build + tests)
           - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
