@@ -84,7 +84,7 @@
             "description": "Emscripten-based WebAssembly build",
             "generator": "Ninja Multi-Config",
             "binaryDir": "${sourceDir}/build.em",
-            "toolchainFile": "$env{EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake",
+            "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
             "cacheVariables": {
                 "SLANG_RHI_BUILD_TESTS": "OFF",
                 "SLANG_RHI_BUILD_EXAMPLES": "ON",
