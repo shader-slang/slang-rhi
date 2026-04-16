@@ -4,6 +4,7 @@
 
 #if SLANG_RHI_USE_DYNAMIC_CUDA
 
+#include "core/common.h"
 #include "core/platform.h"
 
 #include <cstdio>
@@ -11,7 +12,9 @@
 
 #include <mutex>
 
+SLANG_RHI_STATIC_MUTEX_BEGIN
 static std::mutex sCudaModuleMutex;
+SLANG_RHI_STATIC_MUTEX_END
 static int sCudaModuleRefCount;
 static rhi::SharedLibraryHandle sCudaModule;
 

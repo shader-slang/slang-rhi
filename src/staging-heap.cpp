@@ -5,7 +5,7 @@
 
 namespace rhi {
 
-const std::thread::id NO_THREAD_ID;
+static constexpr std::thread::id NO_THREAD_ID;
 
 void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryType)
 {

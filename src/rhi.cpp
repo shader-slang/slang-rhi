@@ -461,7 +461,9 @@ Backend* RHI::getBackend(DeviceType type)
     return backend;
 }
 
+SLANG_RHI_STATIC_MUTEX_BEGIN
 static std::mutex s_instanceMutex;
+SLANG_RHI_STATIC_MUTEX_END
 static RHI* s_instance = nullptr;
 
 static RHI* getInstance()

@@ -610,7 +610,9 @@ void ThreadedTaskPool::releaseTaskGroup(TaskGroupHandle group)
 // Global task pool
 // ----------------------------------------------------------------------------
 
+SLANG_RHI_STATIC_MUTEX_BEGIN
 static std::mutex s_globalTaskPoolMutex;
+SLANG_RHI_STATIC_MUTEX_END
 static ITaskPool* s_globalTaskPool;
 
 // WARNING: setGlobalTaskPool must only be called when no devices are alive

@@ -196,7 +196,9 @@ private:                                                                        
 /// The allocator is constexpr-constructed, requiring no static constructor.
 /// releasePages() must be called at shutdown to free memory.
 #define SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(ClassName)                                                                 \
+    SLANG_RHI_STATIC_MUTEX_BEGIN                                                                                       \
     ClassName::BlockAllocatorType ClassName::s_allocator;                                                              \
+    SLANG_RHI_STATIC_MUTEX_END                                                                                         \
                                                                                                                        \
     ClassName::BlockAllocatorType& ClassName::getAllocator()                                                           \
     {                                                                                                                  \
