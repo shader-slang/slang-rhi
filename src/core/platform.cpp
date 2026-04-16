@@ -4,8 +4,10 @@
 
 #if SLANG_WINDOWS_FAMILY
 #include <windows.h>
-#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY || SLANG_WASM
+#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
 #include <dlfcn.h>
+#elif SLANG_WASM
+// nothing to include for WASM
 #else
 #error "Unsupported platform"
 #endif
@@ -16,10 +18,11 @@ Result loadSharedLibrary(const char* path, SharedLibraryHandle& handleOut)
 {
 #if SLANG_WINDOWS_FAMILY
     handleOut = LoadLibraryA(path);
-#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY || SLANG_WASM
+#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
     handleOut = dlopen(path, RTLD_LAZY);
 #else
     SLANG_RHI_ASSERT_FAILURE("Not implemented");
+    return SLANG_E_NOT_IMPLEMENTED;
 #endif
     if (!handleOut)
     {
@@ -32,7 +35,7 @@ void unloadSharedLibrary(SharedLibraryHandle handle)
 {
 #if SLANG_WINDOWS_FAMILY
     FreeLibrary(static_cast<HMODULE>(handle));
-#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY || SLANG_WASM
+#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
     dlclose(handle);
 #else
     SLANG_RHI_ASSERT_FAILURE("Not implemented");
@@ -43,10 +46,11 @@ void* findSymbolAddressByName(SharedLibraryHandle handle, const char* name)
 {
 #if SLANG_WINDOWS_FAMILY
     return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(handle), name));
-#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY || SLANG_WASM
+#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
     return dlsym(handle, name);
 #else
     SLANG_RHI_ASSERT_FAILURE("Not implemented");
+    return nullptr;
 #endif
 }
 
@@ -61,7 +65,7 @@ const char* findSharedLibraryPath(void* symbolAddress)
     static char path[1024];
     GetModuleFileNameA(module, path, sizeof(path));
     return path;
-#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY || SLANG_WASM
+#elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
     Dl_info info;
     if (dladdr(symbolAddress, &info) == 0)
     {

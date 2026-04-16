@@ -119,10 +119,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         DeviceRequestState state;
 
         WGPURequestDeviceCallbackInfo callbackInfo = {};
-#if SLANG_WASM
-        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
-#else
+#if !SLANG_WASM
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#else
+        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
 #endif
         callbackInfo.callback = [](WGPURequestDeviceStatus status_,
                                    WGPUDevice device,
@@ -474,10 +474,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
         WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-#if SLANG_WASM
-        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
-#else
+#if !SLANG_WASM
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+#else
+        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
 #endif
         {
             *(WGPUQueueWorkDoneStatus*)userdata1 = status_;

@@ -69,10 +69,10 @@ Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapte
 
     {
         WGPURequestAdapterCallbackInfo callbackInfo = {};
-#if SLANG_WASM
-        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
-#else
+#if !SLANG_WASM
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#else
+        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
 #endif
         callbackInfo.callback = [](WGPURequestAdapterStatus status_,
                                    WGPUAdapter adapter_,
@@ -159,16 +159,16 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::R16Sint:
         return WGPUTextureFormat_R16Sint;
     case Format::R16Unorm:
-#if SLANG_WASM
-        return WGPUTextureFormat_Undefined;
-#else
+#if !SLANG_WASM
         return WGPUTextureFormat_R16Unorm;
+#else
+        return WGPUTextureFormat_Undefined;
 #endif
     case Format::R16Snorm:
-#if SLANG_WASM
-        return WGPUTextureFormat_Undefined;
-#else
+#if !SLANG_WASM
         return WGPUTextureFormat_R16Snorm;
+#else
+        return WGPUTextureFormat_Undefined;
 #endif
     case Format::R16Float:
         return WGPUTextureFormat_R16Float;
@@ -178,16 +178,16 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::RG16Sint:
         return WGPUTextureFormat_RG16Sint;
     case Format::RG16Unorm:
-#if SLANG_WASM
-        return WGPUTextureFormat_Undefined;
-#else
+#if !SLANG_WASM
         return WGPUTextureFormat_RG16Unorm;
+#else
+        return WGPUTextureFormat_Undefined;
 #endif
     case Format::RG16Snorm:
-#if SLANG_WASM
-        return WGPUTextureFormat_Undefined;
-#else
+#if !SLANG_WASM
         return WGPUTextureFormat_RG16Snorm;
+#else
+        return WGPUTextureFormat_Undefined;
 #endif
     case Format::RG16Float:
         return WGPUTextureFormat_RG16Float;
@@ -197,16 +197,16 @@ WGPUTextureFormat translateTextureFormat(Format format)
     case Format::RGBA16Sint:
         return WGPUTextureFormat_RGBA16Sint;
     case Format::RGBA16Unorm:
-#if SLANG_WASM
-        return WGPUTextureFormat_Undefined;
-#else
+#if !SLANG_WASM
         return WGPUTextureFormat_RGBA16Unorm;
+#else
+        return WGPUTextureFormat_Undefined;
 #endif
     case Format::RGBA16Snorm:
-#if SLANG_WASM
-        return WGPUTextureFormat_Undefined;
-#else
+#if !SLANG_WASM
         return WGPUTextureFormat_RGBA16Snorm;
+#else
+        return WGPUTextureFormat_Undefined;
 #endif
     case Format::RGBA16Float:
         return WGPUTextureFormat_RGBA16Float;
@@ -715,7 +715,9 @@ WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, ui
 {
     WGPUFutureWaitInfo futures[1] = {{future}};
 
-#if SLANG_WASM
+#if !SLANG_WASM
+    return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+#else
     double startMS = (timeoutNS != UINT64_MAX) ? emscripten_get_now() : 0.0;
     int spinCount = 0;
 
@@ -739,8 +741,6 @@ WGPUWaitStatus wait(const API& api, WGPUInstance instance, WGPUFuture future, ui
         emscripten_sleep((spinCount < 5) ? 0 : 1);
         spinCount++;
     }
-#else
-    return api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
 #endif
 }
 

@@ -230,11 +230,11 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     WGPUSurfaceTexture surfaceTexture;
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
-#if SLANG_WASM
+#if !SLANG_WASM
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success)
+#else
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
         surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal)
-#else
-    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success)
 #endif
     {
         return SLANG_FAIL;

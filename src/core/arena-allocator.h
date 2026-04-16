@@ -80,9 +80,6 @@ private:
         uintptr_t begin() const { return reinterpret_cast<uintptr_t>(this) + sizeof(Page); }
         uintptr_t end() const { return begin() + size; }
     };
-#if !SLANG_WASM
-    static_assert(sizeof(Page) == 16);
-#endif
 
     size_t m_pageSize;
     Page* m_pages = nullptr;

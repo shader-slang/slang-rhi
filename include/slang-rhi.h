@@ -2119,11 +2119,12 @@ struct Viewport
 enum class WindowHandleType
 {
     Undefined,
+#if !SLANG_WASM
     HWND,
     NSWindow,
     XlibWindow,
     AndroidWindow,
-#if SLANG_WASM
+#else
     WGPUCanvas,
 #endif
 };
@@ -2131,10 +2132,10 @@ enum class WindowHandleType
 struct WindowHandle
 {
     WindowHandleType type = WindowHandleType::Undefined;
-#if SLANG_WASM
-    char canvasSelector[128];
-#else
+#if !SLANG_WASM
     uint64_t handleValues[2];
+#else
+    char canvasSelector[128];
 #endif
 
 #if !SLANG_WASM
