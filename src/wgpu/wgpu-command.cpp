@@ -631,7 +631,7 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     );
 #else
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawIndirect);
+    NOT_SUPPORTED(IRenderPassEncoder, drawIndirect);
 #endif
 }
 
@@ -651,7 +651,7 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     );
 #else
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexedIndirect);
+    NOT_SUPPORTED(IRenderPassEncoder, drawIndexedIndirect);
 #endif
 }
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <slang-rhi.h>
-
 #include "wgpu-api.h"
+
+#include <slang-rhi.h>
 
 #include <vector>
 
