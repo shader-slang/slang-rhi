@@ -14,6 +14,10 @@
 #include "d3d/d3d-utils.h"
 #endif
 
+#if SLANG_RHI_ENABLE_CUDA
+#include <slang-rhi/cuda-driver-api.h>
+#endif
+
 #include <cstring>
 #include <vector>
 
@@ -159,6 +163,10 @@ Result RHI::destroy()
     clearDXGIModule();
 #endif
 
+    // Release CUDA driver API.
+#if SLANG_RHI_ENABLE_CUDA
+    rhiCudaDriverApiShutdown();
+#endif
 
     return SLANG_OK;
 }
