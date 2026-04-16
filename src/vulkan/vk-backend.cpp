@@ -72,7 +72,7 @@ Result BackendImpl::enumerateAdapters()
         VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
         VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
         props.pNext = &idProps;
-        SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceFeatures2);
+        SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceProperties2);
         api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
 
         AdapterInfo info = {};
