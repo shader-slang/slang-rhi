@@ -5,9 +5,14 @@
 #include "backend.h"
 #include "debug-layer/debug-device.h"
 #include "rhi-shared.h"
+#include "shader-object.h"
 
 #include "core/common.h"
 #include "core/task-pool.h"
+
+#if SLANG_RHI_ENABLE_D3D11 || SLANG_RHI_ENABLE_D3D12
+#include "d3d/d3d-utils.h"
+#endif
 
 #include <cstring>
 #include <vector>
@@ -148,6 +153,12 @@ Result RHI::destroy()
 #if SLANG_RHI_ENABLE_AFTERMATH
     AftermathCrashDumper::clear();
 #endif
+    // Release DXGI factory and module.
+#if SLANG_RHI_ENABLE_D3D11 || SLANG_RHI_ENABLE_D3D12
+    clearDXGIFactory();
+    clearDXGIModule();
+#endif
+
 
     return SLANG_OK;
 }
