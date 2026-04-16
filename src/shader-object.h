@@ -207,7 +207,7 @@ using ShaderObjectSetBindingHook = void (*)(
 
 class ShaderObject : public IShaderObject, public ComObject
 {
-    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ShaderObject)
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ShaderObject, 4 * 1024)
 
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
@@ -330,7 +330,7 @@ protected:
 
 class RootShaderObject : public ShaderObject
 {
-    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(RootShaderObject)
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(RootShaderObject, 4 * 1024)
 
 public:
     RefPtr<ShaderProgram> m_shaderProgram;

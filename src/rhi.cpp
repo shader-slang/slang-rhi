@@ -157,6 +157,11 @@ Result RHI::destroy()
 #if SLANG_RHI_ENABLE_AFTERMATH
     AftermathCrashDumper::clear();
 #endif
+
+    // Release block allocator pages.
+    ShaderObject::getAllocator().releasePages();
+    RootShaderObject::getAllocator().releasePages();
+
     // Release DXGI factory and module.
 #if SLANG_RHI_ENABLE_D3D11 || SLANG_RHI_ENABLE_D3D12
     clearDXGIFactory();
