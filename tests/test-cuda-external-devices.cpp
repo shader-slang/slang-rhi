@@ -209,7 +209,7 @@ GPU_TEST_CASE("cuda-device-scope", CUDA)
     cuCtxGetCurrent(&current);
     CHECK(current == otherContext);
 
-    // Clean up — restore device context before test teardown.
+    // Clean up - restore device context before test teardown.
     cuCtxDestroy(otherContext);
     device->setCudaContextCurrent();
 }

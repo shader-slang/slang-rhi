@@ -266,10 +266,21 @@ const std::string* AftermathCrashDumper::findMarker(uint64_t hash)
     return nullptr;
 }
 
+static std::mutex s_aftermathCrashDumperMutex;
+static RefPtr<AftermathCrashDumper> s_aftermathCrashDumper;
+
 AftermathCrashDumper* AftermathCrashDumper::getOrCreate()
 {
-    static RefPtr<AftermathCrashDumper> instance = new AftermathCrashDumper();
-    return instance;
+    std::lock_guard lock(s_aftermathCrashDumperMutex);
+    if (!s_aftermathCrashDumper)
+        s_aftermathCrashDumper = new AftermathCrashDumper();
+    return s_aftermathCrashDumper;
+}
+
+void AftermathCrashDumper::clear()
+{
+    std::lock_guard lock(s_aftermathCrashDumperMutex);
+    s_aftermathCrashDumper = nullptr;
 }
 
 void AftermathCrashDumper::waitForDump(int timeoutSeconds)

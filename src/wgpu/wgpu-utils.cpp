@@ -7,6 +7,100 @@
 
 namespace rhi::wgpu {
 
+#if !SLANG_WASM
+WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
+{
+    // Currently no toggles are needed.
+    static const std::vector<const char*> enabledToggles = {};
+    static const std::vector<const char*> disabledToggles = {};
+    WGPUDawnTogglesDescriptor togglesDesc = {};
+    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
+    togglesDesc.enabledToggleCount = enabledToggles.size();
+    togglesDesc.enabledToggles = enabledToggles.data();
+    togglesDesc.disabledToggleCount = disabledToggles.size();
+    togglesDesc.disabledToggles = disabledToggles.data();
+    return togglesDesc;
+}
+#endif
+
+Result createWGPUInstance(API& api, WGPUInstance* outInstance)
+{
+    WGPUInstanceDescriptor instanceDesc = {};
+#if !SLANG_WASM
+    instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
+    instanceDesc.nextInChain = &togglesDesc.chain;
+#endif
+    WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
+    if (!instance)
+    {
+        return SLANG_FAIL;
+    }
+    *outInstance = instance;
+    return SLANG_OK;
+}
+
+Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
+{
+    // Request adapter.
+    WGPURequestAdapterOptions options = {};
+    options.powerPreference = WGPUPowerPreference_HighPerformance;
+#if SLANG_WINDOWS_FAMILY
+    // TODO: D3D12 Validation errors prevents use of D3D12, use Vulkan for now.
+    options.backendType = WGPUBackendType_Vulkan;
+#elif SLANG_LINUX_FAMILY
+    options.backendType = WGPUBackendType_Vulkan;
+#endif
+
+#if !SLANG_WASM
+    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
+    options.nextInChain = &togglesDesc.chain;
+#endif
+
+    struct AdapterRequestState
+    {
+        WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
+        WGPUAdapter adapter = nullptr;
+    };
+    AdapterRequestState state;
+
+    {
+        WGPURequestAdapterCallbackInfo callbackInfo = {};
+#if SLANG_WASM
+        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
+#else
+        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#endif
+        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
+                                   WGPUAdapter adapter_,
+                                   WGPUStringView message,
+                                   void* userdata1,
+                                   void* userdata2)
+        {
+            AdapterRequestState* requestState = (AdapterRequestState*)userdata1;
+            requestState->status = status_;
+            requestState->adapter = adapter_;
+        };
+        callbackInfo.userdata1 = &state;
+        callbackInfo.userdata2 = nullptr;
+
+        WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
+        WGPUWaitStatus waitStatus = wgpu::wait(api, instance, future);
+        if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestAdapterStatus_Success)
+        {
+            return SLANG_FAIL;
+        }
+    }
+
+    WGPUAdapter resultAdapter = state.adapter;
+    if (!resultAdapter)
+    {
+        return SLANG_FAIL;
+    }
+    *outAdapter = resultAdapter;
+    return SLANG_OK;
+}
+
 WGPUStringView translateString(const char* str)
 {
     return str ? WGPUStringView{str, ::strlen(str)} : WGPUStringView{nullptr, 0};
@@ -198,6 +292,19 @@ WGPUTextureFormat translateTextureFormat(Format format)
         return WGPUTextureFormat_BC7RGBAUnorm;
     case Format::BC7UnormSrgb:
         return WGPUTextureFormat_BC7RGBAUnormSrgb;
+
+    case Format::ASTC4x4Unorm:
+        return WGPUTextureFormat_ASTC4x4Unorm;
+    case Format::ASTC4x4UnormSrgb:
+        return WGPUTextureFormat_ASTC4x4UnormSrgb;
+    case Format::ASTC6x6Unorm:
+        return WGPUTextureFormat_ASTC6x6Unorm;
+    case Format::ASTC6x6UnormSrgb:
+        return WGPUTextureFormat_ASTC6x6UnormSrgb;
+    case Format::ASTC8x8Unorm:
+        return WGPUTextureFormat_ASTC8x8Unorm;
+    case Format::ASTC8x8UnormSrgb:
+        return WGPUTextureFormat_ASTC8x8UnormSrgb;
 
     default:
         return WGPUTextureFormat_Undefined;

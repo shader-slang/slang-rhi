@@ -163,6 +163,7 @@
 
 | API                                    | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |----------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `getDesc`                              | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `beginRenderPass`                      | :x: | :x:  | yes   | yes   | yes    | yes   | yes  |
 | `beginComputePass`                     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `beginRayTracingPass`                  | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
@@ -236,6 +237,7 @@
 
 | API               | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-------------------|-----|------|-------|-------|--------|-------|------|
+| `getDesc`         | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle` | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 
 ## `ICommandQueue` interface

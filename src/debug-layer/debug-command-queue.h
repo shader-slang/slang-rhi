@@ -8,13 +8,17 @@ class DebugCommandQueue : public DebugObject<ICommandQueue>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
+    ICommandQueue* getInterface(const Guid& guid);
 
     SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugCommandQueue);
 
 public:
-    ICommandQueue* getInterface(const Guid& guid);
+    // ICommandQueue implementation
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override;
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(
+        const CommandEncoderDesc& desc,
+        ICommandEncoder** outEncoder
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;

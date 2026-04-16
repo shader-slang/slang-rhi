@@ -14,7 +14,11 @@ public:
 
     Result init();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
+        uint32_t queryIndex,
+        uint32_t count,
+        uint64_t* outData
+    ) override;
 };
 
 void _writeTimestamp(VulkanApi* api, VkCommandBuffer vkCmdBuffer, IQueryPool* queryPool, uint32_t index);

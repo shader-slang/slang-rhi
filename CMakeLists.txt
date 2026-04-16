@@ -150,7 +150,7 @@ set(SLANG_RHI_FETCH_SLANG_VERSION "2026.4.1" CACHE STRING "Slang version to fetc
 
 # DirectXShaderCompiler
 if(NOT DEFINED SLANG_RHI_DXC_URL)
-    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
+    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2602/dxc_2026_02_20.zip")
 endif()
 
 # WinPixEventRuntime
@@ -160,7 +160,7 @@ endif()
 
 # Agility SDK
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_URL)
-    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.616.1")
+    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.619.1")
 endif()
 # If using a preview version of Agility SDK, set this to D3D12_PREVIEW_SDK_VERSION
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)
@@ -662,6 +662,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_CPU)
     target_sources(slang-rhi PRIVATE
+        src/cpu/cpu-backend.cpp
         src/cpu/cpu-buffer.cpp
         src/cpu/cpu-command.cpp
         src/cpu/cpu-device.cpp
@@ -684,6 +685,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_D3D11)
     target_sources(slang-rhi PRIVATE
+        src/d3d11/d3d11-backend.cpp
         src/d3d11/d3d11-buffer.cpp
         src/d3d11/d3d11-command.cpp
         src/d3d11/d3d11-constant-buffer-pool.cpp
@@ -704,6 +706,7 @@ endif()
 if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
+        src/d3d12/d3d12-backend.cpp
         src/d3d12/d3d12-bindless-descriptor-set.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
@@ -730,6 +733,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
     target_sources(slang-rhi PRIVATE
         src/vulkan/vk-acceleration-structure.cpp
         src/vulkan/vk-api.cpp
+        src/vulkan/vk-backend.cpp
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
@@ -757,6 +761,7 @@ if(SLANG_RHI_ENABLE_METAL)
     target_sources(slang-rhi PRIVATE
         src/metal/metal-acceleration-structure.cpp
         src/metal/metal-api.cpp
+        src/metal/metal-backend.cpp
         src/metal/metal-buffer.cpp
         src/metal/metal-clear-engine.cpp
         src/metal/metal-command.cpp
@@ -781,6 +786,7 @@ endif()
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
         src/cuda/cuda-acceleration-structure.cpp
+        src/cuda/cuda-backend.cpp
         src/cuda/cuda-buffer.cpp
         src/cuda/cuda-clear-engine.cpp
         src/cuda/cuda-command.cpp
@@ -813,6 +819,7 @@ endif()
 if(SLANG_RHI_ENABLE_WGPU)
     target_sources(slang-rhi PRIVATE
         src/wgpu/wgpu-api.cpp
+        src/wgpu/wgpu-backend.cpp
         src/wgpu/wgpu-buffer.cpp
         src/wgpu/wgpu-command.cpp
         src/wgpu/wgpu-constant-buffer-pool.cpp

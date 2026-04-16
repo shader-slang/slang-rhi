@@ -8,11 +8,12 @@ class DebugCommandBuffer : public DebugObject<ICommandBuffer>
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL;
+    ICommandBuffer* getInterface(const Guid& guid);
 
     SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugCommandBuffer);
 
 public:
-    ICommandBuffer* getInterface(const Guid& guid);
+    virtual SLANG_NO_THROW const CommandBufferDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

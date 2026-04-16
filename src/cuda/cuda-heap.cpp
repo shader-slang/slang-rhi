@@ -23,10 +23,8 @@ namespace rhi::cuda {
 //
 // FREE PATH:
 //   heap->free(allocation)
-//       │
-//       ├─► Same stream + no cross-stream events ──► IMMEDIATE retire
-//       │
-//       └─► Otherwise ──► m_pendingFrees (deferred until GPU done)
+//     Same stream + no cross-stream events -> IMMEDIATE retire
+//     Otherwise -> m_pendingFrees (deferred until GPU done)
 //
 // CROSS-STREAM SYNCHRONIZATION:
 //   When a page is used by a different stream than it was allocated on, we record

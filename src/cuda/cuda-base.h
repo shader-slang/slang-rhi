@@ -14,6 +14,7 @@
 
 namespace rhi::cuda {
 
+class BackendImpl;
 class AdapterImpl;
 class BufferImpl;
 class TextureImpl;

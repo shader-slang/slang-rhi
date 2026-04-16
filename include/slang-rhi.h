@@ -78,6 +78,9 @@ enum class StructType
     DeviceDesc,
     HeapDesc,
 
+    CommandEncoderDesc,
+    CommandBufferDesc,
+
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
 
@@ -397,6 +400,14 @@ enum class Format
     BC6HSfloat,
     BC7Unorm,
     BC7UnormSrgb,
+
+    // ASTC compressed formats
+    ASTC4x4Unorm,
+    ASTC4x4UnormSrgb,
+    ASTC6x6Unorm,
+    ASTC6x6UnormSrgb,
+    ASTC8x8Unorm,
+    ASTC8x8UnormSrgb,
 
     _Count,
 };
@@ -1435,11 +1446,19 @@ struct AccelerationStructureMotionCreateInfo
     uint32_t maxInstances = 0;
 };
 
+enum class AccelerationStructureKind
+{
+    Unknown,
+    BottomLevel,
+    TopLevel,
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
     const void* next = nullptr;
 
+    AccelerationStructureKind kind = AccelerationStructureKind::Unknown;
     uint64_t size;
     AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
 
@@ -1453,6 +1472,7 @@ class IAccelerationStructure : public IResource
     SLANG_COM_INTERFACE(0x38b056d5, 0x63de, 0x49ca, {0xa0, 0xed, 0x62, 0xa1, 0xbe, 0xc3, 0xd4, 0x65});
 
 public:
+    virtual SLANG_NO_THROW const AccelerationStructureDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
@@ -2231,7 +2251,7 @@ class IQueryPool : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
 };
 
@@ -2385,11 +2405,22 @@ struct MarkerColor
     float b;
 };
 
+struct CommandBufferDesc
+{
+    StructType structType = StructType::CommandBufferDesc;
+    const void* next = nullptr;
+
+    /// The name of the command buffer for debugging purposes.
+    const char* label = nullptr;
+};
+
 class ICommandBuffer : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x58e5d83f, 0xad31, 0x44ea, {0xa4, 0xd1, 0x5e, 0x65, 0x9c, 0xd9, 0xa7, 0x57});
 
 public:
+    virtual SLANG_NO_THROW const CommandBufferDesc& SLANG_MCALL getDesc() = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
@@ -2466,11 +2497,22 @@ public:
     ) = 0;
 };
 
+struct CommandEncoderDesc
+{
+    StructType structType = StructType::CommandEncoderDesc;
+    const void* next = nullptr;
+
+    /// The name of the command encoder for debugging purposes.
+    const char* label = nullptr;
+};
+
 class ICommandEncoder : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
 
 public:
+    virtual SLANG_NO_THROW const CommandEncoderDesc& SLANG_MCALL getDesc() = 0;
+
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) = 0;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() = 0;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() = 0;
@@ -2641,7 +2683,19 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(
+        const CommandBufferDesc& desc,
+        ICommandBuffer** outCommandBuffer
+    ) = 0;
+
+    inline Result finish(ICommandBuffer** outCommandBuffer) { return finish(CommandBufferDesc{}, outCommandBuffer); }
+
+    inline ComPtr<ICommandBuffer> finish(const CommandBufferDesc& desc)
+    {
+        ComPtr<ICommandBuffer> commandBuffer;
+        SLANG_RETURN_NULL_ON_FAIL(finish(desc, commandBuffer.writeRef()));
+        return commandBuffer;
+    }
 
     inline ComPtr<ICommandBuffer> finish()
     {
@@ -2697,7 +2751,22 @@ class ICommandQueue : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(
+        const CommandEncoderDesc& desc,
+        ICommandEncoder** outEncoder
+    ) = 0;
+
+    inline Result createCommandEncoder(ICommandEncoder** outEncoder)
+    {
+        return createCommandEncoder(CommandEncoderDesc{}, outEncoder);
+    }
+
+    inline ComPtr<ICommandEncoder> createCommandEncoder(const CommandEncoderDesc& desc)
+    {
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_NULL_ON_FAIL(createCommandEncoder(desc, encoder.writeRef()));
+        return encoder;
+    }
 
     inline ComPtr<ICommandEncoder> createCommandEncoder()
     {
@@ -3649,6 +3718,7 @@ class ITaskPool : public ISlangUnknown
 
 public:
     typedef void* TaskHandle;
+    typedef void* TaskGroupHandle;
 
     /// \brief Submit a new task for execution.
     ///
@@ -3663,13 +3733,15 @@ public:
     /// \param payloadDeleter Optional deleter called with `payload` when the task is destroyed. May be null if no cleanup is needed.
     /// \param deps Array of `TaskHandle`s that must complete before this task runs. May be null if `depsCount` is 0.
     /// \param depsCount Number of entries in `deps`.
+    /// \param group Optional task group handle. If non-null, the task is associated with the group.
     /// \return A handle to the submitted task. The caller must release this with `releaseTask()`.
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
         void (*func)(void*),
         void* payload,
         void (*payloadDeleter)(void*),
         TaskHandle* deps,
-        size_t depsCount
+        size_t depsCount,
+        TaskGroupHandle group = nullptr
     ) = 0;
 
     /// \brief Get the payload associated with a task.
@@ -3696,6 +3768,9 @@ public:
 
     /// \brief Block the calling thread until a task has finished executing.
     ///
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// This makes it safe to call from a task callback without deadlock risk.
+    ///
     /// \param task Task handle to wait on. Must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) = 0;
 
@@ -3709,7 +3784,35 @@ public:
     ///
     /// Waits for every task that has been submitted to this pool (and not yet completed)
     /// to finish executing. Does not release any task handles.
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
     virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
+
+    /// \brief Create a new task group for tracking a set of tasks.
+    ///
+    /// A task group tracks a dynamically growing set of tasks. Tasks are associated with a
+    /// group by passing the group handle to `submitTask()`.
+    ///
+    /// \return An opaque handle to the task group.
+    virtual SLANG_NO_THROW TaskGroupHandle SLANG_MCALL createTaskGroup() = 0;
+
+    /// \brief Block the calling thread until all tasks in the group have completed.
+    ///
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// This makes it safe to call from a task callback without deadlock risk.
+    /// Must not be called while other threads are still submitting tasks to the group
+    /// outside of task callbacks.
+    /// A group must not be reused after `waitTaskGroup` returns.
+    ///
+    /// \param group Task group handle. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitTaskGroup(TaskGroupHandle group) = 0;
+
+    /// \brief Release a task group.
+    ///
+    /// Must be called exactly once after `waitTaskGroup` returns. Calling with tasks
+    /// still pending is undefined behavior.
+    ///
+    /// \param group Task group handle. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL releaseTaskGroup(TaskGroupHandle group) = 0;
 };
 
 class IPersistentCache : public ISlangUnknown
@@ -3858,6 +3961,11 @@ struct VulkanDeviceExtendedDesc
 /// Get the global interface to the RHI.
 extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance();
 
+/// Destroy the global RHI instance and release all owned resources.
+/// Fails if any devices are currently alive.
+/// After calling this, rhiGetInstance() will create a new instance on next call.
+extern "C" SLANG_RHI_API SlangResult SLANG_STDCALL rhiDestroyInstance();
+
 // Global public functions
 
 namespace rhi {
@@ -3866,6 +3974,14 @@ namespace rhi {
 inline IRHI* getRHI()
 {
     return ::rhiGetInstance();
+}
+
+/// Destroy the global RHI instance and release all owned resources.
+/// Fails if any devices are currently alive.
+/// After calling this, getRHI() will create a new instance on next call.
+inline Result destroyRHI()
+{
+    return rhiDestroyInstance();
 }
 
 inline const FormatInfo& getFormatInfo(Format format)
