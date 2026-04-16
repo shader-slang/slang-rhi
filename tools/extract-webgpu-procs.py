@@ -25,14 +25,14 @@ def extract_procs_from_content(content: str) -> tuple[list[tuple[str, str]], set
         for match in re.finditer(r"typedef\s+\S+\s+\(\*WGPUProc(\w+)\)", content):
             procs.add(match.group(1))
         return [], procs
-    
+
     begin += len(BEGIN_MARKER)
     end = content.find(END_MARKER)
     lines = content[begin:end].splitlines()
-    
+
     items = []
     proc_names = set()
-    
+
     for line in lines:
         line = line.strip()
         if line == "":
@@ -45,7 +45,7 @@ def extract_procs_from_content(content: str) -> tuple[list[tuple[str, str]], set
                 name = match.group(1)
                 items.append(("proc", name))
                 proc_names.add(name)
-    
+
     return items, proc_names
 
 
@@ -64,10 +64,10 @@ def main():
         print(f"Error: Dawn header not found at {dawn_header_path}")
         print("Please run cmake configure first to fetch Dawn.")
         return
-    
+
     dawn_content = open(dawn_header_path, "r").read()
     dawn_items, dawn_procs = extract_procs_from_content(dawn_content)
-    
+
     print(f"// Fetching Emscripten header from {EMSCRIPTEN_HEADER_URL}...")
     try:
         em_content = fetch_url(EMSCRIPTEN_HEADER_URL)
@@ -75,11 +75,11 @@ def main():
     except Exception as e:
         print(f"// Error fetching Emscripten header: {e}")
         em_procs = set()
-        
+
     print(f"// Dawn procs:       {len(dawn_procs)}")
     print(f"// Emscripten procs: {len(em_procs)}")
     print()
-    
+
     print("#if !SLANG_WASM")
     output = "#define SLANG_RHI_WGPU_PROCS(x) \\\n"
     for i, (item_type, item_value) in enumerate(dawn_items):
