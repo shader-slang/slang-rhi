@@ -48,7 +48,7 @@ Result BackendImpl::enumerateAdapters()
     };
 
     NS::Array* devices = MTL::CopyAllDevices();
-    if (devices->count() > 0)
+    if (devices && devices->count() > 0)
     {
         for (int i = 0; i < devices->count(); ++i)
         {
@@ -59,9 +59,14 @@ Result BackendImpl::enumerateAdapters()
     else
     {
         MTL::Device* device = MTL::CreateSystemDefaultDevice();
-        addAdapter(device);
-        device->release();
+        if (device)
+        {
+            addAdapter(device);
+            device->release();
+        }
     }
+    if (devices)
+        devices->release();
 
     // Make the first adapter the default one.
     if (!m_adapters.empty())
