@@ -1,7 +1,6 @@
 .DS_Store
 .vscode/
 build/
-build.em/
 external/optix
 
 .vs/

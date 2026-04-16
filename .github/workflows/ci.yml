@@ -89,20 +89,10 @@ jobs:
           version: 'latest'
 
       - name: Configure
-        if: matrix.compiler != 'emscripten'
-        run: cmake --preset ${{matrix.preset}} -S . -B build ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
-
-      - name: Configure (Emscripten)
-        if: matrix.compiler == 'emscripten'
-        run: cmake --preset emscripten
+        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
 
       - name: Build
-        if: matrix.compiler != 'emscripten'
         run: cmake --build build --config ${{matrix.config}}
-
-      - name: Build (Emscripten)
-        if: matrix.compiler == 'emscripten'
-        run: cmake --build build.em --config ${{matrix.config}} --target slang-rhi
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
