@@ -1,5 +1,6 @@
 #include "metal-backend.h"
 #include "metal-device.h"
+#include "metal-utils.h"
 #include "../reference.h"
 
 #include "core/string.h"
