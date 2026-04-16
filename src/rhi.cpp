@@ -379,6 +379,9 @@ Backend* RHI::getBackend(DeviceType type)
     {
         return nullptr;
     }
+
+    std::lock_guard<std::mutex> lock(m_backendsMutex);
+
     if (m_backends[index])
     {
         return m_backends[index];

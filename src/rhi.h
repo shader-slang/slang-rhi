@@ -5,6 +5,7 @@
 #include "core/smart-pointer.h"
 
 #include <atomic>
+#include <mutex>
 
 namespace rhi {
 
@@ -48,6 +49,7 @@ private:
 
     DebugLayerOptions m_debugLayerOptions = {};
     std::atomic<uint32_t> m_liveDeviceCount = 0;
+    std::mutex m_backendsMutex;
     RefPtr<Backend> m_backends[8]; // indexed by DeviceType
 };
 
