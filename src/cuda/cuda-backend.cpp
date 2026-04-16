@@ -151,6 +151,11 @@ Result BackendImpl::initialize()
     return getAdaptersImpl(m_adapters);
 }
 
+std::span<const AdapterImpl> BackendImpl::getAdapters() const
+{
+    return m_adapters;
+}
+
 IAdapter* BackendImpl::getAdapter(uint32_t index)
 {
     return index < m_adapters.size() ? &m_adapters[index] : nullptr;
