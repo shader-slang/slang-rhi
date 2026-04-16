@@ -28,7 +28,12 @@ static int calcSMCountPerMultiProcessor(int major, int minor)
         {0x62, 128},
         {0x70, 64},
         {0x72, 64},
-        {0x75, 64}
+        {0x75, 64},
+        {0x80, 64},
+        {0x86, 128},
+        {0x87, 128},
+        {0x89, 128},
+        {0x90, 128}
     };
 
     const int sm = ((major << 4) + minor);
