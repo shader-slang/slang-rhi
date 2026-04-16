@@ -13,6 +13,8 @@ class Backend;
 class RHI : public IRHI
 {
 public:
+    virtual ~RHI() = default;
+
     Result destroy();
 
     void incrementLiveDeviceCount();

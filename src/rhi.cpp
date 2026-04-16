@@ -437,7 +437,7 @@ Backend* RHI::getBackend(DeviceType type)
 static std::mutex s_instanceMutex;
 static RHI* s_instance = nullptr;
 
-static RHI* getRHIInstance()
+static RHI* getInstance()
 {
     std::lock_guard<std::mutex> lock(s_instanceMutex);
     if (!s_instance)
@@ -445,7 +445,7 @@ static RHI* getRHIInstance()
     return s_instance;
 }
 
-static Result destroyRHIInstance()
+static Result destroyInstance()
 {
     std::lock_guard<std::mutex> lock(s_instanceMutex);
     if (!s_instance)
@@ -462,10 +462,10 @@ static Result destroyRHIInstance()
 
 extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance()
 {
-    return rhi::getRHIInstance();
+    return rhi::getInstance();
 }
 
 extern "C" SLANG_RHI_API SlangResult SLANG_STDCALL rhiDestroyInstance()
 {
-    return rhi::destroyRHIInstance();
+    return rhi::destroyInstance();
 }
