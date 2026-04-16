@@ -85,9 +85,6 @@
             "description": "Emscripten-based WebAssembly build",
             "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
             "cacheVariables": {
-                "SLANG_RHI_BUILD_TESTS": "OFF",
-                "SLANG_RHI_BUILD_EXAMPLES": "ON",
-                "SLANG_RHI_ENABLE_CPU": "OFF",
                 "CMAKE_EXE_LINKER_FLAGS":
                     "-sASSERTIONS -sALLOW_MEMORY_GROWTH -fwasm-exceptions --export=__cpp_exception -sASYNCIFY -sASYNCIFY_IGNORE_INDIRECT=1 -sASYNCIFY_ONLY=['*main*','*wait*','*initialize*','*create*','*map*','*readBuffer*']"
             }
