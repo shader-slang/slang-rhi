@@ -40,7 +40,7 @@ struct RayTracingTriangleIntersectionTest
         const std::vector<const char*>& raygenNames,
         const std::vector<HitGroupProgramNames>& hitGroupProgramNames,
         const std::vector<const char*>& missNames,
-        span<ExpectedPixel> expectedPixels,
+        std::span<ExpectedPixel> expectedPixels,
         unsigned rgIdx = 0,
         RayTracingPipelineFlags flags = RayTracingPipelineFlags::None
     )
@@ -94,7 +94,7 @@ struct RayTracingTriangleIntersectionTest
         resultTexture = device->createTexture(resultTextureDesc);
     }
 
-    void checkTestResults(span<ExpectedPixel> expectedPixels)
+    void checkTestResults(std::span<ExpectedPixel> expectedPixels)
     {
         ComPtr<ISlangBlob> resultBlob;
         SubresourceLayout layout;
@@ -133,8 +133,8 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection", ALL)
 
     std::vector<const char*> raygenNames = {"rayGenShaderIdx0", "rayGenShaderIdx1"};
     std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-        {"closestHitShaderIdx0", nullptr},
-        {"closestHitShaderIdx1", nullptr},
+        {"closestHitShaderIdx0", /*anyhit=*/nullptr, /*intersection=*/nullptr},
+        {"closestHitShaderIdx1", /*anyhit=*/nullptr, /*intersection=*/nullptr},
     };
     std::vector<const char*> missNames = {"missShaderIdx0", "missShaderIdx1"};
 
@@ -166,8 +166,8 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-nonzero-rg-idx", ALL)
 
     std::vector<const char*> raygenNames = {"rayGenShaderIdx0", "rayGenShaderIdx1"};
     std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-        {"closestHitShaderIdx0", nullptr},
-        {"closestHitShaderIdx1", nullptr},
+        {"closestHitShaderIdx0", /*anyhit=*/nullptr, /*intersection=*/nullptr},
+        {"closestHitShaderIdx1", /*anyhit=*/nullptr, /*intersection=*/nullptr},
     };
     std::vector<const char*> missNames = {"missShaderIdx0", "missShaderIdx1"};
 
@@ -201,7 +201,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-vertex-motion", ALL)
 
     std::vector<const char*> raygenNames = {"rayGenShaderMotion"};
     std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-        {"closestHitShaderMotion", nullptr},
+        {"closestHitShaderMotion", /*anyhit=*/nullptr, /*intersection=*/nullptr},
     };
     std::vector<const char*> missNames = {"missShaderIdx0"};
 
@@ -248,7 +248,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-matrix-motion", ALL)
 
     std::vector<const char*> raygenNames = {"rayGenShaderMotion"};
     std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-        {"closestHitShaderMotion", nullptr},
+        {"closestHitShaderMotion", /*anyhit=*/nullptr, /*intersection=*/nullptr},
     };
     std::vector<const char*> missNames = {"missShaderIdx0"};
 
@@ -291,7 +291,7 @@ GPU_TEST_CASE("ray-tracing-triangle-intersection-srt-motion", ALL)
 
     std::vector<const char*> raygenNames = {"rayGenShaderMotion"};
     std::vector<HitGroupProgramNames> hitGroupProgramNames = {
-        {"closestHitShaderMotion", nullptr},
+        {"closestHitShaderMotion", /*anyhit=*/nullptr, /*intersection=*/nullptr},
     };
     std::vector<const char*> missNames = {"missShaderIdx0"};
 

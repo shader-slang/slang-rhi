@@ -23,7 +23,11 @@ const char* enumToString(ComparisonFunc value);
 const char* enumToString(TextureReductionOp value);
 const char* enumToString(InputSlotClass value);
 const char* enumToString(PrimitiveTopology value);
+const char* enumToString(AccelerationStructureKind value);
 const char* enumToString(QueryType value);
+const char* enumToString(CooperativeVectorMatrixLayout value);
 const char* enumToString(CooperativeVectorComponentType value);
+const char* enumToString(DebugMessageType value);
+const char* enumToString(DebugMessageSource value);
 
 } // namespace rhi

@@ -91,6 +91,10 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
             m_slotCount += count;
             m_resourceCount.buffer += count;
             break;
+        case slang::BindingType::RayTracingAccelerationStructure:
+            slotIndex = m_slotCount;
+            m_slotCount += count;
+            break;
         default:
             break;
         }

@@ -4,14 +4,17 @@
 #include "d3d12-api.h"
 #include "d3d12-resource.h"
 
-#include "core/common.h"
-
 // Must be included after d3d12 headers.
 #include "../nvapi/nvapi-util.h"
 #include "d3d12-descriptor-heap.h"
 
+#include "aftermath.h"
+
+#include "core/common.h"
+
 namespace rhi::d3d12 {
 
+class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;
 class BufferImpl;

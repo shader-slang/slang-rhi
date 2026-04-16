@@ -265,8 +265,10 @@ const char* enumToString(ResourceState value)
         return S_ResourceState_ResolveSource;
     case ResourceState::ResolveDestination:
         return S_ResourceState_ResolveDestination;
-    case ResourceState::AccelerationStructure:
-        return S_ResourceState_AccelerationStructure;
+    case ResourceState::AccelerationStructureRead:
+        return S_ResourceState_AccelerationStructureRead;
+    case ResourceState::AccelerationStructureWrite:
+        return S_ResourceState_AccelerationStructureWrite;
     case ResourceState::AccelerationStructureBuildInput:
         return S_ResourceState_AccelerationStructureBuildInput;
     }
@@ -375,6 +377,20 @@ const char* enumToString(PrimitiveTopology value)
     return S_INVALID;
 }
 
+const char* enumToString(AccelerationStructureKind value)
+{
+    switch (value)
+    {
+    case AccelerationStructureKind::Unknown:
+        return S_AccelerationStructureKind_Unknown;
+    case AccelerationStructureKind::BottomLevel:
+        return S_AccelerationStructureKind_BottomLevel;
+    case AccelerationStructureKind::TopLevel:
+        return S_AccelerationStructureKind_TopLevel;
+    }
+    return S_INVALID;
+}
+
 const char* enumToString(QueryType value)
 {
     switch (value)
@@ -387,6 +403,22 @@ const char* enumToString(QueryType value)
         return S_QueryType_AccelerationStructureSerializedSize;
     case QueryType::AccelerationStructureCurrentSize:
         return S_QueryType_AccelerationStructureCurrentSize;
+    }
+    return S_INVALID;
+}
+
+const char* enumToString(CooperativeVectorMatrixLayout value)
+{
+    switch (value)
+    {
+    case CooperativeVectorMatrixLayout::RowMajor:
+        return S_CooperativeVectorMatrixLayout_RowMajor;
+    case CooperativeVectorMatrixLayout::ColumnMajor:
+        return S_CooperativeVectorMatrixLayout_ColumnMajor;
+    case CooperativeVectorMatrixLayout::InferencingOptimal:
+        return S_CooperativeVectorMatrixLayout_InferencingOptimal;
+    case CooperativeVectorMatrixLayout::TrainingOptimal:
+        return S_CooperativeVectorMatrixLayout_TrainingOptimal;
     }
     return S_INVALID;
 }
@@ -425,6 +457,34 @@ const char* enumToString(CooperativeVectorComponentType value)
         return S_CooperativeVectorComponentType_FloatE4M3;
     case CooperativeVectorComponentType::FloatE5M2:
         return S_CooperativeVectorComponentType_FloatE5M2;
+    }
+    return S_INVALID;
+}
+
+const char* enumToString(DebugMessageType debugMessageType)
+{
+    switch (debugMessageType)
+    {
+    case DebugMessageType::Info:
+        return S_DebugMessageType_Info;
+    case DebugMessageType::Warning:
+        return S_DebugMessageType_Warning;
+    case DebugMessageType::Error:
+        return S_DebugMessageType_Error;
+    }
+    return S_INVALID;
+}
+
+const char* enumToString(DebugMessageSource debugMessageSource)
+{
+    switch (debugMessageSource)
+    {
+    case DebugMessageSource::Layer:
+        return S_DebugMessageSource_Layer;
+    case DebugMessageSource::Driver:
+        return S_DebugMessageSource_Driver;
+    case DebugMessageSource::Slang:
+        return S_DebugMessageSource_Slang;
     }
     return S_INVALID;
 }

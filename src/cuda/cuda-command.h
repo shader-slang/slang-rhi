@@ -4,6 +4,8 @@
 #include "cuda-constant-buffer-pool.h"
 #include "cuda-shader-object.h"
 
+#include "core/ring-queue.h"
+
 namespace rhi::cuda {
 
 struct SubmitEvent
@@ -15,31 +17,57 @@ struct SubmitEvent
 class CommandQueueImpl : public CommandQueue
 {
 public:
+    static constexpr size_t kMaxSubmitsWithoutEvent = 128;
+
     CUstream m_stream;
 
     uint64_t m_lastSubmittedID = 0;
     uint64_t m_lastFinishedID = 0;
+    uint64_t m_submitsSinceEvent = 0;
 
     std::mutex m_mutex;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersPool;
     std::list<RefPtr<CommandBufferImpl>> m_commandBuffersInFlight;
     std::list<SubmitEvent> m_submitEvents;
 
+    // Deferred delete queue for GPU resources.
+    // Resources are held here until the GPU has finished using them.
+    struct DeferredDelete
+    {
+        uint64_t submissionID;
+        Resource* resource;
+    };
+    std::mutex m_deferredDeleteQueueMutex;
+    RingQueue<DeferredDelete> m_deferredDeleteQueue;
+
     CommandQueueImpl(Device* device, QueueType type);
     ~CommandQueueImpl();
 
     Result init();
+    void shutdown();
 
     Result createCommandBuffer(CommandBufferImpl** outCommandBuffer);
     Result getOrCreateCommandBuffer(CommandBufferImpl** outCommandBuffer);
     void retireCommandBuffer(CommandBufferImpl* commandBuffer);
+    void retireCommandBufferLocked(CommandBufferImpl* commandBuffer);
     Result retireCommandBuffers();
+    Result retireCommandBuffersLocked();
 
     Result signalFence(CUstream stream, uint64_t* outId);
     Result updateFence();
 
+    /// Queue a resource for deferred deletion. The resource will be deleted
+    /// once the GPU has finished all work submitted up to this point.
+    void deferDelete(Resource* resource);
+
+    /// Delete deferred resources that are no longer in use by the GPU.
+    void executeDeferredDeletes();
+
     // ICommandQueue implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(
+        const CommandEncoderDesc& desc,
+        ICommandEncoder** outEncoder
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
@@ -51,7 +79,7 @@ public:
     CommandQueueImpl* m_queue;
     RefPtr<CommandBufferImpl> m_commandBuffer;
 
-    CommandEncoderImpl(Device* device, CommandQueueImpl* queue);
+    CommandEncoderImpl(Device* device, CommandQueueImpl* queue, const CommandEncoderDesc& desc);
     ~CommandEncoderImpl();
 
     Result init();
@@ -59,7 +87,10 @@ public:
     virtual Result getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData) override;
 
     // ICommandEncoder implementation
-    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(
+        const CommandBufferDesc& desc,
+        ICommandBuffer** outCommandBuffer
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 

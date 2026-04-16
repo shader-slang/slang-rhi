@@ -9,6 +9,7 @@ class SamplerImpl : public Sampler
 public:
     SamplerImpl(Device* device, const SamplerDesc& desc);
 
+public:
     ComPtr<ID3D11SamplerState> m_sampler;
 };
 

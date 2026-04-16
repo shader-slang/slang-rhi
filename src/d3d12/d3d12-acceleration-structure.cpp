@@ -24,6 +24,12 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     }
 }
 
+void AccelerationStructureImpl::deleteThis()
+{
+    m_buffer.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::D3D12DeviceAddress;
@@ -43,6 +49,12 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
+    if (m_descriptorHandle)
+    {
+        *outHandle = m_descriptorHandle;
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (!device->m_bindlessDescriptorSet)

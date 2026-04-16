@@ -98,9 +98,14 @@ VkStencilOpState translateStencilState(DepthStencilOpDesc desc);
 
 VkSamplerReductionMode translateReductionOp(TextureReductionOp op);
 
+VkAccelerationStructureTypeKHR translateAccelerationStructureKind(AccelerationStructureKind kind);
+
 VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type);
 CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type);
 VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout);
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout);
+
+bool translateCooperativeMatrixComponentType(VkComponentTypeKHR type, CooperativeMatrixComponentType& outType);
+bool translateCooperativeMatrixScope(VkScopeKHR scope, CooperativeMatrixScope& outScope);
 
 } // namespace rhi::vk

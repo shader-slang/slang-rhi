@@ -8,6 +8,22 @@
 
 namespace rhi {
 
+Heap::Heap(Device* device, const HeapDesc& desc)
+    : DeviceChild(device)
+{
+    m_desc = desc;
+    m_descHolder.holdString(m_desc.label);
+}
+
+Heap::~Heap()
+{
+    // Free all pages
+    for (Page* page : m_pages)
+    {
+        delete page;
+    }
+}
+
 Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 {
     // Allow device implementation to fix up descriptor
@@ -26,11 +42,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
 
     // Select a page size to store the allocation
     uint32_t pageSize = 0;
-    if (size <= 1 * 1024 * 1024)
-        pageSize = 8 * 1024 * 1024;
-    else if (size <= 8 * 1024 * 1024)
-        pageSize = 64 * 1024 * 1024;
-    else if (size <= 64 * 1024 * 1024)
+    if (size <= 64 * 1024 * 1024)
         pageSize = 256 * 1024 * 1024;
     else
         pageSize = math::calcAligned(size, 256 * 1024 * 1024);
@@ -45,6 +57,8 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
             auto pageAllocation = page->m_allocator.allocate(size / desc.alignment);
             if (pageAllocation)
             {
+                // Notify page it's being used (enables multi-stream tracking)
+                page->notifyUse(desc.stream);
                 Size offset = pageAllocation.offset * page->m_desc.alignment;
                 *outAllocation = {offset, size, page, pageAllocation.metadata, page->offsetToAddress(offset)};
                 return SLANG_OK;
@@ -56,6 +70,7 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
     PageDesc pageDesc;
     pageDesc.alignment = desc.alignment;
     pageDesc.size = pageSize;
+    pageDesc.stream = desc.stream;
     Page* newPage = nullptr;
     Result res = createPage(pageDesc, &newPage);
     if (res == SLANG_E_OUT_OF_MEMORY)
@@ -72,6 +87,9 @@ Result Heap::allocate(const HeapAllocDesc& desc_, HeapAlloc* outAllocation)
         auto pageAllocation = newPage->m_allocator.allocate(size / desc.alignment);
         if (pageAllocation)
         {
+            // Notify page it's being used (for new pages this is typically a no-op
+            // since the page was just created with the current stream)
+            newPage->notifyUse(desc.stream);
             Size offset = pageAllocation.offset * newPage->m_desc.alignment;
             *outAllocation = {offset, size, newPage, pageAllocation.metadata, newPage->offsetToAddress(offset)};
             return SLANG_OK;

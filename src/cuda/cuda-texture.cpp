@@ -107,6 +107,13 @@ inline const FormatMapping& getFormatMapping(Format format)
         { Format::BC6HSfloat,       CU_AD_FORMAT_BC6H_SF16,         CU_RES_VIEW_FORMAT_SIGNED_BC6H,     16, 3,  0           },
         { Format::BC7Unorm,         CU_AD_FORMAT_BC7_UNORM,         CU_RES_VIEW_FORMAT_UNSIGNED_BC7,    16, 4,  0           },
         { Format::BC7UnormSrgb,     CU_AD_FORMAT_BC7_UNORM_SRGB,    CU_RES_VIEW_FORMAT_UNSIGNED_BC7,    16, 4,  FLAG_SRGB   },
+
+        { Format::ASTC4x4Unorm,     CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC4x4UnormSrgb, CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC6x6Unorm,     CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC6x6UnormSrgb, CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC8x8Unorm,     CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
+        { Format::ASTC8x8UnormSrgb, CUarray_format(0),              CU_RES_VIEW_FORMAT_NONE,            0,  0,  0           },
         // clang-format on
     };
 
@@ -147,6 +154,13 @@ TextureImpl::~TextureImpl()
     }
 }
 
+void TextureImpl::deleteThis()
+{
+    m_defaultView.setNull();
+    m_sampler.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     if (m_cudaArray)
@@ -171,6 +185,7 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
@@ -181,10 +196,6 @@ CUtexObject TextureImpl::getTexObject(
     const SubresourceRange& range
 )
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     ViewKey key = {format, samplerSettings, range};
     CUtexObject& texObject = m_texObjects[key];
     if (texObject)
@@ -238,10 +249,6 @@ CUtexObject TextureImpl::getTexObject(
 
 CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     CUsurfObject& surfObject = m_surfObjects[range];
     if (surfObject)
         return surfObject;
@@ -262,20 +269,25 @@ CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     TextureDesc desc = fixupTextureDesc(desc_);
 
     RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
 
     auto& samplerSettings = tex->m_defaultSamplerSettings;
     samplerSettings = {};
-    samplerSettings.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
-    samplerSettings.filterMode = CU_TR_FILTER_MODE_LINEAR;
-    samplerSettings.maxAnisotropy = 1;
-    samplerSettings.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    if (desc.sampler)
+    {
+        samplerSettings = checked_cast<SamplerImpl*>(desc.sampler)->m_samplerSettings;
+    }
+    else
+    {
+        samplerSettings.addressMode[0] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.addressMode[1] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.addressMode[2] = CU_TR_ADDRESS_MODE_WRAP;
+        samplerSettings.filterMode = CU_TR_FILTER_MODE_LINEAR;
+        samplerSettings.maxAnisotropy = 1;
+        samplerSettings.mipmapFilterMode = CU_TR_FILTER_MODE_LINEAR;
+    }
 
     // The size of the element/texel in bytes
     const FormatInfo& formatInfo = getFormatInfo(desc.format);
@@ -493,7 +505,6 @@ Result DeviceImpl::createTextureFromSharedHandle(
         *outTexture = nullptr;
         return SLANG_OK;
     }
-    SLANG_CUDA_CTX_SCOPE(this);
 
     RefPtr<TextureImpl> texture = new TextureImpl(this, desc);
 
@@ -624,12 +635,10 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     switch (access)
     {
     case DescriptorHandleAccess::Read:
-        outHandle->type = DescriptorHandleType::Texture;
-        outHandle->value = (uint64_t)getTexObject();
+        *outHandle = DescriptorHandle{DescriptorHandleType::Texture, (uint64_t)getTexObject()};
         break;
     case DescriptorHandleAccess::ReadWrite:
-        outHandle->type = DescriptorHandleType::RWTexture;
-        outHandle->value = (uint64_t)getSurfObject();
+        *outHandle = DescriptorHandle{DescriptorHandleType::RWTexture, (uint64_t)getSurfObject()};
         break;
     default:
         return SLANG_E_INVALID_ARG;
@@ -638,15 +647,22 @@ Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, Descr
     return SLANG_OK;
 }
 
+Result TextureViewImpl::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
+{
+    outHandle->type = DescriptorHandleType::CombinedTextureSampler;
+    outHandle->value = (uint64_t)getTexObject();
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     RefPtr<TextureViewImpl> view = new TextureViewImpl(this, desc);
     view->m_texture = checked_cast<TextureImpl*>(texture);
     if (view->m_desc.format == Format::Undefined)
         view->m_desc.format = view->m_texture->m_desc.format;
     view->m_desc.subresourceRange = view->m_texture->resolveSubresourceRange(desc.subresourceRange);
+    view->m_samplerSettings = desc.sampler ? checked_cast<SamplerImpl*>(desc.sampler)->m_samplerSettings
+                                           : view->m_texture->m_defaultSamplerSettings;
     returnComPtr(outView, view);
     return SLANG_OK;
 }

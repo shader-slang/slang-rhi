@@ -3,7 +3,6 @@
 #if SLANG_RHI_ENABLE_CUDA
 
 #include <random>
-#include "../src/core/span.h"
 #include "../src/cuda/cuda-device.h"
 #include "../src/cuda/cuda-api.h"
 #include "../src/cuda/cuda-utils.h"
@@ -102,9 +101,9 @@ void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool exp
     }
 
     if (!expect_fail_to_copy)
-        compareComputeResult(device, dst, span<uint8_t>(data));
+        compareComputeResult(device, dst, std::span<uint8_t>(data));
     else
-        compareComputeResult(device, dst, span<uint8_t>(zeros));
+        compareComputeResult(device, dst, std::span<uint8_t>(zeros));
 }
 
 GPU_TEST_CASE("cuda-external-device", CUDA)
@@ -173,5 +172,45 @@ GPU_TEST_CASE("cuda-external-device", CUDA)
     // Clean up CUDA!
     cuStreamDestroy(stream);
     cuCtxDestroy(tmp_context);
+}
+
+GPU_TEST_CASE("cuda-device-scope", CUDA)
+{
+    using namespace rhi::cuda;
+
+    auto cuda_device = getCUDADevice(device);
+    CUcontext deviceContext = cuda_device->m_ctx.context;
+
+    // Create a separate context to simulate another library (e.g. PyTorch).
+    CUcontext otherContext;
+    cuCtxCreate(&otherContext, 0, cuda_device->m_ctx.device);
+    // Pop it off the stack so it doesn't stay current from cuCtxCreate.
+    CUcontext popped;
+    cuCtxPopCurrent(&popped);
+
+    // Set the "other library" context as current.
+    cuCtxSetCurrent(otherContext);
+
+    // Verify the other context is current.
+    CUcontext current = nullptr;
+    cuCtxGetCurrent(&current);
+    REQUIRE(current == otherContext);
+
+    // Use SLANG_DEVICE_SCOPE to temporarily switch to the RHI device's context.
+    {
+        SLANG_DEVICE_SCOPE(device.get());
+
+        // Inside the scope, the device's context should be current.
+        cuCtxGetCurrent(&current);
+        CHECK(current == deviceContext);
+    }
+
+    // After the scope, the other library's context should be restored.
+    cuCtxGetCurrent(&current);
+    CHECK(current == otherContext);
+
+    // Clean up - restore device context before test teardown.
+    cuCtxDestroy(otherContext);
+    device->setCudaContextCurrent();
 }
 #endif

@@ -268,6 +268,23 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData->pushConstantData = m_allocator->allocate<void*>(m_pushConstantRanges.size());
     m_bindingData->pushConstantCount = 0;
 
+    // Allocate entry point data storage for ray tracing SBT.
+    size_t entryPointCount = specializedLayout->m_entryPoints.size();
+    m_bindingData->entryPointCount = (uint32_t)entryPointCount;
+    if (specializedLayout->findEntryPointIndex(VK_SHADER_STAGE_RAYGEN_BIT_KHR) != -1)
+    {
+        m_bindingData->entryPointData = m_allocator->allocate<BindingDataImpl::EntryPointData>(entryPointCount);
+        for (size_t i = 0; i < entryPointCount; ++i)
+        {
+            m_bindingData->entryPointData[i].data = nullptr;
+            m_bindingData->entryPointData[i].size = 0;
+        }
+    }
+    else
+    {
+        m_bindingData->entryPointData = nullptr;
+    }
+
     BindingOffset offset = {};
 
     // Note: the operations here are quite similar to what `bindAsParameterBlock` does.
@@ -291,7 +308,6 @@ Result BindingDataBuilder::bindAsRoot(
 
     SLANG_RETURN_ON_FAIL(bindAsValue(shaderObject, offset, specializedLayout));
 
-    size_t entryPointCount = specializedLayout->m_entryPoints.size();
     for (size_t i = 0; i < entryPointCount; ++i)
     {
         auto entryPoint = shaderObject->m_entryPoints[i];
@@ -303,7 +319,7 @@ Result BindingDataBuilder::bindAsRoot(
         // `RootShaderObjectLayout` has already baked any offsets
         // from the global layout into the `entryPointInfo`.
 
-        SLANG_RETURN_ON_FAIL(bindAsEntryPoint(entryPoint, entryPointInfo.offset, entryPointLayout));
+        SLANG_RETURN_ON_FAIL(bindAsEntryPoint(entryPoint, entryPointInfo.offset, entryPointLayout, (uint32_t)i));
     }
 
     // Assign bindless descriptor set to the last slot if available.
@@ -321,44 +337,44 @@ Result BindingDataBuilder::bindAsRoot(
 Result BindingDataBuilder::bindAsEntryPoint(
     ShaderObject* shaderObject,
     const BindingOffset& inOffset,
-    EntryPointLayout* layout
+    EntryPointLayout* layout,
+    uint32_t entryPointIndex
 )
 {
     BindingOffset offset = inOffset;
 
-    // Any ordinary data in an entry point is assumed to be allocated
-    // as a push-constant range.
-    //
-    // TODO: Can we make this operation not bake in that assumption?
-    //
-    // TODO: Can/should this function be renamed as just `bindAsPushConstantBuffer`?
-    //
     if (shaderObject->m_data.size())
     {
-        // The index of the push constant range to bind should be
-        // passed down as part of the `offset`, and we will increment
-        // it here so that any further recursively-contained push-constant
-        // ranges use the next index.
-        //
-        auto pushConstantRangeIndex = offset.pushConstantRange++;
+        if (layout->getSlangLayout()->getStage() == SLANG_STAGE_RAY_GENERATION)
+        {
+            // For raygen entry points, ordinary data is stored in the SBT, not as push constants.
+            SLANG_RHI_ASSERT(m_bindingData->entryPointData && entryPointIndex < m_bindingData->entryPointCount);
+            BindingDataImpl::EntryPointData& epData = m_bindingData->entryPointData[entryPointIndex];
+            epData.size = shaderObject->m_data.size();
+            epData.data = m_allocator->allocate(epData.size);
+            ::memcpy(epData.data, shaderObject->m_data.data(), epData.size);
+        }
+        else
+        {
+            // For non-raygen entry points, ordinary data goes into push constants.
+            //
+            // The index of the push constant range to bind is passed down as part of the
+            // `offset`, and we increment it here so that any further recursively-contained
+            // push-constant ranges use the next index.
+            //
+            auto pushConstantRangeIndex = offset.pushConstantRange++;
 
-        // Information about the push constant ranges (including offsets
-        // and stage flags) was pre-computed for the entire program and
-        // stored on the binding context.
-        //
-        const auto& pushConstantRange = m_pushConstantRanges[pushConstantRangeIndex];
+            // Information about the push constant ranges (including offsets and stage flags)
+            // was pre-computed for the entire program and stored on the binding context.
+            //
+            const auto& pushConstantRange = m_pushConstantRanges[pushConstantRangeIndex];
+            SLANG_RHI_ASSERT(pushConstantRange.size == shaderObject->m_data.size());
 
-        // We expect that the size of the range as reflected matches the
-        // amount of ordinary data stored on this object.
-        //
-        // Note: Entry points with ordinary data are handled uniformly now.
-        //
-        SLANG_RHI_ASSERT(pushConstantRange.size == shaderObject->m_data.size());
-
-        uint32_t index = m_bindingData->pushConstantCount++;
-        m_bindingData->pushConstantRanges[index] = pushConstantRange;
-        m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
-        ::memcpy(m_bindingData->pushConstantData[index], shaderObject->m_data.data(), pushConstantRange.size);
+            uint32_t index = m_bindingData->pushConstantCount++;
+            m_bindingData->pushConstantRanges[index] = pushConstantRange;
+            m_bindingData->pushConstantData[index] = m_allocator->allocate(pushConstantRange.size);
+            ::memcpy(m_bindingData->pushConstantData[index], shaderObject->m_data.data(), pushConstantRange.size);
+        }
     }
 
     // Any remaining bindings in the object can be handled through the
@@ -543,6 +559,10 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 AccelerationStructureImpl* as = checked_cast<AccelerationStructureImpl*>(slot.resource.get());
                 writeAccelerationStructureDescriptor(device, descriptorSet, binding, i, as);
+                if (as)
+                {
+                    writeBufferState(this, as->m_buffer, ResourceState::AccelerationStructureRead);
+                }
             }
             break;
         }

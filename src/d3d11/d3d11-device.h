@@ -18,7 +18,7 @@ public:
     DeviceImpl();
     ~DeviceImpl();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
 
@@ -112,13 +112,12 @@ public:
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;
 #endif
+
+#if SLANG_RHI_ENABLE_AFTERMATH
+    /// Aftermath crash dumper (null if Aftermath is not enabled).
+    AftermathCrashDumper* m_aftermathCrashDumper = nullptr;
+    GFSDK_Aftermath_ContextHandle m_aftermathContext;
+#endif
 };
 
 } // namespace rhi::d3d11
-
-namespace rhi {
-
-IAdapter* getD3D11Adapter(uint32_t index);
-Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

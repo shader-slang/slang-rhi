@@ -50,7 +50,7 @@ public:
 protected:
     FenceDesc m_desc;
     StructHolder m_descHolder;
-    NativeHandle sharedHandle = {};
+    NativeHandle m_sharedHandle = {};
 };
 
 class Resource : public DeviceChild
@@ -59,7 +59,10 @@ public:
     Resource(Device* device)
         : DeviceChild(device)
     {
+        ++testing::gResourceCount;
     }
+
+    virtual ~Resource() { --testing::gResourceCount; }
 };
 
 class Buffer : public IBuffer, public Resource
@@ -75,7 +78,6 @@ public:
 
     // IBuffer interface
     virtual SLANG_NO_THROW BufferDesc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
@@ -83,6 +85,9 @@ public:
         BufferRange range,
         DescriptorHandle* outHandle
     ) override;
+
+    // IResource interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
     BufferDesc m_desc;
@@ -107,6 +112,8 @@ Result calcSubresourceRegionLayout(
     Size rowAlignment,
     SubresourceLayout* outLayout
 );
+
+class Sampler;
 
 class Texture : public ITexture, public Resource
 {
@@ -133,7 +140,6 @@ public:
 
     // ITexture interface
     virtual SLANG_NO_THROW TextureDesc& SLANG_MCALL getDesc() override { return m_desc; };
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createView(
         const TextureViewDesc& desc,
@@ -149,9 +155,13 @@ public:
         return getSubresourceRegionLayout(mip, {0, 0, 0}, Extent3D::kWholeTexture, rowAlignment, outLayout);
     }
 
+    // IResource interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
 public:
     TextureDesc m_desc;
     StructHolder m_descHolder;
+    RefPtr<Sampler> m_sampler;
     NativeHandle m_sharedHandle;
 };
 
@@ -165,16 +175,22 @@ public:
     TextureView(Device* device, const TextureViewDesc& desc);
 
     // ITextureView interface
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
     virtual SLANG_NO_THROW const TextureViewDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result getDescriptorHandle(
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
+        DescriptorHandle* outHandle
+    ) override;
+
+    // IResource interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
 public:
     TextureViewDesc m_desc;
     StructHolder m_descHolder;
+    RefPtr<Sampler> m_sampler;
 };
 
 class Sampler : public ISampler, public Resource
@@ -187,7 +203,7 @@ public:
     Sampler(Device* device, const SamplerDesc& desc);
 
     // ISampler interface
-    virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW const SamplerDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 
     // IResource interface
@@ -208,6 +224,7 @@ public:
     AccelerationStructure(Device* device, const AccelerationStructureDesc& desc);
 
     // IAccelerationStructure interface
+    virtual SLANG_NO_THROW const AccelerationStructureDesc& SLANG_MCALL getDesc() override { return m_desc; }
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 
@@ -240,8 +257,6 @@ public:
     StructHolder m_descHolder;
 };
 
-static const int kRayGenRecordSize = 64; // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
-
 class ShaderTable : public IShaderTable, public DeviceChild
 {
 public:
@@ -252,13 +267,24 @@ public:
     ShaderTable(Device* device, const ShaderTableDesc& desc);
 
 public:
-    std::vector<std::string> m_shaderGroupNames;
-    std::vector<ShaderRecordOverwrite> m_recordOverwrites;
-
     uint32_t m_rayGenShaderCount;
     uint32_t m_missShaderCount;
     uint32_t m_hitGroupCount;
     uint32_t m_callableShaderCount;
+
+    std::vector<std::string> m_rayGenShaderEntryPointNames;
+    std::vector<std::string> m_missShaderEntryPointNames;
+    std::vector<std::string> m_hitGroupNames;
+    std::vector<std::string> m_callableShaderEntryPointNames;
+
+    std::vector<ShaderRecordOverwrite> m_rayGenRecordOverwrites;
+    std::vector<ShaderRecordOverwrite> m_missRecordOverwrites;
+    std::vector<ShaderRecordOverwrite> m_hitGroupRecordOverwrites;
+    std::vector<ShaderRecordOverwrite> m_callableRecordOverwrites;
+    uint32_t m_rayGenRecordOverwriteMaxSize = 0;
+    uint32_t m_missRecordOverwriteMaxSize = 0;
+    uint32_t m_hitGroupRecordOverwriteMaxSize = 0;
+    uint32_t m_callableRecordOverwriteMaxSize = 0;
 };
 
 class Surface : public ISurface, public ComObject

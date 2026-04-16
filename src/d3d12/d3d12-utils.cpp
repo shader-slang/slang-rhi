@@ -324,7 +324,6 @@ D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
     case ResourceState::StreamOutput:
         return D3D12_RESOURCE_STATE_STREAM_OUT;
     case ResourceState::ShaderResource:
-    case ResourceState::AccelerationStructureBuildInput:
         return D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     case ResourceState::UnorderedAccess:
         return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
@@ -346,8 +345,12 @@ D3D12_RESOURCE_STATES translateResourceState(ResourceState state)
         return D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
     case ResourceState::ResolveDestination:
         return D3D12_RESOURCE_STATE_RESOLVE_DEST;
-    case ResourceState::AccelerationStructure:
+    case ResourceState::AccelerationStructureRead:
         return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+    case ResourceState::AccelerationStructureWrite:
+        return D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+    case ResourceState::AccelerationStructureBuildInput:
+        return D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     }
     return D3D12_RESOURCE_STATE_COMMON;
 }

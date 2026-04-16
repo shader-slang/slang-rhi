@@ -72,6 +72,12 @@
             "inherits": "msvc-base",
             "description": "Visual Studio 2022 project",
             "generator": "Visual Studio 17 2022"
+        },
+        {
+            "name": "vs2026",
+            "inherits": "msvc-base",
+            "description": "Visual Studio 2026 project",
+            "generator": "Visual Studio 18 2026"
         }
     ],
     "buildPresets": [

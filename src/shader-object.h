@@ -4,6 +4,7 @@
 
 #include "core/common.h"
 #include "core/short_vector.h"
+#include "core/block-allocator.h"
 
 #include "reference.h"
 
@@ -206,6 +207,8 @@ using ShaderObjectSetBindingHook = void (*)(
 
 class ShaderObject : public IShaderObject, public ComObject
 {
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ShaderObject)
+
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     IShaderObject* getInterface(const Guid& guid);
@@ -256,6 +259,11 @@ public:
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getEntryPointCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getEntryPoint(uint32_t index, IShaderObject** outEntryPoint) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setData(const ShaderOffset& offset, const void* data, Size size) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(
+        const ShaderOffset& offset,
+        Size size,
+        void** outData
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) override;
@@ -322,6 +330,8 @@ protected:
 
 class RootShaderObject : public ShaderObject
 {
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(RootShaderObject)
+
 public:
     RefPtr<ShaderProgram> m_shaderProgram;
 

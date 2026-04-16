@@ -1,5 +1,4 @@
 #include "testing.h"
-#include "core/span.h"
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -96,7 +95,7 @@ struct CombinedTextureSamplerTest
         REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, resultBuffer.writeRef()));
     }
 
-    void check(ISampler* sampler, span<TestRecord> testRecords)
+    void check(ISampler* sampler, std::span<TestRecord> testRecords)
     {
         REQUIRE(testRecords.size() <= kMaxRecords);
         std::vector<TestInput> inputData;
@@ -139,7 +138,11 @@ struct CombinedTextureSamplerTest
     }
 };
 
-static void testCombinedTextureSampler(IDevice* device, const SamplerDesc& samplerDesc, span<TestRecord> testRecords)
+static void testCombinedTextureSampler(
+    IDevice* device,
+    const SamplerDesc& samplerDesc,
+    std::span<TestRecord> testRecords
+)
 {
     ComPtr<ISampler> sampler;
     REQUIRE_CALL(device->createSampler(samplerDesc, sampler.writeRef()));

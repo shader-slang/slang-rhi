@@ -8,7 +8,11 @@
 #elif SLANG_APPLE_FAMILY
 #define VK_USE_PLATFORM_METAL_EXT 1
 #elif SLANG_LINUX_FAMILY
+#if SLANG_ANDROID
+#define VK_USE_PLATFORM_ANDROID_KHR 1
+#else
 #define VK_USE_PLATFORM_XLIB_KHR 1
+#endif
 #endif
 
 #define VK_NO_PROTOTYPES
@@ -59,6 +63,9 @@ protected:
     x(vkGetPhysicalDeviceProperties2) \
     x(vkCreateDebugUtilsMessengerEXT) \
     x(vkDestroyDebugUtilsMessengerEXT) \
+    x(vkGetPhysicalDeviceCooperativeMatrixPropertiesNV) \
+    x(vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV) \
+    x(vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR) \
     x(vkGetPhysicalDeviceCooperativeVectorPropertiesNV) \
     /* */
 
@@ -88,6 +95,7 @@ protected:
     x(vkMapMemory) \
     x(vkUnmapMemory) \
     x(vkCmdCopyBuffer) \
+    x(vkCmdUpdateBuffer) \
     x(vkDestroyBuffer) \
     x(vkFreeMemory) \
     x(vkCreateDescriptorSetLayout) \
@@ -192,9 +200,15 @@ protected:
     x(vkCreateMetalSurfaceEXT) \
     /* */
 #elif SLANG_LINUX_FAMILY
-#   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
-    x(vkCreateXlibSurfaceKHR) \
-    /* */
+    #if SLANG_ANDROID
+        #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
+            x(vkCreateAndroidSurfaceKHR) \
+            /* */
+    #else
+        #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
+            x(vkCreateXlibSurfaceKHR) \
+            /* */
+    #endif
 #else
 #   define VK_API_INSTANCE_PLATFORM_KHR_PROCS(x)          \
     /* */
@@ -249,6 +263,7 @@ protected:
     x(vkCreateAccelerationStructureKHR) \
     x(vkDestroyAccelerationStructureKHR) \
     x(vkGetAccelerationStructureBuildSizesKHR) \
+    x(vkGetAccelerationStructureDeviceAddressKHR) \
     x(vkCmdBuildClusterAccelerationStructureIndirectNV) \
     x(vkGetClusterAccelerationStructureBuildSizesNV) \
     x(vkGetSemaphoreCounterValue) \
@@ -271,6 +286,7 @@ protected:
     x(vkGetPipelineBinaryDataKHR) \
     x(vkGetPipelineKeyKHR) \
     x(vkReleaseCapturedPipelineDataKHR) \
+    x(vkCmdSetCheckpointNV) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
@@ -447,6 +463,11 @@ struct VulkanExtendedFeatures
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV
     };
 
+    // Float8 features.
+    VkPhysicalDeviceShaderFloat8FeaturesEXT shaderFloat8Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT
+    };
+
     // Linear swept spheres features.
     VkPhysicalDeviceRayTracingLinearSweptSpheresFeaturesNV rayTracingLinearSweptSpheresFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_LINEAR_SWEPT_SPHERES_FEATURES_NV
@@ -505,6 +526,16 @@ struct VulkanExtendedFeatures
     // Shader demote to helper invocation features
     VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT shaderDemoteToHelperInvocationFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT
+    };
+
+    // Shader bfloat16 features
+    VkPhysicalDeviceShaderBfloat16FeaturesKHR shaderBfloat16Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR
+    };
+
+    // Cooperative Matrix 2 features
+    VkPhysicalDeviceCooperativeMatrix2FeaturesNV cooperativeMatrix2Features = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
     };
 };
 

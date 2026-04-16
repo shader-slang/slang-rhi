@@ -13,18 +13,26 @@ public:
     TextureImpl(Device* device, const TextureDesc& desc);
     ~TextureImpl();
 
-    // Texture is either stored in CUDA array or mip mapped array.
-    CUarray m_cudaArray = 0;
-    CUmipmappedArray m_cudaMipMappedArray = 0;
+    virtual void deleteThis() override;
 
-    void* m_cudaExternalMemory = nullptr;
-
-    CUDA_RESOURCE_VIEW_DESC m_baseResourceViewDesc = {};
-
+    // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+
+    // ITexture implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getDefaultView(ITextureView** outTextureView) override;
 
 public:
+    CUtexObject getTexObject(Format format, const SamplerSettings& samplerSettings, const SubresourceRange& range);
+    CUsurfObject getSurfObject(const SubresourceRange& range);
+
+    // Texture is either stored in CUDA array or mip mapped array.
+    CUarray m_cudaArray = 0;
+    CUmipmappedArray m_cudaMipMappedArray = 0;
+    void* m_cudaExternalMemory = nullptr;
+    CUDA_RESOURCE_VIEW_DESC m_baseResourceViewDesc = {};
+    SamplerSettings m_defaultSamplerSettings;
+    RefPtr<TextureViewImpl> m_defaultView;
+
     struct ViewKey
     {
         Format format;
@@ -76,14 +84,8 @@ public:
         }
     };
 
-    SamplerSettings m_defaultSamplerSettings;
-    RefPtr<TextureViewImpl> m_defaultView;
-    std::mutex m_mutex;
     std::unordered_map<ViewKey, CUtexObject, ViewKeyHasher> m_texObjects;
     std::unordered_map<SubresourceRange, CUsurfObject, SubresourceRangeHasher> m_surfObjects;
-
-    CUtexObject getTexObject(Format format, const SamplerSettings& samplerSettings, const SubresourceRange& range);
-    CUsurfObject getSurfObject(const SubresourceRange& range);
 };
 
 class TextureViewImpl : public TextureView
@@ -91,6 +93,7 @@ class TextureViewImpl : public TextureView
 public:
     TextureViewImpl(Device* device, const TextureViewDesc& desc);
 
+    // RefObject implementation
     virtual void makeExternal() override { m_texture.establishStrongReference(); }
     virtual void makeInternal() override { m_texture.breakStrongReference(); }
 
@@ -100,12 +103,15 @@ public:
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
+        DescriptorHandle* outHandle
+    ) override;
 
+public:
     CUtexObject getTexObject()
     {
         if (!m_cudaTexObj)
-            m_cudaTexObj =
-                m_texture->getTexObject(m_desc.format, m_texture->m_defaultSamplerSettings, m_desc.subresourceRange);
+            m_cudaTexObj = m_texture->getTexObject(m_desc.format, m_samplerSettings, m_desc.subresourceRange);
         return m_cudaTexObj;
     }
 
@@ -122,6 +128,7 @@ public:
     }
 
     BreakableReference<TextureImpl> m_texture;
+    SamplerSettings m_samplerSettings;
     CUtexObject m_cudaTexObj = 0;
     CUsurfObject m_cudaSurfObj = 0;
 };

@@ -59,6 +59,7 @@ typedef size_t Offset;
 
 const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 
+
 enum class StructType
 {
     ShaderProgramDesc,
@@ -76,6 +77,9 @@ enum class StructType
     QueryPoolDesc,
     DeviceDesc,
     HeapDesc,
+
+    CommandEncoderDesc,
+    CommandBufferDesc,
 
     D3D12DeviceExtendedDesc,
     D3D12ExperimentalFeaturesDesc,
@@ -129,6 +133,7 @@ enum class DeviceType
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \
     x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
+    x(CooperativeMatrix2,                       "cooperative-matrix-2"                          ) \
     x(SM_5_1,                                   "sm_5_1"                                        ) \
     x(SM_6_0,                                   "sm_6_0"                                        ) \
     x(SM_6_1,                                   "sm_6_1"                                        ) \
@@ -150,6 +155,8 @@ enum class DeviceType
     x(WaveOps,                                  "wave-ops"                                      ) \
     x(MeshShader,                               "mesh-shader"                                   ) \
     x(Pointer,                                  "has-ptr"                                       ) \
+    x(Float8,                                   "fp8"                                           ) \
+    x(Bfloat16,                                 "bfloat16"                                      ) \
     /* D3D12 specific features */                                                                 \
     x(ConservativeRasterization1,               "conservative-rasterization-1"                  ) \
     x(ConservativeRasterization2,               "conservative-rasterization-2"                  ) \
@@ -159,7 +166,9 @@ enum class DeviceType
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     /* Metal specific features */                                                                 \
-    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        )
+    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
+    /* CUDA specific features */                                                                  \
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
@@ -392,6 +401,14 @@ enum class Format
     BC7Unorm,
     BC7UnormSrgb,
 
+    // ASTC compressed formats
+    ASTC4x4Unorm,
+    ASTC4x4UnormSrgb,
+    ASTC6x6Unorm,
+    ASTC6x6UnormSrgb,
+    ASTC8x8Unorm,
+    ASTC8x8UnormSrgb,
+
     _Count,
 };
 
@@ -511,7 +528,8 @@ enum class ResourceState
     CopyDestination,
     ResolveSource,
     ResolveDestination,
-    AccelerationStructure,
+    AccelerationStructureRead,
+    AccelerationStructureWrite,
     AccelerationStructureBuildInput,
 };
 
@@ -607,6 +625,7 @@ enum class DescriptorHandleType
     Texture,
     RWTexture,
     Sampler,
+    CombinedTextureSampler,
     AccelerationStructure,
 };
 
@@ -973,6 +992,8 @@ struct SubresourceLayout
     Size rowCount;
 };
 
+class ISampler;
+
 static const uint32_t kAllLayers = 0xffffffff;
 static const uint32_t kAllMips = 0xffffffff;
 static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
@@ -1007,6 +1028,14 @@ struct TextureDesc
 
     const ClearValue* optimalClearValue = nullptr;
 
+    /// Default sampler to use for the texture.
+    /// This specifies the sampler for combined texture/sampler descriptor handles
+    /// when calling getCombinedTextureSamplerDescriptorHandle().
+    /// On CUDA, texture objects are always combined texture/sampler objects,
+    /// so this sampler is used for all texture access.
+    /// If not specified, tri-linear filtering and wrap addressing mode will be used.
+    ISampler* sampler = nullptr;
+
     /// The name of the texture for debugging purposes.
     const char* label = nullptr;
 
@@ -1026,6 +1055,15 @@ struct TextureViewDesc
     Format format = Format::Undefined;
     TextureAspect aspect = TextureAspect::All;
     SubresourceRange subresourceRange = kEntireTexture;
+
+    /// Sampler to use for the texture view.
+    /// This specifies the sampler for combined texture/sampler descriptor handles
+    /// when calling getCombinedTextureSamplerDescriptorHandle().
+    /// On CUDA, texture objects are always combined texture/sampler objects,
+    /// so this sampler is used for all texture access.
+    /// If not specified, the default sampler from the texture will be used.
+    ISampler* sampler = nullptr;
+
     const char* label = nullptr;
 };
 
@@ -1083,6 +1121,9 @@ public:
     virtual SLANG_NO_THROW ITexture* SLANG_MCALL getTexture() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
+        DescriptorHandle* outHandle
+    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
         DescriptorHandle* outHandle
     ) = 0;
 };
@@ -1405,11 +1446,19 @@ struct AccelerationStructureMotionCreateInfo
     uint32_t maxInstances = 0;
 };
 
+enum class AccelerationStructureKind
+{
+    Unknown,
+    BottomLevel,
+    TopLevel,
+};
+
 struct AccelerationStructureDesc
 {
     StructType structType = StructType::AccelerationStructureDesc;
     const void* next = nullptr;
 
+    AccelerationStructureKind kind = AccelerationStructureKind::Unknown;
     uint64_t size;
     AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
 
@@ -1423,6 +1472,7 @@ class IAccelerationStructure : public IResource
     SLANG_COM_INTERFACE(0x38b056d5, 0x63de, 0x49ca, {0xa0, 0xed, 0x62, 0xa1, 0xbe, 0xc3, 0xd4, 0x65});
 
 public:
+    virtual SLANG_NO_THROW const AccelerationStructureDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
@@ -1699,6 +1749,11 @@ public:
         const ShaderOffset& offset,
         const DescriptorHandle& handle
     ) = 0;
+
+    /// Reserves a block of memory within the shader object's internal data buffer at the specified offset.
+    /// WARNING: This function bypasses the immutability of a ShaderObject. To use safely, ensure that the address
+    /// returned is immediately populated, not retained. Prefer using setData unless absolutely necessary.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(const ShaderOffset& offset, Size size, void** outData) = 0;
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
@@ -2067,6 +2122,7 @@ enum class WindowHandleType
     HWND,
     NSWindow,
     XlibWindow,
+    AndroidWindow,
 };
 
 struct WindowHandle
@@ -2094,6 +2150,13 @@ struct WindowHandle
         handle.type = WindowHandleType::XlibWindow;
         handle.handleValues[0] = (uint64_t)(xdisplay);
         handle.handleValues[1] = xwindow;
+        return handle;
+    }
+    static WindowHandle fromAndroidWindow(void* window)
+    {
+        WindowHandle handle = {};
+        handle.type = WindowHandleType::AndroidWindow;
+        handle.handleValues[0] = (uint64_t)(window);
         return handle;
     }
 };
@@ -2165,7 +2228,7 @@ class IQueryPool : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* data) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
 };
 
@@ -2222,6 +2285,39 @@ union DeviceOrHostAddressConst
 {
     DeviceAddress deviceAddress;
     const void* hostAddress;
+};
+
+enum class CooperativeMatrixComponentType
+{
+    Float16 = 0,
+    Float32 = 1,
+    Bfloat16 = 2,
+    FloatE4M3 = 3,
+    FloatE5M2 = 4,
+    Int8 = 5,
+    Uint8 = 6,
+    Int16 = 7,
+    Uint16 = 8,
+    Int32 = 9,
+    Uint32 = 10,
+};
+
+enum class CooperativeMatrixScope
+{
+    Subgroup = 0,
+    Workgroup = 1,
+};
+
+struct CooperativeMatrixDesc
+{
+    uint32_t m = 0;
+    uint32_t n = 0;
+    uint32_t k = 0;
+    CooperativeMatrixComponentType aType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType bType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType cType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixComponentType resultType = CooperativeMatrixComponentType::Float16;
+    CooperativeMatrixScope scope = CooperativeMatrixScope::Subgroup;
 };
 
 enum class CooperativeVectorComponentType
@@ -2286,11 +2382,22 @@ struct MarkerColor
     float b;
 };
 
+struct CommandBufferDesc
+{
+    StructType structType = StructType::CommandBufferDesc;
+    const void* next = nullptr;
+
+    /// The name of the command buffer for debugging purposes.
+    const char* label = nullptr;
+};
+
 class ICommandBuffer : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x58e5d83f, 0xad31, 0x44ea, {0xa4, 0xd1, 0x5e, 0x65, 0x9c, 0xd9, 0xa7, 0x57});
 
 public:
+    virtual SLANG_NO_THROW const CommandBufferDesc& SLANG_MCALL getDesc() = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
@@ -2367,11 +2474,22 @@ public:
     ) = 0;
 };
 
+struct CommandEncoderDesc
+{
+    StructType structType = StructType::CommandEncoderDesc;
+    const void* next = nullptr;
+
+    /// The name of the command encoder for debugging purposes.
+    const char* label = nullptr;
+};
+
 class ICommandEncoder : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
 
 public:
+    virtual SLANG_NO_THROW const CommandEncoderDesc& SLANG_MCALL getDesc() = 0;
+
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) = 0;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() = 0;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() = 0;
@@ -2542,7 +2660,19 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL finish(ICommandBuffer** outCommandBuffer) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL finish(
+        const CommandBufferDesc& desc,
+        ICommandBuffer** outCommandBuffer
+    ) = 0;
+
+    inline Result finish(ICommandBuffer** outCommandBuffer) { return finish(CommandBufferDesc{}, outCommandBuffer); }
+
+    inline ComPtr<ICommandBuffer> finish(const CommandBufferDesc& desc)
+    {
+        ComPtr<ICommandBuffer> commandBuffer;
+        SLANG_RETURN_NULL_ON_FAIL(finish(desc, commandBuffer.writeRef()));
+        return commandBuffer;
+    }
 
     inline ComPtr<ICommandBuffer> finish()
     {
@@ -2598,7 +2728,22 @@ class ICommandQueue : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() = 0;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(ICommandEncoder** outEncoder) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createCommandEncoder(
+        const CommandEncoderDesc& desc,
+        ICommandEncoder** outEncoder
+    ) = 0;
+
+    inline Result createCommandEncoder(ICommandEncoder** outEncoder)
+    {
+        return createCommandEncoder(CommandEncoderDesc{}, outEncoder);
+    }
+
+    inline ComPtr<ICommandEncoder> createCommandEncoder(const CommandEncoderDesc& desc)
+    {
+        ComPtr<ICommandEncoder> encoder;
+        SLANG_RETURN_NULL_ON_FAIL(createCommandEncoder(desc, encoder.writeRef()));
+        return encoder;
+    }
 
     inline ComPtr<ICommandEncoder> createCommandEncoder()
     {
@@ -2702,6 +2847,15 @@ enum class HeapUsage
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(HeapUsage);
 
+/// Configuration for heap caching allocator.
+/// When enabled, freed pages are cached for reuse instead of being returned to the GPU.
+/// This reduces allocation overhead and improves performance for repeated allocations.
+struct HeapCachingConfig
+{
+    /// Enable caching allocator (default: true)
+    bool enabled = true;
+};
+
 struct HeapDesc
 {
     StructType structType = StructType::HeapDesc;
@@ -2714,12 +2868,21 @@ struct HeapDesc
 
     /// The label for the heap.
     const char* label = nullptr;
+
+    /// Caching allocator configuration
+    HeapCachingConfig caching;
 };
 
 struct HeapAllocDesc
 {
     Size size = 0;
     Size alignment = 0;
+
+    /// Stream context for multi-stream tracking (backend-specific handle).
+    /// Set to the encoding stream when allocating during command encoding.
+    /// Set to kInvalidCUDAStream (default) when allocating outside encoding context.
+    /// Note: nullptr is valid (represents default stream in CUDA), use kInvalidCUDAStream for "no context".
+    void* stream = kInvalidCUDAStream;
 };
 
 struct HeapReport
@@ -2944,6 +3107,8 @@ struct BindlessDesc
     uint32_t textureCount = 1024;
     // Maximum number of bindless samplers.
     uint32_t samplerCount = 128;
+    // Maximum number of bindless combined texture samplers.
+    uint32_t combinedTextureSamplerCount = 1024;
     // Maximum number of bindless acceleration structures.
     uint32_t accelerationStructureCount = 128;
 };
@@ -2952,6 +3117,21 @@ struct DeviceNativeHandles
 {
     NativeHandle handles[3] = {};
 };
+
+enum class AftermathFlags
+{
+    None = 0,
+    Minimum = (1 << 0),
+    EnableMarkers = (1 << 1),
+    EnableResourceTracking = (1 << 2),
+    CallStackCapturing = (1 << 3),
+    GenerateShaderDebugInfo = (1 << 4),
+    EnableShaderErrorReporting = (1 << 5),
+
+    Default = EnableMarkers | EnableResourceTracking | CallStackCapturing | GenerateShaderDebugInfo |
+              EnableShaderErrorReporting,
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(AftermathFlags);
 
 struct DeviceDesc
 {
@@ -2991,12 +3171,17 @@ struct DeviceDesc
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t requiredOptixVersion = 0;
 
-    /// Enable RHI validation layer.
+    /// Enable validation for the Slang-RHI API.
+    /// This does not enable downstream API debug layers (D3D12/Vulkan validation layers).
     bool enableValidation = false;
-    /// Enable backend API raytracing validation layer (D3D12, Vulkan and CUDA).
+    /// Enable downstream API raytracing validation (CUDA | D3D12 | Vulkan).
     bool enableRayTracingValidation = false;
-    /// Enable NVIDIA Aftermath (D3D11, D3D12, Vulkan).
+    /// Enable NVIDIA Aftermath (D3D11 | D3D12 | Vulkan).
     bool enableAftermath = false;
+
+    /// Requires `this->enableAftermath == true`.
+    /// Aftermath configuration.
+    AftermathFlags aftermathFlags = AftermathFlags::Default;
     /// Debug callback. If not null, this will be called for each debug message.
     IDebugCallback* debugCallback = nullptr;
 
@@ -3403,6 +3588,13 @@ public:
         return getTextureRowAlignment(Format::Undefined, outAlignment);
     };
 
+    /// Returns true if the cooperative matrix configuration is supported by the device.
+    /// Implementations should return SLANG_OK and set *outSupported = false if unsupported.
+    virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
+        const CooperativeMatrixDesc& desc,
+        bool* outSupported
+    ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
         CooperativeVectorProperties* properties,
         uint32_t* propertiesCount
@@ -3438,52 +3630,166 @@ public:
     /// @param heapCount [in/out] On input: size of heapReports buffer (ignored if heapReports is null). On output:
     /// number of heaps available or written
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) = 0;
+
+    /// Set the device's CUDA context as current on this thread.
+    /// For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() = 0;
+
+    /// Push the device's CUDA context onto the current thread's context stack.
+    /// Must be paired with popCudaContext(). For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() = 0;
+
+    /// Pop the CUDA context from the current thread's context stack.
+    /// For non-CUDA devices, this is a no-op.
+    virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() = 0;
 };
 
+/// RAII helper that pushes a device's CUDA context on construction and pops it on destruction.
+/// For non-CUDA devices, this is a no-op.
+/// Usage: SLANG_DEVICE_SCOPE(device);
+class DeviceScope
+{
+public:
+    DeviceScope(IDevice* device)
+        : m_device(device)
+    {
+        m_device->pushCudaContext();
+    }
+    ~DeviceScope() { m_device->popCudaContext(); }
+
+    DeviceScope(const DeviceScope&) = delete;
+    DeviceScope& operator=(const DeviceScope&) = delete;
+
+private:
+    IDevice* m_device;
+};
+
+#define SLANG_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
+
+/// \brief Interface for a task pool that supports dependency-based scheduling.
+///
+/// Tasks are submitted with `submitTask()`, which returns an opaque `TaskHandle`.
+/// Each task executes a user-provided function with an associated payload.
+/// Tasks may declare dependencies on other tasks, forming a directed acyclic graph (DAG).
+/// A task will not execute until all of its dependencies have completed.
+///
+/// **Ownership model:**
+/// `submitTask()` returns a `TaskHandle` that the caller owns. The caller must eventually
+/// call `releaseTask()` to release this handle. The task pool also holds an internal
+/// reference while the task is pending or executing, so the task remains alive until
+/// both the pool and the caller have released their references.
+///
+/// **Payload lifetime:**
+/// If a `payloadDeleter` is provided, it is called when the last reference to the task
+/// is released (i.e. after both the pool and the caller have released). The payload
+/// remains valid and accessible via `getTaskPayload()` until that point.
+///
+/// **Dependency rules:**
+/// - Dependencies must not form cycles, doing so might result in a deadlock.
+/// - A dependency task handle must still be valid (not yet released) when passed to `submitTask()`.
+/// - Once a task is submitted, its dependencies may be released immediately by the caller.
+///
 class ITaskPool : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0xab272cee, 0xa546, 0x4ae6, {0xbd, 0x0d, 0xcd, 0xab, 0xa9, 0x3f, 0x6d, 0xa6});
 
 public:
     typedef void* TaskHandle;
+    typedef void* TaskGroupHandle;
 
-    /// \brief Submit a new task.
-    /// The returned task must be released with `releaseTask()` when no longer needed
-    /// for specifying dependencies or issuing `waitTask()`.
-    /// \param func Function to execute.
-    /// \param payload Payload to pass to the function.
-    /// \param payloadDeleter Optional payload deleter (called when task is destroyed).
-    /// \param deps Parent tasks to wait for.
-    /// \param depsCount Number of parent tasks.
-    /// \return The new task.
+    /// \brief Submit a new task for execution.
+    ///
+    /// Submits a task that will call `func(payload)` once all dependencies in `deps` have
+    /// completed. The returned `TaskHandle` must eventually be released with `releaseTask()`.
+    ///
+    /// If `depsCount` is 0, the task is immediately eligible for execution.
+    /// If any dependency is already complete at the time of submission, it is handled correctly.
+    ///
+    /// \param func Function to execute. Must not be null.
+    /// \param payload Opaque data passed to `func`. May be null.
+    /// \param payloadDeleter Optional deleter called with `payload` when the task is destroyed. May be null if no cleanup is needed.
+    /// \param deps Array of `TaskHandle`s that must complete before this task runs. May be null if `depsCount` is 0.
+    /// \param depsCount Number of entries in `deps`.
+    /// \param group Optional task group handle. If non-null, the task is associated with the group.
+    /// \return A handle to the submitted task. The caller must release this with `releaseTask()`.
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
         void (*func)(void*),
         void* payload,
         void (*payloadDeleter)(void*),
         TaskHandle* deps,
-        size_t depsCount
+        size_t depsCount,
+        TaskGroupHandle group = nullptr
     ) = 0;
 
-    /// \brief Get the task payload data.
-    /// \param task Task to get the payload for.
-    /// \return The payload.
+    /// \brief Get the payload associated with a task.
+    ///
+    /// Returns the `payload` pointer that was passed to `submitTask()`. The payload remains
+    /// valid until the task is fully released (i.e. after the caller calls `releaseTask()`
+    /// and the pool has finished executing the task).
+    ///
+    /// \param task Task handle. Must not be null.
+    /// \return The payload pointer.
     virtual SLANG_NO_THROW void* SLANG_MCALL getTaskPayload(TaskHandle task) = 0;
 
-    /// \brief Release a task.
-    /// \param task Task to release.
+    /// \brief Release the caller's reference to a task.
+    ///
+    /// Releases the caller's ownership of the task handle. If this is the last reference
+    /// (i.e. the task has already completed and the pool has released its internal reference),
+    /// the task is destroyed.
+    ///
+    /// A task may be released before it has finished executing, the pool's internal reference
+    /// keeps it alive until completion.
+    ///
+    /// \param task Task handle to release. Must not be null. Must not be used after this call.
     virtual SLANG_NO_THROW void SLANG_MCALL releaseTask(TaskHandle task) = 0;
 
-    /// \brief Wait for a task to finish.
-    /// \param task Task to wait for.
+    /// \brief Block the calling thread until a task has finished executing.
+    ///
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// This makes it safe to call from a task callback without deadlock risk.
+    ///
+    /// \param task Task handle to wait on. Must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) = 0;
 
-    /// \brief Check if a task is done.
-    /// \param task Task to check.
-    /// \return True if the task is done.
+    /// \brief Check whether a task has finished executing (non-blocking).
+    ///
+    /// \param task Task handle to check. Must not be null.
+    /// \return True if the task has completed, false if it is still pending or executing.
     virtual SLANG_NO_THROW bool SLANG_MCALL isTaskDone(TaskHandle task) = 0;
 
-    /// \brief Wait for all tasks in the pool to finish.
+    /// \brief Block the calling thread until all submitted tasks have finished.
+    ///
+    /// Waits for every task that has been submitted to this pool (and not yet completed)
+    /// to finish executing. Does not release any task handles.
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
     virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
+
+    /// \brief Create a new task group for tracking a set of tasks.
+    ///
+    /// A task group tracks a dynamically growing set of tasks. Tasks are associated with a
+    /// group by passing the group handle to `submitTask()`.
+    ///
+    /// \return An opaque handle to the task group.
+    virtual SLANG_NO_THROW TaskGroupHandle SLANG_MCALL createTaskGroup() = 0;
+
+    /// \brief Block the calling thread until all tasks in the group have completed.
+    ///
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// This makes it safe to call from a task callback without deadlock risk.
+    /// Must not be called while other threads are still submitting tasks to the group
+    /// outside of task callbacks.
+    /// A group must not be reused after `waitTaskGroup` returns.
+    ///
+    /// \param group Task group handle. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitTaskGroup(TaskGroupHandle group) = 0;
+
+    /// \brief Release a task group.
+    ///
+    /// Must be called exactly once after `waitTaskGroup` returns. Calling with tasks
+    /// still pending is undefined behavior.
+    ///
+    /// \param group Task group handle. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL releaseTaskGroup(TaskGroupHandle group) = 0;
 };
 
 class IPersistentCache : public ISlangUnknown
@@ -3495,9 +3801,50 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
 };
 
+/// Options for downstream API debug layers.
+struct DebugLayerOptions
+{
+    /// Require debug layers to be enabled.
+    /// If true, device creation fails if requested debug layers cannot be enabled.
+    /// If false, device creation warns if requested debug layers cannot be enabled, but succeeds anyway.
+    bool required = false;
+
+    /// Enable core debug layers (D3D11 | D3D12 | Vulkan).
+    bool coreValidation = false;
+
+    /// Enable GPU assisted/based debug layer (D3D12 | Vulkan).
+    bool GPUAssistedValidation = false;
+
+    bool operator==(const DebugLayerOptions& other) const
+    {
+        return coreValidation == other.coreValidation && GPUAssistedValidation == other.GPUAssistedValidation &&
+               required == other.required;
+    }
+
+    bool operator!=(const DebugLayerOptions& other) const { return !(*this == other); }
+
+    bool isDebugLayersEnabled() const { return coreValidation == true || GPUAssistedValidation == true; }
+};
+
 class IRHI
 {
 public:
+    /// Check is downstream debug layer is enabled
+    inline bool isDebugLayersEnabled() { return getDebugLayerOptions().isDebugLayersEnabled(); }
+
+    /// Deprecated. Enable core-validation debug layers, if available.
+    /// This function may or may-not actually enable debug layers
+    /// when called. Even if layers are enabled, it may do so in
+    /// an incorrect way. It is highly advised to not use this function.
+    virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
+
+    /// Change downstream debug layer options.
+    /// Fails if any devices are currently alive.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setDebugLayerOptions(DebugLayerOptions options) = 0;
+
+    /// Get current downstream debug layer options.
+    virtual SLANG_NO_THROW DebugLayerOptions SLANG_MCALL getDebugLayerOptions() = 0;
+
     virtual SLANG_NO_THROW const FormatInfo& SLANG_MCALL getFormatInfo(Format format) = 0;
 
     virtual SLANG_NO_THROW const char* SLANG_MCALL getDeviceTypeName(DeviceType type) = 0;
@@ -3518,10 +3865,6 @@ public:
         SLANG_RETURN_NULL_ON_FAIL(getAdapters(type, blob.writeRef()));
         return AdapterList(blob);
     }
-
-    /// Enable debug layers, if available
-    /// If this is called, it must be called before creating any devices
-    virtual SLANG_NO_THROW void SLANG_MCALL enableDebugLayers() = 0;
 
     /// Creates a device.
     virtual SLANG_NO_THROW Result SLANG_MCALL createDevice(const DeviceDesc& desc, IDevice** outDevice) = 0;
@@ -3548,8 +3891,16 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL reportLiveObjects() = 0;
 
     /// Set the global task pool for the RHI.
-    /// Must be called before any devices are created.
+    /// Fails if any devices are currently alive.
     virtual SLANG_NO_THROW Result SLANG_MCALL setTaskPool(ITaskPool* taskPool) = 0;
+
+    /// Initialize the global task pool with the specified number of worker threads.
+    /// A value of -1 (default) creates a `ThreadedTaskPool` with `std::thread::hardware_concurrency()` worker threads.
+    /// A value of 0 creates a `BlockingTaskPool` (tasks execute synchronously in the calling thread).
+    /// A positive value creates a `ThreadedTaskPool` with that many worker threads.
+    /// If not called before first use, a `ThreadedTaskPool` with `std::thread::hardware_concurrency()` threads is
+    /// created by default. Fails if any devices are currently alive.
+    virtual SLANG_NO_THROW Result SLANG_MCALL initTaskPool(int workerCount = -1) = 0;
 };
 
 // Extended descs.
@@ -3587,6 +3938,11 @@ struct VulkanDeviceExtendedDesc
 /// Get the global interface to the RHI.
 extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance();
 
+/// Destroy the global RHI instance and release all owned resources.
+/// Fails if any devices are currently alive.
+/// After calling this, rhiGetInstance() will create a new instance on next call.
+extern "C" SLANG_RHI_API SlangResult SLANG_STDCALL rhiDestroyInstance();
+
 // Global public functions
 
 namespace rhi {
@@ -3595,6 +3951,14 @@ namespace rhi {
 inline IRHI* getRHI()
 {
     return ::rhiGetInstance();
+}
+
+/// Destroy the global RHI instance and release all owned resources.
+/// Fails if any devices are currently alive.
+/// After calling this, getRHI() will create a new instance on next call.
+inline Result destroyRHI()
+{
+    return rhiDestroyInstance();
 }
 
 inline const FormatInfo& getFormatInfo(Format format)

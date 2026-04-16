@@ -215,7 +215,7 @@ struct TexelData
     uint8_t raw[16];
 };
 
-static void clearTexelDataValues(span<TexelData> texels)
+static void clearTexelDataValues(std::span<TexelData> texels)
 {
     for (TexelData& texel : texels)
     {
@@ -224,7 +224,7 @@ static void clearTexelDataValues(span<TexelData> texels)
     }
 }
 
-static void compareTexelData(Format format, span<TexelData> a, span<TexelData> b)
+static void compareTexelData(Format format, std::span<TexelData> a, std::span<TexelData> b)
 {
     REQUIRE(a.size() == b.size());
     const FormatInfo& info = getFormatInfo(format);
@@ -348,7 +348,7 @@ public:
         m_tmpData = std::make_unique<uint8_t[]>(m_tmpDataSize);
     }
 
-    void writeTexelsRawHost(ITextureView* textureView, span<TexelData> texels)
+    void writeTexelsRawHost(ITextureView* textureView, std::span<TexelData> texels)
     {
         ITexture* texture = textureView->getTexture();
         uint32_t baseLayer = textureView->getDesc().subresourceRange.layer;
@@ -369,7 +369,7 @@ public:
         m_queue->submit(commandEncoder->finish());
     }
 
-    void writeTexelsHost(ITextureView* textureView, span<TexelData> texels)
+    void writeTexelsHost(ITextureView* textureView, std::span<TexelData> texels)
     {
         // Pack texels to raw data
         Format format = textureView->getTexture()->getDesc().format;
@@ -394,7 +394,7 @@ public:
         writeTexelsRawHost(textureView, texels);
     }
 
-    void readTexelsRawHost(ITextureView* textureView, span<TexelData> texels)
+    void readTexelsRawHost(ITextureView* textureView, std::span<TexelData> texels)
     {
         REQUIRE(texels.size_bytes() < m_buffer->getDesc().size);
         ITexture* texture = textureView->getTexture();
@@ -431,7 +431,7 @@ public:
         }
     }
 
-    void readTexelsHost(ITextureView* textureView, span<TexelData> texels)
+    void readTexelsHost(ITextureView* textureView, std::span<TexelData> texels)
     {
         // Unpack raw data to texels
         Format format = textureView->getTexture()->getDesc().format;
@@ -577,7 +577,7 @@ struct TexelData {
         return pipeline;
     }
 
-    void writeTexelsDevice(ITextureView* textureView, span<TexelData> texels, WriteMethod writeMethod)
+    void writeTexelsDevice(ITextureView* textureView, std::span<TexelData> texels, WriteMethod writeMethod)
     {
         REQUIRE(texels.size_bytes() < m_buffer->getDesc().size);
         const TextureDesc& textureDesc = textureView->getTexture()->getDesc();
@@ -758,7 +758,7 @@ struct TexelData {
     void readTexelsDevice(
         TextureViewType textureViewType,
         ITextureView* textureView,
-        span<TexelData> texels,
+        std::span<TexelData> texels,
         ReadMethod readMethod
     )
     {

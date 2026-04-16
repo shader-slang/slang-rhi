@@ -6,6 +6,7 @@
 #include <vector>
 #include <initializer_list>
 #include <mutex>
+#include <span>
 
 #include <cstring>
 #include <cstdint>
@@ -14,7 +15,6 @@
 #include "com-object.h"
 #include "platform.h"
 #include "smart-pointer.h"
-#include "span.h"
 #include "string.h"
 #include "struct-holder.h"
 
@@ -118,6 +118,13 @@ inline size_t divideRoundedUp(size_t numerator, size_t denominator)
 inline size_t calcAligned(size_t size, size_t alignment)
 {
     return divideRoundedUp(size, alignment) * alignment;
+}
+
+/// Calculate aligned-down size taking into account alignment.
+inline size_t calcAlignedDown(size_t size, size_t alignment)
+{
+    SLANG_RHI_ASSERT(alignment != 0);
+    return (size / alignment) * alignment;
 }
 
 /// More optimal calculate size taking into account alignment that only supports power of 2.

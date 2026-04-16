@@ -11,6 +11,7 @@ namespace rhi {
 
 namespace testing {
 bool gDebugDisableStateTracking = false;
+std::atomic<uint64_t> gResourceCount{0};
 } // namespace testing
 
 // ----------------------------------------------------------------------------
@@ -504,7 +505,7 @@ std::vector<Capability> Device::getCapabilities()
 
 Result Device::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
-    return SLANG_OK;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result Device::getFeatures(uint32_t* outFeatureCount, Feature* outFeatures)
@@ -551,15 +552,15 @@ bool Device::hasFeature(Feature feature)
 bool Device::hasFeature(const char* feature)
 {
 #define SLANG_RHI_FEATURES_X(id, name) {name, Feature::id},
-    static const std::unordered_map<std::string_view, Feature> kFeatureNameMap = {
+    static constexpr std::pair<std::string_view, Feature> kFeatureNameMap[] = {
         SLANG_RHI_FEATURES(SLANG_RHI_FEATURES_X)
     };
 #undef SLANG_RHI_FEATURES_X
 
-    auto it = kFeatureNameMap.find(feature);
-    if (it != kFeatureNameMap.end())
+    for (const auto& [name, value] : kFeatureNameMap)
     {
-        return hasFeature(it->second);
+        if (name == feature)
+            return hasFeature(value);
     }
     return false;
 }
@@ -608,15 +609,15 @@ bool Device::hasCapability(Capability capability)
 bool Device::hasCapability(const char* capability)
 {
 #define SLANG_RHI_CAPABILITIES_X(id) {#id, Capability::id},
-    static const std::unordered_map<std::string_view, Capability> kCapabilityMap = {
+    static constexpr std::pair<std::string_view, Capability> kCapabilityMap[] = {
         SLANG_RHI_CAPABILITIES(SLANG_RHI_CAPABILITIES_X)
     };
 #undef SLANG_RHI_CAPABILITIES_X
 
-    auto it = kCapabilityMap.find(capability);
-    if (it != kCapabilityMap.end())
+    for (const auto& [name, value] : kCapabilityMap)
     {
-        return hasCapability(it->second);
+        if (name == capability)
+            return hasCapability(value);
     }
     return false;
 }
@@ -936,6 +937,17 @@ Result Device::createSurface(WindowHandle windowHandle, ISurface** outSurface)
     SLANG_UNUSED(windowHandle);
     *outSurface = nullptr;
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
+{
+    SLANG_UNUSED(desc);
+    if (!outSupported)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    *outSupported = false;
+    return SLANG_OK;
 }
 
 Result Device::getCooperativeVectorProperties(CooperativeVectorProperties* properties, uint32_t* propertiesCount)

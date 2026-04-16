@@ -13,10 +13,19 @@ AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const Accel
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    if (device)
+
+    if (m_descriptorHandle)
     {
-        device->m_api.vkDestroyAccelerationStructureKHR(device->m_api.m_device, m_vkHandle, nullptr);
+        device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
     }
+
+    device->m_api.vkDestroyAccelerationStructureKHR(device->m_device, m_vkHandle, nullptr);
+}
+
+void AccelerationStructureImpl::deleteThis()
+{
+    m_buffer.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
 }
 
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
@@ -28,16 +37,48 @@ Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 
 AccelerationStructureHandle AccelerationStructureImpl::getHandle()
 {
-    return AccelerationStructureHandle{m_buffer->getDeviceAddress()};
+    return AccelerationStructureHandle{getAccelerationStructureDeviceAddress()};
 }
 
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 {
-    return m_buffer->getDeviceAddress();
+    return getAccelerationStructureDeviceAddress();
+}
+
+DeviceAddress AccelerationStructureImpl::getAccelerationStructureDeviceAddress()
+{
+    if (m_deviceAddress)
+    {
+        return m_deviceAddress;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!device->m_api.vkGetAccelerationStructureDeviceAddressKHR)
+    {
+        return 0;
+    }
+
+    if (!m_deviceAddress)
+    {
+        VkAccelerationStructureDeviceAddressInfoKHR info = {};
+        info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+        info.accelerationStructure = m_vkHandle;
+        m_deviceAddress =
+            (DeviceAddress)device->m_api.vkGetAccelerationStructureDeviceAddressKHR(device->m_device, &info);
+    }
+
+    return m_deviceAddress;
 }
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
+    if (m_descriptorHandle)
+    {
+        *outHandle = m_descriptorHandle;
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (!device->m_bindlessDescriptorSet)

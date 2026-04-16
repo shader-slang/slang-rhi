@@ -1,4 +1,5 @@
 #include "cuda-device.h"
+#include "cuda-backend.h"
 #include "cuda-command.h"
 #include "cuda-buffer.h"
 #include "cuda-pipeline.h"
@@ -39,155 +40,6 @@ static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
 #undef COMPUTE_CAPABILITY
 };
 
-inline int calcSMCountPerMultiProcessor(int major, int minor)
-{
-    // Defines for GPU Architecture types (using the SM version to determine
-    // the # of cores per SM
-    struct SMInfo
-    {
-        int sm; // 0xMm (hexadecimal notation), M = SM Major version, and m = SM minor version
-        int coreCount;
-    };
-
-    static const SMInfo infos[] = {
-        {0x30, 192},
-        {0x32, 192},
-        {0x35, 192},
-        {0x37, 192},
-        {0x50, 128},
-        {0x52, 128},
-        {0x53, 128},
-        {0x60, 64},
-        {0x61, 128},
-        {0x62, 128},
-        {0x70, 64},
-        {0x72, 64},
-        {0x75, 64}
-    };
-
-    const int sm = ((major << 4) + minor);
-    for (size_t i = 0; i < SLANG_COUNT_OF(infos); ++i)
-    {
-        if (infos[i].sm == sm)
-        {
-            return infos[i].coreCount;
-        }
-    }
-
-    const auto& last = infos[SLANG_COUNT_OF(infos) - 1];
-
-    // It must be newer presumably
-    SLANG_RHI_ASSERT(sm > last.sm);
-
-    // Default to the last entry
-    return last.coreCount;
-}
-
-inline Result findMaxFlopsDeviceIndex(int* outDeviceIndex)
-{
-    int smPerMultiproc = 0;
-    int maxPerfDevice = -1;
-    int deviceCount = 0;
-
-    uint64_t maxComputePerf = 0;
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
-
-    // Find the best CUDA capable GPU device
-    for (int currentDevice = 0; currentDevice < deviceCount; ++currentDevice)
-    {
-        CUdevice device;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, currentDevice));
-        int computeMode = -1, major = 0, minor = 0;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&computeMode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, device));
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device));
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device));
-
-        // If this GPU is not running on Compute Mode prohibited,
-        // then we can add it to the list
-        if (computeMode != CU_COMPUTEMODE_PROHIBITED)
-        {
-            if (major == 9999 && minor == 9999)
-            {
-                smPerMultiproc = 1;
-            }
-            else
-            {
-                smPerMultiproc = calcSMCountPerMultiProcessor(major, minor);
-            }
-
-            int multiProcessorCount = 0, clockRate = 0;
-            SLANG_CUDA_RETURN_ON_FAIL(
-                cuDeviceGetAttribute(&multiProcessorCount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device)
-            );
-            SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device));
-            uint64_t compute_perf = uint64_t(multiProcessorCount) * smPerMultiproc * clockRate;
-
-            if (compute_perf > maxComputePerf)
-            {
-                maxComputePerf = compute_perf;
-                maxPerfDevice = currentDevice;
-            }
-        }
-    }
-
-    if (maxPerfDevice < 0)
-    {
-        return SLANG_FAIL;
-    }
-
-    *outDeviceIndex = maxPerfDevice;
-    return SLANG_OK;
-}
-
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
-{
-    if (!rhiCudaDriverApiInit())
-    {
-        return SLANG_FAIL;
-    }
-
-    SLANG_CUDA_RETURN_ON_FAIL(cuInit(0));
-
-    int deviceCount;
-    SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetCount(&deviceCount));
-
-    for (int deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++)
-    {
-        CUdevice device;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGet(&device, deviceIndex));
-
-        AdapterInfo info = {};
-        info.deviceType = DeviceType::CUDA;
-        info.adapterType = AdapterType::Discrete;
-        SLANG_CUDA_RETURN_ON_FAIL(cuDeviceGetName(info.name, sizeof(info.name), device));
-        info.luid = getAdapterLUID(deviceIndex);
-
-        AdapterImpl adapter;
-        adapter.m_info = info;
-        adapter.m_deviceIndex = deviceIndex;
-        outAdapters.push_back(adapter);
-    }
-
-    // Find the max flops adapter and mark it as the default one.
-    if (!outAdapters.empty())
-    {
-        int defaultDeviceIndex = 0;
-        SLANG_RETURN_ON_FAIL(findMaxFlopsDeviceIndex(&defaultDeviceIndex));
-        SLANG_RHI_ASSERT(defaultDeviceIndex >= 0 && defaultDeviceIndex < (int)outAdapters.size());
-        outAdapters[defaultDeviceIndex].m_isDefault = true;
-    }
-
-    return SLANG_OK;
-}
-
-std::vector<AdapterImpl>& getAdapters()
-{
-    static std::vector<AdapterImpl> adapters;
-    static Result initResult = getAdaptersImpl(adapters);
-    SLANG_UNUSED(initResult);
-    return adapters;
-}
-
 DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
@@ -201,7 +53,11 @@ DeviceImpl::~DeviceImpl()
         m_readbackHeap.release();
         m_clearEngine.release();
 
-        m_queue.setNull();
+        if (m_queue)
+        {
+            m_queue->shutdown();
+            m_queue.setNull();
+        }
         m_deviceMemHeap.setNull();
         m_hostMemHeap.setNull();
 
@@ -214,22 +70,7 @@ DeviceImpl::~DeviceImpl()
     }
 }
 
-Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
-{
-    outHandles->handles[0].type = NativeHandleType::CUdevice;
-    outHandles->handles[0].value = m_ctx.device;
-    outHandles->handles[1] = {};
-    if (m_ctx.optixContext)
-    {
-        outHandles->handles[1].type = NativeHandleType::OptixDeviceContext;
-        outHandles->handles[1].value = (uint64_t)m_ctx.optixContext->getOptixDeviceContext();
-    }
-    outHandles->handles[2].type = NativeHandleType::CUcontext;
-    outHandles->handles[2].value = (uint64_t)m_ctx.context;
-    return SLANG_OK;
-}
-
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
@@ -274,13 +115,26 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     else
     {
         // User provided no external handles, so we need to create a device and context.
-        AdapterImpl* adapter = nullptr;
-        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+        const AdapterImpl* adapter = nullptr;
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDeviceGet(&m_ctx.device, adapter->m_deviceIndex), this);
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuDevicePrimaryCtxRetain(&m_ctx.context, m_ctx.device), this);
         m_ownsContext = true;
     }
 
+    // If no CUDA context is current, set ours so it persists after initialization.
+    // If another context is already current, leave it alone - callers should use
+    // setCudaContextCurrent() to explicitly manage the active context.
+    {
+        CUcontext currentContext = nullptr;
+        cuCtxGetCurrent(&currentContext);
+        if (currentContext == nullptr)
+        {
+            SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSetCurrent(m_ctx.context), this);
+        }
+    }
+
+    // Push/pop our context for the remainder of initialization.
     SLANG_CUDA_CTX_SCOPE(this);
 
     // Initialize device info
@@ -345,6 +199,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Supports surface/swapchain (implemented in Vulkan).
     addFeature(Feature::Surface);
 #endif
+    addFeature(Feature::CustomBorderColor);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
     addFeature(Feature::RealtimeClock);
@@ -371,6 +226,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
             {
                 addCapability(cc.capability);
             }
+        }
+
+        // BFloat16 atomic operations require SM 9.0 (Hopper) or higher
+        if (major >= 9)
+        {
+            addFeature(Feature::AtomicBfloat16);
         }
     }
 
@@ -463,10 +324,30 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     return SLANG_OK;
 }
 
+void DeviceImpl::deferDelete(Resource* resource)
+{
+    SLANG_RHI_ASSERT(m_queue != nullptr);
+    m_queue->deferDelete(resource);
+    resource->breakStrongReferenceToDevice();
+}
+
+Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
+{
+    outHandles->handles[0].type = NativeHandleType::CUdevice;
+    outHandles->handles[0].value = m_ctx.device;
+    outHandles->handles[1] = {};
+    if (m_ctx.optixContext)
+    {
+        outHandles->handles[1].type = NativeHandleType::OptixDeviceContext;
+        outHandles->handles[1].value = (uint64_t)m_ctx.optixContext->getOptixDeviceContext();
+    }
+    outHandles->handles[2].type = NativeHandleType::CUcontext;
+    outHandles->handles[2].value = (uint64_t)m_ctx.context;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     switch (desc.type)
     {
     case QueryType::Timestamp:
@@ -495,8 +376,6 @@ Result DeviceImpl::createShaderObjectLayout(
     ShaderObjectLayout** outLayout
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     RefPtr<ShaderObjectLayoutImpl> cudaLayout;
     cudaLayout = new ShaderObjectLayoutImpl(this, session, typeLayout);
     returnRefPtrMove(outLayout, cudaLayout);
@@ -514,8 +393,6 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -531,8 +408,6 @@ Result DeviceImpl::createShaderProgram(
     ISlangBlob** outDiagnosticBlob
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
     shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
@@ -553,8 +428,9 @@ void DeviceImpl::unmap(IBuffer* buffer)
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)
-        return SLANG_FAIL;
-    m_queue->establishStrongReferenceToDevice();
+    {
+        return SLANG_E_INVALID_ARG;
+    }
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
@@ -581,8 +457,6 @@ Result DeviceImpl::readTexture(
     void* outData
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     auto textureImpl = checked_cast<TextureImpl*>(texture);
 
     CUarray srcArray = textureImpl->m_cudaArray;
@@ -611,8 +485,6 @@ Result DeviceImpl::readTexture(
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, size_t offset, size_t size, void* outData)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     auto bufferImpl = checked_cast<BufferImpl*>(buffer);
     if (offset + size > bufferImpl->m_desc.size)
     {
@@ -630,8 +502,6 @@ Result DeviceImpl::getAccelerationStructureSizes(
     AccelerationStructureSizes* outSizes
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -641,8 +511,6 @@ Result DeviceImpl::getAccelerationStructureSizes(
 
 Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -655,8 +523,6 @@ Result DeviceImpl::createAccelerationStructure(
     IAccelerationStructure** outAccelerationStructure
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (!m_ctx.optixContext)
     {
         return SLANG_E_NOT_AVAILABLE;
@@ -692,6 +558,7 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
         ADD_PROPERTIES(Float16, FloatE5M2, FloatE5M2, Float16, Float16);
 #undef ADD_PROPERTIES
     }
+
     return Device::getCooperativeVectorProperties(properties, propertiesCount);
 }
 
@@ -722,8 +589,6 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
     uint32_t matrixCount
 )
 {
-    SLANG_CUDA_CTX_SCOPE(this);
-
     if (m_ctx.optixContext)
     {
         CUdeviceptr dstPtr = 0;
@@ -747,28 +612,78 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
 }
 
+Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
+{
+    TextureDesc desc = fixupTextureDesc(desc_);
+    const FormatInfo& formatInfo = getFormatInfo(desc.format);
+
+    // Query texture base address alignment from CUDA device
+    int textureAlignment = 0;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuDeviceGetAttribute(&textureAlignment, CU_DEVICE_ATTRIBUTE_TEXTURE_ALIGNMENT, m_ctx.device),
+        this
+    );
+    Size alignment = static_cast<Size>(textureAlignment);
+
+    // Query texture pitch (row) alignment from CUDA device
+    int texturePitchAlignment = 0;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuDeviceGetAttribute(&texturePitchAlignment, CU_DEVICE_ATTRIBUTE_TEXTURE_PITCH_ALIGNMENT, m_ctx.device),
+        this
+    );
+    Size rowAlignment = static_cast<Size>(texturePitchAlignment);
+
+    auto alignTo = [](Size size, Size align) -> Size
+    {
+        return ((size + align - 1) / align) * align;
+    };
+
+    Size size = 0;
+    Extent3D extent = desc.size;
+
+    for (uint32_t mip = 0; mip < desc.mipCount; ++mip)
+    {
+        Size rowSize =
+            ((extent.width + formatInfo.blockWidth - 1) / formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
+        rowSize = alignTo(rowSize, rowAlignment);
+        Size sliceSize = rowSize * ((extent.height + formatInfo.blockHeight - 1) / formatInfo.blockHeight);
+        size += sliceSize * extent.depth;
+        extent.width = max(1u, extent.width >> 1);
+        extent.height = max(1u, extent.height >> 1);
+        extent.depth = max(1u, extent.depth >> 1);
+    }
+    size = alignTo(size, alignment);
+    size *= desc.getLayerCount();
+
+    *outSize = size;
+    *outAlignment = alignment;
+
+    return SLANG_OK;
+}
+
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 1;
     return SLANG_OK;
 }
 
-} // namespace rhi::cuda
-
-namespace rhi {
-
-IAdapter* getCUDAAdapter(uint32_t index)
+Result DeviceImpl::setCudaContextCurrent()
 {
-    std::vector<cuda::AdapterImpl>& adapters = cuda::getAdapters();
-    return index < adapters.size() ? &adapters[index] : nullptr;
-}
-
-Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<cuda::DeviceImpl> result = new cuda::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSetCurrent(m_ctx.context), this);
     return SLANG_OK;
 }
 
-} // namespace rhi
+Result DeviceImpl::pushCudaContext()
+{
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxPushCurrent(m_ctx.context), this);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::popCudaContext()
+{
+    CUcontext ctx;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxPopCurrent(&ctx), this);
+    return SLANG_OK;
+}
+
+} // namespace rhi::cuda

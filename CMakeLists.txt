@@ -51,8 +51,14 @@ option(SLANG_RHI_INSTALL "Install library" ON)
 # Configure coverage flags
 if(SLANG_RHI_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
-        add_link_options(-fprofile-instr-generate)
+        # Output coverage data to a dedicated directory in the build folder.
+        # %p = process ID, %m = binary signature (allows multiple runs without conflicts)
+        set(SLANG_RHI_COVERAGE_DIR "${CMAKE_BINARY_DIR}/coverage")
+        set(SLANG_RHI_COVERAGE_PATTERN "${SLANG_RHI_COVERAGE_DIR}/coverage-%p-%m.profraw")
+        add_compile_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN} -fcoverage-mapping)
+        add_link_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN})
+    else()
+        message(FATAL_ERROR "Code coverage is only supported with Clang")
     endif()
 endif()
 
@@ -78,11 +84,23 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(SLANG_RHI_HAS_METAL ON)
     set(SLANG_RHI_HAS_CUDA OFF)
     set(SLANG_RHI_HAS_WGPU ON)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(SLANG_RHI_HAS_D3D11 OFF)
+    set(SLANG_RHI_HAS_D3D12 OFF)
+    set(SLANG_RHI_HAS_VULKAN ON)
+    set(SLANG_RHI_HAS_METAL OFF)
+    set(SLANG_RHI_HAS_CUDA OFF)
+    set(SLANG_RHI_HAS_WGPU OFF)
 endif()
 
 set(SLANG_RHI_HAS_AGILITY_SDK OFF)
 if(SLANG_RHI_HAS_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     set(SLANG_RHI_HAS_AGILITY_SDK ON)
+endif()
+
+set(SLANG_RHI_HAS_AFTERMATH OFF)
+if(SLANG_RHI_HAS_CUDA AND (CMAKE_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_SYSTEM_NAME STREQUAL "Linux") AND (SLANG_RHI_ARCHITECTURE MATCHES "x86_64"))
+    set(SLANG_RHI_HAS_AFTERMATH ON)
 endif()
 
 set(SLANG_RHI_HAS_NVAPI OFF)
@@ -101,6 +119,12 @@ cmake_dependent_option(SLANG_RHI_ENABLE_METAL "Enable Metal backend" ON "SLANG_R
 cmake_dependent_option(SLANG_RHI_ENABLE_CUDA "Enable CUDA backend" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_OPTIX "Enable OptiX support" ON "SLANG_RHI_HAS_CUDA" OFF)
 cmake_dependent_option(SLANG_RHI_ENABLE_WGPU "Enable WebGPU backend" ON "SLANG_RHI_HAS_WGPU" OFF)
+option(SLANG_RHI_ENABLE_AFTERMATH "Enable Aftermath support" OFF)
+
+# Check Aftermath availability
+if(SLANG_RHI_ENABLE_AFTERMATH AND NOT SLANG_RHI_HAS_AFTERMATH)
+    message(FATAL_ERROR "Aftermath SDK is not available on this platform")
+endif()
 
 # Enabled OptiX versions
 if(NOT DEFINED SLANG_RHI_OPTIX_VERSIONS)
@@ -109,7 +133,7 @@ endif()
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2025.22" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2026.4.1" CACHE STRING "Slang version to fetch")
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -119,7 +143,7 @@ set(SLANG_RHI_FETCH_SLANG_VERSION "2025.22" CACHE STRING "Slang version to fetch
 
 # DirectXShaderCompiler
 if(NOT DEFINED SLANG_RHI_DXC_URL)
-    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.8.2407/dxc_2024_07_31.zip")
+    set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2602/dxc_2026_02_20.zip")
 endif()
 
 # WinPixEventRuntime
@@ -129,11 +153,22 @@ endif()
 
 # Agility SDK
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_URL)
-    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.616.1")
+    set(SLANG_RHI_AGILITY_SDK_URL "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.D3D12/1.619.1")
 endif()
 # If using a preview version of Agility SDK, set this to D3D12_PREVIEW_SDK_VERSION
 if(NOT DEFINED SLANG_RHI_AGILITY_SDK_VERSION)
     set(SLANG_RHI_AGILITY_SDK_VERSION "D3D12_SDK_VERSION")
+endif()
+
+# Aftermath
+if(NOT DEFINED SLANG_RHI_AFTERMATH_URL)
+    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+        if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+            set(SLANG_RHI_AFTERMATH_URL "https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2025_5_0/windows/NVIDIA_Nsight_Aftermath_SDK_2025.5.0.25317.zip")
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            set(SLANG_RHI_AFTERMATH_URL "https://developer.nvidia.com/downloads/assets/tools/secure/nsight-aftermath-sdk/2025_5_0/linux/NVIDIA_Nsight_Aftermath_SDK_2025.5.0.25317.tgz")
+        endif()
+    endif()
 endif()
 
 # NVAPI
@@ -298,8 +333,6 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
 
     slang_rhi_add_library_slang()
 
-    target_link_libraries(slang-rhi PUBLIC slang)
-
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang.dll .)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-compiler.dll .)
@@ -308,6 +341,9 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
         copy_file(${SLANG_RHI_SLANG_BINARY_DIR}/bin/slang-rt.dll .)
     endif()
 endif()
+
+# Always link to slang, either the fetched one or the one provided by the parent project.
+target_link_libraries(slang-rhi PUBLIC slang)
 
 # Slang distributes prelude headers in the "include" directory along the other headers.
 # However, in a slang build tree, the files are not in the "include" directory but in a separate "prelude" directory.
@@ -355,6 +391,24 @@ if(SLANG_RHI_ENABLE_AGILITY_SDK AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     add_library(slang-rhi-agility-sdk INTERFACE)
     target_include_directories(slang-rhi-agility-sdk INTERFACE ${agility_sdk_SOURCE_DIR}/build/native/include)
     target_link_libraries(slang-rhi PUBLIC slang-rhi-agility-sdk)
+endif()
+
+# Fetch & setup Aftermath
+if(SLANG_RHI_ENABLE_AFTERMATH)
+    message(STATUS "Fetching Aftermath SDK ...")
+    FetchPackage(aftermath_sdk URL ${SLANG_RHI_AFTERMATH_URL})
+    add_library(slang-rhi-aftermath SHARED IMPORTED)
+    target_include_directories(slang-rhi-aftermath INTERFACE ${aftermath_sdk_SOURCE_DIR}/include)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND EXISTS ${aftermath_sdk_SOURCE_DIR}/lib/x64/GFSDK_Aftermath_Lib.x64.dll)
+        set_property(TARGET slang-rhi-aftermath PROPERTY IMPORTED_LOCATION ${aftermath_sdk_SOURCE_DIR}/lib/x64/GFSDK_Aftermath_Lib.x64.dll)
+        set_property(TARGET slang-rhi-aftermath PROPERTY IMPORTED_IMPLIB ${aftermath_sdk_SOURCE_DIR}/lib/x64/GFSDK_Aftermath_Lib.x64.lib)
+        copy_file(${aftermath_sdk_SOURCE_DIR}/lib/x64/GFSDK_Aftermath_Lib.x64.dll .)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS ${aftermath_sdk_SOURCE_DIR}/lib/x64/libGFSDK_Aftermath_Lib.x64.so)
+        set_property(TARGET slang-rhi-aftermath PROPERTY IMPORTED_LOCATION ${aftermath_sdk_SOURCE_DIR}/lib/x64/libGFSDK_Aftermath_Lib.x64.so)
+    else()
+        message(FATAL_ERROR "Aftermath SDK not found for the current platform")
+    endif()
+    target_link_libraries(slang-rhi PUBLIC slang-rhi-aftermath)
 endif()
 
 # Fetch & setup NVAPI
@@ -478,6 +532,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         /wd4702 # unreachable code
         /wd4127 # conditional expression is constant
         /wd4389 # signed/unsigned mismatch
+        /EHsc   # Standard C++ exception handling
     >
     $<$<CXX_COMPILER_ID:GNU>:
         -Wall -Wextra -Wpedantic
@@ -487,6 +542,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         -Wno-missing-field-initializers
         -Wno-sign-compare
         -Wno-subobject-linkage
+        -Wno-stringop-overread
     >
     $<$<CXX_COMPILER_ID:Clang>:
         -Wall -Wextra -Wpedantic
@@ -529,6 +585,7 @@ target_compile_options(slang-rhi-warnings-as-errors INTERFACE
 target_link_libraries(slang-rhi PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
 
 target_sources(slang-rhi PRIVATE
+    src/aftermath.cpp
     src/command-buffer.cpp
     src/command-list.cpp
     src/cuda-driver-api.cpp
@@ -573,6 +630,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_CPU)
     target_sources(slang-rhi PRIVATE
+        src/cpu/cpu-backend.cpp
         src/cpu/cpu-buffer.cpp
         src/cpu/cpu-command.cpp
         src/cpu/cpu-device.cpp
@@ -595,6 +653,7 @@ endif()
 
 if(SLANG_RHI_ENABLE_D3D11)
     target_sources(slang-rhi PRIVATE
+        src/d3d11/d3d11-backend.cpp
         src/d3d11/d3d11-buffer.cpp
         src/d3d11/d3d11-command.cpp
         src/d3d11/d3d11-constant-buffer-pool.cpp
@@ -615,6 +674,7 @@ endif()
 if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi PRIVATE
         src/d3d12/d3d12-acceleration-structure.cpp
+        src/d3d12/d3d12-backend.cpp
         src/d3d12/d3d12-bindless-descriptor-set.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
@@ -641,6 +701,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
     target_sources(slang-rhi PRIVATE
         src/vulkan/vk-acceleration-structure.cpp
         src/vulkan/vk-api.cpp
+        src/vulkan/vk-backend.cpp
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
@@ -668,6 +729,7 @@ if(SLANG_RHI_ENABLE_METAL)
     target_sources(slang-rhi PRIVATE
         src/metal/metal-acceleration-structure.cpp
         src/metal/metal-api.cpp
+        src/metal/metal-backend.cpp
         src/metal/metal-buffer.cpp
         src/metal/metal-clear-engine.cpp
         src/metal/metal-command.cpp
@@ -692,6 +754,7 @@ endif()
 if(SLANG_RHI_ENABLE_CUDA)
     target_sources(slang-rhi PRIVATE
         src/cuda/cuda-acceleration-structure.cpp
+        src/cuda/cuda-backend.cpp
         src/cuda/cuda-buffer.cpp
         src/cuda/cuda-clear-engine.cpp
         src/cuda/cuda-command.cpp
@@ -724,6 +787,7 @@ endif()
 if(SLANG_RHI_ENABLE_WGPU)
     target_sources(slang-rhi PRIVATE
         src/wgpu/wgpu-api.cpp
+        src/wgpu/wgpu-backend.cpp
         src/wgpu/wgpu-buffer.cpp
         src/wgpu/wgpu-command.cpp
         src/wgpu/wgpu-constant-buffer-pool.cpp
@@ -754,7 +818,7 @@ target_compile_definitions(slang-rhi
     $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
     $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
 )
-target_compile_features(slang-rhi PRIVATE cxx_std_17)
+target_compile_features(slang-rhi PRIVATE cxx_std_20)
 set_target_properties(slang-rhi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Tests currently require linking statically due to reaching into internal details of the RHI implementation.
@@ -771,7 +835,11 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
     add_executable(slang-rhi-tests)
     target_sources(slang-rhi-tests PRIVATE
         tests/main.cpp
+        tests/test-acceleration-structure-creation-with-validation.cpp
+        tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
+        tests/test-device-features.cpp
+        tests/test-block-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless.cpp
         tests/test-bind-pointers.cpp
@@ -779,6 +847,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
+        tests/test-caching-allocator.cpp
         tests/test-command-encoder.cpp
         tests/test-compilation-report.cpp
         tests/test-cmd-clear-buffer.cpp
@@ -793,10 +862,13 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-cmd-upload-buffer.cpp
         tests/test-cmd-upload-texture.cpp
         tests/test-combined-texture-sampler.cpp
+        tests/test-compute-indirect.cpp
         tests/test-compute-smoke.cpp
         tests/test-compute-trivial.cpp
+        tests/test-cooperative-matrix.cpp
         tests/test-cooperative-vector.cpp
         tests/test-cuda-external-devices.cpp
+        tests/test-deferred-delete.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
         tests/test-fence.cpp
@@ -818,10 +890,13 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-precompiled-module.cpp
         tests/test-ray-tracing-clusters.cpp
         tests/test-ray-tracing-hitobject-intrinsics.cpp
+        tests/test-ray-tracing-intrinsics.cpp
         tests/test-ray-tracing-lss.cpp
         tests/test-ray-tracing-raygen-entrypoint.cpp
         tests/test-ray-tracing-reorder.cpp
+        tests/test-ray-tracing-shader-table-multi-pipeline.cpp
         tests/test-ray-tracing-sphere.cpp
+        tests/test-ray-tracing-transform-query.cpp
         tests/test-ray-tracing.cpp
         tests/test-resolve-resource-tests.cpp
         tests/test-resource-states.cpp
@@ -833,8 +908,12 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         tests/test-shader-cache.cpp
         tests/test-shader-object-large.cpp
         tests/test-shader-object-resource-tracking.cpp
+        tests/test-ring-queue.cpp
+        tests/test-short-vector.cpp
         tests/test-staging-heap.cpp
+        tests/test-static-vector.cpp
         tests/test-surface.cpp
+        tests/test-texture-allocation-info.cpp
         tests/test-texture-create.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-shared.cpp
@@ -859,7 +938,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED)
         $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint
         $<$<PLATFORM_ID:Windows>:UNICODE> # force character map to unicode
     )
-    target_compile_features(slang-rhi-tests PRIVATE cxx_std_17)
+    target_compile_features(slang-rhi-tests PRIVATE cxx_std_20)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
@@ -877,7 +956,7 @@ endif()
 if(SLANG_RHI_BUILD_EXAMPLES)
     function(add_example name source)
         add_executable(${name} ${source})
-        target_compile_features(${name} PRIVATE cxx_std_17)
+        target_compile_features(${name} PRIVATE cxx_std_20)
         get_filename_component(EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${source}" PATH)
         target_compile_definitions(${name} PRIVATE SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>> EXAMPLE_DIR="${EXAMPLE_DIR}" NOMINMAX)
         target_include_directories(${name} PRIVATE examples/base)
@@ -924,9 +1003,15 @@ if(SLANG_RHI_ENABLE_COVERAGE)
             -ignore-filename-regex=".*tests.*"
         )
 
+        # Create clean-coverage target to remove existing coverage data
+        add_custom_target(clean-coverage
+            COMMAND ${CMAKE_COMMAND} -E rm -rf ${SLANG_RHI_COVERAGE_DIR}
+            COMMENT "Cleaning coverage data..."
+        )
+
         # Create coverage target
         add_custom_target(coverage
-            COMMAND ${LLVM_PROFDATA} merge -sparse ${CMAKE_BINARY_DIR}/$<CONFIG>/default.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
+            COMMAND ${LLVM_PROFDATA} merge -sparse ${SLANG_RHI_COVERAGE_DIR}/*.profraw -o ${CMAKE_BINARY_DIR}/coverage.profdata
             COMMAND ${LLVM_COV} export ${LLVM_COV_ARGS} -format lcov > coverage.lcov
             COMMAND ${LLVM_COV} report ${LLVM_COV_ARGS}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}

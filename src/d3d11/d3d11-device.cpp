@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "d3d11-device.h"
+#include "d3d11-backend.h"
 #include "d3d11-buffer.h"
 #include "d3d11-utils.h"
 #include "d3d11-query.h"
@@ -12,51 +13,17 @@
 #include "d3d11-input-layout.h"
 #include "d3d11-command.h"
 
+#include "aftermath.h"
+
 #include "core/string.h"
 
-#if SLANG_RHI_ENABLE_AFTERMATH
-#include "GFSDK_Aftermath.h"
-#include "GFSDK_Aftermath_Defines.h"
-#include "GFSDK_Aftermath_GpuCrashDump.h"
-#endif
-
 namespace rhi::d3d11 {
-
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
-{
-    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(enumAdapters(dxgiAdapters));
-
-    for (const auto& dxgiAdapter : dxgiAdapters)
-    {
-        AdapterInfo info = getAdapterInfo(dxgiAdapter);
-        info.deviceType = DeviceType::D3D11;
-
-        AdapterImpl adapter;
-        adapter.m_info = info;
-        adapter.m_dxgiAdapter = dxgiAdapter;
-        outAdapters.push_back(adapter);
-    }
-
-    // Mark default adapter (prefer discrete if available).
-    markDefaultAdapter(outAdapters);
-
-    return SLANG_OK;
-}
-
-std::vector<AdapterImpl>& getAdapters()
-{
-    static std::vector<AdapterImpl> adapters;
-    static Result initResult = getAdaptersImpl(adapters);
-    SLANG_UNUSED(initResult);
-    return adapters;
-}
 
 DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl() {}
 
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
@@ -81,10 +48,18 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         return SLANG_FAIL;
     }
 
-    m_dxgiFactory = getDXGIFactory();
+#if SLANG_RHI_ENABLE_AFTERMATH
+    // Aftermath crash dump needs to be enabled before device.
+    if (desc.enableAftermath)
+    {
+        AftermathCrashDumper::getOrCreate();
+    }
+#endif
 
-    AdapterImpl* adapter = nullptr;
-    SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+    m_dxgiFactory = getDXGIFactory(getRHI()->getDebugLayerOptions(), this);
+
+    const AdapterImpl* adapter = nullptr;
+    SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
     m_dxgiAdapter = adapter->m_dxgiAdapter;
 
     // We will ask for the highest feature level that can be supported.
@@ -115,7 +90,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     int usedCreateFlags = 0;
 
     Result result = SLANG_FAIL;
-    for (uint32_t i = isDebugLayersEnabled() ? 0 : 2; i < SLANG_COUNT_OF(createFlags); i++)
+    for (uint32_t i = getRHI()->isDebugLayersEnabled() ? 0 : 2; i < SLANG_COUNT_OF(createFlags); i++)
     {
         usedCreateFlags = createFlags[i];
         bool useDebug = (usedCreateFlags & UseDebug) != 0;
@@ -140,27 +115,57 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         printError("D3D11CreateDevice failed: %08x\n", result);
         return SLANG_FAIL;
     }
-    if (isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
+    if (getRHI()->isDebugLayersEnabled() && (usedCreateFlags & UseDebug) == 0)
     {
-        printWarning("Debug layer requested but not available.\n");
+        bool debugLayersRequired = getRHI()->getDebugLayerOptions().required;
+        printMessage(
+            debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+            DebugMessageSource::Layer,
+            "Debug layers requested but not available.\n"
+        );
+        if (debugLayersRequired)
+            return SLANG_FAIL;
     }
 
 #if SLANG_RHI_ENABLE_AFTERMATH
-    if (desc.enableAftermath && adapter->isNVIDIA())
+    if (desc.enableAftermath)
     {
-        // Initialize Nsight Aftermath for this device.
-        // This combination of flags is not necessarily appropriate for real world usage
-        const uint32_t aftermathFlags =
-            GFSDK_Aftermath_FeatureFlags_EnableMarkers | GFSDK_Aftermath_FeatureFlags_CallStackCapturing |
-            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking | GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |
-            GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
+        // Initialize Aftermath for this device.
+        uint32_t aftermathFlags = 0;
+        if (is_set(desc.aftermathFlags, AftermathFlags::Minimum))
+            aftermathFlags = GFSDK_Aftermath_FeatureFlags_Minimum;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableMarkers))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableMarkers;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableResourceTracking))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableResourceTracking;
+        if (is_set(desc.aftermathFlags, AftermathFlags::CallStackCapturing))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_CallStackCapturing;
+        if (is_set(desc.aftermathFlags, AftermathFlags::GenerateShaderDebugInfo))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo;
+        if (is_set(desc.aftermathFlags, AftermathFlags::EnableShaderErrorReporting))
+            aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
 
-        auto initResult = GFSDK_Aftermath_DX11_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
+        GFSDK_Aftermath_Result initResult =
+            GFSDK_Aftermath_DX11_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
 
-        if (initResult != GFSDK_Aftermath_Result_Success)
+        if (GFSDK_Aftermath_SUCCEED(initResult))
         {
-            printWarning("Failed to initialize aftermath: %d\n", int(initResult));
+            initResult = GFSDK_Aftermath_DX11_CreateContextHandle(m_immediateContext, &m_aftermathContext);
         }
+
+        if (GFSDK_Aftermath_SUCCEED(initResult))
+        {
+            m_aftermathCrashDumper = AftermathCrashDumper::getOrCreate();
+        }
+        else
+        {
+            printWarning("Failed to initialize Aftermath: %d\n", int(initResult));
+        }
+    }
+#else
+    if (desc.enableAftermath)
+    {
+        printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
 
@@ -577,9 +582,8 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)
     {
-        return SLANG_FAIL;
+        return SLANG_E_INVALID_ARG;
     }
-    m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
@@ -632,21 +636,3 @@ Result DeviceImpl::createRootShaderObjectLayout(
 }
 
 } // namespace rhi::d3d11
-
-namespace rhi {
-
-IAdapter* getD3D11Adapter(uint32_t index)
-{
-    std::vector<d3d11::AdapterImpl>& adapters = d3d11::getAdapters();
-    return index < adapters.size() ? &adapters[index] : nullptr;
-}
-
-Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<d3d11::DeviceImpl> result = new d3d11::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-} // namespace rhi

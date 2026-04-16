@@ -12,6 +12,15 @@
 
 #include "core/stable_vector.h"
 #include "core/string.h"
+#include "core/task-pool.h"
+#include "cooperative-vector-utils.h"
+
+#include <atomic>
+#include <memory>
+#include <span>
+
+// Set to 0 to disable parallel module compilation via the OptiX task API.
+#define SLANG_RHI_OPTIX_USE_TASK_API 1
 
 #define OPTIX_DONT_INCLUDE_CUDA
 #define OPTIX_ENABLE_SDK_MIXING
@@ -534,7 +543,7 @@ public:
     RefPtr<RootShaderObjectLayoutImpl> m_rootObjectLayout;
     std::vector<OptixModule> m_modules;
     std::vector<OptixProgramGroup> m_programGroups;
-    std::map<std::string, uint32_t> m_shaderGroupNameToIndex;
+    std::map<std::string, uint32_t> m_programGroupIndexByName;
     std::vector<uint32_t> m_raygenEntryPointIndices;
     OptixPipeline m_pipeline = nullptr;
 
@@ -573,6 +582,98 @@ public:
 
     ~ShaderBindingTableImpl() { SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer)); }
 };
+
+#if SLANG_RHI_OPTIX_USE_TASK_API
+
+/// Execute a list of OptiX tasks in parallel using the global task pool.
+/// Each task may spawn additional sub-tasks which are also submitted to the pool.
+/// If any task fails, remaining sub-tasks are skipped and SLANG_FAIL is returned.
+Result executeOptixTasks(ITaskPool* taskPool, std::span<OptixTask> initialTasks)
+{
+    static constexpr unsigned int MAX_OPTIX_ADDITIONAL_TASKS = 16;
+
+    ITaskPool::TaskGroupHandle group = taskPool->createTaskGroup();
+
+    // Shared flag so tasks can detect a failure in a sibling and skip further work.
+    std::atomic<bool> failed(false);
+
+    struct OptixTaskPayload
+    {
+        OptixTask task;
+        ITaskPool* taskPool;
+        ITaskPool::TaskGroupHandle group;
+        std::atomic<bool>* failed;
+    };
+
+    // Forward declaration - the task function submits newly spawned sub-tasks.
+    static void (*executeFunc)(void*) = [](void* payload_)
+    {
+        auto* payload = static_cast<OptixTaskPayload*>(payload_);
+
+        // Skip execution if a previous task already failed.
+        if (payload->failed->load(std::memory_order_relaxed))
+            return;
+
+        OptixTask additionalTasks[MAX_OPTIX_ADDITIONAL_TASKS];
+        unsigned int numAdditionalTasks = 0;
+        OptixResult result =
+            optixTaskExecute(payload->task, additionalTasks, MAX_OPTIX_ADDITIONAL_TASKS, &numAdditionalTasks);
+
+        if (result != OPTIX_SUCCESS)
+        {
+            payload->failed->store(true, std::memory_order_relaxed);
+            return;
+        }
+
+        // Submit any spawned sub-tasks.
+        for (unsigned int i = 0; i < numAdditionalTasks; ++i)
+        {
+            auto* subPayload =
+                new OptixTaskPayload{additionalTasks[i], payload->taskPool, payload->group, payload->failed};
+            ITaskPool::TaskHandle handle = payload->taskPool->submitTask(
+                executeFunc,
+                subPayload,
+                [](void* p)
+                {
+                    delete static_cast<OptixTaskPayload*>(p);
+                },
+                nullptr,
+                0,
+                payload->group
+            );
+            payload->taskPool->releaseTask(handle);
+        }
+    };
+
+    // Submit all initial tasks.
+    for (OptixTask& task : initialTasks)
+    {
+        auto* payload = new OptixTaskPayload{task, taskPool, group, &failed};
+        ITaskPool::TaskHandle handle = taskPool->submitTask(
+            executeFunc,
+            payload,
+            [](void* p)
+            {
+                delete static_cast<OptixTaskPayload*>(p);
+            },
+            nullptr,
+            0,
+            group
+        );
+        taskPool->releaseTask(handle);
+    }
+
+    // Wait for all tasks (including recursively spawned sub-tasks) to complete.
+    taskPool->waitTaskGroup(group);
+    taskPool->releaseTaskGroup(group);
+
+    if (failed.load(std::memory_order_relaxed))
+        return SLANG_FAIL;
+
+    return SLANG_OK;
+}
+
+#endif // SLANG_RHI_OPTIX_USE_TASK_API
 
 class ContextImpl : public Context
 {
@@ -650,14 +751,67 @@ public:
         optixModuleCompileOptions.numPayloadTypes = 0;
         optixModuleCompileOptions.payloadTypes = nullptr;
 
-        // Create optix modules & program groups
-        std::vector<OptixModule> optixModules;
-        std::map<std::string, uint32_t> entryPointNameToModuleIndex;
-        std::vector<OptixProgramGroup> optixProgramGroups;
-        std::map<std::string, uint32_t> shaderGroupNameToIndex;
-        std::vector<uint32_t> raygenEntryPointIndices;
-        for (const auto& module : program->m_modules)
+        // Phase 1: Create all optix modules.
+        std::vector<OptixModule> optixModules(program->m_modules.size());
+        std::map<std::string, uint32_t> moduleIndexByEntryPointName;
+
+#if SLANG_RHI_OPTIX_USE_TASK_API
+        // Per-module log buffers. These must stay alive until compilation is complete,
+        // as the task API continues writing to them during optixTaskExecute.
+        static constexpr size_t LOG_BUFFER_SIZE = 4096;
+        std::vector<std::array<char, LOG_BUFFER_SIZE>> logBuffers(program->m_modules.size());
+        std::vector<size_t> logSizes(program->m_modules.size(), LOG_BUFFER_SIZE);
+
         {
+            // Phase 1a: Initiate module creation with tasks.
+            std::vector<OptixTask> initialTasks;
+            for (size_t i = 0; i < program->m_modules.size(); ++i)
+            {
+                const auto& module = program->m_modules[i];
+                OptixTask task = nullptr;
+                logSizes[i] = LOG_BUFFER_SIZE;
+                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                    optixModuleCreateWithTasks(
+                        m_deviceContext,
+                        &optixModuleCompileOptions,
+                        &optixPipelineCompileOptions,
+                        static_cast<const char*>(module.code->getBufferPointer()),
+                        module.code->getBufferSize(),
+                        logBuffers[i].data(),
+                        &logSizes[i],
+                        &optixModules[i],
+                        &task
+                    ),
+                    m_device
+                );
+                moduleIndexByEntryPointName[module.entryPointName] = (uint32_t)i;
+                initialTasks.push_back(task);
+            }
+
+            // Phase 1b: Execute all module compilation tasks in parallel.
+            SLANG_RETURN_ON_FAIL(executeOptixTasks(globalTaskPool(), initialTasks));
+
+            // Phase 1c: Check compilation state for all modules.
+            for (size_t i = 0; i < optixModules.size(); ++i)
+            {
+                OptixModuleCompileState state = {};
+                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(optixModuleGetCompilationState(optixModules[i], &state), m_device);
+                if (state != OPTIX_MODULE_COMPILE_STATE_COMPLETED)
+                {
+                    // Report compilation log for the failed module.
+                    if (logSizes[i] > 1)
+                    {
+                        m_device
+                            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, logBuffers[i].data());
+                    }
+                    return SLANG_FAIL;
+                }
+            }
+        }
+#else  // SLANG_RHI_OPTIX_USE_TASK_API
+        for (size_t i = 0; i < program->m_modules.size(); ++i)
+        {
+            const auto& module = program->m_modules[i];
             SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
                 optixModuleCreate(
                     m_deviceContext,
@@ -667,11 +821,21 @@ public:
                     module.code->getBufferSize(),
                     nullptr,
                     0,
-                    &optixModules.emplace_back()
+                    &optixModules[i]
                 ),
                 m_device
             );
-            entryPointNameToModuleIndex[module.entryPointName] = optixModules.size() - 1;
+            moduleIndexByEntryPointName[module.entryPointName] = (uint32_t)i;
+        }
+#endif // SLANG_RHI_OPTIX_USE_TASK_API
+
+        // Phase 2: Create program groups sequentially (no task API available).
+        std::vector<OptixProgramGroup> optixProgramGroups;
+        std::map<std::string, uint32_t> programGroupIndexByName;
+        std::vector<uint32_t> raygenEntryPointIndices;
+        for (size_t i = 0; i < program->m_modules.size(); ++i)
+        {
+            const auto& module = program->m_modules[i];
 
             OptixProgramGroupDesc optixProgramGroupDesc = {};
             OptixProgramGroupOptions optixProgramGroupOptions = {};
@@ -682,7 +846,7 @@ public:
             {
             case SLANG_STAGE_RAY_GENERATION:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-                optixProgramGroupDesc.raygen.module = optixModules.back();
+                optixProgramGroupDesc.raygen.module = optixModules[i];
                 entryFunctionName = "__raygen__" + module.entryPointName;
                 optixProgramGroupDesc.raygen.entryFunctionName = entryFunctionName.data();
                 // Raygen entrypoint parameters are passed via the shader binding table.
@@ -707,14 +871,14 @@ public:
                 break;
             case SLANG_STAGE_MISS:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_MISS;
-                optixProgramGroupDesc.miss.module = optixModules.back();
+                optixProgramGroupDesc.miss.module = optixModules[i];
                 entryFunctionName = "__miss__" + module.entryPointName;
                 optixProgramGroupDesc.miss.entryFunctionName = entryFunctionName.data();
                 break;
             case SLANG_STAGE_CALLABLE:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
                 // TODO: support continuation callables
-                optixProgramGroupDesc.callables.moduleDC = optixModules.back();
+                optixProgramGroupDesc.callables.moduleDC = optixModules[i];
                 entryFunctionName = "__callable__" + module.entryPointName;
                 optixProgramGroupDesc.callables.entryFunctionNameDC = entryFunctionName.data();
                 break;
@@ -733,7 +897,7 @@ public:
                 ),
                 m_device
             );
-            shaderGroupNameToIndex[module.entryPointName] = optixProgramGroups.size() - 1;
+            programGroupIndexByName[module.entryPointName] = optixProgramGroups.size() - 1;
         }
 
         // If we're using spheres, hit groups may use the builtin sphere intersector.
@@ -786,14 +950,14 @@ public:
             if (hitGroupDesc.closestHitEntryPoint)
             {
                 optixProgramGroupDesc.hitgroup.moduleCH =
-                    optixModules[entryPointNameToModuleIndex[hitGroupDesc.closestHitEntryPoint]];
+                    optixModules[moduleIndexByEntryPointName[hitGroupDesc.closestHitEntryPoint]];
                 entryFunctionNameCH = std::string("__closesthit__") + hitGroupDesc.closestHitEntryPoint;
                 optixProgramGroupDesc.hitgroup.entryFunctionNameCH = entryFunctionNameCH.data();
             }
             if (hitGroupDesc.anyHitEntryPoint)
             {
                 optixProgramGroupDesc.hitgroup.moduleAH =
-                    optixModules[entryPointNameToModuleIndex[hitGroupDesc.anyHitEntryPoint]];
+                    optixModules[moduleIndexByEntryPointName[hitGroupDesc.anyHitEntryPoint]];
                 entryFunctionNameAH = std::string("__anyhit__") + hitGroupDesc.anyHitEntryPoint;
                 optixProgramGroupDesc.hitgroup.entryFunctionNameAH = entryFunctionNameAH.data();
             }
@@ -809,7 +973,7 @@ public:
                 else
                 {
                     optixProgramGroupDesc.hitgroup.moduleIS =
-                        optixModules[entryPointNameToModuleIndex[hitGroupDesc.intersectionEntryPoint]];
+                        optixModules[moduleIndexByEntryPointName[hitGroupDesc.intersectionEntryPoint]];
                     entryFunctionNameIS = std::string("__intersection__") + hitGroupDesc.intersectionEntryPoint;
                     optixProgramGroupDesc.hitgroup.entryFunctionNameIS = entryFunctionNameIS.data();
                 }
@@ -827,7 +991,7 @@ public:
                 ),
                 m_device
             );
-            shaderGroupNameToIndex[hitGroupDesc.hitGroupName] = optixProgramGroups.size() - 1;
+            programGroupIndexByName[hitGroupDesc.hitGroupName] = optixProgramGroups.size() - 1;
         }
 
         OptixPipeline optixPipeline = nullptr;
@@ -865,7 +1029,7 @@ public:
         pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
         pipeline->m_modules = std::move(optixModules);
         pipeline->m_programGroups = std::move(optixProgramGroups);
-        pipeline->m_shaderGroupNameToIndex = std::move(shaderGroupNameToIndex);
+        pipeline->m_programGroupIndexByName = std::move(programGroupIndexByName);
         pipeline->m_raygenEntryPointIndices = std::move(raygenEntryPointIndices);
         pipeline->m_pipeline = optixPipeline;
         returnRefPtr(outPipeline, pipeline);
@@ -882,21 +1046,45 @@ public:
 
         RefPtr<ShaderBindingTableImpl> shaderBindingTable = new ShaderBindingTableImpl();
 
-        // Calculate the size required for the shader binding table record headers.
-        // Reserve space for a dummy miss record if there are no miss shaders.
-        size_t tableSize = (shaderTable->m_rayGenShaderCount + max(shaderTable->m_missShaderCount, 1u) +
-                            shaderTable->m_hitGroupCount + shaderTable->m_callableShaderCount) *
-                           sizeof(SbtRecord);
+        // Calculate record sizes (without alignment).
+        size_t missRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_missRecordOverwriteMaxSize));
+        size_t hitGroupRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_hitGroupRecordOverwriteMaxSize));
+        size_t callableRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_callableRecordOverwriteMaxSize));
 
-        // Calculate the size required for raygen entrypoint parameters and setup raygen infos.
-        // At dispatch time, we need to copy the entrypoint parameters to the shader binding table.
+        // Align all record sizes to OPTIX_SBT_RECORD_ALIGNMENT.
+        missRecordSize = math::calcAligned2(missRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
+        hitGroupRecordSize = math::calcAligned2(hitGroupRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
+        callableRecordSize = math::calcAligned2(callableRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
+
+        // Calculate the size required for the shader binding table.
+        // Reserve space for a dummy miss record if there are no miss shaders.
+        size_t tableSize = 0;
+
+        // Raygen records
+        for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
+        {
+            uint32_t entryPointIndex = pipelineImpl->m_raygenEntryPointIndices[i];
+            size_t paramsSize = pipelineImpl->m_rootObjectLayout->getEntryPoint(entryPointIndex).paramsSize;
+            size_t paramsSizeAligned = math::calcAligned2(paramsSize, OPTIX_SBT_RECORD_ALIGNMENT);
+            tableSize += sizeof(SbtRecord) + paramsSizeAligned;
+        }
+
+        // Miss records
+        tableSize += max(shaderTable->m_missShaderCount, 1u) * missRecordSize;
+
+        // Hit group records
+        tableSize += shaderTable->m_hitGroupCount * hitGroupRecordSize;
+
+        // Callable records
+        tableSize += shaderTable->m_callableShaderCount * callableRecordSize;
+
+        // Setup raygen infos for dispatch time
         uint64_t sbtOffset = 0;
         for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
         {
             uint32_t entryPointIndex = pipelineImpl->m_raygenEntryPointIndices[i];
             size_t paramsSize = pipelineImpl->m_rootObjectLayout->getEntryPoint(entryPointIndex).paramsSize;
             size_t paramsSizeAligned = math::calcAligned2(paramsSize, OPTIX_SBT_RECORD_ALIGNMENT);
-            tableSize += paramsSizeAligned;
             shaderBindingTable->m_raygenInfos.push_back({entryPointIndex, sbtOffset, paramsSize, paramsSizeAligned});
             sbtOffset += sizeof(SbtRecord) + paramsSizeAligned;
         }
@@ -910,46 +1098,51 @@ public:
         CUdeviceptr devicePtr = deviceBuffer;
 
         OptixShaderBindingTable& sbt = shaderBindingTable->m_sbt;
-        const std::vector<std::string>& shaderGroupNames = shaderTable->m_shaderGroupNames;
-        const std::map<std::string, uint32_t>& shaderGroupNameToIndex = pipelineImpl->m_shaderGroupNameToIndex;
 
-        size_t shaderTableEntryIndex = 0;
+        auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
+        {
+            auto it = pipelineImpl->m_programGroupIndexByName.find(name);
+            if (it != pipelineImpl->m_programGroupIndexByName.end())
+            {
+                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], dest),
+                    m_device
+                );
+            }
+            if (overwrite && overwrite->size > 0)
+            {
+                memcpy((uint8_t*)dest + overwrite->offset, overwrite->data, overwrite->size);
+            }
+            return SLANG_OK;
+        };
 
+        // Raygen records
         if (shaderTable->m_rayGenShaderCount > 0)
         {
             sbt.raygenRecord = devicePtr;
             for (uint32_t i = 0; i < shaderTable->m_rayGenShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                if (it == shaderGroupNameToIndex.end())
-                    continue;
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-                hostPtr += sizeof(SbtRecord);
-                hostPtr += shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
-                devicePtr += sizeof(SbtRecord);
-                devicePtr += shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
+                SLANG_RETURN_ON_FAIL(writeTableEntry(hostPtr, shaderTable->m_rayGenShaderEntryPointNames[i], nullptr));
+                hostPtr += sizeof(SbtRecord) + shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
+                devicePtr += sizeof(SbtRecord) + shaderBindingTable->m_raygenInfos[i].paramsSizeAligned;
             }
         }
 
+        // Miss records
         if (shaderTable->m_missShaderCount > 0)
         {
             sbt.missRecordBase = devicePtr;
-            sbt.missRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.missRecordStrideInBytes = missRecordSize;
             sbt.missRecordCount = shaderTable->m_missShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                if (it == shaderGroupNameToIndex.end())
-                    continue;
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-                hostPtr += sizeof(SbtRecord);
-                devicePtr += sizeof(SbtRecord);
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_missShaderEntryPointNames[i],
+                    (i < shaderTable->m_missRecordOverwrites.size()) ? &shaderTable->m_missRecordOverwrites[i] : nullptr
+                ));
+                hostPtr += missRecordSize;
+                devicePtr += missRecordSize;
             }
         }
         else
@@ -957,47 +1150,47 @@ public:
             // OptiX validation complains if there are no miss records.
             // To avoid this, we create a dummy miss record.
             sbt.missRecordBase = devicePtr;
-            sbt.missRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.missRecordStrideInBytes = missRecordSize;
             sbt.missRecordCount = 1;
-            hostPtr += sizeof(SbtRecord);
-            devicePtr += sizeof(SbtRecord);
+            hostPtr += missRecordSize;
+            devicePtr += missRecordSize;
         }
 
+        // Hit group records
         if (shaderTable->m_hitGroupCount > 0)
         {
             sbt.hitgroupRecordBase = devicePtr;
-            sbt.hitgroupRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.hitgroupRecordStrideInBytes = hitGroupRecordSize;
             sbt.hitgroupRecordCount = shaderTable->m_hitGroupCount;
             for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                if (it == shaderGroupNameToIndex.end())
-                    continue;
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-                hostPtr += sizeof(SbtRecord);
-                devicePtr += sizeof(SbtRecord);
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_hitGroupNames[i],
+                    (i < shaderTable->m_hitGroupRecordOverwrites.size()) ? &shaderTable->m_hitGroupRecordOverwrites[i]
+                                                                         : nullptr
+                ));
+                hostPtr += hitGroupRecordSize;
+                devicePtr += hitGroupRecordSize;
             }
         }
 
+        // Callable records
         if (shaderTable->m_callableShaderCount > 0)
         {
             sbt.callablesRecordBase = devicePtr;
-            sbt.callablesRecordStrideInBytes = sizeof(SbtRecord);
+            sbt.callablesRecordStrideInBytes = callableRecordSize;
             sbt.callablesRecordCount = shaderTable->m_callableShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
             {
-                auto it = shaderGroupNameToIndex.find(shaderGroupNames[shaderTableEntryIndex++]);
-                if (it == shaderGroupNameToIndex.end())
-                    continue;
-                SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
-                    optixSbtRecordPackHeader(pipelineImpl->m_programGroups[it->second], hostPtr),
-                    m_device
-                );
-                hostPtr += sizeof(SbtRecord);
-                devicePtr += sizeof(SbtRecord);
+                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                    hostPtr,
+                    shaderTable->m_callableShaderEntryPointNames[i],
+                    (i < shaderTable->m_callableRecordOverwrites.size()) ? &shaderTable->m_callableRecordOverwrites[i]
+                                                                         : nullptr
+                ));
+                hostPtr += callableRecordSize;
+                devicePtr += callableRecordSize;
             }
         }
 
@@ -1170,10 +1363,11 @@ public:
         sbt.raygenRecord += info.sbtOffset;
         SLANG_RHI_ASSERT(info.entryPointIndex < bindingData->entryPointCount);
         SLANG_RHI_ASSERT(bindingData->entryPoints[info.entryPointIndex].size <= info.paramsSize);
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyHtoD(
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyHtoDAsync(
             sbt.raygenRecord + sizeof(SbtRecord),
             bindingData->entryPoints[info.entryPointIndex].data,
-            bindingData->entryPoints[info.entryPointIndex].size
+            bindingData->entryPoints[info.entryPointIndex].size,
+            stream
         ));
 
         SLANG_OPTIX_ASSERT_ON_FAIL(optixLaunch(
@@ -1296,6 +1490,16 @@ public:
     ) const override
     {
 #if OPTIX_VERSION >= 90000
+        // For non-optimal layouts (RowMajor/ColumnMajor), compute the size manually
+        // to match the behavior of D3D12 and Vulkan backends. The OptiX API rounds
+        // up to 64-byte boundaries which is inconsistent with other backends.
+        if (layout == CooperativeVectorMatrixLayout::RowMajor || layout == CooperativeVectorMatrixLayout::ColumnMajor)
+        {
+            *outSize = computeCooperativeVectorMatrixSize(rowCount, colCount, componentType, layout, rowColumnStride);
+            return SLANG_OK;
+        }
+
+        // For optimal layouts, use the OptiX API since the size is implementation-defined.
         SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
             optixCoopVecMatrixComputeSize(
                 m_deviceContext,

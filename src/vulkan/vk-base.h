@@ -5,10 +5,13 @@
 #include "vk-descriptor-allocator.h"
 #include "vk-device-queue.h"
 
+#include "aftermath.h"
+
 #include "core/common.h"
 
 namespace rhi::vk {
 
+class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;
 class InputLayoutImpl;

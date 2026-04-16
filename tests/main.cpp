@@ -33,7 +33,9 @@ int main(int argc, const char** argv)
     rhi::testing::cleanupTestTempDirectories();
 
 #if SLANG_RHI_DEBUG
-    rhi::getRHI()->enableDebugLayers();
+    rhi::DebugLayerOptions debugLayerOptions{};
+    debugLayerOptions.coreValidation = true;
+    rhi::getRHI()->setDebugLayerOptions(debugLayerOptions);
 #endif
 
     // Parse extra command line options.
@@ -99,6 +101,8 @@ int main(int argc, const char** argv)
     }
 
     rhi::testing::cleanupTestTempDirectories();
+
+    rhi::destroyRHI();
 
 #if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
     if (!rhi::RefObjectTracker::instance().objects.empty())

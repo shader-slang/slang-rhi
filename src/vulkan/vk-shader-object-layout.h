@@ -402,6 +402,9 @@ public:
 
         /// Offset for binding the entry point, relative to the start of the program
         BindingOffset offset;
+
+        /// Size of the entry point parameters (for ray tracing SBT data)
+        size_t paramsSize = 0;
     };
 
     struct Builder : Super::Builder

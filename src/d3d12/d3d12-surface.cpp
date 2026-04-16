@@ -42,6 +42,7 @@ void SurfaceImpl::createSwapchainTextures(uint32_t count)
         texture->m_format = getFormatMapping(textureDesc.format).rtvFormat;
         texture->m_isTypeless = false;
         texture->m_defaultState = D3D12_RESOURCE_STATE_PRESENT;
+        texture->m_isSwapchainTexture = true;
         m_textures.push_back(texture);
 
         SetEvent(m_frameEvents[i]);

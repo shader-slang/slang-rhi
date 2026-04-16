@@ -3,8 +3,6 @@
 #include "d3d12-buffer.h"
 #include "d3d12-pipeline.h"
 
-#include "core/string.h"
-
 namespace rhi::d3d12 {
 
 ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
@@ -12,77 +10,99 @@ ShaderTableImpl::ShaderTableImpl(Device* device, const ShaderTableDesc& desc)
 {
 }
 
-BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
+ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipelineImpl* pipeline)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    auto bufferIt = m_buffers.find(pipeline);
-    if (bufferIt != m_buffers.end())
-        return bufferIt->second.get();
+    auto it = m_pipelineData.find(pipeline);
+    if (it != m_pipelineData.end())
+        return it->second.get();
 
-    uint32_t raygenTableSize = m_rayGenShaderCount * kRayGenRecordSize;
-    uint32_t missTableSize = m_missShaderCount * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-    uint32_t hitgroupTableSize = m_hitGroupCount * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-    uint32_t callableTableSize = m_callableShaderCount * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-    m_rayGenTableOffset = 0;
-    m_missTableOffset = raygenTableSize;
-    m_hitGroupTableOffset =
-        (uint32_t)math::calcAligned2(m_missTableOffset + missTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-    m_callableTableOffset = (uint32_t)
-        math::calcAligned2(m_hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-    uint32_t tableSize = m_callableTableOffset + callableTableSize;
+    // Calculate record sizes (without alignment).
+    uint32_t raygenRecordSize = max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_rayGenRecordOverwriteMaxSize);
+    uint32_t missRecordSize = max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_missRecordOverwriteMaxSize);
+    uint32_t hitGroupRecordSize =
+        max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_hitGroupRecordOverwriteMaxSize);
+    uint32_t callableRecordSize =
+        max(uint32_t(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES), m_callableRecordOverwriteMaxSize);
 
-    auto tableData = std::make_unique<uint8_t[]>(tableSize);
+    // Align all record sizes to D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, expect raygen records which must be
+    // aligned to D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT.
+    raygenRecordSize = (uint32_t)math::calcAligned2(raygenRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+    missRecordSize = (uint32_t)math::calcAligned2(missRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+    hitGroupRecordSize =
+        (uint32_t)math::calcAligned2(hitGroupRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+    callableRecordSize =
+        (uint32_t)math::calcAligned2(callableRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 
-    ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
-    pipeline->m_stateObject->QueryInterface(stateObjectProperties.writeRef());
+    // Calculate table sizes.
+    uint32_t raygenTableSize = m_rayGenShaderCount * raygenRecordSize;
+    uint32_t missTableSize = m_missShaderCount * missRecordSize;
+    uint32_t hitgroupTableSize = m_hitGroupCount * hitGroupRecordSize;
+    uint32_t callableTableSize = m_callableShaderCount * callableRecordSize;
 
-    auto copyShaderIdInto = [&](void* dest, std::string& name, const ShaderRecordOverwrite& overwrite)
+    // Calculate table offsets, ensuring each table starts at a multiple of
+    // D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT.
+    uint32_t rayGenTableOffset = 0;
+    uint32_t missTableOffset =
+        (uint32_t)math::calcAligned2(rayGenTableOffset + raygenTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+    uint32_t hitGroupTableOffset =
+        (uint32_t)math::calcAligned2(missTableOffset + missTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+    uint32_t callableTableOffset = (uint32_t)
+        math::calcAligned2(hitGroupTableOffset + hitgroupTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+
+    uint32_t tableSize = callableTableOffset + callableTableSize;
+
+    auto writeTableEntry = [&](void* dest, const std::string& name, const ShaderRecordOverwrite* overwrite)
     {
-        if (!name.empty())
+        auto it = pipeline->m_shaderIdentifierByName.find(name);
+        if (it != pipeline->m_shaderIdentifierByName.end())
         {
-            void* shaderId = stateObjectProperties->GetShaderIdentifier(string::to_wstring(name).data());
-            memcpy(dest, shaderId, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+            memcpy(dest, it->second, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
         }
-        if (overwrite.size)
+        if (overwrite && overwrite->size > 0)
         {
-            memcpy((uint8_t*)dest + overwrite.offset, overwrite.data, overwrite.size);
+            memcpy((uint8_t*)dest + overwrite->offset, overwrite->data, overwrite->size);
         }
     };
 
+    auto tableData = std::make_unique<uint8_t[]>(tableSize);
     uint8_t* tablePtr = tableData.get();
     memset(tablePtr, 0, tableSize);
 
     for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
     {
-        copyShaderIdInto(
-            tablePtr + m_rayGenTableOffset + kRayGenRecordSize * i,
-            m_shaderGroupNames[i],
-            m_recordOverwrites[i]
+        writeTableEntry(
+            tablePtr + rayGenTableOffset + i * raygenRecordSize,
+            m_rayGenShaderEntryPointNames[i],
+            i < m_rayGenRecordOverwrites.size() ? &m_rayGenRecordOverwrites[i] : nullptr
         );
     }
+
     for (uint32_t i = 0; i < m_missShaderCount; i++)
     {
-        copyShaderIdInto(
-            tablePtr + m_missTableOffset + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES * i,
-            m_shaderGroupNames[m_rayGenShaderCount + i],
-            m_recordOverwrites[m_rayGenShaderCount + i]
+        writeTableEntry(
+            tablePtr + missTableOffset + i * missRecordSize,
+            m_missShaderEntryPointNames[i],
+            i < m_missRecordOverwrites.size() ? &m_missRecordOverwrites[i] : nullptr
         );
     }
+
     for (uint32_t i = 0; i < m_hitGroupCount; i++)
     {
-        copyShaderIdInto(
-            tablePtr + m_hitGroupTableOffset + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES * i,
-            m_shaderGroupNames[m_rayGenShaderCount + m_missShaderCount + i],
-            m_recordOverwrites[m_rayGenShaderCount + m_missShaderCount + i]
+        writeTableEntry(
+            tablePtr + hitGroupTableOffset + i * hitGroupRecordSize,
+            m_hitGroupNames[i],
+            i < m_hitGroupRecordOverwrites.size() ? &m_hitGroupRecordOverwrites[i] : nullptr
         );
     }
+
     for (uint32_t i = 0; i < m_callableShaderCount; i++)
     {
-        copyShaderIdInto(
-            tablePtr + m_callableTableOffset + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES * i,
-            m_shaderGroupNames[m_rayGenShaderCount + m_missShaderCount + m_hitGroupCount + i],
-            m_recordOverwrites[m_rayGenShaderCount + m_missShaderCount + m_hitGroupCount + i]
+        writeTableEntry(
+            tablePtr + callableTableOffset + i * callableRecordSize,
+            m_callableShaderEntryPointNames[i],
+            i < m_callableRecordOverwrites.size() ? &m_callableRecordOverwrites[i] : nullptr
         );
     }
 
@@ -92,11 +112,27 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     bufferDesc.defaultState = ResourceState::ShaderResource;
     bufferDesc.usage = BufferUsage::ShaderTable;
     bufferDesc.size = tableSize;
-    m_device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef());
+    if (SLANG_FAILED(m_device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef())))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to create shader table buffer");
+        return nullptr;
+    }
 
-    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer.get());
-    m_buffers[pipeline] = bufferImpl;
-    return bufferImpl;
+    RefPtr<PipelineData> pipelineData = new PipelineData();
+
+    pipelineData->buffer = checked_cast<BufferImpl*>(buffer.get());
+
+    pipelineData->rayGenTableOffset = rayGenTableOffset;
+    pipelineData->missTableOffset = missTableOffset;
+    pipelineData->hitGroupTableOffset = hitGroupTableOffset;
+    pipelineData->callableTableOffset = callableTableOffset;
+    pipelineData->rayGenRecordStride = raygenRecordSize;
+    pipelineData->missRecordStride = missRecordSize;
+    pipelineData->hitGroupRecordStride = hitGroupRecordSize;
+    pipelineData->callableRecordStride = callableRecordSize;
+
+    m_pipelineData.emplace(pipeline, pipelineData);
+    return pipelineData.get();
 }
 
 } // namespace rhi::d3d12

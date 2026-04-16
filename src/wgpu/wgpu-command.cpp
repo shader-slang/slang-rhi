@@ -50,7 +50,7 @@ public:
     {
     }
 
-    Result record(CommandBufferImpl* commandBuffer);
+    Result record(CommandBufferImpl* commandBuffer, const char* encoderLabel = nullptr);
 
     void cmdCopyBuffer(const commands::CopyBuffer& cmd);
     void cmdCopyTexture(const commands::CopyTexture& cmd);
@@ -97,13 +97,15 @@ public:
     void endPassEncoder();
 };
 
-Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
+Result CommandRecorder::record(CommandBufferImpl* commandBuffer, const char* encoderLabel)
 {
     auto existingError = m_device->getAndClearLastUncapturedError();
     if (existingError != WGPUErrorType_NoError)
         m_device->printWarning("Web GPU device had reported error before command record.");
 
-    m_commandEncoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, nullptr);
+    WGPUCommandEncoderDescriptor encoderDesc = {};
+    encoderDesc.label = translateString(encoderLabel);
+    m_commandEncoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, &encoderDesc);
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(m_commandEncoder); });
     if (!m_commandEncoder)
     {
@@ -134,7 +136,9 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     endPassEncoder();
 
-    commandBuffer->m_commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, nullptr);
+    WGPUCommandBufferDescriptor commandBufferDesc = {};
+    commandBufferDesc.label = translateString(commandBuffer->m_desc.label);
+    commandBuffer->m_commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(m_commandEncoder, &commandBufferDesc);
     if (!commandBuffer->m_commandBuffer)
     {
         return SLANG_FAIL;
@@ -149,7 +153,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->printWarning(x " command is not supported!")
+#define NOT_SUPPORTED(interface, method) m_device->printWarning(#interface "::" #method " is not supported!")
 
 void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -254,10 +258,10 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             WGPUExtent3D copySize = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
             // Align copy sizes to format block dimensions
-            copySize.width = math::calcAligned2(copySize.width, srcFormatInfo.blockWidth);
-            copySize.height = math::calcAligned2(copySize.height, srcFormatInfo.blockHeight);
-            copySize.width = math::calcAligned2(copySize.width, dstFormatInfo.blockWidth);
-            copySize.height = math::calcAligned2(copySize.height, dstFormatInfo.blockHeight);
+            copySize.width = math::calcAligned(copySize.width, srcFormatInfo.blockWidth);
+            copySize.height = math::calcAligned(copySize.height, srcFormatInfo.blockHeight);
+            copySize.width = math::calcAligned(copySize.width, dstFormatInfo.blockWidth);
+            copySize.height = math::calcAligned(copySize.height, dstFormatInfo.blockHeight);
 
             m_ctx.api.wgpuCommandEncoderCopyTextureToTexture(m_commandEncoder, &source, &destination, &copySize);
         }
@@ -338,17 +342,17 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
 
 void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureFloat);
+    NOT_SUPPORTED(ICommandEncoder, clearTextureFloat);
 }
 
 void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureUint);
+    NOT_SUPPORTED(ICommandEncoder, clearTextureUint);
 }
 
 void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureDepthStencil);
+    NOT_SUPPORTED(ICommandEncoder, clearTextureDepthStencil);
 }
 
 void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cmd)
@@ -385,8 +389,8 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             dstRegion.texture = dst->m_texture;
 
             WGPUExtent3D copySize;
-            copySize.width = math::calcAligned2(srLayout->size.width, srLayout->blockWidth);
-            copySize.height = math::calcAligned2(srLayout->size.height, srLayout->blockHeight);
+            copySize.width = math::calcAligned(srLayout->size.width, srLayout->blockWidth);
+            copySize.height = math::calcAligned(srLayout->size.height, srLayout->blockHeight);
             copySize.depthOrArrayLayers = srLayout->size.depth;
 
             m_ctx.api.wgpuCommandEncoderCopyBufferToTexture(m_commandEncoder, &srcRegion, &dstRegion, &copySize);
@@ -399,7 +403,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
 
 void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
 {
-    NOT_SUPPORTED(S_CommandEncoder_resolveQuery);
+    NOT_SUPPORTED(ICommandEncoder, resolveQuery);
 }
 
 void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
@@ -645,7 +649,7 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawMeshTasks);
+    NOT_SUPPORTED(IRenderPassEncoder, drawMeshTasks);
 }
 
 void CommandRecorder::cmdBeginComputePass(const commands::BeginComputePass& cmd)
@@ -718,7 +722,7 @@ void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchCompute
 void CommandRecorder::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_beginRayTracingPass);
+    NOT_SUPPORTED(ICommandEncoder, beginRayTracingPass);
 }
 
 void CommandRecorder::cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd)
@@ -734,49 +738,49 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RayTracingPassEncoder_dispatchRays);
+    NOT_SUPPORTED(IRayTracingPassEncoder, dispatchRays);
 }
 
 void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_buildAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, buildAccelerationStructure);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_copyAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, copyAccelerationStructure);
 }
 
 void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_queryAccelerationStructureProperties);
+    NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
 }
 
 void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_serializeAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, serializeAccelerationStructure);
 }
 
 void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, deserializeAccelerationStructure);
 }
 
 void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_executeClusterOperation);
+    NOT_SUPPORTED(ICommandEncoder, executeClusterOperation);
 }
 
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_convertCooperativeVectorMatrix);
+    NOT_SUPPORTED(ICommandEncoder, convertCooperativeVectorMatrix);
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
@@ -845,7 +849,7 @@ void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_writeTimestamp);
+    NOT_SUPPORTED(ICommandEncoder, writeTimestamp);
 }
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -896,9 +900,9 @@ CommandQueueImpl::~CommandQueueImpl()
     }
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
 {
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this, desc);
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
 }
@@ -974,16 +978,17 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)
-        return SLANG_FAIL;
-    m_queue->establishStrongReferenceToDevice();
+    {
+        return SLANG_E_INVALID_ARG;
+    }
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
-    : CommandEncoder(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue, const CommandEncoderDesc& desc)
+    : CommandEncoder(device, desc)
     , m_queue(queue)
 {
     m_commandBuffer = new CommandBufferImpl(device, queue);
@@ -1012,12 +1017,13 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     );
 }
 
-Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
+Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
+    m_commandBuffer->setDesc(desc);
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->m_constantBufferPool.finish();
     CommandRecorder recorder(getDevice<DeviceImpl>());
-    SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));
+    SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer, m_desc.label));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;

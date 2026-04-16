@@ -8,11 +8,11 @@ QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
 {
 }
 
-Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* data)
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
     for (uint32_t i = 0; i < count; i++)
     {
-        data[i] = m_queries[queryIndex + i];
+        outData[i] = m_queries[queryIndex + i];
     }
     return SLANG_OK;
 }

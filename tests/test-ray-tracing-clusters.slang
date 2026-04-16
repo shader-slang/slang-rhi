@@ -48,6 +48,36 @@ void rayGenClusters()
     resultTexture[pixel] = float4(payload.color, 1.f);
 }
 
+[shader("raygeneration")]
+void rayGenClustersHitObject()
+{
+    uint2 pixel = DispatchRaysIndex().xy;
+    uint2 dim = DispatchRaysDimensions().xy;
+
+    float2 uv = float2(pixel) / float2(dim - 1);
+
+    RayDesc ray;
+    ray.Origin = float3(uv * 2 - 1, 1);
+    ray.Direction = float3(0, 0, -1);
+    ray.TMin = 0;
+    ray.TMax = 2;
+
+    Payload payload = {};
+
+    HitObject hit = HitObject.TraceRay(tlas, 0, 0xff, 0, 0, 0, ray, payload);
+
+    if (hit.IsMiss())
+        return;
+
+    // Color
+    BuiltInTriangleIntersectionAttributes attribs = hit.GetAttributes<BuiltInTriangleIntersectionAttributes>();
+    resultTexture[pixel] = float4(attribs.barycentrics, 1.f);
+
+    // IDs
+    uint index = pixel.y * dim.x + pixel.x;
+    ids_buffer[index] = uint2(hit.GetClusterID(), hit.GetPrimitiveIndex());
+}
+
 RWStructuredBuffer<rhi::TriangleClusterArgs> gTriArgs;
 uniform uint64_t gIndexBuffer;
 uniform uint64_t gVertexBuffer;

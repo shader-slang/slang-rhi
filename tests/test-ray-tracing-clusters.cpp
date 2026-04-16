@@ -34,12 +34,31 @@ static ComPtr<IBuffer> createUAVBuffer(IDevice* device, size_t size, const void*
     return device->createBuffer(desc, data);
 }
 
+static ComPtr<IBuffer> createHandlesBuffer(IDevice* device, size_t size, const void* data = nullptr)
+{
+    BufferDesc desc = {};
+    desc.size = size;
+    // Note: BufferUsage::AccelerationStructure is only needed for Vulkan.
+    desc.usage = BufferUsage::UnorderedAccess | BufferUsage::AccelerationStructure | BufferUsage::CopySource |
+                 BufferUsage::CopyDestination;
+    desc.defaultState = ResourceState::UnorderedAccess;
+    return device->createBuffer(desc, data);
+}
+
+static ComPtr<IBuffer> createArgCountBuffer(IDevice* device, uint32_t count)
+{
+    BufferDesc desc = {};
+    desc.size = sizeof(uint32_t);
+    desc.usage = BufferUsage::AccelerationStructureBuildInput | BufferUsage::CopySource | BufferUsage::CopyDestination;
+    desc.defaultState = ResourceState::AccelerationStructureBuildInput;
+    return device->createBuffer(desc, &count);
+}
+
 static ComPtr<IBuffer> createAccelStructureBuffer(IDevice* device, size_t size)
 {
     BufferDesc desc = {};
     desc.size = size;
     desc.usage = BufferUsage::AccelerationStructure;
-    desc.defaultState = ResourceState::AccelerationStructure;
     return device->createBuffer(desc);
 }
 
@@ -91,10 +110,12 @@ static ClasImplicitBuildResult buildClasImplicit(
     uint64_t handlesSize =
         alignUp(uint64_t(handleCount) * uint64_t(kClusterDefaultHandleStride), uint64_t(kClusterOutputAlignment));
     result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
-    result.handlesBuffer = createUAVBuffer(device, handlesSize);
+    result.handlesBuffer = createHandlesBuffer(device, handlesSize);
+    ComPtr<IBuffer> argCountBuffer = createArgCountBuffer(device, handleCount);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
 
     desc.params.mode = ClusterOperationMode::ImplicitDestinations;
+    desc.argCountBuffer = argCountBuffer;
     desc.scratchBuffer = scratchBuffer;
     desc.addressesBuffer = result.handlesBuffer;
     desc.resultBuffer = result.resultBuffer;
@@ -150,9 +171,11 @@ static BlasFromClasResult buildBlasFromClasImplicit(
 
     uint64_t handlesSize = alignUp(uint64_t(kClusterDefaultHandleStride), uint64_t(kClusterOutputAlignment));
     result.resultBuffer = createAccelStructureBuffer(device, sizes.resultSize);
-    result.handlesBuffer = createUAVBuffer(device, handlesSize);
+    result.handlesBuffer = createHandlesBuffer(device, handlesSize);
+    ComPtr<IBuffer> argCountBuffer = createArgCountBuffer(device, 1);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, sizes.scratchSize);
 
+    desc.argCountBuffer = argCountBuffer;
     desc.scratchBuffer = scratchBuffer;
     desc.addressesBuffer = result.handlesBuffer;
     desc.resultBuffer = result.resultBuffer;
@@ -319,6 +342,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
     ClusterOperationSizes clasSizes = {};
     CHECK_CALL(device->getClusterOperationSizes(clasDesc.params, &clasSizes));
 
+    ComPtr<IBuffer> argCountBuffer = createArgCountBuffer(device, 2);
     ComPtr<IBuffer> scratchBuffer = createUAVBuffer(device, clasSizes.scratchSize);
 
     // Step 1: GET_SIZES to produce per-CLAS sizes
@@ -326,11 +350,13 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
     ComPtr<IBuffer> sizesBuffer = createUAVBuffer(device, sizeof(uint32_t) * 2, zeroSizes);
 
     clasDesc.params.mode = ClusterOperationMode::GetSizes;
+    clasDesc.argCountBuffer = argCountBuffer;
     clasDesc.scratchBuffer = scratchBuffer;
     clasDesc.sizesBuffer = sizesBuffer;
 
     // Build with GET_SIZES; result buffer unused, provide a small dummy
     ComPtr<IBuffer> dummyOut = createAccelStructureBuffer(device, 256);
+    clasDesc.resultBuffer = dummyOut;
 
     auto queue = device->getQueue(QueueType::Graphics);
     auto enc = queue->createCommandEncoder();
@@ -354,7 +380,7 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
         arena->getDeviceAddress() + off0,
         arena->getDeviceAddress() + off1,
     };
-    ComPtr<IBuffer> destAddrBuf = createUAVBuffer(device, sizeof(destAddrsHost), destAddrsHost);
+    ComPtr<IBuffer> destAddrBuf = createHandlesBuffer(device, sizeof(destAddrsHost), destAddrsHost);
 
     // Step 3: Explicit build, alias handles to destAddresses array
     clasDesc.params.mode = ClusterOperationMode::ExplicitDestinations;
@@ -375,13 +401,13 @@ GPU_TEST_CASE("ray-tracing-cluster-build-two-clusters-explicit", D3D12 | Vulkan 
     CHECK_EQ(handles[1], destAddrsHost[1]);
 }
 
-
-// Build two clusters with device-written TriangleClusterArgs and render two horizontal bands.
-GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
+// Helper function to test cluster ray tracing with different shader configurations
+static void testClusterTracing(
+    IDevice* device,
+    const char* raygenShaderName,
+    const char* closestHitShaderName // nullptr if not used
+)
 {
-    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
-        SKIP("cluster acceleration structure not supported");
-
     // Geometry: two horizontal strips (shared indices; per-cluster vertex base)
     constexpr uint32_t kGridW = 4;
     constexpr uint32_t kGridH = 1;
@@ -557,6 +583,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     ComPtr<IBuffer> tlasScratch = device->createBuffer(tlasScratchDesc);
 
     AccelerationStructureDesc createDesc = {};
+    createDesc.kind = AccelerationStructureKind::TopLevel;
     createDesc.size = tlasSizes.accelerationStructureSize;
     ComPtr<IAccelerationStructure> TLAS;
     REQUIRE_CALL(device->createAccelerationStructure(createDesc, TLAS.writeRef()));
@@ -585,18 +612,20 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     diagnoseIfNeeded(diagnosticsBlob);
     REQUIRE(module != nullptr);
     std::vector<slang::IComponentType*> components;
-    constexpr const char* kRayGen = "rayGenClusters";
     constexpr const char* kMiss = "missClusters";
-    constexpr const char* kClosestHit = "closestHitClusters";
     constexpr const char* kHitGroup = "hit_group";
     components.push_back(module);
     ComPtr<slang::IEntryPoint> ep;
-    REQUIRE_CALL(module->findEntryPointByName(kRayGen, ep.writeRef()));
+    REQUIRE_CALL(module->findEntryPointByName(raygenShaderName, ep.writeRef()));
     components.push_back(ep);
     REQUIRE_CALL(module->findEntryPointByName(kMiss, ep.writeRef()));
     components.push_back(ep);
-    REQUIRE_CALL(module->findEntryPointByName(kClosestHit, ep.writeRef()));
-    components.push_back(ep);
+    // Conditionally load closest hit
+    if (closestHitShaderName != nullptr)
+    {
+        REQUIRE_CALL(module->findEntryPointByName(closestHitShaderName, ep.writeRef()));
+        components.push_back(ep);
+    }
     ComPtr<slang::IComponentType> composedProgram;
     REQUIRE_CALL(slangSession->createCompositeComponentType(
         components.data(),
@@ -616,7 +645,10 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     rtp.program = rayTracingProgram;
     rtp.hitGroupCount = 1;
     HitGroupDesc hg = {};
-    hg.closestHitEntryPoint = kClosestHit;
+    if (closestHitShaderName != nullptr)
+    {
+        hg.closestHitEntryPoint = closestHitShaderName;
+    }
     hg.hitGroupName = kHitGroup;
     rtp.hitGroups = &hg;
     rtp.maxRayPayloadSize = 16;
@@ -626,7 +658,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
     ComPtr<IRayTracingPipeline> pipeline;
     REQUIRE_CALL(device->createRayTracingPipeline(rtp, pipeline.writeRef()));
 
-    const char* raygenNames[] = {kRayGen};
+    const char* raygenNames[] = {raygenShaderName};
     const char* missNames[] = {kMiss};
     const char* hitGroupNames[] = {kHitGroup};
     ShaderTableDesc stDesc = {};
@@ -656,7 +688,7 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
         idsDesc.defaultState = ResourceState::UnorderedAccess;
         idsBuf = device->createBuffer(idsDesc);
         cursor["ids_buffer"].setBinding(idsBuf);
-        // ids are written at every pixel in closest hit
+        // ids are written at every pixel
         pass->dispatchRays(0, width, height, 1);
         pass->end();
     }
@@ -744,4 +776,21 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
         }
     }
     CHECK_EQ(stripCount, 2u);
+}
+
+// Build two clusters with device-written TriangleClusterArgs and render two horizontal bands.
+GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
+
+    testClusterTracing(device, "rayGenClusters", "closestHitClusters");
+}
+
+GPU_TEST_CASE("ray-tracing-cluster-tracing-hit-object", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::ClusterAccelerationStructure))
+        SKIP("cluster acceleration structure not supported");
+
+    testClusterTracing(device, "rayGenClustersHitObject", nullptr);
 }

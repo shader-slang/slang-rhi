@@ -35,9 +35,11 @@ public:
     DeviceImpl();
     ~DeviceImpl();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
+    void deferDelete(Resource* resource);
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
         const TextureDesc& desc,
@@ -193,14 +195,17 @@ public:
 
     void customizeShaderObject(ShaderObject* shaderObject) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(
+        const TextureDesc& desc,
+        Size* outSize,
+        Size* outAlignment
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() override;
 };
 
 } // namespace rhi::cuda
-
-namespace rhi {
-
-IAdapter* getCUDAAdapter(uint32_t index);
-Result createCUDADevice(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

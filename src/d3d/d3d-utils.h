@@ -1,5 +1,6 @@
 #pragma once
 
+#include "device.h"
 #include "core/common.h"
 
 #include <slang-com-helper.h>
@@ -43,7 +44,7 @@ Result compileHLSLShader(
 
 SharedLibraryHandle getDXGIModule();
 Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory);
-ComPtr<IDXGIFactory> getDXGIFactory();
+ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device* device);
 
 Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
 Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
@@ -65,9 +66,5 @@ uint32_t getSubresourceIndex(
 );
 
 Result reportLiveObjects();
-
-/// Call after a DXGI_ERROR_DEVICE_REMOVED/DXGI_ERROR_DEVICE_RESET on present, to wait for
-/// dumping to complete. Will return SLANG_OK if wait happened successfully
-Result waitForCrashDumpCompletion(HRESULT res);
 
 } // namespace rhi

@@ -67,6 +67,11 @@ public:
     void* m_raytracingValidationHandle = nullptr;
 #endif
 
+#if SLANG_RHI_ENABLE_AFTERMATH
+    /// Aftermath crash dumper (null if Aftermath is not enabled).
+    AftermathCrashDumper* m_aftermathCrashDumper = nullptr;
+#endif
+
     // Command signatures required for indirect draws. These indicate the format of the indirect
     // as well as the command type to be used (DrawInstanced and DrawIndexedInstanced, in this
     // case).
@@ -77,7 +82,7 @@ public:
 public:
     using Device::readBuffer;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
@@ -185,6 +190,8 @@ public:
 
     ~DeviceImpl();
 
+    void deferDelete(Resource* resource);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
         const AccelerationStructureBuildDesc& desc,
         AccelerationStructureSizes* outSizes
@@ -262,14 +269,7 @@ public:
 
 private:
     void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* desc);
+    inline Result setupDebugLayer(SharedLibraryHandle d3dModule);
 };
 
 } // namespace rhi::d3d12
-
-namespace rhi {
-
-IAdapter* getD3D12Adapter(uint32_t index);
-Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice);
-void enableD3D12DebugLayerIfAvailable();
-
-} // namespace rhi

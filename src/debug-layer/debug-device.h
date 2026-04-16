@@ -2,6 +2,14 @@
 
 #include "debug-base.h"
 
+#include <unordered_set>
+
+/// Enabling this will add validation to track mapped buffers and warn on double maps/unmaps.
+/// This is disabled by default as it adds overhead to map/unmap calls and requires storing a pointer in a set.
+#ifndef SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
+#define SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION 0
+#endif
+
 namespace rhi::debug {
 
 class DebugDevice : public DebugObject<IDevice>
@@ -10,10 +18,12 @@ public:
     Result SLANG_MCALL queryInterface(const SlangUUID& uuid, void** outObject) noexcept override;
     SLANG_COM_OBJECT_IUNKNOWN_ADD_REF;
     SLANG_COM_OBJECT_IUNKNOWN_RELEASE;
+    IDevice* getInterface(const Guid& guid);
+
+    DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback);
 
 public:
-    DebugDevice(DeviceType deviceType, IDebugCallback* debugCallback);
-    IDevice* getInterface(const Guid& guid);
+    // IDevice implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getFeatures(uint32_t* outFeatureCount, Feature* outFeatures) override;
     virtual SLANG_NO_THROW bool SLANG_MCALL hasFeature(Feature feature) override;
@@ -159,6 +169,10 @@ public:
         size_t* outAlignment
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
+        const CooperativeMatrixDesc& desc,
+        bool* outSupported
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCooperativeVectorProperties(
         CooperativeVectorProperties* properties,
         uint32_t* propertiesCount
@@ -185,6 +199,21 @@ public:
         IShaderTable** outTable
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL reportHeaps(HeapReport* heapReports, uint32_t* heapCount) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL setCudaContextCurrent() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL pushCudaContext() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() override;
+
+public:
+    /// Validate that the correct CUDA context is current (CUDA devices only).
+    /// Emits a warning if the wrong context or no context is active.
+    void validateCudaContext();
+
+#if SLANG_RHI_DEBUG_ENABLE_BUFFER_MAP_VALIDATION
+    /// Set of currently mapped buffers for double-map/double-unmap detection.
+    std::unordered_set<IBuffer*> m_mappedBuffers;
+    std::mutex m_mappedBuffersMutex;
+#endif
 
 private:
     DebugContext m_ctx;

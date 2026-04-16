@@ -1,4 +1,5 @@
 #include "d3d12-device.h"
+#include "d3d12-backend.h"
 #include "d3d12-buffer.h"
 #include "d3d12-fence.h"
 #include "d3d12-utils.h"
@@ -13,16 +14,11 @@
 #include "d3d12-input-layout.h"
 #include "d3d12-acceleration-structure.h"
 
+#include "aftermath.h"
 #include "cooperative-vector-utils.h"
 
 #include "core/short_vector.h"
 #include "core/string.h"
-
-#ifdef SLANG_RHI_NV_AFTERMATH
-#include "GFSDK_Aftermath.h"
-#include "GFSDK_Aftermath_Defines.h"
-#include "GFSDK_Aftermath_GpuCrashDump.h"
-#endif
 
 #include <algorithm>
 
@@ -90,36 +86,6 @@ inline int getShaderModelFromProfileName(const char* name)
         }
     }
     return -1;
-}
-
-inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
-{
-    std::vector<ComPtr<IDXGIAdapter>> dxgiAdapters;
-    SLANG_RETURN_ON_FAIL(enumAdapters(dxgiAdapters));
-
-    for (const auto& dxgiAdapter : dxgiAdapters)
-    {
-        AdapterInfo info = getAdapterInfo(dxgiAdapter);
-        info.deviceType = DeviceType::D3D12;
-
-        AdapterImpl adapter;
-        adapter.m_info = info;
-        adapter.m_dxgiAdapter = dxgiAdapter;
-        outAdapters.push_back(adapter);
-    }
-
-    // Mark default adapter (prefer discrete if available).
-    markDefaultAdapter(outAdapters);
-
-    return SLANG_OK;
-}
-
-std::vector<AdapterImpl>& getAdapters()
-{
-    static std::vector<AdapterImpl> adapters;
-    static Result initResult = getAdaptersImpl(adapters);
-    SLANG_UNUSED(initResult);
-    return adapters;
 }
 
 static void validationMessageCallback(
@@ -190,7 +156,100 @@ static void __stdcall raytracingValidationMessageCallback(
 }
 #endif // SLANG_RHI_ENABLE_NVAPI
 
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+inline Result DeviceImpl::setupDebugLayer(SharedLibraryHandle d3dModule)
+{
+    // Tracks the `DebugLayers` state for D3D12 since this
+    // state is persistent across devices/factory objects.
+    // This state does not mirror `getDebugLayerOptions()` since
+    // D3D12 debug layer state is only hinted at by `getDebugLayerOptions()`.
+    static DebugLayerOptions activeDebugLayers = {};
+
+    // Only interact with `ID3D12Debug` if we enabled or previously enabled debug layers.
+    if (getRHI()->isDebugLayersEnabled() || activeDebugLayers.isDebugLayersEnabled())
+    {
+        if (!m_D3D12GetDebugInterface)
+            m_D3D12GetDebugInterface =
+                (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
+
+        bool debugLayersRequired = getRHI()->getDebugLayerOptions().required;
+
+        // With our vulkan backend we fail to create a valid VkInstance and return SLANG_FAIL.
+        // We will keep consistent with this failure.
+        if (!m_D3D12GetDebugInterface)
+        {
+            printMessage(
+                debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+                DebugMessageSource::Layer,
+                "Debug layers requested but D3D12GetDebugInterface is not available.\n"
+            );
+            return debugLayersRequired ? SLANG_FAIL : SLANG_OK;
+        }
+
+        if (SLANG_SUCCEEDED(m_D3D12GetDebugInterface(IID_PPV_ARGS(m_dxDebug.writeRef()))))
+        {
+            // If debug layers are signaled to be disabled we know the debug-layers were previously enabled
+            if (getRHI()->isDebugLayersEnabled() == false)
+            {
+                ComPtr<ID3D12Debug4> debug4;
+                if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug4.writeRef())))
+                {
+                    activeDebugLayers.coreValidation = false;
+                    debug4->DisableDebugLayer();
+                }
+                else
+                {
+                    printMessage(
+                        debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+                        DebugMessageSource::Layer,
+                        "Unable to disable the previously enabled debug layers.\n"
+                    );
+                    return debugLayersRequired ? SLANG_FAIL : SLANG_OK;
+                }
+            }
+            // If debug layers are signaled to be enabled, enable them if not done already
+            else if (!activeDebugLayers.coreValidation)
+            {
+                activeDebugLayers.coreValidation = true;
+                m_dxDebug->EnableDebugLayer();
+            }
+        }
+        else
+        {
+            printMessage(
+                debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+                DebugMessageSource::Layer,
+                "Debug layers requested but not available.\n"
+            );
+            return debugLayersRequired ? SLANG_FAIL : SLANG_OK;
+        }
+
+        auto willGPUAssistedValidationBeEnabled = getRHI()->getDebugLayerOptions().GPUAssistedValidation;
+        // If there is a GPUAssistedValidation option mismatch between
+        // the last created device and our Slang RHI instance, then
+        // change the global state of GPUAssistedValidation.
+        if (activeDebugLayers.GPUAssistedValidation != willGPUAssistedValidationBeEnabled)
+        {
+            ComPtr<ID3D12Debug1> debug1;
+            if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug1.writeRef())))
+            {
+                debug1->SetEnableGPUBasedValidation(willGPUAssistedValidationBeEnabled);
+                activeDebugLayers.GPUAssistedValidation = willGPUAssistedValidationBeEnabled;
+            }
+            else
+            {
+                printMessage(
+                    debugLayersRequired ? DebugMessageType::Error : DebugMessageType::Warning,
+                    DebugMessageSource::Layer,
+                    "GPU based validation requested but not available.\n"
+                );
+                return debugLayersRequired ? SLANG_FAIL : SLANG_OK;
+            }
+        }
+    }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
@@ -224,31 +283,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    // If Aftermath is enabled, we can't enable the D3D12 debug layer as well
-    if (isDebugLayersEnabled() && !desc.enableAftermath)
-    {
-        m_D3D12GetDebugInterface = (PFN_D3D12_GET_DEBUG_INTERFACE)loadProc(d3dModule, "D3D12GetDebugInterface");
-        if (m_D3D12GetDebugInterface)
-        {
-            if (SLANG_SUCCEEDED(m_D3D12GetDebugInterface(IID_PPV_ARGS(m_dxDebug.writeRef()))))
-            {
-#if 0
-                // Can enable for extra validation. NOTE! That d3d12 warns if you do....
-                // D3D12 MESSAGE : Device Debug Layer Startup Options : GPU - Based Validation is enabled(disabled by default).
-                // This results in new validation not possible during API calls on the CPU, by creating patched shaders that have validation
-                // added directly to the shader. However, it can slow things down a lot, especially for applications with numerous
-                // PSOs.Time to see the first render frame may take several minutes.
-                // [INITIALIZATION MESSAGE #1016: CREATEDEVICE_DEBUG_LAYER_STARTUP_OPTIONS]
-
-                ComPtr<ID3D12Debug1> debug1;
-                if (SLANG_SUCCEEDED(m_dxDebug->QueryInterface(debug1.writeRef())))
-                {
-                    debug1->SetEnableGPUBasedValidation(true);
-                }
-#endif
-            }
-        }
-    }
+    if (!SLANG_SUCCEEDED(setupDebugLayer(d3dModule)))
+        return SLANG_FAIL;
 
     // Get D3D12 entry points.
     {
@@ -285,12 +321,20 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-    m_dxgiFactory = getDXGIFactory();
-    AdapterImpl* adapter = nullptr;
+#if SLANG_RHI_ENABLE_AFTERMATH
+    // Aftermath crash dump needs to be enabled before device.
+    if (desc.enableAftermath)
+    {
+        AftermathCrashDumper::getOrCreate();
+    }
+#endif
+
+    m_dxgiFactory = getDXGIFactory(getRHI()->getDebugLayerOptions(), this);
+    const AdapterImpl* adapter = nullptr;
 
     if (!desc.existingDeviceHandles.handles[0])
     {
-        SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
+        SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
         m_dxgiAdapter = adapter->m_dxgiAdapter;
 
         const D3D_FEATURE_LEVEL featureLevels[] =
@@ -316,14 +360,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         m_device = (ID3D12Device*)desc.existingDeviceHandles.handles[0].value;
         AdapterLUID luid = getAdapterLUID(m_device->GetAdapterLuid());
         auto it = std::find_if(
-            getAdapters().begin(),
-            getAdapters().end(),
+            backend->getAdapters().begin(),
+            backend->getAdapters().end(),
             [&](const AdapterImpl& a)
             {
                 return luid == a.m_info.luid;
             }
         );
-        if (it == getAdapters().end())
+        if (it == backend->getAdapters().end())
         {
             return SLANG_FAIL;
         }
@@ -334,7 +378,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     // Query for ID3D12Device5 interface.
     m_device->QueryInterface<ID3D12Device5>(m_device5.writeRef());
 
-    if (m_dxDebug && isDebugLayersEnabled() && !desc.enableAftermath)
+    if (getRHI()->isDebugLayersEnabled() && m_dxDebug)
     {
         ComPtr<ID3D12InfoQueue> infoQueue;
         if (SLANG_SUCCEEDED(m_device->QueryInterface(infoQueue.writeRef())))
@@ -400,22 +444,47 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         }
     }
 
-#ifdef SLANG_RHI_NV_AFTERMATH
-    if (desc.enableAftermath && adapter->isNVIDIA())
+#if SLANG_RHI_ENABLE_AFTERMATH
+    if (desc.enableAftermath)
     {
-        // Initialize Nsight Aftermath for this device.
-        // This combination of flags is not necessarily appropraite for real world usage
-        const uint32_t aftermathFlags =
-            GFSDK_Aftermath_FeatureFlags_EnableMarkers | GFSDK_Aftermath_FeatureFlags_CallStackCapturing |
-            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking | GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |
-            GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
-
-        auto initResult = GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
-
-        if (initResult != GFSDK_Aftermath_Result_Success)
+        if (getRHI()->isDebugLayersEnabled())
         {
-            printWarning("Failed to initialize aftermath: %d\n", int(initResult));
+            printWarning("Aftermath cannot be used with D3D12 debug layers enabled.");
         }
+        else
+        {
+            // Initialize Aftermath for this device.
+            uint32_t aftermathFlags = 0;
+            if (is_set(desc.aftermathFlags, AftermathFlags::Minimum))
+                aftermathFlags = GFSDK_Aftermath_FeatureFlags_Minimum;
+            if (is_set(desc.aftermathFlags, AftermathFlags::EnableMarkers))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableMarkers;
+            if (is_set(desc.aftermathFlags, AftermathFlags::EnableResourceTracking))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableResourceTracking;
+            if (is_set(desc.aftermathFlags, AftermathFlags::CallStackCapturing))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_CallStackCapturing;
+            if (is_set(desc.aftermathFlags, AftermathFlags::GenerateShaderDebugInfo))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo;
+            if (is_set(desc.aftermathFlags, AftermathFlags::EnableShaderErrorReporting))
+                aftermathFlags |= GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
+
+            GFSDK_Aftermath_Result initResult =
+                GFSDK_Aftermath_DX12_Initialize(GFSDK_Aftermath_Version_API, aftermathFlags, m_device);
+
+            if (GFSDK_Aftermath_SUCCEED(initResult))
+            {
+                m_aftermathCrashDumper = AftermathCrashDumper::getOrCreate();
+            }
+            else
+            {
+                printWarning("Failed to initialize Aftermath: %d\n", int(initResult));
+            }
+        }
+    }
+#else
+    if (desc.enableAftermath)
+    {
+        printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
 
@@ -839,8 +908,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         // Enable ray tracing validation if requested
         if (desc.enableRayTracingValidation)
         {
-            if (NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE) ==
-                NVAPI_OK)
+            if (m_device5 &&
+                NvAPI_D3D12_EnableRaytracingValidation(m_device5, NVAPI_D3D12_RAYTRACING_VALIDATION_FLAG_NONE) ==
+                    NVAPI_OK)
             {
                 SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_RegisterRaytracingValidationMessageCallback(
                     m_device5,
@@ -848,6 +918,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                     this,
                     &m_raytracingValidationHandle
                 ));
+            }
+            else
+            {
+                printWarning("Raytracing validation requested but not available.\n");
             }
         }
     }
@@ -979,9 +1053,8 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 {
     if (type != QueueType::Graphics)
     {
-        return SLANG_FAIL;
+        return SLANG_E_INVALID_ARG;
     }
-    m_queue->establishStrongReferenceToDevice();
     returnComPtr(outQueue, m_queue);
     return SLANG_OK;
 }
@@ -1174,6 +1247,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         if (desc.label)
         {
             texture->m_resource.setDebugName(desc.label);
+#if SLANG_RHI_ENABLE_AFTERMATH
+            // The driver keeps track the resource internally so we don't need to keep the handle.
+            GFSDK_Aftermath_ResourceHandle resourceHandle = {};
+            GFSDK_Aftermath_DX12_RegisterResource(texture->m_resource.getResource(), &resourceHandle);
+#endif
         }
     }
 
@@ -1262,6 +1340,11 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     if (desc.label)
     {
         buffer->m_resource.setDebugName(desc.label);
+#if SLANG_RHI_ENABLE_AFTERMATH
+        // The driver keeps track the resource internally so we don't need to keep the handle.
+        GFSDK_Aftermath_ResourceHandle resourceHandle = {};
+        GFSDK_Aftermath_DX12_RegisterResource(buffer->m_resource.getResource(), &resourceHandle);
+#endif
     }
 
     returnComPtr(outBuffer, buffer);
@@ -1786,7 +1869,7 @@ Result DeviceImpl::createAccelerationStructure(
     bufferDesc.size = desc.size;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::AccelerationStructure;
-    bufferDesc.defaultState = ResourceState::AccelerationStructure;
+    bufferDesc.defaultState = ResourceState::AccelerationStructureRead;
     SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
     result->m_descriptor = m_cpuCbvSrvUavHeap->allocate();
     if (!result->m_descriptor)
@@ -1866,7 +1949,6 @@ Result DeviceImpl::getCooperativeVectorMatrixSize(
     nvDesc.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     nvDesc.dstStride = rowColumnStride;
     SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_ConvertCooperativeVectorMatrix(m_device, nullptr, &nvDesc));
-    *outSize = math::calcAligned(*outSize, 64);
     return SLANG_OK;
 #else
     return SLANG_E_NOT_AVAILABLE;
@@ -1937,7 +2019,15 @@ DeviceImpl::~DeviceImpl()
 #endif
 
     m_shaderObjectLayoutCache = decltype(m_shaderObjectLayoutCache)();
-    m_queue.setNull();
+
+    m_uploadHeap.release();
+    m_readbackHeap.release();
+
+    if (m_queue)
+    {
+        m_queue->shutdown();
+        m_queue.setNull();
+    }
 
     m_bindlessDescriptorSet.setNull();
 
@@ -1961,39 +2051,11 @@ DeviceImpl::~DeviceImpl()
     }
 }
 
+void DeviceImpl::deferDelete(Resource* resource)
+{
+    SLANG_RHI_ASSERT(m_queue != nullptr);
+    m_queue->deferDelete(resource);
+    resource->breakStrongReferenceToDevice();
+}
+
 } // namespace rhi::d3d12
-
-namespace rhi {
-
-IAdapter* getD3D12Adapter(uint32_t index)
-{
-    std::vector<d3d12::AdapterImpl>& adapters = d3d12::getAdapters();
-    return index < adapters.size() ? &adapters[index] : nullptr;
-}
-
-Result createD3D12Device(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<d3d12::DeviceImpl> result = new d3d12::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-void enableD3D12DebugLayerIfAvailable()
-{
-    SharedLibraryHandle d3dModule;
-#if SLANG_WINDOWS_FAMILY
-    const char* libName = "d3d12";
-#else
-    const char* libName = "libvkd3d-proton-d3d12.so";
-#endif
-    if (SLANG_FAILED(loadSharedLibrary(libName, d3dModule)))
-        return;
-    PFN_D3D12_GET_DEBUG_INTERFACE d3d12GetDebugInterface =
-        (PFN_D3D12_GET_DEBUG_INTERFACE)findSymbolAddressByName(d3dModule, "D3D12GetDebugInterface");
-    ComPtr<ID3D12Debug> dxDebug;
-    if (d3d12GetDebugInterface && SLANG_SUCCEEDED(d3d12GetDebugInterface(IID_PPV_ARGS(dxDebug.writeRef()))))
-        dxDebug->EnableDebugLayer();
-}
-
-} // namespace rhi

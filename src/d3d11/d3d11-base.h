@@ -6,10 +6,13 @@
 // Must be included after d3d11 headers.
 #include "../nvapi/nvapi-util.h"
 
+#include "aftermath.h"
+
 #include "core/common.h"
 
 namespace rhi::d3d11 {
 
+class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;
 class ShaderProgramImpl;
