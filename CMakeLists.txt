@@ -504,7 +504,12 @@ list(SORT SLANG_RHI_OPTIX_VERSIONS_SORTED COMPARE NATURAL)
 list(REVERSE SLANG_RHI_OPTIX_VERSIONS_SORTED)
 set(SLANG_RHI_OPTIX_VERSIONS_X "")
 foreach(ver IN LISTS SLANG_RHI_OPTIX_VERSIONS_SORTED)
-    string(APPEND SLANG_RHI_OPTIX_VERSIONS_X " x(v${ver})")
+    # Compute OptiX version integer (major * 10000 + minor * 100)
+    string(REPLACE "_" ";" ver_parts "${ver}")
+    list(GET ver_parts 0 ver_major)
+    list(GET ver_parts 1 ver_minor)
+    math(EXPR ver_int "${ver_major} * 10000 + ${ver_minor} * 100")
+    string(APPEND SLANG_RHI_OPTIX_VERSIONS_X " x(v${ver}, ${ver_int})")
 endforeach()
 
 # Generate config header
