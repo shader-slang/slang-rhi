@@ -1,6 +1,8 @@
 #include "cpu-texture.h"
 #include "cpu-device.h"
 
+#include <array>
+
 namespace rhi::cpu {
 
 inline const CPUTextureBaseShapeInfo* _getBaseShapeInfo(TextureType baseShape)
@@ -79,6 +81,39 @@ void _unpackUInt32Texel(const void* texelData, void* outData, size_t outSize)
         temp[i] = input[i];
 
     memcpy(outData, temp, outSize);
+}
+
+static constexpr auto makeFormatInfoMap()
+{
+    std::array<CPUTextureFormatInfo, size_t(Format::_Count)> infos{};
+
+    infos[size_t(Format::RGBA32Uint)] = {&_unpackUInt32Texel<4>};
+
+    infos[size_t(Format::RGBA32Float)] = {&_unpackFloatTexel<4>};
+    infos[size_t(Format::RGB32Float)] = {&_unpackFloatTexel<3>};
+
+    infos[size_t(Format::RG32Float)] = {&_unpackFloatTexel<2>};
+    infos[size_t(Format::R32Float)] = {&_unpackFloatTexel<1>};
+
+    infos[size_t(Format::RGBA16Float)] = {&_unpackFloat16Texel<4>};
+    infos[size_t(Format::RG16Float)] = {&_unpackFloat16Texel<2>};
+    infos[size_t(Format::R16Float)] = {&_unpackFloat16Texel<1>};
+
+    infos[size_t(Format::RGBA8Unorm)] = {&_unpackUnorm8Texel<4>};
+    infos[size_t(Format::BGRA8Unorm)] = {&_unpackUnormBGRA8Texel};
+    infos[size_t(Format::R16Uint)] = {&_unpackUInt16Texel<1>};
+    infos[size_t(Format::R32Uint)] = {&_unpackUInt32Texel<1>};
+    infos[size_t(Format::D32Float)] = {&_unpackFloatTexel<1>};
+
+    return infos;
+}
+
+static constexpr auto g_formatInfoMap = makeFormatInfoMap();
+
+const CPUTextureFormatInfo* _getFormatInfo(Format format)
+{
+    const CPUTextureFormatInfo& info = g_formatInfoMap[size_t(format)];
+    return info.unpackFunc ? &info : nullptr;
 }
 
 TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
