@@ -11,8 +11,9 @@ namespace rhi {
 
 // Track work-stealing nesting depth per thread.
 // Only the outermost wait call (depth 0) is allowed to steal and execute tasks.
-// This prevents circular steal chains where a stolen task's callback waits on
-// a task that is already in-flight higher up the same thread's call stack.
+// At depth > 0 (inside a stolen task's callback), stealing is forbidden to
+// prevent same-thread circular dependencies: a stolen task's callback might
+// wait on a task that is already mid-execution higher up the same call stack.
 static thread_local int tls_stealDepth = 0;
 
 // ----------------------------------------------------------------------------
@@ -297,7 +298,7 @@ struct ThreadedTaskPool::Pool
         // One reference is for the pool, the other is for the caller.
         retainTask(task, 2);
 
-        m_tasksRemaining.fetch_add(1, std::memory_order_relaxed);
+        m_tasksRemaining.fetch_add(1, std::memory_order_release);
 
         if (depsCount == 0)
         {
@@ -432,16 +433,19 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     // NOTE: If a task throws, it is still marked as done and its children
     // will execute. There is currently no failure propagation mechanism.
     // Increment steal depth so that any waitTask/waitAll/waitTaskGroup called
-    // from the task callback cannot steal tasks. This prevents circular steal
-    // chains where a stolen task's callback waits on a task already in-flight
-    // on the same thread's call stack.
+    // from the task callback cannot steal tasks. This prevents same-thread
+    // circular dependencies where a stolen task's callback waits on a task
+    // already mid-execution higher up the same call stack.
     tls_stealDepth++;
     try
     {
         task->func(task->payload);
+    } catch (const std::exception& e)
+    {
+        SLANG_RHI_ASSERT_FAILURE(e.what());
     } catch (...)
     {
-        SLANG_RHI_ASSERT_FAILURE("Task threw an exception");
+        SLANG_RHI_ASSERT_FAILURE("Task threw an unknown exception");
     }
     tls_stealDepth--;
     // Capture the group pointer before we potentially release the task.

@@ -225,7 +225,10 @@ inline ITaskPool::TaskHandle fibonacciTask(int n)
             {
             },
             payload,
-            ::free,
+            [](void* p)
+            {
+                delete static_cast<FibonacciPayload*>(p);
+            },
             nullptr,
             0
         );
@@ -246,7 +249,10 @@ inline ITaskPool::TaskHandle fibonacciTask(int n)
                 fibonacciPool->releaseTask(p->b);
             },
             payload,
-            ::free,
+            [](void* p)
+            {
+                delete static_cast<FibonacciPayload*>(p);
+            },
             tasks,
             2
         );
