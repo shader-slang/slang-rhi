@@ -8,7 +8,27 @@
 
 namespace rhi::vk {
 
-static Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
+std::span<const AdapterImpl> BackendImpl::getAdapters()
+{
+    ensureAdapters();
+    return m_adapters;
+}
+
+IAdapter* BackendImpl::getAdapter(uint32_t index)
+{
+    ensureAdapters();
+    return index < m_adapters.size() ? &m_adapters[index] : nullptr;
+}
+
+Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
+{
+    RefPtr<DeviceImpl> result = new DeviceImpl();
+    SLANG_RETURN_ON_FAIL(result->initialize(desc, this));
+    returnComPtr(outDevice, result);
+    return SLANG_OK;
+}
+
+Result BackendImpl::enumerateAdapters()
 {
     VulkanModule module;
     SLANG_RETURN_ON_FAIL(module.init());
@@ -81,35 +101,12 @@ static Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         adapter.m_info = info;
         memcpy(adapter.m_deviceUUID, idProps.deviceUUID, VK_UUID_SIZE);
 
-        outAdapters.push_back(adapter);
+        m_adapters.push_back(adapter);
     }
 
     // Mark default adapter (prefer discrete if available).
-    markDefaultAdapter(outAdapters);
+    markDefaultAdapter(m_adapters);
 
-    return SLANG_OK;
-}
-
-Result BackendImpl::initialize()
-{
-    return getAdaptersImpl(m_adapters);
-}
-
-std::span<const AdapterImpl> BackendImpl::getAdapters() const
-{
-    return m_adapters;
-}
-
-IAdapter* BackendImpl::getAdapter(uint32_t index)
-{
-    return index < m_adapters.size() ? &m_adapters[index] : nullptr;
-}
-
-Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
-{
-    RefPtr<DeviceImpl> result = new DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(desc, this));
-    returnComPtr(outDevice, result);
     return SLANG_OK;
 }
 
@@ -120,7 +117,6 @@ namespace rhi {
 Result createVKBackend(Backend** outBackend)
 {
     RefPtr<vk::BackendImpl> backend = new vk::BackendImpl();
-    SLANG_RETURN_ON_FAIL(backend->initialize());
     returnRefPtr(outBackend, backend);
     return SLANG_OK;
 }

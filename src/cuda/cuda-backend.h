@@ -8,14 +8,15 @@ namespace rhi::cuda {
 class BackendImpl : public Backend
 {
 public:
-    Result initialize();
-
-    std::span<const AdapterImpl> getAdapters() const;
+    std::span<const AdapterImpl> getAdapters();
 
     // Backend implementation
 
     IAdapter* getAdapter(uint32_t index) override;
     Result createDevice(const DeviceDesc& desc, IDevice** outDevice) override;
+
+protected:
+    Result enumerateAdapters() override;
 
 private:
     std::vector<AdapterImpl> m_adapters;

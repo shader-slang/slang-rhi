@@ -8,7 +8,21 @@
 
 namespace rhi::wgpu {
 
-static Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
+IAdapter* BackendImpl::getAdapter(uint32_t index)
+{
+    ensureAdapters();
+    return index < m_adapters.size() ? &m_adapters[index] : nullptr;
+}
+
+Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
+{
+    RefPtr<DeviceImpl> result = new DeviceImpl();
+    SLANG_RETURN_ON_FAIL(result->initialize(desc, this));
+    returnComPtr(outDevice, result);
+    return SLANG_OK;
+}
+
+Result BackendImpl::enumerateAdapters()
 {
     // If WGPU is not available, return no adapters.
     API api;
@@ -52,26 +66,8 @@ static Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
     Adapter adapter;
     adapter.m_info = info;
     adapter.m_isDefault = true;
-    outAdapters.push_back(adapter);
+    m_adapters.push_back(adapter);
 
-    return SLANG_OK;
-}
-
-Result BackendImpl::initialize()
-{
-    return getAdaptersImpl(m_adapters);
-}
-
-IAdapter* BackendImpl::getAdapter(uint32_t index)
-{
-    return index < m_adapters.size() ? &m_adapters[index] : nullptr;
-}
-
-Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
-{
-    RefPtr<DeviceImpl> result = new DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(desc, this));
-    returnComPtr(outDevice, result);
     return SLANG_OK;
 }
 
@@ -82,7 +78,6 @@ namespace rhi {
 Result createWGPUBackend(Backend** outBackend)
 {
     RefPtr<wgpu::BackendImpl> backend = new wgpu::BackendImpl();
-    SLANG_RETURN_ON_FAIL(backend->initialize());
     returnRefPtr(outBackend, backend);
     return SLANG_OK;
 }

@@ -105,7 +105,27 @@ static Result findMaxFlopsDeviceIndex(int* outDeviceIndex)
     return SLANG_OK;
 }
 
-static Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
+std::span<const AdapterImpl> BackendImpl::getAdapters()
+{
+    ensureAdapters();
+    return m_adapters;
+}
+
+IAdapter* BackendImpl::getAdapter(uint32_t index)
+{
+    ensureAdapters();
+    return index < m_adapters.size() ? &m_adapters[index] : nullptr;
+}
+
+Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
+{
+    RefPtr<DeviceImpl> result = new DeviceImpl();
+    SLANG_RETURN_ON_FAIL(result->initialize(desc, this));
+    returnComPtr(outDevice, result);
+    return SLANG_OK;
+}
+
+Result BackendImpl::enumerateAdapters()
 {
     if (!rhiCudaDriverApiInit())
     {
@@ -131,41 +151,18 @@ static Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         AdapterImpl adapter;
         adapter.m_info = info;
         adapter.m_deviceIndex = deviceIndex;
-        outAdapters.push_back(adapter);
+        m_adapters.push_back(adapter);
     }
 
     // Find the max flops adapter and mark it as the default one.
-    if (!outAdapters.empty())
+    if (!m_adapters.empty())
     {
         int defaultDeviceIndex = 0;
         SLANG_RETURN_ON_FAIL(findMaxFlopsDeviceIndex(&defaultDeviceIndex));
-        SLANG_RHI_ASSERT(defaultDeviceIndex >= 0 && defaultDeviceIndex < (int)outAdapters.size());
-        outAdapters[defaultDeviceIndex].m_isDefault = true;
+        SLANG_RHI_ASSERT(defaultDeviceIndex >= 0 && defaultDeviceIndex < (int)m_adapters.size());
+        m_adapters[defaultDeviceIndex].m_isDefault = true;
     }
 
-    return SLANG_OK;
-}
-
-Result BackendImpl::initialize()
-{
-    return getAdaptersImpl(m_adapters);
-}
-
-std::span<const AdapterImpl> BackendImpl::getAdapters() const
-{
-    return m_adapters;
-}
-
-IAdapter* BackendImpl::getAdapter(uint32_t index)
-{
-    return index < m_adapters.size() ? &m_adapters[index] : nullptr;
-}
-
-Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
-{
-    RefPtr<DeviceImpl> result = new DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(desc, this));
-    returnComPtr(outDevice, result);
     return SLANG_OK;
 }
 
@@ -176,7 +173,6 @@ namespace rhi {
 Result createCUDABackend(Backend** outBackend)
 {
     RefPtr<cuda::BackendImpl> backend = new cuda::BackendImpl();
-    SLANG_RETURN_ON_FAIL(backend->initialize());
     returnRefPtr(outBackend, backend);
     return SLANG_OK;
 }
