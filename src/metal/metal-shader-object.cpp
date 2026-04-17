@@ -590,20 +590,60 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
     uint8_t* srcData
 )
 {
-    SLANG_UNUSED(argumentBufferTypeLayout);
-
-    // Copy the entire uniform data portion in one pass. The uniform region of the
-    // argument buffer shares the same offsets as the default type layout, so a flat
-    // memcpy is sufficient. This correctly handles:
-    //  - Pure uniform types (scalars, vectors, plain structs)
-    //  - Pointer types whose 8-byte GPU address lives in the Uniform category
-    //  - Structs that mix uniform fields with pointer/resource fields, where the
-    //    argument-buffer layout may report fewer fields than the default layout
-    //    (which previously caused the per-field loop to silently skip pointer data)
-    size_t uniformSize = defaultTypeLayout->getSize(slang::ParameterCategory::Uniform);
-    if (uniformSize > 0)
+    // If we are pure data, just copy it over from srcData.
+    if (defaultTypeLayout->getCategoryCount() == 1)
     {
-        memcpy(argumentBuffer, srcData, uniformSize);
+        if (defaultTypeLayout->getCategoryByIndex(0) == slang::ParameterCategory::Uniform)
+        {
+            memcpy(argumentBuffer, srcData, defaultTypeLayout->getSize());
+        }
+        return SLANG_OK;
+    }
+
+    // Leaf types with multiple parameter categories but no sub-fields (e.g., pointer
+    // types whose 8-byte GPU address is Uniform but which also carry a MetalBuffer
+    // resource category). The old loop would run 0 iterations, silently skipping
+    // the pointer's address data.
+    if (defaultTypeLayout->getFieldCount() == 0)
+    {
+        size_t uniformSize = defaultTypeLayout->getSize(slang::ParameterCategory::Uniform);
+        if (uniformSize > 0)
+        {
+            memcpy(argumentBuffer, srcData, uniformSize);
+        }
+        return SLANG_OK;
+    }
+
+    unsigned int argBufFieldCount = argumentBufferTypeLayout->getFieldCount();
+    unsigned int defaultFieldCount = defaultTypeLayout->getFieldCount();
+    unsigned int commonCount = argBufFieldCount < defaultFieldCount ? argBufFieldCount : defaultFieldCount;
+
+    for (unsigned int i = 0; i < commonCount; i++)
+    {
+        auto argumentBufferField = argumentBufferTypeLayout->getFieldByIndex(i);
+        auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
+        SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
+            argumentBufferField->getTypeLayout(),
+            defaultLayoutField->getTypeLayout(),
+            argumentBuffer + argumentBufferField->getOffset(),
+            srcData + defaultLayoutField->getOffset()
+        ));
+    }
+
+    // Handle fields present in the default layout but missing from the argument
+    // buffer layout. This can occur when the argument buffer layout represents
+    // certain fields (e.g., pointers) as binding ranges rather than struct fields.
+    // Copy their uniform data at the default layout offset since the initial bulk
+    // memcpy in writeArgumentBuffer already placed the data there.
+    for (unsigned int i = commonCount; i < defaultFieldCount; i++)
+    {
+        auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
+        SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
+            defaultLayoutField->getTypeLayout(),
+            defaultLayoutField->getTypeLayout(),
+            argumentBuffer + defaultLayoutField->getOffset(),
+            srcData + defaultLayoutField->getOffset()
+        ));
     }
     return SLANG_OK;
 }
