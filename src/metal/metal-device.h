@@ -4,6 +4,7 @@
 #include "metal-clear-engine.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace rhi::metal {
 
@@ -166,6 +167,11 @@ public:
     NS::Array* getAccelerationStructureArray();
 
     bool m_hasArgumentBufferTier2 = false;
+
+    // Maps GPU virtual addresses to their owning BufferImpl, populated lazily
+    // by BufferImpl::getDeviceAddress(). Used by the Metal binding code to
+    // resolve device pointers for useResources residency tracking.
+    std::unordered_map<DeviceAddress, class BufferImpl*> m_addressToBuffer;
 };
 
 } // namespace rhi::metal

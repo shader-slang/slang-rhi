@@ -387,6 +387,25 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(bufferImpl);
 
+    auto& pointerFields = specializedLayout->getPointerFields();
+    for (auto& pf : pointerFields)
+    {
+        if (pf.uniformOffset + sizeof(DeviceAddress) <= shaderObject->m_data.size())
+        {
+            DeviceAddress addr;
+            memcpy(&addr, shaderObject->m_data.data() + pf.uniformOffset, sizeof(addr));
+            if (addr != 0)
+            {
+                auto it = m_device->m_addressToBuffer.find(addr);
+                if (it != m_device->m_addressToBuffer.end())
+                {
+                    SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, it->second->m_buffer.get()));
+                    m_bindingCache->buffers.push_back(it->second);
+                }
+            }
+        }
+    }
+
     return SLANG_OK;
 }
 
@@ -571,6 +590,28 @@ Result BindingDataBuilder::writeArgumentBuffer(
         }
         default:
             break;
+        }
+    }
+
+    // Resolve pointer-referenced buffers for residency.
+    // Addresses are read from m_data (default-layout offsets), not the argument buffer
+    // (which may use different offsets under Tier 2 resource packing).
+    auto& pointerFields = specializedLayout->getPointerFields();
+    for (auto& pf : pointerFields)
+    {
+        if (pf.uniformOffset + sizeof(DeviceAddress) <= shaderObject->m_data.size())
+        {
+            DeviceAddress addr;
+            memcpy(&addr, shaderObject->m_data.data() + pf.uniformOffset, sizeof(addr));
+            if (addr != 0)
+            {
+                auto it = m_device->m_addressToBuffer.find(addr);
+                if (it != m_device->m_addressToBuffer.end())
+                {
+                    SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, it->second->m_buffer.get()));
+                    m_bindingCache->buffers.push_back(it->second);
+                }
+            }
         }
     }
 

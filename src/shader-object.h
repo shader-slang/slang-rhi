@@ -107,18 +107,33 @@ public:
         uint32_t bindingRangeIndex;
     };
 
+    struct PointerFieldInfo
+    {
+        uint32_t uniformOffset;
+    };
+
     struct EntryPointInfo
     {
         // TODO: remove if not needed
     };
 
+    const short_vector<PointerFieldInfo>& getPointerFields() const { return m_pointerFields; }
+
 protected:
+    static void collectPointerFields(
+        slang::TypeLayoutReflection* typeLayout,
+        uint32_t baseOffset,
+        short_vector<PointerFieldInfo>& outFields
+    );
+
     // We always use a weak reference to the `IDevice` object here.
     // `ShaderObject` implementations will make sure to hold a strong reference to `IDevice`
     // while a `ShaderObjectLayout` may still be used.
     Device* m_device;
     slang::TypeLayoutReflection* m_elementTypeLayout = nullptr;
     ShaderComponentID m_componentID = 0;
+
+    short_vector<PointerFieldInfo> m_pointerFields;
 
     /// The container type of this shader object. When `m_containerType` is `StructuredBuffer` or
     /// `UnsizedArray`, this shader object represents a collection instead of a single object.

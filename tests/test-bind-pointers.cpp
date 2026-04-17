@@ -4,8 +4,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-// TODO Add Metal when slang bug https://github.com/shader-slang/slang/issues/7623 fixed
-GPU_TEST_CASE("bind-pointers-single-copy", Vulkan | CUDA)
+GPU_TEST_CASE("bind-pointers-single-copy", Vulkan | CUDA | Metal)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram.writeRef()));
@@ -66,7 +65,7 @@ GPU_TEST_CASE("bind-pointers-single-copy", Vulkan | CUDA)
     compareComputeResult(device, dst, std::span<uint8_t>(data));
 }
 
-GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA)
+GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA | Metal)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram.writeRef()));
@@ -139,9 +138,11 @@ GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA)
         queue->waitOnHost();
     }
 
-    if (device->getDeviceType() == DeviceType::CUDA)
+    if (device->getDeviceType() == DeviceType::CUDA || device->getDeviceType() == DeviceType::Metal)
     {
-        // CUDA streams never overlap dispatches, so we'd expect syncing to have worked with no manual intervention
+        // CUDA serializes dispatches within a stream. Metal's useResources calls
+        // (from transparent pointer residency tracking) register the buffers for
+        // hazard tracking, so Metal automatically synchronizes access between passes.
         compareComputeResult(device, dst, std::span<uint8_t>(data));
     }
     else

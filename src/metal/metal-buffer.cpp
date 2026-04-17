@@ -9,7 +9,12 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 {
 }
 
-BufferImpl::~BufferImpl() {}
+BufferImpl::~BufferImpl()
+{
+    DeviceAddress addr = m_buffer ? m_buffer->gpuAddress() : 0;
+    if (addr != 0)
+        getDevice<DeviceImpl>()->m_addressToBuffer.erase(addr);
+}
 
 void BufferImpl::deleteThis()
 {
@@ -31,7 +36,10 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 
 DeviceAddress BufferImpl::getDeviceAddress()
 {
-    return m_buffer->gpuAddress();
+    DeviceAddress addr = m_buffer->gpuAddress();
+    if (addr != 0)
+        getDevice<DeviceImpl>()->m_addressToBuffer[addr] = this;
+    return addr;
 }
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
