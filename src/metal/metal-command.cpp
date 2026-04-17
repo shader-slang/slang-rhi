@@ -1156,6 +1156,14 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         commandBuffer->commit();
     }
 
+    // Commit any pending residency set changes.
+    auto* device = getDevice<DeviceImpl>();
+    if (device->m_residencySet && device->m_residencySetDirty)
+    {
+        device->m_residencySet->commit();
+        device->m_residencySetDirty = false;
+    }
+
     // Increment submission id
     m_lastSubmittedID++;
 

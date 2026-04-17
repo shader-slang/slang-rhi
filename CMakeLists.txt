@@ -206,7 +206,7 @@ endif()
 
 # Metal C++ headers
 if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
-    set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip")
+    set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS15.2_iOS18.2.zip")
 endif()
 
 # Dawn WebGPU (not used for Emscripten - uses emdawnwebgpu port instead)

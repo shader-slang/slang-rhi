@@ -21,6 +21,7 @@ public:
 
 public:
     NS::SharedPtr<MTL::Buffer> m_buffer;
+    DeviceAddress m_deviceAddress = 0;
     CpuAccessMode m_lastCpuAccessMode;
 };
 

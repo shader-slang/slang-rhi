@@ -77,6 +77,17 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         return SLANG_FAIL;
     }
+
+    {
+        NS::Error* error = nullptr;
+        auto rsDesc = NS::TransferPtr(MTL::ResidencySetDescriptor::alloc()->init());
+        m_residencySet = NS::TransferPtr(m_device->newResidencySet(rsDesc.get(), &error));
+        if (m_residencySet)
+        {
+            m_commandQueue->addResidencySet(m_residencySet.get());
+        }
+    }
+
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_commandQueue);
     m_queue->setInternalReferenceCount(1);

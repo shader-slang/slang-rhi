@@ -11,9 +11,16 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl()
 {
-    DeviceAddress addr = m_buffer ? m_buffer->gpuAddress() : 0;
-    if (addr != 0)
-        getDevice<DeviceImpl>()->m_addressToBuffer.erase(addr);
+    if (m_deviceAddress != 0)
+    {
+        auto* device = getDevice<DeviceImpl>();
+        device->m_addressToBuffer.erase(m_deviceAddress);
+        if (device->m_residencySet)
+        {
+            device->m_residencySet->removeAllocation(m_buffer.get());
+            device->m_residencySetDirty = true;
+        }
+    }
 }
 
 void BufferImpl::deleteThis()
@@ -36,10 +43,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 
 DeviceAddress BufferImpl::getDeviceAddress()
 {
-    DeviceAddress addr = m_buffer->gpuAddress();
-    if (addr != 0)
-        getDevice<DeviceImpl>()->m_addressToBuffer[addr] = this;
-    return addr;
+    return m_deviceAddress;
 }
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
@@ -67,6 +71,17 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     if (!buffer->m_buffer)
     {
         return SLANG_FAIL;
+    }
+
+    buffer->m_deviceAddress = buffer->m_buffer->gpuAddress();
+    if (buffer->m_deviceAddress != 0)
+    {
+        m_addressToBuffer[buffer->m_deviceAddress] = buffer.get();
+        if (m_residencySet)
+        {
+            m_residencySet->addAllocation(buffer->m_buffer.get());
+            m_residencySetDirty = true;
+        }
     }
 
     if (desc.label)
