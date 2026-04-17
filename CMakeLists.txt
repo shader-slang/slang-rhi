@@ -488,7 +488,7 @@ if(SLANG_RHI_ENABLE_METAL)
     message(STATUS "Fetching Metal C++ headers ...")
     FetchPackage(metal_cpp URL ${SLANG_RHI_METAL_CPP_URL})
     add_library(slang-rhi-metal-cpp INTERFACE)
-    target_include_directories(slang-rhi-metal-cpp INTERFACE ${metal_cpp_SOURCE_DIR})
+    target_include_directories(slang-rhi-metal-cpp SYSTEM INTERFACE ${metal_cpp_SOURCE_DIR})
 endif()
 
 # Fetch & setup Dawn WebGPU
