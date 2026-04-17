@@ -590,28 +590,20 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
     uint8_t* srcData
 )
 {
-    // If we are pure data, just copy it over from srcData.
-    if (defaultTypeLayout->getCategoryCount() == 1)
-    {
-        if (defaultTypeLayout->getCategoryByIndex(0) == slang::ParameterCategory::Uniform)
-        {
-            // Just write the uniform data.
-            memcpy(argumentBuffer, srcData, defaultTypeLayout->getSize());
-        }
-        return SLANG_OK;
-    }
+    SLANG_UNUSED(argumentBufferTypeLayout);
 
-    for (unsigned int i = 0; i < argumentBufferTypeLayout->getFieldCount(); i++)
+    // Copy the entire uniform data portion in one pass. The uniform region of the
+    // argument buffer shares the same offsets as the default type layout, so a flat
+    // memcpy is sufficient. This correctly handles:
+    //  - Pure uniform types (scalars, vectors, plain structs)
+    //  - Pointer types whose 8-byte GPU address lives in the Uniform category
+    //  - Structs that mix uniform fields with pointer/resource fields, where the
+    //    argument-buffer layout may report fewer fields than the default layout
+    //    (which previously caused the per-field loop to silently skip pointer data)
+    size_t uniformSize = defaultTypeLayout->getSize(slang::ParameterCategory::Uniform);
+    if (uniformSize > 0)
     {
-        auto argumentBufferField = argumentBufferTypeLayout->getFieldByIndex(i);
-        auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
-        // If the field is mixed type, recurse.
-        SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
-            argumentBufferField->getTypeLayout(),
-            defaultLayoutField->getTypeLayout(),
-            argumentBuffer + argumentBufferField->getOffset(),
-            srcData + defaultLayoutField->getOffset()
-        ));
+        memcpy(argumentBuffer, srcData, uniformSize);
     }
     return SLANG_OK;
 }
