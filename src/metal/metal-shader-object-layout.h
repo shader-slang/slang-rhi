@@ -109,6 +109,13 @@ public:
         SubObjectRangeStride stride;
     };
 
+    struct PointerFieldInfo
+    {
+        uint32_t uniformOffset;
+    };
+
+    const short_vector<PointerFieldInfo>& getPointerFields() const { return m_pointerFields; }
+
     uint32_t m_slotCount = 0;
     uint32_t m_subObjectCount = 0;
     uint32_t m_totalOrdinaryDataSize = 0;
@@ -117,6 +124,7 @@ public:
 
     std::vector<BindingRangeInfo> m_bindingRanges;
     std::vector<SubObjectRangeInfo> m_subObjectRanges;
+    short_vector<PointerFieldInfo> m_pointerFields;
 
     // The type layout to use when the shader object is bind as a parameter block.
     slang::TypeLayoutReflection* m_parameterBlockTypeLayout = nullptr;

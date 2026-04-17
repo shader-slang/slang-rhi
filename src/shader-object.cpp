@@ -25,39 +25,6 @@ void ShaderObjectLayout::initBase(
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
     m_componentID = m_device->m_shaderCache.getComponentId(m_elementTypeLayout->getType());
-    if (m_device->m_info.deviceType == DeviceType::Metal)
-        collectPointerFields(m_elementTypeLayout, 0, m_pointerFields);
-}
-
-void ShaderObjectLayout::collectPointerFields(
-    slang::TypeLayoutReflection* typeLayout,
-    uint32_t baseOffset,
-    short_vector<PointerFieldInfo>& outFields
-)
-{
-    auto kind = typeLayout->getKind();
-    if (kind == slang::TypeReflection::Kind::Pointer)
-    {
-        outFields.push_back({baseOffset});
-        return;
-    }
-    if (kind == slang::TypeReflection::Kind::Array)
-    {
-        auto elemLayout = typeLayout->getElementTypeLayout();
-        auto stride = typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_UNIFORM);
-        auto count = typeLayout->getElementCount();
-        if (count == 0)
-            return;
-        for (size_t i = 0; i < count; i++)
-            collectPointerFields(elemLayout, baseOffset + (uint32_t)(i * stride), outFields);
-        return;
-    }
-    for (unsigned i = 0; i < typeLayout->getFieldCount(); i++)
-    {
-        auto field = typeLayout->getFieldByIndex(i);
-        uint32_t fieldOffset = baseOffset + (uint32_t)field->getOffset(slang::ParameterCategory::Uniform);
-        collectPointerFields(field->getTypeLayout(), fieldOffset, outFields);
-    }
 }
 
 // ----------------------------------------------------------------------------
