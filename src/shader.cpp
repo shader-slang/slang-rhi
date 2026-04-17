@@ -56,11 +56,7 @@ Result ShaderProgram::init()
     }
 
     auto session = m_desc.slangGlobalScope ? m_desc.slangGlobalScope->getSession() : nullptr;
-    if (m_desc.linkingStyle == LinkingStyle::SingleProgram && m_desc.slangEntryPointCount == 0)
-    {
-        linkedProgram = m_desc.slangGlobalScope;
-    }
-    else if (m_desc.linkingStyle == LinkingStyle::SingleProgram)
+    if (m_desc.linkingStyle == LinkingStyle::SingleProgram)
     {
         std::vector<slang::IComponentType*> components;
         if (m_desc.slangGlobalScope)
