@@ -5,26 +5,8 @@ using namespace rhi::testing;
 
 GPU_TEST_CASE("imported-constant-buffer", ALL)
 {
-    ComPtr<slang::ISession> slangSession;
-    REQUIRE_CALL(device->getSlangSession(slangSession.writeRef()));
-
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    slang::IModule* module = slangSession->loadModule("test-imported-constant-buffer", diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    REQUIRE(module);
-
-    ComPtr<slang::IEntryPoint> entryPoint;
-    REQUIRE_CALL(module->findEntryPointByName("computeMain", entryPoint.writeRef()));
-
-    slang::IComponentType* entryPoints[] = {entryPoint.get()};
-
-    ShaderProgramDesc desc = {};
-    desc.slangGlobalScope = module;
-    desc.slangEntryPoints = entryPoints;
-    desc.slangEntryPointCount = 1;
-
     ComPtr<IShaderProgram> shaderProgram;
-    REQUIRE_CALL(device->createShaderProgram(desc, shaderProgram.writeRef()));
+    REQUIRE_CALL(loadProgram(device, "test-imported-constant-buffer", "computeMain", shaderProgram.writeRef()));
 
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
