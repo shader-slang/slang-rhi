@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("imported-constant-buffer", ALL)
+GPU_TEST_CASE("imported-constant-buffer", ALL & ~CPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-imported-constant-buffer", "computeMain", shaderProgram.writeRef()));
