@@ -614,11 +614,13 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
         return SLANG_OK;
     }
 
-    unsigned int argBufFieldCount = argumentBufferTypeLayout->getFieldCount();
-    unsigned int defaultFieldCount = defaultTypeLayout->getFieldCount();
-    unsigned int commonCount = argBufFieldCount < defaultFieldCount ? argBufFieldCount : defaultFieldCount;
+    // Metal Tier 2 argument buffer layouts represent all resource types (buffers,
+    // textures, samplers) as 8-byte uniform values, so the field count should match
+    // the default layout. If this invariant is ever violated, the index-based pairing
+    // below would mismatch fields — assert rather than silently corrupt data.
+    SLANG_RHI_ASSERT(argumentBufferTypeLayout->getFieldCount() == defaultTypeLayout->getFieldCount());
 
-    for (unsigned int i = 0; i < commonCount; i++)
+    for (unsigned int i = 0; i < argumentBufferTypeLayout->getFieldCount(); i++)
     {
         auto argumentBufferField = argumentBufferTypeLayout->getFieldByIndex(i);
         auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
@@ -626,22 +628,6 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
             argumentBufferField->getTypeLayout(),
             defaultLayoutField->getTypeLayout(),
             argumentBuffer + argumentBufferField->getOffset(),
-            srcData + defaultLayoutField->getOffset()
-        ));
-    }
-
-    // Handle fields present in the default layout but missing from the argument
-    // buffer layout. This can occur when the argument buffer layout represents
-    // certain fields (e.g., pointers) as binding ranges rather than struct fields.
-    // Copy their uniform data at the default layout offset since the initial bulk
-    // memcpy in writeArgumentBuffer already placed the data there.
-    for (unsigned int i = commonCount; i < defaultFieldCount; i++)
-    {
-        auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
-        SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
-            defaultLayoutField->getTypeLayout(),
-            defaultLayoutField->getTypeLayout(),
-            argumentBuffer + defaultLayoutField->getOffset(),
             srcData + defaultLayoutField->getOffset()
         ));
     }
