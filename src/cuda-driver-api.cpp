@@ -4,6 +4,7 @@
 
 #if SLANG_RHI_USE_DYNAMIC_CUDA
 
+#include "core/common.h"
 #include "core/platform.h"
 
 #include <cstdio>
@@ -11,13 +12,17 @@
 
 #include <mutex>
 
-static std::recursive_mutex sCudaModuleMutex;
-static int sCudaModuleRefCount = 0;
+SLANG_RHI_STATIC_MUTEX_BEGIN
+static std::mutex sCudaModuleMutex;
+SLANG_RHI_STATIC_MUTEX_END
+static int sCudaModuleRefCount;
 static rhi::SharedLibraryHandle sCudaModule;
+
+static void shutdownImpl();
 
 extern "C" bool rhiCudaDriverApiInit()
 {
-    std::lock_guard<std::recursive_mutex> lock(sCudaModuleMutex);
+    std::lock_guard<std::mutex> lock(sCudaModuleMutex);
 
     if (sCudaModule)
     {
@@ -32,6 +37,7 @@ extern "C" bool rhiCudaDriverApiInit()
     };
 #elif SLANG_LINUX_FAMILY
     const char* cudaPaths[] = {
+        "libcuda.so.1",
         "libcuda.so",
         nullptr,
     };
@@ -118,6 +124,7 @@ extern "C" bool rhiCudaDriverApiInit()
         LOAD(cuStreamCreateWithPriority);
         LOAD(cuStreamWaitEvent);
         LOAD(cuStreamSynchronize);
+        LOAD(cuStreamQuery);
         LOAD(cuStreamDestroy, "v2");
         LOAD(cuEventCreate);
         LOAD(cuEventRecord);
@@ -159,7 +166,7 @@ extern "C" bool rhiCudaDriverApiInit()
 
     if (symbol)
     {
-        rhiCudaDriverApiShutdown();
+        shutdownImpl();
         printf("rhiCudaDriverApiInit(): could not find symbol \"%s\"\n", symbol);
         return false;
     }
@@ -168,10 +175,8 @@ extern "C" bool rhiCudaDriverApiInit()
     return true;
 }
 
-extern "C" void rhiCudaDriverApiShutdown()
+static void shutdownImpl()
 {
-    std::lock_guard<std::recursive_mutex> lock(sCudaModuleMutex);
-
     if (!sCudaModule)
         return;
     sCudaModuleRefCount--;
@@ -237,6 +242,7 @@ extern "C" void rhiCudaDriverApiShutdown()
     UNLOAD(cuStreamCreateWithPriority);
     UNLOAD(cuStreamWaitEvent);
     UNLOAD(cuStreamSynchronize);
+    UNLOAD(cuStreamQuery);
     UNLOAD(cuStreamDestroy);
     UNLOAD(cuEventCreate);
     UNLOAD(cuEventRecord);
@@ -276,6 +282,12 @@ extern "C" void rhiCudaDriverApiShutdown()
 
     rhi::unloadSharedLibrary(sCudaModule);
     sCudaModule = nullptr;
+}
+
+extern "C" void rhiCudaDriverApiShutdown()
+{
+    std::lock_guard<std::mutex> lock(sCudaModuleMutex);
+    shutdownImpl();
 }
 
 #else // SLANG_RHI_USE_DYNAMIC_CUDA

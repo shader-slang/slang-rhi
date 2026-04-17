@@ -179,14 +179,9 @@ BufferImpl::~BufferImpl()
     }
 }
 
-DeviceAddress BufferImpl::getDeviceAddress()
+void BufferImpl::deleteThis()
 {
-    if (!m_buffer.m_api->vkGetBufferDeviceAddress)
-        return 0;
-    VkBufferDeviceAddressInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    info.buffer = m_buffer.m_buffer;
-    return (DeviceAddress)m_buffer.m_api->vkGetBufferDeviceAddress(m_buffer.m_api->m_device, &info);
+    getDevice<DeviceImpl>()->deferDelete(this);
 }
 
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
@@ -198,49 +193,77 @@ Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
-    // Check if a shared handle already exists for this resource.
     if (m_sharedHandle)
     {
         *outHandle = m_sharedHandle;
         return SLANG_OK;
     }
 
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const auto& api = device->m_api;
+
     // If a shared handle doesn't exist, create one and store it.
+    if (!m_sharedHandle)
+    {
 #if SLANG_WINDOWS_FAMILY
-    VkMemoryGetWin32HandleInfoKHR info = {};
-    info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
-    info.pNext = nullptr;
-    info.memory = m_buffer.m_memory;
-    info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+        VkMemoryGetWin32HandleInfoKHR info = {};
+        info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
+        info.pNext = nullptr;
+        info.memory = m_buffer.m_memory;
+        info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
-    auto api = m_buffer.m_api;
-    PFN_vkGetMemoryWin32HandleKHR vkCreateSharedHandle;
-    vkCreateSharedHandle = api->vkGetMemoryWin32HandleKHR;
-    if (!vkCreateSharedHandle)
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (HANDLE*)&m_sharedHandle.value));
-    m_sharedHandle.type = NativeHandleType::Win32;
+        if (!api.vkGetMemoryWin32HandleKHR)
+        {
+            return SLANG_FAIL;
+        }
+        HANDLE handle = NULL;
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(api.m_device, &info, &handle));
+        m_sharedHandle = NativeHandle{NativeHandleType::Win32, (uint64_t)handle};
 #else
-    VkMemoryGetFdInfoKHR info = {};
-    info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
-    info.pNext = nullptr;
-    info.memory = m_buffer.m_memory;
-    info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+        VkMemoryGetFdInfoKHR info = {};
+        info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
+        info.pNext = nullptr;
+        info.memory = m_buffer.m_memory;
+        info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
 
-    auto api = m_buffer.m_api;
-    PFN_vkGetMemoryFdKHR vkCreateSharedHandle;
-    vkCreateSharedHandle = api->vkGetMemoryFdKHR;
-    if (!vkCreateSharedHandle)
-    {
-        return SLANG_FAIL;
-    }
-    SLANG_VK_RETURN_ON_FAIL(vkCreateSharedHandle(api->m_device, &info, (int*)&m_sharedHandle.value));
-    m_sharedHandle.type = NativeHandleType::FileDescriptor;
+        if (!api.vkGetMemoryFdKHR)
+        {
+            return SLANG_FAIL;
+        }
+        int handle = 0;
+        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(api.m_device, &info, &handle));
+        m_sharedHandle = NativeHandle{NativeHandleType::FileDescriptor, (uint64_t)handle};
 #endif
+    }
+
     *outHandle = m_sharedHandle;
     return SLANG_OK;
+}
+
+DeviceAddress BufferImpl::getDeviceAddress()
+{
+    if (m_deviceAddress != 0)
+    {
+        return m_deviceAddress;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const auto& api = device->m_api;
+
+    if (!api.vkGetBufferDeviceAddress)
+    {
+        return 0;
+    }
+
+    if (!m_deviceAddress)
+    {
+        VkBufferDeviceAddressInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        info.buffer = m_buffer.m_buffer;
+        m_deviceAddress = (DeviceAddress)api.vkGetBufferDeviceAddress(device->m_device, &info);
+    }
+
+    return m_deviceAddress;
 }
 
 Result BufferImpl::getDescriptorHandle(
@@ -260,7 +283,6 @@ Result BufferImpl::getDescriptorHandle(
     range = resolveBufferRange(range);
 
     DescriptorHandleKey key = {access, format, range};
-
     DescriptorHandle& handle = m_descriptorHandles[key];
     if (handle)
     {
@@ -268,9 +290,11 @@ Result BufferImpl::getDescriptorHandle(
         return SLANG_OK;
     }
 
-    SLANG_RETURN_FALSE_ON_FAIL(
-        device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle)
-    );
+    if (!handle)
+    {
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, &handle));
+    }
+
     *outHandle = handle;
     return SLANG_OK;
 }
@@ -278,9 +302,6 @@ Result BufferImpl::getDescriptorHandle(
 VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
 {
     ViewKey key = {format, range};
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     VkBufferView& view = m_views[key];
     if (view)
         return view;
@@ -371,26 +392,13 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            VKBufferHandleRAII uploadBuffer;
-            SLANG_RETURN_ON_FAIL(uploadBuffer.init(
-                m_api,
-                bufferSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            ));
-            // Copy into staging buffer
-            void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
-            ::memcpy(mappedData, initData, bufferSize);
-            m_api.vkUnmapMemory(m_device, uploadBuffer.m_memory);
+            ComPtr<ICommandQueue> queue;
+            SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
 
-            // Copy from staging buffer to real buffer
-            VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
-
-            VkBufferCopy copyInfo = {};
-            copyInfo.size = bufferSize;
-            m_api.vkCmdCopyBuffer(commandBuffer, uploadBuffer.m_buffer, buffer->m_buffer.m_buffer, 1, &copyInfo);
-            m_deviceQueue.flushAndWait();
+            ComPtr<ICommandEncoder> commandEncoder;
+            SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
+            SLANG_RETURN_ON_FAIL(commandEncoder->uploadBufferData(buffer, 0, bufferSize, initData));
+            SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
         }
         else
         {

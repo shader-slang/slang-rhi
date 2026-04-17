@@ -85,7 +85,7 @@ struct RayTracingLssTest
         resultTexture = device->createTexture(resultTextureDesc);
     }
 
-    void checkTestResults(span<ExpectedPixel> expectedPixels)
+    void checkTestResults(std::span<ExpectedPixel> expectedPixels)
     {
         ComPtr<ISlangBlob> resultBlob;
         SubresourceLayout layout;

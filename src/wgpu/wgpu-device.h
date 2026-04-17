@@ -30,7 +30,7 @@ public:
     RefPtr<CommandQueueImpl> m_queue;
 
     ~DeviceImpl();
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
 
     void reportError(const char* func, WGPUStringView message);
     void reportDeviceLost(WGPUDeviceLostReason reason, WGPUStringView message);
@@ -51,6 +51,11 @@ public:
         IBuffer** outBuffer
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
+        IBuffer** outBuffer
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
         NativeHandle handle,
         const BufferDesc& desc,
         IBuffer** outBuffer
@@ -141,10 +146,3 @@ private:
 };
 
 } // namespace rhi::wgpu
-
-namespace rhi {
-
-IAdapter* getWGPUAdapter(uint32_t index);
-Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

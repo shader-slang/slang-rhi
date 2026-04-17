@@ -21,19 +21,6 @@ SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(QueryPool)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Heap)
 
-std::string _rhiGetFuncName(const char* input)
-{
-    std::string_view str(input);
-    auto prefixIndex = str.find("Debug");
-    if (prefixIndex == std::string::npos)
-        return input;
-    auto endIndex = str.find_last_of('(');
-    if (endIndex == std::string::npos)
-        endIndex = str.length();
-    auto startIndex = prefixIndex + 5;
-    return 'I' + std::string(str.substr(startIndex, endIndex - startIndex));
-}
-
 std::string subresourceRangeToString(const SubresourceRange& range)
 {
     return string::format(
@@ -115,7 +102,7 @@ std::string createSamplerLabel(const SamplerDesc& desc)
 
 std::string createAccelerationStructureLabel(const AccelerationStructureDesc& desc)
 {
-    return string::format("Unnamed acceleration structure (size=%llu)", desc.size);
+    return string::format("Unnamed acceleration structure (kind=%s, size=%llu)", enumToString(desc.kind), desc.size);
 }
 
 std::string createFenceLabel(const FenceDesc& desc)
@@ -194,7 +181,13 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
 {
     if (buildDesc.inputCount < 1)
     {
-        RHI_VALIDATION_WARNING("AccelerationStructureBuildDesc::inputCount must be >= 1.");
+        RHI_VALIDATION_ERROR("AccelerationStructureBuildDesc::inputCount must be >= 1.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    if (!buildDesc.inputs)
+    {
+        RHI_VALIDATION_ERROR("AccelerationStructureBuildDesc::inputs must not be null.");
         return SLANG_E_INVALID_ARG;
     }
 
@@ -203,7 +196,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
     {
         if (type != buildDesc.inputs[i].type)
         {
-            RHI_VALIDATION_WARNING("AccelerationStructureBuildDesc::inputs must have the same type.");
+            RHI_VALIDATION_ERROR("AccelerationStructureBuildDesc::inputs must have the same type.");
             return SLANG_E_INVALID_ARG;
         }
     }
@@ -228,7 +221,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             if (!instances.instanceBuffer.buffer)
             {
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "AccelerationStructureBuildDesc::inputs[%d].instances.instanceBuffer cannot be null.",
+                    "AccelerationStructureBuildDesc::inputs[%d].instances.instanceBuffer must not be null.",
                     i
                 );
                 valid = false;
@@ -236,7 +229,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             if (instances.instanceStride == 0)
             {
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "AccelerationStructureBuildDesc::inputs[%d].instances.instanceStride cannot be 0.",
+                    "AccelerationStructureBuildDesc::inputs[%d].instances.instanceStride must not be 0.",
                     i
                 );
                 valid = false;
@@ -258,7 +251,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                 break;
             default:
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexFormat is unsupported. "
+                    "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexFormat is not supported. "
                     "Valid values are RGB32Float, RG32Float, RGBA16Float, RG16Float, RGBA16Snorm or RG16Snorm.",
                     i
                 );
@@ -273,7 +266,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                     break;
                 default:
                     RHI_VALIDATION_ERROR_FORMAT(
-                        "AccelerationStructureBuildDesc::inputs[%d].triangles.indexFormat is unsupported. "
+                        "AccelerationStructureBuildDesc::inputs[%d].triangles.indexFormat is not supported. "
                         "Valid values are Uint16 and Uint32.",
                         i
                     );
@@ -282,7 +275,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                 if (!triangles.indexBuffer.buffer)
                 {
                     RHI_VALIDATION_ERROR_FORMAT(
-                        "AccelerationStructureBuildDesc::inputs[%d].triangles.indexBuffer.buffer cannot be null if "
+                        "AccelerationStructureBuildDesc::inputs[%d].triangles.indexBuffer.buffer must not be null if "
                         "indexCount is not 0.",
                         i
                     );
@@ -292,7 +285,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             if (triangles.vertexBufferCount < 1)
             {
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexBufferCount cannot be <= 1.",
+                    "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexBufferCount must not be < 1.",
                     i
                 );
                 valid = false;
@@ -302,7 +295,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                 if (!triangles.vertexBuffers[j].buffer)
                 {
                     RHI_VALIDATION_ERROR_FORMAT(
-                        "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexBuffers.buffer cannot be null.",
+                        "AccelerationStructureBuildDesc::inputs[%d].triangles.vertexBuffers.buffer must not be null.",
                         i
                     );
                     valid = false;
@@ -332,7 +325,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                 break;
             default:
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "AccelerationStructureBuildDesc::inputs[%d].spheres.vertexPositionFormat is unsupported. "
+                    "AccelerationStructureBuildDesc::inputs[%d].spheres.vertexPositionFormat is not supported. "
                     "Valid values are RGB32Float, RG32Float, RGBA16Float, RG16Float, RGBA16Snorm or RG16Snorm.",
                     i
                 );
@@ -346,7 +339,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                 break;
             default:
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "AccelerationStructureBuildDesc::inputs[%d].spheres.vertexRadiusFormat is unsupported. "
+                    "AccelerationStructureBuildDesc::inputs[%d].spheres.vertexRadiusFormat is not supported. "
                     "Valid values are R32Float or R16Float.",
                     i
                 );
@@ -499,7 +492,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
             if (linearSweptSpheres.vertexBufferCount < 1)
             {
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.vertexBufferCount cannot be <= 1.",
+                    "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.vertexBufferCount must not be < 1.",
                     i
                 );
                 valid = false;
@@ -509,8 +502,8 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
                 if (!linearSweptSpheres.vertexPositionBuffers[j].buffer)
                 {
                     RHI_VALIDATION_ERROR_FORMAT(
-                        "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.vertexBuffers[%d].buffer cannot "
-                        "be null.",
+                        "AccelerationStructureBuildDesc::inputs[%d].linearSweptSpheres.vertexPositionBuffers[%d]."
+                        "buffer must not be null.",
                         i,
                         j
                     );
@@ -522,7 +515,7 @@ Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const Accelerat
         }
         default:
             RHI_VALIDATION_ERROR_FORMAT(
-                "AccelerationStructureBuildDesc::inputs[%d].type is not supported. ",
+                "AccelerationStructureBuildDesc::inputs[%d].type is not supported. "
                 "Valid values are Instances, Triangles, ProceduralPrimitives, Spheres and LinearSweptSpheres.",
                 i
             );
@@ -544,7 +537,7 @@ Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationP
     case ClusterOperationType::MoveObjects:
         if (ctx->deviceType == DeviceType::CUDA)
         {
-            RHI_VALIDATION_ERROR("ClusterOperationType::MoveObjects is not supported on CUDA (OptiX limitation)");
+            RHI_VALIDATION_ERROR("ClusterOperationType::MoveObjects is not supported on CUDA (OptiX limitation).");
             valid = false;
         }
         break;
@@ -561,7 +554,7 @@ Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationP
         validateClasParams = true;
         break;
     default:
-        RHI_VALIDATION_ERROR("ClusterOperationParams::type is invalid");
+        RHI_VALIDATION_ERROR("ClusterOperationParams::type is invalid.");
         valid = false;
         break;
     }
@@ -575,7 +568,7 @@ Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationP
     case ClusterOperationMode::GetSizes:
         break;
     default:
-        RHI_VALIDATION_ERROR("ClusterOperationParams::mode is invalid");
+        RHI_VALIDATION_ERROR("ClusterOperationParams::mode is invalid.");
         valid = false;
         break;
     }
@@ -669,17 +662,17 @@ Result validateConvertCooperativeVectorMatrix(
 {
     if (!dstDescs)
     {
-        RHI_VALIDATION_ERROR("Destination descriptions must be valid");
+        RHI_VALIDATION_ERROR("'dstDescs' must not be null.");
         return SLANG_E_INVALID_ARG;
     }
     if (!srcDescs)
     {
-        RHI_VALIDATION_ERROR("Source descriptions must be valid");
+        RHI_VALIDATION_ERROR("'srcDescs' must not be null.");
         return SLANG_E_INVALID_ARG;
     }
     if (matrixCount == 0)
     {
-        RHI_VALIDATION_ERROR("Matrix count must be non-zero");
+        RHI_VALIDATION_ERROR("Matrix count must not be zero.");
         return SLANG_E_INVALID_ARG;
     }
 
@@ -690,28 +683,28 @@ Result validateConvertCooperativeVectorMatrix(
     {
         if (dstDescs[i].rowCount != srcDescs[i].rowCount)
         {
-            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowCount must match srcDescs[%d].rowCount", i, i);
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowCount must match srcDescs[%d].rowCount.", i, i);
             valid = false;
         }
         if (dstDescs[i].colCount != srcDescs[i].colCount)
         {
-            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].colCount must match srcDescs[%d].colCount", i, i);
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].colCount must match srcDescs[%d].colCount.", i, i);
             valid = false;
         }
 
         if (dstDescs[i].rowCount < 1 || dstDescs[i].rowCount > 128)
         {
-            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowCount must be in the range [1, 128]", i);
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowCount must be in the range [1, 128].", i);
             valid = false;
         }
         if (dstDescs[i].colCount < 1 || dstDescs[i].colCount > 128)
         {
-            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].colCount must be in the range [1, 128]", i);
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].colCount must be in the range [1, 128].", i);
             valid = false;
         }
         if (dstDescs[i].size == 0)
         {
-            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].size must not be zero", i);
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].size must not be zero.", i);
             valid = false;
         }
         switch (dstDescs[i].layout)
@@ -721,8 +714,7 @@ Result validateConvertCooperativeVectorMatrix(
             if (dstDescs[i].rowColumnStride == 0)
             {
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "dstDescs[%d].rowColumnStride must must not be zero for row-major and column-major layouts"
-                    "layouts",
+                    "dstDescs[%d].rowColumnStride must not be zero for row-major and column-major layouts.",
                     i
                 );
                 valid = false;
@@ -732,34 +724,34 @@ Result validateConvertCooperativeVectorMatrix(
         case CooperativeVectorMatrixLayout::TrainingOptimal:
             if (dstDescs[i].offset % 64 != 0)
             {
-                RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].offset must be a multiple of 64 bytes", i);
+                RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].offset must be a multiple of 64 bytes.", i);
                 valid = false;
             }
             if (dstDescs[i].rowColumnStride != 0)
             {
-                RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowColumnStride must be zero for optimal layouts", i);
+                RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].rowColumnStride must be zero for optimal layouts.", i);
                 valid = false;
             }
             break;
         default:
-            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].layout is invalid", i);
+            RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].layout is invalid.", i);
             valid = false;
             break;
         }
 
         if (srcDescs[i].rowCount < 1 || srcDescs[i].rowCount > 128)
         {
-            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].rowCount must be in the range [1, 128]", i);
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].rowCount must be in the range [1, 128].", i);
             valid = false;
         }
         if (srcDescs[i].colCount < 1 || srcDescs[i].colCount > 128)
         {
-            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].colCount must be in the range [1, 128]", i);
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].colCount must be in the range [1, 128].", i);
             valid = false;
         }
         if (srcDescs[i].size == 0)
         {
-            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].size must not be zero", i);
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].size must not be zero.", i);
             valid = false;
         }
         switch (srcDescs[i].layout)
@@ -769,8 +761,7 @@ Result validateConvertCooperativeVectorMatrix(
             if (srcDescs[i].rowColumnStride == 0)
             {
                 RHI_VALIDATION_ERROR_FORMAT(
-                    "srcDescs[%d].rowColumnStride must must not be zero for row-major and column-major layouts"
-                    "layouts",
+                    "srcDescs[%d].rowColumnStride must not be zero for row-major and column-major layouts.",
                     i
                 );
                 valid = false;
@@ -780,29 +771,51 @@ Result validateConvertCooperativeVectorMatrix(
         case CooperativeVectorMatrixLayout::TrainingOptimal:
             if (srcDescs[i].offset % 64 != 0)
             {
-                RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].offset must be a multiple of 64 bytes", i);
+                RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].offset must be a multiple of 64 bytes.", i);
                 valid = false;
             }
             if (srcDescs[i].rowColumnStride != 0)
             {
-                RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].rowColumnStride must be zero for optimal layouts", i);
+                RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].rowColumnStride must be zero for optimal layouts.", i);
                 valid = false;
             }
             break;
         default:
-            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].layout is invalid", i);
+            RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].layout is invalid.", i);
             valid = false;
             break;
         }
 
-        minDstBufferSize = std::max(minDstBufferSize, dstDescs[i].offset + dstDescs[i].size);
-        minSrcBufferSize = std::max(minSrcBufferSize, srcDescs[i].offset + srcDescs[i].size);
+        {
+            size_t dstEnd = dstDescs[i].offset + dstDescs[i].size;
+            if (dstDescs[i].offset > dstEnd)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("dstDescs[%d].offset + dstDescs[%d].size overflows.", i, i);
+                valid = false;
+            }
+            else
+            {
+                minDstBufferSize = std::max(minDstBufferSize, dstEnd);
+            }
+        }
+        {
+            size_t srcEnd = srcDescs[i].offset + srcDescs[i].size;
+            if (srcDescs[i].offset > srcEnd)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("srcDescs[%d].offset + srcDescs[%d].size overflows.", i, i);
+                valid = false;
+            }
+            else
+            {
+                minSrcBufferSize = std::max(minSrcBufferSize, srcEnd);
+            }
+        }
     }
 
     if (dstBufferSize < minDstBufferSize)
     {
         RHI_VALIDATION_ERROR_FORMAT(
-            "Destination buffer size (%zu) is smaller than the required minimum size (%zu)",
+            "Destination buffer size (%zu) is smaller than the required minimum size (%zu).",
             dstBufferSize,
             minDstBufferSize
         );
@@ -811,7 +824,7 @@ Result validateConvertCooperativeVectorMatrix(
     if (srcBufferSize < minSrcBufferSize)
     {
         RHI_VALIDATION_ERROR_FORMAT(
-            "Source buffer size (%zu) is smaller than the required minimum size (%zu)",
+            "Source buffer size (%zu) is smaller than the required minimum size (%zu).",
             srcBufferSize,
             minSrcBufferSize
         );

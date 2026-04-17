@@ -145,7 +145,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->printWarning(x " command is not supported!")
+#define NOT_SUPPORTED(interface, method) m_device->printWarning(#interface "::" #method " is not supported!")
 
 void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -161,8 +161,8 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     TextureImpl* src = checked_cast<TextureImpl*>(cmd.src);
     TextureImpl* dst = checked_cast<TextureImpl*>(cmd.dst);
 
-    const SubresourceRange& srcSubresource = cmd.srcSubresource;
-    const SubresourceRange& dstSubresource = cmd.dstSubresource;
+    SubresourceRange srcSubresource = cmd.srcSubresource;
+    SubresourceRange dstSubresource = cmd.dstSubresource;
     const Offset3D& srcOffset = cmd.srcOffset;
     const Offset3D& dstOffset = cmd.dstOffset;
     const Extent3D& extent = cmd.extent;
@@ -176,19 +176,54 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
     }
     else
     {
+        // Fix up sub resource ranges.
+        if (dstSubresource.layerCount == 0)
+            dstSubresource.layerCount = dst->m_desc.getLayerCount();
+        if (dstSubresource.mipCount == 0)
+            dstSubresource.mipCount = dst->m_desc.mipCount;
+        if (srcSubresource.layerCount == 0)
+            srcSubresource.layerCount = src->m_desc.getLayerCount();
+        if (srcSubresource.mipCount == 0)
+            srcSubresource.mipCount = src->m_desc.mipCount;
+
+        Extent3D srcTextureSize = src->m_desc.size;
         for (uint32_t layer = 0; layer < dstSubresource.layerCount; layer++)
         {
-            encoder->copyFromTexture(
-                src->m_texture.get(),
-                srcSubresource.layer + layer,
-                srcSubresource.mip,
-                MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
-                MTL::Size(extent.width, extent.height, extent.depth),
-                dst->m_texture.get(),
-                dstSubresource.layer + layer,
-                dstSubresource.mip,
-                MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
-            );
+            for (uint32_t mipOffset = 0; mipOffset < dstSubresource.mipCount; mipOffset++)
+            {
+                uint32_t srcMip = srcSubresource.mip + mipOffset;
+                uint32_t dstMip = dstSubresource.mip + mipOffset;
+
+                Extent3D srcMipSize = calcMipSize(srcTextureSize, srcMip);
+                Extent3D adjustedExtent = extent;
+                if (adjustedExtent.width == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.x == dstOffset.x);
+                    adjustedExtent.width = srcMipSize.width - srcOffset.x;
+                }
+                if (adjustedExtent.height == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.y == dstOffset.y);
+                    adjustedExtent.height = srcMipSize.height - srcOffset.y;
+                }
+                if (adjustedExtent.depth == kRemainingTextureSize)
+                {
+                    SLANG_RHI_ASSERT(srcOffset.z == dstOffset.z);
+                    adjustedExtent.depth = srcMipSize.depth - srcOffset.z;
+                }
+
+                encoder->copyFromTexture(
+                    src->m_texture.get(),
+                    srcSubresource.layer + layer,
+                    srcMip,
+                    MTL::Origin(srcOffset.x, srcOffset.y, srcOffset.z),
+                    MTL::Size(adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth),
+                    dst->m_texture.get(),
+                    dstSubresource.layer + layer,
+                    dstMip,
+                    MTL::Origin(dstOffset.x, dstOffset.y, dstOffset.z)
+                );
+            }
         }
     }
 }
@@ -660,19 +695,19 @@ void CommandRecorder::cmdDrawIndexed(const commands::DrawIndexed& cmd)
 void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawIndirect);
+    NOT_SUPPORTED(IRenderPassEncoder, drawIndirect);
 }
 
 void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexedIndirect);
+    NOT_SUPPORTED(IRenderPassEncoder, drawIndexedIndirect);
 }
 
 void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawMeshTasks);
+    NOT_SUPPORTED(IRenderPassEncoder, drawMeshTasks);
 }
 
 void CommandRecorder::cmdBeginComputePass(const commands::BeginComputePass& cmd)
@@ -732,13 +767,13 @@ void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_ComputePassEncoder_dispatchComputeIndirect);
+    NOT_SUPPORTED(IComputePassEncoder, dispatchComputeIndirect);
 }
 
 void CommandRecorder::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_beginRayTracingPass);
+    NOT_SUPPORTED(ICommandEncoder, beginRayTracingPass);
 }
 
 void CommandRecorder::cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd)
@@ -754,7 +789,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
 void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RayTracingPassEncoder_dispatchRays);
+    NOT_SUPPORTED(IRayTracingPassEncoder, dispatchRays);
 }
 
 void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
@@ -813,31 +848,31 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
 void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_queryAccelerationStructureProperties);
+    NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
 }
 
 void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_serializeAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, serializeAccelerationStructure);
 }
 
 void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, deserializeAccelerationStructure);
 }
 
 void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_executeClusterOperation);
+    NOT_SUPPORTED(ICommandEncoder, executeClusterOperation);
 }
 
 void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_convertCooperativeVectorMatrix);
+    NOT_SUPPORTED(ICommandEncoder, convertCooperativeVectorMatrix);
 }
 
 void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
@@ -980,6 +1015,22 @@ void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
     m_trackingEventListener = NS::TransferPtr(MTL::SharedEventListener::alloc()->init());
 }
 
+void CommandQueueImpl::shutdown()
+{
+    waitOnHost();
+    // TODO: This will be needed if we use command buffer pooling as we do in the other backends.
+#if 0
+    // Release all command buffers in order to release all resources they may hold.
+    m_commandBuffersPool.clear();
+    // Execute remaining deferred deletes.
+    executeDeferredDeletes();
+#endif
+    SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
+    m_commandQueue.reset();
+    m_trackingEvent.reset();
+    m_trackingEventListener.reset();
+}
+
 void CommandQueueImpl::retireCommandBuffers()
 {
     std::list<RefPtr<CommandBufferImpl>> commandBuffers = std::move(m_commandBuffersInFlight);
@@ -998,8 +1049,29 @@ void CommandQueueImpl::retireCommandBuffers()
         }
     }
 
+    // Delete deferred resources that are no longer in use by the GPU.
+    updateLastFinishedID();
+    executeDeferredDeletes();
+
     // Flush all device heaps
     getDevice<DeviceImpl>()->flushHeaps();
+}
+
+void CommandQueueImpl::deferDelete(Resource* resource)
+{
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    m_deferredDeleteQueue.push({m_lastSubmittedID, resource});
+}
+
+void CommandQueueImpl::executeDeferredDeletes()
+{
+    uint64_t lastFinishedID = m_lastFinishedID;
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
+    {
+        delete m_deferredDeleteQueue.front().resource;
+        m_deferredDeleteQueue.pop();
+    }
 }
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
@@ -1008,9 +1080,11 @@ uint64_t CommandQueueImpl::updateLastFinishedID()
     return m_lastFinishedID;
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
 {
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
+    AUTORELEASEPOOL
+
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this, desc);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
@@ -1134,8 +1208,8 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
-    : CommandEncoder(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue, const CommandEncoderDesc& desc)
+    : CommandEncoder(device, desc)
     , m_queue(queue)
 {
 }
@@ -1166,9 +1240,17 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     );
 }
 
-Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
+Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
+    AUTORELEASEPOOL
+
     DeviceImpl* device = getDevice<DeviceImpl>();
+    bool hadLabel = m_commandBuffer->m_desc.label != nullptr;
+    m_commandBuffer->setDesc(desc);
+    if (hadLabel)
+    {
+        m_commandBuffer->m_commandBuffer->setLabel(createString(m_commandBuffer->m_desc.label).get());
+    }
     SLANG_RETURN_ON_FAIL(resolvePipelines(device));
     CommandRecorder recorder(device);
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));

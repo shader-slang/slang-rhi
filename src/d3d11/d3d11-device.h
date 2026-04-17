@@ -18,7 +18,7 @@ public:
     DeviceImpl();
     ~DeviceImpl();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
 
@@ -121,10 +121,3 @@ public:
 };
 
 } // namespace rhi::d3d11
-
-namespace rhi {
-
-IAdapter* getD3D11Adapter(uint32_t index);
-Result createD3D11Device(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

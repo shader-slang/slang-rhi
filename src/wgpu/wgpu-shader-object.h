@@ -17,7 +17,7 @@ struct BindingDataBuilder
     CommandList* m_commandList;
     ConstantBufferPool* m_constantBufferPool;
 
-    span<WGPUBindGroupLayout> m_bindGroupLayouts;
+    std::span<WGPUBindGroupLayout> m_bindGroupLayouts;
 
     /// The bind group entries for every descriptor set
     std::vector<std::vector<WGPUBindGroupEntry>> m_entries;

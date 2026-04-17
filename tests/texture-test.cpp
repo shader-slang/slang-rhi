@@ -1061,24 +1061,10 @@ bool FormatFilter::filter(Format format) const
 
 // Nice selection of formats to test
 Format kStandardFormats[] = {
-    Format::D16Unorm,
-    Format::D32FloatS8Uint,
-    Format::D32Float,
-    Format::RGBA32Uint,
-    Format::RGB32Uint,
-    Format::RGBA32Float,
-    Format::R32Float,
-    Format::RGBA16Float,
-    Format::RGBA16Uint,
-    Format::RGBA8Uint,
-    Format::RGBA8Unorm,
-    Format::RGBA8UnormSrgb,
-    Format::RGBA16Snorm,
-    Format::RGBA8Snorm,
-    Format::RGB10A2Unorm,
-    Format::BC1Unorm,
-    Format::BC1UnormSrgb,
-    Format::R64Uint,
+    Format::D16Unorm,    Format::D32FloatS8Uint, Format::D32Float,     Format::RGBA32Uint,       Format::RGB32Uint,
+    Format::RGBA32Float, Format::R32Float,       Format::RGBA16Float,  Format::RGBA16Uint,       Format::RGBA8Uint,
+    Format::RGBA8Unorm,  Format::RGBA8UnormSrgb, Format::RGBA16Snorm,  Format::RGBA8Snorm,       Format::RGB10A2Unorm,
+    Format::BC1Unorm,    Format::BC1UnormSrgb,   Format::ASTC4x4Unorm, Format::ASTC6x6UnormSrgb, Format::R64Uint,
 };
 
 void TextureTestOptions::postProcessVariant(int state, TextureTestVariant variant)
@@ -1255,6 +1241,19 @@ void TextureTestOptions::filterFormat(int state, TextureTestVariant variant)
 
 void TextureTestOptions::applyTextureSize(int state, TextureTestVariant variant)
 {
+    // Normalize base test dimensions for compressed formats so generated regions
+    // and offsets remain block-valid; later mips may still end on partial blocks.
+    for (auto& testDesc : variant.descriptors)
+    {
+        const FormatInfo& info = getFormatInfo(testDesc.desc.format);
+        if (!info.isCompressed)
+            continue;
+        if (testDesc.desc.size.width > 1)
+            testDesc.desc.size.width = uint32_t(math::calcAligned(testDesc.desc.size.width, info.blockWidth));
+        if (testDesc.desc.size.height > 1)
+            testDesc.desc.size.height = uint32_t(math::calcAligned(testDesc.desc.size.height, info.blockHeight));
+    }
+
     if (is_set(variant.powerOf2, TTPowerOf2::On))
     {
         // Textures are configured with power-of-2 sizes by default so just pass through.

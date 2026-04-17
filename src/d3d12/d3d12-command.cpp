@@ -60,6 +60,7 @@ public:
     RefPtr<ShaderTableImpl> m_shaderTable;
     D3D12_DISPATCH_RAYS_DESC m_dispatchRaysDesc = {};
     UINT64 m_rayGenTableAddr = 0;
+    UINT64 m_rayGenRecordStride = 0;
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -176,7 +177,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->printWarning(S_CommandEncoder_##x " command is not supported!")
+#define NOT_SUPPORTED(interface, method) m_device->printWarning(#interface "::" #method " is not supported!")
 
 void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -909,6 +910,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         m_cmdList->RSSetScissorRects(state.scissorRectCount, scissorRects);
     }
 
+    commitBarriers();
+
     m_renderStateValid = true;
     m_renderState = state;
 
@@ -1033,6 +1036,8 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         setBindings(m_bindingData, BindMode::Compute);
     }
 
+    commitBarriers();
+
     m_computeStateValid = true;
 
     m_renderStateValid = false;
@@ -1103,41 +1108,52 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     {
         m_shaderTable = checked_cast<ShaderTableImpl*>(cmd.shaderTable);
 
-        BufferImpl* shaderTableBuffer = m_shaderTable->getBuffer(m_rayTracingPipeline);
-        DeviceAddress shaderTableAddr = shaderTableBuffer->getDeviceAddress();
+        ShaderTableImpl::PipelineData* shaderTablePipelineData = m_shaderTable->getPipelineData(m_rayTracingPipeline);
+        if (!shaderTablePipelineData)
+        {
+            m_rayTracingStateValid = false;
+            return;
+        }
+        requireBufferState(shaderTablePipelineData->buffer, ResourceState::ShaderResource);
+        DeviceAddress shaderTableAddr = shaderTablePipelineData->buffer->getDeviceAddress();
 
         m_dispatchRaysDesc = {};
 
         // Raygen index is set at dispatch time.
-        m_rayGenTableAddr = shaderTableAddr + m_shaderTable->m_rayGenTableOffset;
+        m_rayGenTableAddr = shaderTableAddr + shaderTablePipelineData->rayGenTableOffset;
+        m_rayGenRecordStride = shaderTablePipelineData->rayGenRecordStride;
         m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress = shaderTableAddr;
-        m_dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = m_shaderTable->m_rayGenRecordStride;
+        m_dispatchRaysDesc.RayGenerationShaderRecord.SizeInBytes = shaderTablePipelineData->rayGenRecordStride;
 
         if (m_shaderTable->m_missShaderCount > 0)
         {
-            m_dispatchRaysDesc.MissShaderTable.StartAddress = shaderTableAddr + m_shaderTable->m_missTableOffset;
+            m_dispatchRaysDesc.MissShaderTable.StartAddress =
+                shaderTableAddr + shaderTablePipelineData->missTableOffset;
             m_dispatchRaysDesc.MissShaderTable.SizeInBytes =
-                m_shaderTable->m_missShaderCount * m_shaderTable->m_missRecordStride;
-            m_dispatchRaysDesc.MissShaderTable.StrideInBytes = m_shaderTable->m_missRecordStride;
+                m_shaderTable->m_missShaderCount * shaderTablePipelineData->missRecordStride;
+            m_dispatchRaysDesc.MissShaderTable.StrideInBytes = shaderTablePipelineData->missRecordStride;
         }
 
         if (m_shaderTable->m_hitGroupCount > 0)
         {
-            m_dispatchRaysDesc.HitGroupTable.StartAddress = shaderTableAddr + m_shaderTable->m_hitGroupTableOffset;
+            m_dispatchRaysDesc.HitGroupTable.StartAddress =
+                shaderTableAddr + shaderTablePipelineData->hitGroupTableOffset;
             m_dispatchRaysDesc.HitGroupTable.SizeInBytes =
-                m_shaderTable->m_hitGroupCount * m_shaderTable->m_hitGroupRecordStride;
-            m_dispatchRaysDesc.HitGroupTable.StrideInBytes = m_shaderTable->m_hitGroupRecordStride;
+                m_shaderTable->m_hitGroupCount * shaderTablePipelineData->hitGroupRecordStride;
+            m_dispatchRaysDesc.HitGroupTable.StrideInBytes = shaderTablePipelineData->hitGroupRecordStride;
         }
 
         if (m_shaderTable->m_callableShaderCount > 0)
         {
             m_dispatchRaysDesc.CallableShaderTable.StartAddress =
-                shaderTableAddr + m_shaderTable->m_callableTableOffset;
+                shaderTableAddr + shaderTablePipelineData->callableTableOffset;
             m_dispatchRaysDesc.CallableShaderTable.SizeInBytes =
-                m_shaderTable->m_callableShaderCount * m_shaderTable->m_callableRecordStride;
-            m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = m_shaderTable->m_callableRecordStride;
+                m_shaderTable->m_callableShaderCount * shaderTablePipelineData->callableRecordStride;
+            m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = shaderTablePipelineData->callableRecordStride;
         }
     }
+
+    commitBarriers();
 
     m_rayTracingStateValid = true;
 
@@ -1150,8 +1166,11 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
     if (!m_rayTracingStateValid)
         return;
 
+    if (cmd.rayGenShaderIndex >= m_shaderTable->m_rayGenShaderCount)
+        return;
+
     m_dispatchRaysDesc.RayGenerationShaderRecord.StartAddress =
-        m_rayGenTableAddr + cmd.rayGenShaderIndex * m_shaderTable->m_rayGenRecordStride;
+        m_rayGenTableAddr + cmd.rayGenShaderIndex * m_rayGenRecordStride;
     m_dispatchRaysDesc.Width = cmd.width;
     m_dispatchRaysDesc.Height = cmd.height;
     m_dispatchRaysDesc.Depth = cmd.depth;
@@ -1465,7 +1484,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
 
 #else  // SLANG_RHI_ENABLE_NVAPI
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(executeClusterOperation);
+    NOT_SUPPORTED(ICommandEncoder, executeClusterOperation);
 #endif // SLANG_RHI_ENABLE_NVAPI
 }
 
@@ -1615,6 +1634,8 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMod
             textureState.state
         );
     }
+
+    // We need barriers to be committed before setting root parameters.
     commitBarriers();
 
     // Then we bind the root parameters.
@@ -1767,11 +1788,7 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 {
 }
 
-CommandQueueImpl::~CommandQueueImpl()
-{
-    waitOnHost();
-    ::CloseHandle(m_globalWaitHandle);
-}
+CommandQueueImpl::~CommandQueueImpl() {}
 
 Result CommandQueueImpl::init(uint32_t queueIndex)
 {
@@ -1794,6 +1811,17 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     m_globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
     return SLANG_OK;
+}
+
+void CommandQueueImpl::shutdown()
+{
+    waitOnHost();
+    // Release all command buffers in order to release all resources they may hold.
+    m_commandBuffersPool.clear();
+    // Execute remaining deferred deletes.
+    executeDeferredDeletes();
+    SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
+    ::CloseHandle(m_globalWaitHandle);
 }
 
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
@@ -1850,8 +1878,32 @@ void CommandQueueImpl::retireCommandBuffers()
         }
     }
 
+    // Delete deferred resources that are no longer in use by the GPU.
+    executeDeferredDeletes();
+
     // Flush all device heaps
     getDevice<DeviceImpl>()->flushHeaps();
+}
+
+void CommandQueueImpl::deferDelete(Resource* resource)
+{
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    // Use current submission ID - resource will be released after this submission completes.
+    // This is conservative but simple: the resource may have been used in an earlier submission,
+    // but using the current ID ensures we don't release too early.
+    m_deferredDeleteQueue.push({m_lastSubmittedID, resource});
+}
+
+void CommandQueueImpl::executeDeferredDeletes()
+{
+    uint64_t lastFinishedID = m_lastFinishedID;
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
+    {
+        // GPU is done with this resource - delete it.
+        delete m_deferredDeleteQueue.front().resource;
+        m_deferredDeleteQueue.pop();
+    }
 }
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
@@ -1860,9 +1912,9 @@ uint64_t CommandQueueImpl::updateLastFinishedID()
     return m_lastFinishedID;
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
 {
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this, desc);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
@@ -1941,8 +1993,8 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
-    : CommandEncoder(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue, const CommandEncoderDesc& desc)
+    : CommandEncoder(device, desc)
     , m_queue(queue)
 {
 }
@@ -1984,8 +2036,14 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     );
 }
 
-Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
+Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
+    bool hadLabel = m_commandBuffer->m_desc.label != nullptr;
+    m_commandBuffer->setDesc(desc);
+    if (hadLabel)
+    {
+        m_commandBuffer->m_d3dCommandList->SetName(m_desc.label ? string::to_wstring(m_desc.label).c_str() : nullptr);
+    }
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     CommandRecorder recorder(getDevice<DeviceImpl>());
     SLANG_RETURN_ON_FAIL(recorder.record(m_commandBuffer));

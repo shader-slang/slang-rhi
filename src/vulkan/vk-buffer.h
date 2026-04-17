@@ -25,17 +25,13 @@ public:
     {
     }
 
-    ~VKBufferHandleRAII() { reset(); }
-
-    void reset()
+    ~VKBufferHandleRAII()
     {
-        if (!m_api)
-            return;
-        m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-        m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
-        m_buffer = VK_NULL_HANDLE;
-        m_memory = VK_NULL_HANDLE;
-        m_api = nullptr;
+        if (m_api)
+        {
+            m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
+            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+        }
     }
 
     VkBuffer m_buffer;
@@ -49,20 +45,24 @@ public:
     BufferImpl(Device* device, const BufferDesc& desc);
     ~BufferImpl();
 
-    VKBufferHandleRAII m_buffer;
+    virtual void deleteThis() override;
 
-    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
-
+    // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
+    // IBuffer implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getSharedHandle(NativeHandle* outHandle) override;
-
+    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(
         DescriptorHandleAccess access,
         Format format,
         BufferRange range,
         DescriptorHandle* outHandle
     ) override;
+
+public:
+    VKBufferHandleRAII m_buffer;
+    DeviceAddress m_deviceAddress = 0;
 
     struct ViewKey
     {
@@ -83,7 +83,6 @@ public:
         }
     };
 
-    std::mutex m_mutex;
     std::unordered_map<ViewKey, VkBufferView, ViewKeyHasher> m_views;
 
     VkBufferView getView(Format format, const BufferRange& range);

@@ -20,6 +20,11 @@ SamplerImpl::~SamplerImpl()
     device->m_cpuSamplerHeap->free(m_descriptor);
 }
 
+void SamplerImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::D3D12CpuDescriptorHandle;
@@ -29,15 +34,24 @@ Result SamplerImpl::getNativeHandle(NativeHandle* outHandle)
 
 Result SamplerImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
+    if (m_descriptorHandle)
+    {
+        *outHandle = m_descriptorHandle;
+        return SLANG_OK;
+    }
+
     DeviceImpl* device = getDevice<DeviceImpl>();
+
     if (!device->m_bindlessDescriptorSet)
     {
         return SLANG_E_NOT_AVAILABLE;
     }
+
     if (!m_descriptorHandle)
     {
-        SLANG_RETURN_FALSE_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &m_descriptorHandle));
+        SLANG_RETURN_ON_FAIL(device->m_bindlessDescriptorSet->allocSamplerHandle(this, &m_descriptorHandle));
     }
+
     *outHandle = m_descriptorHandle;
     return SLANG_OK;
 }

@@ -18,6 +18,11 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     device->m_accelerationStructures.dirty = true;
 }
 
+void AccelerationStructureImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::MTLAccelerationStructure;
@@ -132,10 +137,17 @@ Result AccelerationStructureBuildDescConverter::convert(
             {
                 return SLANG_E_INVALID_ARG;
             }
+        }
+
+        std::vector<MTL::AccelerationStructureTriangleGeometryDescriptor*> triangleDescriptors(buildDesc.inputCount);
+
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
 
             MTL::AccelerationStructureTriangleGeometryDescriptor* triangleDescriptor =
-                (MTL::AccelerationStructureTriangleGeometryDescriptor*)primitiveDescriptor->geometryDescriptors()
-                    ->object(i);
+                MTL::AccelerationStructureTriangleGeometryDescriptor::alloc()->init();
+            triangleDescriptors[i] = triangleDescriptor;
 
             triangleDescriptor->setVertexBuffer(
                 checked_cast<BufferImpl*>(triangles.vertexBuffers[0].buffer)->m_buffer.get()
@@ -172,6 +184,18 @@ Result AccelerationStructureBuildDescConverter::convert(
             );
         }
 
+        // Set the geometry descriptors array on the primitive descriptor
+        NS::Array* geometryArray =
+            NS::Array::alloc()->init((const NS::Object* const*)triangleDescriptors.data(), triangleDescriptors.size());
+        primitiveDescriptor->setGeometryDescriptors(geometryArray);
+        geometryArray->release();
+
+        // Release the individual descriptors (array retains them)
+        for (auto* desc : triangleDescriptors)
+        {
+            desc->release();
+        }
+
         break;
     }
     case AccelerationStructureBuildInputType::ProceduralPrimitives:
@@ -190,18 +214,50 @@ Result AccelerationStructureBuildDescConverter::convert(
             {
                 return SLANG_E_INVALID_ARG;
             }
+        }
 
-            MTL::AccelerationStructureBoundingBoxGeometryDescriptor* boundingDescriptor =
-                (MTL::AccelerationStructureBoundingBoxGeometryDescriptor*)primitiveDescriptor->geometryDescriptors()
-                    ->object(i);
+        std::vector<MTL::AccelerationStructureBoundingBoxGeometryDescriptor*> boundingBoxDescriptors(
+            buildDesc.inputCount
+        );
 
-            boundingDescriptor->setBoundingBoxBuffer(
+        for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
+        {
+            const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
+                buildDesc.inputs[i].proceduralPrimitives;
+
+            MTL::AccelerationStructureBoundingBoxGeometryDescriptor* boundingBoxDescriptor =
+                MTL::AccelerationStructureBoundingBoxGeometryDescriptor::alloc()->init();
+            boundingBoxDescriptors[i] = boundingBoxDescriptor;
+
+            boundingBoxDescriptor->setBoundingBoxBuffer(
                 checked_cast<BufferImpl*>(proceduralPrimitives.aabbBuffers[0].buffer)->m_buffer.get()
             );
-            boundingDescriptor->setBoundingBoxBufferOffset(proceduralPrimitives.aabbBuffers[0].offset);
-            boundingDescriptor->setBoundingBoxStride(proceduralPrimitives.aabbStride);
-            boundingDescriptor->setBoundingBoxCount(proceduralPrimitives.primitiveCount);
+            boundingBoxDescriptor->setBoundingBoxBufferOffset(proceduralPrimitives.aabbBuffers[0].offset);
+            boundingBoxDescriptor->setBoundingBoxStride(proceduralPrimitives.aabbStride);
+            boundingBoxDescriptor->setBoundingBoxCount(proceduralPrimitives.primitiveCount);
+
+            boundingBoxDescriptor->setOpaque(
+                is_set(proceduralPrimitives.flags, AccelerationStructureGeometryFlags::Opaque)
+            );
+            boundingBoxDescriptor->setAllowDuplicateIntersectionFunctionInvocation(
+                !is_set(proceduralPrimitives.flags, AccelerationStructureGeometryFlags::NoDuplicateAnyHitInvocation)
+            );
         }
+
+        // Set the geometry descriptors array on the primitive descriptor
+        NS::Array* geometryArray = NS::Array::alloc()->init(
+            (const NS::Object* const*)boundingBoxDescriptors.data(),
+            boundingBoxDescriptors.size()
+        );
+        primitiveDescriptor->setGeometryDescriptors(geometryArray);
+        geometryArray->release();
+
+        // Release the individual descriptors (array retains them)
+        for (auto* desc : boundingBoxDescriptors)
+        {
+            desc->release();
+        }
+
         break;
     }
     case AccelerationStructureBuildInputType::Spheres:

@@ -6,6 +6,7 @@
 #include <vector>
 #include <initializer_list>
 #include <mutex>
+#include <span>
 
 #include <cstring>
 #include <cstdint>
@@ -14,9 +15,26 @@
 #include "com-object.h"
 #include "platform.h"
 #include "smart-pointer.h"
-#include "span.h"
 #include "string.h"
 #include "struct-holder.h"
+
+// Suppress clang warnings for static std::mutex declarations.
+// Clang < 16 warns about global constructors/exit-time destructors for std::mutex,
+// even though it has a trivial destructor. Clang 16+ recognizes its constexpr constructor
+// and no longer emits these warnings.
+#if defined(__clang__) && (__clang_major__ < 16)
+// clang-format off
+#define SLANG_RHI_STATIC_MUTEX_BEGIN                                                                                   \
+    _Pragma("clang diagnostic push")                                                                                   \
+    _Pragma("clang diagnostic ignored \"-Wglobal-constructors\"")                                                      \
+    _Pragma("clang diagnostic ignored \"-Wexit-time-destructors\"")
+#define SLANG_RHI_STATIC_MUTEX_END                                                                                     \
+    _Pragma("clang diagnostic pop")
+// clang-format on
+#else
+#define SLANG_RHI_STATIC_MUTEX_BEGIN
+#define SLANG_RHI_STATIC_MUTEX_END
+#endif
 
 namespace rhi {
 
@@ -118,6 +136,13 @@ inline size_t divideRoundedUp(size_t numerator, size_t denominator)
 inline size_t calcAligned(size_t size, size_t alignment)
 {
     return divideRoundedUp(size, alignment) * alignment;
+}
+
+/// Calculate aligned-down size taking into account alignment.
+inline size_t calcAlignedDown(size_t size, size_t alignment)
+{
+    SLANG_RHI_ASSERT(alignment != 0);
+    return (size / alignment) * alignment;
 }
 
 /// More optimal calculate size taking into account alignment that only supports power of 2.

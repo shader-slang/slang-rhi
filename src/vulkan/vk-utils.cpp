@@ -177,6 +177,19 @@ VkFormat getVkFormat(Format format)
     case Format::BC7UnormSrgb:
         return VK_FORMAT_BC7_SRGB_BLOCK;
 
+    case Format::ASTC4x4Unorm:
+        return VK_FORMAT_ASTC_4x4_UNORM_BLOCK;
+    case Format::ASTC4x4UnormSrgb:
+        return VK_FORMAT_ASTC_4x4_SRGB_BLOCK;
+    case Format::ASTC6x6Unorm:
+        return VK_FORMAT_ASTC_6x6_UNORM_BLOCK;
+    case Format::ASTC6x6UnormSrgb:
+        return VK_FORMAT_ASTC_6x6_SRGB_BLOCK;
+    case Format::ASTC8x8Unorm:
+        return VK_FORMAT_ASTC_8x8_UNORM_BLOCK;
+    case Format::ASTC8x8UnormSrgb:
+        return VK_FORMAT_ASTC_8x8_SRGB_BLOCK;
+
     default:
         return VK_FORMAT_UNDEFINED;
     }
@@ -957,6 +970,21 @@ VkSamplerReductionMode translateReductionOp(TextureReductionOp op)
     return VkSamplerReductionMode(0);
 }
 
+VkAccelerationStructureTypeKHR translateAccelerationStructureKind(AccelerationStructureKind kind)
+{
+    switch (kind)
+    {
+    case AccelerationStructureKind::Unknown:
+        return VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
+    case AccelerationStructureKind::BottomLevel:
+        return VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    case AccelerationStructureKind::TopLevel:
+        return VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    }
+    SLANG_RHI_ASSERT_FAILURE("Invalid AccelerationStructureKind value");
+    return VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
+}
+
 VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComponentType type)
 {
     switch (type)
@@ -1068,6 +1096,63 @@ CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperati
     default:
         SLANG_RHI_ASSERT_FAILURE("Unsupported VkCooperativeVectorMatrixLayoutNV value");
         return CooperativeVectorMatrixLayout(0);
+    }
+}
+
+bool translateCooperativeMatrixComponentType(VkComponentTypeKHR type, CooperativeMatrixComponentType& outType)
+{
+    switch (type)
+    {
+    case VK_COMPONENT_TYPE_FLOAT16_KHR:
+        outType = CooperativeMatrixComponentType::Float16;
+        return true;
+    case VK_COMPONENT_TYPE_FLOAT32_KHR:
+        outType = CooperativeMatrixComponentType::Float32;
+        return true;
+    case VK_COMPONENT_TYPE_BFLOAT16_KHR:
+        outType = CooperativeMatrixComponentType::Bfloat16;
+        return true;
+    case VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT:
+        outType = CooperativeMatrixComponentType::FloatE4M3;
+        return true;
+    case VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT:
+        outType = CooperativeMatrixComponentType::FloatE5M2;
+        return true;
+    case VK_COMPONENT_TYPE_SINT8_KHR:
+        outType = CooperativeMatrixComponentType::Int8;
+        return true;
+    case VK_COMPONENT_TYPE_UINT8_KHR:
+        outType = CooperativeMatrixComponentType::Uint8;
+        return true;
+    case VK_COMPONENT_TYPE_SINT16_KHR:
+        outType = CooperativeMatrixComponentType::Int16;
+        return true;
+    case VK_COMPONENT_TYPE_UINT16_KHR:
+        outType = CooperativeMatrixComponentType::Uint16;
+        return true;
+    case VK_COMPONENT_TYPE_SINT32_KHR:
+        outType = CooperativeMatrixComponentType::Int32;
+        return true;
+    case VK_COMPONENT_TYPE_UINT32_KHR:
+        outType = CooperativeMatrixComponentType::Uint32;
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool translateCooperativeMatrixScope(VkScopeKHR scope, CooperativeMatrixScope& outScope)
+{
+    switch (scope)
+    {
+    case VK_SCOPE_SUBGROUP_KHR:
+        outScope = CooperativeMatrixScope::Subgroup;
+        return true;
+    case VK_SCOPE_WORKGROUP_KHR:
+        outScope = CooperativeMatrixScope::Workgroup;
+        return true;
+    default:
+        return false;
     }
 }
 

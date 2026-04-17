@@ -21,6 +21,7 @@ public:
     );
     Result allocTextureHandle(ITextureView* textureView, DescriptorHandleAccess access, DescriptorHandle* outHandle);
     Result allocSamplerHandle(ISampler* sampler, DescriptorHandle* outHandle);
+    Result allocCombinedTextureSamplerHandle(ITextureView* textureView, ISampler* sampler, DescriptorHandle* outHandle);
     Result allocAccelerationStructureHandle(IAccelerationStructure* accelerationStructure, DescriptorHandle* outHandle);
     Result freeHandle(const DescriptorHandle& handle);
 
@@ -71,6 +72,7 @@ public:
     SlotAllocator m_bufferAllocator;
     SlotAllocator m_textureAllocator;
     SlotAllocator m_samplerAllocator;
+    SlotAllocator m_combinedTextureSamplerAllocator;
     SlotAllocator m_accelerationStructureAllocator;
 };
 

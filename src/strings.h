@@ -1,8 +1,6 @@
 #pragma once
 
 #define S_INVALID "invalid"
-#define S_SEPARATOR "::"
-#define S_METHOD(cls, method) S_##cls S_SEPARATOR S_##cls##_##method
 
 // ----------------------------------------------------------------------------
 // Enums
@@ -148,6 +146,11 @@
 #define S_PrimitiveTopology_TriangleStrip "TriangleStrip"
 #define S_PrimitiveTopology_PatchList "PatchList"
 
+// AccelerationStructureKind
+#define S_AccelerationStructureKind_Unknown "Unknown"
+#define S_AccelerationStructureKind_BottomLevel "BottomLevel"
+#define S_AccelerationStructureKind_TopLevel "TopLevel"
+
 // QueryType
 #define S_QueryType_Timestamp "Timestamp"
 #define S_QueryType_AccelerationStructureCompactedSize "AccelerationStructureCompactedSize"
@@ -177,131 +180,12 @@
 #define S_CooperativeVectorMatrixLayout_InferencingOptimal "InferencingOptimal"
 #define S_CooperativeVectorMatrixLayout_TrainingOptimal "TrainingOptimal"
 
-// ----------------------------------------------------------------------------
-// Functions
-// ----------------------------------------------------------------------------
+// DebugMessageType
+#define S_DebugMessageType_Info "Info"
+#define S_DebugMessageType_Warning "Warning"
+#define S_DebugMessageType_Error "Error"
 
-// Device
-#define S_Device "Device"
-#define S_Device_getInfo "getInfo"
-#define S_Device_getNativeDeviceHandles "getNativeDeviceHandles"
-#define S_Device_getFeatures "getFeatures"
-#define S_Device_hasFeature "hasFeature"
-#define S_Device_getCapabilities "getCapabilities"
-#define S_Device_hasCapability "hasCapability"
-#define S_Device_getFormatSupport "getFormatSupport"
-#define S_Device_getSlangSession "getSlangSession"
-#define S_Device_createTransientResourceHeap "createTransientResourceHeap"
-#define S_Device_createTexture "createTexture"
-#define S_Device_createTextureFromNativeHandle "createTextureFromNativeHandle"
-#define S_Device_createTextureFromSharedHandle "createTextureFromSharedHandle"
-#define S_Device_createBuffer "createBuffer"
-#define S_Device_createBufferFromNativeHandle "createBufferFromNativeHandle"
-#define S_Device_createBufferFromSharedHandle "createBufferFromSharedHandle"
-#define S_Device_mapBuffer "mapBuffer"
-#define S_Device_unmapBuffer "unmapBuffer"
-#define S_Device_createSampler "createSampler"
-#define S_Device_createTextureView "createTextureView"
-#define S_Device_createSurface "createSurface"
-#define S_Device_createInputLayout "createInputLayout"
-#define S_Device_getQueue "getQueue"
-#define S_Device_createShaderObject "createShaderObject"
-#define S_Device_createShaderObjectFromTypeLayout "createShaderObjectFromTypeLayout"
-#define S_Device_createRootShaderObject "createRootShaderObject"
-#define S_Device_createShaderTable "createShaderTable"
-#define S_Device_createShaderProgram "createShaderProgram"
-#define S_Device_createRenderPipeline "createRenderPipeline"
-#define S_Device_createComputePipeline "createComputePipeline"
-#define S_Device_createRayTracingPipeline "createRayTracingPipeline"
-#define S_Device_readTexture "readTexture"
-#define S_Device_readBuffer "readBuffer"
-#define S_Device_createQueryPool "createQueryPool"
-#define S_Device_getAccelerationStructureSizes "getAccelerationStructureSizes"
-#define S_Device_createAccelerationStructure "createAccelerationStructure"
-#define S_Device_createFence "createFence"
-#define S_Device_waitForFences "waitForFences"
-#define S_Device_getTextureAllocationInfo "getTextureAllocationInfo"
-#define S_Device_getTextureRowAlignment "getTextureRowAlignment"
-
-// CommandQueue
-#define S_CommandQueue "CommandQueue"
-#define S_CommandQueue_getType "getType"
-#define S_CommandQueue_createCommandEncoder "createCommandEncoder"
-#define S_CommandQueue_submit "submit"
-#define S_CommandQueue_getNativeHandle "getNativeHandle"
-#define S_CommandQueue_waitOnHost "waitOnHost"
-#define S_CommandQueue_waitForFenceValuesOnDevice "waitForFenceValuesOnDevice"
-
-// RenderPassencoder
-#define S_RenderPassEncoder "RenderPassEncoder"
-#define S_RenderPassEncoder_setPipeline "setPipeline"
-#define S_RenderPassEncoder_setRenderState "setRenderState"
-#define S_RenderPassEncoder_draw "draw"
-#define S_RenderPassEncoder_drawIndexed "drawIndexed"
-#define S_RenderPassEncoder_drawIndirect "drawIndirect"
-#define S_RenderPassEncoder_drawIndexedIndirect "drawIndexedIndirect"
-#define S_RenderPassEncoder_drawMeshTasks "drawMeshTasks"
-#define S_RenderPassEncoder_end "end"
-
-// ComputePassEncoder
-#define S_ComputePassEncoder "ComputePassEncoder"
-#define S_ComputePassEncoder_setPipeline "setPipeline"
-#define S_ComputePassEncoder_dispatchCompute "dispatchCompute"
-#define S_ComputePassEncoder_dispatchComputeIndirect "dispatchComputeIndirect"
-#define S_ComputePassEncoder_end "end"
-
-// RayTracingPassEncoder
-#define S_RayTracingPassEncoder "RayTracingPassEncoder"
-#define S_RayTracingPassEncoder_setPipeline "setPipeline"
-#define S_RayTracingPassEncoder_dispatchRays "dispatchRays"
-#define S_RayTracingPassEncoder_end "end"
-
-// CommandEncoder
-#define S_CommandEncoder "CommandEncoder"
-#define S_CommandEncoder_beginRenderPass "beginRenderPass"
-#define S_CommandEncoder_beginComputePass "beginComputePass"
-#define S_CommandEncoder_beginRayTracingPass "beginRayTracingPass"
-#define S_CommandEncoder_copyBuffer "copyBuffer"
-#define S_CommandEncoder_copyTexture "copyTexture"
-#define S_CommandEncoder_copyTextureToBuffer "copyTextureToBuffer"
-#define S_CommandEncoder_clearBuffer "clearBuffer"
-#define S_CommandEncoder_clearTextureFloat "clearTextureFloat"
-#define S_CommandEncoder_clearTextureUint "clearTextureUint"
-#define S_CommandEncoder_clearTextureDepthStencil "clearTextureDepthStencil"
-#define S_CommandEncoder_uploadTextureData "uploadTextureData"
-#define S_CommandEncoder_resolveQuery "resolveQuery"
-#define S_CommandEncoder_buildAccelerationStructure "buildAccelerationStructure"
-#define S_CommandEncoder_copyAccelerationStructure "copyAccelerationStructure"
-#define S_CommandEncoder_queryAccelerationStructureProperties "queryAccelerationStructureProperties"
-#define S_CommandEncoder_serializeAccelerationStructure "serializeAccelerationStructure"
-#define S_CommandEncoder_deserializeAccelerationStructure "deserializeAccelerationStructure"
-#define S_CommandEncoder_executeClusterOperation "executeClusterOperation"
-#define S_CommandEncoder_convertCooperativeVectorMatrix "convertCooperativeVectorMatrix"
-#define S_CommandEncoder_setBufferState "setBufferState"
-#define S_CommandEncoder_setTextureState "setTextureState"
-#define S_CommandEncoder_pushDebugGroup "pushDebugGroup"
-#define S_CommandEncoder_popDebugGroup "popDebugGroup"
-#define S_CommandEncoder_insertDebugMarker "insertDebugMarker"
-#define S_CommandEncoder_writeTimestamp "writeTimestamp"
-#define S_CommandEncoder_executeCallback "executeCallback"
-
-// CommandBuffer
-#define S_CommandBuffer "CommandBuffer"
-#define S_CommandBuffer_getNativeHandle "getNativeHandle"
-
-// ShaderObject
-#define S_ShaderObject "ShaderObject"
-#define S_ShaderObject_getElementTypeLayout "getElementTypeLayout"
-#define S_ShaderObject_getContainerType "getContainerType"
-#define S_ShaderObject_getEntryPointCount "getEntryPointCount"
-#define S_ShaderObject_getEntryPoint "getEntryPoint"
-#define S_ShaderObject_setData "setData"
-#define S_ShaderObject_getObject "getObject"
-#define S_ShaderObject_setObject "setObject"
-#define S_ShaderObject_setBinding "setBinding"
-#define S_ShaderObject_setSpecializationArgs "setSpecializationArgs"
-#define S_ShaderObject_getRawData "getRawData"
-#define S_ShaderObject_getSize "getSize"
-#define S_ShaderObject_setConstantBufferOverride "setConstantBufferOverride"
-#define S_ShaderObject_finalize "finalize"
-#define S_ShaderObject_isFinalized "isFinalized"
+// DebugMessageSource
+#define S_DebugMessageSource_Layer "Layer"
+#define S_DebugMessageSource_Driver "Driver"
+#define S_DebugMessageSource_Slang "Slang"

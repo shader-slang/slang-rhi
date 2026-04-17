@@ -1,6 +1,8 @@
 #include "cpu-texture.h"
 #include "cpu-device.h"
 
+#include <array>
+
 namespace rhi::cpu {
 
 inline const CPUTextureBaseShapeInfo* _getBaseShapeInfo(TextureType baseShape)
@@ -79,6 +81,41 @@ void _unpackUInt32Texel(const void* texelData, void* outData, size_t outSize)
         temp[i] = input[i];
 
     memcpy(outData, temp, outSize);
+}
+
+static constexpr auto makeFormatInfoMap()
+{
+    std::array<CPUTextureFormatInfo, size_t(Format::_Count)> infos{};
+
+    infos[size_t(Format::RGBA32Uint)] = {&_unpackUInt32Texel<4>};
+
+    infos[size_t(Format::RGBA32Float)] = {&_unpackFloatTexel<4>};
+    infos[size_t(Format::RGB32Float)] = {&_unpackFloatTexel<3>};
+
+    infos[size_t(Format::RG32Float)] = {&_unpackFloatTexel<2>};
+    infos[size_t(Format::R32Float)] = {&_unpackFloatTexel<1>};
+
+    infos[size_t(Format::RGBA16Float)] = {&_unpackFloat16Texel<4>};
+    infos[size_t(Format::RG16Float)] = {&_unpackFloat16Texel<2>};
+    infos[size_t(Format::R16Float)] = {&_unpackFloat16Texel<1>};
+
+    infos[size_t(Format::RGBA8Unorm)] = {&_unpackUnorm8Texel<4>};
+    infos[size_t(Format::BGRA8Unorm)] = {&_unpackUnormBGRA8Texel};
+    infos[size_t(Format::R16Uint)] = {&_unpackUInt16Texel<1>};
+    infos[size_t(Format::R32Uint)] = {&_unpackUInt32Texel<1>};
+    infos[size_t(Format::D32Float)] = {&_unpackFloatTexel<1>};
+
+    return infos;
+}
+
+static constexpr auto g_formatInfoMap = makeFormatInfoMap();
+
+const CPUTextureFormatInfo* _getFormatInfo(Format format)
+{
+    if (size_t(format) >= size_t(Format::_Count))
+        return nullptr;
+    const CPUTextureFormatInfo& info = g_formatInfoMap[size_t(format)];
+    return info.unpackFunc ? &info : nullptr;
 }
 
 TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
@@ -227,6 +264,7 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }
@@ -241,7 +279,7 @@ slang_prelude::TextureDimensions TextureViewImpl::GetDimensions(int mip)
     slang_prelude::TextureDimensions dimensions = {};
 
     TextureImpl* texture = m_texture;
-    auto& desc = texture->_getDesc();
+    auto& desc = texture->m_desc;
     auto baseShape = texture->m_baseShape;
 
     dimensions.arrayElementCount = desc.arrayLength;
@@ -286,7 +324,7 @@ void TextureViewImpl::SampleLevel(
 {
     TextureImpl* texture = m_texture;
     auto baseShape = texture->m_baseShape;
-    auto& desc = texture->_getDesc();
+    auto& desc = texture->m_desc;
     int32_t rank = baseShape->rank;
     int32_t baseCoordCount = baseShape->baseCoordCount;
 
@@ -345,7 +383,7 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
 {
     TextureImpl* texture = m_texture;
     auto baseShape = texture->m_baseShape;
-    auto& desc = texture->_getDesc();
+    auto& desc = texture->m_desc;
 
     int32_t rank = baseShape->rank;
     int32_t baseCoordCount = baseShape->baseCoordCount;

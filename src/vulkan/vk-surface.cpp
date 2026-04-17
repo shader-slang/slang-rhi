@@ -13,7 +13,10 @@
 
 namespace rhi::vk {
 
-static auto translateVkFormat = reverseMap<Format, VkFormat>(getVkFormat, Format::Undefined, Format::_Count);
+static Format translateVkFormat(VkFormat format)
+{
+    return reverseMapLookup<Format, VkFormat, Format::Undefined, Format::_Count>(getVkFormat, format);
+}
 
 SurfaceImpl::~SurfaceImpl()
 {
@@ -221,7 +224,7 @@ Result SurfaceImpl::createSwapchain()
         texture->m_image = swapchainImages[i];
         texture->m_imageMemory = 0;
         texture->m_vkformat = format;
-        texture->m_isWeakImageReference = true;
+        texture->m_isSwapchainTexture = true;
         m_textures.push_back(texture);
     }
 

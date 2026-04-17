@@ -18,7 +18,7 @@ class DeviceImpl : public Device
 public:
     using Device::readBuffer;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc) override;
+    Result initialize(const DeviceDesc& desc, BackendImpl* backend);
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
@@ -135,11 +135,12 @@ public:
         uint64_t timeout
     ) override;
 
-    // void waitForGpu();
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
     DeviceImpl();
     ~DeviceImpl();
+
+    void deferDelete(Resource* resource);
 
 public:
     std::string m_adapterName;
@@ -168,10 +169,3 @@ public:
 };
 
 } // namespace rhi::metal
-
-namespace rhi {
-
-IAdapter* getMetalAdapter(uint32_t index);
-Result createMetalDevice(const DeviceDesc* desc, IDevice** outDevice);
-
-} // namespace rhi

@@ -14,6 +14,18 @@ TextureImpl::~TextureImpl()
     m_defaultView.setNull();
 }
 
+void TextureImpl::deleteThis()
+{
+    if (m_isSwapchainTexture)
+    {
+        delete this;
+        return;
+    }
+    m_defaultView.setNull();
+    m_sampler.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::MTLTexture;
@@ -34,6 +46,7 @@ Result TextureImpl::getDefaultView(ITextureView** outTextureView)
         SLANG_RETURN_ON_FAIL(m_device->createTextureView(this, {}, (ITextureView**)m_defaultView.writeRef()));
         m_defaultView->setInternalReferenceCount(1);
     }
+
     returnComPtr(outTextureView, m_defaultView);
     return SLANG_OK;
 }

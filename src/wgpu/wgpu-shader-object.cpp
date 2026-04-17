@@ -37,7 +37,7 @@ inline void writeBufferDescriptor(BindingDataBuilder& builder, const BindingOffs
 inline void writeBufferDescriptor(
     BindingDataBuilder& builder,
     const BindingOffset& offset,
-    span<const ResourceSlot> slots
+    std::span<const ResourceSlot> slots
 )
 {
     for (size_t i = 0; i < slots.size(); ++i)
@@ -56,7 +56,7 @@ inline void writeBufferDescriptor(
 inline void writeTextureDescriptor(
     BindingDataBuilder& builder,
     const BindingOffset& offset,
-    span<const ResourceSlot> slots
+    std::span<const ResourceSlot> slots
 )
 {
     for (size_t i = 0; i < slots.size(); ++i)
@@ -73,7 +73,7 @@ inline void writeTextureDescriptor(
 inline void writeSamplerDescriptor(
     BindingDataBuilder& builder,
     const BindingOffset& offset,
-    span<const ResourceSlot> slots
+    std::span<const ResourceSlot> slots
 )
 {
     for (size_t i = 0; i < slots.size(); ++i)
@@ -213,12 +213,12 @@ Result BindingDataBuilder::bindAsValue(
         case slang::BindingType::MutableTexture:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeTextureDescriptor(*this, rangeOffset, span(shaderObject->m_slots.data() + slotIndex, count));
+            writeTextureDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count));
             break;
         case slang::BindingType::Sampler:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeSamplerDescriptor(*this, rangeOffset, span(shaderObject->m_slots.data() + slotIndex, count));
+            writeSamplerDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count));
             break;
 
         case slang::BindingType::RawBuffer:
@@ -227,7 +227,7 @@ Result BindingDataBuilder::bindAsValue(
         case slang::BindingType::MutableTypedBuffer:
             rangeOffset.bindingSet += bindingRangeInfo.setOffset;
             rangeOffset.binding += bindingRangeInfo.bindingOffset;
-            writeBufferDescriptor(*this, rangeOffset, span(shaderObject->m_slots.data() + slotIndex, count));
+            writeBufferDescriptor(*this, rangeOffset, std::span(shaderObject->m_slots.data() + slotIndex, count));
             break;
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:

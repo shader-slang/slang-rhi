@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>slang-rhi WASM Test</title>
+</head>
+<body>
+    <pre id="output"></pre>
+    <script>
+        var Module = {
+            print: function(text) {
+                var element = document.getElementById('output');
+                if (element) element.textContent += text + "\n";
+                // console.log(text); // Silencing console logs for minimal view
+            },
+            printErr: function(text) {
+                var element = document.getElementById('output');
+                if (element) element.textContent += text + "\n";
+                console.error(text);
+            }
+        };
+    </script>
+    {{{ SCRIPT }}}
+</body>
+</html>

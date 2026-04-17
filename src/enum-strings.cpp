@@ -377,6 +377,20 @@ const char* enumToString(PrimitiveTopology value)
     return S_INVALID;
 }
 
+const char* enumToString(AccelerationStructureKind value)
+{
+    switch (value)
+    {
+    case AccelerationStructureKind::Unknown:
+        return S_AccelerationStructureKind_Unknown;
+    case AccelerationStructureKind::BottomLevel:
+        return S_AccelerationStructureKind_BottomLevel;
+    case AccelerationStructureKind::TopLevel:
+        return S_AccelerationStructureKind_TopLevel;
+    }
+    return S_INVALID;
+}
+
 const char* enumToString(QueryType value)
 {
     switch (value)
@@ -443,6 +457,34 @@ const char* enumToString(CooperativeVectorComponentType value)
         return S_CooperativeVectorComponentType_FloatE4M3;
     case CooperativeVectorComponentType::FloatE5M2:
         return S_CooperativeVectorComponentType_FloatE5M2;
+    }
+    return S_INVALID;
+}
+
+const char* enumToString(DebugMessageType debugMessageType)
+{
+    switch (debugMessageType)
+    {
+    case DebugMessageType::Info:
+        return S_DebugMessageType_Info;
+    case DebugMessageType::Warning:
+        return S_DebugMessageType_Warning;
+    case DebugMessageType::Error:
+        return S_DebugMessageType_Error;
+    }
+    return S_INVALID;
+}
+
+const char* enumToString(DebugMessageSource debugMessageSource)
+{
+    switch (debugMessageSource)
+    {
+    case DebugMessageSource::Layer:
+        return S_DebugMessageSource_Layer;
+    case DebugMessageSource::Driver:
+        return S_DebugMessageSource_Driver;
+    case DebugMessageSource::Slang:
+        return S_DebugMessageSource_Slang;
     }
     return S_INVALID;
 }

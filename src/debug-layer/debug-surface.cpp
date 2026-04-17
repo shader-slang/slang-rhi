@@ -5,20 +5,22 @@ namespace rhi::debug {
 
 const SurfaceInfo& DebugSurface::getInfo()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ISurface, getInfo);
 
     return baseObject->getInfo();
 }
 
 const SurfaceConfig* DebugSurface::getConfig()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ISurface, getConfig);
 
     return baseObject->getConfig();
 }
 
 Result DebugSurface::configure(const SurfaceConfig& config)
 {
+    SLANG_RHI_DEBUG_API(ISurface, configure);
+
     const SurfaceInfo& info = baseObject->getInfo();
 
     m_configured = false;
@@ -26,28 +28,28 @@ Result DebugSurface::configure(const SurfaceConfig& config)
     // format must be Format::Undefined (selecting preferred format) or any of the supported formats.
     if (config.format != Format::Undefined && !contains(info.formats, info.formatCount, config.format))
     {
-        RHI_VALIDATION_ERROR("Unsupported format");
+        RHI_VALIDATION_ERROR("Format is not supported.");
         return SLANG_E_INVALID_ARG;
     }
 
     // usage must be subset of supported usage.
     if (config.usage != (config.usage & info.supportedUsage))
     {
-        RHI_VALIDATION_ERROR("Unsupported usage");
+        RHI_VALIDATION_ERROR("Usage is not supported.");
         return SLANG_E_INVALID_ARG;
     }
 
     // width and height must be greater than 0.
     if (config.width == 0 || config.height == 0)
     {
-        RHI_VALIDATION_ERROR("Invalid size");
+        RHI_VALIDATION_ERROR("Invalid size.");
         return SLANG_E_INVALID_ARG;
     }
 
     // desiredImageCount must be greater than 0.
     if (config.desiredImageCount == 0)
     {
-        RHI_VALIDATION_ERROR("Invalid desired image count");
+        RHI_VALIDATION_ERROR("Invalid desired image count.");
         return SLANG_E_INVALID_ARG;
     }
 
@@ -64,6 +66,8 @@ Result DebugSurface::configure(const SurfaceConfig& config)
 
 Result DebugSurface::unconfigure()
 {
+    SLANG_RHI_DEBUG_API(ISurface, unconfigure);
+
     if (!m_configured)
     {
         RHI_VALIDATION_WARNING("Surface is not configured.");
@@ -81,7 +85,13 @@ Result DebugSurface::unconfigure()
 
 Result DebugSurface::acquireNextImage(ITexture** outTexture)
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ISurface, acquireNextImage);
+
+    if (!outTexture)
+    {
+        RHI_VALIDATION_ERROR("'outTexture' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
 
     if (!m_configured)
     {
@@ -91,7 +101,7 @@ Result DebugSurface::acquireNextImage(ITexture** outTexture)
 
     if (m_state == State::ImageAcquired)
     {
-        RHI_VALIDATION_ERROR("Image already aquired. Image needs to be presented before acquiring a new one.");
+        RHI_VALIDATION_ERROR("Image already acquired. Image needs to be presented before acquiring a new one.");
         return SLANG_FAIL;
     }
 
@@ -107,7 +117,7 @@ Result DebugSurface::acquireNextImage(ITexture** outTexture)
 
 Result DebugSurface::present()
 {
-    SLANG_RHI_API_FUNC;
+    SLANG_RHI_DEBUG_API(ISurface, present);
 
     if (!m_configured)
     {

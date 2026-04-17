@@ -51,7 +51,7 @@ Result BindlessDescriptorSet::initialize()
         VkDescriptorPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
         static_vector<VkDescriptorPoolSize, 16> poolSizes;
         poolSizes.push_back({VK_DESCRIPTOR_TYPE_SAMPLER, m_desc.samplerCount});
-        poolSizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1});
+        poolSizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_desc.combinedTextureSamplerCount});
         poolSizes.push_back(
             {VK_DESCRIPTOR_TYPE_MUTABLE_EXT,
              m_desc.bufferCount + m_desc.textureCount + m_desc.accelerationStructureCount}
@@ -91,10 +91,11 @@ Result BindlessDescriptorSet::initialize()
         bindings[0].pImmutableSamplers = nullptr;
         flags[0] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 
-        // Binding 1 is combined image samplers (unused)
+        // Binding 1 is for combined image samplers
         bindings[1].binding = kCombinedImageSamplerBinding;
         bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        bindings[1].descriptorCount = 1;
+        bindings[1].descriptorCount = m_desc.combinedTextureSamplerCount;
+        bindings[1].stageFlags = VK_SHADER_STAGE_ALL;
         flags[1] = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
         mutableDescriptorTypeLists[1] = {};
 
@@ -144,6 +145,7 @@ Result BindlessDescriptorSet::initialize()
     m_bufferAllocator.capacity = m_desc.bufferCount;
     m_textureAllocator.capacity = m_desc.textureCount;
     m_samplerAllocator.capacity = m_desc.samplerCount;
+    m_combinedTextureSamplerAllocator.capacity = m_desc.combinedTextureSamplerCount;
     m_accelerationStructureAllocator.capacity = m_desc.accelerationStructureCount;
 
     return SLANG_OK;
@@ -281,6 +283,40 @@ Result BindlessDescriptorSet::allocSamplerHandle(ISampler* sampler, DescriptorHa
     return SLANG_OK;
 }
 
+Result BindlessDescriptorSet::allocCombinedTextureSamplerHandle(
+    ITextureView* textureView,
+    ISampler* sampler,
+    DescriptorHandle* outHandle
+)
+{
+    uint32_t slot;
+    SLANG_RETURN_ON_FAIL(m_combinedTextureSamplerAllocator.allocate(&slot));
+
+    TextureViewImpl* textureViewImpl = checked_cast<TextureViewImpl*>(textureView);
+    SamplerImpl* samplerImpl = checked_cast<SamplerImpl*>(sampler);
+
+    VkWriteDescriptorSet write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    write.dstSet = m_descriptorSet;
+    write.dstBinding = kCombinedImageSamplerBinding;
+    write.descriptorCount = 1;
+    write.dstArrayElement = slot;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+    VkDescriptorImageInfo imageInfo = {};
+    imageInfo.imageView = textureViewImpl->getView().imageView;
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.sampler = samplerImpl->m_sampler;
+    write.pImageInfo = &imageInfo;
+
+    const auto& api = m_device->m_api;
+    api.vkUpdateDescriptorSets(api.m_device, 1, &write, 0, nullptr);
+
+    outHandle->type = DescriptorHandleType::CombinedTextureSampler;
+    outHandle->value = slot;
+
+    return SLANG_OK;
+}
+
 Result BindlessDescriptorSet::allocAccelerationStructureHandle(
     IAccelerationStructure* accelerationStructure,
     DescriptorHandle* outHandle
@@ -326,6 +362,8 @@ Result BindlessDescriptorSet::freeHandle(const DescriptorHandle& handle)
         return m_textureAllocator.free(handle.value - m_firstTextureHandle);
     case DescriptorHandleType::Sampler:
         return m_samplerAllocator.free(handle.value);
+    case DescriptorHandleType::CombinedTextureSampler:
+        return m_combinedTextureSamplerAllocator.free(handle.value);
     case DescriptorHandleType::AccelerationStructure:
         return m_accelerationStructureAllocator.free(handle.value - m_firstAccelerationStructureHandle);
     default:

@@ -34,7 +34,7 @@ struct TestObject
 
 TEST_CASE("block-allocator-single-threaded")
 {
-    BlockAllocator<TestObject> allocator(4); // Small page size for testing
+    BlockAllocator<TestObject, 4> allocator; // Small page size for testing
 
     SUBCASE("basic-allocation")
     {
@@ -124,11 +124,13 @@ TEST_CASE("block-allocator-single-threaded")
             allocator.free(obj);
         }
     }
+
+    allocator.releasePages();
 }
 
 TEST_CASE("block-allocator-ownership")
 {
-    BlockAllocator<TestObject> allocator(16);
+    BlockAllocator<TestObject, 16> allocator;
 
     SUBCASE("owns-allocated-blocks")
     {
@@ -185,11 +187,13 @@ TEST_CASE("block-allocator-ownership")
             allocator.free(obj);
         }
     }
+
+    allocator.releasePages();
 }
 
 TEST_CASE("block-allocator-reset")
 {
-    BlockAllocator<TestObject> allocator(4);
+    BlockAllocator<TestObject, 4> allocator;
 
     // Allocate some objects
     std::vector<TestObject*> objects;
@@ -233,11 +237,13 @@ TEST_CASE("block-allocator-reset")
     {
         allocator.free(obj);
     }
+
+    allocator.releasePages();
 }
 
 TEST_CASE("block-allocator-multi-threaded")
 {
-    BlockAllocator<TestObject> allocator(64);
+    BlockAllocator<TestObject, 64> allocator;
 
     constexpr int numThreads = 8;
     constexpr int allocationsPerThread = 10000;
@@ -293,12 +299,14 @@ TEST_CASE("block-allocator-multi-threaded")
     // Verify all allocations and deallocations completed
     CHECK(totalAllocations.load() == numThreads * allocationsPerThread);
     CHECK(totalDeallocations.load() == numThreads * allocationsPerThread);
+
+    allocator.releasePages();
 }
 
 TEST_CASE("block-allocator-stress-test")
 {
     constexpr int blocksPerPage = 1000;
-    BlockAllocator<TestObject> allocator(blocksPerPage);
+    BlockAllocator<TestObject, 1000> allocator;
 
     // Quick test for CI
     constexpr int numThreads = 16;
@@ -385,6 +393,8 @@ TEST_CASE("block-allocator-stress-test")
     {
         thread.join();
     }
+
+    allocator.releasePages();
 }
 
 #if 0
@@ -396,7 +406,7 @@ TEST_CASE("block-allocator-performance")
 
     SUBCASE("block-allocator-performance")
     {
-        BlockAllocator<TestObject> allocator(1000000);
+        BlockAllocator<TestObject, 1000000> allocator;
 
         std::vector<TestObject*> objects;
         objects.reserve(numAllocations);
@@ -416,7 +426,7 @@ TEST_CASE("block-allocator-performance")
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-        MESSAGE("BlockAllocator: ", numAllocations, " allocations in ", duration.count(), " μs");
+        MESSAGE("BlockAllocator: ", numAllocations, " allocations in ", duration.count(), " us");
     }
 
     SUBCASE("standard-new-delete-performance")
@@ -439,7 +449,7 @@ TEST_CASE("block-allocator-performance")
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-        MESSAGE("Standard new/delete: ", numAllocations, " allocations in ", duration.count(), " μs");
+        MESSAGE("Standard new/delete: ", numAllocations, " allocations in ", duration.count(), " us");
     }
 }
 #endif
@@ -447,7 +457,7 @@ TEST_CASE("block-allocator-performance")
 // Test the macro system
 class TestMacroClass
 {
-    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(TestMacroClass)
+    SLANG_RHI_DECLARE_BLOCK_ALLOCATED(TestMacroClass, 32)
 
 public:
     int value = 0;
@@ -456,12 +466,9 @@ public:
         : value(v)
     {
     }
-
-    // For testing - expose allocator
-    static BlockAllocator<TestMacroClass>& getAllocator() { return s_allocator; }
 };
 
-SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(TestMacroClass, 32)
+SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(TestMacroClass)
 
 TEST_CASE("block-allocator-macro-system")
 {
@@ -503,4 +510,6 @@ TEST_CASE("block-allocator-macro-system")
             delete obj;
         }
     }
+
+    TestMacroClass::getAllocator().releasePages();
 }

@@ -1,5 +1,6 @@
 #include "cuda-command.h"
 #include "cuda-device.h"
+#include "cuda-heap.h"
 #include "cuda-pipeline.h"
 #include "cuda-buffer.h"
 #include "cuda-query.h"
@@ -109,12 +110,10 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
         command = command->next;
     }
 
-#undef NOT_IMPLEMENTED
-
     return SLANG_OK;
 }
 
-#define NOT_SUPPORTED(x) m_device->printWarning(x " command is not supported!")
+#define NOT_SUPPORTED(interface, method) m_device->printWarning(#interface "::" #method " is not supported!")
 
 void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
@@ -310,7 +309,7 @@ void CommandExecutor::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
 void CommandExecutor::cmdClearTextureDepthStencil(const commands::ClearTextureDepthStencil& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_clearTextureDepthStencil);
+    NOT_SUPPORTED(ICommandEncoder, clearTextureDepthStencil);
 }
 
 void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cmd)
@@ -360,13 +359,13 @@ void CommandExecutor::cmdUploadTextureData(const commands::UploadTextureData& cm
 void CommandExecutor::cmdResolveQuery(const commands::ResolveQuery& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_resolveQuery);
+    NOT_SUPPORTED(ICommandEncoder, resolveQuery);
 }
 
 void CommandExecutor::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_beginRenderPass);
+    NOT_SUPPORTED(ICommandEncoder, beginRenderPass);
 }
 
 void CommandExecutor::cmdEndRenderPass(const commands::EndRenderPass& cmd)
@@ -382,31 +381,31 @@ void CommandExecutor::cmdSetRenderState(const commands::SetRenderState& cmd)
 void CommandExecutor::cmdDraw(const commands::Draw& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_draw);
+    NOT_SUPPORTED(IRenderPassEncoder, draw);
 }
 
 void CommandExecutor::cmdDrawIndexed(const commands::DrawIndexed& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexed);
+    NOT_SUPPORTED(IRenderPassEncoder, drawIndexed);
 }
 
 void CommandExecutor::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawIndirect);
+    NOT_SUPPORTED(IRenderPassEncoder, drawIndirect);
 }
 
 void CommandExecutor::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawIndexedIndirect);
+    NOT_SUPPORTED(IRenderPassEncoder, drawIndexedIndirect);
 }
 
 void CommandExecutor::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_RenderPassEncoder_drawMeshTasks);
+    NOT_SUPPORTED(IRenderPassEncoder, drawMeshTasks);
 }
 
 void CommandExecutor::cmdBeginComputePass(const commands::BeginComputePass& cmd)
@@ -484,7 +483,7 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         computePipeline->m_threadGroupSize[0],
         computePipeline->m_threadGroupSize[1],
         computePipeline->m_threadGroupSize[2],
-        computePipeline->m_sharedMemorySize,
+        0,
         m_stream,
         nullptr,
         extraOptions
@@ -493,8 +492,30 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 
 void CommandExecutor::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_ComputePassEncoder_dispatchComputeIndirect);
+    if (!m_computeStateValid)
+        return;
+
+    // Emulate indirect dispatch by reading the dispatch arguments from the buffer on the host.
+    // This requires a GPU->CPU synchronization and stalls the GPU pipeline, but CUDA does not provide
+    // a way to perform indirect dispatches natively.
+    // In the future, we might consider using CUDA dynamic parallelism to launch a helper kernel
+    // that performs the actual dispatch, but that would require more setup and complexity.
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    CUdeviceptr srcPtr = (CUdeviceptr)argBuffer->m_cudaMemory + cmd.argBuffer.offset;
+
+    IndirectDispatchArguments args;
+    SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyDtoH(&args, srcPtr, sizeof(IndirectDispatchArguments)));
+
+    // Skip dispatch if any dimension is zero (CUDA doesn't allow zero-sized dispatches).
+    if (args.threadGroupCountX == 0 || args.threadGroupCountY == 0 || args.threadGroupCountZ == 0)
+        return;
+
+    // Dispatch with the retrieved arguments.
+    commands::DispatchCompute dispatchCmd;
+    dispatchCmd.x = args.threadGroupCountX;
+    dispatchCmd.y = args.threadGroupCountY;
+    dispatchCmd.z = args.threadGroupCountZ;
+    cmdDispatchCompute(dispatchCmd);
 }
 
 void CommandExecutor::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
@@ -574,19 +595,19 @@ void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerat
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_queryAccelerationStructureProperties);
+    NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
 }
 
 void CommandExecutor::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_serializeAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, serializeAccelerationStructure);
 }
 
 void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
 {
     SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(S_CommandEncoder_deserializeAccelerationStructure);
+    NOT_SUPPORTED(ICommandEncoder, deserializeAccelerationStructure);
 }
 
 void CommandExecutor::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
@@ -660,32 +681,10 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 {
 }
 
-CommandQueueImpl::~CommandQueueImpl()
-{
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    // Block on all events completing
-    for (const auto& ev : m_submitEvents)
-    {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
-    }
-
-    // Retire finished command buffers, which should be all of them
-    retireCommandBuffers();
-    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
-
-    // Sync/destroy the stream
-    if (m_stream)
-    {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamSynchronize(m_stream));
-        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
-    }
-}
+CommandQueueImpl::~CommandQueueImpl() {}
 
 Result CommandQueueImpl::init()
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     // On CUDA, treat the graphics stream as the default stream, identified
     // by a NULL ptr. When we support async compute queues on D3D/Vulkan,
     // they will be equivalent to secondary, non-default streams in CUDA.
@@ -701,6 +700,44 @@ Result CommandQueueImpl::init()
     return SLANG_OK;
 }
 
+void CommandQueueImpl::shutdown()
+{
+    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+
+    // Block on and destroy all events (multi-stream case)
+    // We must destroy events explicitly - cuEventDestroy does NOT happen automatically
+    // when the context is destroyed, and leaking handles can exhaust per-process limits.
+    for (const auto& ev : m_submitEvents)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(ev.event));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(ev.event));
+    }
+    m_submitEvents.clear();
+
+    // Always synchronize the CUDA context before destruction.
+    // This is critical for single-stream workloads using the default stream (m_stream == nullptr)
+    // where lazy events optimization means m_submitEvents is empty.
+    // Without this, heap destruction could call cuMemFree while GPU is still using memory!
+    SLANG_CUDA_ASSERT_ON_FAIL(cuCtxSynchronize());
+    m_lastFinishedID = m_lastSubmittedID;
+
+    // Retire finished command buffers, which should be all of them now
+    retireCommandBuffers();
+    SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
+
+    // Release all command buffers in order to release all resources they may hold.
+    m_commandBuffersPool.clear();
+    // Execute remaining deferred deletes.
+    executeDeferredDeletes();
+    SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
+
+    // Destroy non-default streams (default stream uses nullptr, nothing to destroy)
+    if (m_stream)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuStreamDestroy(m_stream));
+    }
+}
+
 Result CommandQueueImpl::createCommandBuffer(CommandBufferImpl** outCommandBuffer)
 {
     RefPtr<CommandBufferImpl> commandBuffer = new CommandBufferImpl(m_device);
@@ -714,7 +751,22 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     RefPtr<CommandBufferImpl> commandBuffer;
     if (m_commandBuffersPool.empty())
     {
-        SLANG_RETURN_ON_FAIL(createCommandBuffer(commandBuffer.writeRef()));
+        // Pool exhausted - try lazy retirement to reclaim completed buffers
+        // Use locked version since we already hold m_mutex
+        retireCommandBuffersLocked();
+
+        // If retirement freed up buffers, use them instead of allocating new
+        if (!m_commandBuffersPool.empty())
+        {
+            commandBuffer = m_commandBuffersPool.front();
+            m_commandBuffersPool.pop_front();
+            commandBuffer->setInternalReferenceCount(0);
+        }
+        else
+        {
+            // Still empty after retirement - must create new
+            SLANG_RETURN_ON_FAIL(createCommandBuffer(commandBuffer.writeRef()));
+        }
     }
     else
     {
@@ -736,12 +788,51 @@ void CommandQueueImpl::retireCommandBuffer(CommandBufferImpl* commandBuffer)
     }
 }
 
+void CommandQueueImpl::retireCommandBufferLocked(CommandBufferImpl* commandBuffer)
+{
+    // NOTE: Caller must hold m_mutex!
+    commandBuffer->reset();
+    m_commandBuffersPool.push_back(commandBuffer);
+    commandBuffer->setInternalReferenceCount(1);
+}
+
 Result CommandQueueImpl::retireCommandBuffers()
 {
-    // Run fence logic so m_lastFinishedID is up to date.
-    SLANG_RETURN_ON_FAIL(updateFence());
+    // Public API - acquires lock, then calls locked version
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return retireCommandBuffersLocked();
+}
 
-    // Retire command buffers that're passed the submission ID
+Result CommandQueueImpl::retireCommandBuffersLocked()
+{
+    // NOTE: Caller must hold m_mutex!
+    //
+    // Use event-based tracking if events exist, otherwise use cuStreamQuery (non-blocking).
+    // Single-stream workloads skip event creation entirely for better performance.
+    if (!m_submitEvents.empty())
+    {
+        // Multi-stream or explicit fences: use event-based tracking
+        SLANG_RETURN_ON_FAIL(updateFence());
+    }
+    else if (!m_commandBuffersInFlight.empty())
+    {
+        // Single-stream lazy mode: use cuStreamQuery (non-blocking)
+        CUresult result = cuStreamQuery(m_stream);
+        if (result == CUDA_SUCCESS)
+        {
+            // Stream is idle - all submitted work is complete
+            m_lastFinishedID = m_lastSubmittedID;
+        }
+        else if (result != CUDA_ERROR_NOT_READY)
+        {
+            // Unexpected error - assert in debug builds to catch bugs
+            // Don't fail in release to avoid deadlocks during cleanup
+            SLANG_RHI_ASSERT_FAILURE("Unexpected cuStreamQuery error");
+        }
+        // CUDA_ERROR_NOT_READY means work is still pending - that's fine, we're async
+    }
+
+    // Retire command buffers that have passed the submission ID
     auto cbIt = m_commandBuffersInFlight.begin();
     while (cbIt != m_commandBuffersInFlight.end())
     {
@@ -749,21 +840,42 @@ Result CommandQueueImpl::retireCommandBuffers()
         if (commandBuffer->m_submissionID > m_lastFinishedID)
             break;
 
-        retireCommandBuffer(commandBuffer);
+        retireCommandBufferLocked(commandBuffer);
         cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
 
-    // Flush all device heaps
+    // Delete deferred resources that are no longer in use by the GPU.
+    executeDeferredDeletes();
+
+    // Flush device heaps to process any pending frees
+    // Note: With same-stream immediate reuse, most allocations are retired immediately
+    // and never enter the pending list. This flush now only processes the rare
+    // cross-stream allocations that were deferred. Much cheaper than before!
     SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->flushHeaps());
 
     return SLANG_OK;
 }
 
-Result CommandQueueImpl::createCommandEncoder(ICommandEncoder** outEncoder)
+void CommandQueueImpl::deferDelete(Resource* resource)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    m_deferredDeleteQueue.push({m_lastSubmittedID, resource});
+}
 
-    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this);
+void CommandQueueImpl::executeDeferredDeletes()
+{
+    uint64_t lastFinishedID = m_lastFinishedID;
+    std::lock_guard<std::mutex> lock(m_deferredDeleteQueueMutex);
+    while (!m_deferredDeleteQueue.empty() && m_deferredDeleteQueue.front().submissionID <= lastFinishedID)
+    {
+        delete m_deferredDeleteQueue.front().resource;
+        m_deferredDeleteQueue.pop();
+    }
+}
+
+Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
+{
+    RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this, desc);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
     return SLANG_OK;
@@ -773,6 +885,7 @@ Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
 {
     // Increment submit count
     m_lastSubmittedID++;
+    m_submitsSinceEvent = 0;
 
     // Record submission event so we can detect completion
     SubmitEvent ev;
@@ -798,7 +911,11 @@ Result CommandQueueImpl::updateFence()
             // Event is complete.
             // We aren't recycling, so all we have to do is destroy the event
             SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(submitIt->event));
-            m_lastFinishedID = submitIt->submitID;
+
+            // If called after a context sync, m_lastFinishedID may already have been
+            // skipped to the end, so only overwrite it if this event's ID is greater.
+            if (submitIt->submitID > m_lastFinishedID)
+                m_lastFinishedID = submitIt->submitID;
 
             // Remove the event from the list.
             submitIt = m_submitEvents.erase(submitIt);
@@ -821,10 +938,8 @@ Result CommandQueueImpl::updateFence()
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    // Check if we need to retire command buffers that have completed.
-    retireCommandBuffers();
+    // Lazy retirement: don't retire on every submit - only on pool exhaustion,
+    // explicit sync, or memory pressure. Eliminates per-submit overhead.
 
     // Select either the queue's default stream or the stream
     // specified in the descriptor,and switch to it for the scope
@@ -851,12 +966,25 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Signal main fence
-        uint64_t submissionID;
-        SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
+        // Lazy events: only create events for multi-stream workloads.
+        // Single-stream uses cuStreamQuery() instead - zero event overhead.
+        bool needsEvent = (requestedStream != m_stream) || m_submitsSinceEvent > kMaxSubmitsWithoutEvent;
 
-        // Record the command buffer + corresponding submit ID
-        commandBuffer->m_submissionID = submissionID;
+        if (needsEvent)
+        {
+            // Multi-stream: use event-based tracking for cross-stream synchronization
+            uint64_t submissionID;
+            SLANG_RETURN_ON_FAIL(signalFence(requestedStream, &submissionID));
+            commandBuffer->m_submissionID = submissionID;
+        }
+        else
+        {
+            // Single-stream lazy mode: just increment ID, no event
+            m_lastSubmittedID++;
+            m_submitsSinceEvent++;
+            commandBuffer->m_submissionID = m_lastSubmittedID;
+        }
+
         m_commandBuffersInFlight.push_back(commandBuffer);
     }
 
@@ -871,10 +999,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuStreamSynchronize(m_stream), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
+    m_lastFinishedID = m_lastSubmittedID;
 
     // Retire command buffers that have completed.
     retireCommandBuffers();
@@ -894,8 +1021,8 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 
 // CommandEncoderImpl
 
-CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue)
-    : CommandEncoder(device)
+CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue, const CommandEncoderDesc& desc)
+    : CommandEncoder(device, desc)
     , m_queue(queue)
 {
 }
@@ -913,18 +1040,66 @@ CommandEncoderImpl::~CommandEncoderImpl()
 
 Result CommandEncoderImpl::init()
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
     SLANG_RETURN_ON_FAIL(m_queue->getOrCreateCommandBuffer(m_commandBuffer.writeRef()));
     m_commandList = &m_commandBuffer->m_commandList;
     return SLANG_OK;
 }
 
+/// Track resources for CUDA backend, skipping device-local buffers.
+/// Device-local buffers rely on CUDA stream FIFO ordering for safe reuse.
+/// We still track textures, upload/readback buffers, and other resources.
+static void trackResourcesForCUDA(ShaderObject* shaderObject, std::set<RefPtr<RefObject>>& resources)
+{
+    // Track slot resources, but skip device-local buffers
+    for (const auto& slot : shaderObject->m_slots)
+    {
+        if (slot.resource)
+        {
+            // Check if this is a device-local buffer we can skip
+            if (Buffer* buffer = dynamic_cast<Buffer*>(slot.resource.get()))
+            {
+                // Only skip DeviceLocal buffers - these benefit from same-stream reuse
+                // Keep tracking Upload/ReadBack buffers as CPU may access them
+                if (buffer->m_desc.memoryType == MemoryType::DeviceLocal)
+                {
+                    continue; // Skip tracking - CUDA stream ordering provides safety
+                }
+            }
+            resources.insert(slot.resource);
+        }
+        if (slot.resource2)
+        {
+            // resource2 is typically a sampler or counter buffer, always track
+            resources.insert(slot.resource2);
+        }
+    }
+
+    // Recursively track sub-objects
+    for (const auto& object : shaderObject->m_objects)
+    {
+        if (object)
+        {
+            trackResourcesForCUDA(object, resources);
+        }
+    }
+}
+
+static void trackResourcesForCUDARoot(RootShaderObject* rootObject, std::set<RefPtr<RefObject>>& resources)
+{
+    trackResourcesForCUDA(rootObject, resources);
+    for (const auto& entryPoint : rootObject->m_entryPoints)
+    {
+        if (entryPoint)
+        {
+            trackResourcesForCUDA(entryPoint, resources);
+        }
+    }
+}
+
 Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingData*& outBindingData)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
-    rootObject->trackResources(m_commandBuffer->m_trackedObjects);
+    // Skip tracking device-local buffers - CUDA stream ordering guarantees safety
+    trackResourcesForCUDARoot(rootObject, m_commandBuffer->m_trackedObjects);
 
     BindingDataBuilder builder;
     builder.m_device = getDevice<DeviceImpl>();
@@ -940,10 +1115,9 @@ Result CommandEncoderImpl::getBindingData(RootShaderObject* rootObject, BindingD
     );
 }
 
-Result CommandEncoderImpl::finish(ICommandBuffer** outCommandBuffer)
+Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
-
+    m_commandBuffer->setDesc(desc);
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
@@ -962,13 +1136,11 @@ Result CommandEncoderImpl::getNativeHandle(NativeHandle* outHandle)
 CommandBufferImpl::CommandBufferImpl(Device* device)
     : CommandBuffer(device)
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     m_constantBufferPool.init(checked_cast<DeviceImpl*>(device));
 }
 
 Result CommandBufferImpl::reset()
 {
-    SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     m_bindingCache.reset();
     m_constantBufferPool.reset();
     return CommandBuffer::reset();

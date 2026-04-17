@@ -15,6 +15,11 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_propertyBuffer));
 }
 
+void AccelerationStructureImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
 Result AccelerationStructureImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::OptixTraversableHandle;
@@ -34,8 +39,7 @@ DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 
 Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
 {
-    outHandle->type = DescriptorHandleType::AccelerationStructure;
-    outHandle->value = (uint64_t)m_handle;
+    *outHandle = DescriptorHandle{DescriptorHandleType::AccelerationStructure, (uint64_t)m_handle};
     return SLANG_OK;
 }
 

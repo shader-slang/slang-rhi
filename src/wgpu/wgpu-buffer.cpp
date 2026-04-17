@@ -19,11 +19,6 @@ BufferImpl::~BufferImpl()
     }
 }
 
-DeviceAddress BufferImpl::getDeviceAddress()
-{
-    return 0;
-}
-
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::WGPUBuffer;
@@ -35,6 +30,11 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+DeviceAddress BufferImpl::getDeviceAddress()
+{
+    return 0;
 }
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
@@ -65,6 +65,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     buffer->m_buffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &bufferDesc);
     if (!buffer->m_buffer)
     {
+        *outBuffer = nullptr;
         return SLANG_FAIL;
     }
 
@@ -79,18 +80,21 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
             WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
             callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#if !SLANG_WASM
             callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+#else
+            callbackInfo.callback =
+                [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
+#endif
             {
                 *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
             };
             callbackInfo.userdata1 = &status;
             WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
-            constexpr size_t futureCount = 1;
-            WGPUFutureWaitInfo futures[futureCount] = {{future}};
-            uint64_t timeoutNS = UINT64_MAX;
-            WGPUWaitStatus waitStatus = m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, futureCount, futures, timeoutNS);
+            WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
             if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
             {
+                *outBuffer = nullptr;
                 return SLANG_FAIL;
             }
         }
@@ -102,7 +106,25 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    return SLANG_E_NOT_IMPLEMENTED;
+    if (handle.type != NativeHandleType::WGPUBuffer || handle.value == 0)
+    {
+        *outBuffer = nullptr;
+        return SLANG_E_INVALID_HANDLE;
+    }
+
+    BufferDesc fixedDesc = fixupBufferDesc(desc);
+    RefPtr<BufferImpl> buffer = new BufferImpl(this, fixedDesc);
+    buffer->m_buffer = (WGPUBuffer)handle.value;
+    m_ctx.api.wgpuBufferAddRef(buffer->m_buffer);
+
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
+{
+    *outBuffer = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
@@ -137,10 +159,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
     callbackInfo.userdata1 = &status;
     callbackInfo.userdata2 = this;
     WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(bufferImpl->m_buffer, mapMode, offset, size, callbackInfo);
-    WGPUFutureWaitInfo futures[1] = {{future}};
-    uint64_t timeoutNS = UINT64_MAX;
-    WGPUWaitStatus waitStatus =
-        m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+    WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
     if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
     {
         return SLANG_FAIL;

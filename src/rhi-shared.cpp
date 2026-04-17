@@ -65,12 +65,6 @@ BufferRange Buffer::resolveBufferRange(const BufferRange& range)
     return resolved;
 }
 
-Result Buffer::getNativeHandle(NativeHandle* outHandle)
-{
-    *outHandle = {};
-    return SLANG_E_NOT_AVAILABLE;
-}
-
 Result Buffer::getSharedHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
@@ -83,6 +77,12 @@ Result Buffer::getDescriptorHandle(
     BufferRange range,
     DescriptorHandle* outHandle
 )
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Buffer::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
@@ -159,6 +159,7 @@ Texture::Texture(Device* device, const TextureDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
+    m_sampler = checked_cast<Sampler*>(m_desc.sampler);
 }
 
 SubresourceRange Texture::resolveSubresourceRange(const SubresourceRange& range)
@@ -182,12 +183,6 @@ bool Texture::isEntireTexture(const SubresourceRange& range)
         return false;
     }
     return true;
-}
-
-Result Texture::getNativeHandle(NativeHandle* outHandle)
-{
-    *outHandle = {};
-    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result Texture::getSharedHandle(NativeHandle* outHandle)
@@ -216,6 +211,12 @@ Result Texture::createView(const TextureViewDesc& desc, ITextureView** outTextur
     return m_device->createTextureView(this, desc, outTextureView);
 }
 
+Result Texture::getNativeHandle(NativeHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 // ----------------------------------------------------------------------------
 // TextureView
 // ----------------------------------------------------------------------------
@@ -232,15 +233,22 @@ TextureView::TextureView(Device* device, const TextureViewDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
+    m_sampler = checked_cast<Sampler*>(m_desc.sampler);
 }
 
-Result TextureView::getNativeHandle(NativeHandle* outHandle)
+Result TextureView::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
 }
 
-Result TextureView::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+Result TextureView::getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle)
+{
+    *outHandle = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result TextureView::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
@@ -262,11 +270,6 @@ Sampler::Sampler(Device* device, const SamplerDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
-}
-
-const SamplerDesc& Sampler::getDesc()
-{
-    return m_desc;
 }
 
 Result Sampler::getDescriptorHandle(DescriptorHandle* outHandle)

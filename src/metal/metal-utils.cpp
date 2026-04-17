@@ -94,6 +94,13 @@ const FormatMapping& getFormatMapping(Format format)
         { Format::BC6HSfloat,       MTL::PixelFormatBC6H_RGBFloat,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
         { Format::BC7Unorm,         MTL::PixelFormatBC7_RGBAUnorm,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
         { Format::BC7UnormSrgb,     MTL::PixelFormatBC7_RGBAUnorm_sRGB,     MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+
+        { Format::ASTC4x4Unorm,     MTL::PixelFormatASTC_4x4_LDR,           MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::ASTC4x4UnormSrgb, MTL::PixelFormatASTC_4x4_sRGB,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::ASTC6x6Unorm,     MTL::PixelFormatASTC_6x6_LDR,           MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::ASTC6x6UnormSrgb, MTL::PixelFormatASTC_6x6_sRGB,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::ASTC8x8Unorm,     MTL::PixelFormatASTC_8x8_LDR,           MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
+        { Format::ASTC8x8UnormSrgb, MTL::PixelFormatASTC_8x8_sRGB,          MTL::VertexFormatInvalid,               MTL::AttributeFormatInvalid                 },
         // clang-format on
     };
 
