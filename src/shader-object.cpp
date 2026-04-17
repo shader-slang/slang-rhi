@@ -25,7 +25,8 @@ void ShaderObjectLayout::initBase(
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
     m_componentID = m_device->m_shaderCache.getComponentId(m_elementTypeLayout->getType());
-    collectPointerFields(m_elementTypeLayout, 0, m_pointerFields);
+    if (m_device->m_info.deviceType == DeviceType::Metal)
+        collectPointerFields(m_elementTypeLayout, 0, m_pointerFields);
 }
 
 void ShaderObjectLayout::collectPointerFields(
