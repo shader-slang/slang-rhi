@@ -594,10 +594,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
     }
 
     // Resolve pointer-referenced buffers for residency.
-    // Addresses are read from m_data (default-layout offsets), not the argument buffer
-    // (which may use different offsets under Tier 2 resource packing).
-    auto& pointerFields = specializedLayout->getPointerFields();
-    for (auto& pf : pointerFields)
+    auto& pointerFields2 = specializedLayout->getPointerFields();
+    for (auto& pf : pointerFields2)
     {
         if (pf.uniformOffset + sizeof(DeviceAddress) <= shaderObject->m_data.size())
         {

@@ -17,7 +17,7 @@ static void collectPointerFields(
     if (kind == slang::TypeReflection::Kind::Array)
     {
         auto elemLayout = typeLayout->getElementTypeLayout();
-        auto stride = typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_UNIFORM);
+        auto stride = typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_MIXED);
         auto count = typeLayout->getElementCount();
         if (count == 0)
             return;
@@ -28,7 +28,7 @@ static void collectPointerFields(
     for (unsigned i = 0; i < typeLayout->getFieldCount(); i++)
     {
         auto field = typeLayout->getFieldByIndex(i);
-        uint32_t fieldOffset = baseOffset + (uint32_t)field->getOffset(slang::ParameterCategory::Uniform);
+        uint32_t fieldOffset = baseOffset + (uint32_t)field->getOffset();
         collectPointerFields(field->getTypeLayout(), fieldOffset, outFields);
     }
 }
@@ -61,8 +61,13 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     {
         m_parameterBlockTypeLayout = _getParameterBlockTypeLayout(m_session, m_elementTypeLayout);
 
-        // If we have a parameter-block, we should be working on the `ParameterBlockTypeLayout`
-        // since this layout will format data for an arg-buffer-tier2 if available.
+        // For ParameterBlock on Metal, use the Tier 2 argument buffer layout as the
+        // element type layout. This ensures ShaderCursor, m_data sizing, pointer field
+        // collection, and the argument buffer all use the same non-overlapping offsets.
+        // Under default layout rules, fields of different parameter categories (e.g.
+        // scalars vs pointers) can have overlapping Uniform offsets, which corrupts
+        // m_data when ShaderCursor writes interleaved value/pointer fields.
+        m_elementTypeLayout = m_parameterBlockTypeLayout;
         typeLayout = m_parameterBlockTypeLayout;
     }
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();

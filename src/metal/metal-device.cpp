@@ -16,7 +16,6 @@
 
 #include "core/common.h"
 
-#include <cstdio>
 #include <vector>
 
 namespace rhi::metal {
