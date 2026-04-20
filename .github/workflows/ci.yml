@@ -42,12 +42,12 @@ jobs:
           - { os: macos, compiler: gcc }
         include:
           # Builds running on self-hosted runners (build + tests)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
+          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage,asan", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
           - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Windows, X64] } }
-          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage,asan", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { group: nvrgfx, labels: [Linux, X64] } }
           # Builds running on GitHub hosted runners (build + tests)
-          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", runs-on: macos-latest }
+          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage,asan", runs-on: macos-latest }
           - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", runs-on: macos-latest }
           # Builds running on GitHub hosted runners (build. disabled tests on WARP as they were failing D3D12)
           - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", runs-on: windows-latest }
@@ -89,25 +89,47 @@ jobs:
           version: 'latest'
 
       - name: Configure
-        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
+        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }} ${{ contains(matrix.flags, 'asan') && '-DSLANG_RHI_ENABLE_ASAN=ON' || '' }}
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
+
+      - name: Setup Sanitizer Options
+        if: contains(matrix.flags, 'asan')
+        shell: bash
+        run: |
+          # Find llvm-symbolizer for proper stack symbolization
+          SYMBOLIZER=$(which llvm-symbolizer 2>/dev/null || which llvm-symbolizer-18 2>/dev/null || which llvm-symbolizer-17 2>/dev/null || echo "")
+          if [[ -n "$SYMBOLIZER" ]]; then
+            echo "ASAN_SYMBOLIZER_PATH=$SYMBOLIZER" >> "$GITHUB_ENV"
+          fi
+          ASAN_OPTS="halt_on_error=1:symbolize=1:fast_unwind_on_malloc=0:suppressions=${{ github.workspace }}/tools/asan-suppressions.txt"
+          if [[ "${{ matrix.os }}" != "macos" ]]; then
+            ASAN_OPTS="detect_leaks=1:protect_shadow_gap=0:${ASAN_OPTS}"
+            echo "LSAN_OPTIONS=suppressions=${{ github.workspace }}/tools/lsan-suppressions.txt" >> "$GITHUB_ENV"
+          fi
+          echo "ASAN_OPTIONS=${ASAN_OPTS}" >> "$GITHUB_ENV"
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
         run: ./slang-rhi-tests -check-devices
         working-directory: build/${{matrix.config}}
+        env:
+          XDG_RUNTIME_DIR: /tmp
 
       - name: Unit Tests (OptiX 8.0)
         if: contains(matrix.flags, 'unit-test')
         run: ./slang-rhi-tests -tc="ray-tracing*.cuda" -check-devices -optix-version=80000
         working-directory: build/${{matrix.config}}
+        env:
+          XDG_RUNTIME_DIR: /tmp
 
       - name: Unit Tests (OptiX 8.1)
         if: contains(matrix.flags, 'unit-test')
         run: ./slang-rhi-tests -tc="ray-tracing*.cuda" -check-devices -optix-version=80100
         working-directory: build/${{matrix.config}}
+        env:
+          XDG_RUNTIME_DIR: /tmp
 
       - name: Coverage Report
         if: contains(matrix.flags, 'coverage')
