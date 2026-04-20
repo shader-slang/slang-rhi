@@ -46,6 +46,7 @@ option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_TESTS_WITH_GLFW "Build tests that require GLFW" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
+option(SLANG_RHI_ENABLE_ASAN "Enable AddressSanitizer (clang only)" OFF)
 option(SLANG_RHI_INSTALL "Install library" ON)
 
 # Configure coverage flags
@@ -59,6 +60,24 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         add_link_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN})
     else()
         message(FATAL_ERROR "Code coverage is only supported with Clang")
+    endif()
+endif()
+
+# Configure AddressSanitizer flags
+if(SLANG_RHI_ENABLE_ASAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
+        # On Windows, the debug CRT conflicts with ASAN. Force the static release CRT
+        # to match the static ASAN runtime library.
+        # Also prevent clang from emitting /INFERASANLIBS directives in object files,
+        # which are not supported by all versions of lld-link.
+        if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+            add_compile_options(-fno-sanitize-link-runtime)
+        endif()
+    else()
+        message(FATAL_ERROR "AddressSanitizer is only supported with Clang")
     endif()
 endif()
 
