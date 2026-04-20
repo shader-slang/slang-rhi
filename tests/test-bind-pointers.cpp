@@ -259,15 +259,16 @@ GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA | Metal)
 
     if (device->getDeviceType() == DeviceType::CUDA || device->getDeviceType() == DeviceType::Metal)
     {
-        // CUDA serializes dispatches within a stream. Metal's useResources calls
-        // (from transparent pointer residency tracking) register the buffers for
-        // hazard tracking, so Metal automatically synchronizes access between passes.
+        // CUDA serializes dispatches within a stream.
+        // Metal's tracked hazard tracking mode automatically synchronizes resources between
+        // separate command encoders within the same command buffer.
         compareComputeResult(device, dst, std::span<uint8_t>(data));
     }
     else
     {
-        // GFX APIs like Vulkan and D3D12 require explicit synchronization between dispatches, which
-        // isn't done automatically for pointers, so we'd expect race conditions
+        // GFX APIs like Vulkan and D3D12 require explicit synchronization between dispatches,
+        // which isn't done automatically for pointer-accessed resources, so we'd expect race
+        // conditions without barriers.
         compareComputeResult(device, dst, std::span<uint8_t>(data), true);
     }
 }

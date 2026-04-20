@@ -45,6 +45,7 @@ public:
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
+    bool m_computeEncoderHasDispatched = false;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
     bool m_rayTracingPassActive = false;
@@ -753,6 +754,13 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         );
     }
 
+    if (m_computeEncoderHasDispatched)
+    {
+        m_computeCommandEncoder->memoryBarrier(
+            MTL::BarrierScope(MTL::BarrierScopeBuffers | MTL::BarrierScopeTextures)
+        );
+    }
+
     m_computeStateValid = true;
 }
 
@@ -762,6 +770,7 @@ void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
         return;
 
     m_computeCommandEncoder->dispatchThreadgroups(MTL::Size(cmd.x, cmd.y, cmd.z), m_computePipeline->m_threadGroupSize);
+    m_computeEncoderHasDispatched = true;
 }
 
 void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
@@ -888,6 +897,16 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 {
     SLANG_UNUSED(cmd);
+    MTL::BarrierScope scope = MTL::BarrierScope(MTL::BarrierScopeBuffers | MTL::BarrierScopeTextures);
+    if (m_computeCommandEncoder)
+    {
+        m_computeCommandEncoder->memoryBarrier(scope);
+    }
+    else if (m_renderCommandEncoder)
+    {
+        MTL::RenderStages allStages = MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment);
+        m_renderCommandEncoder->memoryBarrier(scope, allStages, allStages);
+    }
 }
 
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
@@ -981,6 +1000,7 @@ void CommandRecorder::endCommandEncoder()
         m_computeCommandEncoder.reset();
 
         m_computeStateValid = false;
+        m_computeEncoderHasDispatched = false;
         m_computePipeline = nullptr;
     }
     if (m_accelerationStructureCommandEncoder)

@@ -14,7 +14,6 @@ BufferImpl::~BufferImpl()
     if (m_deviceAddress != 0)
     {
         auto* device = getDevice<DeviceImpl>();
-        device->m_addressToBuffer.erase(m_deviceAddress);
         if (device->m_residencySet)
         {
             device->m_residencySet->removeAllocation(m_buffer.get());
@@ -76,7 +75,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     buffer->m_deviceAddress = buffer->m_buffer->gpuAddress();
     if (buffer->m_deviceAddress != 0)
     {
-        m_addressToBuffer[buffer->m_deviceAddress] = buffer.get();
         if (m_residencySet)
         {
             m_residencySet->addAllocation(buffer->m_buffer.get());
