@@ -89,11 +89,32 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     WGPUSupportedFeatures adapterFeatures = {};
     api.wgpuAdapterGetFeatures(m_ctx.adapter, &adapterFeatures);
 
-    // We request a device with the maximum available limits and feature set.
+    // We create a device with all features the adapter supports.
+    // However, some features are mutually exclusive with each other, or cause issues on some platforms, so we disable
+    // those features here.
+    std::vector<WGPUFeatureName> disabledAdapterFeatures{
+        WGPUFeatureName_SharedTextureMemoryZirconHandle,
+        WGPUFeatureName_SharedFenceSyncFD,
+        WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle,
+    };
+
+    std::vector<WGPUFeatureName> enabledFeatures;
+    for (uint32_t i = 0; i < adapterFeatures.featureCount; i++)
+    {
+        WGPUFeatureName feature = adapterFeatures.features[i];
+        if (std::find(disabledAdapterFeatures.begin(), disabledAdapterFeatures.end(), feature) !=
+            disabledAdapterFeatures.end())
+        {
+            continue;
+        }
+        enabledFeatures.push_back(feature);
+    }
+
+    // We request a device with the maximum available limits and filtered feature set.
     WGPULimits requiredLimits = adapterLimits;
     WGPUDeviceDescriptor deviceDesc = {};
-    deviceDesc.requiredFeatures = adapterFeatures.features;
-    deviceDesc.requiredFeatureCount = adapterFeatures.featureCount;
+    deviceDesc.requiredFeatures = enabledFeatures.data();
+    deviceDesc.requiredFeatureCount = static_cast<uint32_t>(enabledFeatures.size());
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.uncapturedErrorCallbackInfo.callback =
         [](const WGPUDevice* device, WGPUErrorType type, WGPUStringView message, void* userdata1, void* userdata2)
