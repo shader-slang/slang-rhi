@@ -773,6 +773,12 @@ void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     if (!m_computeStateValid)
         return;
 
+    // No automatic barrier between dispatches within a compute pass,
+    // matching Vulkan/D3D12 contract. With untracked hazard mode, Metal
+    // does not auto-synchronize even for explicitly bound resources.
+    // For dependent dispatches, callers have two options:
+    //   1. Re-bind (cmdSetComputeState emits memoryBarrier on rebind)
+    //   2. End pass, call globalBarrier(), begin new pass
     m_computeCommandEncoder->dispatchThreadgroups(MTL::Size(cmd.x, cmd.y, cmd.z), m_computePipeline->m_threadGroupSize);
     m_computeEncoderHasDispatched = true;
 }
@@ -1237,11 +1243,14 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     }
 
     // Commit any pending residency set changes.
-    auto* device = getDevice<DeviceImpl>();
-    if (device->m_residencySet && device->m_residencySetDirty)
+    if (auto* device = getDevice<DeviceImpl>())
     {
-        device->m_residencySet->commit();
-        device->m_residencySetDirty = false;
+        std::lock_guard<std::mutex> lock(device->m_residencySetMutex);
+        if (device->m_residencySet && device->m_residencySetDirty)
+        {
+            device->m_residencySet->commit();
+            device->m_residencySetDirty = false;
+        }
     }
 
     // Increment submission id

@@ -71,6 +71,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         return SLANG_FAIL;
     }
 
+    // GPU virtual address is stable immediately after allocation on Apple Silicon.
+    // Residency commit (in CommandQueueImpl::submit) happens before any command
+    // buffer referencing this address executes.
     buffer->m_deviceAddress = buffer->m_buffer->gpuAddress();
     registerAllocation(buffer->m_buffer.get());
 

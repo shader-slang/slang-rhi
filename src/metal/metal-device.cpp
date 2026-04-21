@@ -90,6 +90,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_residencySet = NS::TransferPtr(m_device->newResidencySet(rsDesc.get(), &error));
         if (!m_residencySet)
         {
+            if (error)
+            {
+                if (NS::String* errStr = error->localizedDescription())
+                    handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, errStr->utf8String());
+            }
             return SLANG_FAIL;
         }
         m_commandQueue->addResidencySet(m_residencySet.get());
@@ -482,6 +487,7 @@ void DeviceImpl::registerAllocation(MTL::Allocation* allocation)
 {
     if (m_residencySet && allocation)
     {
+        std::lock_guard<std::mutex> lock(m_residencySetMutex);
         m_residencySet->addAllocation(allocation);
         m_residencySetDirty = true;
     }
@@ -491,6 +497,7 @@ void DeviceImpl::unregisterAllocation(MTL::Allocation* allocation)
 {
     if (m_residencySet && allocation)
     {
+        std::lock_guard<std::mutex> lock(m_residencySetMutex);
         m_residencySet->removeAllocation(allocation);
         m_residencySetDirty = true;
     }
@@ -500,6 +507,9 @@ void DeviceImpl::encodeWaitForPreviousSubmission(MTL::CommandBuffer* commandBuff
 {
     if (m_queue && commandBuffer)
     {
+        // On the first call (no prior submission), this wait completes immediately
+        // because CommandQueueImpl::init sets both m_lastSubmittedID and the
+        // tracking event's signaled value to 1.
         commandBuffer->encodeWait(m_queue->m_trackingEvent.get(), m_queue->m_lastSubmittedID);
     }
 }

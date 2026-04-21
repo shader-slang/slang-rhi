@@ -169,6 +169,7 @@ public:
 
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
     bool m_residencySetDirty = false;
+    std::mutex m_residencySetMutex;
 
     void registerAllocation(MTL::Allocation* allocation);
     void unregisterAllocation(MTL::Allocation* allocation);
