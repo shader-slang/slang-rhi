@@ -614,6 +614,9 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
     // textures, samplers) as 8-byte uniform values, so the field count should match
     // the default layout. If this invariant is ever violated, the index-based pairing
     // below would mismatch fields - fail rather than silently corrupt data.
+    // Hard crash (SLANG_RHI_ASSERT_FAILURE) is intentional: continuing past a
+    // field-count mismatch would silently corrupt argument buffer memory.
+    // The return SLANG_FAIL only runs if asserts are disabled (ScopedDisableAssert).
     if (argumentBufferTypeLayout->getFieldCount() != defaultTypeLayout->getFieldCount())
     {
         SLANG_RHI_ASSERT_FAILURE("Field count mismatch between argument buffer and default layout");

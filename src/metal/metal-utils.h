@@ -79,6 +79,9 @@ MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve);
 /// - MTLStorageModeManaged is forbidden (R3)
 /// - MTLHazardTrackingModeTracked is forbidden (R1)
 /// All resources are created with untracked hazard tracking mode.
+/// Note: textures use MTL::TextureDescriptor setters directly and bypass
+/// this helper. A separate SLANG_RHI_ASSERT in createTexture() guards
+/// against managed-mode textures.
 inline MTL::ResourceOptions makeResourceOptions(
     MTL::ResourceOptions storageMode,
     MTL::ResourceOptions cpuCacheMode = MTL::ResourceCPUCacheModeDefaultCache
@@ -88,5 +91,12 @@ inline MTL::ResourceOptions makeResourceOptions(
 
     return storageMode | cpuCacheMode | MTL::ResourceHazardTrackingModeUntracked;
 }
+
+// Staging resources (short-lived upload/readback buffers and textures) are
+// intentionally not registered with the residency set. On Apple Silicon
+// (GPUFamilyApple6+, enforced at device init), all MTL::Allocation objects
+// are GPU-accessible regardless of residency set membership. See Apple's
+// "Setting Resource Storage Modes" documentation. If this assumption ever
+// changes, all staging allocation sites must be updated.
 
 } // namespace rhi::metal

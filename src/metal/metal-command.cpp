@@ -803,6 +803,8 @@ void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 
 void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
+    // TODO: When implemented, must set m_computeEncoderHasDispatched = true
+    // so that cmdSetComputeState emits a memoryBarrier after indirect dispatches.
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(IComputePassEncoder, dispatchComputeIndirect);
 }
@@ -940,8 +942,11 @@ void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
     }
     else
     {
-        // No active compute/render encoder - end current encoder (blit/AS)
-        // and let the fence mechanism handle inter-encoder sync.
+        // No active compute/render encoder. For blit/AS encoders, ending
+        // the encoder and relying on the fence provides inter-encoder
+        // ordering. If no encoder is active at all, this is a no-op;
+        // the caller's barrier is vacuously satisfied since no GPU work
+        // is pending.
         endCommandEncoder();
     }
 }

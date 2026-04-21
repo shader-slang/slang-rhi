@@ -109,8 +109,6 @@ public:
         SubObjectRangeStride stride;
     };
 
-    bool hasPointerFields() const { return m_hasPointerFields; }
-
     uint32_t m_slotCount = 0;
     uint32_t m_subObjectCount = 0;
     uint32_t m_totalOrdinaryDataSize = 0;
@@ -119,7 +117,6 @@ public:
 
     std::vector<BindingRangeInfo> m_bindingRanges;
     std::vector<SubObjectRangeInfo> m_subObjectRanges;
-    bool m_hasPointerFields = false;
 
     // The type layout to use when the shader object is bind as a parameter block.
     slang::TypeLayoutReflection* m_parameterBlockTypeLayout = nullptr;

@@ -445,6 +445,12 @@ GPU_TEST_CASE("bind-pointers-intra-pass-rebind", CUDA | Metal)
         // Two dispatches within a single compute pass, using rebind between them.
         // Metal (untracked): rebind triggers memoryBarrier via cmdSetComputeState.
         // CUDA: serializes dispatches within a stream.
+        // Vulkan/D3D12 are excluded: their rebind barriers only cover resources
+        // explicitly bound via descriptors (tracked by requireBindingStates /
+        // commitBarriers). These buffers are accessed via raw device addresses
+        // (setData(getDeviceAddress())), which bypass the state tracker, so no
+        // inter-dispatch barrier is emitted on rebind for them.
+        // The nosync test covers the expected-race case for those backends.
         auto passEncoder = commandEncoder->beginComputePass();
 
         {

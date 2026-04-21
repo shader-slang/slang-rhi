@@ -148,6 +148,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     textureDesc->setUsage(textureUsage);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
+    SLANG_RHI_ASSERT(textureDesc->storageMode() != MTL::StorageModeManaged);
     textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
 
     textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
@@ -167,11 +168,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
-        // Staging texture: short-lived, not registered with the residency set.
-        // On Apple Silicon (GPUFamilyApple6+, enforced at device init), all allocations
-        // are GPU-accessible regardless of residency set membership.
-        // Uses shared mode (no managed mode allowed by R3); on UMA,
-        // replaceRegion writes are immediately coherent.
+        // Staging: not registered with residency set (see metal-utils.h).
+        // Uses shared mode; on UMA, replaceRegion writes are immediately coherent.
         textureDesc->setStorageMode(MTL::StorageModeShared);
         textureDesc->setCpuCacheMode(MTL::CPUCacheModeDefaultCache);
         textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);

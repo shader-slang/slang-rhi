@@ -39,6 +39,11 @@ DeviceImpl::~DeviceImpl()
         m_queue.setNull();
     }
 
+    if (m_commandQueue && m_residencySet)
+    {
+        m_commandQueue->removeResidencySet(m_residencySet.get());
+    }
+
     m_clearEngine.release();
 }
 
@@ -309,9 +314,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // Staging buffer: short-lived, not registered with the residency set.
-    // On Apple Silicon (GPUFamilyApple6+, enforced at device init), all allocations
-    // are GPU-accessible regardless of residency set membership.
+    // Staging: not registered with residency set (see metal-utils.h).
     auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
     NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(m_device->newBuffer(size, stagingOpts));
     if (!stagingBuffer)

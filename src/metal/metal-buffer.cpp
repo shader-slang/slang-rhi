@@ -84,9 +84,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            // Staging buffer: short-lived, not registered with the residency set.
-            // On Apple Silicon (GPUFamilyApple6+, enforced at device init), all allocations
-            // are GPU-accessible regardless of residency set membership.
+            // Staging: not registered with residency set (see metal-utils.h).
             auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
             NS::SharedPtr<MTL::Buffer> stagingBuffer =
                 NS::TransferPtr(m_device->newBuffer(initData, bufferSize, stagingOpts));
@@ -124,7 +122,6 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    bufferImpl->m_lastCpuAccessMode = mode;
     if (mode == CpuAccessMode::Read)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();

@@ -2,25 +2,6 @@
 
 namespace rhi::metal {
 
-static bool _hasPointerFields(slang::TypeLayoutReflection* typeLayout)
-{
-    auto kind = typeLayout->getKind();
-    if (kind == slang::TypeReflection::Kind::Pointer)
-        return true;
-    if (kind == slang::TypeReflection::Kind::Array)
-    {
-        auto elemLayout = typeLayout->getElementTypeLayout();
-        return _hasPointerFields(elemLayout);
-    }
-    for (unsigned i = 0; i < typeLayout->getFieldCount(); i++)
-    {
-        auto field = typeLayout->getFieldByIndex(i);
-        if (_hasPointerFields(field->getTypeLayout()))
-            return true;
-    }
-    return false;
-}
-
 static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(
     slang::ISession* slangSession,
     slang::TypeLayoutReflection* elementTypeLayout
@@ -265,8 +246,6 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
     auto device = builder->m_device;
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
-    m_hasPointerFields = _hasPointerFields(m_elementTypeLayout);
-
     m_parameterBlockTypeLayout = builder->m_parameterBlockTypeLayout;
     m_slotCount = builder->m_slotCount;
     m_subObjectCount = builder->m_subObjectCount;
