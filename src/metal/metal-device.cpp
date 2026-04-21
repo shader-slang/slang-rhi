@@ -83,7 +83,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         return SLANG_FAIL;
     }
 
-    // R2: Create residency set (mandatory — all allocations are registered here).
+    // R2: Create residency set (mandatory - all allocations are registered here).
     {
         NS::Error* error = nullptr;
         auto rsDesc = NS::TransferPtr(MTL::ResidencySetDescriptor::alloc()->init());

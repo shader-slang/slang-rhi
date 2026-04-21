@@ -916,7 +916,7 @@ void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
     }
     else
     {
-        // No active compute/render encoder — end current encoder (blit/AS)
+        // No active compute/render encoder - end current encoder (blit/AS)
         // and let the fence mechanism handle inter-encoder sync.
         endCommandEncoder();
     }

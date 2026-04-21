@@ -1,4 +1,4 @@
-// Pointer parameters inside a ParameterBlock — reproduces the layout
+// Pointer parameters inside a ParameterBlock - reproduces the layout
 // that slangpy generates when dispatching functions with pointer args.
 
 struct CopyParams
