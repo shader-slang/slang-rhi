@@ -184,6 +184,67 @@ GPU_TEST_CASE("bind-pointers-parameter-block-mixed", Vulkan | CUDA | Metal)
     );
 }
 
+// Reproduces the slangpy test_float_tensor_storage pattern: float pointers
+// inside a struct, bound as ordinary data. Without useResource for the
+// pointer-referenced buffers, Metal returns all-zeros.
+GPU_TEST_CASE("bind-pointers-struct-float-copy", Vulkan | CUDA | Metal)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-pointer-struct-copy", "computeMain", shaderProgram.writeRef()));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    const int floatCount = 4096;
+
+    // Generate random float data
+    std::vector<float> srcData(floatCount);
+    std::mt19937 rng(778899);
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    for (auto& v : srcData)
+        v = dist(rng);
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = floatCount * sizeof(float);
+    bufferDesc.format = Format::Undefined;
+    bufferDesc.elementSize = sizeof(float);
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IBuffer> src;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)srcData.data(), src.writeRef()));
+
+    ComPtr<IBuffer> dst;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, dst.writeRef()));
+
+    {
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
+        ShaderCursor shaderCursor(rootObject);
+        shaderCursor["ptrs"]["src"].setData(src->getDeviceAddress());
+        shaderCursor["ptrs"]["dst"].setData(dst->getDeviceAddress());
+
+        passEncoder->dispatchCompute(floatCount / 32, 1, 1);
+        passEncoder->end();
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+
+    compareComputeResult(
+        device,
+        dst,
+        std::span<uint8_t>((uint8_t*)srcData.data(), srcData.size() * sizeof(float))
+    );
+}
+
 GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA | Metal)
 {
     ComPtr<IShaderProgram> shaderProgram;
@@ -260,8 +321,9 @@ GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA | Metal)
     if (device->getDeviceType() == DeviceType::CUDA || device->getDeviceType() == DeviceType::Metal)
     {
         // CUDA serializes dispatches within a stream.
-        // Metal's tracked hazard tracking mode automatically synchronizes resources between
-        // separate command encoders within the same command buffer.
+        // Metal: each compute pass ends the Metal command encoder. Metal guarantees
+        // sequential execution of encoders within a command buffer, so writes from
+        // the first pass are visible to the second pass without explicit barriers.
         compareComputeResult(device, dst, std::span<uint8_t>(data));
     }
     else
@@ -271,4 +333,74 @@ GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA | Metal)
         // conditions without barriers.
         compareComputeResult(device, dst, std::span<uint8_t>(data), true);
     }
+}
+
+GPU_TEST_CASE("bind-pointers-intermediate-copy-global-barrier", Vulkan | CUDA | Metal)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram.writeRef()));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    const int numberCount = 4096;
+
+    std::vector<uint8_t> data;
+    std::mt19937 rng(556677);
+    std::uniform_int_distribution<int> dist(0, 255);
+    data.resize(numberCount * 4);
+    for (auto& byte : data)
+        byte = (uint8_t)dist(rng);
+
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(uint32_t);
+    bufferDesc.format = Format::Undefined;
+    bufferDesc.elementSize = sizeof(uint32_t);
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IBuffer> src;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)data.data(), src.writeRef()));
+
+    ComPtr<IBuffer> tmp;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, tmp.writeRef()));
+
+    ComPtr<IBuffer> dst;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, dst.writeRef()));
+
+    {
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+
+        {
+            auto passEncoder = commandEncoder->beginComputePass();
+            auto rootObject = passEncoder->bindPipeline(pipeline);
+            ShaderCursor shaderCursor(rootObject);
+            shaderCursor["src"].setData(src->getDeviceAddress());
+            shaderCursor["dst"].setData(tmp->getDeviceAddress());
+            passEncoder->dispatchCompute(numberCount / 32, 1, 1);
+            passEncoder->end();
+        }
+
+        commandEncoder->globalBarrier();
+
+        {
+            auto passEncoder = commandEncoder->beginComputePass();
+            auto rootObject = passEncoder->bindPipeline(pipeline);
+            ShaderCursor shaderCursor(rootObject);
+            shaderCursor["src"].setData(tmp->getDeviceAddress());
+            shaderCursor["dst"].setData(dst->getDeviceAddress());
+            passEncoder->dispatchCompute(numberCount / 32, 1, 1);
+            passEncoder->end();
+        }
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+
+    compareComputeResult(device, dst, std::span<uint8_t>(data));
 }

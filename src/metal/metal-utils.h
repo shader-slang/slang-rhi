@@ -75,4 +75,18 @@ MTL::TriangleFillMode translateTriangleFillMode(FillMode mode);
 MTL::LoadAction translateLoadOp(LoadOp loadOp);
 MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve);
 
+/// Build MTL::ResourceOptions with enforced restrictions:
+/// - MTLStorageModeManaged is forbidden (R3)
+/// - MTLHazardTrackingModeTracked is forbidden (R1)
+/// All resources are created with untracked hazard tracking mode.
+inline MTL::ResourceOptions makeResourceOptions(
+    MTL::ResourceOptions storageMode,
+    MTL::ResourceOptions cpuCacheMode = MTL::ResourceCPUCacheModeDefaultCache
+)
+{
+    SLANG_RHI_ASSERT(storageMode != MTL::ResourceStorageModeManaged);
+
+    return storageMode | cpuCacheMode | MTL::ResourceHazardTrackingModeUntracked;
+}
+
 } // namespace rhi::metal

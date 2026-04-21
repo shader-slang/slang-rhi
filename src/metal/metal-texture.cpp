@@ -12,6 +12,11 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 TextureImpl::~TextureImpl()
 {
     m_defaultView.setNull();
+    if (m_texture && !m_isSwapchainTexture)
+    {
+        auto* device = getDevice<DeviceImpl>();
+        device->unregisterAllocation(m_texture.get());
+    }
 }
 
 void TextureImpl::deleteThis()
@@ -142,6 +147,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     textureDesc->setUsage(textureUsage);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
+    textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
 
     textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
     if (!textureImpl->m_texture)
@@ -151,6 +157,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureImpl->m_textureType = textureDesc->textureType();
     textureImpl->m_pixelFormat = textureDesc->pixelFormat();
 
+    registerAllocation(textureImpl->m_texture.get());
+
     if (desc.label)
     {
         textureImpl->m_texture->setLabel(createString(desc.label).get());
@@ -158,11 +166,15 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
-        textureDesc->setStorageMode(MTL::StorageModeManaged);
+        // Use shared mode for staging (no managed mode allowed by R3).
+        // On Apple Silicon UMA, replaceRegion writes are immediately coherent.
+        textureDesc->setStorageMode(MTL::StorageModeShared);
         textureDesc->setCpuCacheMode(MTL::CPUCacheModeDefaultCache);
+        textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
         NS::SharedPtr<MTL::Texture> stagingTexture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
 
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        encodeWaitForPreviousSubmission(commandBuffer);
         MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
         if (!stagingTexture || !commandBuffer || !encoder)
         {
@@ -189,7 +201,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                     subresourceData.rowPitch,
                     subresourceData.slicePitch
                 );
-                encoder->synchronizeTexture(stagingTexture.get(), slice, level);
                 region.size.width = region.size.width > 0 ? max(1ul, region.size.width >> 1) : 0;
                 region.size.height = region.size.height > 0 ? max(1ul, region.size.height >> 1) : 0;
                 region.size.depth = region.size.depth > 0 ? max(1ul, region.size.depth >> 1) : 0;

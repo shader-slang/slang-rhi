@@ -77,14 +77,22 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         return SLANG_FAIL;
     }
 
+    // R5: Require Apple Silicon (GPU Family 6+) for untracked mode + MTLResidencySet.
+    if (!m_device->supportsFamily(MTL::GPUFamilyApple6))
+    {
+        return SLANG_FAIL;
+    }
+
+    // R2: Create residency set (mandatory — all allocations are registered here).
     {
         NS::Error* error = nullptr;
         auto rsDesc = NS::TransferPtr(MTL::ResidencySetDescriptor::alloc()->init());
         m_residencySet = NS::TransferPtr(m_device->newResidencySet(rsDesc.get(), &error));
-        if (m_residencySet)
+        if (!m_residencySet)
         {
-            m_commandQueue->addResidencySet(m_residencySet.get());
+            return SLANG_FAIL;
         }
+        m_commandQueue->addResidencySet(m_residencySet.get());
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
@@ -296,18 +304,18 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // create staging buffer
+    auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
     NS::SharedPtr<MTL::Buffer> stagingBuffer =
-        NS::TransferPtr(m_device->newBuffer(size, MTL::ResourceStorageModeManaged));
+        NS::TransferPtr(m_device->newBuffer(size, stagingOpts));
     if (!stagingBuffer)
     {
         return SLANG_FAIL;
     }
 
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+    encodeWaitForPreviousSubmission(commandBuffer);
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
     blitEncoder->copyFromBuffer(bufferImpl->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
-    blitEncoder->synchronizeResource(stagingBuffer.get());
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
@@ -462,6 +470,32 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
     SLANG_RETURN_ON_FAIL(poolImpl->init());
     returnComPtr(outPool, poolImpl);
     return SLANG_OK;
+}
+
+void DeviceImpl::registerAllocation(MTL::Allocation* allocation)
+{
+    if (m_residencySet && allocation)
+    {
+        m_residencySet->addAllocation(allocation);
+        m_residencySetDirty = true;
+    }
+}
+
+void DeviceImpl::unregisterAllocation(MTL::Allocation* allocation)
+{
+    if (m_residencySet && allocation)
+    {
+        m_residencySet->removeAllocation(allocation);
+        m_residencySetDirty = true;
+    }
+}
+
+void DeviceImpl::encodeWaitForPreviousSubmission(MTL::CommandBuffer* commandBuffer)
+{
+    if (m_queue)
+    {
+        commandBuffer->encodeWait(m_queue->m_trackingEvent.get(), m_queue->m_lastSubmittedID);
+    }
 }
 
 } // namespace rhi::metal

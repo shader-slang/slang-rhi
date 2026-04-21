@@ -79,6 +79,7 @@ class CommandBufferImpl : public CommandBuffer
 public:
     CommandQueueImpl* m_queue;
     NS::SharedPtr<MTL::CommandBuffer> m_commandBuffer;
+    NS::SharedPtr<MTL::Fence> m_encoderFence;
     BindingCache m_bindingCache;
     uint64_t m_submissionID;
 

@@ -11,15 +11,8 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl()
 {
-    if (m_deviceAddress != 0)
-    {
-        auto* device = getDevice<DeviceImpl>();
-        if (device->m_residencySet)
-        {
-            device->m_residencySet->removeAllocation(m_buffer.get());
-            device->m_residencySetDirty = true;
-        }
-    }
+    auto* device = getDevice<DeviceImpl>();
+    device->unregisterAllocation(m_buffer.get());
 }
 
 void BufferImpl::deleteThis()
@@ -53,15 +46,17 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     const Size bufferSize = desc.size;
 
-    MTL::ResourceOptions resourceOptions = MTL::ResourceOptions(0);
+    MTL::ResourceOptions resourceOptions;
     switch (desc.memoryType)
     {
     case MemoryType::DeviceLocal:
-        resourceOptions = MTL::ResourceStorageModePrivate;
+        resourceOptions = makeResourceOptions(MTL::ResourceStorageModePrivate);
         break;
     case MemoryType::Upload:
+        resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared, MTL::ResourceCPUCacheModeWriteCombined);
+        break;
     case MemoryType::ReadBack:
-        resourceOptions = MTL::ResourceStorageModeManaged;
+        resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared);
         break;
     }
 
@@ -73,32 +68,34 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     }
 
     buffer->m_deviceAddress = buffer->m_buffer->gpuAddress();
-    if (buffer->m_deviceAddress != 0)
-    {
-        if (m_residencySet)
-        {
-            m_residencySet->addAllocation(buffer->m_buffer.get());
-            m_residencySetDirty = true;
-        }
-    }
+    registerAllocation(buffer->m_buffer.get());
 
     if (desc.label)
         buffer->m_buffer->addDebugMarker(createString(desc.label).get(), NS::Range(0, desc.size));
 
     if (initData)
     {
-        NS::SharedPtr<MTL::Buffer> stagingBuffer =
-            NS::TransferPtr(m_device->newBuffer(initData, bufferSize, MTL::ResourceStorageModeManaged));
-        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-        if (!stagingBuffer || !commandBuffer || !encoder)
+        if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            return SLANG_FAIL;
+            auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
+            NS::SharedPtr<MTL::Buffer> stagingBuffer =
+                NS::TransferPtr(m_device->newBuffer(initData, bufferSize, stagingOpts));
+            MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+            encodeWaitForPreviousSubmission(commandBuffer);
+            MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
+            if (!stagingBuffer || !commandBuffer || !encoder)
+            {
+                return SLANG_FAIL;
+            }
+            encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
+            encoder->endEncoding();
+            commandBuffer->commit();
+            commandBuffer->waitUntilCompleted();
         }
-        encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
-        encoder->endEncoding();
-        commandBuffer->commit();
-        commandBuffer->waitUntilCompleted();
+        else
+        {
+            std::memcpy(buffer->m_buffer->contents(), initData, bufferSize);
+        }
     }
 
     returnComPtr(outBuffer, buffer);
@@ -119,9 +116,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
     if (mode == CpuAccessMode::Read)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-        encoder->synchronizeResource(bufferImpl->m_buffer.get());
-        encoder->endEncoding();
+        encodeWaitForPreviousSubmission(commandBuffer);
         commandBuffer->commit();
         commandBuffer->waitUntilCompleted();
     }
@@ -132,16 +127,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    if (bufferImpl->m_lastCpuAccessMode == CpuAccessMode::Write)
-    {
-        bufferImpl->m_buffer->didModifyRange(NS::Range(0, bufferImpl->m_desc.size));
-        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-        encoder->synchronizeResource(bufferImpl->m_buffer.get());
-        encoder->endEncoding();
-        commandBuffer->commit();
-        commandBuffer->waitUntilCompleted();
-    }
+    (void)bufferImpl;
     return SLANG_OK;
 }
 

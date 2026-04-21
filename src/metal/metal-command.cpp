@@ -23,6 +23,7 @@ class CommandRecorder
 public:
     DeviceImpl* m_device;
 
+    CommandBufferImpl* m_commandBufferImpl = nullptr;
     NS::SharedPtr<MTL::CommandBuffer> m_commandBuffer;
     NS::SharedPtr<MTL::RenderCommandEncoder> m_renderCommandEncoder;
     NS::SharedPtr<MTL::ComputeCommandEncoder> m_computeCommandEncoder;
@@ -51,6 +52,8 @@ public:
     bool m_rayTracingPassActive = false;
     bool m_rayTracingStateValid = false;
     RefPtr<RayTracingPipelineImpl> m_rayTracingPipeline;
+
+    bool m_needsFenceWait = false;
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -112,14 +115,16 @@ public:
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 {
+    m_commandBufferImpl = commandBuffer;
     m_commandBuffer = commandBuffer->m_commandBuffer;
 
-    // Synchronize constant and argument buffers.
-    // TODO(shaderobject): This only needs to be done once after writing,
-    // once we cache/reuse binding data this should be revisited.
-    for (const auto& buffer : commandBuffer->m_bindingCache.buffers)
+    // Wait for all previous submissions to complete before executing this command buffer.
+    // Required for untracked resources: Metal does not automatically synchronize
+    // memory across command buffer boundaries for untracked resources.
+    // Must be encoded BEFORE any commands so the GPU waits before executing work.
     {
-        getBlitCommandEncoder()->synchronizeResource(buffer->m_buffer.get());
+        auto* queue = commandBuffer->m_queue;
+        m_commandBuffer->encodeWait(queue->m_trackingEvent.get(), queue->m_lastSubmittedID);
     }
 
     CommandList& commandList = commandBuffer->m_commandList;
@@ -718,6 +723,7 @@ void CommandRecorder::cmdBeginComputePass(const commands::BeginComputePass& cmd)
 
 void CommandRecorder::cmdEndComputePass(const commands::EndComputePass& cmd)
 {
+    endCommandEncoder();
     m_computePassActive = false;
 }
 
@@ -756,9 +762,7 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
 
     if (m_computeEncoderHasDispatched)
     {
-        m_computeCommandEncoder->memoryBarrier(
-            MTL::BarrierScope(MTL::BarrierScopeBuffers | MTL::BarrierScopeTextures)
-        );
+        m_computeCommandEncoder->memoryBarrier(MTL::BarrierScope(MTL::BarrierScopeBuffers | MTL::BarrierScopeTextures));
     }
 
     m_computeStateValid = true;
@@ -904,8 +908,17 @@ void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
     }
     else if (m_renderCommandEncoder)
     {
-        MTL::RenderStages allStages = MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment);
-        m_renderCommandEncoder->memoryBarrier(scope, allStages, allStages);
+        m_renderCommandEncoder->memoryBarrier(
+            scope,
+            MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment),
+            MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
+        );
+    }
+    else
+    {
+        // No active compute/render encoder — end current encoder (blit/AS)
+        // and let the fence mechanism handle inter-encoder sync.
+        endCommandEncoder();
     }
 }
 
@@ -949,6 +962,15 @@ MTL::RenderCommandEncoder* CommandRecorder::getRenderCommandEncoder(MTL::RenderP
     {
         endCommandEncoder();
         m_renderCommandEncoder = NS::RetainPtr(m_commandBuffer->renderCommandEncoder(renderPassDesc));
+        MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_encoderFence.get() : nullptr;
+        if (fence && m_needsFenceWait)
+        {
+            m_renderCommandEncoder->waitForFence(
+                fence,
+                MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
+            );
+            m_needsFenceWait = false;
+        }
     }
     return m_renderCommandEncoder.get();
 }
@@ -959,6 +981,12 @@ MTL::ComputeCommandEncoder* CommandRecorder::getComputeCommandEncoder()
     {
         endCommandEncoder();
         m_computeCommandEncoder = NS::RetainPtr(m_commandBuffer->computeCommandEncoder());
+        MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_encoderFence.get() : nullptr;
+        if (fence && m_needsFenceWait)
+        {
+            m_computeCommandEncoder->waitForFence(fence);
+            m_needsFenceWait = false;
+        }
     }
     return m_computeCommandEncoder.get();
 }
@@ -969,6 +997,12 @@ MTL::AccelerationStructureCommandEncoder* CommandRecorder::getAccelerationStruct
     {
         endCommandEncoder();
         m_accelerationStructureCommandEncoder = NS::RetainPtr(m_commandBuffer->accelerationStructureCommandEncoder());
+        MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_encoderFence.get() : nullptr;
+        if (fence && m_needsFenceWait)
+        {
+            m_accelerationStructureCommandEncoder->waitForFence(fence);
+            m_needsFenceWait = false;
+        }
     }
     return m_accelerationStructureCommandEncoder.get();
 }
@@ -979,40 +1013,66 @@ MTL::BlitCommandEncoder* CommandRecorder::getBlitCommandEncoder()
     {
         endCommandEncoder();
         m_blitCommandEncoder = NS::RetainPtr(m_commandBuffer->blitCommandEncoder());
+        MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_encoderFence.get() : nullptr;
+        if (fence && m_needsFenceWait)
+        {
+            m_blitCommandEncoder->waitForFence(fence);
+            m_needsFenceWait = false;
+        }
     }
     return m_blitCommandEncoder.get();
 }
 
 void CommandRecorder::endCommandEncoder()
 {
+    MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_encoderFence.get() : nullptr;
+    bool hadEncoder = false;
+
     if (m_renderCommandEncoder)
     {
+        if (fence)
+            m_renderCommandEncoder->updateFence(
+                fence,
+                MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
+            );
         m_renderCommandEncoder->endEncoding();
         m_renderCommandEncoder.reset();
 
         m_renderStateValid = false;
         m_renderState = {};
         m_renderPipeline = nullptr;
+        hadEncoder = true;
     }
     if (m_computeCommandEncoder)
     {
+        if (fence)
+            m_computeCommandEncoder->updateFence(fence);
         m_computeCommandEncoder->endEncoding();
         m_computeCommandEncoder.reset();
 
         m_computeStateValid = false;
         m_computeEncoderHasDispatched = false;
         m_computePipeline = nullptr;
+        hadEncoder = true;
     }
     if (m_accelerationStructureCommandEncoder)
     {
+        if (fence)
+            m_accelerationStructureCommandEncoder->updateFence(fence);
         m_accelerationStructureCommandEncoder->endEncoding();
         m_accelerationStructureCommandEncoder.reset();
+        hadEncoder = true;
     }
     if (m_blitCommandEncoder)
     {
+        if (fence)
+            m_blitCommandEncoder->updateFence(fence);
         m_blitCommandEncoder->endEncoding();
         m_blitCommandEncoder.reset();
+        hadEncoder = true;
     }
+    if (hadEncoder)
+        m_needsFenceWait = true;
     m_bindingData = nullptr;
 }
 
@@ -1311,6 +1371,7 @@ Result CommandBufferImpl::init()
     {
         return SLANG_FAIL;
     }
+    m_encoderFence = NS::TransferPtr(getDevice<DeviceImpl>()->m_device->newFence());
     return SLANG_OK;
 }
 

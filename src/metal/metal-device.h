@@ -169,6 +169,14 @@ public:
 
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
     bool m_residencySetDirty = false;
+
+    void registerAllocation(MTL::Allocation* allocation);
+    void unregisterAllocation(MTL::Allocation* allocation);
+
+    /// Encode a wait for the last queue submission on a command buffer.
+    /// Required when creating command buffers directly (bypassing queue->submit)
+    /// to ensure untracked resource writes from previous submissions are visible.
+    void encodeWaitForPreviousSubmission(MTL::CommandBuffer* commandBuffer);
 };
 
 } // namespace rhi::metal

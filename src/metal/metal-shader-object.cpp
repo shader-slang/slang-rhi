@@ -382,8 +382,6 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer, bufferImpl->m_buffer.get()));
     ioOffset.buffer++;
 
-    bufferImpl->m_buffer->didModifyRange(NS::Range(0, bufferImpl->m_desc.size));
-
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(bufferImpl);
 
@@ -573,8 +571,6 @@ Result BindingDataBuilder::writeArgumentBuffer(
             break;
         }
     }
-
-    argumentBufferImpl->m_buffer->didModifyRange(NS::Range(0, argumentBufferImpl->m_desc.size));
 
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(argumentBufferImpl);
