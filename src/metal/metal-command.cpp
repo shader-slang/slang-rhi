@@ -10,7 +10,25 @@
 #include "metal-utils.h"
 #include "../strings.h"
 
+#include <cstdio>
+
 namespace rhi::metal {
+
+static void addErrorHandler(MTL::CommandBuffer* commandBuffer)
+{
+    commandBuffer->addCompletedHandler(^(MTL::CommandBuffer* cb) {
+      if (cb->status() == MTL::CommandBufferStatusError)
+      {
+          NS::Error* error = cb->error();
+          std::fprintf(
+              stderr,
+              "Metal command buffer error: %s\n",
+              error ? error->localizedDescription()->utf8String() : "unknown"
+          );
+          SLANG_RHI_ASSERT_FAILURE("Metal command buffer error");
+      }
+    });
+}
 
 template<typename T>
 inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b)
@@ -1239,6 +1257,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
             commandBuffer->encodeWait(fence->m_event.get(), desc.waitFenceValues[i]);
         }
+        addErrorHandler(commandBuffer);
         commandBuffer->commit();
     }
 
@@ -1277,6 +1296,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             commandBuffer->m_commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
         }
 
+        addErrorHandler(commandBuffer->m_commandBuffer.get());
         commandBuffer->m_commandBuffer->commit();
     }
 
@@ -1294,6 +1314,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
         }
         commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
+        addErrorHandler(commandBuffer);
         commandBuffer->commit();
     }
 
