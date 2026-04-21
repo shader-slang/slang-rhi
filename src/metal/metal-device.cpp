@@ -314,7 +314,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // Staging: not registered with residency set (see metal-utils.h).
+    // Staging buffer not in residency set (see metal-utils.h).
     auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
     NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(m_device->newBuffer(size, stagingOpts));
     if (!stagingBuffer)

@@ -168,7 +168,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
-        // Staging: not registered with residency set (see metal-utils.h).
+        // Staging texture not in residency set (see metal-utils.h).
         // Uses shared mode; on UMA, replaceRegion writes are immediately coherent.
         textureDesc->setStorageMode(MTL::StorageModeShared);
         textureDesc->setCpuCacheMode(MTL::CPUCacheModeDefaultCache);

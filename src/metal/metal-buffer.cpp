@@ -72,8 +72,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     }
 
     // GPU virtual address is stable immediately after allocation on Apple Silicon.
-    // Residency commit (in CommandQueueImpl::submit) happens before any command
-    // buffer referencing this address executes.
+    // Residency set commit (in CommandQueueImpl::submit) happens before any
+    // render/compute command buffer using this address via argument buffers.
+    // Blit encoders handle residency for explicit operands automatically.
     buffer->m_deviceAddress = buffer->m_buffer->gpuAddress();
     registerAllocation(buffer->m_buffer.get());
 
@@ -84,7 +85,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            // Staging: not registered with residency set (see metal-utils.h).
             auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
             NS::SharedPtr<MTL::Buffer> stagingBuffer =
                 NS::TransferPtr(m_device->newBuffer(initData, bufferSize, stagingOpts));
@@ -97,6 +97,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
             if (!encoder)
                 return SLANG_FAIL;
+            // Staging buffer not in residency set (see metal-utils.h).
             encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
             encoder->endEncoding();
             commandBuffer->commit();

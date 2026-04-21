@@ -93,10 +93,9 @@ inline MTL::ResourceOptions makeResourceOptions(
 }
 
 // Staging resources (short-lived upload/readback buffers and textures) are
-// intentionally not registered with the residency set. On Apple Silicon
-// (GPUFamilyApple6+, enforced at device init), all MTL::Allocation objects
-// are GPU-accessible regardless of residency set membership. See Apple's
-// "Setting Resource Storage Modes" documentation. If this assumption ever
-// changes, all staging allocation sites must be updated.
+// not registered with the residency set. Blit encoders take explicit resource
+// pointers for every operation, so Metal handles residency for them implicitly
+// (unlike render/compute encoders, which need useResource() for resources
+// accessed indirectly via argument buffers or device addresses).
 
 } // namespace rhi::metal
