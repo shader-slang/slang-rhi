@@ -14,8 +14,8 @@ TextureImpl::~TextureImpl()
     m_defaultView.setNull();
     if (m_texture && !m_isSwapchainTexture)
     {
-        auto* device = getDevice<DeviceImpl>();
-        device->unregisterAllocation(m_texture.get());
+        if (auto* device = getDevice<DeviceImpl>())
+            device->unregisterAllocation(m_texture.get());
     }
 }
 
@@ -28,7 +28,8 @@ void TextureImpl::deleteThis()
     }
     m_defaultView.setNull();
     m_sampler.setNull();
-    getDevice<DeviceImpl>()->deferDelete(this);
+    if (auto* device = getDevice<DeviceImpl>())
+        device->deferDelete(this);
 }
 
 Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
@@ -166,20 +167,25 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
-        // Use shared mode for staging (no managed mode allowed by R3).
-        // On Apple Silicon UMA, replaceRegion writes are immediately coherent.
+        // Staging texture: short-lived, not registered with the residency set.
+        // On Apple Silicon (GPUFamilyApple6+, enforced at device init), all allocations
+        // are GPU-accessible regardless of residency set membership.
+        // Uses shared mode (no managed mode allowed by R3); on UMA,
+        // replaceRegion writes are immediately coherent.
         textureDesc->setStorageMode(MTL::StorageModeShared);
         textureDesc->setCpuCacheMode(MTL::CPUCacheModeDefaultCache);
         textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
         NS::SharedPtr<MTL::Texture> stagingTexture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
 
+        if (!stagingTexture)
+            return SLANG_FAIL;
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        if (!commandBuffer)
+            return SLANG_FAIL;
         encodeWaitForPreviousSubmission(commandBuffer);
         MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-        if (!stagingTexture || !commandBuffer || !encoder)
-        {
+        if (!encoder)
             return SLANG_FAIL;
-        }
 
         uint32_t sliceCount = desc.getLayerCount();
 

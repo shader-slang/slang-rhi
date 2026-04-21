@@ -304,17 +304,23 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
+    // Staging buffer: short-lived, not registered with the residency set.
+    // On Apple Silicon (GPUFamilyApple6+, enforced at device init), all allocations
+    // are GPU-accessible regardless of residency set membership.
     auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
-    NS::SharedPtr<MTL::Buffer> stagingBuffer =
-        NS::TransferPtr(m_device->newBuffer(size, stagingOpts));
+    NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(m_device->newBuffer(size, stagingOpts));
     if (!stagingBuffer)
     {
         return SLANG_FAIL;
     }
 
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+    if (!commandBuffer)
+        return SLANG_FAIL;
     encodeWaitForPreviousSubmission(commandBuffer);
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
+    if (!blitEncoder)
+        return SLANG_FAIL;
     blitEncoder->copyFromBuffer(bufferImpl->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
     blitEncoder->endEncoding();
     commandBuffer->commit();
@@ -492,7 +498,7 @@ void DeviceImpl::unregisterAllocation(MTL::Allocation* allocation)
 
 void DeviceImpl::encodeWaitForPreviousSubmission(MTL::CommandBuffer* commandBuffer)
 {
-    if (m_queue)
+    if (m_queue && commandBuffer)
     {
         commandBuffer->encodeWait(m_queue->m_trackingEvent.get(), m_queue->m_lastSubmittedID);
     }

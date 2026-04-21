@@ -238,11 +238,7 @@ GPU_TEST_CASE("bind-pointers-struct-float-copy", Vulkan | CUDA | Metal)
         queue->waitOnHost();
     }
 
-    compareComputeResult(
-        device,
-        dst,
-        std::span<uint8_t>((uint8_t*)srcData.data(), srcData.size() * sizeof(float))
-    );
+    compareComputeResult(device, dst, std::span<uint8_t>((uint8_t*)srcData.data(), srcData.size() * sizeof(float)));
 }
 
 GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA | Metal)
@@ -321,9 +317,9 @@ GPU_TEST_CASE("bind-pointers-intermediate-copy-nosync", Vulkan | CUDA | Metal)
     if (device->getDeviceType() == DeviceType::CUDA || device->getDeviceType() == DeviceType::Metal)
     {
         // CUDA serializes dispatches within a stream.
-        // Metal: each compute pass ends the Metal command encoder. Metal guarantees
-        // sequential execution of encoders within a command buffer, so writes from
-        // the first pass are visible to the second pass without explicit barriers.
+        // Metal: cmdEndComputePass calls endCommandEncoder(), which signals updateFence().
+        // The next compute pass's getComputeCommandEncoder() calls waitForFence(), ensuring
+        // writes from the first encoder are visible before the second encoder executes.
         compareComputeResult(device, dst, std::span<uint8_t>(data));
     }
     else

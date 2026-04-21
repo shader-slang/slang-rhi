@@ -11,13 +11,14 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl()
 {
-    auto* device = getDevice<DeviceImpl>();
-    device->unregisterAllocation(m_buffer.get());
+    if (auto* device = getDevice<DeviceImpl>())
+        device->unregisterAllocation(m_buffer.get());
 }
 
 void BufferImpl::deleteThis()
 {
-    getDevice<DeviceImpl>()->deferDelete(this);
+    if (auto* device = getDevice<DeviceImpl>())
+        device->deferDelete(this);
 }
 
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
@@ -46,7 +47,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     const Size bufferSize = desc.size;
 
-    MTL::ResourceOptions resourceOptions;
+    MTL::ResourceOptions resourceOptions = MTL::ResourceOptions(0);
     switch (desc.memoryType)
     {
     case MemoryType::DeviceLocal:
@@ -58,6 +59,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     case MemoryType::ReadBack:
         resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared);
         break;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unhandled MemoryType");
+        return SLANG_FAIL;
     }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
@@ -77,16 +81,21 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
+            // Staging buffer: short-lived, not registered with the residency set.
+            // On Apple Silicon (GPUFamilyApple6+, enforced at device init), all allocations
+            // are GPU-accessible regardless of residency set membership.
             auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
             NS::SharedPtr<MTL::Buffer> stagingBuffer =
                 NS::TransferPtr(m_device->newBuffer(initData, bufferSize, stagingOpts));
+            if (!stagingBuffer)
+                return SLANG_FAIL;
             MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+            if (!commandBuffer)
+                return SLANG_FAIL;
             encodeWaitForPreviousSubmission(commandBuffer);
             MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-            if (!stagingBuffer || !commandBuffer || !encoder)
-            {
+            if (!encoder)
                 return SLANG_FAIL;
-            }
             encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
             encoder->endEncoding();
             commandBuffer->commit();
@@ -116,6 +125,8 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
     if (mode == CpuAccessMode::Read)
     {
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        if (!commandBuffer)
+            return SLANG_FAIL;
         encodeWaitForPreviousSubmission(commandBuffer);
         commandBuffer->commit();
         commandBuffer->waitUntilCompleted();

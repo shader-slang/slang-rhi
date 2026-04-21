@@ -613,8 +613,12 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
     // Metal Tier 2 argument buffer layouts represent all resource types (buffers,
     // textures, samplers) as 8-byte uniform values, so the field count should match
     // the default layout. If this invariant is ever violated, the index-based pairing
-    // below would mismatch fields — assert rather than silently corrupt data.
-    SLANG_RHI_ASSERT(argumentBufferTypeLayout->getFieldCount() == defaultTypeLayout->getFieldCount());
+    // below would mismatch fields — fail rather than silently corrupt data.
+    if (argumentBufferTypeLayout->getFieldCount() != defaultTypeLayout->getFieldCount())
+    {
+        SLANG_RHI_ASSERT_FAILURE("Field count mismatch between argument buffer and default layout");
+        return SLANG_FAIL;
+    }
 
     for (unsigned int i = 0; i < argumentBufferTypeLayout->getFieldCount(); i++)
     {

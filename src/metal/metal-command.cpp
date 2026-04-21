@@ -1372,6 +1372,8 @@ Result CommandBufferImpl::init()
         return SLANG_FAIL;
     }
     m_encoderFence = NS::TransferPtr(getDevice<DeviceImpl>()->m_device->newFence());
+    if (!m_encoderFence)
+        return SLANG_FAIL;
     return SLANG_OK;
 }
 
