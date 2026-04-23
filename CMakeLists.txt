@@ -5,6 +5,29 @@ endif()
 
 project(slang-rhi)
 
+function(slang_rhi_print_clang_details language compiler_path)
+    execute_process(
+        COMMAND ${compiler_path} --version
+        OUTPUT_VARIABLE SLANG_RHI_CLANG_VERSION_OUTPUT
+        ERROR_VARIABLE SLANG_RHI_CLANG_VERSION_ERROR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+    if(SLANG_RHI_CLANG_VERSION_ERROR)
+        string(APPEND SLANG_RHI_CLANG_VERSION_OUTPUT "\n" "${SLANG_RHI_CLANG_VERSION_ERROR}")
+    endif()
+    message(STATUS "Using ${language} clang compiler: ${compiler_path}")
+    message(STATUS "${language} clang --version:\n${SLANG_RHI_CLANG_VERSION_OUTPUT}")
+endfunction()
+
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    slang_rhi_print_clang_details("C" "${CMAKE_C_COMPILER}")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    slang_rhi_print_clang_details("C++" "${CMAKE_CXX_COMPILER}")
+endif()
+
 # Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
 if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
