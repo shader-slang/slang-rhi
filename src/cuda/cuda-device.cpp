@@ -261,7 +261,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
-                // addCapability(Capability::optix_coopvec);
+                addCapability(Capability::optix_coopvec);
             }
         }
     }
