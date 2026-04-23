@@ -1267,10 +1267,10 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     }
 
     // Commit any pending residency set changes.
-    if (auto* device = getDevice<DeviceImpl>())
     {
+        auto* device = getDevice<DeviceImpl>();
         std::lock_guard<std::mutex> lock(device->m_residencySetMutex);
-        if (device->m_residencySet && device->m_residencySetDirty)
+        if (device->m_residencySetDirty)
         {
             device->m_residencySet->commit();
             device->m_residencySetDirty = false;

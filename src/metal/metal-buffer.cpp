@@ -11,14 +11,12 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl()
 {
-    if (auto* device = getDevice<DeviceImpl>())
-        device->unregisterAllocation(m_buffer.get());
+    getDevice<DeviceImpl>()->unregisterAllocation(m_buffer.get());
 }
 
 void BufferImpl::deleteThis()
 {
-    if (auto* device = getDevice<DeviceImpl>())
-        device->deferDelete(this);
+    getDevice<DeviceImpl>()->deferDelete(this);
 }
 
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
@@ -93,11 +91,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
             if (!commandBuffer)
                 return SLANG_FAIL;
-            encodeWaitForPreviousSubmission(commandBuffer);
             MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
             if (!encoder)
                 return SLANG_FAIL;
-            // Staging buffer not in residency set (see metal-utils.h).
             encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
             encoder->endEncoding();
             commandBuffer->commit();
@@ -122,16 +118,8 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
+    SLANG_UNUSED(mode);
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    if (mode == CpuAccessMode::Read)
-    {
-        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        if (!commandBuffer)
-            return SLANG_FAIL;
-        encodeWaitForPreviousSubmission(commandBuffer);
-        commandBuffer->commit();
-        commandBuffer->waitUntilCompleted();
-    }
     *outData = bufferImpl->m_buffer->contents();
     return SLANG_OK;
 }

@@ -85,6 +85,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     // R5: Require Apple Silicon (GPU Family 6+) for untracked mode + MTLResidencySet.
     if (!m_device->supportsFamily(MTL::GPUFamilyApple6))
     {
+        handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Driver,
+            "Metal backend requires Apple GPU Family 6+ (Apple Silicon)"
+        );
         return SLANG_FAIL;
     }
 
@@ -314,7 +319,6 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // Staging buffer not in residency set (see metal-utils.h).
     auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
     NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(m_device->newBuffer(size, stagingOpts));
     if (!stagingBuffer)
@@ -488,22 +492,18 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
 
 void DeviceImpl::registerAllocation(MTL::Allocation* allocation)
 {
-    if (m_residencySet && allocation)
-    {
-        std::lock_guard<std::mutex> lock(m_residencySetMutex);
-        m_residencySet->addAllocation(allocation);
-        m_residencySetDirty = true;
-    }
+    SLANG_RHI_ASSERT(allocation);
+    std::lock_guard<std::mutex> lock(m_residencySetMutex);
+    m_residencySet->addAllocation(allocation);
+    m_residencySetDirty = true;
 }
 
 void DeviceImpl::unregisterAllocation(MTL::Allocation* allocation)
 {
-    if (m_residencySet && allocation)
-    {
-        std::lock_guard<std::mutex> lock(m_residencySetMutex);
-        m_residencySet->removeAllocation(allocation);
-        m_residencySetDirty = true;
-    }
+    SLANG_RHI_ASSERT(allocation);
+    std::lock_guard<std::mutex> lock(m_residencySetMutex);
+    m_residencySet->removeAllocation(allocation);
+    m_residencySetDirty = true;
 }
 
 void DeviceImpl::encodeWaitForPreviousSubmission(MTL::CommandBuffer* commandBuffer)

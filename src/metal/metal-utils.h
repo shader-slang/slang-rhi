@@ -92,10 +92,4 @@ inline MTL::ResourceOptions makeResourceOptions(
     return storageMode | cpuCacheMode | MTL::ResourceHazardTrackingModeUntracked;
 }
 
-// Staging resources (short-lived upload/readback buffers and textures) are
-// not registered with the residency set. Blit encoders take explicit resource
-// pointers for every operation, so Metal handles residency for them implicitly
-// (unlike render/compute encoders, which need useResource() for resources
-// accessed indirectly via argument buffers or device addresses).
-
 } // namespace rhi::metal

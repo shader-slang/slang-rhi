@@ -14,8 +14,7 @@ TextureImpl::~TextureImpl()
     m_defaultView.setNull();
     if (m_texture && !m_isSwapchainTexture)
     {
-        if (auto* device = getDevice<DeviceImpl>())
-            device->unregisterAllocation(m_texture.get());
+        getDevice<DeviceImpl>()->unregisterAllocation(m_texture.get());
     }
 }
 
@@ -28,8 +27,7 @@ void TextureImpl::deleteThis()
     }
     m_defaultView.setNull();
     m_sampler.setNull();
-    if (auto* device = getDevice<DeviceImpl>())
-        device->deferDelete(this);
+    getDevice<DeviceImpl>()->deferDelete(this);
 }
 
 Result TextureImpl::getNativeHandle(NativeHandle* outHandle)
@@ -168,8 +166,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
-        // Staging texture not in residency set (see metal-utils.h).
-        // Uses shared mode; on UMA, replaceRegion writes are immediately coherent.
+        // Staging texture: shared mode, on UMA replaceRegion writes are immediately coherent.
         textureDesc->setStorageMode(MTL::StorageModeShared);
         textureDesc->setCpuCacheMode(MTL::CPUCacheModeDefaultCache);
         textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
@@ -180,7 +177,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
         if (!commandBuffer)
             return SLANG_FAIL;
-        encodeWaitForPreviousSubmission(commandBuffer);
         MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
         if (!encoder)
             return SLANG_FAIL;
