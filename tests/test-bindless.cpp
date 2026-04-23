@@ -4,7 +4,7 @@ using namespace rhi;
 using namespace rhi::testing;
 
 // Bindless buffers are currently not supported on CUDA.
-GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan)
+GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan | CUDA)
 {
     if (!device->hasFeature(Feature::Bindless))
     {
@@ -176,7 +176,9 @@ GPU_TEST_CASE("bindless-buffers", D3D12 | Vulkan)
         }
     );
 
-    compareComputeResult(device, rwBuffer, std::array{2.f, 3.f});
+    // Bindless Buffer<> resources are currently not supported on CUDA.
+    if (device->getDeviceType() != DeviceType::CUDA)
+        compareComputeResult(device, rwBuffer, std::array{2.f, 3.f});
     compareComputeResult(device, rwStructuredBuffer, std::array{2.f, 3.f});
     compareComputeResult(device, rwByteAddressBuffer, std::array{2.f, 3.f});
 }
