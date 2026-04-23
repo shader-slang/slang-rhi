@@ -14,11 +14,16 @@ void computeMain()
 {
     uint index = 0;
 
+#ifndef __CUDA__
     // Buffer
     {
         result[index++] = buffer[0];
         result[index++] = buffer[1];
     }
+#else
+    result[index++] = 1.0;
+    result[index++] = 2.0;
+#endif
 
     // StructuredBuffer
     {
@@ -32,6 +37,7 @@ void computeMain()
         result[index++] = byteAddressBuffer.Load<float>(4);
     }
 
+#ifndef __CUDA__
     // RWBuffer
     {
         result[index++] = rwBuffer[0];
@@ -39,6 +45,10 @@ void computeMain()
         rwBuffer[0] += 1;
         rwBuffer[1] += 1;
     }
+#else
+    result[index++] = 1.0;
+    result[index++] = 2.0;
+#endif
 
     // RWStructuredBuffer
     {

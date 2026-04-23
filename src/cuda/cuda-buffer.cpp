@@ -60,11 +60,9 @@ Result BufferImpl::getDescriptorHandle(
         return SLANG_E_INVALID_ARG;
     }
 
-    // Bindless CUDA buffers are currently not supported.
-    // Slang emits code that treats bindless descriptors as pointers to StructuredBuffer<T>, RWStructuredBuffer<T> etc.
-    // To support that we'd have to allocate these buffer structures in CUDA device memory and point to these.
-    // For now we just bail out.
-    return SLANG_E_NOT_IMPLEMENTED;
+    outHandle->value = reinterpret_cast<uint64_t>(m_cudaMemory);
+    // TODO we should also return the size
+    return SLANG_OK;
 }
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
