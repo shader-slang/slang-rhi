@@ -332,11 +332,9 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
     if (!blitEncoder)
         return SLANG_FAIL;
-    if (m_queue && m_queue->m_queueFence)
-        blitEncoder->waitForFence(m_queue->m_queueFence.get());
+    blitEncoder->waitForFence(m_queue->m_queueFence.get());
     blitEncoder->copyFromBuffer(bufferImpl->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
-    if (m_queue && m_queue->m_queueFence)
-        blitEncoder->updateFence(m_queue->m_queueFence.get());
+    blitEncoder->updateFence(m_queue->m_queueFence.get());
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();

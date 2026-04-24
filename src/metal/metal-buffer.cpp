@@ -95,11 +95,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
             if (!encoder)
                 return SLANG_FAIL;
-            if (m_queue && m_queue->m_queueFence)
-                encoder->waitForFence(m_queue->m_queueFence.get());
+            encoder->waitForFence(m_queue->m_queueFence.get());
             encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
-            if (m_queue && m_queue->m_queueFence)
-                encoder->updateFence(m_queue->m_queueFence.get());
+            encoder->updateFence(m_queue->m_queueFence.get());
             encoder->endEncoding();
             commandBuffer->commit();
             commandBuffer->waitUntilCompleted();

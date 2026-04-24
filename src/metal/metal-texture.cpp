@@ -209,11 +209,9 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
             }
         }
 
-        if (m_queue && m_queue->m_queueFence)
-            encoder->waitForFence(m_queue->m_queueFence.get());
+        encoder->waitForFence(m_queue->m_queueFence.get());
         encoder->copyFromTexture(stagingTexture.get(), textureImpl->m_texture.get());
-        if (m_queue && m_queue->m_queueFence)
-            encoder->updateFence(m_queue->m_queueFence.get());
+        encoder->updateFence(m_queue->m_queueFence.get());
         encoder->endEncoding();
         commandBuffer->commit();
         commandBuffer->waitUntilCompleted();

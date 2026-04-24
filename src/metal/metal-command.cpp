@@ -982,14 +982,10 @@ MTL::RenderCommandEncoder* CommandRecorder::getRenderCommandEncoder(MTL::RenderP
     {
         endCommandEncoder();
         m_renderCommandEncoder = NS::RetainPtr(m_commandBuffer->renderCommandEncoder(renderPassDesc));
-        MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_queue->m_queueFence.get() : nullptr;
-        if (fence)
-        {
-            m_renderCommandEncoder->waitForFence(
-                fence,
-                MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
-            );
-        }
+        m_renderCommandEncoder->waitForFence(
+            m_commandBufferImpl->m_queue->m_queueFence.get(),
+            MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
+        );
     }
     return m_renderCommandEncoder.get();
 }
@@ -1000,11 +996,7 @@ MTL::ComputeCommandEncoder* CommandRecorder::getComputeCommandEncoder()
     {
         endCommandEncoder();
         m_computeCommandEncoder = NS::RetainPtr(m_commandBuffer->computeCommandEncoder());
-        MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_queue->m_queueFence.get() : nullptr;
-        if (fence)
-        {
-            m_computeCommandEncoder->waitForFence(fence);
-        }
+        m_computeCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_computeCommandEncoder.get();
 }
@@ -1015,11 +1007,7 @@ MTL::AccelerationStructureCommandEncoder* CommandRecorder::getAccelerationStruct
     {
         endCommandEncoder();
         m_accelerationStructureCommandEncoder = NS::RetainPtr(m_commandBuffer->accelerationStructureCommandEncoder());
-        MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_queue->m_queueFence.get() : nullptr;
-        if (fence)
-        {
-            m_accelerationStructureCommandEncoder->waitForFence(fence);
-        }
+        m_accelerationStructureCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_accelerationStructureCommandEncoder.get();
 }
@@ -1030,26 +1018,21 @@ MTL::BlitCommandEncoder* CommandRecorder::getBlitCommandEncoder()
     {
         endCommandEncoder();
         m_blitCommandEncoder = NS::RetainPtr(m_commandBuffer->blitCommandEncoder());
-        MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_queue->m_queueFence.get() : nullptr;
-        if (fence)
-        {
-            m_blitCommandEncoder->waitForFence(fence);
-        }
+        m_blitCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_blitCommandEncoder.get();
 }
 
 void CommandRecorder::endCommandEncoder()
 {
-    MTL::Fence* fence = m_commandBufferImpl ? m_commandBufferImpl->m_queue->m_queueFence.get() : nullptr;
+    MTL::Fence* fence = m_commandBufferImpl->m_queue->m_queueFence.get();
 
     if (m_renderCommandEncoder)
     {
-        if (fence)
-            m_renderCommandEncoder->updateFence(
-                fence,
-                MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
-            );
+        m_renderCommandEncoder->updateFence(
+            fence,
+            MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
+        );
         m_renderCommandEncoder->endEncoding();
         m_renderCommandEncoder.reset();
 
@@ -1059,8 +1042,7 @@ void CommandRecorder::endCommandEncoder()
     }
     if (m_computeCommandEncoder)
     {
-        if (fence)
-            m_computeCommandEncoder->updateFence(fence);
+        m_computeCommandEncoder->updateFence(fence);
         m_computeCommandEncoder->endEncoding();
         m_computeCommandEncoder.reset();
 
@@ -1070,15 +1052,13 @@ void CommandRecorder::endCommandEncoder()
     }
     if (m_accelerationStructureCommandEncoder)
     {
-        if (fence)
-            m_accelerationStructureCommandEncoder->updateFence(fence);
+        m_accelerationStructureCommandEncoder->updateFence(fence);
         m_accelerationStructureCommandEncoder->endEncoding();
         m_accelerationStructureCommandEncoder.reset();
     }
     if (m_blitCommandEncoder)
     {
-        if (fence)
-            m_blitCommandEncoder->updateFence(fence);
+        m_blitCommandEncoder->updateFence(fence);
         m_blitCommandEncoder->endEncoding();
         m_blitCommandEncoder.reset();
     }
