@@ -329,11 +329,14 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
     if (!commandBuffer)
         return SLANG_FAIL;
-    encodeWaitForPreviousSubmission(commandBuffer);
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
     if (!blitEncoder)
         return SLANG_FAIL;
+    if (m_queue && m_queue->m_queueFence)
+        blitEncoder->waitForFence(m_queue->m_queueFence.get());
     blitEncoder->copyFromBuffer(bufferImpl->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
+    if (m_queue && m_queue->m_queueFence)
+        blitEncoder->updateFence(m_queue->m_queueFence.get());
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
@@ -504,17 +507,6 @@ void DeviceImpl::unregisterAllocation(MTL::Allocation* allocation)
     std::lock_guard<std::mutex> lock(m_residencySetMutex);
     m_residencySet->removeAllocation(allocation);
     m_residencySetDirty = true;
-}
-
-void DeviceImpl::encodeWaitForPreviousSubmission(MTL::CommandBuffer* commandBuffer)
-{
-    if (m_queue && commandBuffer)
-    {
-        // On the first call (no prior submission), this wait completes immediately
-        // because CommandQueueImpl::init sets both m_lastSubmittedID and the
-        // tracking event's signaled value to 1.
-        commandBuffer->encodeWait(m_queue->m_trackingEvent.get(), m_queue->m_lastSubmittedID);
-    }
 }
 
 } // namespace rhi::metal

@@ -11,6 +11,7 @@ class CommandQueueImpl : public CommandQueue
 {
 public:
     NS::SharedPtr<MTL::CommandQueue> m_commandQueue;
+    NS::SharedPtr<MTL::Fence> m_queueFence;
     NS::SharedPtr<MTL::SharedEvent> m_trackingEvent;
     NS::SharedPtr<MTL::SharedEventListener> m_trackingEventListener;
     uint64_t m_lastSubmittedID;
@@ -79,7 +80,6 @@ class CommandBufferImpl : public CommandBuffer
 public:
     CommandQueueImpl* m_queue;
     NS::SharedPtr<MTL::CommandBuffer> m_commandBuffer;
-    NS::SharedPtr<MTL::Fence> m_encoderFence;
     BindingCache m_bindingCache;
     uint64_t m_submissionID;
 
