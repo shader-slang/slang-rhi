@@ -19,10 +19,11 @@
 #include "struct-holder.h"
 
 // Suppress clang warnings for static std::mutex declarations.
-// Clang < 16 warns about global constructors/exit-time destructors for std::mutex,
-// even though it has a trivial destructor. Clang 16+ recognizes its constexpr constructor
-// and no longer emits these warnings.
-#if defined(__clang__) && (__clang_major__ < 16)
+// Clang reports -Wglobal-constructors and -Wexit-time-destructors for file-scope std::mutex
+// declarations because they participate in global initialization and teardown. For this
+// usage the warning is noise: std::mutex is the intended primitive here, and the warning does
+// not indicate unsafe custom initialization logic or destructor side effects in our code.
+#if defined(__clang__)
 // clang-format off
 #define SLANG_RHI_STATIC_MUTEX_BEGIN                                                                                   \
     _Pragma("clang diagnostic push")                                                                                   \

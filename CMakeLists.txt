@@ -598,6 +598,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         -Wno-nested-anon-types
         -Wno-cast-function-type-mismatch
         -Wno-c++20-extensions
+        -Wno-c2y-extensions
         # Windows specific warnings
         -Wno-microsoft-exception-spec
         -Wno-microsoft-enum-value
@@ -615,6 +616,7 @@ target_compile_options(slang-rhi-warnings INTERFACE
         -Wno-gnu-anonymous-struct
         -Wno-gnu-zero-variadic-macro-arguments
         -Wno-nested-anon-types
+        -Wno-c2y-extensions
     >
     $<$<BOOL:${EMSCRIPTEN}>:-Wno-c2y-extensions>
 )
