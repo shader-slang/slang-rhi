@@ -441,7 +441,7 @@ public:
     virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);
 
 protected:
-    virtual SLANG_NO_THROW Result SLANG_MCALL initialize(const DeviceDesc& desc);
+    Result initialize(const DeviceDesc& desc);
 
     void addFeature(Feature feature);
     void addCapability(Capability capability);
@@ -499,7 +499,7 @@ void markDefaultAdapter(std::vector<T>& adapters)
 }
 
 template<typename T>
-Result selectAdapter(Device* device, std::vector<T>& adapters, const DeviceDesc& desc, T*& outAdapter)
+Result selectAdapter(Device* device, std::span<const T> adapters, const DeviceDesc& desc, const T*& outAdapter)
 {
     if (adapters.empty())
     {

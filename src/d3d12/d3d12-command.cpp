@@ -910,6 +910,8 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         m_cmdList->RSSetScissorRects(state.scissorRectCount, scissorRects);
     }
 
+    commitBarriers();
+
     m_renderStateValid = true;
     m_renderState = state;
 
@@ -1034,6 +1036,8 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         setBindings(m_bindingData, BindMode::Compute);
     }
 
+    commitBarriers();
+
     m_computeStateValid = true;
 
     m_renderStateValid = false;
@@ -1110,6 +1114,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
             m_rayTracingStateValid = false;
             return;
         }
+        requireBufferState(shaderTablePipelineData->buffer, ResourceState::ShaderResource);
         DeviceAddress shaderTableAddr = shaderTablePipelineData->buffer->getDeviceAddress();
 
         m_dispatchRaysDesc = {};
@@ -1147,6 +1152,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
             m_dispatchRaysDesc.CallableShaderTable.StrideInBytes = shaderTablePipelineData->callableRecordStride;
         }
     }
+
+    commitBarriers();
 
     m_rayTracingStateValid = true;
 
@@ -1627,6 +1634,8 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMod
             textureState.state
         );
     }
+
+    // We need barriers to be committed before setting root parameters.
     commitBarriers();
 
     // Then we bind the root parameters.

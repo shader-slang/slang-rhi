@@ -1,31 +1,22 @@
 #pragma once
 
-#include <unordered_map>
+#include <type_traits>
 
 namespace rhi {
 
-/// Given a mapping function, create a reverse map from To to From.
-/// The mapping function func must be bijective.
-/// The reverse map will return defaultValue if the value is not found.
-template<typename From, typename To, typename Func>
-auto reverseMap(Func func, From min, From max, From defaultValue = From(0))
+/// Given a forward mapping function, perform a reverse lookup from To to From.
+/// Iterates over all values in [min, max) and returns the first From whose forward mapping equals value.
+/// Returns defaultValue if no match is found.
+template<typename From, typename To, From min, From max, typename Func>
+From reverseMapLookup(Func func, To value, From defaultValue = From(0))
 {
-    static std::unordered_map<To, From> reverseMap = [&]()
+    using U = std::underlying_type_t<From>;
+    for (U i = static_cast<U>(min); i < static_cast<U>(max); i++)
     {
-        std::unordered_map<To, From> map;
-        for (int i = int(min); i <= int(max); i++)
-        {
-            const From fromI = From(i);
-            const To key = func(fromI); // Fixed MSVC warning C4709: comma operator within a subscript expression
-            map[key] = fromI;
-        }
-        return map;
-    }();
-    return [defaultValue](To value) -> From
-    {
-        auto it = reverseMap.find(value);
-        return it == reverseMap.end() ? defaultValue : it->second;
-    };
+        if (func(static_cast<From>(i)) == value)
+            return static_cast<From>(i);
+    }
+    return defaultValue;
 }
 
 } // namespace rhi

@@ -14,6 +14,7 @@
 
 namespace rhi::d3d12 {
 
+class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;
 class BufferImpl;

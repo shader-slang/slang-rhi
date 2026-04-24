@@ -102,6 +102,8 @@ int main(int argc, const char** argv)
 
     rhi::testing::cleanupTestTempDirectories();
 
+    rhi::destroyRHI();
+
 #if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
     if (!rhi::RefObjectTracker::instance().objects.empty())
     {

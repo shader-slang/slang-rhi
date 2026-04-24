@@ -18,6 +18,25 @@
 #include "string.h"
 #include "struct-holder.h"
 
+// Suppress clang warnings for static std::mutex declarations.
+// Clang reports -Wglobal-constructors and -Wexit-time-destructors for file-scope std::mutex
+// declarations because they participate in global initialization and teardown. For this
+// usage the warning is noise: std::mutex is the intended primitive here, and the warning does
+// not indicate unsafe custom initialization logic or destructor side effects in our code.
+#if defined(__clang__)
+// clang-format off
+#define SLANG_RHI_STATIC_MUTEX_BEGIN                                                                                   \
+    _Pragma("clang diagnostic push")                                                                                   \
+    _Pragma("clang diagnostic ignored \"-Wglobal-constructors\"")                                                      \
+    _Pragma("clang diagnostic ignored \"-Wexit-time-destructors\"")
+#define SLANG_RHI_STATIC_MUTEX_END                                                                                     \
+    _Pragma("clang diagnostic pop")
+// clang-format on
+#else
+#define SLANG_RHI_STATIC_MUTEX_BEGIN
+#define SLANG_RHI_STATIC_MUTEX_END
+#endif
+
 namespace rhi {
 
 // A type cast that is safer than static_cast in debug builds, and is a simple static_cast in release builds.

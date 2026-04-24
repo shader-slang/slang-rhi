@@ -43,8 +43,11 @@ Result compileHLSLShader(
 );
 
 SharedLibraryHandle getDXGIModule();
+void clearDXGIModule();
+
 Result createDXGIFactory(bool debug, ComPtr<IDXGIFactory>& outFactory);
 ComPtr<IDXGIFactory> getDXGIFactory(DebugLayerOptions debugLayerOptions, Device* device);
+void clearDXGIFactory();
 
 Result enumAdapters(IDXGIFactory* dxgiFactory, std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
 Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters);

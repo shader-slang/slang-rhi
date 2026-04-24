@@ -1026,9 +1026,10 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
         requireBindingStates(m_bindingData);
-        commitBarriers();
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_COMPUTE);
     }
+
+    commitBarriers();
 
     m_computeStateValid = true;
 
@@ -1088,7 +1089,6 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     {
         m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
         requireBindingStates(m_bindingData);
-        commitBarriers();
         setBindings(m_bindingData, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
     }
 
@@ -1101,6 +1101,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
             m_rayTracingStateValid = false;
             return;
         }
+        requireBufferState(m_shaderTablePipelineData->buffer, ResourceState::ShaderResource);
         DeviceAddress shaderTableAddr = m_shaderTablePipelineData->buffer->getDeviceAddress();
 
         // Raygen address, stride, and size are set at dispatch time since each raygen
@@ -1119,6 +1120,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
         m_callableSBT.stride = m_shaderTablePipelineData->callableRecordStride;
         m_callableSBT.size = m_shaderTablePipelineData->callableTableSize;
     }
+
+    commitBarriers();
 
     m_rayTracingStateValid = true;
 

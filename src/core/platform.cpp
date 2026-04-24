@@ -6,6 +6,8 @@
 #include <windows.h>
 #elif SLANG_LINUX_FAMILY || SLANG_APPLE_FAMILY
 #include <dlfcn.h>
+#elif SLANG_WASM
+// nothing to include for WASM
 #else
 #error "Unsupported platform"
 #endif
@@ -20,6 +22,7 @@ Result loadSharedLibrary(const char* path, SharedLibraryHandle& handleOut)
     handleOut = dlopen(path, RTLD_LAZY);
 #else
     SLANG_RHI_ASSERT_FAILURE("Not implemented");
+    return SLANG_E_NOT_IMPLEMENTED;
 #endif
     if (!handleOut)
     {
@@ -47,6 +50,7 @@ void* findSymbolAddressByName(SharedLibraryHandle handle, const char* name)
     return dlsym(handle, name);
 #else
     SLANG_RHI_ASSERT_FAILURE("Not implemented");
+    return nullptr;
 #endif
 }
 
@@ -70,6 +74,7 @@ const char* findSharedLibraryPath(void* symbolAddress)
     return info.dli_fname;
 #else
     SLANG_RHI_ASSERT_FAILURE("Not implemented");
+    return nullptr;
 #endif
 }
 

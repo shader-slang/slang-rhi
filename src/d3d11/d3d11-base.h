@@ -12,6 +12,7 @@
 
 namespace rhi::d3d11 {
 
+class BackendImpl;
 class AdapterImpl;
 class DeviceImpl;
 class ShaderProgramImpl;

@@ -2119,17 +2119,26 @@ struct Viewport
 enum class WindowHandleType
 {
     Undefined,
+#if !SLANG_WASM
     HWND,
     NSWindow,
     XlibWindow,
     AndroidWindow,
+#else
+    WGPUCanvas,
+#endif
 };
 
 struct WindowHandle
 {
     WindowHandleType type = WindowHandleType::Undefined;
+#if !SLANG_WASM
     uint64_t handleValues[2];
+#else
+    char canvasSelector[128];
+#endif
 
+#if !SLANG_WASM
     static WindowHandle fromHwnd(void* hwnd)
     {
         WindowHandle handle = {};
@@ -2159,6 +2168,21 @@ struct WindowHandle
         handle.handleValues[0] = (uint64_t)(window);
         return handle;
     }
+#else
+    static WindowHandle fromWGPUCanvas(const char* canvasSelector)
+    {
+        WindowHandle handle = {};
+        handle.type = WindowHandleType::WGPUCanvas;
+        if (canvasSelector)
+        {
+            size_t i = 0;
+            for (; i < sizeof(handle.canvasSelector) - 1 && canvasSelector[i]; ++i)
+                handle.canvasSelector[i] = canvasSelector[i];
+            handle.canvasSelector[i] = 0;
+        }
+        return handle;
+    }
+#endif
 };
 
 enum class LoadOp
@@ -3695,6 +3719,7 @@ class ITaskPool : public ISlangUnknown
 
 public:
     typedef void* TaskHandle;
+    typedef void* TaskGroupHandle;
 
     /// \brief Submit a new task for execution.
     ///
@@ -3709,13 +3734,15 @@ public:
     /// \param payloadDeleter Optional deleter called with `payload` when the task is destroyed. May be null if no cleanup is needed.
     /// \param deps Array of `TaskHandle`s that must complete before this task runs. May be null if `depsCount` is 0.
     /// \param depsCount Number of entries in `deps`.
+    /// \param group Optional task group handle. If non-null, the task is associated with the group.
     /// \return A handle to the submitted task. The caller must release this with `releaseTask()`.
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
         void (*func)(void*),
         void* payload,
         void (*payloadDeleter)(void*),
         TaskHandle* deps,
-        size_t depsCount
+        size_t depsCount,
+        TaskGroupHandle group = nullptr
     ) = 0;
 
     /// \brief Get the payload associated with a task.
@@ -3742,6 +3769,9 @@ public:
 
     /// \brief Block the calling thread until a task has finished executing.
     ///
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// This makes it safe to call from a task callback without deadlock risk.
+    ///
     /// \param task Task handle to wait on. Must not be null.
     virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) = 0;
 
@@ -3755,7 +3785,35 @@ public:
     ///
     /// Waits for every task that has been submitted to this pool (and not yet completed)
     /// to finish executing. Does not release any task handles.
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
     virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
+
+    /// \brief Create a new task group for tracking a set of tasks.
+    ///
+    /// A task group tracks a dynamically growing set of tasks. Tasks are associated with a
+    /// group by passing the group handle to `submitTask()`.
+    ///
+    /// \return An opaque handle to the task group.
+    virtual SLANG_NO_THROW TaskGroupHandle SLANG_MCALL createTaskGroup() = 0;
+
+    /// \brief Block the calling thread until all tasks in the group have completed.
+    ///
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// This makes it safe to call from a task callback without deadlock risk.
+    /// Must not be called while other threads are still submitting tasks to the group
+    /// outside of task callbacks.
+    /// A group must not be reused after `waitTaskGroup` returns.
+    ///
+    /// \param group Task group handle. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitTaskGroup(TaskGroupHandle group) = 0;
+
+    /// \brief Release a task group.
+    ///
+    /// Must be called exactly once after `waitTaskGroup` returns. Calling with tasks
+    /// still pending is undefined behavior.
+    ///
+    /// \param group Task group handle. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL releaseTaskGroup(TaskGroupHandle group) = 0;
 };
 
 class IPersistentCache : public ISlangUnknown
@@ -3904,6 +3962,11 @@ struct VulkanDeviceExtendedDesc
 /// Get the global interface to the RHI.
 extern "C" SLANG_RHI_API rhi::IRHI* SLANG_STDCALL rhiGetInstance();
 
+/// Destroy the global RHI instance and release all owned resources.
+/// Fails if any devices are currently alive.
+/// After calling this, rhiGetInstance() will create a new instance on next call.
+extern "C" SLANG_RHI_API SlangResult SLANG_STDCALL rhiDestroyInstance();
+
 // Global public functions
 
 namespace rhi {
@@ -3912,6 +3975,14 @@ namespace rhi {
 inline IRHI* getRHI()
 {
     return ::rhiGetInstance();
+}
+
+/// Destroy the global RHI instance and release all owned resources.
+/// Fails if any devices are currently alive.
+/// After calling this, getRHI() will create a new instance on next call.
+inline Result destroyRHI()
+{
+    return rhiDestroyInstance();
 }
 
 inline const FormatInfo& getFormatInfo(Format format)

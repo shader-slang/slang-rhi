@@ -9,91 +9,9 @@
 #include "core/common.h"
 #include "core/deferred.h"
 
-#include <cstdio>
 #include <vector>
 
 namespace rhi::wgpu {
-
-static inline WGPUDawnTogglesDescriptor getDawnTogglesDescriptor()
-{
-    // Currently no toggles are needed.
-    static const std::vector<const char*> enabledToggles = {};
-    static const std::vector<const char*> disabledToggles = {};
-    WGPUDawnTogglesDescriptor togglesDesc = {};
-    togglesDesc.chain.sType = WGPUSType_DawnTogglesDescriptor;
-    togglesDesc.enabledToggleCount = enabledToggles.size();
-    togglesDesc.enabledToggles = enabledToggles.data();
-    togglesDesc.disabledToggleCount = disabledToggles.size();
-    togglesDesc.disabledToggles = disabledToggles.data();
-    return togglesDesc;
-}
-
-static inline Result createWGPUInstance(API& api, WGPUInstance* outInstance)
-{
-    WGPUInstanceDescriptor instanceDesc = {};
-    instanceDesc.capabilities.timedWaitAnyEnable = WGPUBool(true);
-    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
-    instanceDesc.nextInChain = &togglesDesc.chain;
-    WGPUInstance instance = api.wgpuCreateInstance(&instanceDesc);
-    if (!instance)
-    {
-        return SLANG_FAIL;
-    }
-    *outInstance = instance;
-    return SLANG_OK;
-}
-
-#if 0
-
-
-#endif
-
-static inline Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
-{
-    // Request adapter.
-    WGPURequestAdapterOptions options = {};
-    options.powerPreference = WGPUPowerPreference_HighPerformance;
-#if SLANG_WINDOWS_FAMILY
-    // TODO: D3D12 Validation errors prevents use of D3D12, use Vulkan for now.
-    options.backendType = WGPUBackendType_Vulkan;
-#elif SLANG_LINUX_FAMILY
-    options.backendType = WGPUBackendType_Vulkan;
-#endif
-    WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
-    options.nextInChain = &togglesDesc.chain;
-
-    WGPUAdapter adapter = {};
-    {
-        WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
-        WGPURequestAdapterCallbackInfo callbackInfo = {};
-        callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
-        callbackInfo.callback = [](WGPURequestAdapterStatus status_,
-                                   WGPUAdapter adapter_,
-                                   WGPUStringView message,
-                                   void* userdata1,
-                                   void* userdata2)
-        {
-            *(WGPURequestAdapterStatus*)userdata1 = status_;
-            *(WGPUAdapter*)userdata2 = adapter_;
-        };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &adapter;
-        WGPUFuture future = api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus = api.wgpuInstanceWaitAny(instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestAdapterStatus_Success)
-        {
-            return SLANG_FAIL;
-        }
-    }
-    if (!adapter)
-    {
-        return SLANG_FAIL;
-    }
-    *outAdapter = adapter;
-    return SLANG_OK;
-}
 
 Context::~Context()
 {
@@ -153,7 +71,7 @@ WGPUErrorType DeviceImpl::getAndClearLastUncapturedError()
     return error;
 }
 
-Result DeviceImpl::initialize(const DeviceDesc& desc)
+Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 {
     SLANG_RETURN_ON_FAIL(Device::initialize(desc));
 
@@ -171,11 +89,34 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     WGPUSupportedFeatures adapterFeatures = {};
     api.wgpuAdapterGetFeatures(m_ctx.adapter, &adapterFeatures);
 
-    // We request a device with the maximum available limits and feature set.
+    // We create a device with all features the adapter supports.
+    // However, some features are mutually exclusive with each other, or cause issues on some platforms,
+    // so we disable those features here.
+    std::vector<WGPUFeatureName> disabledAdapterFeatures{
+#if !SLANG_WASM
+        WGPUFeatureName_SharedTextureMemoryZirconHandle,
+        WGPUFeatureName_SharedFenceSyncFD,
+        WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle,
+#endif
+    };
+
+    std::vector<WGPUFeatureName> enabledFeatures;
+    for (uint32_t i = 0; i < adapterFeatures.featureCount; i++)
+    {
+        WGPUFeatureName feature = adapterFeatures.features[i];
+        if (std::find(disabledAdapterFeatures.begin(), disabledAdapterFeatures.end(), feature) !=
+            disabledAdapterFeatures.end())
+        {
+            continue;
+        }
+        enabledFeatures.push_back(feature);
+    }
+
+    // We request a device with the maximum available limits and filtered feature set.
     WGPULimits requiredLimits = adapterLimits;
     WGPUDeviceDescriptor deviceDesc = {};
-    deviceDesc.requiredFeatures = adapterFeatures.features;
-    deviceDesc.requiredFeatureCount = adapterFeatures.featureCount;
+    deviceDesc.requiredFeatures = enabledFeatures.data();
+    deviceDesc.requiredFeatureCount = static_cast<uint32_t>(enabledFeatures.size());
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.uncapturedErrorCallbackInfo.callback =
         [](const WGPUDevice* device, WGPUErrorType type, WGPUStringView message, void* userdata1, void* userdata2)
@@ -184,51 +125,62 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         deviceImpl->reportUncapturedError(type, message);
     };
     deviceDesc.uncapturedErrorCallbackInfo.userdata1 = this;
+    deviceDesc.deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
+    deviceDesc.deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
+                                                    WGPUDeviceLostReason reason,
+                                                    WGPUStringView message,
+                                                    void* userdata1,
+                                                    void* userdata2)
+    {
+        if (reason != WGPUDeviceLostReason_Destroyed)
+        {
+            DeviceImpl* deviceImpl = static_cast<DeviceImpl*>(userdata1);
+            deviceImpl->reportDeviceLost(reason, message);
+        }
+    };
+    deviceDesc.deviceLostCallbackInfo.userdata1 = this;
+#if !SLANG_WASM
     WGPUDawnTogglesDescriptor togglesDesc = getDawnTogglesDescriptor();
     deviceDesc.nextInChain = &togglesDesc.chain;
+#endif
 
     {
-        WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
+        struct DeviceRequestState
+        {
+            WGPURequestDeviceStatus status = WGPURequestDeviceStatus(0);
+            WGPUDevice device = nullptr;
+            std::string message;
+        };
+        DeviceRequestState state;
+
         WGPURequestDeviceCallbackInfo callbackInfo = {};
+#if !SLANG_WASM
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#else
+        callbackInfo.mode = WGPUCallbackMode_AllowProcessEvents;
+#endif
         callbackInfo.callback = [](WGPURequestDeviceStatus status_,
                                    WGPUDevice device,
                                    WGPUStringView message,
                                    void* userdata1,
                                    void* userdata2)
         {
-            *(WGPURequestDeviceStatus*)userdata1 = status_;
-            *(WGPUDevice*)userdata2 = device;
+            DeviceRequestState* requestState = (DeviceRequestState*)userdata1;
+            requestState->status = status_;
+            requestState->device = device;
+            if (message.length > 0)
+                requestState->message.assign(message.data, message.length);
         };
-        callbackInfo.userdata1 = &status;
-        callbackInfo.userdata2 = &m_ctx.device;
-
-        WGPUDeviceLostCallbackInfo deviceLostCallbackInfo = {};
-        deviceLostCallbackInfo.callback = [](const WGPUDevice* device,
-                                             WGPUDeviceLostReason reason,
-                                             WGPUStringView message,
-                                             void* userdata1,
-                                             void* userdata2)
-        {
-            if (reason != WGPUDeviceLostReason_Destroyed)
-            {
-                DeviceImpl* deviceimpl = static_cast<DeviceImpl*>(userdata1);
-                deviceimpl->reportDeviceLost(reason, message);
-            }
-        };
-        deviceLostCallbackInfo.userdata1 = this;
-        deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous;
-        deviceDesc.deviceLostCallbackInfo = deviceLostCallbackInfo;
+        callbackInfo.userdata1 = &state;
+        callbackInfo.userdata2 = nullptr;
 
         WGPUFuture future = m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPURequestDeviceStatus_Success)
+        WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
+        if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestDeviceStatus_Success)
         {
             return SLANG_FAIL;
         }
+        m_ctx.device = state.device;
     }
 
     // Query device limits.
@@ -538,16 +490,17 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         WGPUQueueWorkDoneStatus status = WGPUQueueWorkDoneStatus(0);
         WGPUQueueWorkDoneCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
+#if !SLANG_WASM
         callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, void* userdata1, void* userdata2)
+#else
+        callbackInfo.callback = [](WGPUQueueWorkDoneStatus status_, WGPUStringView, void* userdata1, void* userdata2)
+#endif
         {
             *(WGPUQueueWorkDoneStatus*)userdata1 = status_;
         };
         callbackInfo.userdata1 = &status;
         WGPUFuture future = m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
             return SLANG_FAIL;
@@ -570,10 +523,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         callbackInfo.userdata1 = &status;
         callbackInfo.userdata2 = this;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
-        WGPUFutureWaitInfo futures[1] = {{future}};
-        uint64_t timeoutNS = UINT64_MAX;
-        WGPUWaitStatus waitStatus =
-            m_ctx.api.wgpuInstanceWaitAny(m_ctx.instance, SLANG_COUNT_OF(futures), futures, timeoutNS);
+        WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
         {
             return SLANG_FAIL;
@@ -629,79 +579,4 @@ Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable**
     return SLANG_E_NOT_IMPLEMENTED;
 }
 
-inline Result getAdaptersImpl(std::vector<Adapter>& outAdapters)
-{
-    // If WGPU is not available, return no adapters.
-    API api;
-    if (SLANG_FAILED(api.init()))
-    {
-        return SLANG_OK;
-    }
-
-    WGPUInstance wgpuInstance = {};
-    SLANG_RETURN_ON_FAIL(createWGPUInstance(api, &wgpuInstance));
-    SLANG_RHI_DEFERRED({ api.wgpuInstanceRelease(wgpuInstance); });
-
-    WGPUAdapter wgpuAdapter = {};
-    SLANG_RETURN_ON_FAIL(createWGPUAdapter(api, wgpuInstance, &wgpuAdapter));
-    SLANG_RHI_DEFERRED({ api.wgpuAdapterRelease(wgpuAdapter); });
-
-    WGPUAdapterInfo wgpuAdapterInfo = {};
-    api.wgpuAdapterGetInfo(wgpuAdapter, &wgpuAdapterInfo);
-
-    AdapterInfo info = {};
-    info.deviceType = DeviceType::WGPU;
-    switch (wgpuAdapterInfo.adapterType)
-    {
-    case WGPUAdapterType_DiscreteGPU:
-        info.adapterType = AdapterType::Discrete;
-        break;
-    case WGPUAdapterType_IntegratedGPU:
-        info.adapterType = AdapterType::Integrated;
-        break;
-    case WGPUAdapterType_CPU:
-        info.adapterType = AdapterType::Software;
-        break;
-    default:
-        info.adapterType = AdapterType::Unknown;
-        break;
-    }
-    string::copy_safe(info.name, sizeof(info.name), wgpuAdapterInfo.device.data, wgpuAdapterInfo.device.length);
-    info.vendorID = wgpuAdapterInfo.vendorID;
-    info.deviceID = wgpuAdapterInfo.deviceID;
-
-    Adapter adapter;
-    adapter.m_info = info;
-    adapter.m_isDefault = true;
-    outAdapters.push_back(adapter);
-
-    return SLANG_OK;
-}
-
-std::vector<Adapter>& getAdapters()
-{
-    static std::vector<Adapter> adapters;
-    static Result initResult = getAdaptersImpl(adapters);
-    SLANG_UNUSED(initResult);
-    return adapters;
-}
-
 } // namespace rhi::wgpu
-
-namespace rhi {
-
-IAdapter* getWGPUAdapter(uint32_t index)
-{
-    std::vector<Adapter>& adapters = wgpu::getAdapters();
-    return index < adapters.size() ? &adapters[index] : nullptr;
-}
-
-Result createWGPUDevice(const DeviceDesc* desc, IDevice** outDevice)
-{
-    RefPtr<wgpu::DeviceImpl> result = new wgpu::DeviceImpl();
-    SLANG_RETURN_ON_FAIL(result->initialize(*desc));
-    returnComPtr(outDevice, result);
-    return SLANG_OK;
-}
-
-} // namespace rhi

@@ -109,7 +109,10 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL present() override;
 };
 
-static auto translateVkFormat = reverseMap<Format, VkFormat>(vk::getVkFormat, Format::Undefined, Format::_Count);
+static Format translateVkFormat(VkFormat format)
+{
+    return reverseMapLookup<Format, VkFormat, Format::Undefined, Format::_Count>(vk::getVkFormat, format);
+}
 
 SurfaceImpl::~SurfaceImpl()
 {
