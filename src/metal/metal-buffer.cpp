@@ -12,7 +12,10 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 
 BufferImpl::~BufferImpl()
 {
-    getDevice<DeviceImpl>()->unregisterAllocation(m_buffer.get());
+    if (m_buffer)
+    {
+        getDevice<DeviceImpl>()->unregisterAllocation(m_buffer.get());
+    }
 }
 
 void BufferImpl::deleteThis()
