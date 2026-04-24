@@ -76,9 +76,11 @@ MTL::LoadAction translateLoadOp(LoadOp loadOp);
 MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve);
 
 /// Build MTL::ResourceOptions with enforced restrictions:
-/// - MTLStorageModeManaged is forbidden (R3)
-/// - MTLHazardTrackingModeTracked is forbidden (R1)
-/// All resources are created with untracked hazard tracking mode.
+/// - MTLStorageModeManaged is forbidden
+/// - MTLHazardTrackingModeTracked is forbidden
+/// All resources are created with MTLHazardTrackingModeUntracked, which
+/// requires explicit synchronization via MTL::Fence. See the synchronization
+/// model documentation in metal-command.h (CommandQueueImpl).
 /// Note: textures use MTL::TextureDescriptor setters directly and bypass
 /// this helper. A separate SLANG_RHI_ASSERT in createTexture() guards
 /// against managed-mode textures.

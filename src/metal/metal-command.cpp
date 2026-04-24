@@ -36,6 +36,26 @@ inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b
     return (countA == countB) ? std::memcmp(a, b, countA * sizeof(T)) == 0 : false;
 }
 
+/// Records rhi commands into a Metal command buffer.
+///
+/// In Vulkan/D3D12, you record barriers, copies, dispatches, and draws
+/// inline into a command buffer in any order. In Metal, commands are grouped
+/// into typed "encoders" (render, compute, blit, acceleration structure),
+/// and you can only have one active encoder at a time. Switching encoder
+/// type ends the current encoder and creates a new one. This is where
+/// synchronization is required for untracked resources.
+///
+/// Each encoder created by get*CommandEncoder() calls
+/// waitForFence(m_queueFence) at creation, and endCommandEncoder() calls
+/// updateFence(m_queueFence) when ending the encoder. This is analogous to
+/// inserting a full pipeline barrier at every encoder transition -- it
+/// ensures all writes from the previous encoder are visible to the next.
+///
+/// The wait is required on EVERY encoder, including non-first encoders
+/// within the same command buffer. Unlike Vulkan where commands within a
+/// render pass have implicit ordering guarantees, Metal encoder transitions
+/// provide no automatic memory visibility for untracked resources -- the
+/// fence wait/update pair is the mechanism that provides it.
 class CommandRecorder
 {
 public:
