@@ -319,7 +319,7 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     case ResourceState::AccelerationStructureWrite:
         return VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:
-        return VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+        return VK_ACCESS_SHADER_READ_BIT;
     case ResourceState::General:
         return VkAccessFlagBits(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
     default:
