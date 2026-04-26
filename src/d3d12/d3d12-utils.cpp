@@ -3,8 +3,6 @@
 #include "d3d12-buffer.h"
 #include "d3d12-query.h"
 
-#include "core/string.h"
-
 namespace rhi::d3d12 {
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)
