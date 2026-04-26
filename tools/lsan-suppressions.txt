@@ -1,0 +1,50 @@
+# LeakSanitizer suppressions for slang-rhi
+# These suppress known leaks in third-party GPU driver libraries that are outside our control.
+# Reference: https://clang.llvm.org/docs/AddressSanitizer.html#suppressing-memory-leaks
+
+# NVIDIA CUDA driver
+leak:libcuda.so
+leak:libnvidia
+
+# NVIDIA Runtime Compiler (used by Slang for CUDA compilation)
+leak:libnvrtc
+
+# NVIDIA OptiX ray tracing engine
+leak:libnvoptix
+
+# NVIDIA Vulkan driver internal allocations
+# The NVIDIA Vulkan ICD uses anonymous mmap regions for JIT and internal pools
+# that LSAN cannot attribute to a named library (<unknown module>).
+# These suppressions match our code's known-safe Vulkan API call sites.
+leak:DeviceImpl::initVulkanDevice
+leak:DeviceImpl::initVulkanInstance
+leak:DeviceImpl::createRayTracingPipeline2
+leak:BackendImpl::enumerateAdapters
+
+# Vulkan loader and drivers
+leak:libvulkan
+
+# OpenGL/GLX/EGL (used by some drivers)
+leak:libGLX
+leak:libEGL
+
+# X11/XCB (Linux windowing, used by GLFW surface tests)
+# Library-name suppressions for when modules are identifiable:
+leak:libX11
+leak:libxcb
+# Function-name suppression for when X11/XCB loads into anonymous regions:
+leak:glfwInit
+
+# Dawn WebGPU
+leak:libdawn
+leak:dawn.dll
+
+# Direct3D (Windows)
+leak:d3d12.dll
+leak:dxgi.dll
+
+# D-Bus (Linux system IPC library)
+leak:libdbus
+
+# DRM (Linux GPU device management)
+leak:libdrm
