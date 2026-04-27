@@ -206,7 +206,7 @@ endif()
 
 # Metal C++ headers
 if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
-    set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip")
+    set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS15.2_iOS18.2.zip")
 endif()
 
 # Dawn WebGPU (not used for Emscripten - uses emdawnwebgpu port instead)
@@ -488,7 +488,7 @@ if(SLANG_RHI_ENABLE_METAL)
     message(STATUS "Fetching Metal C++ headers ...")
     FetchPackage(metal_cpp URL ${SLANG_RHI_METAL_CPP_URL})
     add_library(slang-rhi-metal-cpp INTERFACE)
-    target_include_directories(slang-rhi-metal-cpp INTERFACE ${metal_cpp_SOURCE_DIR})
+    target_include_directories(slang-rhi-metal-cpp SYSTEM INTERFACE ${metal_cpp_SOURCE_DIR})
 endif()
 
 # Fetch & setup Dawn WebGPU

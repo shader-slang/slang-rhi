@@ -10,7 +10,25 @@
 #include "metal-utils.h"
 #include "../strings.h"
 
+#include <cstdio>
+
 namespace rhi::metal {
+
+static void addErrorHandler(MTL::CommandBuffer* commandBuffer)
+{
+    commandBuffer->addCompletedHandler(^(MTL::CommandBuffer* cb) {
+      if (cb->status() == MTL::CommandBufferStatusError)
+      {
+          NS::Error* error = cb->error();
+          std::fprintf(
+              stderr,
+              "Metal command buffer error: %s\n",
+              error ? error->localizedDescription()->utf8String() : "unknown"
+          );
+          SLANG_RHI_ASSERT_FAILURE("Metal command buffer error");
+      }
+    });
+}
 
 template<typename T>
 inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b)
@@ -18,11 +36,32 @@ inline bool arraysEqual(uint32_t countA, uint32_t countB, const T* a, const T* b
     return (countA == countB) ? std::memcmp(a, b, countA * sizeof(T)) == 0 : false;
 }
 
+/// Records rhi commands into a Metal command buffer.
+///
+/// In Vulkan/D3D12, you record barriers, copies, dispatches, and draws
+/// inline into a command buffer in any order. In Metal, commands are grouped
+/// into typed "encoders" (render, compute, blit, acceleration structure),
+/// and you can only have one active encoder at a time. Switching encoder
+/// type ends the current encoder and creates a new one. This is where
+/// synchronization is required for untracked resources.
+///
+/// Each encoder created by get*CommandEncoder() calls
+/// waitForFence(m_queueFence) at creation, and endCommandEncoder() calls
+/// updateFence(m_queueFence) when ending the encoder. This is analogous to
+/// inserting a full pipeline barrier at every encoder transition -- it
+/// ensures all writes from the previous encoder are visible to the next.
+///
+/// The wait is required on EVERY encoder, including non-first encoders
+/// within the same command buffer. Unlike Vulkan where commands within a
+/// render pass have implicit ordering guarantees, Metal encoder transitions
+/// provide no automatic memory visibility for untracked resources -- the
+/// fence wait/update pair is the mechanism that provides it.
 class CommandRecorder
 {
 public:
     DeviceImpl* m_device;
 
+    CommandBufferImpl* m_commandBufferImpl = nullptr;
     NS::SharedPtr<MTL::CommandBuffer> m_commandBuffer;
     NS::SharedPtr<MTL::RenderCommandEncoder> m_renderCommandEncoder;
     NS::SharedPtr<MTL::ComputeCommandEncoder> m_computeCommandEncoder;
@@ -45,6 +84,7 @@ public:
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
+    bool m_computeEncoderHasDispatched = false;
     RefPtr<ComputePipelineImpl> m_computePipeline;
 
     bool m_rayTracingPassActive = false;
@@ -111,15 +151,8 @@ public:
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 {
+    m_commandBufferImpl = commandBuffer;
     m_commandBuffer = commandBuffer->m_commandBuffer;
-
-    // Synchronize constant and argument buffers.
-    // TODO(shaderobject): This only needs to be done once after writing,
-    // once we cache/reuse binding data this should be revisited.
-    for (const auto& buffer : commandBuffer->m_bindingCache.buffers)
-    {
-        getBlitCommandEncoder()->synchronizeResource(buffer->m_buffer.get());
-    }
 
     CommandList& commandList = commandBuffer->m_commandList;
     auto command = commandList.getCommands();
@@ -565,12 +598,6 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         encoder->setFragmentTextures(m_bindingData->textures, NS::Range(0, m_bindingData->textureCount));
         encoder->setVertexSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
         encoder->setFragmentSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
-        encoder->useResources(m_bindingData->usedResources, m_bindingData->usedResourceCount, MTL::ResourceUsageRead);
-        encoder->useResources(
-            m_bindingData->usedRWResources,
-            m_bindingData->usedRWResourceCount,
-            MTL::ResourceUsageRead | MTL::ResourceUsageWrite
-        );
     }
 
     if (updateVertexBuffers)
@@ -717,6 +744,7 @@ void CommandRecorder::cmdBeginComputePass(const commands::BeginComputePass& cmd)
 
 void CommandRecorder::cmdEndComputePass(const commands::EndComputePass& cmd)
 {
+    endCommandEncoder();
     m_computePassActive = false;
 }
 
@@ -745,12 +773,11 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         );
         encoder->setTextures(m_bindingData->textures, NS::Range(0, m_bindingData->textureCount));
         encoder->setSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
-        encoder->useResources(m_bindingData->usedResources, m_bindingData->usedResourceCount, MTL::ResourceUsageRead);
-        encoder->useResources(
-            m_bindingData->usedRWResources,
-            m_bindingData->usedRWResourceCount,
-            MTL::ResourceUsageRead | MTL::ResourceUsageWrite
-        );
+    }
+
+    if (m_computeEncoderHasDispatched)
+    {
+        m_computeCommandEncoder->memoryBarrier(MTL::BarrierScope(MTL::BarrierScopeBuffers | MTL::BarrierScopeTextures));
     }
 
     m_computeStateValid = true;
@@ -761,11 +788,20 @@ void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     if (!m_computeStateValid)
         return;
 
+    // No automatic barrier between dispatches within a compute pass,
+    // matching Vulkan/D3D12 contract. With untracked hazard mode, Metal
+    // does not auto-synchronize even for explicitly bound resources.
+    // For dependent dispatches, callers have two options:
+    //   1. Re-bind (cmdSetComputeState emits memoryBarrier on rebind)
+    //   2. End pass, call globalBarrier(), begin new pass
     m_computeCommandEncoder->dispatchThreadgroups(MTL::Size(cmd.x, cmd.y, cmd.z), m_computePipeline->m_threadGroupSize);
+    m_computeEncoderHasDispatched = true;
 }
 
 void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
+    // TODO: When implemented, must set m_computeEncoderHasDispatched = true
+    // so that cmdSetComputeState emits a memoryBarrier after indirect dispatches.
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(IComputePassEncoder, dispatchComputeIndirect);
 }
@@ -888,6 +924,22 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
 {
     SLANG_UNUSED(cmd);
+    MTL::BarrierScope scope = MTL::BarrierScope(MTL::BarrierScopeBuffers | MTL::BarrierScopeTextures);
+    if (m_computeCommandEncoder)
+    {
+        m_computeCommandEncoder->memoryBarrier(scope);
+    }
+    else if (m_renderCommandEncoder)
+    {
+        m_renderCommandEncoder->memoryBarrier(
+            scope,
+            MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment),
+            MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
+        );
+    }
+    // Blit/AS encoders: operations within a single encoder are sequential,
+    // so no explicit barrier is needed. Encoder transitions provide
+    // inter-encoder visibility via MTL::Fence.
 }
 
 void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
@@ -930,6 +982,10 @@ MTL::RenderCommandEncoder* CommandRecorder::getRenderCommandEncoder(MTL::RenderP
     {
         endCommandEncoder();
         m_renderCommandEncoder = NS::RetainPtr(m_commandBuffer->renderCommandEncoder(renderPassDesc));
+        m_renderCommandEncoder->waitForFence(
+            m_commandBufferImpl->m_queue->m_queueFence.get(),
+            MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
+        );
     }
     return m_renderCommandEncoder.get();
 }
@@ -940,6 +996,7 @@ MTL::ComputeCommandEncoder* CommandRecorder::getComputeCommandEncoder()
     {
         endCommandEncoder();
         m_computeCommandEncoder = NS::RetainPtr(m_commandBuffer->computeCommandEncoder());
+        m_computeCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_computeCommandEncoder.get();
 }
@@ -950,6 +1007,7 @@ MTL::AccelerationStructureCommandEncoder* CommandRecorder::getAccelerationStruct
     {
         endCommandEncoder();
         m_accelerationStructureCommandEncoder = NS::RetainPtr(m_commandBuffer->accelerationStructureCommandEncoder());
+        m_accelerationStructureCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_accelerationStructureCommandEncoder.get();
 }
@@ -960,14 +1018,21 @@ MTL::BlitCommandEncoder* CommandRecorder::getBlitCommandEncoder()
     {
         endCommandEncoder();
         m_blitCommandEncoder = NS::RetainPtr(m_commandBuffer->blitCommandEncoder());
+        m_blitCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_blitCommandEncoder.get();
 }
 
 void CommandRecorder::endCommandEncoder()
 {
+    MTL::Fence* fence = m_commandBufferImpl->m_queue->m_queueFence.get();
+
     if (m_renderCommandEncoder)
     {
+        m_renderCommandEncoder->updateFence(
+            fence,
+            MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
+        );
         m_renderCommandEncoder->endEncoding();
         m_renderCommandEncoder.reset();
 
@@ -977,19 +1042,23 @@ void CommandRecorder::endCommandEncoder()
     }
     if (m_computeCommandEncoder)
     {
+        m_computeCommandEncoder->updateFence(fence);
         m_computeCommandEncoder->endEncoding();
         m_computeCommandEncoder.reset();
 
         m_computeStateValid = false;
+        m_computeEncoderHasDispatched = false;
         m_computePipeline = nullptr;
     }
     if (m_accelerationStructureCommandEncoder)
     {
+        m_accelerationStructureCommandEncoder->updateFence(fence);
         m_accelerationStructureCommandEncoder->endEncoding();
         m_accelerationStructureCommandEncoder.reset();
     }
     if (m_blitCommandEncoder)
     {
+        m_blitCommandEncoder->updateFence(fence);
         m_blitCommandEncoder->endEncoding();
         m_blitCommandEncoder.reset();
     }
@@ -1008,6 +1077,7 @@ CommandQueueImpl::~CommandQueueImpl() {}
 void CommandQueueImpl::init(NS::SharedPtr<MTL::CommandQueue> commandQueue)
 {
     m_commandQueue = commandQueue;
+    m_queueFence = NS::TransferPtr(getDevice<DeviceImpl>()->m_device->newFence());
     m_lastSubmittedID = 1;
     m_lastFinishedID = 1;
     m_trackingEvent = NS::TransferPtr(getDevice<DeviceImpl>()->m_device->newSharedEvent());
@@ -1027,6 +1097,7 @@ void CommandQueueImpl::shutdown()
 #endif
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
     m_commandQueue.reset();
+    m_queueFence.reset();
     m_trackingEvent.reset();
     m_trackingEventListener.reset();
 }
@@ -1153,7 +1224,19 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
             commandBuffer->encodeWait(fence->m_event.get(), desc.waitFenceValues[i]);
         }
+        addErrorHandler(commandBuffer);
         commandBuffer->commit();
+    }
+
+    // Commit any pending residency set changes.
+    {
+        auto* device = getDevice<DeviceImpl>();
+        std::lock_guard<std::mutex> lock(device->m_residencySetMutex);
+        if (device->m_residencySetDirty)
+        {
+            device->m_residencySet->commit();
+            device->m_residencySetDirty = false;
+        }
     }
 
     // Increment submission id
@@ -1180,6 +1263,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             commandBuffer->m_commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
         }
 
+        addErrorHandler(commandBuffer->m_commandBuffer.get());
         commandBuffer->m_commandBuffer->commit();
     }
 
@@ -1197,6 +1281,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
         }
         commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
+        addErrorHandler(commandBuffer);
         commandBuffer->commit();
     }
 

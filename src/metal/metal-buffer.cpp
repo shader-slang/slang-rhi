@@ -1,4 +1,5 @@
 #include "metal-buffer.h"
+#include "metal-command.h"
 #include "metal-device.h"
 #include "metal-utils.h"
 
@@ -9,7 +10,13 @@ BufferImpl::BufferImpl(Device* device, const BufferDesc& desc)
 {
 }
 
-BufferImpl::~BufferImpl() {}
+BufferImpl::~BufferImpl()
+{
+    if (m_buffer)
+    {
+        getDevice<DeviceImpl>()->unregisterAllocation(m_buffer.get());
+    }
+}
 
 void BufferImpl::deleteThis()
 {
@@ -31,7 +38,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 
 DeviceAddress BufferImpl::getDeviceAddress()
 {
-    return m_buffer->gpuAddress();
+    return m_deviceAddress;
 }
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
@@ -46,12 +53,17 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     switch (desc.memoryType)
     {
     case MemoryType::DeviceLocal:
-        resourceOptions = MTL::ResourceStorageModePrivate;
+        resourceOptions = makeResourceOptions(MTL::ResourceStorageModePrivate);
         break;
     case MemoryType::Upload:
-    case MemoryType::ReadBack:
-        resourceOptions = MTL::ResourceStorageModeManaged;
+        resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared, MTL::ResourceCPUCacheModeWriteCombined);
         break;
+    case MemoryType::ReadBack:
+        resourceOptions = makeResourceOptions(MTL::ResourceStorageModeShared);
+        break;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unhandled MemoryType");
+        return SLANG_FAIL;
     }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
@@ -61,23 +73,42 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         return SLANG_FAIL;
     }
 
+    // GPU virtual address is stable immediately after allocation on Apple Silicon.
+    // Residency set commit (in CommandQueueImpl::submit) happens before any
+    // render/compute command buffer using this address via argument buffers.
+    // Blit encoders handle residency for explicit operands automatically.
+    buffer->m_deviceAddress = buffer->m_buffer->gpuAddress();
+    registerAllocation(buffer->m_buffer.get());
+
     if (desc.label)
         buffer->m_buffer->addDebugMarker(createString(desc.label).get(), NS::Range(0, desc.size));
 
     if (initData)
     {
-        NS::SharedPtr<MTL::Buffer> stagingBuffer =
-            NS::TransferPtr(m_device->newBuffer(initData, bufferSize, MTL::ResourceStorageModeManaged));
-        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-        if (!stagingBuffer || !commandBuffer || !encoder)
+        if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            return SLANG_FAIL;
+            auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
+            NS::SharedPtr<MTL::Buffer> stagingBuffer =
+                NS::TransferPtr(m_device->newBuffer(initData, bufferSize, stagingOpts));
+            if (!stagingBuffer)
+                return SLANG_FAIL;
+            MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+            if (!commandBuffer)
+                return SLANG_FAIL;
+            MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
+            if (!encoder)
+                return SLANG_FAIL;
+            encoder->waitForFence(m_queue->m_queueFence.get());
+            encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
+            encoder->updateFence(m_queue->m_queueFence.get());
+            encoder->endEncoding();
+            commandBuffer->commit();
+            commandBuffer->waitUntilCompleted();
         }
-        encoder->copyFromBuffer(stagingBuffer.get(), 0, buffer->m_buffer.get(), 0, bufferSize);
-        encoder->endEncoding();
-        commandBuffer->commit();
-        commandBuffer->waitUntilCompleted();
+        else
+        {
+            std::memcpy(buffer->m_buffer->contents(), initData, bufferSize);
+        }
     }
 
     returnComPtr(outBuffer, buffer);
@@ -93,17 +124,8 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
+    SLANG_UNUSED(mode);
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    bufferImpl->m_lastCpuAccessMode = mode;
-    if (mode == CpuAccessMode::Read)
-    {
-        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-        encoder->synchronizeResource(bufferImpl->m_buffer.get());
-        encoder->endEncoding();
-        commandBuffer->commit();
-        commandBuffer->waitUntilCompleted();
-    }
     *outData = bufferImpl->m_buffer->contents();
     return SLANG_OK;
 }
@@ -111,16 +133,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    if (bufferImpl->m_lastCpuAccessMode == CpuAccessMode::Write)
-    {
-        bufferImpl->m_buffer->didModifyRange(NS::Range(0, bufferImpl->m_desc.size));
-        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-        encoder->synchronizeResource(bufferImpl->m_buffer.get());
-        encoder->endEncoding();
-        commandBuffer->commit();
-        commandBuffer->waitUntilCompleted();
-    }
+    SLANG_UNUSED(bufferImpl);
     return SLANG_OK;
 }
 
