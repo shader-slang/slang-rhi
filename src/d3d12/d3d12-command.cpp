@@ -755,7 +755,21 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
         {
             if (m_renderTargetViews[i] && m_resolveTargetViews[i])
             {
-                m_cmdList->DiscardResource(m_resolveTargetViews[i]->m_texture->m_resource, nullptr);
+                // DiscardResource is only valid for resources created with ALLOW_RENDER_TARGET or
+                // ALLOW_DEPTH_STENCIL (set via calcResourceFlags from TextureUsage). Only discard
+                // m_resolveTargetViews entries whose textures have the appropriate usage flags.
+                TextureUsage usage = m_resolveTargetViews[i]->m_texture->m_desc.usage;
+                if (is_set(usage, TextureUsage::RenderTarget) || is_set(usage, TextureUsage::DepthStencil))
+                {
+                    const SubresourceRange& range = m_resolveTargetViews[i]->m_desc.subresourceRange;
+                    const TextureDesc& texDesc = m_resolveTargetViews[i]->m_texture->m_desc;
+                    UINT firstSubresource = range.layer * texDesc.mipCount + range.mip;
+                    UINT numSubresources = (range.layerCount - 1) * texDesc.mipCount + range.mipCount;
+                    D3D12_DISCARD_REGION region = {};
+                    region.FirstSubresource = firstSubresource;
+                    region.NumSubresources = numSubresources;
+                    m_cmdList->DiscardResource(m_resolveTargetViews[i]->m_texture->m_resource, &region);
+                }
             }
         }
 

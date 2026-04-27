@@ -52,7 +52,10 @@ void D3D12Resource::setDebugName(const wchar_t* name)
 
 void D3D12Resource::setResource(ID3D12Resource* resource)
 {
-    if (resource == m_resource && !m_allocation)
+    // Unconditionally return for same-pointer assignments.
+    // If m_allocation is set, setResourceNull() would free the allocator-owned resource
+    // before AddRef, leading to use-after-free.
+    if (resource == m_resource)
     {
         return;
     }
@@ -113,10 +116,10 @@ Result D3D12Resource::initCommitted(
             allocDesc.Flags = D3D12MA::ALLOCATION_FLAGS(allocDesc.Flags | D3D12MA::ALLOCATION_FLAG_COMMITTED);
 
         // D3D12MA may probe small resource placement alignment (4096) for textures with Alignment==0.
-        // Planar formats (e.g. D32_FLOAT_S8X24_UINT) don't support small alignment, and the probe
-        // triggers a D3D12 debug layer error. Set default alignment explicitly to skip the probe.
+        // Planar formats (e.g. D32_FLOAT_S8X24_UINT) and MSAA textures don't support small alignment,
+        // and the probe triggers a D3D12 debug layer error. Set default alignment explicitly to skip the probe.
         D3D12_RESOURCE_DESC desc = resourceDesc;
-        if (desc.Alignment == 0 && isPlanarFormat(desc.Format))
+        if (desc.Alignment == 0 && (isPlanarFormat(desc.Format) || desc.SampleDesc.Count > 1))
             desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
         SLANG_RETURN_ON_FAIL(
