@@ -7,88 +7,15 @@
 
 namespace rhi {
 
-struct D3D12BarrierSubmitter
+struct D3D12Resource
 {
-    enum
-    {
-        MAX_BARRIERS = 8
-    };
-
-    /// Expand one space to hold a barrier
-    SLANG_FORCE_INLINE D3D12_RESOURCE_BARRIER& expandOne()
-    {
-        return (m_numBarriers < MAX_BARRIERS) ? m_barriers[m_numBarriers++] : _expandOne();
-    }
-    /// Flush barriers to command list
-    SLANG_FORCE_INLINE void flush()
-    {
-        if (m_numBarriers > 0)
-            _flush();
-    }
-
-    /// Transition resource from prevState to nextState
-    void transition(ID3D12Resource* resource, D3D12_RESOURCE_STATES prevState, D3D12_RESOURCE_STATES nextState);
-
-    /// Ctor
-    SLANG_FORCE_INLINE D3D12BarrierSubmitter(ID3D12GraphicsCommandList* commandList)
-        : m_commandList(commandList)
-        , m_numBarriers(0)
-    {
-    }
-    /// Dtor
-    SLANG_FORCE_INLINE ~D3D12BarrierSubmitter() { flush(); }
-
-protected:
-    D3D12_RESOURCE_BARRIER& _expandOne();
-    void _flush();
-
-    ID3D12GraphicsCommandList* m_commandList;
-    int m_numBarriers;
-    D3D12_RESOURCE_BARRIER m_barriers[MAX_BARRIERS];
-};
-
-/** The base class for resource types allows for tracking of state. It does not allow for setting of the resource
-though, such that an interface can return a D3D12ResourceBase, and a client cant manipulate it's state, but it cannot
-replace/change the actual resource */
-struct D3D12ResourceBase
-{
-    /// Add a transition if necessary to the list
-    void transition(
-        D3D12_RESOURCE_STATES currentState,
-        D3D12_RESOURCE_STATES nextState,
-        D3D12BarrierSubmitter& submitter
-    );
     /// Get the associated resource
     SLANG_FORCE_INLINE ID3D12Resource* getResource() const { return m_resource; }
-
-    /// True if a resource is set
-    SLANG_FORCE_INLINE bool isSet() const { return m_resource != nullptr; }
 
     /// Coercible into ID3D12Resource
     SLANG_FORCE_INLINE operator ID3D12Resource*() const { return m_resource; }
 
-    /// Pointer-style access to the underlying resource.
-    SLANG_FORCE_INLINE ID3D12Resource* operator->() const { return m_resource; }
-
-    /// Ctor
-    SLANG_FORCE_INLINE D3D12ResourceBase()
-        : m_resource(nullptr)
-    {
-    }
-
-protected:
-    /// This is protected so as clients cannot slice the class, and so state tracking is lost
-    ~D3D12ResourceBase() {}
-
-    /// The resource (ref counted).
-    ID3D12Resource* m_resource;
-};
-
-struct D3D12Resource : public D3D12ResourceBase
-{
-    ComPtr<D3D12MA::Allocation> m_allocation;
-
-    /// Dtor
+    D3D12Resource() = default;
     ~D3D12Resource() { setResourceNull(); }
 
     /// Initialize as committed resource
@@ -114,6 +41,9 @@ struct D3D12Resource : public D3D12ResourceBase
     void setDebugName(const wchar_t* name);
     /// Set the debug name
     void setDebugName(const char* name);
+
+    ComPtr<D3D12MA::Allocation> m_allocation;
+    ID3D12Resource* m_resource = nullptr;
 };
 
 } // namespace rhi

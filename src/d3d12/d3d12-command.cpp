@@ -391,7 +391,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     dstRegion.pResource = dst->m_resource;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = dstRegion.PlacedFootprint;
     footprint.Offset = dstOffset;
-    footprint.Footprint.Format = src->m_resource->GetDesc().Format;
+    footprint.Footprint.Format = src->m_resource.getResource()->GetDesc().Format;
 
     // Write adjusted extent to footprint, accounting for block size.
     footprint.Footprint.Width = adjustedExtent.width;
@@ -560,7 +560,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
         {
             uint32_t mip = subresourceRange.mip + mipOffset;
 
-            D3D12_RESOURCE_DESC texDesc = dst->m_resource->GetDesc();
+            D3D12_RESOURCE_DESC texDesc = dst->m_resource.getResource()->GetDesc();
 
             D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
             dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
