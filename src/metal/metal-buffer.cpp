@@ -133,7 +133,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    (void)bufferImpl;
+    SLANG_UNUSED(bufferImpl);
     return SLANG_OK;
 }
 
