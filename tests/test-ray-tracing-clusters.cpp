@@ -676,6 +676,11 @@ static void testClusterTracing(
     ComPtr<IBuffer> idsBuf;
     queue = device->getQueue(QueueType::Graphics);
     enc = queue->createCommandEncoder();
+    // Clear the result texture since the miss shader may not write all pixels.
+    {
+        float clearValue[4] = {};
+        enc->clearTextureFloat(resultTexture, kEntireTexture, clearValue);
+    }
     {
         auto pass = enc->beginRayTracingPass();
         auto root = pass->bindPipeline(pipeline, shaderTable);
