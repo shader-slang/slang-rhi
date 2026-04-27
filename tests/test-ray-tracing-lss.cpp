@@ -242,6 +242,8 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
         SKIP("acceleration structure linear swept spheres not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("Shader execution reordering not supported");
 
     RayTracingLssIntrinsicsTest test;
     test.init(device);

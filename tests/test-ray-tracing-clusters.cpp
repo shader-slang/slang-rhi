@@ -781,6 +781,8 @@ static void testClusterTracing(
 // Build two clusters with device-written TriangleClusterArgs and render two horizontal bands.
 GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
 {
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
 
@@ -789,8 +791,12 @@ GPU_TEST_CASE("ray-tracing-cluster-tracing", D3D12 | Vulkan | CUDA)
 
 GPU_TEST_CASE("ray-tracing-cluster-tracing-hit-object", D3D12 | Vulkan | CUDA)
 {
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::ClusterAccelerationStructure))
         SKIP("cluster acceleration structure not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("Shader execution reordering not supported");
 
     testClusterTracing(device, "rayGenClustersHitObject", nullptr);
 }
