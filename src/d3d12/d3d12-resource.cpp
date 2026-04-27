@@ -4,75 +4,30 @@
 
 namespace rhi {
 
-/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! D3D12BarrierSubmitter !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
-
-void D3D12BarrierSubmitter::_flush()
+/// Returns true for DXGI formats that use planar memory layout.
+/// D3D12 does not support small resource placement alignment (4096) for these formats.
+static bool isPlanarFormat(DXGI_FORMAT format)
 {
-    SLANG_RHI_ASSERT(m_numBarriers > 0);
-
-    if (m_commandList)
+    switch (format)
     {
-        m_commandList->ResourceBarrier(UINT(m_numBarriers), m_barriers);
-    }
-    m_numBarriers = 0;
-}
-
-D3D12_RESOURCE_BARRIER& D3D12BarrierSubmitter::_expandOne()
-{
-    _flush();
-    return m_barriers[m_numBarriers++];
-}
-
-void D3D12BarrierSubmitter::transition(
-    ID3D12Resource* resource,
-    D3D12_RESOURCE_STATES prevState,
-    D3D12_RESOURCE_STATES nextState
-)
-{
-    if (nextState != prevState)
-    {
-        D3D12_RESOURCE_BARRIER& barrier = expandOne();
-
-        const UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        const D3D12_RESOURCE_BARRIER_FLAGS flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-
-        ::memset(&barrier, 0, sizeof(barrier));
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrier.Flags = flags;
-        barrier.Transition.pResource = resource;
-        barrier.Transition.StateBefore = prevState;
-        barrier.Transition.StateAfter = nextState;
-        barrier.Transition.Subresource = subresource;
-    }
-    else
-    {
-        if (nextState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
-        {
-            D3D12_RESOURCE_BARRIER& barrier = expandOne();
-
-            ::memset(&barrier, 0, sizeof(barrier));
-            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-            barrier.UAV.pResource = resource;
-        }
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+    case DXGI_FORMAT_NV12:
+    case DXGI_FORMAT_P010:
+    case DXGI_FORMAT_P016:
+    case DXGI_FORMAT_420_OPAQUE:
+    case DXGI_FORMAT_NV11:
+        return true;
+    default:
+        return false;
     }
 }
-
-/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! D3D12ResourceBase !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
-
-void D3D12ResourceBase::transition(
-    D3D12_RESOURCE_STATES oldState,
-    D3D12_RESOURCE_STATES nextState,
-    D3D12BarrierSubmitter& submitter
-)
-{
-    // Transition only if there is a resource
-    if (m_resource && oldState != nextState)
-    {
-        submitter.transition(m_resource, oldState, nextState);
-    }
-}
-
-/* !!!!!!!!!!!!!!!!!!!!!!!!! D3D12Resource !!!!!!!!!!!!!!!!!!!!!!!! */
 
 void D3D12Resource::setDebugName(ID3D12Resource* resource, const char* name)
 {
@@ -97,22 +52,32 @@ void D3D12Resource::setDebugName(const wchar_t* name)
 
 void D3D12Resource::setResource(ID3D12Resource* resource)
 {
-    if (resource != m_resource)
+    // Unconditionally return for same-pointer assignments.
+    // If m_allocation is set, setResourceNull() would free the allocator-owned resource
+    // before AddRef, leading to use-after-free.
+    if (resource == m_resource)
     {
-        if (resource)
-        {
-            resource->AddRef();
-        }
-        if (m_resource)
-        {
-            m_resource->Release();
-        }
+        return;
+    }
+
+    setResourceNull();
+
+    if (resource)
+    {
+        resource->AddRef();
         m_resource = resource;
     }
 }
 
 void D3D12Resource::setResourceNull()
 {
+    if (m_allocation)
+    {
+        m_allocation.setNull();
+        m_resource = nullptr;
+        return;
+    }
+
     if (m_resource)
     {
         m_resource->Release();
@@ -126,10 +91,46 @@ Result D3D12Resource::initCommitted(
     D3D12_HEAP_FLAGS heapFlags,
     const D3D12_RESOURCE_DESC& resourceDesc,
     D3D12_RESOURCE_STATES initState,
-    const D3D12_CLEAR_VALUE* clearValue
+    const D3D12_CLEAR_VALUE* clearValue,
+    D3D12MA::Allocator* allocator
 )
 {
     setResourceNull();
+
+    const bool canUseAllocator =
+        allocator &&
+        (heapProps.Type == D3D12_HEAP_TYPE_DEFAULT || heapProps.Type == D3D12_HEAP_TYPE_UPLOAD ||
+         heapProps.Type == D3D12_HEAP_TYPE_READBACK) &&
+        heapProps.CPUPageProperty == D3D12_CPU_PAGE_PROPERTY_UNKNOWN &&
+        heapProps.MemoryPoolPreference == D3D12_MEMORY_POOL_UNKNOWN && heapProps.CreationNodeMask == 1 &&
+        heapProps.VisibleNodeMask == 1;
+
+    if (canUseAllocator)
+    {
+        D3D12MA::ALLOCATION_DESC allocDesc = {};
+        allocDesc.HeapType = heapProps.Type;
+        allocDesc.ExtraHeapFlags = heapFlags;
+
+        // Shared resources must be committed (not sub-allocated).
+        if (heapFlags & D3D12_HEAP_FLAG_SHARED)
+            allocDesc.Flags = D3D12MA::ALLOCATION_FLAGS(allocDesc.Flags | D3D12MA::ALLOCATION_FLAG_COMMITTED);
+
+        // D3D12MA may probe small resource placement alignment (4096) for textures with Alignment==0.
+        // Planar formats (e.g. D32_FLOAT_S8X24_UINT) and MSAA textures don't support small alignment,
+        // and the probe triggers a D3D12 debug layer error. Set default alignment explicitly to skip the probe.
+        D3D12_RESOURCE_DESC desc = resourceDesc;
+        if (desc.Alignment == 0 && (isPlanarFormat(desc.Format) || desc.SampleDesc.Count > 1))
+            desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+
+        SLANG_RETURN_ON_FAIL(
+            allocator
+                ->CreateResource(&allocDesc, &desc, initState, clearValue, m_allocation.writeRef(), IID_NULL, nullptr)
+        );
+
+        m_resource = m_allocation->GetResource();
+        return SLANG_OK;
+    }
+
     ComPtr<ID3D12Resource> resource;
     SLANG_RETURN_ON_FAIL(device->CreateCommittedResource(
         &heapProps,
@@ -141,20 +142,6 @@ Result D3D12Resource::initCommitted(
     ));
     setResource(resource);
     return SLANG_OK;
-}
-
-ID3D12Resource* D3D12Resource::detach()
-{
-    ID3D12Resource* resource = m_resource;
-    m_resource = nullptr;
-    return resource;
-}
-
-void D3D12Resource::swap(ComPtr<ID3D12Resource>& resourceInOut)
-{
-    ID3D12Resource* tmp = m_resource;
-    m_resource = resourceInOut.detach();
-    resourceInOut.attach(tmp);
 }
 
 } // namespace rhi

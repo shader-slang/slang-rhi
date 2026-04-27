@@ -39,12 +39,7 @@ Result QueryPoolImpl::init()
     }
 
     // Create readback buffer.
-    D3D12_HEAP_PROPERTIES heapProps;
-    heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
+    D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_READBACK);
     D3D12_RESOURCE_DESC resourceDesc = {};
     initBufferDesc(sizeof(uint64_t) * m_desc.count, resourceDesc);
     SLANG_RETURN_ON_FAIL(m_readBackBuffer.initCommitted(
@@ -53,7 +48,8 @@ Result QueryPoolImpl::init()
         D3D12_HEAP_FLAG_NONE,
         resourceDesc,
         D3D12_RESOURCE_STATE_COPY_DEST,
-        nullptr
+        nullptr,
+        device->m_allocator
     ));
 
     // Create command allocator.
@@ -191,12 +187,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t co
         D3D12Resource stageBuf;
 
         uint64_t size = uint64_t(m_count) * m_stride;
-        D3D12_HEAP_PROPERTIES heapProps;
-        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProps.CreationNodeMask = 1;
-        heapProps.VisibleNodeMask = 1;
+        D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_READBACK);
 
         D3D12_RESOURCE_DESC stagingDesc;
         initBufferDesc(size, stagingDesc);
@@ -207,7 +198,8 @@ Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t co
             D3D12_HEAP_FLAG_NONE,
             stagingDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr
+            nullptr,
+            device->m_allocator
         ));
 
         commandList->CopyBufferRegion(stageBuf, 0, m_buffer->m_resource.getResource(), 0, size);
