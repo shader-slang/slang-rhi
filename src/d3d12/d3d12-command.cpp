@@ -215,7 +215,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
         requireTextureState(dst, kEntireTexture, ResourceState::CopyDestination);
         requireTextureState(src, kEntireTexture, ResourceState::CopySource);
         commitBarriers();
-        m_cmdList->CopyResource(dst->m_resource.getResource(), src->m_resource.getResource());
+        m_cmdList->CopyResource(dst->m_resource, src->m_resource);
         return;
     }
 
@@ -288,7 +288,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
                 D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
 
                 dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-                dstRegion.pResource = dst->m_resource.getResource();
+                dstRegion.pResource = dst->m_resource;
                 dstRegion.SubresourceIndex = getSubresourceIndex(
                     dstMip,
                     dstSubresource.layer + layer,
@@ -299,7 +299,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
 
                 D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
                 srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-                srcRegion.pResource = src->m_resource.getResource();
+                srcRegion.pResource = src->m_resource;
                 srcRegion.SubresourceIndex = getSubresourceIndex(
                     srcMip,
                     srcSubresource.layer + layer,
@@ -383,15 +383,15 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
     srcRegion.SubresourceIndex =
         getSubresourceIndex(srcMip, srcLayer, 0, src->m_desc.mipCount, src->m_desc.arrayLength);
-    srcRegion.pResource = src->m_resource.getResource();
+    srcRegion.pResource = src->m_resource;
 
     // Setup the destination resource.
     D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
     dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-    dstRegion.pResource = dst->m_resource.getResource();
+    dstRegion.pResource = dst->m_resource;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = dstRegion.PlacedFootprint;
     footprint.Offset = dstOffset;
-    footprint.Footprint.Format = src->m_resource.getResource()->GetDesc().Format;
+    footprint.Footprint.Format = src->m_resource->GetDesc().Format;
 
     // Write adjusted extent to footprint, accounting for block size.
     footprint.Footprint.Width = adjustedExtent.width;
@@ -476,7 +476,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
             m_cmdList->ClearUnorderedAccessViewFloat(
                 descriptor.getGpuHandle(0),
                 uav,
-                texture->m_resource.getResource(),
+                texture->m_resource,
                 cmd.clearValue,
                 0,
                 nullptr
@@ -507,7 +507,7 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
             m_cmdList->ClearUnorderedAccessViewUint(
                 descriptor.getGpuHandle(0),
                 uav,
-                texture->m_resource.getResource(),
+                texture->m_resource,
                 clearValue,
                 0,
                 nullptr
@@ -560,18 +560,18 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
         {
             uint32_t mip = subresourceRange.mip + mipOffset;
 
-            D3D12_RESOURCE_DESC texDesc = dst->m_resource.getResource()->GetDesc();
+            D3D12_RESOURCE_DESC texDesc = dst->m_resource->GetDesc();
 
             D3D12_TEXTURE_COPY_LOCATION dstRegion = {};
             dstRegion.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-            dstRegion.pResource = dst->m_resource.getResource();
+            dstRegion.pResource = dst->m_resource;
 
             dstRegion.SubresourceIndex =
                 getSubresourceIndex(mip, layer, 0, dst->m_desc.mipCount, dst->m_desc.arrayLength);
 
             D3D12_TEXTURE_COPY_LOCATION srcRegion = {};
             srcRegion.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-            srcRegion.pResource = buffer->m_resource.getResource();
+            srcRegion.pResource = buffer->m_resource;
 
             D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = srcRegion.PlacedFootprint;
             footprint.Offset = bufferOffset;
@@ -730,22 +730,52 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
     {
         if (m_renderTargetViews[i] && m_resolveTargetViews[i])
         {
-            requireTextureState(
-                m_renderTargetViews[i]->m_texture,
-                m_renderTargetViews[i]->m_desc.subresourceRange,
-                ResourceState::ResolveSource
-            );
-            requireTextureState(
-                m_resolveTargetViews[i]->m_texture,
-                m_resolveTargetViews[i]->m_desc.subresourceRange,
-                ResourceState::ResolveDestination
-            );
             needsResolve = true;
         }
     }
 
     if (needsResolve)
     {
+        // Discard resolve destinations while they are still in render target state.
+        // This satisfies D3D12's initialization requirement for resources in non-zeroed heaps
+        // with render target or depth stencil flags.
+        for (size_t i = 0; i < m_renderTargetViews.size(); ++i)
+        {
+            if (m_renderTargetViews[i] && m_resolveTargetViews[i])
+            {
+                requireTextureState(
+                    m_resolveTargetViews[i]->m_texture,
+                    m_resolveTargetViews[i]->m_desc.subresourceRange,
+                    ResourceState::RenderTarget
+                );
+            }
+        }
+        commitBarriers();
+        for (size_t i = 0; i < m_renderTargetViews.size(); ++i)
+        {
+            if (m_renderTargetViews[i] && m_resolveTargetViews[i])
+            {
+                m_cmdList->DiscardResource(m_resolveTargetViews[i]->m_texture->m_resource, nullptr);
+            }
+        }
+
+        // Transition to resolve states.
+        for (size_t i = 0; i < m_renderTargetViews.size(); ++i)
+        {
+            if (m_renderTargetViews[i] && m_resolveTargetViews[i])
+            {
+                requireTextureState(
+                    m_renderTargetViews[i]->m_texture,
+                    m_renderTargetViews[i]->m_desc.subresourceRange,
+                    ResourceState::ResolveSource
+                );
+                requireTextureState(
+                    m_resolveTargetViews[i]->m_texture,
+                    m_resolveTargetViews[i]->m_desc.subresourceRange,
+                    ResourceState::ResolveDestination
+                );
+            }
+        }
         commitBarriers();
 
         for (size_t i = 0; i < m_renderTargetViews.size(); ++i)
@@ -754,6 +784,7 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
             {
                 TextureViewImpl* srcView = m_renderTargetViews[i].get();
                 TextureViewImpl* dstView = m_resolveTargetViews[i].get();
+
                 // https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-resolvesubresource
                 DXGI_FORMAT format = srcView->m_texture->m_format;
                 if (!dstView->m_texture->m_isTypeless)
@@ -761,9 +792,9 @@ void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
                     format = dstView->m_texture->m_format;
                 }
                 m_cmdList->ResolveSubresource(
-                    dstView->m_texture->m_resource.getResource(),
+                    dstView->m_texture->m_resource,
                     0, // TODO iterate subresources
-                    srcView->m_texture->m_resource.getResource(),
+                    srcView->m_texture->m_resource,
                     0, // TODO iterate subresources
                     format
                 );

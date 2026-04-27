@@ -67,6 +67,9 @@ struct D3D12ResourceBase
     /// Coercible into ID3D12Resource
     SLANG_FORCE_INLINE operator ID3D12Resource*() const { return m_resource; }
 
+    /// Pointer-style access to the underlying resource.
+    SLANG_FORCE_INLINE ID3D12Resource* operator->() const { return m_resource; }
+
     /// Ctor
     SLANG_FORCE_INLINE D3D12ResourceBase()
         : m_resource(nullptr)
@@ -83,15 +86,10 @@ protected:
 
 struct D3D12Resource : public D3D12ResourceBase
 {
+    ComPtr<D3D12MA::Allocation> m_allocation;
 
     /// Dtor
-    ~D3D12Resource()
-    {
-        if (m_resource)
-        {
-            m_resource->Release();
-        }
-    }
+    ~D3D12Resource() { setResourceNull(); }
 
     /// Initialize as committed resource
     Result initCommitted(
@@ -100,18 +98,14 @@ struct D3D12Resource : public D3D12ResourceBase
         D3D12_HEAP_FLAGS heapFlags,
         const D3D12_RESOURCE_DESC& resourceDesc,
         D3D12_RESOURCE_STATES initState,
-        const D3D12_CLEAR_VALUE* clearValue
+        const D3D12_CLEAR_VALUE* clearValue,
+        D3D12MA::Allocator* allocator = nullptr
     );
 
     /// Set a resource.
     void setResource(ID3D12Resource* resource);
     /// Make the resource null
     void setResourceNull();
-    /// Returns the attached resource (with any ref counts) and sets to nullptr on this.
-    ID3D12Resource* detach();
-
-    /// Swaps the resource contents with the contents of the smart pointer
-    void swap(ComPtr<ID3D12Resource>& resourceInOut);
 
     /// Set the debug name on a resource
     static void setDebugName(ID3D12Resource* resource, const char* name);
