@@ -392,6 +392,23 @@ if(SLANG_RHI_ENABLE_D3D12)
     target_link_libraries(slang-rhi PRIVATE slang-rhi-d3d12ma)
 endif()
 
+# Setup VulkanMemoryAllocator
+if(SLANG_RHI_ENABLE_VULKAN)
+    add_library(slang-rhi-vma STATIC)
+    target_sources(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/vma/vk_mem_alloc.cpp)
+    target_include_directories(slang-rhi-vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/vma)
+    target_link_libraries(slang-rhi-vma PUBLIC slang-rhi-vulkan-headers)
+    target_compile_options(slang-rhi-vma PRIVATE $<$<CXX_COMPILER_ID:Clang>:-Wno-nullability-completeness>)
+    # Force-include VMA configuration header to route assertions through slang-rhi.
+    target_include_directories(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    if(MSVC)
+        target_compile_options(slang-rhi-vma PRIVATE /FIvulkan/vma-config.h)
+    else()
+        target_compile_options(slang-rhi-vma PRIVATE -include vulkan/vma-config.h)
+    endif()
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-vma)
+endif()
+
 # Slang distributes prelude headers in the "include" directory along the other headers.
 # However, in a slang build tree, the files are not in the "include" directory but in a separate "prelude" directory.
 # Make sure to include the prelude directory if it exists.
