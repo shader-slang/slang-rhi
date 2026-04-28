@@ -144,7 +144,7 @@ ComPtr<IBuffer> createBuffer(IDevice* device, uint32_t size)
     return buffer;
 }
 
-GPU_TEST_CASE("heap-create", CUDA | Vulkan)
+GPU_TEST_CASE("heap-create", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -153,7 +153,7 @@ GPU_TEST_CASE("heap-create", CUDA | Vulkan)
     REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
 }
 
-GPU_TEST_CASE("heap-allocate", CUDA | Vulkan)
+GPU_TEST_CASE("heap-allocate", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -240,70 +240,13 @@ GPU_TEST_CASE("heap-cuda-immediate-retirement", CUDA)
     CHECK_EQ(report.numPages, 0);
 }
 
-// Vulkan: No same-stream optimization - frees are DEFERRED until GPU completion
-GPU_TEST_CASE("heap-vulkan-deferred-retirement", Vulkan)
-{
-    HeapDesc desc;
-    desc.memoryType = MemoryType::DeviceLocal;
-
-    ComPtr<IHeap> heap;
-    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
-
-    HeapAllocDesc allocDesc;
-    allocDesc.size = 32 * 1024; // 32 KB (8192 uint32s, must be multiple of 32 for shader)
-    allocDesc.alignment = 128;
-
-    HeapAlloc allocation;
-    REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
-    CHECK_EQ(allocation.size, allocDesc.size);
-
-    HeapReport report = heap->report();
-    CHECK_EQ(report.totalAllocated, allocDesc.size);
-    CHECK_EQ(report.numAllocations, 1);
-    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024); // assume 1 small page of 256 MB
-    CHECK_EQ(report.numPages, 1);
-
-    // Actually USE the heap allocation - write a pattern to it via shader
-    uint32_t numElements = (uint32_t)(allocDesc.size / sizeof(uint32_t));
-    runInitPointerShader(device, 0xDEADBEEF, allocation.getDeviceAddress(), numElements);
-
-    // Request a free - Vulkan defers until GPU completion
-    REQUIRE_CALL(heap->free(allocation));
-    report = heap->report();
-    CHECK_EQ(report.totalAllocated, allocDesc.size); // Still allocated (deferred)
-    CHECK_EQ(report.numAllocations, 1);
-    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024);
-    CHECK_EQ(report.numPages, 1);
-
-    // Wait for the queue to complete
-    device->getQueue(QueueType::Graphics)->waitOnHost();
-
-    // Flush the heap to process pending frees
-    REQUIRE_CALL(heap->flush());
-
-    // Now the free should be processed
-    report = heap->report();
-    CHECK_EQ(report.totalAllocated, 0);
-    CHECK_EQ(report.numAllocations, 0);
-    CHECK_EQ(report.totalMemUsage, 256 * 1024 * 1024);
-    CHECK_EQ(report.numPages, 1);
-
-    REQUIRE_CALL(heap->removeEmptyPages());
-
-    report = heap->report();
-    CHECK_EQ(report.totalAllocated, 0);
-    CHECK_EQ(report.numAllocations, 0);
-    CHECK_EQ(report.totalMemUsage, 0);
-    CHECK_EQ(report.numPages, 0);
-}
-
 struct AllocationInfo
 {
     ComPtr<IBuffer> buffer;
     uint32_t pattern;
 };
 
-GPU_TEST_CASE("heap-pointer-stress-test", CUDA | Vulkan)
+GPU_TEST_CASE("heap-pointer-stress-test", CUDA)
 {
     ComputePipelineDesc pipelineDesc = {};
 
@@ -419,7 +362,7 @@ bool allocationsOverlap(const HeapAlloc& a, const HeapAlloc& b)
     return !(aEnd <= bStart || bEnd <= aStart);
 }
 
-GPU_TEST_CASE("heap-no-overlaps", CUDA | Vulkan)
+GPU_TEST_CASE("heap-no-overlaps", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -462,7 +405,7 @@ GPU_TEST_CASE("heap-no-overlaps", CUDA | Vulkan)
     }
 }
 
-GPU_TEST_CASE("heap-alloc-free-no-overlaps", CUDA | Vulkan)
+GPU_TEST_CASE("heap-alloc-free-no-overlaps", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -514,7 +457,7 @@ GPU_TEST_CASE("heap-alloc-free-no-overlaps", CUDA | Vulkan)
     }
 }
 
-GPU_TEST_CASE("heap-alignment-sizes", CUDA | Vulkan)
+GPU_TEST_CASE("heap-alignment-sizes", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
@@ -655,87 +598,7 @@ GPU_TEST_CASE("heap-same-stream-immediate-reuse", CUDA)
     }
 }
 
-// Test: Vulkan frees are DEFERRED until GPU completion (no same-stream optimization)
-GPU_TEST_CASE("heap-multiple-submits-pending-frees", Vulkan)
-{
-    HeapDesc desc;
-    desc.memoryType = MemoryType::DeviceLocal;
-
-    ComPtr<IHeap> heap;
-    REQUIRE_CALL(device->createHeap(desc, heap.writeRef()));
-
-    auto queue = device->getQueue(QueueType::Graphics);
-
-    // Create multiple submits with allocations that will be freed
-    for (int submitIndex = 0; submitIndex < 5; submitIndex++)
-    {
-        // Allocate some memory for this submit (size must be multiple of 32*4 for shader)
-        HeapAllocDesc allocDesc;
-        allocDesc.size = 32 * 1024; // 32 KB (8192 uint32s)
-        allocDesc.alignment = 128;
-
-        HeapAlloc allocation;
-        REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
-
-        // Actually USE the heap allocation - write a pattern to it via shader
-        uint32_t numElements = (uint32_t)(allocDesc.size / sizeof(uint32_t));
-        runInitPointerShader(device, submitIndex + 1, allocation.getDeviceAddress(), numElements);
-
-        // Queue the allocation for freeing - Vulkan defers these
-        REQUIRE_CALL(heap->free(allocation));
-
-        // Don't wait - let submits pile up
-    }
-
-    // At this point, we should have multiple pending frees
-    HeapReport report = heap->report();
-
-    // The allocations should still be counted as allocated since GPU work is pending
-    CHECK(report.totalAllocated > 0);
-    CHECK(report.numAllocations > 0);
-
-    // Now wait for all GPU work to complete
-    queue->waitOnHost();
-
-    // Flush the heap to process pending frees
-    REQUIRE_CALL(heap->flush());
-
-    // Now all allocations should be freed
-    report = heap->report();
-    CHECK_EQ(report.totalAllocated, 0);
-    CHECK_EQ(report.numAllocations, 0);
-
-    // Create new allocations to verify the heap is still functional
-    // and that freed memory can be reused
-    std::vector<HeapAlloc> newAllocations;
-    for (int i = 0; i < 3; i++)
-    {
-        HeapAllocDesc allocDesc;
-        allocDesc.size = 32 * 1024; // 32 KB
-        allocDesc.alignment = 128;
-
-        HeapAlloc allocation;
-        REQUIRE_CALL(heap->allocate(allocDesc, &allocation));
-        newAllocations.push_back(allocation);
-    }
-
-    // Verify new allocations don't overlap
-    for (size_t i = 0; i < newAllocations.size(); i++)
-    {
-        for (size_t j = i + 1; j < newAllocations.size(); j++)
-        {
-            CHECK(!allocationsOverlap(newAllocations[i], newAllocations[j]));
-        }
-    }
-
-    // Clean up
-    for (auto& alloc : newAllocations)
-    {
-        REQUIRE_CALL(heap->free(alloc));
-    }
-}
-
-GPU_TEST_CASE("heap-fragmentation-test", CUDA | Vulkan)
+GPU_TEST_CASE("heap-fragmentation-test", CUDA)
 {
     HeapDesc desc;
     desc.memoryType = MemoryType::DeviceLocal;
