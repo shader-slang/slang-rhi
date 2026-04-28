@@ -8,13 +8,22 @@ namespace rhi::vk {
 class VKBufferHandleRAII
 {
 public:
-    /// Initialize a buffer with specified size, and memory props
+    /// Initialize a buffer with specified size and external memory support
     Result init(
         const VulkanApi& api,
         Size bufferSize,
         VkBufferUsageFlags usage,
-        VkMemoryPropertyFlags reqMemoryProperties,
+        MemoryType memoryType,
         VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0
+    );
+
+    /// Initialize a buffer using VMA for memory allocation
+    Result init(
+        const VulkanApi& api,
+        VmaAllocator vmaAllocator,
+        Size bufferSize,
+        VkBufferUsageFlags usage,
+        MemoryType memoryType
     );
 
     /// Returns true if has been initialized
@@ -29,14 +38,35 @@ public:
     {
         if (m_api)
         {
-            m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+            if (m_vmaAllocation)
+            {
+                // Safety net: callers (e.g. DeviceImpl::mapBuffer/unmapBuffer) must
+                // perform balanced vmaMapMemory/vmaUnmapMemory calls. This handles
+                // at most one leaked map (e.g. from an early-return error path).
+                // VMA tracks a per-allocation map count; only a single outstanding
+                // map is expected here - multiple outstanding maps indicate a bug.
+                VmaAllocationInfo allocInfo;
+                vmaGetAllocationInfo(m_vmaAllocator, m_vmaAllocation, &allocInfo);
+                if (allocInfo.pMappedData)
+                {
+                    SLANG_RHI_ASSERT_FAILURE("VMA allocation destroyed while still mapped");
+                    vmaUnmapMemory(m_vmaAllocator, m_vmaAllocation);
+                }
+                vmaDestroyBuffer(m_vmaAllocator, m_buffer, m_vmaAllocation);
+            }
+            else
+            {
+                m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
+                m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+            }
         }
     }
 
     VkBuffer m_buffer;
     VkDeviceMemory m_memory;
     const VulkanApi* m_api;
+    VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;
+    VmaAllocation m_vmaAllocation = VK_NULL_HANDLE;
 };
 
 class BufferImpl : public Buffer

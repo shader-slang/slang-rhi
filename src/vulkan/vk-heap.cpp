@@ -23,26 +23,7 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
         usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     }
 
-    // Determine memory properties based on heap memory type
-    VkMemoryPropertyFlags reqMemoryProperties;
     HeapImpl* heapImpl = static_cast<HeapImpl*>(heap);
-
-    switch (heapImpl->m_desc.memoryType)
-    {
-    case MemoryType::DeviceLocal:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        break;
-    case MemoryType::Upload:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        break;
-    case MemoryType::ReadBack:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                              VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-        break;
-    default:
-        reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        break;
-    }
 
     // Check if external memory (shared) is needed
     VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0;
@@ -55,8 +36,16 @@ HeapImpl::PageImpl::PageImpl(Heap* heap, const PageDesc& desc, DeviceImpl* devic
 #endif
     }
 
-    // Initialize the buffer using the existing logic
-    Result result = m_buffer.init(api, desc.size, usage, reqMemoryProperties, externalMemoryHandleTypeFlags);
+    // Initialize the buffer using VMA for non-shared heaps, direct allocation for shared heaps
+    Result result;
+    if (externalMemoryHandleTypeFlags)
+    {
+        result = m_buffer.init(api, desc.size, usage, heapImpl->m_desc.memoryType, externalMemoryHandleTypeFlags);
+    }
+    else
+    {
+        result = m_buffer.init(api, device->m_vmaAllocator, desc.size, usage, heapImpl->m_desc.memoryType);
+    }
     SLANG_RHI_ASSERT(SLANG_SUCCEEDED(result));
 }
 

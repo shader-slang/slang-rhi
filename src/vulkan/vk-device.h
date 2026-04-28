@@ -251,6 +251,8 @@ public:
 
     VkSampler m_defaultSampler;
 
+    VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;
+
 #if SLANG_RHI_ENABLE_AFTERMATH
     /// Aftermath crash dumper (null if Aftermath is not enabled).
     AftermathCrashDumper* m_aftermathCrashDumper = nullptr;

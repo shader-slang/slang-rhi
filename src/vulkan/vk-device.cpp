@@ -67,6 +67,12 @@ DeviceImpl::~DeviceImpl()
 
     descriptorSetAllocator.close();
 
+    if (m_vmaAllocator != VK_NULL_HANDLE)
+    {
+        vmaDestroyAllocator(m_vmaAllocator);
+        m_vmaAllocator = VK_NULL_HANDLE;
+    }
+
     if (m_device != VK_NULL_HANDLE)
     {
         if (!m_existingDeviceHandles.handles[2])
@@ -1480,6 +1486,25 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_formatSupport[formatIndex] = formatSupport;
     }
 
+    // Initialize VMA (Vulkan Memory Allocator).
+    {
+        VmaVulkanFunctions vulkanFunctions = {};
+        vulkanFunctions.vkGetInstanceProcAddr = m_api.vkGetInstanceProcAddr;
+        vulkanFunctions.vkGetDeviceProcAddr = m_api.vkGetDeviceProcAddr;
+
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.vulkanApiVersion = basicProps.apiVersion;
+        allocatorInfo.physicalDevice = m_api.m_physicalDevice;
+        allocatorInfo.device = m_device;
+        allocatorInfo.instance = m_api.m_instance;
+        allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+        if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        {
+            allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        }
+        SLANG_VK_RETURN_ON_FAIL(vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator));
+    }
+
     // Initialize slang context.
     SLANG_RETURN_ON_FAIL(m_slangContext.initialize(
         desc.slang,
@@ -1555,12 +1580,9 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     // create staging buffer
     VKBufferHandleRAII staging;
 
-    SLANG_RETURN_ON_FAIL(staging.init(
-        m_api,
-        size,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    ));
+    SLANG_RETURN_ON_FAIL(
+        staging.init(m_api, m_vmaAllocator, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, MemoryType::ReadBack)
+    );
 
     // Copy from real buffer to staging buffer
     VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
@@ -1614,10 +1636,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Write out the data from the buffer
     void* mappedData = nullptr;
-    SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
+    SLANG_VK_RETURN_ON_FAIL(vmaMapMemory(m_vmaAllocator, staging.m_vmaAllocation, &mappedData));
 
     std::memcpy(outData, mappedData, size);
-    m_api.vkUnmapMemory(m_device, staging.m_memory);
+    vmaUnmapMemory(m_vmaAllocator, staging.m_vmaAllocation);
 
     return SLANG_OK;
 }
