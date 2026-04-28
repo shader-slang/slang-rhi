@@ -100,6 +100,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     heap.free(allocation3);
     heap.free(bigAllocation);
     heap.free(bigAllocation2);
+    heap.checkConsistency();
 
     heap.release();
 }
@@ -144,6 +145,7 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
             heap.free(allocations[i]);
         }
     }
+    heap.checkConsistency();
 
     heap.release();
 }
@@ -261,6 +263,7 @@ GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
     freeAllocations(heap, allocations1);
     freeAllocations(heap, allocations2);
     freeAllocations(heap, allocations3);
+    heap.checkConsistency();
 
     heap.release();
 }
@@ -296,6 +299,7 @@ GPU_TEST_CASE("staging-heap-shared-pages", ALL)
     freeAllocations(heap, allocations1);
     freeAllocations(heap, allocations2);
     freeAllocations(heap, allocations3);
+    heap.checkConsistency();
 
     heap.release();
 }
@@ -326,6 +330,7 @@ GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
 
     heap.free(alloc);
     freeAllocations(heap, allocations);
+    heap.checkConsistency();
 
     heap.release();
 }
@@ -356,6 +361,7 @@ GPU_TEST_CASE("staging-heap-unlockpage-2", ALL)
     CHECK_EQ(heap.getNumPages(), 1);
 
     freeAllocations(heap, allocations);
+    heap.checkConsistency();
 
     heap.release();
 }
