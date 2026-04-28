@@ -56,6 +56,8 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 
     CHECK_EQ(heap.getUsed(), 0);
     CHECK_EQ(heap.getNumPages(), 1); // Should keep 1 empty page around
+
+    heap.release();
 }
 
 GPU_TEST_CASE("staging-heap-large-page", ALL)
@@ -92,6 +94,15 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     heap.checkConsistency();
     CHECK_EQ(allocation3.getOffset(), heap.getAlignment() * 2);
     CHECK_EQ(allocation3.getPageId(), 1);
+
+    heap.free(allocation);
+    heap.free(allocation2);
+    heap.free(allocation3);
+    heap.free(bigAllocation);
+    heap.free(bigAllocation2);
+    heap.checkConsistency();
+
+    heap.release();
 }
 
 GPU_TEST_CASE("staging-heap-realloc", ALL)
@@ -125,6 +136,18 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
     heap.checkConsistency();
     CHECK_EQ(allocation.getOffset(), 3 * allocSize);
     CHECK_EQ(allocation.getPageId(), 1);
+
+    heap.free(allocation);
+    for (size_t i = 0; i < allocations.size(); i++)
+    {
+        if (i != 3 && i != 4)
+        {
+            heap.free(allocations[i]);
+        }
+    }
+    heap.checkConsistency();
+
+    heap.release();
 }
 
 GPU_TEST_CASE("staging-heap-handles", ALL)
@@ -144,6 +167,8 @@ GPU_TEST_CASE("staging-heap-handles", ALL)
 
     // Allocation should be freed when handle goes out of scope.
     CHECK_EQ(heap.getUsed(), 0);
+
+    heap.release();
 }
 
 void thrashHeap(Device* device, StagingHeap* heap, int idx)
@@ -185,16 +210,25 @@ GPU_TEST_CASE("staging-heap-mutithreading", ALL)
     t6.join();
 
     heap.checkConsistency();
+
+    heap.release();
 }
 
-void doTenAllocations(Device* device, StagingHeap* heap, int idx)
+void doTenAllocations(Device* device, StagingHeap& heap, int idx, std::vector<StagingHeap::Allocation>& allocations)
 {
-    std::vector<StagingHeap::Allocation> allocations;
     for (int i = 0; i < 10; i++)
     {
         StagingHeap::Allocation allocation;
-        heap->alloc(16, {idx}, &allocation);
+        heap.alloc(16, {idx}, &allocation);
         allocations.push_back(allocation);
+    }
+}
+
+void freeAllocations(StagingHeap& heap, std::vector<StagingHeap::Allocation>& allocations)
+{
+    for (auto& allocation : allocations)
+    {
+        heap.free(allocation);
     }
 }
 
@@ -210,9 +244,13 @@ GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
     heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(false);
 
-    std::thread t1(doTenAllocations, deviceImpl, &heap, 1);
-    std::thread t2(doTenAllocations, deviceImpl, &heap, 2);
-    std::thread t3(doTenAllocations, deviceImpl, &heap, 3);
+    std::vector<StagingHeap::Allocation> allocations1;
+    std::vector<StagingHeap::Allocation> allocations2;
+    std::vector<StagingHeap::Allocation> allocations3;
+
+    std::thread t1(doTenAllocations, deviceImpl, std::ref(heap), 1, std::ref(allocations1));
+    std::thread t2(doTenAllocations, deviceImpl, std::ref(heap), 2, std::ref(allocations2));
+    std::thread t3(doTenAllocations, deviceImpl, std::ref(heap), 3, std::ref(allocations3));
 
     t1.join();
     t2.join();
@@ -221,6 +259,13 @@ GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
     heap.checkConsistency();
 
     CHECK_EQ(heap.getNumPages(), 3);
+
+    freeAllocations(heap, allocations1);
+    freeAllocations(heap, allocations2);
+    freeAllocations(heap, allocations3);
+    heap.checkConsistency();
+
+    heap.release();
 }
 
 GPU_TEST_CASE("staging-heap-shared-pages", ALL)
@@ -235,9 +280,13 @@ GPU_TEST_CASE("staging-heap-shared-pages", ALL)
     heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
     heap.testOnlySetKeepPagesMapped(true);
 
-    std::thread t1(doTenAllocations, deviceImpl, &heap, 1);
-    std::thread t2(doTenAllocations, deviceImpl, &heap, 2);
-    std::thread t3(doTenAllocations, deviceImpl, &heap, 3);
+    std::vector<StagingHeap::Allocation> allocations1;
+    std::vector<StagingHeap::Allocation> allocations2;
+    std::vector<StagingHeap::Allocation> allocations3;
+
+    std::thread t1(doTenAllocations, deviceImpl, std::ref(heap), 1, std::ref(allocations1));
+    std::thread t2(doTenAllocations, deviceImpl, std::ref(heap), 2, std::ref(allocations2));
+    std::thread t3(doTenAllocations, deviceImpl, std::ref(heap), 3, std::ref(allocations3));
 
     t1.join();
     t2.join();
@@ -246,6 +295,13 @@ GPU_TEST_CASE("staging-heap-shared-pages", ALL)
     heap.checkConsistency();
 
     CHECK_EQ(heap.getNumPages(), 1);
+
+    freeAllocations(heap, allocations1);
+    freeAllocations(heap, allocations2);
+    freeAllocations(heap, allocations3);
+    heap.checkConsistency();
+
+    heap.release();
 }
 
 GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
@@ -263,13 +319,20 @@ GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
     StagingHeap::Allocation alloc;
     heap.alloc(16, {1}, &alloc);
 
-    std::thread t1(doTenAllocations, deviceImpl, &heap, 1);
+    std::vector<StagingHeap::Allocation> allocations;
+    std::thread t1(doTenAllocations, deviceImpl, std::ref(heap), 1, std::ref(allocations));
 
     t1.join();
 
     heap.checkConsistency();
 
     CHECK_EQ(heap.getNumPages(), 2);
+
+    heap.free(alloc);
+    freeAllocations(heap, allocations);
+    heap.checkConsistency();
+
+    heap.release();
 }
 
 GPU_TEST_CASE("staging-heap-unlockpage-2", ALL)
@@ -288,11 +351,17 @@ GPU_TEST_CASE("staging-heap-unlockpage-2", ALL)
     heap.alloc(16, {1}, &alloc);
     heap.free(alloc);
 
-    std::thread t1(doTenAllocations, deviceImpl, &heap, 1);
+    std::vector<StagingHeap::Allocation> allocations;
+    std::thread t1(doTenAllocations, deviceImpl, std::ref(heap), 1, std::ref(allocations));
 
     t1.join();
 
     heap.checkConsistency();
 
     CHECK_EQ(heap.getNumPages(), 1);
+
+    freeAllocations(heap, allocations);
+    heap.checkConsistency();
+
+    heap.release();
 }

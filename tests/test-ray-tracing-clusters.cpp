@@ -601,7 +601,7 @@ static void testClusterTracing(
     texDesc.format = Format::RGBA32Float;
     texDesc.size.width = width;
     texDesc.size.height = height;
-    texDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
+    texDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource | TextureUsage::CopyDestination;
     ComPtr<ITexture> resultTexture;
     REQUIRE_CALL(device->createTexture(texDesc, nullptr, resultTexture.writeRef()));
 

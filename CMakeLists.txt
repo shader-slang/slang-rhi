@@ -381,6 +381,7 @@ if(SLANG_RHI_ENABLE_D3D12)
     add_library(slang-rhi-d3d12ma STATIC)
     target_sources(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma/D3D12MemAlloc.cpp)
     target_include_directories(slang-rhi-d3d12ma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma)
+    target_compile_features(slang-rhi-d3d12ma PRIVATE cxx_std_20)
     # Force-include D3D12MA configuration header to route assertions through slang-rhi.
     target_include_directories(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     if(MSVC)
@@ -390,6 +391,24 @@ if(SLANG_RHI_ENABLE_D3D12)
         target_compile_options(slang-rhi-d3d12ma PRIVATE -include d3d12/d3d12ma-config.h -Wno-switch)
     endif()
     target_link_libraries(slang-rhi PRIVATE slang-rhi-d3d12ma)
+endif()
+
+# Setup VulkanMemoryAllocator
+if(SLANG_RHI_ENABLE_VULKAN)
+    add_library(slang-rhi-vma STATIC)
+    target_sources(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/vma/vk_mem_alloc.cpp)
+    target_include_directories(slang-rhi-vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/vma)
+    target_link_libraries(slang-rhi-vma PUBLIC slang-rhi-vulkan-headers)
+    target_compile_features(slang-rhi-vma PRIVATE cxx_std_20)
+    target_compile_options(slang-rhi-vma PRIVATE $<$<CXX_COMPILER_ID:Clang>:-Wno-nullability-completeness>)
+    # Force-include VMA configuration header to route assertions through slang-rhi.
+    target_include_directories(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    if(MSVC)
+        target_compile_options(slang-rhi-vma PRIVATE /FIvulkan/vma-config.h)
+    else()
+        target_compile_options(slang-rhi-vma PRIVATE -include vulkan/vma-config.h)
+    endif()
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-vma)
 endif()
 
 # Slang distributes prelude headers in the "include" directory along the other headers.
@@ -782,7 +801,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
-        src/vulkan/vk-heap.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
