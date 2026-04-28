@@ -98,7 +98,6 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL createHeap(const HeapDesc& desc, IHeap** outHeap) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL readBuffer(
         IBuffer* buffer,
@@ -252,6 +251,19 @@ public:
     VkSampler m_defaultSampler;
 
     VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;
+
+    // VMA pool for shared/exportable memory allocations.
+    // Uses VkExportMemoryAllocateInfoKHR so each allocation from this pool
+    // can be exported via OS handles (Win32/fd). Each allocation must use
+    // VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.
+    VmaPool m_sharedMemoryPool = VK_NULL_HANDLE;
+
+    // Persistent pNext structures for the shared memory pool (must remain
+    // alive for the lifetime of the pool).
+    VkExportMemoryAllocateInfoKHR m_sharedExportMemoryAllocateInfo = {};
+#if SLANG_WINDOWS_FAMILY
+    VkExportMemoryWin32HandleInfoKHR m_sharedExportMemoryWin32HandleInfo = {};
+#endif
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     /// Aftermath crash dumper (null if Aftermath is not enabled).

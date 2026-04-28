@@ -23,6 +23,10 @@
 #include "core/static_vector.h"
 #include "core/deferred.h"
 
+#if SLANG_WINDOWS_FAMILY
+#include <dxgi1_4.h>
+#endif
+
 #include <algorithm>
 #include <set>
 #include <string>
@@ -66,6 +70,12 @@ DeviceImpl::~DeviceImpl()
     m_deviceQueue.destroy();
 
     descriptorSetAllocator.close();
+
+    if (m_sharedMemoryPool != VK_NULL_HANDLE)
+    {
+        vmaDestroyPool(m_vmaAllocator, m_sharedMemoryPool);
+        m_sharedMemoryPool = VK_NULL_HANDLE;
+    }
 
     if (m_vmaAllocator != VK_NULL_HANDLE)
     {
@@ -1503,6 +1513,71 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         }
         SLANG_VK_RETURN_ON_FAIL(vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator));
+    }
+
+    // Create VMA pool for shared/exportable memory allocations.
+    // This pool uses VkExportMemoryAllocateInfoKHR so that each dedicated allocation
+    // from it can be exported via OS handles (Win32/fd) for cross-process sharing.
+    {
+        VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0;
+#if SLANG_WINDOWS_FAMILY
+        externalMemoryHandleTypeFlags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+        externalMemoryHandleTypeFlags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+
+        // Find memory type for device-local buffers with external memory support.
+        VkExternalMemoryBufferCreateInfo externalMemBufCreateInfo = {
+            VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO
+        };
+        externalMemBufCreateInfo.handleTypes = externalMemoryHandleTypeFlags;
+
+        VkBufferCreateInfo exampleBufCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        exampleBufCreateInfo.size = 0x10000; // Doesn't matter, just for type query.
+        exampleBufCreateInfo.usage =
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        {
+            exampleBufCreateInfo.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        }
+        exampleBufCreateInfo.pNext = &externalMemBufCreateInfo;
+
+        VmaAllocationCreateInfo exampleAllocCreateInfo = {};
+        exampleAllocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        exampleAllocCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+        uint32_t memTypeIndex = 0;
+        VkResult vkResult = vmaFindMemoryTypeIndexForBufferInfo(
+            m_vmaAllocator,
+            &exampleBufCreateInfo,
+            &exampleAllocCreateInfo,
+            &memTypeIndex
+        );
+        if (vkResult == VK_SUCCESS)
+        {
+            // Set up persistent pNext structures for export memory (must remain alive
+            // for the lifetime of the pool).
+            m_sharedExportMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR;
+            m_sharedExportMemoryAllocateInfo.handleTypes = externalMemoryHandleTypeFlags;
+#if SLANG_WINDOWS_FAMILY
+            m_sharedExportMemoryWin32HandleInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR;
+            m_sharedExportMemoryWin32HandleInfo.dwAccess = DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE;
+            if (externalMemoryHandleTypeFlags & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+            {
+                m_sharedExportMemoryAllocateInfo.pNext = &m_sharedExportMemoryWin32HandleInfo;
+            }
+#endif
+            VmaPoolCreateInfo poolCreateInfo = {};
+            poolCreateInfo.memoryTypeIndex = memTypeIndex;
+            poolCreateInfo.pMemoryAllocateNext = &m_sharedExportMemoryAllocateInfo;
+
+            vkResult = vmaCreatePool(m_vmaAllocator, &poolCreateInfo, &m_sharedMemoryPool);
+            // Non-fatal: if pool creation fails, shared buffer creation will fail later.
+            if (vkResult != VK_SUCCESS)
+            {
+                m_sharedMemoryPool = VK_NULL_HANDLE;
+            }
+        }
     }
 
     // Initialize slang context.
