@@ -250,6 +250,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         addFeature(Feature::ArgumentBufferTier2);
         addFeature(Feature::ParameterBlock);
     }
+    if (m_hasResidencySet)
+    {
+        addFeature(Feature::ResidencySet);
+    }
 
     addCapability(Capability::metal);
 

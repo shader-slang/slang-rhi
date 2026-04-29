@@ -18,6 +18,8 @@ GPU_TEST_CASE("benchmark-command", ALL)
 {
     if (!device->hasFeature(Feature::ParameterBlock))
         SKIP("no support for parameter blocks");
+    if (ctx->deviceType == DeviceType::Metal && !device->hasFeature(Feature::ResidencySet))
+        SKIP("no residency set support (useResources fallback has per-encoder overhead limits)");
 
     Shader shader;
     REQUIRE_CALL(
