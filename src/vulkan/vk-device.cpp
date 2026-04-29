@@ -24,11 +24,27 @@
 #include "core/deferred.h"
 
 #include <algorithm>
+#include <cstring>
 #include <set>
 #include <string>
 #include <vector>
 
 namespace rhi::vk {
+
+static bool has_extension(const std::vector<const char*>& extensions, const char* extension)
+{
+    return extension && std::find_if(
+                            extensions.begin(),
+                            extensions.end(),
+                            [&](const char* existing) { return existing && std::strcmp(existing, extension) == 0; }
+                        ) != extensions.end();
+}
+
+static void add_extension(std::vector<const char*>& extensions, const char* extension)
+{
+    if (extension && !has_extension(extensions, extension))
+        extensions.push_back(extension);
+}
 
 DeviceImpl::DeviceImpl() {}
 
@@ -208,7 +224,7 @@ Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOp
         applicationInfo.engineVersion = 1;
         applicationInfo.applicationVersion = 1;
 
-        static_vector<const char*, 16> instanceExtensions;
+        std::vector<const char*> instanceExtensions;
 
 #if SLANG_APPLE_FAMILY
         instanceExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
@@ -237,6 +253,40 @@ Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOp
 
             if (debugLayerOptions.GPUAssistedValidation)
                 instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+        }
+
+        if (m_extendedDesc.additionalVulkanInstanceExtensionCount)
+        {
+            uint32_t availableExtensionCount = 0;
+            SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumerateInstanceExtensionProperties(
+                nullptr,
+                &availableExtensionCount,
+                nullptr
+            ));
+            std::vector<VkExtensionProperties> availableExtensions(availableExtensionCount);
+            SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumerateInstanceExtensionProperties(
+                nullptr,
+                &availableExtensionCount,
+                availableExtensions.data()
+            ));
+            std::set<std::string> availableExtensionNames;
+            for (const auto& extension : availableExtensions)
+                availableExtensionNames.emplace(extension.extensionName);
+
+            for (uint32_t i = 0; i < m_extendedDesc.additionalVulkanInstanceExtensionCount; ++i)
+            {
+                const char* extension = m_extendedDesc.additionalVulkanInstanceExtensions
+                    ? m_extendedDesc.additionalVulkanInstanceExtensions[i]
+                    : nullptr;
+                if (!extension)
+                    continue;
+                if (!availableExtensionNames.count(extension))
+                {
+                    printError("Additional Vulkan instance extension '%s' is not available.\n", extension);
+                    return SLANG_FAIL;
+                }
+                add_extension(instanceExtensions, extension);
+            }
         }
 
         VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -1176,6 +1226,21 @@ Result DeviceImpl::initVulkanDevice(
         printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
+
+    for (uint32_t i = 0; i < m_extendedDesc.additionalVulkanDeviceExtensionCount; ++i)
+    {
+        const char* extension = m_extendedDesc.additionalVulkanDeviceExtensions
+            ? m_extendedDesc.additionalVulkanDeviceExtensions[i]
+            : nullptr;
+        if (!extension)
+            continue;
+        if (!extensionNames.count(extension))
+        {
+            printError("Additional Vulkan device extension '%s' is not available.\n", extension);
+            return SLANG_FAIL;
+        }
+        add_extension(deviceExtensions, extension);
+    }
 
     // Create Vulkan device.
     if (!desc.existingDeviceHandles.handles[2])

@@ -53,6 +53,7 @@ protected:
 #define VK_API_GLOBAL_PROCS(x) \
     x(vkGetInstanceProcAddr) \
     x(vkCreateInstance) \
+    x(vkEnumerateInstanceExtensionProperties) \
     x(vkEnumerateInstanceLayerProperties) \
     x(vkEnumerateDeviceExtensionProperties) \
     x(vkDestroyInstance) \
