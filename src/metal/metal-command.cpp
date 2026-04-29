@@ -1094,7 +1094,7 @@ void CommandRecorder::endCommandEncoder()
     }
     if (m_blitCommandEncoder)
     {
-        // Blit encoders don't support useResources — residency for blit
+        // Blit encoders don't support useResources - residency for blit
         // operands is handled automatically by Metal.
         m_blitCommandEncoder->updateFence(fence);
         m_blitCommandEncoder->endEncoding();

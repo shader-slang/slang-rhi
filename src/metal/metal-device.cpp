@@ -98,7 +98,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         handleMessage(DebugMessageType::Info, DebugMessageSource::Driver, buf);
     }
 
-    // Gate on Argument Buffers Tier 2 — the actual functional requirement
+    // Gate on Argument Buffers Tier 2 - the actual functional requirement
     // for gpuAddress() and bindless argument buffer access.
     if (m_device->argumentBuffersSupport() < MTL::ArgumentBuffersTier2)
     {
