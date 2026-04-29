@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace rhi::metal {
@@ -177,9 +178,11 @@ public:
     bool m_residencySetDirty = false;
     std::mutex m_residencySetMutex;
 
-    // Fallback residency: all live resources tracked for per-encoder useResources.
-    std::vector<MTL::Resource*> m_allResources;
-    std::mutex m_allResourcesMutex;
+    // Fallback residency: maps GPU virtual addresses to their owning BufferImpl.
+    // Populated at buffer creation, erased at destruction. Used by the shader
+    // object binding code to resolve device pointers for useResources calls.
+    // Only active when !m_hasResidencySet.
+    std::unordered_map<DeviceAddress, class BufferImpl*> m_addressToBuffer;
 
     void registerResource(MTL::Resource* resource);
     void unregisterResource(MTL::Resource* resource);

@@ -554,11 +554,6 @@ void DeviceImpl::registerResource(MTL::Resource* resource)
         m_residencySet->addAllocation(resource);
         m_residencySetDirty = true;
     }
-    else
-    {
-        std::lock_guard<std::mutex> lock(m_allResourcesMutex);
-        m_allResources.push_back(resource);
-    }
 }
 
 void DeviceImpl::unregisterResource(MTL::Resource* resource)
@@ -569,16 +564,6 @@ void DeviceImpl::unregisterResource(MTL::Resource* resource)
         std::lock_guard<std::mutex> lock(m_residencySetMutex);
         m_residencySet->removeAllocation(resource);
         m_residencySetDirty = true;
-    }
-    else
-    {
-        std::lock_guard<std::mutex> lock(m_allResourcesMutex);
-        auto it = std::find(m_allResources.begin(), m_allResources.end(), resource);
-        if (it != m_allResources.end())
-        {
-            *it = m_allResources.back();
-            m_allResources.pop_back();
-        }
     }
 }
 
