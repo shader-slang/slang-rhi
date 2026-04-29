@@ -948,6 +948,9 @@ slang::IGlobalSession* getSlangGlobalSession()
     return slangGlobalSession;
 }
 
+static std::map<DeviceType, int> sTestsEncountered;
+static std::map<DeviceType, int> sTestsExecuted;
+
 // Trampoline test function registered in doctest for each GPU test instance.
 // Uses GpuTestInfo for additional information about the specific test instance.
 static void gpuTestTrampoline()
@@ -959,6 +962,8 @@ static void gpuTestTrampoline()
     DeviceType deviceType = info->deviceType;
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+
+    sTestsEncountered[deviceType]++;
 
     if (!isDeviceTypeSelected(deviceType))
     {
@@ -1008,6 +1013,7 @@ static void gpuTestTrampoline()
             device->setCudaContextCurrent();
         }
         info->func(&ctx, device);
+        reportTestExecuted(deviceType);
         if (device)
         {
             device->getQueue(QueueType::Graphics)->waitOnHost();
@@ -1118,6 +1124,40 @@ const char* getSkipMessage(const doctest::TestCaseData* tc)
 {
     auto it = sSkipMessages.find(tc);
     return it != sSkipMessages.end() ? it->second : nullptr;
+}
+
+void reportTestExecuted(DeviceType deviceType)
+{
+    sTestsExecuted[deviceType]++;
+}
+
+bool checkNoSilentSkips()
+{
+    bool ok = true;
+    for (DeviceType deviceType : kPlatformDeviceTypes)
+    {
+        if (!isDeviceTypeSelected(deviceType))
+            continue;
+        if (sTestsEncountered.find(deviceType) == sTestsEncountered.end())
+            continue;
+        auto availIt = sDeviceTypeAvailable.find(deviceType);
+        if (availIt == sDeviceTypeAvailable.end() || !availIt->second)
+            continue;
+        auto execIt = sTestsExecuted.find(deviceType);
+        int count = (execIt != sTestsExecuted.end()) ? execIt->second : 0;
+        if (count == 0)
+        {
+            std::fprintf(
+                stderr,
+                "ERROR: Device type '%s' was available but zero tests executed "
+                "(all silently skipped). This likely indicates a device "
+                "initialization regression.\n",
+                deviceTypeToString(deviceType)
+            );
+            ok = false;
+        }
+    }
+    return ok;
 }
 
 } // namespace rhi::testing
