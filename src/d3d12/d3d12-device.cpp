@@ -827,6 +827,21 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         }
     }
 
+#if SLANG_RHI_AGILITY_SDK_VERSION == D3D12_PREVIEW_SDK_VERSION
+#if defined(D3D12_PREVIEW_SDK_VERSION) && (D3D12_PREVIEW_SDK_VERSION >= 713)
+    {
+        // Check for cooperative vector support via native D3D12 Agility PREVIEW SDK.
+        D3D12_FEATURE_DATA_COOPERATIVE_VECTOR coopVecData = {};
+        if (SLANG_SUCCEEDED(
+                m_device->CheckFeatureSupport(D3D12_FEATURE_COOPERATIVE_VECTOR, &coopVecData, sizeof(coopVecData))
+            ))
+        {
+            addFeature(Feature::CooperativeVector);
+        }
+    }
+#endif
+#endif
+
     // Initialize NVAPI
 #if SLANG_RHI_ENABLE_NVAPI
     {
