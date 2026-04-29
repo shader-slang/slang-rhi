@@ -1029,6 +1029,18 @@ void CommandRecorder::endCommandEncoder()
 
     if (m_renderCommandEncoder)
     {
+        if (!m_device->m_hasResidencySet)
+        {
+            std::lock_guard<std::mutex> lock(m_device->m_allResourcesMutex);
+            if (!m_device->m_allResources.empty())
+            {
+                m_renderCommandEncoder->useResources(
+                    (const MTL::Resource* const*)m_device->m_allResources.data(),
+                    m_device->m_allResources.size(),
+                    MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+                );
+            }
+        }
         m_renderCommandEncoder->updateFence(
             fence,
             MTL::RenderStages(MTL::RenderStageVertex | MTL::RenderStageFragment)
@@ -1042,6 +1054,18 @@ void CommandRecorder::endCommandEncoder()
     }
     if (m_computeCommandEncoder)
     {
+        if (!m_device->m_hasResidencySet)
+        {
+            std::lock_guard<std::mutex> lock(m_device->m_allResourcesMutex);
+            if (!m_device->m_allResources.empty())
+            {
+                m_computeCommandEncoder->useResources(
+                    (const MTL::Resource* const*)m_device->m_allResources.data(),
+                    m_device->m_allResources.size(),
+                    MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+                );
+            }
+        }
         m_computeCommandEncoder->updateFence(fence);
         m_computeCommandEncoder->endEncoding();
         m_computeCommandEncoder.reset();
@@ -1052,12 +1076,26 @@ void CommandRecorder::endCommandEncoder()
     }
     if (m_accelerationStructureCommandEncoder)
     {
+        if (!m_device->m_hasResidencySet)
+        {
+            std::lock_guard<std::mutex> lock(m_device->m_allResourcesMutex);
+            if (!m_device->m_allResources.empty())
+            {
+                m_accelerationStructureCommandEncoder->useResources(
+                    (const MTL::Resource* const*)m_device->m_allResources.data(),
+                    m_device->m_allResources.size(),
+                    MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+                );
+            }
+        }
         m_accelerationStructureCommandEncoder->updateFence(fence);
         m_accelerationStructureCommandEncoder->endEncoding();
         m_accelerationStructureCommandEncoder.reset();
     }
     if (m_blitCommandEncoder)
     {
+        // Blit encoders don't support useResources — residency for blit
+        // operands is handled automatically by Metal.
         m_blitCommandEncoder->updateFence(fence);
         m_blitCommandEncoder->endEncoding();
         m_blitCommandEncoder.reset();
@@ -1231,11 +1269,14 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Commit any pending residency set changes.
     {
         auto* device = getDevice<DeviceImpl>();
-        std::lock_guard<std::mutex> lock(device->m_residencySetMutex);
-        if (device->m_residencySetDirty)
+        if (device->m_hasResidencySet)
         {
-            device->m_residencySet->commit();
-            device->m_residencySetDirty = false;
+            std::lock_guard<std::mutex> lock(device->m_residencySetMutex);
+            if (device->m_residencySetDirty)
+            {
+                device->m_residencySet->commit();
+                device->m_residencySetDirty = false;
+            }
         }
     }
 

@@ -14,7 +14,7 @@ BufferImpl::~BufferImpl()
 {
     if (m_buffer)
     {
-        getDevice<DeviceImpl>()->unregisterAllocation(m_buffer.get());
+        getDevice<DeviceImpl>()->unregisterResource(m_buffer.get());
     }
 }
 
@@ -78,7 +78,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     // render/compute command buffer using this address via argument buffers.
     // Blit encoders handle residency for explicit operands automatically.
     buffer->m_deviceAddress = buffer->m_buffer->gpuAddress();
-    registerAllocation(buffer->m_buffer.get());
+    registerResource(buffer->m_buffer.get());
 
     if (desc.label)
         buffer->m_buffer->addDebugMarker(createString(desc.label).get(), NS::Range(0, desc.size));

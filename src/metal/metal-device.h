@@ -3,7 +3,9 @@
 #include "metal-base.h"
 #include "metal-clear-engine.h"
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 namespace rhi::metal {
 
@@ -171,11 +173,16 @@ public:
     bool m_hasArgumentBufferTier2 = false;
 
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
+    bool m_hasResidencySet = false;
     bool m_residencySetDirty = false;
     std::mutex m_residencySetMutex;
 
-    void registerAllocation(MTL::Allocation* allocation);
-    void unregisterAllocation(MTL::Allocation* allocation);
+    // Fallback residency: all live resources tracked for per-encoder useResources.
+    std::vector<MTL::Resource*> m_allResources;
+    std::mutex m_allResourcesMutex;
+
+    void registerResource(MTL::Resource* resource);
+    void unregisterResource(MTL::Resource* resource);
 };
 
 } // namespace rhi::metal

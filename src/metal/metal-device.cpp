@@ -16,6 +16,8 @@
 
 #include "core/common.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 namespace rhi::metal {
@@ -82,32 +84,72 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         return SLANG_FAIL;
     }
 
-    // R5: Require Apple Silicon (GPU Family 6+) for untracked mode + MTLResidencySet.
-    if (!m_device->supportsFamily(MTL::GPUFamilyApple6))
+    // Log device identity for diagnostics.
+    {
+        char buf[256];
+        std::snprintf(
+            buf,
+            sizeof(buf),
+            "Metal device: %s (UMA=%s, ArgBufTier=%d)",
+            m_device->name()->utf8String(),
+            m_device->hasUnifiedMemory() ? "yes" : "no",
+            (int)m_device->argumentBuffersSupport()
+        );
+        handleMessage(DebugMessageType::Info, DebugMessageSource::Driver, buf);
+    }
+
+    // Gate on Argument Buffers Tier 2 — the actual functional requirement
+    // for gpuAddress() and bindless argument buffer access.
+    if (m_device->argumentBuffersSupport() < MTL::ArgumentBuffersTier2)
     {
         handleMessage(
             DebugMessageType::Error,
             DebugMessageSource::Driver,
-            "Metal backend requires Apple GPU Family 6+ (Apple Silicon)"
+            "Metal backend requires Argument Buffers Tier 2"
         );
         return SLANG_FAIL;
     }
 
-    // R2: Create residency set (mandatory - all allocations are registered here).
+    if (!m_device->hasUnifiedMemory())
     {
-        NS::Error* error = nullptr;
-        auto rsDesc = NS::TransferPtr(MTL::ResidencySetDescriptor::alloc()->init());
-        m_residencySet = NS::TransferPtr(m_device->newResidencySet(rsDesc.get(), &error));
-        if (!m_residencySet)
+        handleMessage(
+            DebugMessageType::Warning,
+            DebugMessageSource::Driver,
+            "Non-UMA device detected; shared texture support may be limited"
+        );
+    }
+
+    // Try residency set (requires GPUFamilyApple6 + runtime support).
+    // Environment variable to force fallback path for testing.
+    {
+        bool forceUseResourceFallback = std::getenv("SLANG_RHI_METAL_NO_RESIDENCY_SET") != nullptr;
+        if (!forceUseResourceFallback && m_device->supportsFamily(MTL::GPUFamilyApple6))
         {
-            if (error)
+            NS::Error* error = nullptr;
+            auto rsDesc = NS::TransferPtr(MTL::ResidencySetDescriptor::alloc()->init());
+            m_residencySet = NS::TransferPtr(m_device->newResidencySet(rsDesc.get(), &error));
+            if (m_residencySet)
             {
-                if (NS::String* errStr = error->localizedDescription())
-                    handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, errStr->utf8String());
+                m_commandQueue->addResidencySet(m_residencySet.get());
+                m_hasResidencySet = true;
             }
-            return SLANG_FAIL;
+            else
+            {
+                handleMessage(
+                    DebugMessageType::Warning,
+                    DebugMessageSource::Driver,
+                    "MTLResidencySet creation failed; using per-encoder useResource fallback"
+                );
+            }
         }
-        m_commandQueue->addResidencySet(m_residencySet.get());
+        else
+        {
+            handleMessage(
+                DebugMessageType::Info,
+                DebugMessageSource::Driver,
+                "GPUFamilyApple6 not supported; using per-encoder useResource fallback"
+            );
+        }
     }
 
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
@@ -491,20 +533,41 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
     return SLANG_OK;
 }
 
-void DeviceImpl::registerAllocation(MTL::Allocation* allocation)
+void DeviceImpl::registerResource(MTL::Resource* resource)
 {
-    SLANG_RHI_ASSERT(allocation);
-    std::lock_guard<std::mutex> lock(m_residencySetMutex);
-    m_residencySet->addAllocation(allocation);
-    m_residencySetDirty = true;
+    SLANG_RHI_ASSERT(resource);
+    if (m_hasResidencySet)
+    {
+        std::lock_guard<std::mutex> lock(m_residencySetMutex);
+        m_residencySet->addAllocation(resource);
+        m_residencySetDirty = true;
+    }
+    else
+    {
+        std::lock_guard<std::mutex> lock(m_allResourcesMutex);
+        m_allResources.push_back(resource);
+    }
 }
 
-void DeviceImpl::unregisterAllocation(MTL::Allocation* allocation)
+void DeviceImpl::unregisterResource(MTL::Resource* resource)
 {
-    SLANG_RHI_ASSERT(allocation);
-    std::lock_guard<std::mutex> lock(m_residencySetMutex);
-    m_residencySet->removeAllocation(allocation);
-    m_residencySetDirty = true;
+    SLANG_RHI_ASSERT(resource);
+    if (m_hasResidencySet)
+    {
+        std::lock_guard<std::mutex> lock(m_residencySetMutex);
+        m_residencySet->removeAllocation(resource);
+        m_residencySetDirty = true;
+    }
+    else
+    {
+        std::lock_guard<std::mutex> lock(m_allResourcesMutex);
+        auto it = std::find(m_allResources.begin(), m_allResources.end(), resource);
+        if (it != m_allResources.end())
+        {
+            *it = m_allResources.back();
+            m_allResources.pop_back();
+        }
+    }
 }
 
 } // namespace rhi::metal
