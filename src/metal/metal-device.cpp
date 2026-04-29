@@ -123,7 +123,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     // Environment variable to force fallback path for testing.
     {
         bool forceUseResourceFallback = std::getenv("SLANG_RHI_METAL_NO_RESIDENCY_SET") != nullptr;
-        if (!forceUseResourceFallback && m_device->supportsFamily(MTL::GPUFamilyApple6))
+        if (forceUseResourceFallback)
+        {
+            handleMessage(
+                DebugMessageType::Info,
+                DebugMessageSource::Driver,
+                "SLANG_RHI_METAL_NO_RESIDENCY_SET set; using per-encoder useResource fallback"
+            );
+        }
+        else if (m_device->supportsFamily(MTL::GPUFamilyApple6))
         {
             NS::Error* error = nullptr;
             auto rsDesc = NS::TransferPtr(MTL::ResidencySetDescriptor::alloc()->init());
