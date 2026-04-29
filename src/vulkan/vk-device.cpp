@@ -244,7 +244,7 @@ Result DeviceImpl::initVulkanInstance(
         }
 
         // Add user-provided instance extensions, skipping duplicates.
-        if (extendedDesc && extendedDesc->instanceExtensionCount > 0 && extendedDesc->instanceExtensions)
+        if (extendedDesc && extendedDesc->instanceExtensionCount > 0)
         {
             std::set<std::string> existingExtensions(instanceExtensions.begin(), instanceExtensions.end());
             for (uint32_t i = 0; i < extendedDesc->instanceExtensionCount; ++i)
@@ -1209,7 +1209,7 @@ Result DeviceImpl::initVulkanDevice(
         deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
 
         // Add user-provided device extensions, skipping duplicates.
-        if (extendedDesc && extendedDesc->deviceExtensionCount > 0 && extendedDesc->deviceExtensions)
+        if (extendedDesc && extendedDesc->deviceExtensionCount > 0)
         {
             std::set<std::string> existingExtensions(deviceExtensions.begin(), deviceExtensions.end());
             for (uint32_t i = 0; i < extendedDesc->deviceExtensionCount; ++i)
