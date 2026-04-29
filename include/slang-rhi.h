@@ -267,6 +267,25 @@ enum class LinkingStyle
     SeparateEntryPointCompilation
 };
 
+// Describes one descriptor binding that is present in the compiled
+// shader binary but not surfaced in Slang's public reflection. The
+// host supplies these via `ShaderProgramDesc::extraDescriptorBindings`
+// so slang-rhi includes the slot in pipeline layouts.
+//
+// The canonical motivation is compiler-synthesized resources whose
+// existence is reported through a side-channel metadata interface
+// (e.g. `slang::ICoverageTracingMetadata` for `-trace-coverage`).
+//
+// `bindingType` uses `slang::BindingType` so callers can pass through
+// values returned by Slang's reflection / metadata APIs without an
+// extra translation step.
+struct ExtraDescriptorBinding
+{
+    uint32_t set = 0;
+    uint32_t binding = 0;
+    slang::BindingType bindingType = slang::BindingType::Unknown;
+};
+
 struct ShaderProgramDesc
 {
     StructType type = StructType::ShaderProgramDesc;
@@ -287,6 +306,16 @@ struct ShaderProgramDesc
     // If set to 0, then `slangGlobalScope` must contain Slang EntryPoint components.
     // If not 0, then `slangGlobalScope` must not contain any EntryPoint components.
     uint32_t slangEntryPointCount = 0;
+
+    // Bindings that are present in the compiled shader binary but not
+    // in Slang's reflection (e.g. compiler-synthesized resources).
+    // slang-rhi will include these in the constructed pipeline
+    // layout so that subsequent `setBinding` calls can target them.
+    // The host obtains the (set, binding, bindingType) values from
+    // the relevant metadata interface (e.g.
+    // `slang::ICoverageTracingMetadata`).
+    const ExtraDescriptorBinding* extraDescriptorBindings = nullptr;
+    uint32_t extraDescriptorBindingCount = 0;
 
     const char* label = nullptr;
 };
@@ -1745,6 +1774,20 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) = 0;
+
+    // Bind a resource at a raw `(set, binding)` slot declared via
+    // `ShaderProgramDesc::extraDescriptorBindings`. Used for
+    // resources that exist in the compiled shader binary but are not
+    // surfaced in Slang's reflection (e.g. compiler-synthesized
+    // bindings from `-trace-coverage`). The slot must have been
+    // declared on the program — otherwise the call returns
+    // `SLANG_E_INVALID_ARG`.
+    virtual SLANG_NO_THROW Result SLANG_MCALL setExtraBinding(
+        uint32_t set,
+        uint32_t binding,
+        const Binding& resource
+    ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL setDescriptorHandle(
         const ShaderOffset& offset,
         const DescriptorHandle& handle

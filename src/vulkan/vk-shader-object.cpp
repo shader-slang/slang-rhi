@@ -322,6 +322,81 @@ Result BindingDataBuilder::bindAsRoot(
         SLANG_RETURN_ON_FAIL(bindAsEntryPoint(entryPoint, entryPointInfo.offset, entryPointLayout, (uint32_t)i));
     }
 
+    // Write descriptors for extra bindings declared via
+    // `ShaderProgramDesc::extraDescriptorBindings`. The slots were
+    // included in the pipeline layout, but the reflection-driven
+    // walk above doesn't know about them; we resolve the
+    // `VkDescriptorType` from the layout's per-set binding list and
+    // dispatch to the right writer based on the bound resource.
+    {
+        DeviceImpl* extraDevice = m_device;
+        for (const auto& extra : shaderObject->m_extraBindings)
+        {
+            if (extra.set >= specializedLayout->m_descriptorSetInfos.size())
+                continue;
+            const auto& descriptorSetInfo = specializedLayout->m_descriptorSetInfos[extra.set];
+            VkDescriptorSet descriptorSet = m_bindingData->descriptorSets[extra.set];
+            VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+            for (const auto& vkBinding : descriptorSetInfo.vkBindings)
+            {
+                if (vkBinding.binding == extra.binding)
+                {
+                    descriptorType = vkBinding.descriptorType;
+                    break;
+                }
+            }
+            if (descriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM)
+                continue;
+            switch (extra.slot.type)
+            {
+            case BindingType::Buffer:
+            {
+                BufferImpl* buffer = checked_cast<BufferImpl*>(extra.slot.resource.get());
+                if (descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER ||
+                    descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER)
+                {
+                    writeTexelBufferDescriptor(
+                        extraDevice,
+                        descriptorSet,
+                        extra.binding,
+                        0,
+                        descriptorType,
+                        buffer,
+                        extra.slot.format,
+                        extra.slot.bufferRange);
+                }
+                else
+                {
+                    writePlainBufferDescriptor(
+                        extraDevice,
+                        descriptorSet,
+                        extra.binding,
+                        0,
+                        descriptorType,
+                        buffer,
+                        extra.slot.bufferRange);
+                }
+                if (buffer)
+                {
+                    ResourceState requiredState =
+                        (descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER ||
+                         descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER)
+                            ? ResourceState::UnorderedAccess
+                            : ResourceState::ShaderResource;
+                    writeBufferState(this, buffer, requiredState);
+                }
+                break;
+            }
+            default:
+                // Other resource kinds (textures, samplers, AS) can
+                // be added on demand. The current motivating use
+                // case (compiler-synthesized counter buffers) is
+                // buffer-only.
+                break;
+            }
+        }
+    }
+
     // Assign bindless descriptor set to the last slot if available.
     if (m_device->m_bindlessDescriptorSet)
     {

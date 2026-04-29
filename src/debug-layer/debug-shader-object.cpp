@@ -158,6 +158,13 @@ Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& 
     return baseObject->setBinding(offset, binding);
 }
 
+Result DebugShaderObject::setExtraBinding(uint32_t set, uint32_t binding, const Binding& resource)
+{
+    SLANG_RHI_DEBUG_API(IShaderObject, setExtraBinding);
+    SLANG_RETURN_ON_FAIL(checkNotFinalized());
+    return baseObject->setExtraBinding(set, binding, resource);
+}
+
 Result DebugShaderObject::setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle)
 {
     SLANG_RHI_DEBUG_API(IShaderObject, setDescriptorHandle);

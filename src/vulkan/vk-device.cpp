@@ -2188,6 +2188,8 @@ Result DeviceImpl::createShaderProgram(
             this,
             shaderProgram->linkedProgram,
             shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->m_desc.extraDescriptorBindings,
+            shaderProgram->m_desc.extraDescriptorBindingCount,
             shaderProgram->m_rootShaderObjectLayout.writeRef()
         )
     );

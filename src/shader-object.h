@@ -229,6 +229,21 @@ public:
     short_vector<RefPtr<ShaderObject>> m_objects;
     short_vector<RefPtr<ExtendedShaderObjectTypeListObject>> m_userProvidedSpecializationArgs;
 
+    // Bindings to slots declared via
+    // `ShaderProgramDesc::extraDescriptorBindings`. These do not
+    // appear in Slang's reflection and therefore cannot be addressed
+    // via `setBinding(ShaderOffset, ...)`; the host targets them by
+    // raw `(set, binding)` through `setExtraBinding`. Writing them
+    // is per-backend (some backends may ignore them entirely if the
+    // pipeline-layout-builder does not consume the slot list).
+    struct ExtraBindingSlot
+    {
+        uint32_t set;
+        uint32_t binding;
+        ResourceSlot slot;
+    };
+    short_vector<ExtraBindingSlot> m_extraBindings;
+
     // Specialization args for a StructuredBuffer object.
     ExtendedShaderObjectTypeList m_structuredBufferSpecializationArgs;
 
@@ -267,6 +282,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setExtraBinding(
+        uint32_t set,
+        uint32_t binding,
+        const Binding& resource
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setDescriptorHandle(
         const ShaderOffset& offset,
         const DescriptorHandle& handle

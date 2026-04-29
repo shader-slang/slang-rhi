@@ -668,6 +668,8 @@ Result RootShaderObjectLayoutImpl::create(
     DeviceImpl* device,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
+    const ExtraDescriptorBinding* extraDescriptorBindings,
+    uint32_t extraDescriptorBindingCount,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
@@ -688,9 +690,29 @@ Result RootShaderObjectLayoutImpl::create(
         builder.addEntryPoint(entryPointLayout);
     }
 
+    // Inject any compiler-synthesized bindings that are present in
+    // the compiled binary but absent from Slang reflection. Done
+    // after `addGlobalParams` / entry-point setup so the descriptor-
+    // set list already contains every reflection-derived set the
+    // extras might target.
+    for (uint32_t i = 0; i < extraDescriptorBindingCount; ++i)
+        builder.addExtraDescriptorBinding(extraDescriptorBindings[i]);
+
     SLANG_RETURN_ON_FAIL(builder.build(outLayout));
 
     return SLANG_OK;
+}
+
+void RootShaderObjectLayoutImpl::Builder::addExtraDescriptorBinding(const ExtraDescriptorBinding& extra)
+{
+    auto setIndex = findOrAddDescriptorSet(extra.set);
+    auto& info = m_descriptorSetBuildInfos[setIndex];
+    VkDescriptorSetLayoutBinding vkBinding = {};
+    vkBinding.binding = extra.binding;
+    vkBinding.descriptorType = _mapDescriptorType(extra.bindingType);
+    vkBinding.descriptorCount = 1;
+    vkBinding.stageFlags = VK_SHADER_STAGE_ALL;
+    info.vkBindings.push_back(vkBinding);
 }
 
 Result RootShaderObjectLayoutImpl::_init(const Builder* builder)

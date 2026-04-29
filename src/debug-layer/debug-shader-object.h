@@ -57,6 +57,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** outObject) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setObject(const ShaderOffset& offset, IShaderObject* object) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setBinding(const ShaderOffset& offset, const Binding& binding) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL setExtraBinding(
+        uint32_t set,
+        uint32_t binding,
+        const Binding& resource
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL setDescriptorHandle(
         const ShaderOffset& offset,
         const DescriptorHandle& handle

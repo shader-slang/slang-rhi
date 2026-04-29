@@ -377,6 +377,132 @@ Result ShaderObject::setBinding(const ShaderOffset& offset, const Binding& bindi
     return SLANG_OK;
 }
 
+namespace {
+// Populate a `ResourceSlot` from a `Binding`. Returns the runtime
+// `BindingType` written into the slot, or `BindingType::Undefined`
+// if the binding shape is not recognised. Mirrors the per-type logic
+// in `setBinding` so that both reflection-keyed and extra-binding
+// paths share validation and storage rules.
+Result populateResourceSlot(const Binding& binding, ResourceSlot& slot)
+{
+    switch (binding.type)
+    {
+    case BindingType::Buffer:
+    case BindingType::BufferWithCounter:
+    {
+        Buffer* buffer = checked_cast<Buffer*>(binding.resource.get());
+        if (buffer)
+        {
+            slot.type = BindingType::Buffer;
+            slot.resource = buffer;
+            if (binding.type == BindingType::BufferWithCounter)
+                slot.resource2 = checked_cast<Buffer*>(binding.resource2.get());
+            slot.format = buffer->m_desc.format;
+            slot.bufferRange = buffer->resolveBufferRange(binding.bufferRange);
+        }
+        else
+        {
+            slot = {};
+        }
+        return SLANG_OK;
+    }
+    case BindingType::Texture:
+    {
+        TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
+        if (textureView)
+        {
+            slot.type = BindingType::Texture;
+            slot.resource = textureView;
+        }
+        else
+        {
+            slot = {};
+        }
+        return SLANG_OK;
+    }
+    case BindingType::Sampler:
+    {
+        Sampler* sampler = checked_cast<Sampler*>(binding.resource.get());
+        if (sampler)
+        {
+            slot.type = BindingType::Sampler;
+            slot.resource = sampler;
+        }
+        else
+        {
+            slot = {};
+        }
+        return SLANG_OK;
+    }
+    case BindingType::AccelerationStructure:
+    {
+        AccelerationStructure* accelerationStructure =
+            checked_cast<AccelerationStructure*>(binding.resource.get());
+        if (accelerationStructure)
+        {
+            slot.type = BindingType::AccelerationStructure;
+            slot.resource = accelerationStructure;
+        }
+        else
+        {
+            slot = {};
+        }
+        return SLANG_OK;
+    }
+    case BindingType::CombinedTextureSampler:
+    {
+        TextureView* textureView = checked_cast<TextureView*>(binding.resource.get());
+        Sampler* sampler = checked_cast<Sampler*>(binding.resource2.get());
+        if (textureView && sampler)
+        {
+            slot.type = BindingType::CombinedTextureSampler;
+            slot.resource = textureView;
+            slot.resource2 = sampler;
+        }
+        else
+        {
+            slot = {};
+        }
+        return SLANG_OK;
+    }
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+}
+} // namespace
+
+Result ShaderObject::setExtraBinding(uint32_t set, uint32_t binding, const Binding& resource)
+{
+    SLANG_RETURN_ON_FAIL(checkFinalized());
+
+    // Find or create the slot for this (set, binding). Extras are
+    // identified by raw indices, not reflection range. Repeated
+    // calls with the same (set, binding) overwrite the prior
+    // resource — same semantics as `setBinding`.
+    ExtraBindingSlot* found = nullptr;
+    for (auto& entry : m_extraBindings)
+    {
+        if (entry.set == set && entry.binding == binding)
+        {
+            found = &entry;
+            break;
+        }
+    }
+    if (!found)
+    {
+        ExtraBindingSlot fresh = {};
+        fresh.set = set;
+        fresh.binding = binding;
+        m_extraBindings.push_back(fresh);
+        found = &m_extraBindings.back();
+    }
+
+    SLANG_RETURN_ON_FAIL(populateResourceSlot(resource, found->slot));
+
+    incrementVersion();
+    return SLANG_OK;
+}
+
 Result ShaderObject::setDescriptorHandle(const ShaderOffset& offset, const DescriptorHandle& handle)
 {
     SLANG_RETURN_ON_FAIL(checkFinalized());

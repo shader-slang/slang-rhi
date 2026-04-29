@@ -422,6 +422,14 @@ public:
 
         void addEntryPoint(EntryPointLayout* entryPointLayout);
 
+        // Inject one descriptor binding that exists in the compiled
+        // binary but not in Slang's reflection (e.g. compiler-
+        // synthesized resources surfaced via metadata APIs). The slot
+        // is appended to the appropriate descriptor-set's binding
+        // list before the parent `_init` materialises the
+        // `VkDescriptorSetLayout`s.
+        void addExtraDescriptorBinding(const ExtraDescriptorBinding& extra);
+
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         std::vector<EntryPointInfo> m_entryPoints;
@@ -435,6 +443,8 @@ public:
         DeviceImpl* device,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
+        const ExtraDescriptorBinding* extraDescriptorBindings,
+        uint32_t extraDescriptorBindingCount,
         RootShaderObjectLayoutImpl** outLayout
     );
 
