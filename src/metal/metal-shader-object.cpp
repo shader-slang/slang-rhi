@@ -382,8 +382,6 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     SLANG_RETURN_ON_FAIL(setBuffer(m_bindingData, ioOffset.buffer, bufferImpl->m_buffer.get()));
     ioOffset.buffer++;
 
-    bufferImpl->m_buffer->didModifyRange(NS::Range(0, bufferImpl->m_desc.size));
-
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(bufferImpl);
 
@@ -574,8 +572,6 @@ Result BindingDataBuilder::writeArgumentBuffer(
         }
     }
 
-    argumentBufferImpl->m_buffer->didModifyRange(NS::Range(0, argumentBufferImpl->m_desc.size));
-
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(argumentBufferImpl);
 
@@ -595,17 +591,42 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
     {
         if (defaultTypeLayout->getCategoryByIndex(0) == slang::ParameterCategory::Uniform)
         {
-            // Just write the uniform data.
             memcpy(argumentBuffer, srcData, defaultTypeLayout->getSize());
         }
         return SLANG_OK;
+    }
+
+    // Leaf types with multiple parameter categories but no sub-fields (e.g., pointer
+    // types whose 8-byte GPU address is Uniform but which also carry a MetalBuffer
+    // resource category). The old loop would run 0 iterations, silently skipping
+    // the pointer's address data.
+    if (defaultTypeLayout->getFieldCount() == 0)
+    {
+        size_t uniformSize = defaultTypeLayout->getSize(slang::ParameterCategory::Uniform);
+        if (uniformSize > 0)
+        {
+            memcpy(argumentBuffer, srcData, uniformSize);
+        }
+        return SLANG_OK;
+    }
+
+    // Metal Tier 2 argument buffer layouts represent all resource types (buffers,
+    // textures, samplers) as 8-byte uniform values, so the field count should match
+    // the default layout. If this invariant is ever violated, the index-based pairing
+    // below would mismatch fields - fail rather than silently corrupt data.
+    // Hard crash (SLANG_RHI_ASSERT_FAILURE) is intentional: continuing past a
+    // field-count mismatch would silently corrupt argument buffer memory.
+    // The return SLANG_FAIL only runs if asserts are disabled (ScopedDisableAssert).
+    if (argumentBufferTypeLayout->getFieldCount() != defaultTypeLayout->getFieldCount())
+    {
+        SLANG_RHI_ASSERT_FAILURE("Field count mismatch between argument buffer and default layout");
+        return SLANG_FAIL;
     }
 
     for (unsigned int i = 0; i < argumentBufferTypeLayout->getFieldCount(); i++)
     {
         auto argumentBufferField = argumentBufferTypeLayout->getFieldByIndex(i);
         auto defaultLayoutField = defaultTypeLayout->getFieldByIndex(i);
-        // If the field is mixed type, recurse.
         SLANG_RETURN_ON_FAIL(writeOrdinaryDataIntoArgumentBuffer(
             argumentBufferField->getTypeLayout(),
             defaultLayoutField->getTypeLayout(),

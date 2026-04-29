@@ -75,4 +75,23 @@ MTL::TriangleFillMode translateTriangleFillMode(FillMode mode);
 MTL::LoadAction translateLoadOp(LoadOp loadOp);
 MTL::StoreAction translateStoreOp(StoreOp storeOp, bool resolve);
 
+/// Build MTL::ResourceOptions with enforced restrictions:
+/// - MTLStorageModeManaged is forbidden
+/// - MTLHazardTrackingModeTracked is forbidden
+/// All resources are created with MTLHazardTrackingModeUntracked, which
+/// requires explicit synchronization via MTL::Fence. See the synchronization
+/// model documentation in metal-command.h (CommandQueueImpl).
+/// Note: textures use MTL::TextureDescriptor setters directly and bypass
+/// this helper. A separate SLANG_RHI_ASSERT in createTexture() guards
+/// against managed-mode textures.
+inline MTL::ResourceOptions makeResourceOptions(
+    MTL::ResourceOptions storageMode,
+    MTL::ResourceOptions cpuCacheMode = MTL::ResourceCPUCacheModeDefaultCache
+)
+{
+    SLANG_RHI_ASSERT(storageMode != MTL::ResourceStorageModeManaged);
+
+    return storageMode | cpuCacheMode | MTL::ResourceHazardTrackingModeUntracked;
+}
+
 } // namespace rhi::metal

@@ -205,6 +205,24 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
     }
 }
 
+static Result loadModuleFromSource(slang::ISession* slangSession, std::string_view source, slang::IModule** outModule)
+{
+    static uint64_t counter = 0;
+    size_t hash = std::hash<std::string_view>()(source);
+    // TODO: If loading the same module name twice, we sometimes get crashes in Slang.
+    // For now we work around this by generating a unique module name for each load,
+    // but ideally Slang should fail to reuse a module name if the source is different, instead of crashing.
+    // Details in https://github.com/shader-slang/slang/issues/10957.
+    std::string moduleName = "source_module_" + std::to_string(hash) + "_" + std::to_string(counter++);
+    auto srcBlob = UnownedBlob::create(source.data(), source.size());
+    ComPtr<slang::IBlob> diagnosticsBlob;
+    *outModule =
+        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    if (!*outModule)
+        return SLANG_FAIL;
+    return SLANG_OK;
+}
 
 static Result loadProgram(
     IDevice* device,
@@ -391,15 +409,7 @@ Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IS
 {
     auto slangSession = device->getSlangSession();
     slang::IModule* module = nullptr;
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    size_t hash = std::hash<std::string_view>()(source);
-    std::string moduleName = "source_module_" + std::to_string(hash);
-    auto srcBlob = UnownedBlob::create(source.data(), source.size());
-    module =
-        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
+    SLANG_RETURN_ON_FAIL(loadModuleFromSource(slangSession, source, &module));
 
     std::vector<ComPtr<slang::IComponentType>> componentTypes;
     componentTypes.push_back(ComPtr<slang::IComponentType>(module));
@@ -416,6 +426,7 @@ Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IS
         rawComponentTypes.push_back(compType.get());
 
     ComPtr<slang::IComponentType> linkedProgram;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     Result result = slangSession->createCompositeComponentType(
         rawComponentTypes.data(),
         rawComponentTypes.size(),
@@ -442,15 +453,7 @@ Result loadRenderProgramFromSource(
 {
     auto slangSession = device->getSlangSession();
     slang::IModule* module = nullptr;
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    size_t hash = std::hash<std::string_view>()(source);
-    std::string moduleName = "source_module_" + std::to_string(hash);
-    auto srcBlob = UnownedBlob::create(source.data(), source.size());
-    module =
-        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
+    SLANG_RETURN_ON_FAIL(loadModuleFromSource(slangSession, source, &module));
 
     std::vector<ComPtr<slang::IComponentType>> componentTypes;
     componentTypes.push_back(ComPtr<slang::IComponentType>(module));
@@ -468,6 +471,7 @@ Result loadRenderProgramFromSource(
         rawComponentTypes.push_back(compType.get());
 
     ComPtr<slang::IComponentType> linkedProgram;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     Result result = slangSession->createCompositeComponentType(
         rawComponentTypes.data(),
         rawComponentTypes.size(),

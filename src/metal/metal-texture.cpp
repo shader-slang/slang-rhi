@@ -1,4 +1,6 @@
 #include "metal-texture.h"
+#include "metal-buffer.h"
+#include "metal-command.h"
 #include "metal-device.h"
 #include "metal-utils.h"
 
@@ -12,6 +14,10 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 TextureImpl::~TextureImpl()
 {
     m_defaultView.setNull();
+    if (m_texture && !m_isSwapchainTexture)
+    {
+        getDevice<DeviceImpl>()->unregisterAllocation(m_texture.get());
+    }
 }
 
 void TextureImpl::deleteThis()
@@ -142,6 +148,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     textureDesc->setUsage(textureUsage);
     textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
+    SLANG_RHI_ASSERT(textureDesc->storageMode() != MTL::StorageModeManaged);
+    textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
 
     textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
     if (!textureImpl->m_texture)
@@ -151,6 +159,8 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureImpl->m_textureType = textureDesc->textureType();
     textureImpl->m_pixelFormat = textureDesc->pixelFormat();
 
+    registerAllocation(textureImpl->m_texture.get());
+
     if (desc.label)
     {
         textureImpl->m_texture->setLabel(createString(desc.label).get());
@@ -158,16 +168,20 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     if (initData)
     {
-        textureDesc->setStorageMode(MTL::StorageModeManaged);
+        // Staging texture: shared mode, on UMA replaceRegion writes are immediately coherent.
+        textureDesc->setStorageMode(MTL::StorageModeShared);
         textureDesc->setCpuCacheMode(MTL::CPUCacheModeDefaultCache);
+        textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
         NS::SharedPtr<MTL::Texture> stagingTexture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
 
-        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
-        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
-        if (!stagingTexture || !commandBuffer || !encoder)
-        {
+        if (!stagingTexture)
             return SLANG_FAIL;
-        }
+        MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+        if (!commandBuffer)
+            return SLANG_FAIL;
+        MTL::BlitCommandEncoder* encoder = commandBuffer->blitCommandEncoder();
+        if (!encoder)
+            return SLANG_FAIL;
 
         uint32_t sliceCount = desc.getLayerCount();
 
@@ -189,14 +203,15 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                     subresourceData.rowPitch,
                     subresourceData.slicePitch
                 );
-                encoder->synchronizeTexture(stagingTexture.get(), slice, level);
                 region.size.width = region.size.width > 0 ? max(1ul, region.size.width >> 1) : 0;
                 region.size.height = region.size.height > 0 ? max(1ul, region.size.height >> 1) : 0;
                 region.size.depth = region.size.depth > 0 ? max(1ul, region.size.depth >> 1) : 0;
             }
         }
 
+        encoder->waitForFence(m_queue->m_queueFence.get());
         encoder->copyFromTexture(stagingTexture.get(), textureImpl->m_texture.get());
+        encoder->updateFence(m_queue->m_queueFence.get());
         encoder->endEncoding();
         commandBuffer->commit();
         commandBuffer->waitUntilCompleted();

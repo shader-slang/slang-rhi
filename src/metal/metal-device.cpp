@@ -16,7 +16,6 @@
 
 #include "core/common.h"
 
-#include <cstdio>
 #include <vector>
 
 namespace rhi::metal {
@@ -38,6 +37,11 @@ DeviceImpl::~DeviceImpl()
     {
         m_queue->shutdown();
         m_queue.setNull();
+    }
+
+    if (m_commandQueue && m_residencySet)
+    {
+        m_commandQueue->removeResidencySet(m_residencySet.get());
     }
 
     m_clearEngine.release();
@@ -77,6 +81,35 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         return SLANG_FAIL;
     }
+
+    // R5: Require Apple Silicon (GPU Family 6+) for untracked mode + MTLResidencySet.
+    if (!m_device->supportsFamily(MTL::GPUFamilyApple6))
+    {
+        handleMessage(
+            DebugMessageType::Error,
+            DebugMessageSource::Driver,
+            "Metal backend requires Apple GPU Family 6+ (Apple Silicon)"
+        );
+        return SLANG_FAIL;
+    }
+
+    // R2: Create residency set (mandatory - all allocations are registered here).
+    {
+        NS::Error* error = nullptr;
+        auto rsDesc = NS::TransferPtr(MTL::ResidencySetDescriptor::alloc()->init());
+        m_residencySet = NS::TransferPtr(m_device->newResidencySet(rsDesc.get(), &error));
+        if (!m_residencySet)
+        {
+            if (error)
+            {
+                if (NS::String* errStr = error->localizedDescription())
+                    handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, errStr->utf8String());
+            }
+            return SLANG_FAIL;
+        }
+        m_commandQueue->addResidencySet(m_residencySet.get());
+    }
+
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_commandQueue);
     m_queue->setInternalReferenceCount(1);
@@ -286,18 +319,22 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
-    // create staging buffer
-    NS::SharedPtr<MTL::Buffer> stagingBuffer =
-        NS::TransferPtr(m_device->newBuffer(size, MTL::ResourceStorageModeManaged));
+    auto stagingOpts = makeResourceOptions(MTL::ResourceStorageModeShared);
+    NS::SharedPtr<MTL::Buffer> stagingBuffer = NS::TransferPtr(m_device->newBuffer(size, stagingOpts));
     if (!stagingBuffer)
     {
         return SLANG_FAIL;
     }
 
     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+    if (!commandBuffer)
+        return SLANG_FAIL;
     MTL::BlitCommandEncoder* blitEncoder = commandBuffer->blitCommandEncoder();
+    if (!blitEncoder)
+        return SLANG_FAIL;
+    blitEncoder->waitForFence(m_queue->m_queueFence.get());
     blitEncoder->copyFromBuffer(bufferImpl->m_buffer.get(), offset, stagingBuffer.get(), 0, size);
-    blitEncoder->synchronizeResource(stagingBuffer.get());
+    blitEncoder->updateFence(m_queue->m_queueFence.get());
     blitEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
@@ -452,6 +489,22 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPo
     SLANG_RETURN_ON_FAIL(poolImpl->init());
     returnComPtr(outPool, poolImpl);
     return SLANG_OK;
+}
+
+void DeviceImpl::registerAllocation(MTL::Allocation* allocation)
+{
+    SLANG_RHI_ASSERT(allocation);
+    std::lock_guard<std::mutex> lock(m_residencySetMutex);
+    m_residencySet->addAllocation(allocation);
+    m_residencySetDirty = true;
+}
+
+void DeviceImpl::unregisterAllocation(MTL::Allocation* allocation)
+{
+    SLANG_RHI_ASSERT(allocation);
+    std::lock_guard<std::mutex> lock(m_residencySetMutex);
+    m_residencySet->removeAllocation(allocation);
+    m_residencySetDirty = true;
 }
 
 } // namespace rhi::metal

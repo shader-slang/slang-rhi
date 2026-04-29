@@ -42,6 +42,8 @@ public:
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Device5> m_device5;
 
+    ComPtr<D3D12MA::Allocator> m_allocator;
+
     RefPtr<CommandQueueImpl> m_queue;
 
     RefPtr<CPUDescriptorHeap> m_cpuCbvSrvUavHeap;

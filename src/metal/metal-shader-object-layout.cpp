@@ -30,8 +30,13 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     {
         m_parameterBlockTypeLayout = _getParameterBlockTypeLayout(m_session, m_elementTypeLayout);
 
-        // If we have a parameter-block, we should be working on the `ParameterBlockTypeLayout`
-        // since this layout will format data for an arg-buffer-tier2 if available.
+        // For ParameterBlock on Metal, use the Tier 2 argument buffer layout as the
+        // element type layout. This ensures ShaderCursor, m_data sizing, pointer field
+        // collection, and the argument buffer all use the same non-overlapping offsets.
+        // Under default layout rules, fields of different parameter categories (e.g.
+        // scalars vs pointers) can have overlapping Uniform offsets, which corrupts
+        // m_data when ShaderCursor writes interleaved value/pointer fields.
+        m_elementTypeLayout = m_parameterBlockTypeLayout;
         typeLayout = m_parameterBlockTypeLayout;
     }
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();
@@ -241,7 +246,6 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
     auto device = builder->m_device;
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
-
     m_parameterBlockTypeLayout = builder->m_parameterBlockTypeLayout;
     m_slotCount = builder->m_slotCount;
     m_subObjectCount = builder->m_subObjectCount;

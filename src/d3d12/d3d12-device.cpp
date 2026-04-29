@@ -487,6 +487,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
+    // Initialize D3D12 Memory Allocator.
+    {
+        D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
+        allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAGS(D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS);
+        allocatorDesc.pDevice = m_device.get();
+        allocatorDesc.pAdapter = m_dxgiAdapter.get();
+        SLANG_RETURN_ON_FAIL(D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.writeRef()));
+    }
 
     // Initialize descriptor heaps.
     {
@@ -1079,11 +1087,7 @@ Result DeviceImpl::createBuffer(
 {
     const Size bufferSize = Size(resourceDesc.Width);
 
-    D3D12_HEAP_PROPERTIES heapProps;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
+    D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
 
     D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
     if (isShared)
@@ -1118,7 +1122,9 @@ Result DeviceImpl::createBuffer(
     }
 
     // Create the resource.
-    SLANG_RETURN_ON_FAIL(resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr));
+    SLANG_RETURN_ON_FAIL(
+        resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr, m_allocator)
+    );
 
     if (srcData)
     {
@@ -1137,7 +1143,8 @@ Result DeviceImpl::createBuffer(
                 D3D12_HEAP_FLAG_NONE,
                 uploadDesc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr
+                nullptr,
+                m_allocator
             ));
         }
 
@@ -1208,13 +1215,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     // Create the target resource
     {
-        D3D12_HEAP_PROPERTIES heapProps;
-
-        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProps.CreationNodeMask = 1;
-        heapProps.VisibleNodeMask = 1;
+        D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
 
         D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
         if (is_set(desc.usage, TextureUsage::Shared))
@@ -1239,10 +1240,16 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         {
             clearValuePtr = nullptr;
         }
-        SLANG_RETURN_ON_FAIL(
-            texture->m_resource
-                .initCommitted(m_device, heapProps, flags, resourceDesc, texture->m_defaultState, clearValuePtr)
-        );
+
+        SLANG_RETURN_ON_FAIL(texture->m_resource.initCommitted(
+            m_device,
+            heapProps,
+            flags,
+            resourceDesc,
+            texture->m_defaultState,
+            clearValuePtr,
+            m_allocator
+        ));
 
         if (desc.label)
         {
@@ -1501,12 +1508,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
         // Readback heap
-        D3D12_HEAP_PROPERTIES heapProps;
-        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProps.CreationNodeMask = 1;
-        heapProps.VisibleNodeMask = 1;
+        D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_READBACK);
 
         // Resource to readback to
         D3D12_RESOURCE_DESC stagingDesc;
@@ -1518,7 +1520,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
             D3D12_HEAP_FLAG_NONE,
             stagingDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr
+            nullptr,
+            m_allocator
         ));
 
         // Do the copy

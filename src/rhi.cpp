@@ -323,6 +323,10 @@ Result RHI::createDeviceImpl(const DeviceDesc& desc, IDevice** outDevice)
         newDesc.deviceType = DeviceType::Metal;
         if (SLANG_SUCCEEDED(createDeviceImpl(newDesc, outDevice)))
             return SLANG_OK;
+#elif SLANG_WASM
+        newDesc.deviceType = DeviceType::WGPU;
+        if (SLANG_SUCCEEDED(createDeviceImpl(newDesc, outDevice)))
+            return SLANG_OK;
 #endif
         return SLANG_FAIL;
     }
