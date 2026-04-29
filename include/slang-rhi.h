@@ -3955,6 +3955,11 @@ struct VulkanDeviceExtendedDesc
     const void* next = nullptr;
 
     bool enableDebugPrintf = false;
+
+    const char* const* instanceExtensions = nullptr;
+    uint32_t instanceExtensionCount = 0;
+    const char* const* deviceExtensions = nullptr;
+    uint32_t deviceExtensionCount = 0;
 };
 
 } // namespace rhi
