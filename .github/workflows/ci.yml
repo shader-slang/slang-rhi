@@ -66,7 +66,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: 'recursive'
 
@@ -75,7 +75,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y xorg-dev
 
       - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+        uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
           arch: ${{matrix.platform == 'aarch64' && 'amd64_arm64' || 'amd64'}}
 
@@ -84,7 +85,7 @@ jobs:
 
       - name: Setup Emscripten
         if: matrix.compiler == 'emscripten'
-        uses: mymindstorm/setup-emsdk@v14
+        uses: emscripten-core/setup-emsdk@v16
         with:
           version: 'latest'
 
