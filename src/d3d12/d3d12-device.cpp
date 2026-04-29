@@ -267,20 +267,28 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     }
 
     // Process chained descs
+    const D3D12DeviceExtendedDesc* extendedDesc = nullptr;
     for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
          header = header->next)
     {
         switch (header->type)
         {
         case StructType::D3D12DeviceExtendedDesc:
-            memcpy(static_cast<void*>(&m_extendedDesc), header, sizeof(m_extendedDesc));
+            extendedDesc = reinterpret_cast<const D3D12DeviceExtendedDesc*>(header);
             break;
         case StructType::D3D12ExperimentalFeaturesDesc:
-            processExperimentalFeaturesDesc(d3dModule, header);
+            processExperimentalFeaturesDesc(d3dModule, reinterpret_cast<const D3D12ExperimentalFeaturesDesc*>(header));
             break;
         default:
             break;
         }
+    }
+
+    // Copy the root parameter shader attribute name for later use.
+    if (extendedDesc && extendedDesc->rootParameterShaderAttributeName)
+    {
+        m_rootParameterShaderAttributeNameBuffer = extendedDesc->rootParameterShaderAttributeName;
+        m_rootParameterShaderAttributeName = m_rootParameterShaderAttributeNameBuffer.c_str();
     }
 
     if (!SLANG_SUCCEEDED(setupDebugLayer(d3dModule)))
@@ -385,7 +393,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         {
             // Make break
             infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-            if (m_extendedDesc.debugBreakOnD3D12Error)
+            if (extendedDesc && extendedDesc->debugBreakOnD3D12Error)
             {
                 infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
             }
@@ -665,8 +673,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         // specified highest shader model. Therefore we assemble a list of shader models to check and
         // walk it from highest to lowest to find the supported shader model.
         short_vector<D3D_SHADER_MODEL> shaderModels;
-        if (m_extendedDesc.highestShaderModel != 0)
-            shaderModels.push_back((D3D_SHADER_MODEL)m_extendedDesc.highestShaderModel);
+        if (extendedDesc && extendedDesc->highestShaderModel != 0)
+            shaderModels.push_back((D3D_SHADER_MODEL)extendedDesc->highestShaderModel);
         for (int i = SLANG_COUNT_OF(kKnownShaderModels) - 1; i >= 0; --i)
             shaderModels.push_back(kKnownShaderModels[i].shaderModel);
         for (D3D_SHADER_MODEL shaderModel : shaderModels)
@@ -1695,7 +1703,10 @@ D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullSamplerDescriptor()
     return m_nullSamplerDescriptor.cpuHandle;
 }
 
-void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* inDesc)
+void DeviceImpl::processExperimentalFeaturesDesc(
+    SharedLibraryHandle d3dModule,
+    const D3D12ExperimentalFeaturesDesc* desc
+)
 {
     typedef HRESULT(WINAPI * PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)(
         UINT NumFeatures,
@@ -1704,8 +1715,6 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         UINT* pConfigurationStructSizes
     );
 
-    D3D12ExperimentalFeaturesDesc desc = {};
-    memcpy(&desc, inDesc, sizeof(desc));
     auto enableExperimentalFeaturesFunc =
         (PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)loadProc(d3dModule, "D3D12EnableExperimentalFeatures");
     if (!enableExperimentalFeaturesFunc)
@@ -1719,10 +1728,10 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         return;
     }
     if (SLANG_FAILED(enableExperimentalFeaturesFunc(
-            (UINT)desc.featureCount,
-            (const IID*)desc.featureIIDs,
-            (void*)desc.configurationStructs,
-            (UINT*)desc.configurationStructSizes
+            (UINT)desc->featureCount,
+            (const IID*)desc->featureIIDs,
+            (void*)desc->configurationStructs,
+            (UINT*)desc->configurationStructSizes
         )))
     {
         handleMessage(
