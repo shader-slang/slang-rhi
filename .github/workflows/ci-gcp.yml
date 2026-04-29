@@ -62,7 +62,7 @@ jobs:
 
       - name: Setup MSVC
         if: runner.os == 'Windows'
-        uses: TheMrMilchmann/setup-msvc-dev@v4
+        uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{matrix.platform == 'aarch64' && 'amd64_arm64' || 'amd64'}}
 
