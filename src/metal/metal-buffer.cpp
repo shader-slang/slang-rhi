@@ -18,7 +18,6 @@ BufferImpl::~BufferImpl()
         if (!device->m_hasResidencySet && m_deviceAddress != 0)
             device->m_addressToBuffer.erase(m_deviceAddress);
         device->unregisterResource(m_buffer.get());
-
     }
 }
 

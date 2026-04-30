@@ -71,7 +71,10 @@ private:
             m_sorted.begin(),
             m_sorted.end(),
             addr,
-            [](DeviceAddress a, const std::pair<DeviceAddress, Entry>& e) { return a < e.first; }
+            [](DeviceAddress a, const std::pair<DeviceAddress, Entry>& e)
+            {
+                return a < e.first;
+            }
         );
 
         if (it == m_sorted.begin())
@@ -90,9 +93,14 @@ private:
         m_sorted.reserve(m_baseAddrMap.size());
         for (auto& [addr, entry] : m_baseAddrMap)
             m_sorted.push_back({addr, entry});
-        std::sort(m_sorted.begin(), m_sorted.end(), [](const auto& a, const auto& b) {
-            return a.first < b.first;
-        });
+        std::sort(
+            m_sorted.begin(),
+            m_sorted.end(),
+            [](const auto& a, const auto& b)
+            {
+                return a.first < b.first;
+            }
+        );
         m_sortedDirty = false;
     }
 
