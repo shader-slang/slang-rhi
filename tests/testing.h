@@ -482,8 +482,8 @@ int registerGpuTest(
 void reportSkip(const doctest::detail::TestCase* tc, const char* reason);
 const char* getSkipMessage(const doctest::TestCaseData* tc);
 
-void reportTestExecuted(DeviceType deviceType);
-bool checkNoSilentSkips();
+void reportGpuTestExecuted(DeviceType deviceType);
+bool checkNoSilentGpuSkips();
 
 } // namespace rhi::testing
 

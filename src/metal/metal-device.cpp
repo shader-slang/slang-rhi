@@ -83,16 +83,6 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         return SLANG_FAIL;
     }
 
-    // Log device identity for diagnostics.
-    printMessage(
-        DebugMessageType::Info,
-        DebugMessageSource::Driver,
-        "Metal device: %s (UMA=%s, ArgBufTier=%d)",
-        m_device->name()->utf8String(),
-        m_device->hasUnifiedMemory() ? "yes" : "no",
-        (int)m_device->argumentBuffersSupport()
-    );
-
     // Gate on Argument Buffers Tier 2 - the actual functional requirement
     // for gpuAddress() and bindless argument buffer access.
     if (m_device->argumentBuffersSupport() < MTL::ArgumentBuffersTier2)

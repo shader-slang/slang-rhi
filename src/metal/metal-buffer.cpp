@@ -18,6 +18,7 @@ BufferImpl::~BufferImpl()
         if (!device->m_hasResidencySet && m_deviceAddress != 0)
             device->m_addressToBuffer.erase(m_deviceAddress);
         device->unregisterResource(m_buffer.get());
+
     }
 }
 
@@ -82,7 +83,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     // Blit encoders handle residency for explicit operands automatically.
     buffer->m_deviceAddress = buffer->m_buffer->gpuAddress();
     if (!m_hasResidencySet && buffer->m_deviceAddress != 0)
-        m_addressToBuffer[buffer->m_deviceAddress] = buffer.get();
+        m_addressToBuffer.insert(buffer->m_deviceAddress, buffer->m_buffer->length(), buffer.get());
     registerResource(buffer->m_buffer.get());
 
     if (desc.label)

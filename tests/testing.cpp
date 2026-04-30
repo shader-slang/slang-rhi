@@ -948,8 +948,8 @@ slang::IGlobalSession* getSlangGlobalSession()
     return slangGlobalSession;
 }
 
-static std::map<DeviceType, int> sTestsEncountered;
-static std::map<DeviceType, int> sTestsExecuted;
+static std::map<DeviceType, int> sGpuTestsEncountered;
+static std::map<DeviceType, int> sGpuTestsExecuted;
 
 // Trampoline test function registered in doctest for each GPU test instance.
 // Uses GpuTestInfo for additional information about the specific test instance.
@@ -963,7 +963,7 @@ static void gpuTestTrampoline()
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
 
-    sTestsEncountered[deviceType]++;
+    sGpuTestsEncountered[deviceType]++;
 
     if (!isDeviceTypeSelected(deviceType))
     {
@@ -1013,7 +1013,7 @@ static void gpuTestTrampoline()
             device->setCudaContextCurrent();
         }
         info->func(&ctx, device);
-        reportTestExecuted(deviceType);
+        reportGpuTestExecuted(deviceType);
         if (device)
         {
             device->getQueue(QueueType::Graphics)->waitOnHost();
@@ -1126,25 +1126,25 @@ const char* getSkipMessage(const doctest::TestCaseData* tc)
     return it != sSkipMessages.end() ? it->second : nullptr;
 }
 
-void reportTestExecuted(DeviceType deviceType)
+void reportGpuTestExecuted(DeviceType deviceType)
 {
-    sTestsExecuted[deviceType]++;
+    sGpuTestsExecuted[deviceType]++;
 }
 
-bool checkNoSilentSkips()
+bool checkNoSilentGpuSkips()
 {
     bool ok = true;
     for (DeviceType deviceType : kPlatformDeviceTypes)
     {
         if (!isDeviceTypeSelected(deviceType))
             continue;
-        if (sTestsEncountered.find(deviceType) == sTestsEncountered.end())
+        if (sGpuTestsEncountered.find(deviceType) == sGpuTestsEncountered.end())
             continue;
         auto availIt = sDeviceTypeAvailable.find(deviceType);
         if (availIt == sDeviceTypeAvailable.end() || !availIt->second)
             continue;
-        auto execIt = sTestsExecuted.find(deviceType);
-        int count = (execIt != sTestsExecuted.end()) ? execIt->second : 0;
+        auto execIt = sGpuTestsExecuted.find(deviceType);
+        int count = (execIt != sGpuTestsExecuted.end()) ? execIt->second : 0;
         if (count == 0)
         {
             std::fprintf(

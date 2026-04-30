@@ -683,11 +683,11 @@ Result BindingDataBuilder::resolvePointerFieldResidency(
         if (addr == 0)
             continue;
 
-        auto it = m_device->m_addressToBuffer.find(addr);
-        if (it != m_device->m_addressToBuffer.end())
+        BufferImpl* resolved = m_device->m_addressToBuffer.find(addr);
+        if (resolved)
         {
-            SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, it->second->m_buffer.get()));
-            m_bindingCache->buffers.push_back(it->second);
+            SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, resolved->m_buffer.get()));
+            m_bindingCache->buffers.push_back(resolved);
         }
         else
         {
