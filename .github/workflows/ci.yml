@@ -87,7 +87,7 @@ jobs:
         if: matrix.compiler == 'emscripten'
         uses: emscripten-core/setup-emsdk@v16
         with:
-          version: 'latest'
+          version: '5.0.6'
 
       - name: Configure
         run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
