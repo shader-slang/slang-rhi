@@ -396,37 +396,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(bufferImpl);
 
-    // Resolve pointer-referenced buffers for residency (fallback path only).
-    if (!m_device->m_hasResidencySet)
-    {
-        auto& pointerFields = specializedLayout->getPointerFields();
-        for (auto& pf : pointerFields)
-        {
-            if (pf.uniformOffset + sizeof(DeviceAddress) <= shaderObject->m_data.size())
-            {
-                DeviceAddress addr;
-                memcpy(&addr, shaderObject->m_data.data() + pf.uniformOffset, sizeof(addr));
-                if (addr != 0)
-                {
-                    auto it = m_device->m_addressToBuffer.find(addr);
-                    if (it != m_device->m_addressToBuffer.end())
-                    {
-                        SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, it->second->m_buffer.get()));
-                        m_bindingCache->buffers.push_back(it->second);
-                    }
-                    else
-                    {
-                        m_device->printWarning(
-                            "Pointer field at uniform offset %u references GPU address 0x%llx "
-                            "which does not match any known buffer; resource may not be resident",
-                            pf.uniformOffset,
-                            (unsigned long long)addr
-                        );
-                    }
-                }
-            }
-        }
-    }
+    SLANG_RETURN_ON_FAIL(resolvePointerFieldResidency(shaderObject, specializedLayout));
 
     return SLANG_OK;
 }
@@ -627,37 +597,7 @@ Result BindingDataBuilder::writeArgumentBuffer(
         }
     }
 
-    // Resolve pointer-referenced buffers for residency (fallback path only).
-    if (!m_device->m_hasResidencySet)
-    {
-        auto& pointerFields = specializedLayout->getPointerFields();
-        for (auto& pf : pointerFields)
-        {
-            if (pf.uniformOffset + sizeof(DeviceAddress) <= shaderObject->m_data.size())
-            {
-                DeviceAddress addr;
-                memcpy(&addr, shaderObject->m_data.data() + pf.uniformOffset, sizeof(addr));
-                if (addr != 0)
-                {
-                    auto it = m_device->m_addressToBuffer.find(addr);
-                    if (it != m_device->m_addressToBuffer.end())
-                    {
-                        SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, it->second->m_buffer.get()));
-                        m_bindingCache->buffers.push_back(it->second);
-                    }
-                    else
-                    {
-                        m_device->printWarning(
-                            "Pointer field at uniform offset %u references GPU address 0x%llx "
-                            "which does not match any known buffer; resource may not be resident",
-                            pf.uniformOffset,
-                            (unsigned long long)addr
-                        );
-                    }
-                }
-            }
-        }
-    }
+    SLANG_RETURN_ON_FAIL(resolvePointerFieldResidency(shaderObject, specializedLayout));
 
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(argumentBufferImpl);
@@ -720,6 +660,44 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
             argumentBuffer + argumentBufferField->getOffset(),
             srcData + defaultLayoutField->getOffset()
         ));
+    }
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::resolvePointerFieldResidency(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    if (m_device->m_hasResidencySet)
+        return SLANG_OK;
+
+    auto& pointerFields = specializedLayout->getPointerFields();
+    for (auto& pf : pointerFields)
+    {
+        if (pf.uniformOffset + sizeof(DeviceAddress) > shaderObject->m_data.size())
+            continue;
+
+        DeviceAddress addr;
+        memcpy(&addr, shaderObject->m_data.data() + pf.uniformOffset, sizeof(addr));
+        if (addr == 0)
+            continue;
+
+        auto it = m_device->m_addressToBuffer.find(addr);
+        if (it != m_device->m_addressToBuffer.end())
+        {
+            SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, it->second->m_buffer.get()));
+            m_bindingCache->buffers.push_back(it->second);
+        }
+        else
+        {
+            m_device->printWarning(
+                "Pointer field at uniform offset %u references GPU address 0x%llx "
+                "which does not match any known buffer; resource may not be resident",
+                pf.uniformOffset,
+                (unsigned long long)addr
+            );
+        }
     }
     return SLANG_OK;
 }

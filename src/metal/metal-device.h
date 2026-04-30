@@ -3,7 +3,6 @@
 #include "metal-base.h"
 #include "metal-clear-engine.h"
 
-#include <algorithm>
 #include <string>
 #include <unordered_map>
 #include <vector>

@@ -71,6 +71,8 @@ struct BindingDataBuilder
         uint8_t* argumentBuffer,
         uint8_t* srcData
     );
+
+    Result resolvePointerFieldResidency(ShaderObject* shaderObject, ShaderObjectLayoutImpl* specializedLayout);
 };
 
 struct BindingDataImpl : BindingData
