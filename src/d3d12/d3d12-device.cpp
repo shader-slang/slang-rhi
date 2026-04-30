@@ -1053,6 +1053,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         SLANG_RETURN_ON_FAIL(m_bindlessDescriptorSet->initialize());
     }
 
+    SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
+
     return SLANG_OK;
 }
 

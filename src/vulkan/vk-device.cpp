@@ -1562,6 +1562,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     m_queue->init(m_deviceQueue.getQueue(), m_queueFamilyIndex);
     m_queue->setInternalReferenceCount(1);
 
+    SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
+
     return SLANG_OK;
 }
 
