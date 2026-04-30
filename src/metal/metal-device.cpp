@@ -16,7 +16,6 @@
 
 #include "core/common.h"
 
-#include <cstdio>
 #include <cstdlib>
 #include <vector>
 
@@ -85,18 +84,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     }
 
     // Log device identity for diagnostics.
-    {
-        char buf[256];
-        std::snprintf(
-            buf,
-            sizeof(buf),
-            "Metal device: %s (UMA=%s, ArgBufTier=%d)",
-            m_device->name()->utf8String(),
-            m_device->hasUnifiedMemory() ? "yes" : "no",
-            (int)m_device->argumentBuffersSupport()
-        );
-        handleMessage(DebugMessageType::Info, DebugMessageSource::Driver, buf);
-    }
+    printMessage(
+        DebugMessageType::Info,
+        DebugMessageSource::Driver,
+        "Metal device: %s (UMA=%s, ArgBufTier=%d)",
+        m_device->name()->utf8String(),
+        m_device->hasUnifiedMemory() ? "yes" : "no",
+        (int)m_device->argumentBuffersSupport()
+    );
 
     // Gate on Argument Buffers Tier 2 - the actual functional requirement
     // for gpuAddress() and bindless argument buffer access.

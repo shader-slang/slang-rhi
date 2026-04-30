@@ -414,6 +414,15 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
                         SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, it->second->m_buffer.get()));
                         m_bindingCache->buffers.push_back(it->second);
                     }
+                    else
+                    {
+                        m_device->printWarning(
+                            "Pointer field at uniform offset %u references GPU address 0x%llx "
+                            "which does not match any known buffer; resource may not be resident",
+                            pf.uniformOffset,
+                            (unsigned long long)addr
+                        );
+                    }
                 }
             }
         }
@@ -635,6 +644,15 @@ Result BindingDataBuilder::writeArgumentBuffer(
                     {
                         SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, it->second->m_buffer.get()));
                         m_bindingCache->buffers.push_back(it->second);
+                    }
+                    else
+                    {
+                        m_device->printWarning(
+                            "Pointer field at uniform offset %u references GPU address 0x%llx "
+                            "which does not match any known buffer; resource may not be resident",
+                            pf.uniformOffset,
+                            (unsigned long long)addr
+                        );
                     }
                 }
             }
