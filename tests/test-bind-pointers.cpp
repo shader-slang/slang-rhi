@@ -446,9 +446,6 @@ GPU_TEST_CASE("bind-pointers-offset-address", CUDA | Metal)
         queue->waitOnHost();
     }
 
-    std::span<uint8_t> expected(
-        fullData.data() + offsetElements * sizeof(uint32_t),
-        numberCount * sizeof(uint32_t)
-    );
+    std::span<uint8_t> expected(fullData.data() + offsetElements * sizeof(uint32_t), numberCount * sizeof(uint32_t));
     compareComputeResult(device, dst, expected);
 }
