@@ -1004,4 +1004,30 @@ ICommandBuffer* CommandBuffer::getInterface(const Guid& guid)
     return nullptr;
 }
 
+CommandBuffer::~CommandBuffer()
+{
+    resetCallbackObjects();
+}
+
+Result CommandBuffer::reset()
+{
+    m_commandList.reset();
+    resetCallbackObjects();
+    m_allocator.reset();
+    m_trackedObjects.clear();
+    return SLANG_OK;
+}
+
+void CommandBuffer::resetCallbackObjects()
+{
+    for (const ExecuteCallbackObjectRetainer& object : m_trackedExecuteCallbackObjects)
+    {
+        if (object.userObject && object.releaseUserObject)
+        {
+            object.releaseUserObject(object.userObject);
+        }
+    }
+    m_trackedExecuteCallbackObjects.clear();
+}
+
 } // namespace rhi

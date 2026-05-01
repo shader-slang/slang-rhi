@@ -403,19 +403,12 @@ public:
         , m_commandList(m_allocator, m_trackedObjects, m_trackedExecuteCallbackObjects)
     {
     }
-    virtual ~CommandBuffer() = default;
+    virtual ~CommandBuffer();
 
     virtual void makeExternal() override { establishStrongReferenceToDevice(); }
     virtual void makeInternal() override { breakStrongReferenceToDevice(); }
 
-    virtual Result reset()
-    {
-        m_commandList.reset();
-        m_allocator.reset();
-        m_trackedObjects.clear();
-        m_trackedExecuteCallbackObjects.clear();
-        return SLANG_OK;
-    }
+    virtual Result reset();
 
     void setDesc(const CommandBufferDesc& desc)
     {
@@ -434,6 +427,9 @@ public:
     std::set<RefPtr<RefObject>> m_trackedObjects;
     std::vector<ExecuteCallbackObjectRetainer> m_trackedExecuteCallbackObjects;
     CommandList m_commandList;
+
+private:
+    void resetCallbackObjects();
 };
 
 } // namespace rhi

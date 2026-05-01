@@ -549,6 +549,8 @@ enum class NativeHandleType
     Win32 = 0x00000001,
     FileDescriptor = 0x00000002,
 
+    D3D11DeviceContext = 0x00010001,
+
     D3D12Device = 0x00020001,
     D3D12CommandQueue = 0x00020002,
     D3D12GraphicsCommandList = 0x00020003,
@@ -2511,14 +2513,19 @@ struct CommandEncoderDesc
 struct ExecuteCallbackContext
 {
     /// Native handle for the active backend command context.
-    /// D3D12 supplies D3D12GraphicsCommandList, Vulkan supplies VkCommandBuffer,
-    /// and CUDA supplies CUstream. Backends without an active native command
-    /// context pass Undefined.
+    /// D3D11 supplies D3D11DeviceContext, D3D12 supplies D3D12GraphicsCommandList,
+    /// Vulkan supplies VkCommandBuffer, Metal supplies MTLCommandBuffer, CUDA
+    /// supplies CUstream, and WGPU supplies WGPUCommandEncoder. Backends without
+    /// an active native command context pass Undefined.
     NativeHandle nativeHandle;
 };
 
-typedef void(SLANG_MCALL*
-                 ExecuteCallbackFunc)(const ExecuteCallbackContext* context, void* userObject, const void* userData);
+typedef void(SLANG_MCALL* ExecuteCallbackFunc)(
+    const ExecuteCallbackContext* context,
+    void* userObject,
+    const void* userData,
+    Size userDataSize
+);
 typedef void(SLANG_MCALL* ExecuteCallbackObjectFunc)(void* userObject);
 
 struct ExecuteCallbackDesc

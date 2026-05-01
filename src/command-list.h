@@ -376,59 +376,13 @@ inline void invokeExecuteCallback(const commands::ExecuteCallback& cmd, NativeHa
 
     ExecuteCallbackContext context;
     context.nativeHandle = nativeHandle;
-    cmd.desc.callback(&context, cmd.desc.userObject, cmd.desc.userData);
+    cmd.desc.callback(&context, cmd.desc.userObject, cmd.desc.userData, cmd.desc.userDataSize);
 }
 
-class ExecuteCallbackObjectRetainer
+struct ExecuteCallbackObjectRetainer
 {
-public:
-    ExecuteCallbackObjectRetainer() = default;
-
-    ExecuteCallbackObjectRetainer(void* userObject, ExecuteCallbackObjectFunc releaseUserObject)
-        : m_userObject(userObject)
-        , m_releaseUserObject(releaseUserObject)
-    {
-    }
-
-    ExecuteCallbackObjectRetainer(const ExecuteCallbackObjectRetainer&) = delete;
-    ExecuteCallbackObjectRetainer& operator=(const ExecuteCallbackObjectRetainer&) = delete;
-
-    ExecuteCallbackObjectRetainer(ExecuteCallbackObjectRetainer&& other) noexcept
-        : m_userObject(other.m_userObject)
-        , m_releaseUserObject(other.m_releaseUserObject)
-    {
-        other.m_userObject = nullptr;
-        other.m_releaseUserObject = nullptr;
-    }
-
-    ExecuteCallbackObjectRetainer& operator=(ExecuteCallbackObjectRetainer&& other) noexcept
-    {
-        if (this != &other)
-        {
-            reset();
-            m_userObject = other.m_userObject;
-            m_releaseUserObject = other.m_releaseUserObject;
-            other.m_userObject = nullptr;
-            other.m_releaseUserObject = nullptr;
-        }
-        return *this;
-    }
-
-    ~ExecuteCallbackObjectRetainer() { reset(); }
-
-    void reset()
-    {
-        if (m_userObject && m_releaseUserObject)
-        {
-            m_releaseUserObject(m_userObject);
-        }
-        m_userObject = nullptr;
-        m_releaseUserObject = nullptr;
-    }
-
-private:
-    void* m_userObject = nullptr;
-    ExecuteCallbackObjectFunc m_releaseUserObject = nullptr;
+    void* userObject = nullptr;
+    ExecuteCallbackObjectFunc releaseUserObject = nullptr;
 };
 
 

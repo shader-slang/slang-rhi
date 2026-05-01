@@ -1904,6 +1904,11 @@ void DebugCommandEncoder::executeCallback(const ExecuteCallbackDesc& desc)
         RHI_VALIDATION_ERROR("'userData' must not be null when 'userDataSize' is non-zero.");
         return;
     }
+    if (desc.userData && desc.userDataSize == 0)
+    {
+        RHI_VALIDATION_ERROR("'userDataSize' must be non-zero when 'userData' is set.");
+        return;
+    }
     if (desc.userObject && (desc.retainUserObject == nullptr || desc.releaseUserObject == nullptr))
     {
         RHI_VALIDATION_ERROR("'retainUserObject' and 'releaseUserObject' are required when 'userObject' is set.");
