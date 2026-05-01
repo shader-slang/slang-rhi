@@ -1294,15 +1294,15 @@ void CommandRecorder::cmdDispatchGraph(const commands::DispatchGraph& cmd)
 
     // Set the work graph program with backing store.
     // Query program identifier from the state object properties.
-    ComPtr<ID3D12WorkGraphProperties> workGraphProps;
-    m_workGraphPipeline->m_stateObject->QueryInterface(workGraphProps.writeRef());
-    if (!workGraphProps)
+    ComPtr<ID3D12StateObjectProperties1> stateObjectProps;
+    m_workGraphPipeline->m_stateObject->QueryInterface(stateObjectProps.writeRef());
+    if (!stateObjectProps)
         return;
 
     D3D12_SET_PROGRAM_DESC setProgramDesc = {};
     setProgramDesc.Type = D3D12_PROGRAM_TYPE_WORK_GRAPH;
     setProgramDesc.WorkGraph.ProgramIdentifier =
-        workGraphProps->GetProgramIdentifier(m_workGraphPipeline->m_programName.c_str());
+        stateObjectProps->GetProgramIdentifier(m_workGraphPipeline->m_programName.c_str());
     setProgramDesc.WorkGraph.Flags = D3D12_SET_WORK_GRAPH_FLAG_INITIALIZE;
     setProgramDesc.WorkGraph.BackingMemory.StartAddress =
         backingStoreBuffer->m_resource.getResource()->GetGPUVirtualAddress();

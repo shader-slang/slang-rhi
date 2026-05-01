@@ -860,7 +860,7 @@ Result DeviceImpl::createWorkGraphPipeline2(const WorkGraphPipelineDesc& desc, I
     subObjects.push_back(globalSigSubobject);
 
     D3D12_STATE_OBJECT_DESC soDesc = {};
-    soDesc.Type = D3D12_STATE_OBJECT_TYPE_EXECUTABLE_PROGRAM;
+    soDesc.Type = D3D12_STATE_OBJECT_TYPE_EXECUTABLE;
     soDesc.NumSubobjects = (UINT)subObjects.size();
     soDesc.pSubobjects = subObjects.data();
 
