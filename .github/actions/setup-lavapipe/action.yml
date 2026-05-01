@@ -8,12 +8,61 @@ runs:
       if: runner.os == 'Linux'
       shell: bash
       run: |
+        set -euo pipefail
+
         sudo apt-get update
         sudo apt-get install -y mesa-vulkan-drivers
 
-        # Find lavapipe ICD JSON file
-        ICD_FILE=$(ls /usr/share/vulkan/icd.d/lvp_icd.*.json | head -n1)
-        echo "VK_DRIVER_FILES=$ICD_FILE" >> $GITHUB_ENV
+        # Find lavapipe ICD JSON file using robust fallbacks across distro packaging variants.
+        ICD_DIR="/usr/share/vulkan/icd.d"
+        ARCH="$(uname -m)"
+        ICD_FILE=""
+
+        CANDIDATES=(
+          "$ICD_DIR/lvp_icd.$ARCH.json"
+          "$ICD_DIR/lvp_icd.x86_64.json"
+          "$ICD_DIR/lvp_icd.aarch64.json"
+        )
+
+        for CANDIDATE in "${CANDIDATES[@]}"; do
+          if [[ -f "$CANDIDATE" ]]; then
+            ICD_FILE="$CANDIDATE"
+            break
+          fi
+        done
+
+        if [[ -z "$ICD_FILE" ]]; then
+          shopt -s nullglob
+          MATCHES=("$ICD_DIR"/lvp_icd.*.json)
+          shopt -u nullglob
+          if [[ ${#MATCHES[@]} -gt 0 ]]; then
+            ICD_FILE="${MATCHES[0]}"
+          fi
+        fi
+
+        if [[ -z "$ICD_FILE" ]]; then
+          shopt -s nullglob
+          for JSON in "$ICD_DIR"/*.json; do
+            if grep -qiE 'lavapipe|lvp' "$JSON"; then
+              ICD_FILE="$JSON"
+              break
+            fi
+          done
+          shopt -u nullglob
+        fi
+
+        if [[ -z "$ICD_FILE" ]]; then
+          echo "Failed to locate a lavapipe ICD JSON after installing mesa-vulkan-drivers."
+          echo "Contents of $ICD_DIR:"
+          ls -la "$ICD_DIR" || true
+          echo "mesa-vulkan-drivers file list (filtered):"
+          dpkg -L mesa-vulkan-drivers | grep -E 'icd\.d|lvp' || true
+          exit 1
+        fi
+
+        echo "Using lavapipe ICD: $ICD_FILE"
+        echo "VK_DRIVER_FILES=$ICD_FILE" >> "$GITHUB_ENV"
+        echo "VK_ICD_FILENAMES=$ICD_FILE" >> "$GITHUB_ENV"
 
     - name: Install Lavapipe (Windows)
       if: runner.os == 'Windows'
