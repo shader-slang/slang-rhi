@@ -166,6 +166,10 @@ public:
         const RayTracingPipelineDesc& desc,
         IRayTracingPipeline** outPipeline
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createWorkGraphPipeline2(
+        const WorkGraphPipelineDesc& desc,
+        IWorkGraphPipeline** outPipeline
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(
         const QueryPoolDesc& desc,

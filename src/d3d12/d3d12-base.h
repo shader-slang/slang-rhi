@@ -29,6 +29,7 @@ class PlainBufferProxyQueryPoolImpl;
 class RenderPipelineImpl;
 class ComputePipelineImpl;
 class RayTracingPipelineImpl;
+class WorkGraphPipelineImpl;
 class AccelerationStructureImpl;
 class SamplerImpl;
 class ShaderObjectImpl;

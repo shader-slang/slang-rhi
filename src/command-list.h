@@ -36,6 +36,10 @@
     x(EndRayTracingPass) \
     x(SetRayTracingState) \
     x(DispatchRays) \
+    x(BeginWorkGraphPass) \
+    x(EndWorkGraphPass) \
+    x(SetWorkGraphState) \
+    x(DispatchGraph) \
     x(BuildAccelerationStructure) \
     x(CopyAccelerationStructure) \
     x(QueryAccelerationStructureProperties) \
@@ -250,6 +254,29 @@ struct DispatchRays
     uint32_t depth;
 };
 
+struct BeginWorkGraphPass
+{};
+
+struct EndWorkGraphPass
+{};
+
+struct SetWorkGraphState
+{
+    IWorkGraphPipeline* pipeline;
+    ExtendedShaderObjectTypeListObject* specializationArgs;
+    BindingData* bindingData;
+};
+
+struct DispatchGraph
+{
+    IBuffer* backingStore;
+    uint32_t entryPointIndex;
+    uint32_t numRecords;
+    uint32_t recordStrideInBytes;
+    // Pointer to arena-allocated copy of the CPU input records (may be nullptr).
+    const void* records;
+};
+
 struct BuildAccelerationStructure
 {
     AccelerationStructureBuildDesc desc;
@@ -427,6 +454,10 @@ public:
     void write(commands::EndRayTracingPass&& cmd);
     void write(commands::SetRayTracingState&& cmd);
     void write(commands::DispatchRays&& cmd);
+    void write(commands::BeginWorkGraphPass&& cmd);
+    void write(commands::EndWorkGraphPass&& cmd);
+    void write(commands::SetWorkGraphState&& cmd);
+    void writeDispatchGraph(commands::DispatchGraph&& cmd, const void* records);
     void write(commands::BuildAccelerationStructure&& cmd);
     void write(commands::CopyAccelerationStructure&& cmd);
     void write(commands::QueryAccelerationStructureProperties&& cmd);

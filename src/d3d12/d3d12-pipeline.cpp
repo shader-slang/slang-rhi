@@ -786,4 +786,121 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     return SLANG_OK;
 }
 
+#if SLANG_RHI_ENABLE_AGILITY_SDK
+
+WorkGraphPipelineImpl::WorkGraphPipelineImpl(Device* device, const WorkGraphPipelineDesc& desc)
+    : WorkGraphPipeline(device, desc)
+{
+}
+
+Result WorkGraphPipelineImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::D3D12StateObject;
+    outHandle->value = (uint64_t)(m_stateObject.get());
+    return SLANG_OK;
+}
+
+Result WorkGraphPipelineImpl::getWorkGraphMemoryRequirements(WorkGraphMemoryRequirements* outRequirements)
+{
+    if (!outRequirements)
+        return SLANG_E_INVALID_ARG;
+    outRequirements->minSizeInBytes = m_backingStoreMinBytes;
+    outRequirements->maxSizeInBytes = m_backingStoreMaxBytes;
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createWorkGraphPipeline2(const WorkGraphPipelineDesc& desc, IWorkGraphPipeline** outPipeline)
+{
+    if (!m_device5)
+        return SLANG_E_NOT_AVAILABLE;
+
+    ShaderProgramImpl* program = checked_cast<ShaderProgramImpl*>(desc.program);
+    SLANG_RHI_ASSERT(!program->m_shaders.empty());
+
+    // Build the state object with DXIL library + work graph + global root signature subobjects.
+    std::vector<D3D12_STATE_SUBOBJECT> subObjects;
+
+    stable_vector<D3D12_DXIL_LIBRARY_DESC> dxilLibraries;
+    for (const ShaderBinary& shader : program->m_shaders)
+    {
+        D3D12_DXIL_LIBRARY_DESC library = {};
+        library.DXILLibrary.BytecodeLength = shader.code.size();
+        library.DXILLibrary.pShaderBytecode = shader.code.data();
+        library.NumExports = 0; // export all
+        library.pExports = nullptr;
+        dxilLibraries.push_back(library);
+
+        D3D12_STATE_SUBOBJECT libSubobject = {};
+        libSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+        libSubobject.pDesc = &dxilLibraries.back();
+        subObjects.push_back(libSubobject);
+    }
+
+    // Program name used to identify the work graph within the state object.
+    static const wchar_t* kWorkGraphProgramName = L"WorkGraph";
+
+    D3D12_WORK_GRAPH_DESC wgDesc = {};
+    wgDesc.ProgramName = kWorkGraphProgramName;
+    wgDesc.Flags = D3D12_WORK_GRAPH_FLAG_INCLUDE_ALL_AVAILABLE_NODES;
+    wgDesc.NumEntrypoints = 0;
+    wgDesc.pEntrypoints = nullptr;
+    wgDesc.NumExplicitlyDefinedNodes = 0;
+    wgDesc.pExplicitlyDefinedNodes = nullptr;
+
+    D3D12_STATE_SUBOBJECT wgSubobject = {};
+    wgSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_WORK_GRAPH;
+    wgSubobject.pDesc = &wgDesc;
+    subObjects.push_back(wgSubobject);
+
+    D3D12_GLOBAL_ROOT_SIGNATURE globalSigDesc = {};
+    globalSigDesc.pGlobalRootSignature = program->m_rootObjectLayout->m_rootSignature.get();
+    D3D12_STATE_SUBOBJECT globalSigSubobject = {};
+    globalSigSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
+    globalSigSubobject.pDesc = &globalSigDesc;
+    subObjects.push_back(globalSigSubobject);
+
+    D3D12_STATE_OBJECT_DESC soDesc = {};
+    soDesc.Type = D3D12_STATE_OBJECT_TYPE_EXECUTABLE_PROGRAM;
+    soDesc.NumSubobjects = (UINT)subObjects.size();
+    soDesc.pSubobjects = subObjects.data();
+
+    ComPtr<ID3D12StateObject> stateObject;
+    SLANG_RETURN_ON_FAIL(m_device5->CreateStateObject(&soDesc, IID_PPV_ARGS(stateObject.writeRef())));
+
+    if (desc.label)
+        stateObject->SetName(string::to_wstring(desc.label).c_str());
+
+    // Query work graph memory requirements.
+    ComPtr<ID3D12WorkGraphProperties> workGraphProps;
+    SLANG_RETURN_ON_FAIL(stateObject->QueryInterface(workGraphProps.writeRef()));
+    uint32_t wgIndex = workGraphProps->GetWorkGraphIndex(kWorkGraphProgramName);
+    if (wgIndex == 0xFFFFFFFF)
+        return SLANG_FAIL;
+
+    D3D12_WORK_GRAPH_MEMORY_REQUIREMENTS memReqs = {};
+    workGraphProps->GetWorkGraphMemoryRequirements(wgIndex, &memReqs);
+
+    RefPtr<WorkGraphPipelineImpl> pipeline = new WorkGraphPipelineImpl(this, desc);
+    pipeline->m_program = program;
+    pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+    pipeline->m_stateObject = stateObject;
+    pipeline->m_programName = kWorkGraphProgramName;
+    pipeline->m_workGraphIndex = wgIndex;
+    pipeline->m_backingStoreMinBytes = memReqs.MinSizeInBytes;
+    pipeline->m_backingStoreMaxBytes = memReqs.MaxSizeInBytes;
+    returnComPtr(outPipeline, pipeline);
+    return SLANG_OK;
+}
+
+#else // SLANG_RHI_ENABLE_AGILITY_SDK
+
+Result DeviceImpl::createWorkGraphPipeline2(const WorkGraphPipelineDesc& desc, IWorkGraphPipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+#endif // SLANG_RHI_ENABLE_AGILITY_SDK
+
 } // namespace rhi::d3d12

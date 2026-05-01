@@ -73,6 +73,7 @@ enum class StructType
     RenderPipelineDesc,
     ComputePipelineDesc,
     RayTracingPipelineDesc,
+    WorkGraphPipelineDesc,
     ShaderTableDesc,
     QueryPoolDesc,
     DeviceDesc,
@@ -157,6 +158,7 @@ enum class DeviceType
     x(Pointer,                                  "has-ptr"                                       ) \
     x(Float8,                                   "fp8"                                           ) \
     x(Bfloat16,                                 "bfloat16"                                      ) \
+    x(WorkGraph,                                "work-graph"                                    ) \
     /* D3D12 specific features */                                                                 \
     x(ConservativeRasterization1,               "conservative-rasterization-1"                  ) \
     x(ConservativeRasterization2,               "conservative-rasterization-2"                  ) \
@@ -2083,6 +2085,33 @@ public:
     virtual SLANG_NO_THROW const RayTracingPipelineDesc& SLANG_MCALL getDesc() = 0;
 };
 
+struct WorkGraphPipelineDesc
+{
+    StructType structType = StructType::WorkGraphPipelineDesc;
+    const void* next = nullptr;
+
+    IShaderProgram* program = nullptr;
+
+    const char* label = nullptr;
+};
+
+struct WorkGraphMemoryRequirements
+{
+    uint64_t minSizeInBytes;
+    uint64_t maxSizeInBytes;
+};
+
+class IWorkGraphPipeline : public IPipeline
+{
+    SLANG_COM_INTERFACE(0x3e4c8a1b, 0xf2d7, 0x4e91, {0xa3, 0x5c, 0x8d, 0x2e, 0x1f, 0x09, 0xb6, 0x4a});
+
+public:
+    virtual SLANG_NO_THROW const WorkGraphPipelineDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getWorkGraphMemoryRequirements(
+        WorkGraphMemoryRequirements* outRequirements
+    ) = 0;
+};
+
 struct ScissorRect
 {
     uint32_t minX = 0;
@@ -2499,6 +2528,29 @@ public:
     ) = 0;
 };
 
+class IWorkGraphPassEncoder : public IPassEncoder
+{
+    SLANG_COM_INTERFACE(0x7b3e5d2c, 0xa841, 0x4f73, {0x9c, 0x6a, 0x3d, 0x1e, 0x8f, 0x20, 0x57, 0xb3});
+
+public:
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IWorkGraphPipeline* pipeline) = 0;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
+        IWorkGraphPipeline* pipeline,
+        IShaderObject* rootObject
+    ) = 0;
+
+    /// Dispatch a work graph with CPU-provided input records.
+    /// backingStore is a buffer allocated with the size returned by
+    /// IWorkGraphPipeline::getWorkGraphMemoryRequirements().
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchGraph(
+        IBuffer* backingStore,
+        uint32_t entryPointIndex,
+        uint32_t numRecords,
+        const void* records,
+        uint32_t recordStrideInBytes
+    ) = 0;
+};
+
 struct CommandEncoderDesc
 {
     StructType structType = StructType::CommandEncoderDesc;
@@ -2518,6 +2570,7 @@ public:
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) = 0;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() = 0;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() = 0;
+    virtual SLANG_NO_THROW IWorkGraphPassEncoder* SLANG_MCALL beginWorkGraphPass() = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(
         IBuffer* dst,
@@ -3523,6 +3576,18 @@ public:
     {
         ComPtr<IRayTracingPipeline> pipeline;
         SLANG_RETURN_NULL_ON_FAIL(createRayTracingPipeline(desc, pipeline.writeRef()));
+        return pipeline;
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createWorkGraphPipeline(
+        const WorkGraphPipelineDesc& desc,
+        IWorkGraphPipeline** outPipeline
+    ) = 0;
+
+    inline ComPtr<IWorkGraphPipeline> createWorkGraphPipeline(const WorkGraphPipelineDesc& desc)
+    {
+        ComPtr<IWorkGraphPipeline> pipeline;
+        SLANG_RETURN_NULL_ON_FAIL(createWorkGraphPipeline(desc, pipeline.writeRef()));
         return pipeline;
     }
 

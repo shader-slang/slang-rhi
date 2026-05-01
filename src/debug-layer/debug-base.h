@@ -75,6 +75,7 @@ class DebugHeap;
 class DebugRenderPassEncoder;
 class DebugComputePassEncoder;
 class DebugRayTracingPassEncoder;
+class DebugWorkGraphPassEncoder;
 class DebugFence;
 class DebugCommandQueue;
 class DebugTransientResourceHeap;

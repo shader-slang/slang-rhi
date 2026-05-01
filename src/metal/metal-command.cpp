@@ -126,6 +126,10 @@ public:
     void cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd);
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
+    void cmdBeginWorkGraphPass(const commands::BeginWorkGraphPass& cmd);
+    void cmdEndWorkGraphPass(const commands::EndWorkGraphPass& cmd);
+    void cmdSetWorkGraphState(const commands::SetWorkGraphState& cmd);
+    void cmdDispatchGraph(const commands::DispatchGraph& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
@@ -866,6 +870,27 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(IRayTracingPassEncoder, dispatchRays);
+}
+
+void CommandRecorder::cmdBeginWorkGraphPass(const commands::BeginWorkGraphPass& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandRecorder::cmdEndWorkGraphPass(const commands::EndWorkGraphPass& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandRecorder::cmdSetWorkGraphState(const commands::SetWorkGraphState& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandRecorder::cmdDispatchGraph(const commands::DispatchGraph& cmd)
+{
+    SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IWorkGraphPassEncoder, dispatchGraph);
 }
 
 void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
