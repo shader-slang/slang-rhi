@@ -210,7 +210,11 @@ void CommandList::writeDispatchGraph(commands::DispatchGraph&& cmd, const void* 
     if (records && cmd.numRecords > 0 && cmd.recordStrideInBytes > 0)
         cmd.records = writeData(records, (size_t)cmd.numRecords * cmd.recordStrideInBytes);
     else
+    {
         cmd.records = nullptr;
+        cmd.numRecords = 0;
+        cmd.recordStrideInBytes = 0;
+    }
     writeCommand(std::move(cmd));
 }
 
