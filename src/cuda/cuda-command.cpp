@@ -570,21 +570,25 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 void CommandExecutor::cmdBeginWorkGraphPass(const commands::BeginWorkGraphPass& cmd)
 {
     SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IWorkGraphPassEncoder, beginWorkGraphPass);
 }
 
 void CommandExecutor::cmdEndWorkGraphPass(const commands::EndWorkGraphPass& cmd)
 {
     SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IWorkGraphPassEncoder, endWorkGraphPass);
 }
 
 void CommandExecutor::cmdSetWorkGraphState(const commands::SetWorkGraphState& cmd)
 {
     SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IWorkGraphPassEncoder, setWorkGraphState);
 }
 
 void CommandExecutor::cmdDispatchGraph(const commands::DispatchGraph& cmd)
 {
     SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IWorkGraphPassEncoder, dispatchGraph);
 }
 
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
