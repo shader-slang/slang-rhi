@@ -1310,6 +1310,9 @@ void CommandRecorder::cmdDispatchGraph(const commands::DispatchGraph& cmd)
     setProgramDesc.WorkGraph.BackingMemory.SizeInBytes = backingStoreBuffer->m_desc.size;
     setProgramDesc.WorkGraph.NodeLocalRootArgumentsTable = {};
 
+    requireBufferState(backingStoreBuffer, ResourceState::UnorderedAccess);
+    commitBarriers();
+
     m_cmdList10->SetProgram(&setProgramDesc);
 
     // Dispatch with CPU input records.
