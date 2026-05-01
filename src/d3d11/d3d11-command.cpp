@@ -902,15 +902,7 @@ void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
         reinterpret_cast<uint64_t>(m_immediateContext),
     };
     invokeExecuteCallback(cmd, nativeHandle);
-
-    if (m_renderPassActive)
-    {
-        invalidateState();
-    }
-    else
-    {
-        clearState();
-    }
+    clearState();
 }
 
 void CommandExecutor::invalidateState()
