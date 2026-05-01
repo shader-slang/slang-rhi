@@ -1246,6 +1246,7 @@ void CommandRecorder::cmdBeginWorkGraphPass(const commands::BeginWorkGraphPass& 
 void CommandRecorder::cmdEndWorkGraphPass(const commands::EndWorkGraphPass& cmd)
 {
     m_workGraphPassActive = false;
+    m_workGraphStateValid = false;
 }
 
 void CommandRecorder::cmdSetWorkGraphState(const commands::SetWorkGraphState& cmd)
