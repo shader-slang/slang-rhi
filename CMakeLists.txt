@@ -895,6 +895,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
         tests/test-device-features.cpp
+        tests/test-execute-callback.cpp
         tests/test-block-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless.cpp
