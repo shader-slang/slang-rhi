@@ -167,6 +167,7 @@ enum class DeviceType
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
+    x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
     x(AtomicBfloat16,                           "atomic-bfloat16"                               )
 // clang-format on

@@ -67,9 +67,6 @@ Result BindingDataBuilder::bindAsRoot(
     // then we could switch to asserts instead of error checks when writing binding data
     m_bindingData->bufferCapacity = 256;
     m_bindingData->textureCapacity = 256;
-    m_bindingData->usedResourceCapacity = 256;
-    m_bindingData->usedRWResourceCapacity = 256;
-
     m_bindingData->bufferCount = 0;
     m_bindingData->buffers = m_allocator->allocate<MTL::Buffer*>(m_bindingData->bufferCapacity);
     ::memset(m_bindingData->buffers, 0, sizeof(MTL::Buffer*) * m_bindingData->bufferCapacity);
@@ -85,10 +82,24 @@ Result BindingDataBuilder::bindAsRoot(
     m_bindingData->samplers = m_allocator->allocate<MTL::SamplerState*>(samplerCount);
     ::memset(m_bindingData->samplers, 0, sizeof(MTL::SamplerState*) * samplerCount);
 
-    m_bindingData->usedResourceCount = 0;
-    m_bindingData->usedResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedResourceCapacity);
-    m_bindingData->usedRWResourceCount = 0;
-    m_bindingData->usedRWResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedRWResourceCapacity);
+    if (!m_device->m_hasResidencySet)
+    {
+        m_bindingData->usedResourceCapacity = 256;
+        m_bindingData->usedRWResourceCapacity = 256;
+        m_bindingData->usedResourceCount = 0;
+        m_bindingData->usedResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedResourceCapacity);
+        m_bindingData->usedRWResourceCount = 0;
+        m_bindingData->usedRWResources = m_allocator->allocate<MTL::Resource*>(m_bindingData->usedRWResourceCapacity);
+    }
+    else
+    {
+        m_bindingData->usedResourceCapacity = 0;
+        m_bindingData->usedRWResourceCapacity = 0;
+        m_bindingData->usedResourceCount = 0;
+        m_bindingData->usedResources = nullptr;
+        m_bindingData->usedRWResourceCount = 0;
+        m_bindingData->usedRWResources = nullptr;
+    }
 
     // Initialize binding offset for shader parameters.
     //
@@ -385,6 +396,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(bufferImpl);
 
+    SLANG_RETURN_ON_FAIL(resolvePointerFieldResidency(shaderObject, specializedLayout));
+
     return SLANG_OK;
 }
 
@@ -460,13 +473,16 @@ Result BindingDataBuilder::writeArgumentBuffer(
                 {
                     auto resourceId = textureView->m_textureView->gpuResourceID();
                     memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
-                    if (bindingRangeInfo.bindingType == slang::BindingType::MutableTexture)
+                    if (!m_device->m_hasResidencySet)
                     {
-                        SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, textureView->m_textureView.get()));
-                    }
-                    else
-                    {
-                        SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, textureView->m_textureView.get()));
+                        if (bindingRangeInfo.bindingType == slang::BindingType::MutableTexture)
+                        {
+                            SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, textureView->m_textureView.get()));
+                        }
+                        else
+                        {
+                            SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, textureView->m_textureView.get()));
+                        }
                     }
                 }
             }
@@ -496,14 +512,17 @@ Result BindingDataBuilder::writeArgumentBuffer(
                 {
                     DeviceAddress bufferPtr = buffer->getDeviceAddress() + slot.bufferRange.offset;
                     memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
-                    if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer ||
-                        bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer)
+                    if (!m_device->m_hasResidencySet)
                     {
-                        SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
-                    }
-                    else
-                    {
-                        SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, buffer->m_buffer.get()));
+                        if (bindingRangeInfo.bindingType == slang::BindingType::MutableRawBuffer ||
+                            bindingRangeInfo.bindingType == slang::BindingType::MutableTypedBuffer)
+                        {
+                            SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, buffer->m_buffer.get()));
+                        }
+                        else
+                        {
+                            SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, buffer->m_buffer.get()));
+                        }
                     }
                 }
             }
@@ -519,9 +538,12 @@ Result BindingDataBuilder::writeArgumentBuffer(
                 {
                     auto resourceId = accelerationStructure->m_accelerationStructure->gpuResourceID();
                     memcpy(argumentPtr + i * sizeof(uint64_t), &resourceId, sizeof(resourceId));
-                    SLANG_RETURN_ON_FAIL(
-                        addUsedResource(m_bindingData, accelerationStructure->m_accelerationStructure.get())
-                    );
+                    if (!m_device->m_hasResidencySet)
+                    {
+                        SLANG_RETURN_ON_FAIL(
+                            addUsedResource(m_bindingData, accelerationStructure->m_accelerationStructure.get())
+                        );
+                    }
                 }
             }
             break;
@@ -563,7 +585,10 @@ Result BindingDataBuilder::writeArgumentBuffer(
                 SLANG_RETURN_ON_FAIL(writeArgumentBuffer(subObject, subObjectLayout, subArgumentBuffer));
                 DeviceAddress bufferPtr = subArgumentBuffer->m_buffer->gpuAddress();
                 memcpy(argumentPtr + i * sizeof(uint64_t), &bufferPtr, sizeof(bufferPtr));
-                SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, subArgumentBuffer->m_buffer.get()));
+                if (!m_device->m_hasResidencySet)
+                {
+                    SLANG_RETURN_ON_FAIL(addUsedResource(m_bindingData, subArgumentBuffer->m_buffer.get()));
+                }
             }
             break;
         }
@@ -571,6 +596,8 @@ Result BindingDataBuilder::writeArgumentBuffer(
             break;
         }
     }
+
+    SLANG_RETURN_ON_FAIL(resolvePointerFieldResidency(shaderObject, specializedLayout));
 
     // Pass ownership of the buffer to the binding cache.
     m_bindingCache->buffers.push_back(argumentBufferImpl);
@@ -633,6 +660,44 @@ Result BindingDataBuilder::writeOrdinaryDataIntoArgumentBuffer(
             argumentBuffer + argumentBufferField->getOffset(),
             srcData + defaultLayoutField->getOffset()
         ));
+    }
+    return SLANG_OK;
+}
+
+Result BindingDataBuilder::resolvePointerFieldResidency(
+    ShaderObject* shaderObject,
+    ShaderObjectLayoutImpl* specializedLayout
+)
+{
+    if (m_device->m_hasResidencySet)
+        return SLANG_OK;
+
+    auto& pointerFields = specializedLayout->getPointerFields();
+    for (auto& pf : pointerFields)
+    {
+        if (pf.uniformOffset + sizeof(DeviceAddress) > shaderObject->m_data.size())
+            continue;
+
+        DeviceAddress addr;
+        memcpy(&addr, shaderObject->m_data.data() + pf.uniformOffset, sizeof(addr));
+        if (addr == 0)
+            continue;
+
+        BufferImpl* resolved = m_device->m_addressToBuffer.find(addr);
+        if (resolved)
+        {
+            SLANG_RETURN_ON_FAIL(addUsedRWResource(m_bindingData, resolved->m_buffer.get()));
+            m_bindingCache->buffers.push_back(resolved);
+        }
+        else
+        {
+            m_device->printWarning(
+                "Pointer field at uniform offset %u references GPU address 0x%llx "
+                "which does not match any known buffer; resource may not be resident",
+                pf.uniformOffset,
+                (unsigned long long)addr
+            );
+        }
     }
     return SLANG_OK;
 }

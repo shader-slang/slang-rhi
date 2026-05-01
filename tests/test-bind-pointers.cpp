@@ -386,3 +386,66 @@ GPU_TEST_CASE("bind-pointers-intra-pass-rebind", CUDA | Metal)
 
     compareComputeResult(device, dst, std::span<uint8_t>(data));
 }
+
+// Binds a pointer into the middle of a buffer (base + offset) rather than the
+// base address. On Metal without MTLResidencySet, the runtime must resolve
+// this non-base GPU address back to the owning buffer for residency.
+GPU_TEST_CASE("bind-pointers-offset-address", CUDA | Metal)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-pointer-copy", "computeMain", shaderProgram.writeRef()));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    const int numberCount = 4096;
+    const int offsetElements = 1024;
+    const int totalElements = offsetElements + numberCount;
+
+    std::vector<uint8_t> fullData(totalElements * sizeof(uint32_t));
+    std::mt19937 rng(334455);
+    std::uniform_int_distribution<int> dist(0, 255);
+    for (auto& byte : fullData)
+        byte = (uint8_t)dist(rng);
+
+    BufferDesc srcBufDesc = {};
+    srcBufDesc.size = totalElements * sizeof(uint32_t);
+    srcBufDesc.format = Format::Undefined;
+    srcBufDesc.elementSize = sizeof(uint32_t);
+    srcBufDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
+    srcBufDesc.defaultState = ResourceState::UnorderedAccess;
+    srcBufDesc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IBuffer> src;
+    REQUIRE_CALL(device->createBuffer(srcBufDesc, (void*)fullData.data(), src.writeRef()));
+
+    BufferDesc dstBufDesc = srcBufDesc;
+    dstBufDesc.size = numberCount * sizeof(uint32_t);
+
+    ComPtr<IBuffer> dst;
+    REQUIRE_CALL(device->createBuffer(dstBufDesc, nullptr, dst.writeRef()));
+
+    {
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+
+        auto passEncoder = commandEncoder->beginComputePass();
+        auto rootObject = passEncoder->bindPipeline(pipeline);
+        ShaderCursor shaderCursor(rootObject);
+        DeviceAddress srcOffset = src->getDeviceAddress() + offsetElements * sizeof(uint32_t);
+        shaderCursor["src"].setData(srcOffset);
+        shaderCursor["dst"].setData(dst->getDeviceAddress());
+
+        passEncoder->dispatchCompute(numberCount / 32, 1, 1);
+        passEncoder->end();
+
+        queue->submit(commandEncoder->finish());
+        queue->waitOnHost();
+    }
+
+    std::span<uint8_t> expected(fullData.data() + offsetElements * sizeof(uint32_t), numberCount * sizeof(uint32_t));
+    compareComputeResult(device, dst, expected);
+}

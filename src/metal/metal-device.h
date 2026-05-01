@@ -3,6 +3,8 @@
 #include "metal-base.h"
 #include "metal-clear-engine.h"
 
+#include "metal-buffer-address-map.h"
+
 #include <string>
 
 namespace rhi::metal {
@@ -171,11 +173,16 @@ public:
     bool m_hasArgumentBufferTier2 = false;
 
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
+    bool m_hasResidencySet = false;
     bool m_residencySetDirty = false;
     std::mutex m_residencySetMutex;
 
-    void registerAllocation(MTL::Allocation* allocation);
-    void unregisterAllocation(MTL::Allocation* allocation);
+    // Fallback residency: maps GPU virtual addresses to their owning BufferImpl.
+    // Only active when !m_hasResidencySet.
+    BufferAddressMap m_addressToBuffer;
+
+    void registerResource(MTL::Resource* resource);
+    void unregisterResource(MTL::Resource* resource);
 };
 
 } // namespace rhi::metal

@@ -97,6 +97,10 @@ int main(int argc, const char** argv)
 
         result = context.run();
 
+        bool noSilentSkips = rhi::testing::checkNoSilentGpuSkips();
+        if (result == 0 && !noSilentSkips)
+            result = 1;
+
         rhi::testing::releaseCachedDevices();
     }
 

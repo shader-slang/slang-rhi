@@ -1,6 +1,38 @@
 #include "metal-shader-object-layout.h"
+#include "metal-device.h"
 
 namespace rhi::metal {
+
+static void collectPointerFields(
+    slang::TypeLayoutReflection* typeLayout,
+    uint32_t baseOffset,
+    std::vector<ShaderObjectLayoutImpl::PointerFieldInfo>& outFields
+)
+{
+    auto kind = typeLayout->getKind();
+    if (kind == slang::TypeReflection::Kind::Pointer)
+    {
+        outFields.push_back({baseOffset});
+        return;
+    }
+    if (kind == slang::TypeReflection::Kind::Array)
+    {
+        auto elemLayout = typeLayout->getElementTypeLayout();
+        auto stride = typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_MIXED);
+        auto count = typeLayout->getElementCount();
+        if (count == 0)
+            return;
+        for (size_t i = 0; i < count; i++)
+            collectPointerFields(elemLayout, baseOffset + (uint32_t)(i * stride), outFields);
+        return;
+    }
+    for (unsigned i = 0; i < typeLayout->getFieldCount(); i++)
+    {
+        auto field = typeLayout->getFieldByIndex(i);
+        uint32_t fieldOffset = baseOffset + (uint32_t)field->getOffset();
+        collectPointerFields(field->getTypeLayout(), fieldOffset, outFields);
+    }
+}
 
 static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(
     slang::ISession* slangSession,
@@ -246,6 +278,8 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
     auto device = builder->m_device;
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
+    if (!static_cast<DeviceImpl*>(device)->m_hasResidencySet)
+        collectPointerFields(m_elementTypeLayout, 0, m_pointerFields);
     m_parameterBlockTypeLayout = builder->m_parameterBlockTypeLayout;
     m_slotCount = builder->m_slotCount;
     m_subObjectCount = builder->m_subObjectCount;

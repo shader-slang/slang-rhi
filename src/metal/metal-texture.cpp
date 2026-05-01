@@ -16,7 +16,7 @@ TextureImpl::~TextureImpl()
     m_defaultView.setNull();
     if (m_texture && !m_isSwapchainTexture)
     {
-        getDevice<DeviceImpl>()->unregisterAllocation(m_texture.get());
+        getDevice<DeviceImpl>()->unregisterResource(m_texture.get());
     }
 }
 
@@ -159,7 +159,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureImpl->m_textureType = textureDesc->textureType();
     textureImpl->m_pixelFormat = textureDesc->pixelFormat();
 
-    registerAllocation(textureImpl->m_texture.get());
+    registerResource(textureImpl->m_texture.get());
 
     if (desc.label)
     {

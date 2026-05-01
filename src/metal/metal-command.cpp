@@ -598,6 +598,26 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         encoder->setFragmentTextures(m_bindingData->textures, NS::Range(0, m_bindingData->textureCount));
         encoder->setVertexSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
         encoder->setFragmentSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
+
+        if (!m_device->m_hasResidencySet)
+        {
+            if (m_bindingData->usedResourceCount > 0)
+            {
+                encoder->useResources(
+                    (const MTL::Resource* const*)m_bindingData->usedResources,
+                    m_bindingData->usedResourceCount,
+                    MTL::ResourceUsageRead
+                );
+            }
+            if (m_bindingData->usedRWResourceCount > 0)
+            {
+                encoder->useResources(
+                    (const MTL::Resource* const*)m_bindingData->usedRWResources,
+                    m_bindingData->usedRWResourceCount,
+                    MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+                );
+            }
+        }
     }
 
     if (updateVertexBuffers)
@@ -773,6 +793,26 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
         );
         encoder->setTextures(m_bindingData->textures, NS::Range(0, m_bindingData->textureCount));
         encoder->setSamplerStates(m_bindingData->samplers, NS::Range(0, m_bindingData->samplerCount));
+
+        if (!m_device->m_hasResidencySet)
+        {
+            if (m_bindingData->usedResourceCount > 0)
+            {
+                encoder->useResources(
+                    (const MTL::Resource* const*)m_bindingData->usedResources,
+                    m_bindingData->usedResourceCount,
+                    MTL::ResourceUsageRead
+                );
+            }
+            if (m_bindingData->usedRWResourceCount > 0)
+            {
+                encoder->useResources(
+                    (const MTL::Resource* const*)m_bindingData->usedRWResources,
+                    m_bindingData->usedRWResourceCount,
+                    MTL::ResourceUsageRead | MTL::ResourceUsageWrite
+                );
+            }
+        }
     }
 
     if (m_computeEncoderHasDispatched)
@@ -1058,6 +1098,8 @@ void CommandRecorder::endCommandEncoder()
     }
     if (m_blitCommandEncoder)
     {
+        // Blit encoders don't support useResources - residency for blit
+        // operands is handled automatically by Metal.
         m_blitCommandEncoder->updateFence(fence);
         m_blitCommandEncoder->endEncoding();
         m_blitCommandEncoder.reset();
@@ -1231,11 +1273,14 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // Commit any pending residency set changes.
     {
         auto* device = getDevice<DeviceImpl>();
-        std::lock_guard<std::mutex> lock(device->m_residencySetMutex);
-        if (device->m_residencySetDirty)
+        if (device->m_hasResidencySet)
         {
-            device->m_residencySet->commit();
-            device->m_residencySetDirty = false;
+            std::lock_guard<std::mutex> lock(device->m_residencySetMutex);
+            if (device->m_residencySetDirty)
+            {
+                device->m_residencySet->commit();
+                device->m_residencySetDirty = false;
+            }
         }
     }
 
