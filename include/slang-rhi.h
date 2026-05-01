@@ -2027,19 +2027,19 @@ struct ShaderTableDesc
     const void* next = nullptr;
 
     uint32_t rayGenShaderCount = 0;
-    const char** rayGenShaderEntryPointNames = nullptr;
+    const char* const* rayGenShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* rayGenShaderRecordOverwrites = nullptr;
 
     uint32_t missShaderCount = 0;
-    const char** missShaderEntryPointNames = nullptr;
+    const char* const* missShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* missShaderRecordOverwrites = nullptr;
 
     uint32_t hitGroupCount = 0;
-    const char** hitGroupNames = nullptr;
+    const char* const* hitGroupNames = nullptr;
     const ShaderRecordOverwrite* hitGroupRecordOverwrites = nullptr;
 
     uint32_t callableShaderCount = 0;
-    const char** callableShaderEntryPointNames = nullptr;
+    const char* const* callableShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -3177,8 +3177,8 @@ struct DeviceDesc
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
     uint32_t requiredFeatureCount = 0;
-    // Array of required feature names, whose size is `requiredFeatureCount`.
-    const char** requiredFeatures = nullptr;
+    // Array of required features, whose size is `requiredFeatureCount`.
+    const Feature* requiredFeatures = nullptr;
     // Configurations for Slang compiler.
     SlangDesc slang = {};
 
@@ -3956,6 +3956,11 @@ struct VulkanDeviceExtendedDesc
     const void* next = nullptr;
 
     bool enableDebugPrintf = false;
+
+    uint32_t instanceExtensionCount = 0;
+    const char* const* instanceExtensions = nullptr;
+    uint32_t deviceExtensionCount = 0;
+    const char* const* deviceExtensions = nullptr;
 };
 
 } // namespace rhi

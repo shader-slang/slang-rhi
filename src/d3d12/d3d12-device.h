@@ -31,7 +31,8 @@ public:
 class DeviceImpl : public Device
 {
 public:
-    D3D12DeviceExtendedDesc m_extendedDesc;
+    std::string m_rootParameterShaderAttributeNameBuffer;
+    const char* m_rootParameterShaderAttributeName = nullptr;
 
     std::string m_adapterName;
 
@@ -41,6 +42,8 @@ public:
     ComPtr<IDXGIAdapter> m_dxgiAdapter;
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Device5> m_device5;
+
+    ComPtr<D3D12MA::Allocator> m_allocator;
 
     RefPtr<CommandQueueImpl> m_queue;
 
@@ -268,7 +271,7 @@ public:
     D3D12_CPU_DESCRIPTOR_HANDLE getNullSamplerDescriptor();
 
 private:
-    void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* desc);
+    void processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const D3D12ExperimentalFeaturesDesc* desc);
     inline Result setupDebugLayer(SharedLibraryHandle d3dModule);
 };
 

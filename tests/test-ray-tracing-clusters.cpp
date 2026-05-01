@@ -601,7 +601,7 @@ static void testClusterTracing(
     texDesc.format = Format::RGBA32Float;
     texDesc.size.width = width;
     texDesc.size.height = height;
-    texDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource;
+    texDesc.usage = TextureUsage::UnorderedAccess | TextureUsage::CopySource | TextureUsage::CopyDestination;
     ComPtr<ITexture> resultTexture;
     REQUIRE_CALL(device->createTexture(texDesc, nullptr, resultTexture.writeRef()));
 
@@ -676,6 +676,11 @@ static void testClusterTracing(
     ComPtr<IBuffer> idsBuf;
     queue = device->getQueue(QueueType::Graphics);
     enc = queue->createCommandEncoder();
+    // Clear the result texture since the miss shader may not write all pixels.
+    {
+        float clearValue[4] = {};
+        enc->clearTextureFloat(resultTexture, kEntireTexture, clearValue);
+    }
     {
         auto pass = enc->beginRayTracingPass();
         auto root = pass->bindPipeline(pipeline, shaderTable);

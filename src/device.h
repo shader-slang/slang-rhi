@@ -447,6 +447,8 @@ protected:
     void addCapability(Capability capability);
     std::vector<Capability> getCapabilities();
 
+    Result checkRequiredFeatures(const DeviceDesc& desc);
+
 protected:
     std::array<bool, size_t(Feature::_Count)> m_featureSet;
     std::array<bool, size_t(Capability::_Count)> m_capabilitySet;
