@@ -1114,6 +1114,16 @@ Result CommandEncoder::resolvePipelines(Device* device)
             cmd.pipeline = static_cast<RayTracingPipeline*>(concretePipeline);
             cmd.specializationArgs = nullptr;
         }
+        else if (command->id == CommandID::SetWorkGraphState)
+        {
+            auto& cmd = commandList->getCommand<commands::SetWorkGraphState>(command);
+            WorkGraphPipeline* pipeline = checked_cast<WorkGraphPipeline*>(cmd.pipeline);
+            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
+            Pipeline* concretePipeline = nullptr;
+            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
+            cmd.pipeline = static_cast<WorkGraphPipeline*>(concretePipeline);
+            cmd.specializationArgs = nullptr;
+        }
         command = command->next;
     }
     return SLANG_OK;
