@@ -1235,6 +1235,7 @@ void CommandRecorder::cmdSetWorkGraphState(const commands::SetWorkGraphState& cm
 void CommandRecorder::cmdDispatchGraph(const commands::DispatchGraph& cmd)
 {
     SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IWorkGraphPassEncoder, dispatchGraph);
 }
 
 void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
