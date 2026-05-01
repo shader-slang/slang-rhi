@@ -2517,11 +2517,8 @@ struct ExecuteCallbackContext
     NativeHandle nativeHandle;
 };
 
-typedef void(SLANG_MCALL* ExecuteCallbackFunc)(
-    const ExecuteCallbackContext* context,
-    void* userObject,
-    const void* userData
-);
+typedef void(SLANG_MCALL*
+                 ExecuteCallbackFunc)(const ExecuteCallbackContext* context, void* userObject, const void* userData);
 typedef void(SLANG_MCALL* ExecuteCallbackObjectFunc)(void* userObject);
 
 struct ExecuteCallbackDesc
