@@ -585,6 +585,7 @@ void CommandExecutor::cmdSetWorkGraphState(const commands::SetWorkGraphState& cm
 void CommandExecutor::cmdDispatchGraph(const commands::DispatchGraph& cmd)
 {
     SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(IWorkGraphPassEncoder, dispatchGraph);
 }
 
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
