@@ -875,6 +875,7 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 void CommandRecorder::cmdBeginWorkGraphPass(const commands::BeginWorkGraphPass& cmd)
 {
     SLANG_UNUSED(cmd);
+    NOT_SUPPORTED(ICommandEncoder, beginWorkGraphPass);
 }
 
 void CommandRecorder::cmdEndWorkGraphPass(const commands::EndWorkGraphPass& cmd)
