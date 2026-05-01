@@ -7,6 +7,8 @@ using namespace rhi::testing;
 // requirements are internally consistent (minSize > 0, minSize <= maxSize).
 GPU_TEST_CASE("work-graph-pipeline-creation", ALL)
 {
+    SKIP("disabled until Slang work graph shader support is merged");
+
     if (!device->hasFeature(Feature::WorkGraph))
         SKIP("work graphs not supported");
 
@@ -28,6 +30,8 @@ GPU_TEST_CASE("work-graph-pipeline-creation", ALL)
 // the expected value into a UAV output buffer.
 GPU_TEST_CASE("work-graph-trivial", ALL)
 {
+    SKIP("disabled until Slang work graph shader support is merged");
+
     if (!device->hasFeature(Feature::WorkGraph))
         SKIP("work graphs not supported");
 
