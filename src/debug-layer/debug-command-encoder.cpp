@@ -668,6 +668,16 @@ void DebugWorkGraphPassEncoder::dispatchGraph(
         RHI_VALIDATION_ERROR("'backingStore' must not be null.");
         return;
     }
+    if (numRecords > 0 && !records)
+    {
+        RHI_VALIDATION_ERROR("'records' must not be null when 'numRecords' > 0.");
+        return;
+    }
+    if (numRecords > 0 && recordStrideInBytes == 0)
+    {
+        RHI_VALIDATION_ERROR("'recordStrideInBytes' must be > 0 when 'numRecords' > 0.");
+        return;
+    }
 
     baseObject->dispatchGraph(backingStore, entryPointIndex, numRecords, records, recordStrideInBytes);
 }
