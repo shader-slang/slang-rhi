@@ -383,6 +383,8 @@ public:
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL executeCallback(const ExecuteCallbackDesc& desc) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(
         const CommandBufferDesc& desc,
         ICommandBuffer** outCommandBuffer
@@ -398,7 +400,7 @@ public:
 public:
     CommandBuffer(Device* device)
         : DeviceChild(device)
-        , m_commandList(m_allocator, m_trackedObjects)
+        , m_commandList(m_allocator, m_trackedObjects, m_trackedExecuteCallbackObjects)
     {
     }
     virtual ~CommandBuffer() = default;
@@ -411,6 +413,7 @@ public:
         m_commandList.reset();
         m_allocator.reset();
         m_trackedObjects.clear();
+        m_trackedExecuteCallbackObjects.clear();
         return SLANG_OK;
     }
 
@@ -428,8 +431,9 @@ public:
     CommandBufferDesc m_desc;
     StructHolder m_descHolder;
     ArenaAllocator m_allocator;
-    CommandList m_commandList;
     std::set<RefPtr<RefObject>> m_trackedObjects;
+    std::vector<ExecuteCallbackObjectRetainer> m_trackedExecuteCallbackObjects;
+    CommandList m_commandList;
 };
 
 } // namespace rhi

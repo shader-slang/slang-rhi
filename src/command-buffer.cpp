@@ -918,6 +918,13 @@ void CommandEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::executeCallback(const ExecuteCallbackDesc& desc)
+{
+    commands::ExecuteCallback cmd;
+    cmd.desc = desc;
+    m_commandList->write(std::move(cmd));
+}
+
 Result CommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
     // iterate over commands and specialize pipelines

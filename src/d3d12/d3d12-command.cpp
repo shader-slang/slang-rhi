@@ -1659,7 +1659,18 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    cmd.callback(cmd.userData);
+    commitBarriers();
+
+    NativeHandle nativeHandle{
+        NativeHandleType::D3D12GraphicsCommandList,
+        reinterpret_cast<uint64_t>(m_cmdList.get()),
+    };
+    invokeExecuteCallback(cmd, nativeHandle);
+
+    m_renderStateValid = false;
+    m_computeStateValid = false;
+    m_rayTracingStateValid = false;
+    m_bindingData = nullptr;
 }
 
 void CommandRecorder::setBindings(BindingDataImpl* bindingData, BindMode bindMode)

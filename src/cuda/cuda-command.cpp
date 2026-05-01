@@ -671,7 +671,15 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    cmd.callback(cmd.userData);
+    NativeHandle nativeHandle{
+        NativeHandleType::CUstream,
+        reinterpret_cast<uint64_t>(m_stream),
+    };
+    invokeExecuteCallback(cmd, nativeHandle);
+
+    m_computeStateValid = false;
+    m_rayTracingStateValid = false;
+    m_bindingData = nullptr;
 }
 
 // CommandQueueImpl
