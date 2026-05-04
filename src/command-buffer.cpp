@@ -918,6 +918,13 @@ void CommandEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::executeCallback(const ExecuteCallbackDesc& desc)
+{
+    commands::ExecuteCallback cmd;
+    cmd.desc = desc;
+    m_commandList->write(std::move(cmd));
+}
+
 Result CommandEncoder::finish(const CommandBufferDesc& desc, ICommandBuffer** outCommandBuffer)
 {
     // iterate over commands and specialize pipelines
@@ -995,6 +1002,32 @@ ICommandBuffer* CommandBuffer::getInterface(const Guid& guid)
     if (guid == ISlangUnknown::getTypeGuid() || guid == ICommandBuffer::getTypeGuid())
         return static_cast<ICommandBuffer*>(this);
     return nullptr;
+}
+
+CommandBuffer::~CommandBuffer()
+{
+    resetCallbackObjects();
+}
+
+Result CommandBuffer::reset()
+{
+    m_commandList.reset();
+    resetCallbackObjects();
+    m_allocator.reset();
+    m_trackedObjects.clear();
+    return SLANG_OK;
+}
+
+void CommandBuffer::resetCallbackObjects()
+{
+    for (const ExecuteCallbackObjectRetainer& object : m_trackedExecuteCallbackObjects)
+    {
+        if (object.userObject && object.releaseUserObject)
+        {
+            object.releaseUserObject(object.userObject);
+        }
+    }
+    m_trackedExecuteCallbackObjects.clear();
 }
 
 } // namespace rhi

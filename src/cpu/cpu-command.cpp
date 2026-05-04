@@ -336,7 +336,7 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    cmd.callback(cmd.userData);
+    invokeExecuteCallback(cmd, {});
 }
 
 // CommandQueueImpl

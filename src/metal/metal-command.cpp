@@ -1013,7 +1013,11 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    cmd.callback(cmd.userData);
+    NativeHandle nativeHandle{
+        NativeHandleType::MTLCommandBuffer,
+        reinterpret_cast<uint64_t>(m_commandBuffer.get()),
+    };
+    invokeExecuteCallback(cmd, nativeHandle);
 }
 
 MTL::RenderCommandEncoder* CommandRecorder::getRenderCommandEncoder(MTL::RenderPassDescriptor* renderPassDesc)
