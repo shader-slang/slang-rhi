@@ -39,12 +39,9 @@ GPU_TEST_CASE("imported-constant-buffer", ALL & ~CPU)
     REQUIRE(slangReflection);
 
     ComPtr<IShaderObject> dataObject;
-    REQUIRE_CALL(device->createShaderObject(
-        nullptr,
-        slangReflection,
-        ShaderObjectContainerType::None,
-        dataObject.writeRef()
-    ));
+    REQUIRE_CALL(
+        device->createShaderObject(nullptr, slangReflection, ShaderObjectContainerType::None, dataObject.writeRef())
+    );
     {
         ShaderCursor dataCursor(dataObject);
         dataCursor["value"].setData(Float4{1.0f, 2.0f, 3.0f, 4.0f});

@@ -1,4 +1,4 @@
-// Module with global ConstantBuffer — triggers varLayout assertion when imported.
+// Module with global ConstantBuffer - triggers varLayout assertion when imported.
 module "test-imported-constant-buffer-data";
 
 public struct MyData
