@@ -20,16 +20,13 @@ public:
     );
 
     /// Returns true if has been initialized
-    bool isInitialized() const { return m_api != nullptr; }
+    bool isInitialized() const { return m_vmaAllocation != VK_NULL_HANDLE; }
 
-    VKBufferHandleRAII()
-        : m_api(nullptr)
-    {
-    }
+    VKBufferHandleRAII() = default;
 
     ~VKBufferHandleRAII()
     {
-        if (m_api)
+        if (m_vmaAllocation != VK_NULL_HANDLE)
         {
             // Safety net: callers (e.g. DeviceImpl::mapBuffer/unmapBuffer) must
             // perform balanced vmaMapMemory/vmaUnmapMemory calls. This handles
@@ -47,9 +44,9 @@ public:
         }
     }
 
-    VkBuffer m_buffer;
-    VkDeviceMemory m_memory;
-    const VulkanApi* m_api;
+    VkBuffer m_buffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_memory = VK_NULL_HANDLE;
+    const VulkanApi* m_api = nullptr;
     VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;
     VmaAllocation m_vmaAllocation = VK_NULL_HANDLE;
 };

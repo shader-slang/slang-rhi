@@ -24,10 +24,10 @@ Result VKBufferHandleRAII::init(
 {
     SLANG_RHI_ASSERT(!isInitialized());
 
-    m_api = &api;
+    m_api = nullptr;
     m_buffer = VK_NULL_HANDLE;
     m_memory = VK_NULL_HANDLE;
-    m_vmaAllocator = vmaAllocator;
+    m_vmaAllocator = VK_NULL_HANDLE;
     m_vmaAllocation = VK_NULL_HANDLE;
 
     VkBufferCreateInfo bufferCreateInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -101,13 +101,15 @@ Result VKBufferHandleRAII::init(
         minAlignment = std::max(minAlignment, (VkDeviceSize)64);
     }
 
+    VkBuffer buffer = VK_NULL_HANDLE;
+    VmaAllocation vmaAllocation = VK_NULL_HANDLE;
     SLANG_VK_RETURN_ON_FAIL(vmaCreateBufferWithAlignment(
-        m_vmaAllocator,
+        vmaAllocator,
         &bufferCreateInfo,
         &allocCreateInfo,
         minAlignment,
-        &m_buffer,
-        &m_vmaAllocation,
+        &buffer,
+        &vmaAllocation,
         nullptr
     ));
 
@@ -116,7 +118,11 @@ Result VKBufferHandleRAII::init(
     // must never be used directly without the allocation offset. All code paths
     // must check m_vmaAllocation first and use VMA functions when it is non-null.
     VmaAllocationInfo allocInfo;
-    vmaGetAllocationInfo(m_vmaAllocator, m_vmaAllocation, &allocInfo);
+    vmaGetAllocationInfo(vmaAllocator, vmaAllocation, &allocInfo);
+    m_api = &api;
+    m_buffer = buffer;
+    m_vmaAllocator = vmaAllocator;
+    m_vmaAllocation = vmaAllocation;
     m_memory = allocInfo.deviceMemory;
 
     return SLANG_OK;
@@ -337,8 +343,14 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     if (is_set(desc.usage, BufferUsage::ConstantBuffer) && desc.memoryType == MemoryType::DeviceLocal)
         effectiveMemoryType = MemoryType::Upload;
 
+    bool isShared = is_set(desc.usage, BufferUsage::Shared);
+    if (isShared && m_sharedMemoryPool == VK_NULL_HANDLE)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
-    VmaPool pool = is_set(desc.usage, BufferUsage::Shared) ? m_sharedMemoryPool : VK_NULL_HANDLE;
+    VmaPool pool = isShared ? m_sharedMemoryPool : VK_NULL_HANDLE;
     SLANG_RETURN_ON_FAIL(buffer->m_buffer.init(m_api, m_vmaAllocator, desc.size, usage, effectiveMemoryType, pool));
 
     _labelObject((uint64_t)buffer->m_buffer.m_buffer, VK_OBJECT_TYPE_BUFFER, desc.label);
