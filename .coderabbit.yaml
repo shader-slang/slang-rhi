@@ -1,0 +1,266 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+
+reviews:
+  profile: assertive
+  high_level_summary: false
+  auto_title_placeholder: ""
+  poem: false
+  in_progress_fortune: false
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  assess_linked_issues: true
+  related_issues: false
+  related_prs: false
+  suggested_labels: false
+  auto_label: false
+  suggested_reviewers: true
+  auto_assign_reviewers: true
+
+  path_filters:
+    - "!build/**"
+    - "!external/**"
+
+  path_instructions:
+    - path: "include/**"
+      instructions: >-
+        PUBLIC API HEADERS. Changes here are potentially breaking for all
+        downstream users (slang, slangpy, Falcor, etc.). Review for:
+        (1) ABI stability — flag any change to existing struct layouts, enum
+        values (never insert in the middle; always append before the terminal
+        sentinel), or virtual method signatures.
+        (2) COM-style interface vtables — never reorder, change signatures of,
+        or insert virtual methods in the middle of an existing interface;
+        append-only at the end. Never remove a method — stub it instead.
+        (3) Header-only / inline correctness — anything inline must compile
+        cleanly across all consumer toolchains.
+        (4) Doc comments accurately describe behavior, error codes, and
+        ownership/lifetime of returned objects.
+
+    - path: "src/core/**"
+      instructions: >-
+        Core utilities shared across all backends. Review for:
+        (1) Thread safety — utilities here are reused by every backend.
+        (2) Memory management — uses ref-counted smart pointers; verify there
+        are no cycles or leaked references.
+        (3) Cross-platform portability (Windows, Linux, macOS).
+
+    - path: "src/d3d11/**"
+      instructions: >-
+        Direct3D 11 backend. Verify HRESULT handling, COM reference counting,
+        and feature-level / capability checks. Cross-check that behavior matches
+        the equivalent paths in d3d12/, vulkan/, metal/, cuda/, wgpu/, and cpu/.
+
+    - path: "src/d3d12/**"
+      instructions: >-
+        Direct3D 12 backend. Verify resource state transitions, descriptor heap
+        management, and HRESULT handling. Cross-check that behavior matches the
+        equivalent paths in d3d11/, vulkan/, metal/, cuda/, wgpu/, and cpu/.
+
+    - path: "src/d3d/**"
+      instructions: >-
+        Code shared between the D3D11 and D3D12 backends. Changes here affect
+        both — verify both backends still compile and behave consistently.
+
+    - path: "src/vulkan/**"
+      instructions: >-
+        Vulkan backend. Verify VkResult handling, synchronization (barriers,
+        semaphores, fences), descriptor set management, and extension/feature
+        gating. Cross-check that behavior matches the equivalent paths in
+        d3d11/, d3d12/, metal/, cuda/, wgpu/, and cpu/.
+
+    - path: "src/metal/**"
+      instructions: >-
+        Metal backend. Verify MTL object lifetimes (Obj-C ARC bridging), command
+        buffer / encoder usage, and argument buffer encoding. Cross-check that
+        behavior matches the equivalent paths in the other backends.
+
+    - path: "src/cuda/**"
+      instructions: >-
+        CUDA backend. Verify cudaError_t handling, stream synchronization,
+        memory ownership across host/device, and module/kernel loading. Cross-
+        check that behavior matches the equivalent paths in the other backends.
+
+    - path: "src/wgpu/**"
+      instructions: >-
+        WebGPU backend. Verify wgpu callback handling, error scopes, and
+        descriptor lifetime requirements. Cross-check that behavior matches
+        the equivalent paths in the other backends.
+
+    - path: "src/cpu/**"
+      instructions: >-
+        CPU reference backend. Useful for debugging — verify it remains
+        functionally equivalent to the GPU backends for the operations it
+        supports.
+
+    - path: "src/debug-layer/**"
+      instructions: >-
+        Validation / debug layer wrappers. Review for:
+        (1) Wrappers must forward all interface methods; missing forwards
+        silently break clients that opt into the debug layer.
+        (2) Validation should diagnose, not crash, on misuse.
+
+    - path: "src/nvapi/**"
+      instructions: >-
+        NVAPI integration. Guard all NVAPI calls behind feature/availability
+        checks so non-NVIDIA platforms still work.
+
+    - path: "tests/**"
+      instructions: >-
+        Verify test correctness and coverage. Many tests run against multiple
+        backends — new behavior should be tested across the backends that
+        implement it, not just one. Tests should assert on intended behavior,
+        not just current behavior.
+
+    - path: "examples/**"
+      instructions: >-
+        User-facing examples. Keep them minimal, runnable end-to-end, and
+        consistent with the documented public API in include/.
+
+    - path: "docs/**"
+      instructions: >-
+        Project documentation. Verify code samples match the current public API.
+
+    - path: "cmake/**"
+      instructions: >-
+        Build system changes. Verify cross-platform compatibility
+        (Windows/Linux/macOS) and that target dependencies are declared.
+
+    - path: "CMakeLists.txt"
+      instructions: >-
+        Root build configuration. Verify minimum CMake version compatibility and
+        that new targets are properly linked and installed.
+
+    - path: ".github/workflows/**"
+      instructions: >-
+        CI/CD workflow changes. Verify trigger conditions, secret handling, and
+        that matrix configurations cover the required platforms and backends.
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+    ignore_title_keywords:
+      - "WIP"
+      - "wip"
+      - "DO NOT MERGE"
+
+  enable_prompt_for_ai_agents: false
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+
+  tools:
+    # C++ — relevant
+    cppcheck:
+      enabled: true
+    clang:
+      enabled: true
+    # Scripts/config — relevant
+    shellcheck:
+      enabled: true
+    yamllint:
+      enabled: true
+    actionlint:
+      enabled: true
+    # Security — relevant
+    gitleaks:
+      enabled: true
+    # Everything else — not applicable to a C++ RHI library
+    ruff:
+      enabled: false
+    luacheck:
+      enabled: false
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+    biome:
+      enabled: false
+    hadolint:
+      enabled: false
+    swiftlint:
+      enabled: false
+    phpstan:
+      enabled: false
+    phpmd:
+      enabled: false
+    phpcs:
+      enabled: false
+    golangci-lint:
+      enabled: false
+    trufflehog:
+      enabled: false
+    checkov:
+      enabled: false
+    tflint:
+      enabled: false
+    detekt:
+      enabled: false
+    eslint:
+      enabled: false
+    flake8:
+      enabled: false
+    fortitudeLint:
+      enabled: false
+    rubocop:
+      enabled: false
+    buf:
+      enabled: false
+    regal:
+      enabled: false
+    pmd:
+      enabled: false
+    opengrep:
+      enabled: false
+    semgrep:
+      enabled: false
+    circleci:
+      enabled: false
+    clippy:
+      enabled: false
+    sqlfluff:
+      enabled: false
+    trivy:
+      enabled: false
+    prismaLint:
+      enabled: false
+    pylint:
+      enabled: false
+    oxc:
+      enabled: false
+    shopifyThemeCheck:
+      enabled: false
+    brakeman:
+      enabled: false
+    dotenvLint:
+      enabled: false
+    htmlhint:
+      enabled: false
+    stylelint:
+      enabled: false
+    checkmake:
+      enabled: false
+    osvScanner:
+      enabled: false
+    blinter:
+      enabled: false
+    smartyLint:
+      enabled: false
+    emberTemplateLint:
+      enabled: false
+    psscriptanalyzer:
+      enabled: false
+
+chat:
+  auto_reply: false
+  art: false
+
+knowledge_base:
+  opt_out: true
