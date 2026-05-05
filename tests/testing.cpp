@@ -247,45 +247,53 @@ static Result loadProgram(
     if (!module)
         return SLANG_FAIL;
 
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-
-    // Find all entry points
+    std::vector<ComPtr<slang::IEntryPoint>> entryPoints;
+    std::vector<slang::IComponentType*> entryPointComponents;
     for (const char* entryPointName : entryPointNames)
     {
         ComPtr<slang::IEntryPoint> entryPoint;
         SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
+        entryPointComponents.push_back(entryPoint.get());
+        entryPoints.push_back(entryPoint);
     }
 
-    // Create composite component type
-    ComPtr<slang::IComponentType> composedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        componentTypes.data(),
-        componentTypes.size(),
-        composedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    slang::IComponentType* programToUse = composedProgram.get();
+    ShaderProgramDesc shaderProgramDesc = {};
     ComPtr<slang::IComponentType> linkedProgram;
 
     if (performLinking)
     {
+        std::vector<slang::IComponentType*> componentTypes;
+        componentTypes.push_back(module);
+        for (auto* ep : entryPointComponents)
+            componentTypes.push_back(ep);
+
+        ComPtr<slang::IComponentType> composedProgram;
+        Result result = slangSession->createCompositeComponentType(
+            componentTypes.data(),
+            componentTypes.size(),
+            composedProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+        diagnoseIfNeeded(diagnosticsBlob);
+        SLANG_RETURN_ON_FAIL(result);
+
         result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         SLANG_RETURN_ON_FAIL(result);
 
-        programToUse = linkedProgram.get();
         if (outSlangReflection)
             *outSlangReflection = linkedProgram->getLayout();
+
+        shaderProgramDesc.slangGlobalScope = linkedProgram.get();
+    }
+    else
+    {
+        shaderProgramDesc.slangGlobalScope = module;
+        shaderProgramDesc.slangEntryPoints = entryPointComponents.data();
+        shaderProgramDesc.slangEntryPointCount = (uint32_t)entryPointComponents.size();
     }
 
-    ShaderProgramDesc shaderProgramDesc = {};
-    shaderProgramDesc.slangGlobalScope = programToUse;
-    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
+    Result result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return result;
 }
