@@ -315,6 +315,11 @@ struct ThreadedTaskPool::Pool
                 SLANG_RHI_ASSERT(dep);
                 SLANG_RHI_ASSERT(dep->refCount.load(std::memory_order_acquire) > 0);
                 SLANG_RHI_ASSERT(dep->pool == this);
+
+                // Keep the dependency object alive while we touch its mutex.
+                // The child task can run before submitTask() returns and may
+                // release dependency handles from its callback.
+                retainTask(dep);
                 {
                     std::lock_guard<std::mutex> lock(dep->childrenMutex);
                     if (!dep->done.load(std::memory_order_acquire))
@@ -334,6 +339,7 @@ struct ThreadedTaskPool::Pool
                         }
                     }
                 }
+                releaseTask(dep);
             }
             // Enqueue outside the dep lock scope to avoid use-after-free.
             // Enqueueing while holding dep->childrenMutex could allow a worker to

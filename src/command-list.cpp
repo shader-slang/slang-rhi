@@ -382,7 +382,7 @@ void CommandList::write(commands::ExecuteCallback&& cmd)
     if (cmd.desc.userObject && cmd.desc.retainUserObject && cmd.desc.releaseUserObject)
     {
         cmd.desc.retainUserObject(cmd.desc.userObject);
-        m_trackedExecuteCallbackObjects.emplace_back(cmd.desc.userObject, cmd.desc.releaseUserObject);
+        m_trackedExecuteCallbackObjects.push_back({cmd.desc.userObject, cmd.desc.releaseUserObject});
     }
 
     writeCommand(std::move(cmd));

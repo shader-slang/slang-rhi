@@ -243,6 +243,8 @@ GPU_TEST_CASE("ray-tracing-sphere-intrinsics-hit-object", ALL & ~D3D12)
         SKIP("ray tracing not supported");
     if (!device->hasFeature(Feature::AccelerationStructureSpheres))
         SKIP("acceleration structure spheres not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("Shader execution reordering not supported");
 
     RayTracingSphereIntrinsicsTest test;
     test.init(device);

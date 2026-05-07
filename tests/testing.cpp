@@ -205,6 +205,24 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
     }
 }
 
+static Result loadModuleFromSource(slang::ISession* slangSession, std::string_view source, slang::IModule** outModule)
+{
+    static uint64_t counter = 0;
+    size_t hash = std::hash<std::string_view>()(source);
+    // TODO: If loading the same module name twice, we sometimes get crashes in Slang.
+    // For now we work around this by generating a unique module name for each load,
+    // but ideally Slang should fail to reuse a module name if the source is different, instead of crashing.
+    // Details in https://github.com/shader-slang/slang/issues/10957.
+    std::string moduleName = "source_module_" + std::to_string(hash) + "_" + std::to_string(counter++);
+    auto srcBlob = UnownedBlob::create(source.data(), source.size());
+    ComPtr<slang::IBlob> diagnosticsBlob;
+    *outModule =
+        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    if (!*outModule)
+        return SLANG_FAIL;
+    return SLANG_OK;
+}
 
 static Result loadProgram(
     IDevice* device,
@@ -229,45 +247,53 @@ static Result loadProgram(
     if (!module)
         return SLANG_FAIL;
 
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-
-    // Find all entry points
+    std::vector<ComPtr<slang::IEntryPoint>> entryPoints;
+    std::vector<slang::IComponentType*> entryPointComponents;
     for (const char* entryPointName : entryPointNames)
     {
         ComPtr<slang::IEntryPoint> entryPoint;
         SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
+        entryPointComponents.push_back(entryPoint.get());
+        entryPoints.push_back(entryPoint);
     }
 
-    // Create composite component type
-    ComPtr<slang::IComponentType> composedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        componentTypes.data(),
-        componentTypes.size(),
-        composedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    slang::IComponentType* programToUse = composedProgram.get();
+    ShaderProgramDesc shaderProgramDesc = {};
     ComPtr<slang::IComponentType> linkedProgram;
 
     if (performLinking)
     {
+        std::vector<slang::IComponentType*> componentTypes;
+        componentTypes.push_back(module);
+        for (auto* ep : entryPointComponents)
+            componentTypes.push_back(ep);
+
+        ComPtr<slang::IComponentType> composedProgram;
+        Result result = slangSession->createCompositeComponentType(
+            componentTypes.data(),
+            componentTypes.size(),
+            composedProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+        diagnoseIfNeeded(diagnosticsBlob);
+        SLANG_RETURN_ON_FAIL(result);
+
         result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         SLANG_RETURN_ON_FAIL(result);
 
-        programToUse = linkedProgram.get();
         if (outSlangReflection)
             *outSlangReflection = linkedProgram->getLayout();
+
+        shaderProgramDesc.slangGlobalScope = linkedProgram.get();
+    }
+    else
+    {
+        shaderProgramDesc.slangGlobalScope = module;
+        shaderProgramDesc.slangEntryPoints = entryPointComponents.data();
+        shaderProgramDesc.slangEntryPointCount = (uint32_t)entryPointComponents.size();
     }
 
-    ShaderProgramDesc shaderProgramDesc = {};
-    shaderProgramDesc.slangGlobalScope = programToUse;
-    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
+    Result result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return result;
 }
@@ -391,15 +417,7 @@ Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IS
 {
     auto slangSession = device->getSlangSession();
     slang::IModule* module = nullptr;
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    size_t hash = std::hash<std::string_view>()(source);
-    std::string moduleName = "source_module_" + std::to_string(hash);
-    auto srcBlob = UnownedBlob::create(source.data(), source.size());
-    module =
-        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
+    SLANG_RETURN_ON_FAIL(loadModuleFromSource(slangSession, source, &module));
 
     std::vector<ComPtr<slang::IComponentType>> componentTypes;
     componentTypes.push_back(ComPtr<slang::IComponentType>(module));
@@ -416,6 +434,7 @@ Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IS
         rawComponentTypes.push_back(compType.get());
 
     ComPtr<slang::IComponentType> linkedProgram;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     Result result = slangSession->createCompositeComponentType(
         rawComponentTypes.data(),
         rawComponentTypes.size(),
@@ -442,15 +461,7 @@ Result loadRenderProgramFromSource(
 {
     auto slangSession = device->getSlangSession();
     slang::IModule* module = nullptr;
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    size_t hash = std::hash<std::string_view>()(source);
-    std::string moduleName = "source_module_" + std::to_string(hash);
-    auto srcBlob = UnownedBlob::create(source.data(), source.size());
-    module =
-        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
+    SLANG_RETURN_ON_FAIL(loadModuleFromSource(slangSession, source, &module));
 
     std::vector<ComPtr<slang::IComponentType>> componentTypes;
     componentTypes.push_back(ComPtr<slang::IComponentType>(module));
@@ -468,6 +479,7 @@ Result loadRenderProgramFromSource(
         rawComponentTypes.push_back(compType.get());
 
     ComPtr<slang::IComponentType> linkedProgram;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     Result result = slangSession->createCompositeComponentType(
         rawComponentTypes.data(),
         rawComponentTypes.size(),
@@ -944,6 +956,9 @@ slang::IGlobalSession* getSlangGlobalSession()
     return slangGlobalSession;
 }
 
+static std::map<DeviceType, int> sGpuTestsEncountered;
+static std::map<DeviceType, int> sGpuTestsExecuted;
+
 // Trampoline test function registered in doctest for each GPU test instance.
 // Uses GpuTestInfo for additional information about the specific test instance.
 static void gpuTestTrampoline()
@@ -955,6 +970,8 @@ static void gpuTestTrampoline()
     DeviceType deviceType = info->deviceType;
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+
+    sGpuTestsEncountered[deviceType]++;
 
     if (!isDeviceTypeSelected(deviceType))
     {
@@ -1004,6 +1021,7 @@ static void gpuTestTrampoline()
             device->setCudaContextCurrent();
         }
         info->func(&ctx, device);
+        reportGpuTestExecuted(deviceType);
         if (device)
         {
             device->getQueue(QueueType::Graphics)->waitOnHost();
@@ -1114,6 +1132,40 @@ const char* getSkipMessage(const doctest::TestCaseData* tc)
 {
     auto it = sSkipMessages.find(tc);
     return it != sSkipMessages.end() ? it->second : nullptr;
+}
+
+void reportGpuTestExecuted(DeviceType deviceType)
+{
+    sGpuTestsExecuted[deviceType]++;
+}
+
+bool checkNoSilentGpuSkips()
+{
+    bool ok = true;
+    for (DeviceType deviceType : kPlatformDeviceTypes)
+    {
+        if (!isDeviceTypeSelected(deviceType))
+            continue;
+        if (sGpuTestsEncountered.find(deviceType) == sGpuTestsEncountered.end())
+            continue;
+        auto availIt = sDeviceTypeAvailable.find(deviceType);
+        if (availIt == sDeviceTypeAvailable.end() || !availIt->second)
+            continue;
+        auto execIt = sGpuTestsExecuted.find(deviceType);
+        int count = (execIt != sGpuTestsExecuted.end()) ? execIt->second : 0;
+        if (count == 0)
+        {
+            std::fprintf(
+                stderr,
+                "ERROR: Device type '%s' was available but zero tests executed "
+                "(all silently skipped). This likely indicates a device "
+                "initialization regression.\n",
+                deviceTypeToString(deviceType)
+            );
+            ok = false;
+        }
+    }
+    return ok;
 }
 
 } // namespace rhi::testing

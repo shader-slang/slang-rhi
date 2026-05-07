@@ -863,7 +863,11 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    invokeExecuteCallback(cmd, {});
+    NativeHandle nativeHandle{
+        NativeHandleType::WGPUCommandEncoder,
+        reinterpret_cast<uint64_t>(m_commandEncoder),
+    };
+    invokeExecuteCallback(cmd, nativeHandle);
 }
 
 void CommandRecorder::endPassEncoder()

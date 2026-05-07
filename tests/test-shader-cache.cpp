@@ -287,15 +287,6 @@ struct ShaderCacheTest
         freeComputeResources();
     }
 
-    void runComputePipeline(std::string shaderSource, const std::vector<float>& expectedOutput)
-    {
-        createComputeResources();
-        createComputePipeline(shaderSource);
-        dispatchComputePipeline();
-        CHECK(checkOutput(expectedOutput));
-        freeComputeResources();
-    }
-
     VirtualShaderCache::Stats getStats() { return shaderCache.stats; }
 
     void run(GpuTestContext* ctx_, std::string tempDirectory_)
@@ -373,20 +364,25 @@ struct ShaderCacheTestSourceString : ShaderCacheTest
 {
     void runTests()
     {
+        // Write shader source files.
+        writeShader(computeShaderA, "shader-cache-compute-a.slang");
+        writeShader(computeShaderB, "shader-cache-compute-b.slang");
+        writeShader(computeShaderC, "shader-cache-compute-c.slang");
+
         // Cache is cold and we expect 3 misses.
         createDevice();
-        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
-        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
-        runComputePipeline(computeShaderC, {3.f, 4.f, 5.f, 6.f});
+        runComputePipeline("shader-cache-compute-a", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-compute-b", "main", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-compute-c", "main", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 0);
         CHECK_EQ(getStats().entryCount, 3);
 
         // Cache is hot and we expect 3 hits.
         createDevice();
-        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
-        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
-        runComputePipeline(computeShaderC, {3.f, 4.f, 5.f, 6.f});
+        runComputePipeline("shader-cache-compute-a", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-compute-b", "main", {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-compute-c", "main", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 3);
         CHECK_EQ(getStats().entryCount, 3);
@@ -600,18 +596,23 @@ struct ShaderCacheTestEviction : ShaderCacheTest
     {
         shaderCache.maxEntryCount = 2;
 
+        // Write shader source files.
+        writeShader(computeShaderA, "shader-cache-compute-a.slang");
+        writeShader(computeShaderB, "shader-cache-compute-b.slang");
+        writeShader(computeShaderC, "shader-cache-compute-c.slang");
+
         // Load shader A & B. Cache is cold and we expect 2 misses.
         createDevice();
-        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
-        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-compute-a", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-compute-b", "main", {2.f, 3.f, 4.f, 5.f});
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 0);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Load shader A & B. Cache is hot and we expect 2 hits.
         createDevice();
-        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
-        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-compute-a", "main", {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-compute-b", "main", {2.f, 3.f, 4.f, 5.f});
         CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 2);
         CHECK_EQ(getStats().entryCount, 2);
@@ -620,28 +621,28 @@ struct ShaderCacheTestEviction : ShaderCacheTest
         // This will evict the least frequently used entry (shader A).
         // We expect 2 entries in the cache (shader B & C).
         createDevice();
-        runComputePipeline(computeShaderC, {3.f, 4.f, 5.f, 6.f});
+        runComputePipeline("shader-cache-compute-c", "main", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 2);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Load shader C. Cache is hot and we expect 1 hit.
         createDevice();
-        runComputePipeline(computeShaderC, {3.f, 4.f, 5.f, 6.f});
+        runComputePipeline("shader-cache-compute-c", "main", {3.f, 4.f, 5.f, 6.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 3);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Load shader B. Cache is hot and we expect 1 hit.
         createDevice();
-        runComputePipeline(computeShaderB, {2.f, 3.f, 4.f, 5.f});
+        runComputePipeline("shader-cache-compute-b", "main", {2.f, 3.f, 4.f, 5.f});
         CHECK_EQ(getStats().missCount, 3);
         CHECK_EQ(getStats().hitCount, 4);
         CHECK_EQ(getStats().entryCount, 2);
 
         // Load shader A. Cache is cold and we expect 1 miss.
         createDevice();
-        runComputePipeline(computeShaderA, {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline("shader-cache-compute-a", "main", {1.f, 2.f, 3.f, 4.f});
         CHECK_EQ(getStats().missCount, 4);
         CHECK_EQ(getStats().hitCount, 4);
         CHECK_EQ(getStats().entryCount, 2);

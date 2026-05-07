@@ -167,6 +167,7 @@ enum class DeviceType
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
+    x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
     x(AtomicBfloat16,                           "atomic-bfloat16"                               )
 // clang-format on
@@ -547,6 +548,8 @@ enum class NativeHandleType
 
     Win32 = 0x00000001,
     FileDescriptor = 0x00000002,
+
+    D3D11DeviceContext = 0x00010001,
 
     D3D12Device = 0x00020001,
     D3D12CommandQueue = 0x00020002,
@@ -2026,19 +2029,19 @@ struct ShaderTableDesc
     const void* next = nullptr;
 
     uint32_t rayGenShaderCount = 0;
-    const char** rayGenShaderEntryPointNames = nullptr;
+    const char* const* rayGenShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* rayGenShaderRecordOverwrites = nullptr;
 
     uint32_t missShaderCount = 0;
-    const char** missShaderEntryPointNames = nullptr;
+    const char* const* missShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* missShaderRecordOverwrites = nullptr;
 
     uint32_t hitGroupCount = 0;
-    const char** hitGroupNames = nullptr;
+    const char* const* hitGroupNames = nullptr;
     const ShaderRecordOverwrite* hitGroupRecordOverwrites = nullptr;
 
     uint32_t callableShaderCount = 0;
-    const char** callableShaderEntryPointNames = nullptr;
+    const char* const* callableShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -2510,16 +2513,18 @@ struct CommandEncoderDesc
 struct ExecuteCallbackContext
 {
     /// Native handle for the active backend command context.
-    /// D3D12 supplies D3D12GraphicsCommandList, Vulkan supplies VkCommandBuffer,
-    /// and CUDA supplies CUstream. Backends without an active native command
-    /// context pass Undefined.
+    /// D3D11 supplies D3D11DeviceContext, D3D12 supplies D3D12GraphicsCommandList,
+    /// Vulkan supplies VkCommandBuffer, Metal supplies MTLCommandBuffer, CUDA
+    /// supplies CUstream, and WGPU supplies WGPUCommandEncoder. Backends without
+    /// an active native command context pass Undefined.
     NativeHandle nativeHandle;
 };
 
 typedef void(SLANG_MCALL* ExecuteCallbackFunc)(
     const ExecuteCallbackContext* context,
     void* userObject,
-    const void* userData
+    const void* userData,
+    Size userDataSize
 );
 typedef void(SLANG_MCALL* ExecuteCallbackObjectFunc)(void* userObject);
 
@@ -3209,8 +3214,8 @@ struct DeviceDesc
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
     uint32_t requiredFeatureCount = 0;
-    // Array of required feature names, whose size is `requiredFeatureCount`.
-    const char** requiredFeatures = nullptr;
+    // Array of required features, whose size is `requiredFeatureCount`.
+    const Feature* requiredFeatures = nullptr;
     // Configurations for Slang compiler.
     SlangDesc slang = {};
 
@@ -3988,10 +3993,11 @@ struct VulkanDeviceExtendedDesc
     const void* next = nullptr;
 
     bool enableDebugPrintf = false;
-    uint32_t additionalVulkanInstanceExtensionCount = 0;
-    const char* const* additionalVulkanInstanceExtensions = nullptr;
-    uint32_t additionalVulkanDeviceExtensionCount = 0;
-    const char* const* additionalVulkanDeviceExtensions = nullptr;
+
+    uint32_t instanceExtensionCount = 0;
+    const char* const* instanceExtensions = nullptr;
+    uint32_t deviceExtensionCount = 0;
+    const char* const* deviceExtensions = nullptr;
 };
 
 } // namespace rhi

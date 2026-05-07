@@ -93,6 +93,7 @@ public:
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
+    void invalidateState();
     void clearState();
 };
 
@@ -896,19 +897,28 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    invokeExecuteCallback(cmd, {});
+    NativeHandle nativeHandle{
+        NativeHandleType::D3D11DeviceContext,
+        reinterpret_cast<uint64_t>(m_immediateContext),
+    };
+    invokeExecuteCallback(cmd, nativeHandle);
     clearState();
 }
 
-void CommandExecutor::clearState()
+void CommandExecutor::invalidateState()
 {
-    m_immediateContext->ClearState();
     m_renderStateValid = false;
     m_renderState = {};
     m_renderPipeline = nullptr;
     m_computeStateValid = false;
     m_computePipeline = nullptr;
     m_bindingData = nullptr;
+}
+
+void CommandExecutor::clearState()
+{
+    m_immediateContext->ClearState();
+    invalidateState();
 }
 
 // CommandQueueImpl

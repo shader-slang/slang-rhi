@@ -15,6 +15,7 @@ struct CallbackRecord
     uint32_t callCount = 0;
     std::array<NativeHandle, 4> handles = {};
     std::array<uint32_t, 4> payloadValues = {};
+    std::array<Size, 4> payloadSizes = {};
     std::array<bool, 4> retainedDuringCallback = {};
     uint32_t retainCount = 0;
     uint32_t releaseCount = 0;
@@ -24,18 +25,43 @@ NativeHandleType getExpectedNativeHandleType(DeviceType deviceType)
 {
     switch (deviceType)
     {
+    case DeviceType::D3D11:
+        return NativeHandleType::D3D11DeviceContext;
     case DeviceType::D3D12:
         return NativeHandleType::D3D12GraphicsCommandList;
     case DeviceType::Vulkan:
         return NativeHandleType::VkCommandBuffer;
+    case DeviceType::Metal:
+        return NativeHandleType::MTLCommandBuffer;
     case DeviceType::CUDA:
         return NativeHandleType::CUstream;
+    case DeviceType::WGPU:
+        return NativeHandleType::WGPUCommandEncoder;
     default:
         return NativeHandleType::Undefined;
     }
 }
 
-void SLANG_MCALL executeCallback(const ExecuteCallbackContext* context, void* userObject, const void* userData)
+bool releasesCallbackObjectsOnQueueWait(DeviceType deviceType)
+{
+    switch (deviceType)
+    {
+    case DeviceType::D3D12:
+    case DeviceType::Vulkan:
+    case DeviceType::Metal:
+    case DeviceType::CUDA:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void SLANG_MCALL executeCallback(
+    const ExecuteCallbackContext* context,
+    void* userObject,
+    const void* userData,
+    Size userDataSize
+)
 {
     CallbackRecord* record = static_cast<CallbackRecord*>(userObject);
     const CallbackPayload* payload = static_cast<const CallbackPayload*>(userData);
@@ -45,6 +71,7 @@ void SLANG_MCALL executeCallback(const ExecuteCallbackContext* context, void* us
     {
         record->handles[index] = context ? context->nativeHandle : NativeHandle{};
         record->payloadValues[index] = payload ? payload->value : 0;
+        record->payloadSizes[index] = userDataSize;
         record->retainedDuringCallback[index] = record->retainCount > record->releaseCount;
     }
 }
@@ -75,7 +102,7 @@ void addExecuteCallback(ICommandEncoder* encoder, CallbackRecord* record, const 
 
 } // namespace
 
-GPU_TEST_CASE("execute-callback-native-handle-and-user-data", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("execute-callback-native-handle-and-user-data", ALL)
 {
     auto queue = device->getQueue(QueueType::Graphics);
     REQUIRE(queue);
@@ -101,6 +128,8 @@ GPU_TEST_CASE("execute-callback-native-handle-and-user-data", D3D12 | Vulkan | C
     CHECK(record.callCount == 2);
     CHECK(record.payloadValues[0] == 0x12345678u);
     CHECK(record.payloadValues[1] == 0x87654321u);
+    CHECK(record.payloadSizes[0] == sizeof(CallbackPayload));
+    CHECK(record.payloadSizes[1] == sizeof(CallbackPayload));
 
     NativeHandleType expectedType = getExpectedNativeHandleType(ctx->deviceType);
     CHECK(record.handles[0].type == expectedType);
@@ -113,7 +142,8 @@ GPU_TEST_CASE("execute-callback-native-handle-and-user-data", D3D12 | Vulkan | C
         CHECK(record.handles[0].value == queueHandle.value);
         CHECK(record.handles[1].value == queueHandle.value);
     }
-    else
+    else if (ctx->deviceType == DeviceType::D3D12 || ctx->deviceType == DeviceType::Vulkan ||
+             ctx->deviceType == DeviceType::Metal)
     {
         NativeHandle commandBufferHandle = {};
         REQUIRE_CALL(commandBuffer->getNativeHandle(&commandBufferHandle));
@@ -122,11 +152,30 @@ GPU_TEST_CASE("execute-callback-native-handle-and-user-data", D3D12 | Vulkan | C
         CHECK(record.handles[0].value != 0);
         CHECK(record.handles[1].value != 0);
     }
+    else if (expectedType == NativeHandleType::Undefined)
+    {
+        CHECK(record.handles[0].value == 0);
+        CHECK(record.handles[1].value == 0);
+    }
+    else
+    {
+        CHECK(record.handles[0].value != 0);
+        CHECK(record.handles[1].value != 0);
+    }
 
-    CHECK(record.releaseCount == 2);
+    if (releasesCallbackObjectsOnQueueWait(ctx->deviceType))
+    {
+        CHECK(record.releaseCount == 2);
+    }
+    else
+    {
+        CHECK(record.releaseCount == 0);
+        commandBuffer.setNull();
+        CHECK(record.releaseCount == 2);
+    }
 }
 
-GPU_TEST_CASE("execute-callback-object-lifetime", D3D12 | Vulkan | CUDA)
+GPU_TEST_CASE("execute-callback-object-lifetime", ALL)
 {
     auto queue = device->getQueue(QueueType::Graphics);
     REQUIRE(queue);
@@ -150,9 +199,17 @@ GPU_TEST_CASE("execute-callback-object-lifetime", D3D12 | Vulkan | CUDA)
 
     CHECK(record.callCount == 1);
     CHECK(record.payloadValues[0] == 0xf00dcafeu);
+    CHECK(record.payloadSizes[0] == sizeof(CallbackPayload));
     CHECK(record.retainedDuringCallback[0]);
     CHECK(record.retainCount == 1);
-    CHECK(record.releaseCount == 1);
+    if (releasesCallbackObjectsOnQueueWait(ctx->deviceType))
+    {
+        CHECK(record.releaseCount == 1);
+    }
+    else
+    {
+        CHECK(record.releaseCount == 0);
+    }
 
     commandBuffer.setNull();
     CHECK(record.releaseCount == 1);

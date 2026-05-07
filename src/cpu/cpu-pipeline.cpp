@@ -23,13 +23,13 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     uint32_t entryPointIndex = 0;
 
     auto program = checked_cast<ShaderProgramImpl*>(desc.program);
-    auto entryPointLayout = program->slangGlobalScope->getLayout()->getEntryPointByIndex(entryPointIndex);
+    auto entryPointLayout = program->linkedProgram->getLayout()->getEntryPointByIndex(entryPointIndex);
     auto entryPointName = entryPointLayout->getNameOverride();
 
     ComPtr<ISlangSharedLibrary> sharedLibrary;
     ComPtr<ISlangBlob> diagnostics;
     auto compileResult =
-        program->slangGlobalScope
+        program->linkedProgram
             ->getEntryPointHostCallable(entryPointIndex, targetIndex, sharedLibrary.writeRef(), diagnostics.writeRef());
     if (diagnostics)
     {

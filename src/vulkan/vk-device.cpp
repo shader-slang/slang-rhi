@@ -36,7 +36,10 @@ static bool has_extension(const std::vector<const char*>& extensions, const char
     return extension && std::find_if(
                             extensions.begin(),
                             extensions.end(),
-                            [&](const char* existing) { return existing && std::strcmp(existing, extension) == 0; }
+                            [&](const char* existing)
+                            {
+                                return existing && std::strcmp(existing, extension) == 0;
+                            }
                         ) != extensions.end();
 }
 
@@ -211,7 +214,11 @@ static bool _hasAnySetBits(const T& val, size_t offset)
     return false;
 }
 
-Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions)
+Result DeviceImpl::initVulkanInstance(
+    const DeviceDesc& desc,
+    const VulkanDeviceExtendedDesc* extendedDesc,
+    const DebugLayerOptions& debugLayerOptions
+)
 {
     // Initialize Vulkan instance.
     VkInstance instance = VK_NULL_HANDLE;
@@ -255,37 +262,18 @@ Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOp
                 instanceExtensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
         }
 
-        if (m_extendedDesc.additionalVulkanInstanceExtensionCount)
+        // Add user-provided instance extensions, skipping duplicates.
+        if (extendedDesc && extendedDesc->instanceExtensionCount > 0)
         {
-            uint32_t availableExtensionCount = 0;
-            SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumerateInstanceExtensionProperties(
-                nullptr,
-                &availableExtensionCount,
-                nullptr
-            ));
-            std::vector<VkExtensionProperties> availableExtensions(availableExtensionCount);
-            SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumerateInstanceExtensionProperties(
-                nullptr,
-                &availableExtensionCount,
-                availableExtensions.data()
-            ));
-            std::set<std::string> availableExtensionNames;
-            for (const auto& extension : availableExtensions)
-                availableExtensionNames.emplace(extension.extensionName);
-
-            for (uint32_t i = 0; i < m_extendedDesc.additionalVulkanInstanceExtensionCount; ++i)
+            std::set<std::string> existingExtensions(instanceExtensions.begin(), instanceExtensions.end());
+            for (uint32_t i = 0; i < extendedDesc->instanceExtensionCount; ++i)
             {
-                const char* extension = m_extendedDesc.additionalVulkanInstanceExtensions
-                    ? m_extendedDesc.additionalVulkanInstanceExtensions[i]
-                    : nullptr;
-                if (!extension)
-                    continue;
-                if (!availableExtensionNames.count(extension))
+                if (extendedDesc->instanceExtensions[i] &&
+                    existingExtensions.find(extendedDesc->instanceExtensions[i]) == existingExtensions.end())
                 {
-                    printError("Additional Vulkan instance extension '%s' is not available.\n", extension);
-                    return SLANG_FAIL;
+                    instanceExtensions.push_back(extendedDesc->instanceExtensions[i]);
+                    existingExtensions.insert(extendedDesc->instanceExtensions[i]);
                 }
-                add_extension(instanceExtensions, extension);
             }
         }
 
@@ -317,7 +305,7 @@ Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOp
             else
             {
                 // Cannot use DebugPrintf if `CoreValidation` is disabled
-                if (m_extendedDesc.enableDebugPrintf)
+                if (extendedDesc && extendedDesc->enableDebugPrintf)
                     enabledValidationFeatures.push_back(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
             }
 
@@ -409,6 +397,7 @@ Result DeviceImpl::initVulkanInstance(const DeviceDesc& desc, const DebugLayerOp
 
 Result DeviceImpl::initVulkanDevice(
     const DeviceDesc& desc,
+    const VulkanDeviceExtendedDesc* extendedDesc,
     BackendImpl* backend,
     std::vector<Feature>& availableFeatures,
     std::vector<Capability>& availableCapabilities
@@ -1230,8 +1219,8 @@ Result DeviceImpl::initVulkanDevice(
     for (uint32_t i = 0; i < m_extendedDesc.additionalVulkanDeviceExtensionCount; ++i)
     {
         const char* extension = m_extendedDesc.additionalVulkanDeviceExtensions
-            ? m_extendedDesc.additionalVulkanDeviceExtensions[i]
-            : nullptr;
+                                    ? m_extendedDesc.additionalVulkanDeviceExtensions[i]
+                                    : nullptr;
         if (!extension)
             continue;
         if (!extensionNames.count(extension))
@@ -1252,6 +1241,21 @@ Result DeviceImpl::initVulkanDevice(
         queueCreateInfo.pQueuePriorities = &queuePriority;
 
         deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+
+        // Add user-provided device extensions, skipping duplicates.
+        if (extendedDesc && extendedDesc->deviceExtensionCount > 0)
+        {
+            std::set<std::string> existingExtensions(deviceExtensions.begin(), deviceExtensions.end());
+            for (uint32_t i = 0; i < extendedDesc->deviceExtensionCount; ++i)
+            {
+                if (extendedDesc->deviceExtensions[i] &&
+                    existingExtensions.find(extendedDesc->deviceExtensions[i]) == existingExtensions.end())
+                {
+                    deviceExtensions.push_back(extendedDesc->deviceExtensions[i]);
+                    existingExtensions.insert(extendedDesc->deviceExtensions[i]);
+                }
+            }
+        }
 
         deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
@@ -1284,13 +1288,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     m_existingDeviceHandles = desc.existingDeviceHandles;
 
     // Process chained descs
+    const VulkanDeviceExtendedDesc* extendedDesc = nullptr;
     for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
          header = header->next)
     {
         switch (header->type)
         {
         case StructType::VulkanDeviceExtendedDesc:
-            memcpy(static_cast<void*>(&m_extendedDesc), header, sizeof(m_extendedDesc));
+            extendedDesc = reinterpret_cast<const VulkanDeviceExtendedDesc*>(header);
             break;
         default:
             break;
@@ -1304,7 +1309,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize Vulkan instance.
     DebugLayerOptions debugLayerOptions = getRHI()->getDebugLayerOptions();
-    Result instanceResult = initVulkanInstance(desc, debugLayerOptions);
+    Result instanceResult = initVulkanInstance(desc, extendedDesc, debugLayerOptions);
     // If instance creation failed due to missing debug layers,
     // disable debug layers and try again (if they were optional).
     if (SLANG_FAILED(instanceResult) && debugLayerOptions.isDebugLayersEnabled())
@@ -1318,7 +1323,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         if (debugLayersRequired)
             return SLANG_FAIL;
         debugLayerOptions = {};
-        instanceResult = initVulkanInstance(desc, debugLayerOptions);
+        instanceResult = initVulkanInstance(desc, extendedDesc, debugLayerOptions);
     }
     if (SLANG_FAILED(instanceResult))
     {
@@ -1329,7 +1334,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     // Initialize Vulkan device and query available features and capabilities.
     std::vector<Feature> availableFeatures;
     std::vector<Capability> availableCapabilities;
-    SLANG_RETURN_ON_FAIL(initVulkanDevice(desc, backend, availableFeatures, availableCapabilities));
+    SLANG_RETURN_ON_FAIL(initVulkanDevice(desc, extendedDesc, backend, availableFeatures, availableCapabilities));
 
     VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
@@ -1590,6 +1595,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     m_queue = new CommandQueueImpl(this, QueueType::Graphics);
     m_queue->init(m_deviceQueue.getQueue(), m_queueFamilyIndex);
     m_queue->setInternalReferenceCount(1);
+
+    SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 
     return SLANG_OK;
 }
