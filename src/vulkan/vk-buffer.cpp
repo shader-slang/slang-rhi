@@ -417,6 +417,8 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (!bufferImpl->m_buffer.m_vmaAllocation)
+        return SLANG_E_NOT_AVAILABLE;
     SLANG_VK_RETURN_ON_FAIL(vmaMapMemory(m_vmaAllocator, bufferImpl->m_buffer.m_vmaAllocation, outData));
     return SLANG_OK;
 }
@@ -424,6 +426,8 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    if (!bufferImpl->m_buffer.m_vmaAllocation)
+        return SLANG_E_NOT_AVAILABLE;
     vmaUnmapMemory(m_vmaAllocator, bufferImpl->m_buffer.m_vmaAllocation);
     return SLANG_OK;
 }
