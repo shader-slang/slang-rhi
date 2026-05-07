@@ -1876,12 +1876,10 @@ inline Result bindSyntheticResource(
     if (!program || !rootObject)
         return SLANG_E_INVALID_ARG;
 
-    ISyntheticShaderProgram* syntheticProgram = nullptr;
+    ComPtr<ISyntheticShaderProgram> syntheticProgramPtr;
     SLANG_RETURN_ON_FAIL(
-        program->queryInterface(ISyntheticShaderProgram::getTypeGuid(), (void**)&syntheticProgram)
+        program->queryInterface(ISyntheticShaderProgram::getTypeGuid(), (void**)syntheticProgramPtr.writeRef())
     );
-
-    ComPtr<ISyntheticShaderProgram> syntheticProgramPtr(syntheticProgram);
     SyntheticBindingLocation location = {};
     location.structSize = sizeof(SyntheticBindingLocation);
     SLANG_RETURN_ON_FAIL(

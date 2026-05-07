@@ -670,7 +670,6 @@ Result BindingDataBuilder::allocateDescriptorSets(
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
-    SLANG_RHI_ASSERT(specializedLayout->getOwnDescriptorSets().size() <= 1);
     // The number of sets to allocate and their layouts was already pre-computed
     // as part of the shader object layout, so we use that information here.
     //

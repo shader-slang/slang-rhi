@@ -4,7 +4,6 @@
 
 #include "core/static_vector.h"
 
-#include <map>
 #include <vector>
 
 namespace rhi {
@@ -300,7 +299,6 @@ protected:
         uint32_t m_slotCount = 0;
         uint32_t m_subObjectCount = 0;
         std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
-        std::map<uint32_t, uint32_t> m_mapSpaceToDescriptorSetIndex;
 
         /// The number of descriptor sets allocated by child/descendent objects
         uint32_t m_childDescriptorSetCount = 0;

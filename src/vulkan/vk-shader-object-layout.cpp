@@ -8,18 +8,24 @@ namespace rhi::vk {
 
 uint32_t ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space)
 {
-    auto it = m_mapSpaceToDescriptorSetIndex.find(space);
-    if (it != m_mapSpaceToDescriptorSetIndex.end())
-        return it->second;
+    if (space >= kMaxDescriptorSets)
+    {
+        SLANG_RHI_ASSERT_FAILURE("Descriptor set space exceeds Vulkan layout limit");
+        return 0;
+    }
 
-    DescriptorSetInfo info = {};
-    info.space = space;
+    const uint32_t neededCount = space + 1;
+    if (m_descriptorSetBuildInfos.size() < neededCount)
+    {
+        const uint32_t oldCount = (uint32_t)m_descriptorSetBuildInfos.size();
+        m_descriptorSetBuildInfos.resize(neededCount);
+        for (uint32_t i = oldCount; i < neededCount; ++i)
+        {
+            m_descriptorSetBuildInfos[i].space = (int32_t)i;
+        }
+    }
 
-    uint32_t index = m_descriptorSetBuildInfos.size();
-    m_descriptorSetBuildInfos.push_back(info);
-
-    m_mapSpaceToDescriptorSetIndex.emplace(space, index);
-    return index;
+    return space;
 }
 
 VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::BindingType slangBindingType)
@@ -801,10 +807,6 @@ Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSetsRec(ShaderObjectLayoutImpl* layout)
 {
-    // TODO: This logic assumes that descriptor sets are all contiguous
-    // and have been allocated in a global order that matches the order
-    // of enumeration here.
-
     for (auto& descSetInfo : layout->getOwnDescriptorSets())
     {
         m_vkDescriptorSetLayouts.push_back(descSetInfo.descriptorSetLayout);
