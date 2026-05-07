@@ -410,7 +410,8 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
+    shaderProgram->m_rootObjectLayout =
+        new RootShaderObjectLayoutImpl(this, shaderProgram, shaderProgram->linkedProgram->getLayout());
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }

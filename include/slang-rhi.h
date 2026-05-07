@@ -63,6 +63,7 @@ const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 enum class StructType
 {
     ShaderProgramDesc,
+    ShaderProgramSyntheticResourcesDesc,
     InputLayoutDesc,
     BufferDesc,
     TextureDesc,
@@ -265,6 +266,47 @@ enum class LinkingStyle
 
     // Link and compile each entry-point individually, potentially with different specializations.
     SeparateEntryPointCompilation
+};
+
+enum class SyntheticResourceScope
+{
+    Global,
+    EntryPoint,
+};
+
+enum class SyntheticResourceAccess
+{
+    Read,
+    Write,
+    ReadWrite,
+};
+
+struct SyntheticResourceBindingDesc
+{
+    uint32_t id = 0;
+    slang::BindingType bindingType = slang::BindingType::Unknown;
+    uint32_t arraySize = 1;
+
+    SyntheticResourceScope scope = SyntheticResourceScope::Global;
+    SyntheticResourceAccess access = SyntheticResourceAccess::Read;
+    int32_t entryPointIndex = -1;
+
+    int32_t space = -1;
+    int32_t binding = -1;
+
+    int32_t uniformOffset = -1;
+    int32_t uniformStride = 0;
+
+    const char* debugName = nullptr;
+};
+
+struct ShaderProgramSyntheticResourcesDesc
+{
+    StructType structType = StructType::ShaderProgramSyntheticResourcesDesc;
+    const void* next = nullptr;
+
+    const SyntheticResourceBindingDesc* resources = nullptr;
+    uint32_t resourceCount = 0;
 };
 
 struct ShaderProgramDesc
@@ -1674,6 +1716,37 @@ struct ShaderOffset
     bool operator>=(const ShaderOffset& other) const { return other <= *this; }
 };
 
+struct SyntheticBindingLocation
+{
+    size_t structSize = sizeof(SyntheticBindingLocation);
+
+    uint32_t syntheticResourceID = 0;
+    slang::BindingType bindingType = slang::BindingType::Unknown;
+    uint32_t arraySize = 1;
+
+    SyntheticResourceScope scope = SyntheticResourceScope::Global;
+    int32_t entryPointIndex = -1;
+
+    ShaderOffset offset = {};
+    const char* debugName = nullptr;
+};
+
+class ISyntheticShaderProgram : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0x4a9f28a3, 0x286e, 0x4b07, {0x9a, 0xfa, 0x56, 0x62, 0xf7, 0xaa, 0x28, 0x95});
+
+public:
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL getSyntheticBindingCount() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSyntheticBindingLocation(
+        uint32_t index,
+        SyntheticBindingLocation* outLocation
+    ) = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL findSyntheticBindingLocationByID(
+        uint32_t syntheticResourceID,
+        SyntheticBindingLocation* outLocation
+    ) = 0;
+};
+
 enum class ShaderObjectContainerType
 {
     None,
@@ -1792,6 +1865,42 @@ public:
         return entryPoint;
     }
 };
+
+inline Result bindSyntheticResource(
+    IShaderProgram* program,
+    IShaderObject* rootObject,
+    uint32_t syntheticResourceID,
+    const Binding& binding
+)
+{
+    if (!program || !rootObject)
+        return SLANG_E_INVALID_ARG;
+
+    ISyntheticShaderProgram* syntheticProgram = nullptr;
+    SLANG_RETURN_ON_FAIL(
+        program->queryInterface(ISyntheticShaderProgram::getTypeGuid(), (void**)&syntheticProgram)
+    );
+
+    ComPtr<ISyntheticShaderProgram> syntheticProgramPtr(syntheticProgram);
+    SyntheticBindingLocation location = {};
+    location.structSize = sizeof(SyntheticBindingLocation);
+    SLANG_RETURN_ON_FAIL(
+        syntheticProgramPtr->findSyntheticBindingLocationByID(syntheticResourceID, &location)
+    );
+
+    if (location.scope == SyntheticResourceScope::EntryPoint)
+    {
+        if (location.entryPointIndex < 0)
+            return SLANG_E_INVALID_ARG;
+        ComPtr<IShaderObject> entryPointObject;
+        SLANG_RETURN_ON_FAIL(
+            rootObject->getEntryPoint((uint32_t)location.entryPointIndex, entryPointObject.writeRef())
+        );
+        return entryPointObject->setBinding(location.offset, binding);
+    }
+
+    return rootObject->setBinding(location.offset, binding);
+}
 
 enum class StencilOp : uint8_t
 {

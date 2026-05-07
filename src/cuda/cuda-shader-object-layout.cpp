@@ -1,4 +1,5 @@
 #include "cuda-shader-object-layout.h"
+#include "../shader.h"
 
 namespace rhi::cuda {
 
@@ -124,10 +125,20 @@ inline size_t computeEntryPointParamsSize(slang::EntryPointReflection* entryPoin
     return paramsSize;
 }
 
-RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout)
+RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
+    Device* device,
+    ShaderProgram* shaderProgram,
+    slang::ProgramLayout* programLayout
+)
     : ShaderObjectLayoutImpl(device, programLayout->getSession(), programLayout->getGlobalParamsTypeLayout())
     , m_programLayout(programLayout)
 {
+    SLANG_RHI_ASSERT(shaderProgram);
+    if (SLANG_FAILED(_addSyntheticResources(shaderProgram)))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to add synthetic resources to CUDA root shader object layout");
+    }
+
     for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
         EntryPointInfo entryPointInfo;
@@ -139,6 +150,43 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::Pr
         entryPointInfo.paramsSize = computeEntryPointParamsSize(programLayout->getEntryPointByIndex(i));
         m_entryPoints.push_back(entryPointInfo);
     }
+}
+
+Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderProgram)
+{
+    for (const auto& resource : shaderProgram->m_syntheticResourceInputs)
+    {
+        if (resource.scope != SyntheticResourceScope::Global)
+            return SLANG_E_NOT_IMPLEMENTED;
+        if (resource.uniformOffset < 0)
+            return SLANG_E_INVALID_ARG;
+
+        BindingRangeInfo bindingRangeInfo = {};
+        bindingRangeInfo.bindingType = resource.bindingType;
+        bindingRangeInfo.count = resource.arraySize;
+        bindingRangeInfo.slotIndex = m_slotCount;
+        bindingRangeInfo.uniformOffset = (uint32_t)resource.uniformOffset;
+        bindingRangeInfo.subObjectIndex = 0;
+        bindingRangeInfo.isSpecializable = false;
+
+        uint32_t bindingRangeIndex = (uint32_t)m_bindingRanges.size();
+        m_bindingRanges.push_back(bindingRangeInfo);
+        m_slotCount += resource.arraySize;
+
+        SyntheticBindingLocation location = {};
+        location.syntheticResourceID = resource.id;
+        location.bindingType = resource.bindingType;
+        location.arraySize = resource.arraySize;
+        location.scope = resource.scope;
+        location.entryPointIndex = resource.entryPointIndex;
+        location.offset.uniformOffset = (uint32_t)resource.uniformOffset;
+        location.offset.bindingRangeIndex = bindingRangeIndex;
+        location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
+
+        SLANG_RETURN_ON_FAIL(shaderProgram->addResolvedSyntheticBindingLocation(location));
+    }
+
+    return SLANG_OK;
 }
 
 int RootShaderObjectLayoutImpl::getEntryPointIndex(std::string_view kernelName)

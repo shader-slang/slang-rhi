@@ -2,6 +2,10 @@
 
 #include "cuda-base.h"
 
+namespace rhi {
+class ShaderProgram;
+}
+
 namespace rhi::cuda {
 
 struct BindingOffset
@@ -78,7 +82,7 @@ public:
     slang::ProgramLayout* m_programLayout = nullptr;
     std::vector<EntryPointInfo> m_entryPoints;
 
-    RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout);
+    RootShaderObjectLayoutImpl(Device* device, ShaderProgram* shaderProgram, slang::ProgramLayout* programLayout);
 
     int getEntryPointIndex(std::string_view entryPointName);
     void getEntryPointThreadGroupSize(int entryPointIndex, uint32_t* threadGroupSizes);
@@ -90,6 +94,9 @@ public:
     {
         return m_entryPoints[index].layout;
     }
+
+private:
+    Result _addSyntheticResources(ShaderProgram* shaderProgram);
 };
 
 } // namespace rhi::cuda

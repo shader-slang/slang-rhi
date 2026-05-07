@@ -40,15 +40,19 @@ ShaderProgram::~ShaderProgram()
     }
 }
 
-IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
+void* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderProgram::getTypeGuid())
         return static_cast<IShaderProgram*>(this);
+    if (guid == ISyntheticShaderProgram::getTypeGuid())
+        return static_cast<ISyntheticShaderProgram*>(this);
     return nullptr;
 }
 
 Result ShaderProgram::init()
 {
+    SLANG_RETURN_ON_FAIL(_initSyntheticResourceDescs());
+
     slangGlobalScope = m_desc.slangGlobalScope;
     for (uint32_t i = 0; i < m_desc.slangEntryPointCount; i++)
     {
@@ -196,6 +200,159 @@ bool ShaderProgram::isMeshShaderProgram() const
 const ShaderProgramDesc& ShaderProgram::getDesc()
 {
     return m_desc;
+}
+
+uint32_t ShaderProgram::getSyntheticBindingCount()
+{
+    return (uint32_t)m_syntheticBindingLocations.size();
+}
+
+Result ShaderProgram::getSyntheticBindingLocation(uint32_t index, SyntheticBindingLocation* outLocation)
+{
+    if (!outLocation)
+        return SLANG_E_INVALID_ARG;
+    if (outLocation->structSize < sizeof(SyntheticBindingLocation))
+        return SLANG_E_INVALID_ARG;
+    if (index >= m_syntheticBindingLocations.size())
+        return SLANG_E_INVALID_ARG;
+
+    *outLocation = m_syntheticBindingLocations[index];
+    return SLANG_OK;
+}
+
+Result ShaderProgram::findSyntheticBindingLocationByID(
+    uint32_t syntheticResourceID,
+    SyntheticBindingLocation* outLocation
+)
+{
+    if (!outLocation)
+        return SLANG_E_INVALID_ARG;
+    if (outLocation->structSize < sizeof(SyntheticBindingLocation))
+        return SLANG_E_INVALID_ARG;
+
+    for (const auto& location : m_syntheticBindingLocations)
+    {
+        if (location.syntheticResourceID == syntheticResourceID)
+        {
+            *outLocation = location;
+            return SLANG_OK;
+        }
+    }
+    return SLANG_E_INVALID_ARG;
+}
+
+Result ShaderProgram::addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location)
+{
+    for (auto& existing : m_syntheticBindingLocations)
+    {
+        if (existing.syntheticResourceID == location.syntheticResourceID)
+        {
+            existing = location;
+            return SLANG_OK;
+        }
+    }
+    m_syntheticBindingLocations.push_back(location);
+    return SLANG_OK;
+}
+
+Result ShaderProgram::_validateSyntheticResourceRecord(const SyntheticResourceBindingRecord& record) const
+{
+    if (record.id == 0)
+        return SLANG_E_INVALID_ARG;
+    if (record.arraySize == 0)
+        return SLANG_E_INVALID_ARG;
+    if (record.scope == SyntheticResourceScope::EntryPoint)
+    {
+        if (record.entryPointIndex < 0)
+            return SLANG_E_INVALID_ARG;
+    }
+    return SLANG_OK;
+}
+
+Result ShaderProgram::_initSyntheticResourceDescs()
+{
+    const DescStructHeader* inputNext = static_cast<const DescStructHeader*>(m_desc.next);
+    m_syntheticResourceInputs.clear();
+    m_syntheticBindingLocations.clear();
+    m_syntheticResourcesDesc = {};
+    m_desc.next = nullptr;
+
+    for (const DescStructHeader* header = inputNext; header;
+         header = header->next)
+    {
+        switch (header->type)
+        {
+        case StructType::ShaderProgramSyntheticResourcesDesc:
+        {
+            const auto* syntheticDesc = reinterpret_cast<const ShaderProgramSyntheticResourcesDesc*>(header);
+            if (syntheticDesc->resourceCount && !syntheticDesc->resources)
+                return SLANG_E_INVALID_ARG;
+            m_syntheticResourceInputs.reserve(m_syntheticResourceInputs.size() + syntheticDesc->resourceCount);
+            for (uint32_t i = 0; i < syntheticDesc->resourceCount; ++i)
+            {
+                const auto& src = syntheticDesc->resources[i];
+                SyntheticResourceBindingRecord record;
+                record.id = src.id;
+                record.bindingType = src.bindingType;
+                record.arraySize = src.arraySize;
+                record.scope = src.scope;
+                record.access = src.access;
+                record.entryPointIndex = src.entryPointIndex;
+                record.space = src.space;
+                record.binding = src.binding;
+                record.uniformOffset = src.uniformOffset;
+                record.uniformStride = src.uniformStride;
+                if (src.debugName)
+                    record.debugName = src.debugName;
+
+                SLANG_RETURN_ON_FAIL(_validateSyntheticResourceRecord(record));
+
+                for (const auto& existing : m_syntheticResourceInputs)
+                {
+                    if (existing.id == record.id)
+                        return SLANG_E_INVALID_ARG;
+                }
+
+                m_syntheticResourceInputs.push_back(record);
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    if (!m_syntheticResourceInputs.empty())
+    {
+        std::vector<SyntheticResourceBindingDesc> copiedResources(m_syntheticResourceInputs.size());
+        for (size_t i = 0; i < m_syntheticResourceInputs.size(); ++i)
+        {
+            auto& dst = copiedResources[i];
+            const auto& src = m_syntheticResourceInputs[i];
+            dst.id = src.id;
+            dst.bindingType = src.bindingType;
+            dst.arraySize = src.arraySize;
+            dst.scope = src.scope;
+            dst.access = src.access;
+            dst.entryPointIndex = src.entryPointIndex;
+            dst.space = src.space;
+            dst.binding = src.binding;
+            dst.uniformOffset = src.uniformOffset;
+            dst.uniformStride = src.uniformStride;
+            dst.debugName = src.debugName.empty() ? nullptr : src.debugName.c_str();
+        }
+        SyntheticResourceBindingDesc* resources = copiedResources.data();
+        m_descHolder.holdList(resources, copiedResources.size());
+        for (size_t i = 0; i < m_syntheticResourceInputs.size(); ++i)
+        {
+            m_descHolder.holdString(resources[i].debugName);
+        }
+        m_syntheticResourcesDesc.resources = resources;
+        m_syntheticResourcesDesc.resourceCount = (uint32_t)copiedResources.size();
+        m_desc.next = &m_syntheticResourcesDesc;
+    }
+
+    return SLANG_OK;
 }
 
 Result ShaderProgram::getCompilationReport(ISlangBlob** outReportBlob)

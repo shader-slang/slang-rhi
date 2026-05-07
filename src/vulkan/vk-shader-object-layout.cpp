@@ -1,6 +1,7 @@
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
 #include "vk-bindless-descriptor-set.h"
+#include "../shader.h"
 #include "vk-utils.h"
 
 namespace rhi::vk {
@@ -666,13 +667,15 @@ uint32_t RootShaderObjectLayoutImpl::findEntryPointIndex(VkShaderStageFlags stag
 
 Result RootShaderObjectLayoutImpl::create(
     DeviceImpl* device,
+    ShaderProgram* shaderProgram,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
-    RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout);
+    RootShaderObjectLayoutImpl::Builder builder(device, shaderProgram, program, programLayout);
     builder.addGlobalParams(programLayout->getGlobalParamsVarLayout());
+    SLANG_RETURN_ON_FAIL(builder.addSyntheticResources());
 
     SlangInt entryPointCount = programLayout->getEntryPointCount();
     for (SlangInt e = 0; e < entryPointCount; ++e)
@@ -972,6 +975,75 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
     m_entryPoints.push_back(info);
 
     m_childDescriptorSetCount += entryPointLayout->getTotalDescriptorSetCount();
+}
+
+Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
+{
+    if (!m_shaderProgram)
+        return SLANG_OK;
+
+    for (const auto& resource : m_shaderProgram->m_syntheticResourceInputs)
+    {
+        if (resource.scope != SyntheticResourceScope::Global)
+            return SLANG_E_NOT_IMPLEMENTED;
+        if (resource.space < 0 || resource.binding < 0)
+            return SLANG_E_INVALID_ARG;
+
+        auto descriptorSetIndex = findOrAddDescriptorSet((uint32_t)resource.space);
+        auto& descriptorSetInfo = m_descriptorSetBuildInfos[descriptorSetIndex];
+
+        VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
+        vkBindingRangeDesc.binding = (uint32_t)resource.binding;
+        vkBindingRangeDesc.descriptorCount = resource.arraySize;
+        vkBindingRangeDesc.descriptorType = _mapDescriptorType(resource.bindingType);
+        vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
+        descriptorSetInfo.vkBindings.push_back(vkBindingRangeDesc);
+
+        uint32_t slotIndex = m_slotCount;
+        m_slotCount += resource.arraySize;
+
+        switch (resource.bindingType)
+        {
+        case slang::BindingType::Sampler:
+        case slang::BindingType::CombinedTextureSampler:
+        case slang::BindingType::Texture:
+        case slang::BindingType::MutableTexture:
+        case slang::BindingType::TypedBuffer:
+        case slang::BindingType::MutableTypedBuffer:
+        case slang::BindingType::InputRenderTarget:
+        case slang::BindingType::RayTracingAccelerationStructure:
+        case slang::BindingType::ConstantBuffer:
+            m_totalBindingCount += 1;
+            break;
+        default:
+            break;
+        }
+
+        BindingRangeInfo bindingRangeInfo = {};
+        bindingRangeInfo.bindingType = resource.bindingType;
+        bindingRangeInfo.count = resource.arraySize;
+        bindingRangeInfo.slotIndex = slotIndex;
+        bindingRangeInfo.subObjectIndex = 0;
+        bindingRangeInfo.isSpecializable = false;
+        bindingRangeInfo.bindingOffset = (uint32_t)resource.binding;
+        bindingRangeInfo.setOffset = (uint32_t)resource.space;
+
+        uint32_t bindingRangeIndex = (uint32_t)m_bindingRanges.size();
+        m_bindingRanges.push_back(bindingRangeInfo);
+
+        SyntheticBindingLocation location = {};
+        location.syntheticResourceID = resource.id;
+        location.bindingType = resource.bindingType;
+        location.arraySize = resource.arraySize;
+        location.scope = resource.scope;
+        location.entryPointIndex = resource.entryPointIndex;
+        location.offset.bindingRangeIndex = bindingRangeIndex;
+        location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
+
+        SLANG_RETURN_ON_FAIL(m_shaderProgram->addResolvedSyntheticBindingLocation(location));
+    }
+
+    return SLANG_OK;
 }
 
 } // namespace rhi::vk

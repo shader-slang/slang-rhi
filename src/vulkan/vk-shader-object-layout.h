@@ -7,6 +7,10 @@
 #include <map>
 #include <vector>
 
+namespace rhi {
+class ShaderProgram;
+}
+
 namespace rhi::vk {
 
 enum
@@ -409,8 +413,14 @@ public:
 
     struct Builder : Super::Builder
     {
-        Builder(DeviceImpl* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+        Builder(
+            DeviceImpl* device,
+            ShaderProgram* shaderProgram,
+            slang::IComponentType* program,
+            slang::ProgramLayout* programLayout
+        )
             : Super::Builder(device, program->getSession())
+            , m_shaderProgram(shaderProgram)
             , m_program(program)
             , m_programLayout(programLayout)
         {
@@ -421,7 +431,9 @@ public:
         void addGlobalParams(slang::VariableLayoutReflection* globalsLayout);
 
         void addEntryPoint(EntryPointLayout* entryPointLayout);
+        Result addSyntheticResources();
 
+        ShaderProgram* m_shaderProgram = nullptr;
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
         std::vector<EntryPointInfo> m_entryPoints;
@@ -433,6 +445,7 @@ public:
 
     static Result create(
         DeviceImpl* device,
+        ShaderProgram* shaderProgram,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
         RootShaderObjectLayoutImpl** outLayout

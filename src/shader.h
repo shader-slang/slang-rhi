@@ -35,14 +35,30 @@ struct SpecializationKey
 
 using ShaderProgramID = uint64_t;
 
-class ShaderProgram : public IShaderProgram, public DeviceChild
+class ShaderProgram : public IShaderProgram, public ISyntheticShaderProgram, public DeviceChild
 {
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
-    IShaderProgram* getInterface(const Guid& guid);
+    void* getInterface(const Guid& guid);
+
+    struct SyntheticResourceBindingRecord
+    {
+        uint32_t id = 0;
+        slang::BindingType bindingType = slang::BindingType::Unknown;
+        uint32_t arraySize = 1;
+        SyntheticResourceScope scope = SyntheticResourceScope::Global;
+        SyntheticResourceAccess access = SyntheticResourceAccess::Read;
+        int32_t entryPointIndex = -1;
+        int32_t space = -1;
+        int32_t binding = -1;
+        int32_t uniformOffset = -1;
+        int32_t uniformStride = 0;
+        std::string debugName;
+    };
 
     ShaderProgramDesc m_desc;
     StructHolder m_descHolder;
+    ShaderProgramSyntheticResourcesDesc m_syntheticResourcesDesc;
 
     ShaderProgramID m_id;
 
@@ -61,6 +77,8 @@ public:
     bool m_compiledShaders = false;
 
     std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
+    std::vector<SyntheticResourceBindingRecord> m_syntheticResourceInputs;
+    std::vector<SyntheticBindingLocation> m_syntheticBindingLocations;
 
     ShaderProgram(Device* device, const ShaderProgramDesc& desc);
     virtual ~ShaderProgram() override;
@@ -78,10 +96,24 @@ public:
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) override;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL getSyntheticBindingCount() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getSyntheticBindingLocation(
+        uint32_t index,
+        SyntheticBindingLocation* outLocation
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL findSyntheticBindingLocationByID(
+        uint32_t syntheticResourceID,
+        SyntheticBindingLocation* outLocation
+    ) override;
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() = 0;
 
+    Result addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location);
+
 private:
+    Result _initSyntheticResourceDescs();
+    Result _validateSyntheticResourceRecord(const SyntheticResourceBindingRecord& record) const;
+
     bool _isSpecializable()
     {
         if (slangGlobalScope->getSpecializationParamCount() != 0)

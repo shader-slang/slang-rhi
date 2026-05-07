@@ -2186,6 +2186,7 @@ Result DeviceImpl::createShaderProgram(
     SLANG_RETURN_ON_FAIL(
         RootShaderObjectLayoutImpl::create(
             this,
+            shaderProgram,
             shaderProgram->linkedProgram,
             shaderProgram->linkedProgram->getLayout(),
             shaderProgram->m_rootShaderObjectLayout.writeRef()
