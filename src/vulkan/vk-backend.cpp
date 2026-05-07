@@ -31,11 +31,17 @@ Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
 Result BackendImpl::enumerateAdapters()
 {
     VulkanModule module;
-    SLANG_RETURN_ON_FAIL(module.init());
+    if (SLANG_FAILED(module.init()))
+    {
+        return SLANG_FAIL;
+    }
     SLANG_RHI_DEFERRED({ module.destroy(); });
 
     VulkanApi api;
-    SLANG_RETURN_ON_FAIL(api.initGlobalProcs(module));
+    if (SLANG_FAILED(api.initGlobalProcs(module)))
+    {
+        return SLANG_FAIL;
+    }
 
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     const char* instanceExtensions[] = {
@@ -50,14 +56,13 @@ Result BackendImpl::enumerateAdapters()
     instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
     VkInstance instance;
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
+    if (api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance) != VK_SUCCESS)
+    {
+        return SLANG_FAIL;
+    }
     SLANG_RHI_DEFERRED({ api.vkDestroyInstance(instance, nullptr); });
 
-    // This will fail due to not loading any extensions.
-    api.initInstanceProcs(instance);
-
-    if (!(api.vkEnumeratePhysicalDevices && api.vkGetPhysicalDeviceProperties2 &&
-          api.vkEnumerateDeviceExtensionProperties))
+    if (SLANG_FAILED(api.initEnumerationProcs(instance)))
     {
         return SLANG_FAIL;
     }

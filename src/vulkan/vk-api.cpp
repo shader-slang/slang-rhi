@@ -13,6 +13,18 @@
 
 namespace rhi::vk {
 
+#if SLANG_APPLE_FAMILY
+static void* _tryLoadVulkanModule(const char* const* candidates, size_t candidateCount)
+{
+    for (size_t i = 0; i < candidateCount; ++i)
+    {
+        if (void* module = dlopen(candidates[i], RTLD_NOW | RTLD_GLOBAL))
+            return module;
+    }
+    return nullptr;
+}
+#endif
+
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VulkanModule !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Result VulkanModule::init()
@@ -32,7 +44,15 @@ Result VulkanModule::init()
     m_module = dlopen("libvulkan.so.1", RTLD_NOW);
 #endif
 #elif SLANG_APPLE_FAMILY
-    m_module = dlopen("libvulkan.1.dylib", RTLD_NOW | RTLD_GLOBAL);
+    static const char* const kVulkanModuleCandidates[] = {
+        "libvulkan.1.dylib",
+        "libvulkan.dylib",
+        "/opt/homebrew/lib/libvulkan.1.dylib",
+        "/opt/homebrew/lib/libvulkan.dylib",
+        "/usr/local/lib/libvulkan.1.dylib",
+        "/usr/local/lib/libvulkan.dylib",
+    };
+    m_module = _tryLoadVulkanModule(kVulkanModuleCandidates, SLANG_COUNT_OF(kVulkanModuleCandidates));
 #else
 #error "Unsupported platform"
 #endif
@@ -109,6 +129,29 @@ Result VulkanApi::initGlobalProcs(const VulkanModule& module)
         return SLANG_FAIL;
     }
     m_module = &module;
+    return SLANG_OK;
+}
+
+Result VulkanApi::initEnumerationProcs(VkInstance instance)
+{
+    SLANG_RHI_ASSERT(instance && vkGetInstanceProcAddr != nullptr);
+
+    vkEnumeratePhysicalDevices =
+        (PFN_vkEnumeratePhysicalDevices)vkGetInstanceProcAddr(instance, "vkEnumeratePhysicalDevices");
+    vkGetPhysicalDeviceProperties2 =
+        (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2");
+    vkEnumerateDeviceExtensionProperties =
+        (PFN_vkEnumerateDeviceExtensionProperties)vkGetInstanceProcAddr(
+            instance,
+            "vkEnumerateDeviceExtensionProperties"
+        );
+
+    if (!(vkEnumeratePhysicalDevices && vkGetPhysicalDeviceProperties2 && vkEnumerateDeviceExtensionProperties))
+    {
+        return SLANG_FAIL;
+    }
+
+    m_instance = instance;
     return SLANG_OK;
 }
 

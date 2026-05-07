@@ -555,6 +555,8 @@ struct VulkanApi
 
     /// Sets up global parameters
     Result initGlobalProcs(const VulkanModule& module);
+    /// Initialize only the instance functions needed for adapter enumeration.
+    Result initEnumerationProcs(VkInstance instance);
     /// Initialize the instance functions
     Result initInstanceProcs(VkInstance instance);
 
