@@ -121,6 +121,45 @@
 | `finalize`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `isFinalized`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 
+## `ISyntheticShaderProgram` interface
+
+| API                              | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|----------------------------------|-----|------|-------|-------|--------|-------|------|
+| `getSyntheticBindingCount`       | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getSyntheticBindingLocation`    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `findSyntheticBindingLocationByID` | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+
+## Shader program synthetic resource descriptors
+
+`createShaderProgram()` accepts an optional
+`ShaderProgramSyntheticResourcesDesc` chained through
+`ShaderProgramDesc.next`.
+
+This descriptor carries an array of `SyntheticResourceBindingDesc`
+records describing hidden bindable resources that should be merged into
+the program's internal layout model even though they are not part of the
+normal reflected shader interface.
+
+Current backend support for consuming these descriptors:
+
+| Descriptor path                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-----------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `ShaderProgramSyntheticResourcesDesc`   | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
+## Synthetic binding helper
+
+`bindSyntheticResource(...)` is a convenience helper that:
+
+1. queries `ISyntheticShaderProgram` from the shader program
+2. resolves the binding location for one synthetic resource id
+3. binds through `IShaderObject::setBinding()`
+
+Current backend support:
+
+| Helper API                   | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-----------------------------|-----|------|-------|-------|--------|-------|------|
+| `bindSyntheticResource(...)`| :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+
 ## `IShaderTable` interface
 
 ## `IPipeline` interface
