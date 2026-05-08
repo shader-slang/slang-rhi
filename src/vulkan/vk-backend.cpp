@@ -35,7 +35,6 @@ Result BackendImpl::enumerateAdapters()
     {
         return SLANG_FAIL;
     }
-    SLANG_RHI_DEFERRED({ module.destroy(); });
 
     VulkanApi api;
     if (SLANG_FAILED(api.initGlobalProcs(module)))

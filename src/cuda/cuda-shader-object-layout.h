@@ -82,7 +82,12 @@ public:
     slang::ProgramLayout* m_programLayout = nullptr;
     std::vector<EntryPointInfo> m_entryPoints;
 
-    RootShaderObjectLayoutImpl(Device* device, ShaderProgram* shaderProgram, slang::ProgramLayout* programLayout);
+    static Result create(
+        Device* device,
+        ShaderProgram* shaderProgram,
+        slang::ProgramLayout* programLayout,
+        RootShaderObjectLayoutImpl** outLayout
+    );
 
     int getEntryPointIndex(std::string_view entryPointName);
     void getEntryPointThreadGroupSize(int entryPointIndex, uint32_t* threadGroupSizes);
@@ -96,6 +101,8 @@ public:
     }
 
 private:
+    RootShaderObjectLayoutImpl(Device* device, ShaderProgram* shaderProgram, slang::ProgramLayout* programLayout);
+
     Result _addSyntheticResources(ShaderProgram* shaderProgram);
 };
 

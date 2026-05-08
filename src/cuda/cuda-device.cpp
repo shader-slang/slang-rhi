@@ -26,7 +26,10 @@ struct ComputeCapabilityInfo
 // List of compute capabilities. This is in order from lowest to highest.
 // Note: This currently only contains versions exposed as a Slang capability.
 static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
-#define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
+#define COMPUTE_CAPABILITY(major, minor)                                                                               \
+    {                                                                                                                  \
+        major, minor, Capability::_cuda_sm_##major##_##minor                                                           \
+    }
     COMPUTE_CAPABILITY(1, 0),
     COMPUTE_CAPABILITY(2, 0),
     COMPUTE_CAPABILITY(3, 0),
@@ -410,8 +413,12 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    shaderProgram->m_rootObjectLayout =
-        new RootShaderObjectLayoutImpl(this, shaderProgram, shaderProgram->linkedProgram->getLayout());
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
+        this,
+        shaderProgram,
+        shaderProgram->linkedProgram->getLayout(),
+        shaderProgram->m_rootObjectLayout.writeRef()
+    ));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }

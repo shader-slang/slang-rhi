@@ -140,13 +140,8 @@ Result VulkanApi::initEnumerationProcs(VkInstance instance)
         (PFN_vkEnumeratePhysicalDevices)vkGetInstanceProcAddr(instance, "vkEnumeratePhysicalDevices");
     vkGetPhysicalDeviceProperties2 =
         (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2");
-    vkEnumerateDeviceExtensionProperties =
-        (PFN_vkEnumerateDeviceExtensionProperties)vkGetInstanceProcAddr(
-            instance,
-            "vkEnumerateDeviceExtensionProperties"
-        );
 
-    if (!(vkEnumeratePhysicalDevices && vkGetPhysicalDeviceProperties2 && vkEnumerateDeviceExtensionProperties))
+    if (!(vkEnumeratePhysicalDevices && vkGetPhysicalDeviceProperties2))
     {
         return SLANG_FAIL;
     }

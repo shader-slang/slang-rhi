@@ -5,11 +5,7 @@ using namespace rhi::testing;
 
 namespace {
 
-static Result loadModuleFromSource(
-    slang::ISession* slangSession,
-    std::string_view source,
-    slang::IModule** outModule
-)
+static Result loadModuleFromSource(slang::ISession* slangSession, std::string_view source, slang::IModule** outModule)
 {
     static uint64_t counter = 0;
     std::string moduleName = "synthetic_resource_module_" + std::to_string(counter++);
@@ -105,7 +101,8 @@ static Result createComputeProgramFromCoverageMetadata(
     IDevice* device,
     std::string_view source,
     IShaderProgram** outProgram,
-    std::vector<SyntheticResourceBindingDesc>* outSyntheticResources = nullptr
+    std::vector<SyntheticResourceBindingDesc>* outSyntheticResources = nullptr,
+    uint32_t* outCoverageCounterCount = nullptr
 )
 {
     auto slangSession = device->getSlangSession();
@@ -136,23 +133,15 @@ static Result createComputeProgramFromCoverageMetadata(
     ));
     diagnoseIfNeeded(diagnosticsBlob);
 
-    ComPtr<slang::IBlob> entryPointCode;
-    SLANG_RETURN_ON_FAIL(linkedProgram->getEntryPointCode(0, 0, entryPointCode.writeRef(), diagnosticsBlob.writeRef()));
-    diagnoseIfNeeded(diagnosticsBlob);
-
     ComPtr<slang::IMetadata> metadata;
-    SLANG_RETURN_ON_FAIL(
-        linkedProgram->getEntryPointMetadata(0, 0, metadata.writeRef(), diagnosticsBlob.writeRef())
-    );
+    SLANG_RETURN_ON_FAIL(linkedProgram->getEntryPointMetadata(0, 0, metadata.writeRef(), diagnosticsBlob.writeRef()));
     diagnoseIfNeeded(diagnosticsBlob);
 
-    auto* coverageMetadata = (slang::ICoverageTracingMetadata*)metadata->castAs(
-        slang::ICoverageTracingMetadata::getTypeGuid()
-    );
+    auto* coverageMetadata =
+        (slang::ICoverageTracingMetadata*)metadata->castAs(slang::ICoverageTracingMetadata::getTypeGuid());
     SLANG_RHI_ASSERT(coverageMetadata);
-    auto* syntheticMetadata = (slang::ISyntheticResourceMetadata*)metadata->castAs(
-        slang::ISyntheticResourceMetadata::getTypeGuid()
-    );
+    auto* syntheticMetadata =
+        (slang::ISyntheticResourceMetadata*)metadata->castAs(slang::ISyntheticResourceMetadata::getTypeGuid());
     SLANG_RHI_ASSERT(syntheticMetadata);
 
     std::vector<SyntheticResourceBindingDesc> syntheticResources;
@@ -194,13 +183,15 @@ static Result createComputeProgramFromCoverageMetadata(
 
     if (outSyntheticResources)
         *outSyntheticResources = syntheticResources;
+    if (outCoverageCounterCount)
+        *outCoverageCounterCount = coverageMetadata->getCounterCount();
     return SLANG_OK;
 }
 
-static ComPtr<IBuffer> createTestBuffer(IDevice* device)
+static ComPtr<IBuffer> createTestBuffer(IDevice* device, size_t size = 256, const void* initData = nullptr)
 {
     BufferDesc bufferDesc = {};
-    bufferDesc.size = 256;
+    bufferDesc.size = size;
     bufferDesc.format = Format::Undefined;
     bufferDesc.elementSize = sizeof(uint32_t);
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopySource;
@@ -208,7 +199,7 @@ static ComPtr<IBuffer> createTestBuffer(IDevice* device)
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
     ComPtr<IBuffer> buffer;
-    REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
+    REQUIRE_CALL(device->createBuffer(bufferDesc, initData, buffer.writeRef()));
     return buffer;
 }
 
@@ -329,15 +320,18 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     auto localDevice = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
 
     std::vector<SyntheticResourceBindingDesc> syntheticResources;
+    uint32_t coverageCounterCount = 0;
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(createComputeProgramFromCoverageMetadata(
         localDevice,
         kShaderSource,
         shaderProgram.writeRef(),
-        &syntheticResources
+        &syntheticResources,
+        &coverageCounterCount
     ));
 
     REQUIRE_EQ(syntheticResources.size(), 1u);
+    REQUIRE_GT(coverageCounterCount, 0u);
     CHECK_EQ(syntheticResources[0].bindingType, slang::BindingType::MutableRawBuffer);
     CHECK_EQ(syntheticResources[0].scope, SyntheticResourceScope::Global);
     CHECK_EQ(syntheticResources[0].access, SyntheticResourceAccess::ReadWrite);
@@ -367,12 +361,40 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     ComPtr<IShaderObject> rootObject;
     REQUIRE_CALL(localDevice->createRootShaderObject(shaderProgram.get(), rootObject.writeRef()));
 
-    auto buffer = createTestBuffer(localDevice);
-    REQUIRE_CALL(bindSyntheticResource(shaderProgram.get(), rootObject.get(), syntheticResources[0].id, Binding(buffer)));
+    const uint32_t initialOutput = 0;
+    auto outputBuffer = createTestBuffer(localDevice, sizeof(uint32_t), &initialOutput);
 
-    localDevice->getQueue(QueueType::Graphics)->waitOnHost();
+    std::vector<uint32_t> zeroCoverage(coverageCounterCount, 0);
+    auto coverageBuffer = createTestBuffer(localDevice, zeroCoverage.size() * sizeof(uint32_t), zeroCoverage.data());
 
-    buffer.setNull();
+    ShaderCursor(rootObject)["outBuffer"].setBinding(outputBuffer);
+    REQUIRE_CALL(
+        bindSyntheticResource(shaderProgram.get(), rootObject.get(), syntheticResources[0].id, Binding(coverageBuffer))
+    );
+
+    auto queue = localDevice->getQueue(QueueType::Graphics);
+    auto commandEncoder = queue->createCommandEncoder();
+    auto passEncoder = commandEncoder->beginComputePass();
+    passEncoder->bindPipeline(pipeline, rootObject);
+    passEncoder->dispatchCompute(1, 1, 1);
+    passEncoder->end();
+    queue->submit(commandEncoder->finish());
+    queue->waitOnHost();
+
+    compareComputeResult(localDevice, outputBuffer, std::array<uint32_t, 1>{10u});
+
+    ComPtr<ISlangBlob> coverageBlob;
+    REQUIRE_CALL(
+        localDevice->readBuffer(coverageBuffer, 0, zeroCoverage.size() * sizeof(uint32_t), coverageBlob.writeRef())
+    );
+    const uint32_t* coverageData = reinterpret_cast<const uint32_t*>(coverageBlob->getBufferPointer());
+    uint64_t totalHits = 0;
+    for (uint32_t i = 0; i < coverageCounterCount; ++i)
+        totalHits += coverageData[i];
+    CHECK_GT(totalHits, 0u);
+
+    coverageBuffer.setNull();
+    outputBuffer.setNull();
     rootObject.setNull();
     pipeline.setNull();
     syntheticProgram.setNull();

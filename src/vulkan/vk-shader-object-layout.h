@@ -313,8 +313,16 @@ protected:
         uint32_t m_childPushConstantRangeCount = 0;
 
         uint32_t m_totalOrdinaryDataSize = 0;
+        Result m_result = SLANG_OK;
+
+        Result getResult() const { return m_result; }
 
         uint32_t findOrAddDescriptorSet(uint32_t space);
+        bool addDescriptorSetBinding(
+            uint32_t descriptorSetIndex,
+            const VkDescriptorSetLayoutBinding& bindingDesc,
+            const char* sourceLabel
+        );
 
         static VkDescriptorType _mapDescriptorType(slang::BindingType slangBindingType);
 

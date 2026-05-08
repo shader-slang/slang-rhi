@@ -134,11 +134,6 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
     , m_programLayout(programLayout)
 {
     SLANG_RHI_ASSERT(shaderProgram);
-    if (SLANG_FAILED(_addSyntheticResources(shaderProgram)))
-    {
-        SLANG_RHI_ASSERT_FAILURE("Failed to add synthetic resources to CUDA root shader object layout");
-    }
-
     for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
         EntryPointInfo entryPointInfo;
@@ -150,6 +145,19 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
         entryPointInfo.paramsSize = computeEntryPointParamsSize(programLayout->getEntryPointByIndex(i));
         m_entryPoints.push_back(entryPointInfo);
     }
+}
+
+Result RootShaderObjectLayoutImpl::create(
+    Device* device,
+    ShaderProgram* shaderProgram,
+    slang::ProgramLayout* programLayout,
+    RootShaderObjectLayoutImpl** outLayout
+)
+{
+    RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl(device, shaderProgram, programLayout);
+    SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(shaderProgram));
+    returnRefPtrMove(outLayout, layout);
+    return SLANG_OK;
 }
 
 Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderProgram)
