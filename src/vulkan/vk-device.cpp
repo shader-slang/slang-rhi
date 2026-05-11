@@ -1611,8 +1611,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     barrier.offset = 0;
     barrier.size = bufferImpl->m_desc.size;
 
-    VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(bufferImpl->m_desc.defaultState, true);
-    VkPipelineStageFlags dstStageFlags = calcPipelineStageFlags(ResourceState::CopySource, false);
+    VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(m_api, bufferImpl->m_desc.defaultState, true);
+    VkPipelineStageFlags dstStageFlags = calcPipelineStageFlags(m_api, ResourceState::CopySource, false);
 
     m_api.vkCmdPipelineBarrier(
         commandBuffer,
