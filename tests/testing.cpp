@@ -247,45 +247,53 @@ static Result loadProgram(
     if (!module)
         return SLANG_FAIL;
 
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-
-    // Find all entry points
+    std::vector<ComPtr<slang::IEntryPoint>> entryPoints;
+    std::vector<slang::IComponentType*> entryPointComponents;
     for (const char* entryPointName : entryPointNames)
     {
         ComPtr<slang::IEntryPoint> entryPoint;
         SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
+        entryPointComponents.push_back(entryPoint.get());
+        entryPoints.push_back(entryPoint);
     }
 
-    // Create composite component type
-    ComPtr<slang::IComponentType> composedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        componentTypes.data(),
-        componentTypes.size(),
-        composedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    slang::IComponentType* programToUse = composedProgram.get();
+    ShaderProgramDesc shaderProgramDesc = {};
     ComPtr<slang::IComponentType> linkedProgram;
 
     if (performLinking)
     {
+        std::vector<slang::IComponentType*> componentTypes;
+        componentTypes.push_back(module);
+        for (auto* ep : entryPointComponents)
+            componentTypes.push_back(ep);
+
+        ComPtr<slang::IComponentType> composedProgram;
+        Result result = slangSession->createCompositeComponentType(
+            componentTypes.data(),
+            componentTypes.size(),
+            composedProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+        diagnoseIfNeeded(diagnosticsBlob);
+        SLANG_RETURN_ON_FAIL(result);
+
         result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         SLANG_RETURN_ON_FAIL(result);
 
-        programToUse = linkedProgram.get();
         if (outSlangReflection)
             *outSlangReflection = linkedProgram->getLayout();
+
+        shaderProgramDesc.slangGlobalScope = linkedProgram.get();
+    }
+    else
+    {
+        shaderProgramDesc.slangGlobalScope = module;
+        shaderProgramDesc.slangEntryPoints = entryPointComponents.data();
+        shaderProgramDesc.slangEntryPointCount = (uint32_t)entryPointComponents.size();
     }
 
-    ShaderProgramDesc shaderProgramDesc = {};
-    shaderProgramDesc.slangGlobalScope = programToUse;
-    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
+    Result result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return result;
 }
@@ -948,6 +956,9 @@ slang::IGlobalSession* getSlangGlobalSession()
     return slangGlobalSession;
 }
 
+static std::map<DeviceType, int> sGpuTestsEncountered;
+static std::map<DeviceType, int> sGpuTestsExecuted;
+
 // Trampoline test function registered in doctest for each GPU test instance.
 // Uses GpuTestInfo for additional information about the specific test instance.
 static void gpuTestTrampoline()
@@ -959,6 +970,8 @@ static void gpuTestTrampoline()
     DeviceType deviceType = info->deviceType;
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+
+    sGpuTestsEncountered[deviceType]++;
 
     if (!isDeviceTypeSelected(deviceType))
     {
@@ -1008,6 +1021,7 @@ static void gpuTestTrampoline()
             device->setCudaContextCurrent();
         }
         info->func(&ctx, device);
+        reportGpuTestExecuted(deviceType);
         if (device)
         {
             device->getQueue(QueueType::Graphics)->waitOnHost();
@@ -1118,6 +1132,40 @@ const char* getSkipMessage(const doctest::TestCaseData* tc)
 {
     auto it = sSkipMessages.find(tc);
     return it != sSkipMessages.end() ? it->second : nullptr;
+}
+
+void reportGpuTestExecuted(DeviceType deviceType)
+{
+    sGpuTestsExecuted[deviceType]++;
+}
+
+bool checkNoSilentGpuSkips()
+{
+    bool ok = true;
+    for (DeviceType deviceType : kPlatformDeviceTypes)
+    {
+        if (!isDeviceTypeSelected(deviceType))
+            continue;
+        if (sGpuTestsEncountered.find(deviceType) == sGpuTestsEncountered.end())
+            continue;
+        auto availIt = sDeviceTypeAvailable.find(deviceType);
+        if (availIt == sDeviceTypeAvailable.end() || !availIt->second)
+            continue;
+        auto execIt = sGpuTestsExecuted.find(deviceType);
+        int count = (execIt != sGpuTestsExecuted.end()) ? execIt->second : 0;
+        if (count == 0)
+        {
+            std::fprintf(
+                stderr,
+                "ERROR: Device type '%s' was available but zero tests executed "
+                "(all silently skipped). This likely indicates a device "
+                "initialization regression.\n",
+                deviceTypeToString(deviceType)
+            );
+            ok = false;
+        }
+    }
+    return ok;
 }
 
 } // namespace rhi::testing

@@ -7,6 +7,7 @@
 #include <utility>
 #include <set>
 #include <cstring>
+#include <vector>
 
 // clang-format off
 #define SLANG_RHI_COMMANDS(x) \
@@ -340,10 +341,7 @@ struct WriteTimestamp
 
 struct ExecuteCallback
 {
-    using Callback = void (*)(const void* userData);
-    Callback callback;
-    const void* userData;
-    Size userDataSize;
+    ExecuteCallbackDesc desc;
 };
 
 #define SLANG_RHI_COMMAND_CHECK_X(x)                                                                                   \
@@ -371,6 +369,22 @@ SLANG_RHI_COMMANDS(SLANG_RHI_COMMAND_TRAITS_X)
 
 } // namespace commands
 
+inline void invokeExecuteCallback(const commands::ExecuteCallback& cmd, NativeHandle nativeHandle)
+{
+    if (!cmd.desc.callback)
+        return;
+
+    ExecuteCallbackContext context;
+    context.nativeHandle = nativeHandle;
+    cmd.desc.callback(&context, cmd.desc.userObject, cmd.desc.userData, cmd.desc.userDataSize);
+}
+
+struct ExecuteCallbackObjectRetainer
+{
+    void* userObject = nullptr;
+    ExecuteCallbackObjectFunc releaseUserObject = nullptr;
+};
+
 
 /// A list of commands recorded by the command encoder.
 ///
@@ -397,7 +411,11 @@ public:
         void* data;
     };
 
-    CommandList(ArenaAllocator& allocator, std::set<RefPtr<RefObject>>& trackedObjects);
+    CommandList(
+        ArenaAllocator& allocator,
+        std::set<RefPtr<RefObject>>& trackedObjects,
+        std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
+    );
 
     void reset();
 
@@ -487,6 +505,7 @@ public:
 private:
     ArenaAllocator& m_allocator;
     std::set<RefPtr<RefObject>>& m_trackedObjects;
+    std::vector<ExecuteCallbackObjectRetainer>& m_trackedExecuteCallbackObjects;
     CommandSlot* m_commandSlots = nullptr;
     CommandSlot* m_lastCommandSlot = nullptr;
 

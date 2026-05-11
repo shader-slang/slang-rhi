@@ -212,7 +212,10 @@ TextureViewImpl::~TextureViewImpl()
 
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return SLANG_E_NOT_AVAILABLE;
+    TextureImpl::View view = getView();
+    outHandle->type = NativeHandleType::VkImageView;
+    outHandle->value = (uint64_t)view.imageView;
+    return SLANG_OK;
 }
 
 Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)

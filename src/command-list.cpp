@@ -3,9 +3,14 @@
 
 namespace rhi {
 
-CommandList::CommandList(ArenaAllocator& allocator, std::set<RefPtr<RefObject>>& trackedObjects)
+CommandList::CommandList(
+    ArenaAllocator& allocator,
+    std::set<RefPtr<RefObject>>& trackedObjects,
+    std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
+)
     : m_allocator(allocator)
     , m_trackedObjects(trackedObjects)
+    , m_trackedExecuteCallbackObjects(trackedExecuteCallbackObjects)
 {
 }
 
@@ -371,8 +376,15 @@ void CommandList::write(commands::WriteTimestamp&& cmd)
 
 void CommandList::write(commands::ExecuteCallback&& cmd)
 {
-    if (cmd.userData && cmd.userDataSize > 0)
-        cmd.userData = writeData(cmd.userData, cmd.userDataSize);
+    if (cmd.desc.userData && cmd.desc.userDataSize > 0)
+        cmd.desc.userData = writeData(cmd.desc.userData, cmd.desc.userDataSize);
+
+    if (cmd.desc.userObject && cmd.desc.retainUserObject && cmd.desc.releaseUserObject)
+    {
+        cmd.desc.retainUserObject(cmd.desc.userObject);
+        m_trackedExecuteCallbackObjects.push_back({cmd.desc.userObject, cmd.desc.releaseUserObject});
+    }
+
     writeCommand(std::move(cmd));
 }
 

@@ -267,20 +267,28 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     }
 
     // Process chained descs
+    const D3D12DeviceExtendedDesc* extendedDesc = nullptr;
     for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
          header = header->next)
     {
         switch (header->type)
         {
         case StructType::D3D12DeviceExtendedDesc:
-            memcpy(static_cast<void*>(&m_extendedDesc), header, sizeof(m_extendedDesc));
+            extendedDesc = reinterpret_cast<const D3D12DeviceExtendedDesc*>(header);
             break;
         case StructType::D3D12ExperimentalFeaturesDesc:
-            processExperimentalFeaturesDesc(d3dModule, header);
+            processExperimentalFeaturesDesc(d3dModule, reinterpret_cast<const D3D12ExperimentalFeaturesDesc*>(header));
             break;
         default:
             break;
         }
+    }
+
+    // Copy the root parameter shader attribute name for later use.
+    if (extendedDesc && extendedDesc->rootParameterShaderAttributeName)
+    {
+        m_rootParameterShaderAttributeNameBuffer = extendedDesc->rootParameterShaderAttributeName;
+        m_rootParameterShaderAttributeName = m_rootParameterShaderAttributeNameBuffer.c_str();
     }
 
     if (!SLANG_SUCCEEDED(setupDebugLayer(d3dModule)))
@@ -385,7 +393,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         {
             // Make break
             infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-            if (m_extendedDesc.debugBreakOnD3D12Error)
+            if (extendedDesc && extendedDesc->debugBreakOnD3D12Error)
             {
                 infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
             }
@@ -487,6 +495,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
+    // Initialize D3D12 Memory Allocator.
+    {
+        D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
+        allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAGS(D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS);
+        allocatorDesc.pDevice = m_device.get();
+        allocatorDesc.pAdapter = m_dxgiAdapter.get();
+        SLANG_RETURN_ON_FAIL(D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.writeRef()));
+    }
 
     // Initialize descriptor heaps.
     {
@@ -657,8 +673,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         // specified highest shader model. Therefore we assemble a list of shader models to check and
         // walk it from highest to lowest to find the supported shader model.
         short_vector<D3D_SHADER_MODEL> shaderModels;
-        if (m_extendedDesc.highestShaderModel != 0)
-            shaderModels.push_back((D3D_SHADER_MODEL)m_extendedDesc.highestShaderModel);
+        if (extendedDesc && extendedDesc->highestShaderModel != 0)
+            shaderModels.push_back((D3D_SHADER_MODEL)extendedDesc->highestShaderModel);
         for (int i = SLANG_COUNT_OF(kKnownShaderModels) - 1; i >= 0; --i)
             shaderModels.push_back(kKnownShaderModels[i].shaderModel);
         for (D3D_SHADER_MODEL shaderModel : shaderModels)
@@ -1037,6 +1053,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         SLANG_RETURN_ON_FAIL(m_bindlessDescriptorSet->initialize());
     }
 
+    SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
+
     return SLANG_OK;
 }
 
@@ -1079,11 +1097,7 @@ Result DeviceImpl::createBuffer(
 {
     const Size bufferSize = Size(resourceDesc.Width);
 
-    D3D12_HEAP_PROPERTIES heapProps;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
+    D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
 
     D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
     if (isShared)
@@ -1118,7 +1132,9 @@ Result DeviceImpl::createBuffer(
     }
 
     // Create the resource.
-    SLANG_RETURN_ON_FAIL(resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr));
+    SLANG_RETURN_ON_FAIL(
+        resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr, m_allocator)
+    );
 
     if (srcData)
     {
@@ -1137,7 +1153,8 @@ Result DeviceImpl::createBuffer(
                 D3D12_HEAP_FLAG_NONE,
                 uploadDesc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr
+                nullptr,
+                m_allocator
             ));
         }
 
@@ -1208,13 +1225,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     // Create the target resource
     {
-        D3D12_HEAP_PROPERTIES heapProps;
-
-        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProps.CreationNodeMask = 1;
-        heapProps.VisibleNodeMask = 1;
+        D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
 
         D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
         if (is_set(desc.usage, TextureUsage::Shared))
@@ -1239,10 +1250,16 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         {
             clearValuePtr = nullptr;
         }
-        SLANG_RETURN_ON_FAIL(
-            texture->m_resource
-                .initCommitted(m_device, heapProps, flags, resourceDesc, texture->m_defaultState, clearValuePtr)
-        );
+
+        SLANG_RETURN_ON_FAIL(texture->m_resource.initCommitted(
+            m_device,
+            heapProps,
+            flags,
+            resourceDesc,
+            texture->m_defaultState,
+            clearValuePtr,
+            m_allocator
+        ));
 
         if (desc.label)
         {
@@ -1501,12 +1518,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
         // Readback heap
-        D3D12_HEAP_PROPERTIES heapProps;
-        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProps.CreationNodeMask = 1;
-        heapProps.VisibleNodeMask = 1;
+        D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_READBACK);
 
         // Resource to readback to
         D3D12_RESOURCE_DESC stagingDesc;
@@ -1518,7 +1530,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
             D3D12_HEAP_FLAG_NONE,
             stagingDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr
+            nullptr,
+            m_allocator
         ));
 
         // Do the copy
@@ -1692,7 +1705,10 @@ D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullSamplerDescriptor()
     return m_nullSamplerDescriptor.cpuHandle;
 }
 
-void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* inDesc)
+void DeviceImpl::processExperimentalFeaturesDesc(
+    SharedLibraryHandle d3dModule,
+    const D3D12ExperimentalFeaturesDesc* desc
+)
 {
     typedef HRESULT(WINAPI * PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)(
         UINT NumFeatures,
@@ -1701,8 +1717,6 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         UINT* pConfigurationStructSizes
     );
 
-    D3D12ExperimentalFeaturesDesc desc = {};
-    memcpy(&desc, inDesc, sizeof(desc));
     auto enableExperimentalFeaturesFunc =
         (PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)loadProc(d3dModule, "D3D12EnableExperimentalFeatures");
     if (!enableExperimentalFeaturesFunc)
@@ -1716,10 +1730,10 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         return;
     }
     if (SLANG_FAILED(enableExperimentalFeaturesFunc(
-            (UINT)desc.featureCount,
-            (const IID*)desc.featureIIDs,
-            (void*)desc.configurationStructs,
-            (UINT*)desc.configurationStructSizes
+            (UINT)desc->featureCount,
+            (const IID*)desc->featureIIDs,
+            (void*)desc->configurationStructs,
+            (UINT*)desc->configurationStructSizes
         )))
     {
         handleMessage(

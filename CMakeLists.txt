@@ -206,7 +206,7 @@ endif()
 
 # Metal C++ headers
 if(NOT DEFINED SLANG_RHI_METAL_CPP_URL)
-    set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS14.2_iOS17.2.zip")
+    set(SLANG_RHI_METAL_CPP_URL "https://developer.apple.com/metal/cpp/files/metal-cpp_macOS15.2_iOS18.2.zip")
 endif()
 
 # Dawn WebGPU (not used for Emscripten - uses emdawnwebgpu port instead)
@@ -376,6 +376,41 @@ endif()
 # Always link to slang, either the fetched one or the one provided by the parent project.
 target_link_libraries(slang-rhi PUBLIC slang)
 
+# Setup D3D12MemoryAllocator
+if(SLANG_RHI_ENABLE_D3D12)
+    add_library(slang-rhi-d3d12ma STATIC)
+    target_sources(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma/D3D12MemAlloc.cpp)
+    target_include_directories(slang-rhi-d3d12ma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma)
+    target_compile_features(slang-rhi-d3d12ma PRIVATE cxx_std_20)
+    # Force-include D3D12MA configuration header to route assertions through slang-rhi.
+    target_include_directories(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    if(MSVC)
+        target_compile_options(slang-rhi-d3d12ma PRIVATE /FId3d12/d3d12ma-config.h)
+        target_sources(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma/D3D12MemAlloc.natvis)
+    else()
+        target_compile_options(slang-rhi-d3d12ma PRIVATE -include d3d12/d3d12ma-config.h -Wno-switch)
+    endif()
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-d3d12ma)
+endif()
+
+# Setup VulkanMemoryAllocator
+if(SLANG_RHI_ENABLE_VULKAN)
+    add_library(slang-rhi-vma STATIC)
+    target_sources(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/vma/vk_mem_alloc.cpp)
+    target_include_directories(slang-rhi-vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/vma)
+    target_link_libraries(slang-rhi-vma PUBLIC slang-rhi-vulkan-headers)
+    target_compile_features(slang-rhi-vma PRIVATE cxx_std_20)
+    target_compile_options(slang-rhi-vma PRIVATE $<$<CXX_COMPILER_ID:Clang>:-Wno-nullability-completeness>)
+    # Force-include VMA configuration header to route assertions through slang-rhi.
+    target_include_directories(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    if(MSVC)
+        target_compile_options(slang-rhi-vma PRIVATE /FIvulkan/vma-config.h)
+    else()
+        target_compile_options(slang-rhi-vma PRIVATE -include vulkan/vma-config.h)
+    endif()
+    target_link_libraries(slang-rhi PRIVATE slang-rhi-vma)
+endif()
+
 # Slang distributes prelude headers in the "include" directory along the other headers.
 # However, in a slang build tree, the files are not in the "include" directory but in a separate "prelude" directory.
 # Make sure to include the prelude directory if it exists.
@@ -488,7 +523,7 @@ if(SLANG_RHI_ENABLE_METAL)
     message(STATUS "Fetching Metal C++ headers ...")
     FetchPackage(metal_cpp URL ${SLANG_RHI_METAL_CPP_URL})
     add_library(slang-rhi-metal-cpp INTERFACE)
-    target_include_directories(slang-rhi-metal-cpp INTERFACE ${metal_cpp_SOURCE_DIR})
+    target_include_directories(slang-rhi-metal-cpp SYSTEM INTERFACE ${metal_cpp_SOURCE_DIR})
 endif()
 
 # Fetch & setup Dawn WebGPU
@@ -895,6 +930,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-aftermath.cpp
         tests/test-arena-allocator.cpp
         tests/test-device-features.cpp
+        tests/test-execute-callback.cpp
         tests/test-block-allocator.cpp
         tests/test-benchmark-command.cpp
         tests/test-bindless.cpp
@@ -930,6 +966,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-fence.cpp
         tests/test-formats.cpp
         tests/test-heap.cpp
+        tests/test-imported-constant-buffer.cpp
         tests/test-link-time-constant.cpp
         tests/test-link-time-default.cpp
         tests/test-link-time-options.cpp

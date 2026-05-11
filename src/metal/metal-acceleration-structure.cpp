@@ -13,6 +13,10 @@ AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const Accel
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+    if (m_accelerationStructure)
+    {
+        device->unregisterResource(m_accelerationStructure.get());
+    }
     device->m_accelerationStructures.freeList.push_back(m_globalIndex);
     device->m_accelerationStructures.list[m_globalIndex] = nullptr;
     device->m_accelerationStructures.dirty = true;
@@ -64,6 +68,8 @@ Result DeviceImpl::createAccelerationStructure(
     }
     m_accelerationStructures.dirty = true;
     result->m_globalIndex = globalIndex;
+
+    registerResource(result->m_accelerationStructure.get());
 
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;

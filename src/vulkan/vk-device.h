@@ -19,9 +19,14 @@ class DeviceImpl : public Device
 public:
     using Device::readBuffer;
 
-    Result initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions);
+    Result initVulkanInstance(
+        const DeviceDesc& desc,
+        const VulkanDeviceExtendedDesc* extendedDesc,
+        const DebugLayerOptions& debugLayerOptions
+    );
     Result initVulkanDevice(
         const DeviceDesc& desc,
+        const VulkanDeviceExtendedDesc* extendedDesc,
         BackendImpl* backend,
         std::vector<Feature>& availableFeatures,
         std::vector<Capability>& availableCapabilities
@@ -215,7 +220,6 @@ public:
 
 public:
     DeviceNativeHandles m_existingDeviceHandles;
-    VulkanDeviceExtendedDesc m_extendedDesc;
 
     std::string m_adapterName;
 

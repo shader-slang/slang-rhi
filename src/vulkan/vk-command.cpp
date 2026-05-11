@@ -1628,7 +1628,19 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    cmd.callback(cmd.userData);
+    commitBarriers();
+
+    NativeHandle nativeHandle{
+        NativeHandleType::VkCommandBuffer,
+        reinterpret_cast<uint64_t>(m_cmdBuffer),
+    };
+    invokeExecuteCallback(cmd, nativeHandle);
+
+    m_renderStateValid = false;
+    m_preparedRenderStateValid = false;
+    m_computeStateValid = false;
+    m_rayTracingStateValid = false;
+    m_bindingData = nullptr;
 }
 
 void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint)

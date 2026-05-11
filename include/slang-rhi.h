@@ -168,6 +168,7 @@ enum class DeviceType
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
+    x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
     x(AtomicBfloat16,                           "atomic-bfloat16"                               )
 // clang-format on
@@ -624,6 +625,8 @@ enum class NativeHandleType
 
     Win32 = 0x00000001,
     FileDescriptor = 0x00000002,
+
+    D3D11DeviceContext = 0x00010001,
 
     D3D12Device = 0x00020001,
     D3D12CommandQueue = 0x00020002,
@@ -2197,19 +2200,19 @@ struct ShaderTableDesc
     const void* next = nullptr;
 
     uint32_t rayGenShaderCount = 0;
-    const char** rayGenShaderEntryPointNames = nullptr;
+    const char* const* rayGenShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* rayGenShaderRecordOverwrites = nullptr;
 
     uint32_t missShaderCount = 0;
-    const char** missShaderEntryPointNames = nullptr;
+    const char* const* missShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* missShaderRecordOverwrites = nullptr;
 
     uint32_t hitGroupCount = 0;
-    const char** hitGroupNames = nullptr;
+    const char* const* hitGroupNames = nullptr;
     const ShaderRecordOverwrite* hitGroupRecordOverwrites = nullptr;
 
     uint32_t callableShaderCount = 0;
-    const char** callableShaderEntryPointNames = nullptr;
+    const char* const* callableShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -2678,6 +2681,39 @@ struct CommandEncoderDesc
     const char* label = nullptr;
 };
 
+struct ExecuteCallbackContext
+{
+    /// Native handle for the active backend command context.
+    /// D3D11 supplies D3D11DeviceContext, D3D12 supplies D3D12GraphicsCommandList,
+    /// Vulkan supplies VkCommandBuffer, Metal supplies MTLCommandBuffer, CUDA
+    /// supplies CUstream, and WGPU supplies WGPUCommandEncoder. Backends without
+    /// an active native command context pass Undefined.
+    NativeHandle nativeHandle;
+};
+
+typedef void(SLANG_MCALL* ExecuteCallbackFunc)(
+    const ExecuteCallbackContext* context,
+    void* userObject,
+    const void* userData,
+    Size userDataSize
+);
+typedef void(SLANG_MCALL* ExecuteCallbackObjectFunc)(void* userObject);
+
+struct ExecuteCallbackDesc
+{
+    /// Function to call when the callback command is recorded/executed.
+    ExecuteCallbackFunc callback = nullptr;
+
+    /// Optional object retained until the command buffer is reset or destroyed.
+    void* userObject = nullptr;
+    ExecuteCallbackObjectFunc retainUserObject = nullptr;
+    ExecuteCallbackObjectFunc releaseUserObject = nullptr;
+
+    /// Optional small user-data block copied into the command buffer.
+    const void* userData = nullptr;
+    Size userDataSize = 0;
+};
+
 class ICommandEncoder : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
@@ -2854,6 +2890,8 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL executeCallback(const ExecuteCallbackDesc& desc) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(
         const CommandBufferDesc& desc,
@@ -3347,8 +3385,8 @@ struct DeviceDesc
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
     uint32_t requiredFeatureCount = 0;
-    // Array of required feature names, whose size is `requiredFeatureCount`.
-    const char** requiredFeatures = nullptr;
+    // Array of required features, whose size is `requiredFeatureCount`.
+    const Feature* requiredFeatures = nullptr;
     // Configurations for Slang compiler.
     SlangDesc slang = {};
 
@@ -4126,6 +4164,11 @@ struct VulkanDeviceExtendedDesc
     const void* next = nullptr;
 
     bool enableDebugPrintf = false;
+
+    uint32_t instanceExtensionCount = 0;
+    const char* const* instanceExtensions = nullptr;
+    uint32_t deviceExtensionCount = 0;
+    const char* const* deviceExtensions = nullptr;
 };
 
 } // namespace rhi
