@@ -138,6 +138,12 @@ Result BindingDataBuilder::writeObjectData(
 )
 {
     size_t size = specializedLayout->getElementTypeLayout()->getSize();
+    // Widen the allocation to satisfy any synthesized resources whose
+    // uniform offset lies outside the Slang element-type layout. Mirrors
+    // the sizing performed by ShaderObject::init for `m_data`.
+    const size_t minUniformSize = specializedLayout->getMinUniformBufferSize();
+    if (minUniformSize > size)
+        size = minUniformSize;
 
     ConstantBufferPool::Allocation allocation;
     SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, memType, allocation));

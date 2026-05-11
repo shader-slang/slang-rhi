@@ -279,7 +279,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     shaderProgram.setNull();
 }
 
-GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata", Vulkan | DontCreateDevice)
+GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata", Vulkan | CUDA | DontCreateDevice)
 {
     static constexpr uint32_t kCoverageBinding = 11;
     static constexpr uint32_t kCoverageSpace = 3;

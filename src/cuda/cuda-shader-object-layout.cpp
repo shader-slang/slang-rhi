@@ -168,6 +168,8 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
             return SLANG_E_NOT_IMPLEMENTED;
         if (resource.uniformOffset < 0)
             return SLANG_E_INVALID_ARG;
+        if (resource.uniformStride <= 0)
+            return SLANG_E_INVALID_ARG;
 
         BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = resource.bindingType;
@@ -180,6 +182,16 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
         uint32_t bindingRangeIndex = (uint32_t)m_bindingRanges.size();
         m_bindingRanges.push_back(bindingRangeInfo);
         m_slotCount += resource.arraySize;
+
+        // The synthetic resource's binding data lives at `uniformOffset` in
+        // the global parameter buffer. Slang's element-type-layout for the
+        // global scope does not account for synthesized resources, so widen
+        // the layout's required uniform buffer size here. ShaderObject::init
+        // and BindingDataBuilder::writeObjectData both consult this.
+        const size_t requiredSize =
+            (size_t)resource.uniformOffset + (size_t)resource.uniformStride * (size_t)resource.arraySize;
+        if (requiredSize > m_minUniformBufferSize)
+            m_minUniformBufferSize = requiredSize;
 
         SyntheticBindingLocation location = {};
         location.syntheticResourceID = resource.id;

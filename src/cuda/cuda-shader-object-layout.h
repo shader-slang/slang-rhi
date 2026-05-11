@@ -46,12 +46,14 @@ public:
 
     uint32_t m_slotCount = 0;
     uint32_t m_subObjectCount = 0;
+    size_t m_minUniformBufferSize = 0;
 
     ShaderObjectLayoutImpl(Device* device, slang::ISession* session, slang::TypeLayoutReflection* layout);
 
     // ShaderObjectLayout interface
     virtual uint32_t getSlotCount() const override { return m_slotCount; }
     virtual uint32_t getSubObjectCount() const override { return m_subObjectCount; }
+    virtual size_t getMinUniformBufferSize() const override { return m_minUniformBufferSize; }
 
     virtual uint32_t getBindingRangeCount() const override { return m_bindingRanges.size(); }
     virtual const BindingRangeInfo& getBindingRange(uint32_t index) const override { return m_bindingRanges[index]; }

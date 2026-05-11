@@ -498,6 +498,12 @@ Result ShaderObject::init(Device* device, ShaderObjectLayout* layout)
         uniformSize = layout->getElementTypeLayout()->getSize();
     }
 
+    // Backends that bind synthesized resources via uniform marshaling (CUDA)
+    // may report a larger required size than the Slang element-type layout.
+    const size_t minUniformSize = layout->getMinUniformBufferSize();
+    if (minUniformSize > uniformSize)
+        uniformSize = minUniformSize;
+
     if (uniformSize)
     {
         m_data.resize(uniformSize);
