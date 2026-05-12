@@ -63,7 +63,6 @@ const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
 enum class StructType
 {
     ShaderProgramDesc,
-    ShaderProgramSyntheticResourcesDesc,
     InputLayoutDesc,
     BufferDesc,
     TextureDesc,
@@ -86,6 +85,8 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 
     VulkanDeviceExtendedDesc,
+
+    ShaderProgramSyntheticResourcesDesc,
 };
 
 // TODO: Implementation or backend or something else?
