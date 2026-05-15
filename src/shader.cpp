@@ -272,6 +272,13 @@ Result ShaderProgram::_validateSyntheticResourceRecord(const SyntheticResourceBi
         if (record.entryPointIndex < 0)
             return SLANG_E_INVALID_ARG;
     }
+    else
+    {
+        if (record.entryPointIndex != -1)
+            return SLANG_E_INVALID_ARG;
+    }
+    if (record.uniformOffset == -1 && record.uniformStride != 0)
+        return SLANG_E_INVALID_ARG;
     return SLANG_OK;
 }
 
@@ -283,8 +290,7 @@ Result ShaderProgram::_initSyntheticResourceDescs()
     m_syntheticResourcesDesc = {};
     m_desc.next = nullptr;
 
-    for (const DescStructHeader* header = inputNext; header;
-         header = header->next)
+    for (const DescStructHeader* header = inputNext; header; header = header->next)
     {
         switch (header->type)
         {

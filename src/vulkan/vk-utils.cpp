@@ -330,14 +330,13 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
 
 static VkPipelineStageFlags getSupportedShaderStageFlags(const VulkanApi& api)
 {
-    VkPipelineStageFlags result = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-                                  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+    VkPipelineStageFlags result = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
                                   VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
     if (api.m_deviceFeatures.tessellationShader)
     {
-        result |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
-                  VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+        result |=
+            VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
     }
 
     if (api.m_deviceFeatures.geometryShader)
@@ -345,6 +344,9 @@ static VkPipelineStageFlags getSupportedShaderStageFlags(const VulkanApi& api)
 
     if (api.m_extendedFeatures.rayTracingPipelineFeatures.rayTracingPipeline)
         result |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+
+    if (api.m_extendedFeatures.meshShaderFeatures.meshShader)
+        result |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
 
     return result;
 }

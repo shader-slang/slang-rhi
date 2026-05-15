@@ -1066,6 +1066,8 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
         vkBindingRangeDesc.binding = (uint32_t)resource.binding;
         vkBindingRangeDesc.descriptorCount = resource.arraySize;
         vkBindingRangeDesc.descriptorType = _mapDescriptorType(resource.bindingType);
+        if (vkBindingRangeDesc.descriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM)
+            return SLANG_E_INVALID_ARG;
         vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
         if (!addDescriptorSetBinding(
                 descriptorSetIndex,
