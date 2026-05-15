@@ -392,6 +392,7 @@ Result AccelerationStructureBuildDescConverter::convert(
             buildInput.customPrimitiveArray.aabbBuffers = &pointerList.back();
             buildInput.customPrimitiveArray.numPrimitives = proceduralPrimitives.primitiveCount;
             buildInput.customPrimitiveArray.strideInBytes = proceduralPrimitives.aabbStride;
+            flagList.push_back(translateGeometryFlags(proceduralPrimitives.flags));
             buildInput.customPrimitiveArray.flags = &flagList.back();
             buildInput.customPrimitiveArray.numSbtRecords = 1;
         }
