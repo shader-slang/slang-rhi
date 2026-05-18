@@ -224,8 +224,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (hasComputeCapability(2, 0))
     {
         addFeature(Feature::Double);
+        addFeature(Feature::Int16);
         addFeature(Feature::Int64);
         addFeature(Feature::AtomicFloat);
+        addFeature(Feature::AtomicInt64);
         addFeature(Feature::RealtimeClock);
     }
     if (hasComputeCapability(3, 0))
@@ -235,9 +237,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (hasComputeCapability(6, 0))
     {
         addFeature(Feature::Half);
-        addFeature(Feature::Int16);
+    }
+    if (hasComputeCapability(7, 0))
+    {
         addFeature(Feature::AtomicHalf);
-        addFeature(Feature::AtomicInt64);
+    }
+    if (hasComputeCapability(8, 0))
+    {
+        addFeature(Feature::Bfloat16);
     }
     if (hasComputeCapability(9, 0))
     {
