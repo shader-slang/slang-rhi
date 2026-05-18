@@ -182,11 +182,14 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
             auto vkDescriptorType = _mapDescriptorType(slangDescriptorType);
             VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
             vkBindingRangeDesc.binding =
-                offset.binding +
-                (uint32_t
-                )typeLayout->getDescriptorSetDescriptorRangeIndexOffset(slangDescriptorSetIndex, descriptorRangeIndex);
-            vkBindingRangeDesc.descriptorCount = (uint32_t
-            )typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(slangDescriptorSetIndex, descriptorRangeIndex);
+                offset.binding + (uint32_t)typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
+                                     slangDescriptorSetIndex,
+                                     descriptorRangeIndex
+                                 );
+            vkBindingRangeDesc.descriptorCount = (uint32_t)typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
+                slangDescriptorSetIndex,
+                descriptorRangeIndex
+            );
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 
@@ -1068,6 +1071,16 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
         vkBindingRangeDesc.descriptorType = _mapDescriptorType(resource.bindingType);
         if (vkBindingRangeDesc.descriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM)
             return SLANG_E_INVALID_ARG;
+        if (resource.bindingType == slang::BindingType::InlineUniformData &&
+            !m_device->m_api.m_extendedFeatures.inlineUniformBlockFeatures.inlineUniformBlock)
+        {
+            return SLANG_E_NOT_AVAILABLE;
+        }
+        if (resource.bindingType == slang::BindingType::RayTracingAccelerationStructure &&
+            !m_device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
+        {
+            return SLANG_E_NOT_AVAILABLE;
+        }
         vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
         if (!addDescriptorSetBinding(
                 descriptorSetIndex,

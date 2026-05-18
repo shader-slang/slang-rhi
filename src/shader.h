@@ -111,6 +111,7 @@ public:
     Result addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location);
 
 private:
+    uint32_t _getEntryPointCount() const;
     Result _initSyntheticResourceDescs();
     Result _validateSyntheticResourceRecord(const SyntheticResourceBindingRecord& record) const;
 

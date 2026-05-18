@@ -1,5 +1,7 @@
 #include "testing.h"
 
+#include <cstring>
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -139,10 +141,10 @@ static Result createComputeProgramFromCoverageMetadata(
 
     auto* coverageMetadata =
         (slang::ICoverageTracingMetadata*)metadata->castAs(slang::ICoverageTracingMetadata::getTypeGuid());
-    SLANG_RHI_ASSERT(coverageMetadata);
+    REQUIRE(coverageMetadata != nullptr);
     auto* syntheticMetadata =
         (slang::ISyntheticResourceMetadata*)metadata->castAs(slang::ISyntheticResourceMetadata::getTypeGuid());
-    SLANG_RHI_ASSERT(syntheticMetadata);
+    REQUIRE(syntheticMetadata != nullptr);
 
     std::vector<SyntheticResourceBindingDesc> syntheticResources;
     const uint32_t resourceCount = syntheticMetadata->getResourceCount();
@@ -254,8 +256,8 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     CHECK_EQ(location.arraySize, 1u);
     CHECK_EQ(location.scope, SyntheticResourceScope::Global);
     CHECK_EQ(location.entryPointIndex, -1);
-    CHECK(location.debugName != nullptr);
-    CHECK(std::string_view(location.debugName) == "__syntheticCoverage");
+    REQUIRE(location.debugName != nullptr);
+    CHECK_EQ(std::strcmp(location.debugName, "__syntheticCoverage"), 0);
 
     SyntheticBindingLocation foundLocation = {};
     foundLocation.structSize = sizeof(SyntheticBindingLocation);
@@ -277,6 +279,67 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     rootObject.setNull();
     syntheticProgram.setNull();
     shaderProgram.setNull();
+}
+
+GPU_TEST_CASE("synthetic-resource-bindings-invalid-descs", Vulkan | CUDA)
+{
+    static constexpr uint32_t kSyntheticResourceID = 17;
+    static constexpr char kShaderSource[] = R"(
+RWStructuredBuffer<uint> outBuffer;
+
+[numthreads(1, 1, 1)]
+void computeMain(uint3 tid : SV_DispatchThreadID)
+{
+    outBuffer[0] = tid.x;
+}
+)";
+
+    auto makeSyntheticResourceDesc = []()
+    {
+        SyntheticResourceBindingDesc desc = {};
+        desc.id = kSyntheticResourceID;
+        desc.bindingType = slang::BindingType::MutableRawBuffer;
+        desc.arraySize = 1;
+        desc.scope = SyntheticResourceScope::Global;
+        desc.access = SyntheticResourceAccess::ReadWrite;
+        desc.space = 0;
+        desc.binding = 11;
+        desc.uniformOffset = 16;
+        desc.uniformStride = 16;
+        desc.debugName = "__syntheticInvalid";
+        return desc;
+    };
+
+    auto checkCreateFails = [&](const SyntheticResourceBindingDesc& desc, Result expectedResult)
+    {
+        ComPtr<IShaderProgram> shaderProgram;
+        Result result =
+            createComputeProgramWithSyntheticResource(device, kShaderSource, desc, shaderProgram.writeRef());
+        CHECK_EQ(result, expectedResult);
+    };
+
+    SyntheticResourceBindingDesc desc = makeSyntheticResourceDesc();
+    desc.space = -2;
+    checkCreateFails(desc, SLANG_E_INVALID_ARG);
+
+    desc = makeSyntheticResourceDesc();
+    desc.binding = -2;
+    checkCreateFails(desc, SLANG_E_INVALID_ARG);
+
+    desc = makeSyntheticResourceDesc();
+    desc.uniformOffset = -2;
+    checkCreateFails(desc, SLANG_E_INVALID_ARG);
+
+    desc = makeSyntheticResourceDesc();
+    desc.uniformStride = -1;
+    checkCreateFails(desc, SLANG_E_INVALID_ARG);
+
+    if (device->getDeviceType() == DeviceType::CUDA)
+    {
+        desc = makeSyntheticResourceDesc();
+        desc.bindingType = slang::BindingType::Sampler;
+        checkCreateFails(desc, SLANG_E_NOT_IMPLEMENTED);
+    }
 }
 
 GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata", Vulkan | CUDA | DontCreateDevice)
@@ -337,7 +400,8 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     CHECK_EQ(syntheticResources[0].access, SyntheticResourceAccess::ReadWrite);
     CHECK_EQ(syntheticResources[0].binding, int32_t(kCoverageBinding));
     CHECK_EQ(syntheticResources[0].space, int32_t(kCoverageSpace));
-    CHECK(std::string_view(syntheticResources[0].debugName) == "__slang_coverage");
+    REQUIRE(syntheticResources[0].debugName != nullptr);
+    CHECK_EQ(std::strcmp(syntheticResources[0].debugName, "__slang_coverage"), 0);
 
     ComPtr<ISyntheticShaderProgram> syntheticProgram;
     REQUIRE_CALL(
@@ -351,7 +415,8 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     CHECK_EQ(location.syntheticResourceID, syntheticResources[0].id);
     CHECK_EQ(location.bindingType, syntheticResources[0].bindingType);
     CHECK_EQ(location.scope, syntheticResources[0].scope);
-    CHECK(std::string_view(location.debugName) == "__slang_coverage");
+    REQUIRE(location.debugName != nullptr);
+    CHECK_EQ(std::strcmp(location.debugName, "__slang_coverage"), 0);
 
     ComPtr<IComputePipeline> pipeline;
     ComputePipelineDesc pipelineDesc = {};

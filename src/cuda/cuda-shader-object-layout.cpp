@@ -1,6 +1,8 @@
 #include "cuda-shader-object-layout.h"
 #include "../shader.h"
 
+#include <limits>
+
 namespace rhi::cuda {
 
 ShaderObjectLayoutImpl::ShaderObjectLayoutImpl(
@@ -166,16 +168,40 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
     {
         if (resource.scope != SyntheticResourceScope::Global)
             return SLANG_E_NOT_IMPLEMENTED;
+        switch (resource.bindingType)
+        {
+        case slang::BindingType::RawBuffer:
+        case slang::BindingType::TypedBuffer:
+        case slang::BindingType::MutableRawBuffer:
+        case slang::BindingType::MutableTypedBuffer:
+        case slang::BindingType::Texture:
+        case slang::BindingType::MutableTexture:
+        case slang::BindingType::CombinedTextureSampler:
+        case slang::BindingType::RayTracingAccelerationStructure:
+            break;
+        default:
+            return SLANG_E_NOT_IMPLEMENTED;
+        }
         if (resource.uniformOffset < 0)
             return SLANG_E_INVALID_ARG;
         if (resource.uniformStride <= 0)
+            return SLANG_E_INVALID_ARG;
+        if (resource.arraySize == 0)
+            return SLANG_E_INVALID_ARG;
+        if (resource.arraySize > (std::numeric_limits<uint32_t>::max() - m_slotCount))
+            return SLANG_E_INVALID_ARG;
+
+        const size_t uniformOffset = (size_t)resource.uniformOffset;
+        const size_t uniformStride = (size_t)resource.uniformStride;
+        const size_t arraySize = (size_t)resource.arraySize;
+        if (arraySize > (std::numeric_limits<size_t>::max() - uniformOffset) / uniformStride)
             return SLANG_E_INVALID_ARG;
 
         BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = resource.bindingType;
         bindingRangeInfo.count = resource.arraySize;
         bindingRangeInfo.slotIndex = m_slotCount;
-        bindingRangeInfo.uniformOffset = (uint32_t)resource.uniformOffset;
+        bindingRangeInfo.uniformOffset = (uint32_t)uniformOffset;
         bindingRangeInfo.subObjectIndex = 0;
         bindingRangeInfo.isSpecializable = false;
 
@@ -188,8 +214,7 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
         // global scope does not account for synthesized resources, so widen
         // the layout's required uniform buffer size here. ShaderObject::init
         // and BindingDataBuilder::writeObjectData both consult this.
-        const size_t requiredSize =
-            (size_t)resource.uniformOffset + (size_t)resource.uniformStride * (size_t)resource.arraySize;
+        const size_t requiredSize = uniformOffset + uniformStride * arraySize;
         if (requiredSize > m_minUniformBufferSize)
             m_minUniformBufferSize = requiredSize;
 
@@ -199,7 +224,7 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
         location.arraySize = resource.arraySize;
         location.scope = resource.scope;
         location.entryPointIndex = resource.entryPointIndex;
-        location.offset.uniformOffset = (uint32_t)resource.uniformOffset;
+        location.offset.uniformOffset = (uint32_t)uniformOffset;
         location.offset.bindingRangeIndex = bindingRangeIndex;
         location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
 

@@ -249,16 +249,33 @@ Result ShaderProgram::findSyntheticBindingLocationByID(
 
 Result ShaderProgram::addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location)
 {
+    SyntheticBindingLocation ownedLocation = location;
+    m_descHolder.holdString(ownedLocation.debugName);
+
     for (auto& existing : m_syntheticBindingLocations)
     {
         if (existing.syntheticResourceID == location.syntheticResourceID)
         {
-            existing = location;
+            existing = ownedLocation;
             return SLANG_OK;
         }
     }
-    m_syntheticBindingLocations.push_back(location);
+    m_syntheticBindingLocations.push_back(ownedLocation);
     return SLANG_OK;
+}
+
+uint32_t ShaderProgram::_getEntryPointCount() const
+{
+    if (m_desc.slangEntryPointCount != 0)
+        return m_desc.slangEntryPointCount;
+    if (!m_desc.slangGlobalScope)
+        return 0;
+
+    slang::ProgramLayout* layout = m_desc.slangGlobalScope->getLayout();
+    if (!layout)
+        return 0;
+
+    return (uint32_t)layout->getEntryPointCount();
 }
 
 Result ShaderProgram::_validateSyntheticResourceRecord(const SyntheticResourceBindingRecord& record) const
@@ -267,9 +284,15 @@ Result ShaderProgram::_validateSyntheticResourceRecord(const SyntheticResourceBi
         return SLANG_E_INVALID_ARG;
     if (record.arraySize == 0)
         return SLANG_E_INVALID_ARG;
+    if (record.space < -1 || record.binding < -1 || record.uniformOffset < -1)
+        return SLANG_E_INVALID_ARG;
+    if (record.uniformStride < 0)
+        return SLANG_E_INVALID_ARG;
     if (record.scope == SyntheticResourceScope::EntryPoint)
     {
         if (record.entryPointIndex < 0)
+            return SLANG_E_INVALID_ARG;
+        if ((uint32_t)record.entryPointIndex >= _getEntryPointCount())
             return SLANG_E_INVALID_ARG;
     }
     else
@@ -330,7 +353,7 @@ Result ShaderProgram::_initSyntheticResourceDescs()
             break;
         }
         default:
-            break;
+            return SLANG_E_INVALID_ARG;
         }
     }
 

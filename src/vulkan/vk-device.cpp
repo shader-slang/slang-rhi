@@ -1606,7 +1606,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     VkBufferMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     barrier.srcAccessMask = calcAccessFlags(bufferImpl->m_desc.defaultState);
-    barrier.dstAccessMask = calcAccessFlags(ResourceState::CopyDestination);
+    barrier.dstAccessMask = calcAccessFlags(ResourceState::CopySource);
     barrier.buffer = bufferImpl->m_buffer.m_buffer;
     barrier.offset = 0;
     barrier.size = bufferImpl->m_desc.size;

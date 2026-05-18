@@ -345,8 +345,10 @@ static VkPipelineStageFlags getSupportedShaderStageFlags(const VulkanApi& api)
     if (api.m_extendedFeatures.rayTracingPipelineFeatures.rayTracingPipeline)
         result |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
 
+    if (api.m_extendedFeatures.meshShaderFeatures.taskShader)
+        result |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
     if (api.m_extendedFeatures.meshShaderFeatures.meshShader)
-        result |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+        result |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
 
     return result;
 }
@@ -386,12 +388,7 @@ VkPipelineStageFlags calcPipelineStageFlags(const VulkanApi& api, ResourceState 
     case ResourceState::General:
         return VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
     case ResourceState::AccelerationStructureRead:
-    {
-        VkPipelineStageFlags result = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        if (api.m_extendedFeatures.rayTracingPipelineFeatures.rayTracingPipeline)
-            result |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
-        return result;
-    }
+        return getSupportedShaderStageFlags(api) | VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     case ResourceState::AccelerationStructureWrite:
         return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:

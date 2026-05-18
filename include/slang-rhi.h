@@ -1204,7 +1204,8 @@ public:
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
+        DescriptorHandle* outHandle
     ) = 0;
 };
 
@@ -1761,7 +1762,7 @@ struct SyntheticBindingLocation
     /// Synthetic resource identifier that resolved to this binding location.
     uint32_t syntheticResourceID = 0;
 
-    /// Binding type expected by `IShaderObject::setBinding()`.
+    /// Resolved Slang binding type for the synthetic resource.
     slang::BindingType bindingType = slang::BindingType::Unknown;
 
     /// Number of array elements described by `offset`.
@@ -1960,7 +1961,8 @@ inline Result bindSyntheticResource(
         if (location.entryPointIndex < 0)
             return SLANG_E_INVALID_ARG;
         ComPtr<IShaderObject> entryPointObject;
-        SLANG_RETURN_ON_FAIL(rootObject->getEntryPoint((uint32_t)location.entryPointIndex, entryPointObject.writeRef())
+        SLANG_RETURN_ON_FAIL(
+            rootObject->getEntryPoint((uint32_t)location.entryPointIndex, entryPointObject.writeRef())
         );
         return entryPointObject->setBinding(location.offset, binding);
     }
