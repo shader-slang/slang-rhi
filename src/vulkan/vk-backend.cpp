@@ -45,6 +45,7 @@ Result BackendImpl::enumerateAdapters()
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     const char* instanceExtensions[] = {
         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
 #if SLANG_APPLE_FAMILY
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
 #endif

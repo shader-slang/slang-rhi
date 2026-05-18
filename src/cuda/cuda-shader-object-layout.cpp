@@ -194,6 +194,8 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
         const size_t uniformOffset = (size_t)resource.uniformOffset;
         const size_t uniformStride = (size_t)resource.uniformStride;
         const size_t arraySize = (size_t)resource.arraySize;
+        if (uniformOffset > std::numeric_limits<uint32_t>::max())
+            return SLANG_E_INVALID_ARG;
         if (arraySize > (std::numeric_limits<size_t>::max() - uniformOffset) / uniformStride)
             return SLANG_E_INVALID_ARG;
 
@@ -201,7 +203,7 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
         bindingRangeInfo.bindingType = resource.bindingType;
         bindingRangeInfo.count = resource.arraySize;
         bindingRangeInfo.slotIndex = m_slotCount;
-        bindingRangeInfo.uniformOffset = (uint32_t)uniformOffset;
+        bindingRangeInfo.uniformOffset = static_cast<uint32_t>(uniformOffset);
         bindingRangeInfo.subObjectIndex = 0;
         bindingRangeInfo.isSpecializable = false;
 
@@ -224,7 +226,7 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
         location.arraySize = resource.arraySize;
         location.scope = resource.scope;
         location.entryPointIndex = resource.entryPointIndex;
-        location.offset.uniformOffset = (uint32_t)uniformOffset;
+        location.offset.uniformOffset = static_cast<uint32_t>(uniformOffset);
         location.offset.bindingRangeIndex = bindingRangeIndex;
         location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
 
