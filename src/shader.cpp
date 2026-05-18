@@ -282,6 +282,8 @@ Result ShaderProgram::_validateSyntheticResourceRecord(const SyntheticResourceBi
 {
     if (record.id == 0)
         return SLANG_E_INVALID_ARG;
+    if (record.bindingType == slang::BindingType::Unknown)
+        return SLANG_E_INVALID_ARG;
     if (record.arraySize == 0)
         return SLANG_E_INVALID_ARG;
     if (record.space < -1 || record.binding < -1 || record.uniformOffset < -1)

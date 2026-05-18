@@ -319,6 +319,10 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     };
 
     SyntheticResourceBindingDesc desc = makeSyntheticResourceDesc();
+    desc.bindingType = slang::BindingType::Unknown;
+    checkCreateFails(desc, SLANG_E_INVALID_ARG);
+
+    desc = makeSyntheticResourceDesc();
     desc.space = -2;
     checkCreateFails(desc, SLANG_E_INVALID_ARG);
 
