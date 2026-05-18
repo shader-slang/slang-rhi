@@ -205,6 +205,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::RealtimeClock);
     // Not clear how to detect half support on CUDA. For now we'll assume we have it
     addFeature(Feature::Half);
+    addFeature(Feature::Double);
+    addFeature(Feature::Int16);
+    addFeature(Feature::Int64);
+    addFeature(Feature::AtomicFloat);
+    addFeature(Feature::AtomicHalf);
+    addFeature(Feature::AtomicInt64);
+    addFeature(Feature::WaveOps);
     addFeature(Feature::Pointer);
 
     addCapability(Capability::cuda);
