@@ -1008,6 +1008,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-surface.cpp
         tests/test-texture-allocation-info.cpp
         tests/test-texture-create.cpp
+        tests/test-texture-from-handle.cpp
         tests/test-texture-layout.cpp
         tests/test-texture-shared.cpp
         tests/test-texture-types.cpp
