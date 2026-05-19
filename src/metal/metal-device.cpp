@@ -543,6 +543,23 @@ void DeviceImpl::registerResource(MTL::Resource* resource)
     }
 }
 
+bool DeviceImpl::registerExternalResource(MTL::Resource* resource)
+{
+    SLANG_RHI_ASSERT(resource);
+    if (m_hasResidencySet)
+    {
+        std::lock_guard<std::mutex> lock(m_residencySetMutex);
+        if (!m_residencySet->containsAllocation(resource))
+        {
+            m_residencySet->addAllocation(resource);
+            m_residencySetDirty = true;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void DeviceImpl::unregisterResource(MTL::Resource* resource)
 {
     SLANG_RHI_ASSERT(resource);

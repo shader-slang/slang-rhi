@@ -14,7 +14,7 @@ TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
 TextureImpl::~TextureImpl()
 {
     m_defaultView.setNull();
-    if (m_texture && !m_isSwapchainTexture)
+    if (m_texture && m_shouldUnregisterResource)
     {
         getDevice<DeviceImpl>()->unregisterResource(m_texture.get());
     }
@@ -159,6 +159,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     textureImpl->m_textureType = textureDesc->textureType();
     textureImpl->m_pixelFormat = textureDesc->pixelFormat();
 
+    textureImpl->m_shouldUnregisterResource = true;
     registerResource(textureImpl->m_texture.get());
 
     if (desc.label)
@@ -215,6 +216,38 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         encoder->endEncoding();
         commandBuffer->commit();
         commandBuffer->waitUntilCompleted();
+    }
+
+    returnComPtr(outTexture, textureImpl);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
+{
+    AUTORELEASEPOOL
+
+    if (!outTexture)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    *outTexture = nullptr;
+
+    if (handle.type != NativeHandleType::MTLTexture || handle.value == 0)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    MTL::Texture* nativeTexture = reinterpret_cast<MTL::Texture*>(handle.value);
+    RefPtr<TextureImpl> textureImpl(new TextureImpl(this, desc));
+    textureImpl->m_texture = NS::RetainPtr(nativeTexture);
+    textureImpl->m_textureType = nativeTexture->textureType();
+    textureImpl->m_pixelFormat = nativeTexture->pixelFormat();
+
+    textureImpl->m_shouldUnregisterResource = registerExternalResource(textureImpl->m_texture.get());
+
+    if (desc.label)
+    {
+        textureImpl->m_texture->setLabel(createString(desc.label).get());
     }
 
     returnComPtr(outTexture, textureImpl);

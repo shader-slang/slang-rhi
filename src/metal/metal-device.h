@@ -28,6 +28,11 @@ public:
         const SubresourceData* initData,
         ITexture** outTexture
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
+        NativeHandle handle,
+        const TextureDesc& desc,
+        ITexture** outTexture
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
         const BufferDesc& desc,
         const void* initData,
@@ -182,6 +187,7 @@ public:
     BufferAddressMap m_addressToBuffer;
 
     void registerResource(MTL::Resource* resource);
+    bool registerExternalResource(MTL::Resource* resource);
     void unregisterResource(MTL::Resource* resource);
 };
 

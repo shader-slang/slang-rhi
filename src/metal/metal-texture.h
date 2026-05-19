@@ -26,6 +26,7 @@ public:
     // True if this texture is created from a swap chain buffer.
     // Swap chain textures are deleted immediately when deleteThis() is called.
     bool m_isSwapchainTexture = false;
+    bool m_shouldUnregisterResource = false;
     RefPtr<TextureViewImpl> m_defaultView;
 };
 
