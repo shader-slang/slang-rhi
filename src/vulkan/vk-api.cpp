@@ -13,18 +13,6 @@
 
 namespace rhi::vk {
 
-#if SLANG_APPLE_FAMILY
-static void* _tryLoadVulkanModule(const char* const* candidates, size_t candidateCount)
-{
-    for (size_t i = 0; i < candidateCount; ++i)
-    {
-        if (void* module = dlopen(candidates[i], RTLD_NOW | RTLD_GLOBAL))
-            return module;
-    }
-    return nullptr;
-}
-#endif
-
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VulkanModule !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Result VulkanModule::init()
@@ -52,7 +40,10 @@ Result VulkanModule::init()
         "/usr/local/lib/libvulkan.1.dylib",
         "/usr/local/lib/libvulkan.dylib",
     };
-    m_module = _tryLoadVulkanModule(kVulkanModuleCandidates, SLANG_COUNT_OF(kVulkanModuleCandidates));
+    for (size_t i = 0; i < SLANG_COUNT_OF(kVulkanModuleCandidates) && !m_module; ++i)
+    {
+        m_module = dlopen(kVulkanModuleCandidates[i], RTLD_NOW | RTLD_GLOBAL);
+    }
 #else
 #error "Unsupported platform"
 #endif
@@ -129,29 +120,6 @@ Result VulkanApi::initGlobalProcs(const VulkanModule& module)
         return SLANG_FAIL;
     }
     m_module = &module;
-    return SLANG_OK;
-}
-
-Result VulkanApi::initEnumerationProcs(VkInstance instance)
-{
-    SLANG_RHI_ASSERT(instance && vkGetInstanceProcAddr != nullptr);
-
-    vkEnumeratePhysicalDevices =
-        (PFN_vkEnumeratePhysicalDevices)vkGetInstanceProcAddr(instance, "vkEnumeratePhysicalDevices");
-    vkGetPhysicalDeviceProperties2 =
-        (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2");
-    if (!vkGetPhysicalDeviceProperties2)
-    {
-        vkGetPhysicalDeviceProperties2 =
-            (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
-    }
-
-    if (!(vkEnumeratePhysicalDevices && vkGetPhysicalDeviceProperties2))
-    {
-        return SLANG_FAIL;
-    }
-
-    m_instance = instance;
     return SLANG_OK;
 }
 

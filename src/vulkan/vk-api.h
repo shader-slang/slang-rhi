@@ -61,6 +61,7 @@ protected:
 #define VK_API_INSTANCE_PROCS_OPT(x) \
     x(vkGetPhysicalDeviceFeatures2) \
     x(vkGetPhysicalDeviceProperties2) \
+    VK_API_INSTANCE_KHR_PROCS(x) \
     x(vkCreateDebugUtilsMessengerEXT) \
     x(vkDestroyDebugUtilsMessengerEXT) \
     x(vkGetPhysicalDeviceCooperativeMatrixPropertiesNV) \
@@ -294,7 +295,7 @@ protected:
 
 #define VK_API_ALL_INSTANCE_PROCS(x) \
     VK_API_INSTANCE_PROCS(x) \
-    VK_API_INSTANCE_KHR_PROCS(x)
+    /* */
 
 #define VK_API_ALL_DEVICE_PROCS(x) \
     VK_API_DEVICE_PROCS(x) \
@@ -555,8 +556,6 @@ struct VulkanApi
 
     /// Sets up global parameters
     Result initGlobalProcs(const VulkanModule& module);
-    /// Initialize only the instance functions needed for adapter enumeration.
-    Result initEnumerationProcs(VkInstance instance);
     /// Initialize the instance functions
     Result initInstanceProcs(VkInstance instance);
 
