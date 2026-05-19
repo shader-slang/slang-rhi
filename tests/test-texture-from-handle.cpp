@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("texture-from-native-handle", D3D12 | Metal)
+GPU_TEST_CASE("texture-from-native-handle", D3D12 | Vulkan | Metal)
 {
     TextureDesc desc = {};
     desc.type = TextureType::Texture2D;
