@@ -145,7 +145,7 @@ endif()
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2026.9" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2026.9.1" CACHE STRING "Slang version to fetch")
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -156,11 +156,6 @@ set(SLANG_RHI_FETCH_SLANG_VERSION "2026.9" CACHE STRING "Slang version to fetch"
 # DirectXShaderCompiler
 if(NOT DEFINED SLANG_RHI_DXC_URL)
     set(SLANG_RHI_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2602/dxc_2026_02_20.zip")
-endif()
-
-# Swift CMark is a Slang compiler dependency in static wasm packages.
-if(NOT DEFINED SLANG_RHI_CMARK_URL)
-    set(SLANG_RHI_CMARK_URL "https://github.com/swiftlang/swift-cmark/archive/924936d0427cb25a61169739a7660230bffa6ea6.zip")
 endif()
 
 # WinPixEventRuntime
@@ -358,38 +353,12 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.a
             )
-
-            set(SLANG_RHI_SLANG_EMSCRIPTEN_LIBRARIES
+            target_link_libraries(slang INTERFACE
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcompiler-core.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcore.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/liblz4.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libminiz.a
             )
-
-            set(SLANG_RHI_SLANG_CMARK_LIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcmark-gfm.a)
-            if(EXISTS ${SLANG_RHI_SLANG_CMARK_LIB})
-                list(APPEND SLANG_RHI_SLANG_EMSCRIPTEN_LIBRARIES ${SLANG_RHI_SLANG_CMARK_LIB})
-            else()
-                FetchPackage(slang_rhi_cmark URL ${SLANG_RHI_CMARK_URL})
-
-                set(_prev_CMARK_LIB_FUZZER ${CMARK_LIB_FUZZER})
-                set(_prev_CMARK_FUZZ_QUADRATIC ${CMARK_FUZZ_QUADRATIC})
-                set(_prev_BUILD_TESTING ${BUILD_TESTING})
-                set(_prev_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-                set(CMARK_LIB_FUZZER OFF)
-                set(CMARK_FUZZ_QUADRATIC OFF)
-                set(BUILD_TESTING OFF)
-                set(BUILD_SHARED_LIBS OFF)
-                add_subdirectory(${slang_rhi_cmark_SOURCE_DIR} ${slang_rhi_cmark_BINARY_DIR}/build EXCLUDE_FROM_ALL)
-                set(CMARK_LIB_FUZZER ${_prev_CMARK_LIB_FUZZER})
-                set(CMARK_FUZZ_QUADRATIC ${_prev_CMARK_FUZZ_QUADRATIC})
-                set(BUILD_TESTING ${_prev_BUILD_TESTING})
-                set(BUILD_SHARED_LIBS ${_prev_BUILD_SHARED_LIBS})
-
-                list(APPEND SLANG_RHI_SLANG_EMSCRIPTEN_LIBRARIES libcmark-gfm)
-            endif()
-
-            target_link_libraries(slang INTERFACE ${SLANG_RHI_SLANG_EMSCRIPTEN_LIBRARIES})
         endif()
     endfunction()
 
