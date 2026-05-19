@@ -28,7 +28,7 @@ GPU_TEST_CASE("texture-from-native-handle", D3D12 | Metal)
     NativeHandle handle = {};
     REQUIRE_CALL(originalTexture->getNativeHandle(&handle));
 
-    if (device->getDeviceType() == DeviceType::Metal)
+    if (device->getDeviceType() == DeviceType::D3D12 || device->getDeviceType() == DeviceType::Metal)
     {
         TextureDesc invalidDesc = desc;
         invalidDesc.size.width++;
