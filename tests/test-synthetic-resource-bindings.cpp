@@ -1,6 +1,7 @@
 #include "testing.h"
 
 #include <cstring>
+#include <string>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -121,6 +122,7 @@ static Result createComputeProgramFromCoverageMetadata(
     std::string_view source,
     IShaderProgram** outProgram,
     std::vector<SyntheticResourceBindingDesc>* outSyntheticResources = nullptr,
+    std::vector<std::string>* outSyntheticResourceDebugNames = nullptr,
     uint32_t* outCoverageCounterCount = nullptr
 )
 {
@@ -164,8 +166,10 @@ static Result createComputeProgramFromCoverageMetadata(
     REQUIRE(syntheticMetadata != nullptr);
 
     std::vector<SyntheticResourceBindingDesc> syntheticResources;
+    std::vector<std::string> syntheticResourceDebugNames;
     const uint32_t resourceCount = syntheticMetadata->getResourceCount();
     syntheticResources.reserve(resourceCount);
+    syntheticResourceDebugNames.reserve(resourceCount);
 
     for (uint32_t i = 0; i < resourceCount; ++i)
     {
@@ -183,7 +187,16 @@ static Result createComputeProgramFromCoverageMetadata(
         resourceDesc.binding = info.binding;
         resourceDesc.uniformOffset = info.uniformOffset;
         resourceDesc.uniformStride = info.uniformStride;
-        resourceDesc.debugName = info.debugName;
+        if (info.debugName)
+        {
+            syntheticResourceDebugNames.push_back(info.debugName);
+            resourceDesc.debugName = syntheticResourceDebugNames.back().c_str();
+        }
+        else
+        {
+            syntheticResourceDebugNames.emplace_back();
+            resourceDesc.debugName = nullptr;
+        }
         syntheticResources.push_back(resourceDesc);
     }
 
@@ -200,8 +213,19 @@ static Result createComputeProgramFromCoverageMetadata(
     if (SLANG_FAILED(result))
         return result;
 
+    if (outSyntheticResourceDebugNames)
+        *outSyntheticResourceDebugNames = syntheticResourceDebugNames;
     if (outSyntheticResources)
+    {
         *outSyntheticResources = syntheticResources;
+        for (size_t i = 0; i < outSyntheticResources->size(); ++i)
+        {
+            (*outSyntheticResources)[i].debugName =
+                outSyntheticResourceDebugNames && !(*outSyntheticResourceDebugNames)[i].empty()
+                    ? (*outSyntheticResourceDebugNames)[i].c_str()
+                    : nullptr;
+        }
+    }
     if (outCoverageCounterCount)
         *outCoverageCounterCount = coverageMetadata->getCounterCount();
     return SLANG_OK;
@@ -533,6 +557,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     auto localDevice = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
 
     std::vector<SyntheticResourceBindingDesc> syntheticResources;
+    std::vector<std::string> syntheticResourceDebugNames;
     uint32_t coverageCounterCount = 0;
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(createComputeProgramFromCoverageMetadata(
@@ -540,6 +565,7 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         kShaderSource,
         shaderProgram.writeRef(),
         &syntheticResources,
+        &syntheticResourceDebugNames,
         &coverageCounterCount
     ));
 
