@@ -28,6 +28,8 @@ GPU_TEST_CASE("texture-from-native-handle", D3D12 | Vulkan | Metal)
     NativeHandle handle = {};
     REQUIRE_CALL(originalTexture->getNativeHandle(&handle));
 
+    // D3D12 and Metal can check the texture descriptor from the native handle.
+    // Vulkan cannot, so we skip this check.
     if (device->getDeviceType() == DeviceType::D3D12 || device->getDeviceType() == DeviceType::Metal)
     {
         TextureDesc invalidDesc = desc;
@@ -47,9 +49,15 @@ GPU_TEST_CASE("texture-from-native-handle", D3D12 | Vulkan | Metal)
     CHECK_EQ(wrappedHandle.type, handle.type);
     CHECK_EQ(wrappedHandle.value, handle.value);
 
+    // D3D12 and Metal have internal reference counting for resources create from native handles,
+    // so we can release the original texture and still use the new one.
+    // Vulkan does not have internal reference counting, so we need to keep the original texture alive.
     auto queue = device->getQueue(QueueType::Graphics);
-    originalTexture = nullptr;
-    REQUIRE_CALL(queue->waitOnHost());
+    if (device->getDeviceType() == DeviceType::D3D12 || device->getDeviceType() == DeviceType::Metal)
+    {
+        originalTexture = nullptr;
+        REQUIRE_CALL(queue->waitOnHost());
+    }
 
     compareComputeResult(device, texture, 0, 0, initialData);
 
