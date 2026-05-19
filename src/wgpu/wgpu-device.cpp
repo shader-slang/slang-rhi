@@ -90,11 +90,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     api.wgpuAdapterGetFeatures(m_ctx.adapter, &adapterFeatures);
 
     // We create a device with all features the adapter supports.
-    // However, some features are mutually exclusive with each other, or cause issues on some platforms,
-    // so we disable those features here.
+    // However, some features are mutually exclusive with each other, or cause issues on
+    // some platforms, so we disable those features here. Callers that use shared fences
+    // should request the specific handle type they need.
     std::vector<WGPUFeatureName> disabledAdapterFeatures{
 #if !SLANG_WASM
         WGPUFeatureName_SharedTextureMemoryZirconHandle,
+        WGPUFeatureName_SharedFenceVkSemaphoreOpaqueFD,
         WGPUFeatureName_SharedFenceSyncFD,
         WGPUFeatureName_SharedFenceVkSemaphoreZirconHandle,
 #endif
