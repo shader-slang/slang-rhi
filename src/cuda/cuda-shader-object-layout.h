@@ -87,7 +87,7 @@ public:
     static Result create(
         Device* device,
         slang::ProgramLayout* programLayout,
-        const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+        const std::vector<SyntheticResourceBindingRecord>* syntheticResources,
         std::vector<SyntheticBindingLocation>* outSyntheticLocations,
         RootShaderObjectLayoutImpl** outLayout
     );

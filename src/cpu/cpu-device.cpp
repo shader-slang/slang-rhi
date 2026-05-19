@@ -100,6 +100,8 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> program = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(program->init());
+    if (program->hasSyntheticResourceInputs())
+        return SLANG_E_NOT_IMPLEMENTED;
     auto slangGlobalScope = program->linkedProgram;
     if (slangGlobalScope)
     {

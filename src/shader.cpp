@@ -44,7 +44,7 @@ void* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderProgram::getTypeGuid())
         return static_cast<IShaderProgram*>(this);
-    if (guid == ISyntheticShaderProgram::getTypeGuid())
+    if (guid == ISyntheticShaderProgram::getTypeGuid() && hasSyntheticResourceInputs())
         return static_cast<ISyntheticShaderProgram*>(this);
     return nullptr;
 }
@@ -260,6 +260,7 @@ Result ShaderProgram::setResolvedSyntheticBindingLocations(const std::vector<Syn
 Result ShaderProgram::_addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location)
 {
     SyntheticBindingLocation ownedLocation = location;
+    ownedLocation.structSize = sizeof(SyntheticBindingLocation);
     m_descHolder.holdString(ownedLocation.debugName);
 
     for (auto& existing : m_syntheticBindingLocations)

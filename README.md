@@ -18,11 +18,12 @@ emitted by shader coverage.
 The public API surface is:
 
 - `ShaderProgramSyntheticResourcesDesc`
-  - chained through `ShaderProgramDesc.next` when creating a program
+  - opt-in descriptor chained through `ShaderProgramDesc.next` when creating a program
 - `SyntheticResourceBindingDesc`
   - one record per hidden resource
 - `ISyntheticShaderProgram`
-  - query resolved binding locations after program creation
+  - query resolved binding locations after program creation; ordinary
+    programs without synthetic resources do not expose this interface
 - `bindSyntheticResource(...)`
   - convenience helper for binding a hidden resource by synthetic
     resource id
@@ -37,6 +38,14 @@ The intended flow is:
 4. bind the resource through `bindSyntheticResource(...)` or by
    resolving a `SyntheticBindingLocation` from
    `ISyntheticShaderProgram` and calling `IShaderObject::setBinding()`
+
+The synthetic resource path is intentionally inactive for normal
+programs. If `ShaderProgramSyntheticResourcesDesc` is not present,
+`createShaderProgram()` follows the ordinary backend path and the
+resulting program returns `SLANG_E_NO_INTERFACE` when queried for
+`ISyntheticShaderProgram`. Backends that do not support synthetic
+resources reject programs that provide synthetic descriptors with
+`SLANG_E_NOT_IMPLEMENTED`.
 
 Current backend support for this path:
 

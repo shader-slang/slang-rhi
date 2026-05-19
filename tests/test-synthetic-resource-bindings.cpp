@@ -63,7 +63,8 @@ static Result createComputeProgramWithSyntheticResources(
 
     ShaderProgramDesc programDesc = {};
     programDesc.slangGlobalScope = linkedProgram;
-    programDesc.next = &syntheticResourcesDesc;
+    if (syntheticResourceDescs || syntheticResourceCount)
+        programDesc.next = &syntheticResourcesDesc;
 
     Result result = device->createShaderProgram(programDesc, outProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
@@ -78,6 +79,11 @@ static Result createComputeProgramWithSyntheticResource(
 )
 {
     return createComputeProgramWithSyntheticResources(device, source, &syntheticResourceDesc, 1, outProgram);
+}
+
+static Result createComputeProgram(IDevice* device, std::string_view source, IShaderProgram** outProgram)
+{
+    return createComputeProgramWithSyntheticResources(device, source, nullptr, 0, outProgram);
 }
 
 static SyntheticResourceScope mapSyntheticResourceScope(slang::SyntheticResourceScope scope)
@@ -217,6 +223,65 @@ static ComPtr<IBuffer> createTestBuffer(IDevice* device, size_t size = 256, cons
 }
 
 } // namespace
+
+GPU_TEST_CASE("synthetic-resource-bindings-interface-is-opt-in", ALL)
+{
+    static constexpr char kShaderSource[] = R"(
+RWStructuredBuffer<uint> outBuffer;
+
+[numthreads(1, 1, 1)]
+void computeMain(uint3 tid : SV_DispatchThreadID)
+{
+    outBuffer[0] = tid.x;
+}
+)";
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(createComputeProgram(device, kShaderSource, shaderProgram.writeRef()));
+
+    ComPtr<ISyntheticShaderProgram> syntheticProgram;
+    CHECK_EQ(
+        shaderProgram->queryInterface(ISyntheticShaderProgram::getTypeGuid(), (void**)syntheticProgram.writeRef()),
+        SLANG_E_NO_INTERFACE
+    );
+}
+
+GPU_TEST_CASE("synthetic-resource-bindings-unsupported-backends", ALL & ~Vulkan & ~CUDA)
+{
+    static constexpr uint32_t kSyntheticResourceID = 17;
+    static constexpr char kShaderSource[] = R"(
+RWStructuredBuffer<uint> outBuffer;
+
+[numthreads(1, 1, 1)]
+void computeMain(uint3 tid : SV_DispatchThreadID)
+{
+    outBuffer[0] = tid.x;
+}
+)";
+
+    SyntheticResourceBindingDesc syntheticResourceDesc = {};
+    syntheticResourceDesc.id = kSyntheticResourceID;
+    syntheticResourceDesc.bindingType = slang::BindingType::MutableRawBuffer;
+    syntheticResourceDesc.arraySize = 1;
+    syntheticResourceDesc.scope = SyntheticResourceScope::Global;
+    syntheticResourceDesc.access = SyntheticResourceAccess::ReadWrite;
+    syntheticResourceDesc.space = 0;
+    syntheticResourceDesc.binding = 11;
+    syntheticResourceDesc.uniformOffset = 16;
+    syntheticResourceDesc.uniformStride = 16;
+    syntheticResourceDesc.debugName = "__syntheticUnsupported";
+
+    ComPtr<IShaderProgram> shaderProgram;
+    CHECK_EQ(
+        createComputeProgramWithSyntheticResource(
+            device,
+            kShaderSource,
+            syntheticResourceDesc,
+            shaderProgram.writeRef()
+        ),
+        SLANG_E_NOT_IMPLEMENTED
+    );
+}
 
 GPU_TEST_CASE("synthetic-resource-bindings", Vulkan | CUDA)
 {

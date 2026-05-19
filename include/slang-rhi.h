@@ -337,6 +337,10 @@ struct SyntheticResourceBindingDesc
 
 /// Optional `ShaderProgramDesc.next` extension that declares synthetic resources to merge into the
 /// program's internal binding layout.
+///
+/// If omitted, no synthetic-resource layout work is performed and the resulting program does not
+/// expose `ISyntheticShaderProgram`. Backends that do not support synthetic resources return
+/// `SLANG_E_NOT_IMPLEMENTED` when this descriptor contains resources.
 struct ShaderProgramSyntheticResourcesDesc
 {
     StructType structType = StructType::ShaderProgramSyntheticResourcesDesc;
@@ -1783,6 +1787,7 @@ struct SyntheticBindingLocation
 };
 
 /// Optional program interface that exposes resolved `ShaderOffset`s for synthetic resources.
+/// Only programs created with supported synthetic-resource descriptors expose this interface.
 class ISyntheticShaderProgram : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x4a9f28a3, 0x286e, 0x4b07, {0x9a, 0xfa, 0x56, 0x62, 0xf7, 0xaa, 0x28, 0x95});

@@ -83,6 +83,8 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
+    if (shaderProgram->hasSyntheticResourceInputs())
+        return SLANG_E_NOT_IMPLEMENTED;
     SLANG_RETURN_ON_FAIL(
         RootShaderObjectLayoutImpl::create(
             this,

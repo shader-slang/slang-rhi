@@ -123,11 +123,17 @@
 
 ## `ISyntheticShaderProgram` interface
 
+`ISyntheticShaderProgram` is an opt-in interface. A shader program only
+exposes it when the program was created with
+`ShaderProgramSyntheticResourcesDesc` and the backend successfully merged
+those resources into the program layout. Ordinary programs return
+`SLANG_E_NO_INTERFACE` for this query.
+
 | API                              | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |----------------------------------|-----|------|-------|-------|--------|-------|------|
-| `getSyntheticBindingCount`       | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getSyntheticBindingLocation`    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `findSyntheticBindingLocationByID` | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getSyntheticBindingCount`       | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `getSyntheticBindingLocation`    | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `findSyntheticBindingLocationByID` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
 
 ## Shader program synthetic resource descriptors
 
@@ -139,6 +145,12 @@ This descriptor carries an array of `SyntheticResourceBindingDesc`
 records describing hidden bindable resources that should be merged into
 the program's internal layout model even though they are not part of the
 normal reflected shader interface.
+
+If this descriptor is omitted, no synthetic-resource layout work is
+performed and the created program does not expose
+`ISyntheticShaderProgram`. Backends that do not support this descriptor
+reject programs with one or more synthetic resources with
+`SLANG_E_NOT_IMPLEMENTED`.
 
 Current backend support for consuming these descriptors:
 

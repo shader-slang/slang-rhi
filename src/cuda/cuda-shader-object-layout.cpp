@@ -147,7 +147,7 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::Pr
 Result RootShaderObjectLayoutImpl::create(
     Device* device,
     slang::ProgramLayout* programLayout,
-    const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+    const std::vector<SyntheticResourceBindingRecord>* syntheticResources,
     std::vector<SyntheticBindingLocation>* outSyntheticLocations,
     RootShaderObjectLayoutImpl** outLayout
 )
@@ -156,7 +156,8 @@ Result RootShaderObjectLayoutImpl::create(
         outSyntheticLocations->clear();
 
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl(device, programLayout);
-    SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(syntheticResources, outSyntheticLocations));
+    if (syntheticResources)
+        SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(*syntheticResources, outSyntheticLocations));
     returnRefPtrMove(outLayout, layout);
     return SLANG_OK;
 }

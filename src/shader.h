@@ -94,6 +94,7 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
+    bool hasSyntheticResourceInputs() const { return !m_syntheticResourceInputs.empty(); }
     const std::vector<SyntheticResourceBindingRecord>& getSyntheticResourceInputs() const
     {
         return m_syntheticResourceInputs;
