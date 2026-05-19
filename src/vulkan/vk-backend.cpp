@@ -53,11 +53,8 @@ Result BackendImpl::enumerateAdapters()
     SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
     SLANG_RHI_DEFERRED({ api.vkDestroyInstance(instance, nullptr); });
 
-    // This will fail due to not loading any extensions.
-    api.initInstanceProcs(instance);
-
-    if (!(api.vkEnumeratePhysicalDevices && api.vkGetPhysicalDeviceProperties2 &&
-          api.vkEnumerateDeviceExtensionProperties))
+    SLANG_RETURN_ON_FAIL(api.initInstanceProcs(instance));
+    if (!(api.vkEnumeratePhysicalDevices && api.vkGetPhysicalDeviceProperties2))
     {
         return SLANG_FAIL;
     }

@@ -32,7 +32,18 @@ Result VulkanModule::init()
     m_module = dlopen("libvulkan.so.1", RTLD_NOW);
 #endif
 #elif SLANG_APPLE_FAMILY
-    m_module = dlopen("libvulkan.1.dylib", RTLD_NOW | RTLD_GLOBAL);
+    static const char* const kVulkanModuleCandidates[] = {
+        "libvulkan.1.dylib",
+        "libvulkan.dylib",
+        "/opt/homebrew/lib/libvulkan.1.dylib",
+        "/opt/homebrew/lib/libvulkan.dylib",
+        "/usr/local/lib/libvulkan.1.dylib",
+        "/usr/local/lib/libvulkan.dylib",
+    };
+    for (size_t i = 0; i < SLANG_COUNT_OF(kVulkanModuleCandidates) && !m_module; ++i)
+    {
+        m_module = dlopen(kVulkanModuleCandidates[i], RTLD_NOW | RTLD_GLOBAL);
+    }
 #else
 #error "Unsupported platform"
 #endif
@@ -122,6 +133,16 @@ Result VulkanApi::initInstanceProcs(VkInstance instance)
 
     // Get optional
     VK_API_INSTANCE_PROCS_OPT(VK_API_GET_INSTANCE_PROC)
+    if (!vkGetPhysicalDeviceFeatures2)
+    {
+        vkGetPhysicalDeviceFeatures2 =
+            (PFN_vkGetPhysicalDeviceFeatures2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures2KHR");
+    }
+    if (!vkGetPhysicalDeviceProperties2)
+    {
+        vkGetPhysicalDeviceProperties2 =
+            (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
+    }
 
     if (!areDefined(ProcType::Instance))
     {
