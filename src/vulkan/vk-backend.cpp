@@ -31,21 +31,15 @@ Result BackendImpl::createDevice(const DeviceDesc& desc, IDevice** outDevice)
 Result BackendImpl::enumerateAdapters()
 {
     VulkanModule module;
-    if (SLANG_FAILED(module.init()))
-    {
-        return SLANG_FAIL;
-    }
+    SLANG_RETURN_ON_FAIL(module.init());
+    SLANG_RHI_DEFERRED({ module.destroy(); });
 
     VulkanApi api;
-    if (SLANG_FAILED(api.initGlobalProcs(module)))
-    {
-        return SLANG_FAIL;
-    }
+    SLANG_RETURN_ON_FAIL(api.initGlobalProcs(module));
 
     VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     const char* instanceExtensions[] = {
         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-        VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
 #if SLANG_APPLE_FAMILY
         VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
 #endif
@@ -56,13 +50,14 @@ Result BackendImpl::enumerateAdapters()
     instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
     VkInstance instance;
-    if (api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance) != VK_SUCCESS)
-    {
-        return SLANG_FAIL;
-    }
+    SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
     SLANG_RHI_DEFERRED({ api.vkDestroyInstance(instance, nullptr); });
 
-    if (SLANG_FAILED(api.initEnumerationProcs(instance)))
+    // This will fail due to not loading any extensions.
+    api.initInstanceProcs(instance);
+
+    if (!(api.vkEnumeratePhysicalDevices && api.vkGetPhysicalDeviceProperties2 &&
+          api.vkEnumerateDeviceExtensionProperties))
     {
         return SLANG_FAIL;
     }

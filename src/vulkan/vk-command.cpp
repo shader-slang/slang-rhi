@@ -1751,8 +1751,8 @@ void CommandRecorder::commitBarriers()
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(bufferBarrier.buffer);
 
-        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(m_api, bufferBarrier.stateBefore, true);
-        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(m_api, bufferBarrier.stateAfter, false);
+        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(bufferBarrier.stateBefore, true);
+        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(bufferBarrier.stateAfter, false);
 
         if ((beforeStageFlags != activeBeforeStageFlags || afterStageFlags != activeAfterStageFlags) &&
             !bufferBarriers.empty())
@@ -1786,8 +1786,8 @@ void CommandRecorder::commitBarriers()
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(textureBarrier.texture);
 
-        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(m_api, textureBarrier.stateBefore, true);
-        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(m_api, textureBarrier.stateAfter, false);
+        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(textureBarrier.stateBefore, true);
+        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(textureBarrier.stateAfter, false);
 
         if ((beforeStageFlags != activeBeforeStageFlags || afterStageFlags != activeAfterStageFlags) &&
             !imageBarriers.empty())

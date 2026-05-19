@@ -48,7 +48,7 @@ VkPipelineCreateFlags2 translateRayTracingPipelineFlags2(RayTracingPipelineFlags
 VkImageLayout translateImageLayout(ResourceState state);
 
 VkAccessFlagBits calcAccessFlags(ResourceState state);
-VkPipelineStageFlags calcPipelineStageFlags(const VulkanApi& api, ResourceState state, bool src);
+VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src);
 VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access);
 
 VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage);
