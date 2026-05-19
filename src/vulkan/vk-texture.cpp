@@ -27,7 +27,7 @@ TextureImpl::~TextureImpl()
     {
         api.vkDestroyImageView(api.m_device, view.second.imageView, nullptr);
     }
-    if (!m_isSwapchainTexture)
+    if (m_shouldDestroyImage)
     {
         api.vkFreeMemory(api.m_device, m_imageMemory, nullptr);
         api.vkDestroyImage(api.m_device, m_image, nullptr);
@@ -450,6 +450,33 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
     }
+
+    returnComPtr(outTexture, texture);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc_, ITexture** outTexture)
+{
+    if (handle.type != NativeHandleType::VkImage || handle.value == 0)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    TextureDesc desc = fixupTextureDesc(desc_);
+
+    const VkFormat format = getVkFormat(desc.format);
+    if (format == VK_FORMAT_UNDEFINED)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    VkImage nativeImage = (VkImage)handle.value;
+    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
+    texture->m_image = nativeImage;
+    texture->m_vkformat = format;
+    texture->m_shouldDestroyImage = false;
+
+    _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;
