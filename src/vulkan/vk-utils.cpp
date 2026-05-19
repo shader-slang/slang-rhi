@@ -328,7 +328,11 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     }
 }
 
-VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
+VkPipelineStageFlags calcPipelineStageFlags(
+    VkPipelineStageFlags supportedShaderStageFlags,
+    ResourceState state,
+    bool src
+)
 {
     switch (state)
     {
@@ -340,14 +344,9 @@ VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
         return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
     case ResourceState::ConstantBuffer:
     case ResourceState::UnorderedAccess:
-        return VkPipelineStageFlagBits(
-            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT |
-            VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR
-        );
+        return supportedShaderStageFlags;
     case ResourceState::ShaderResource:
-        return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        return supportedShaderStageFlags;
     case ResourceState::RenderTarget:
         return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     case ResourceState::DepthRead:
@@ -368,9 +367,7 @@ VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src)
     case ResourceState::General:
         return VkPipelineStageFlagBits(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
     case ResourceState::AccelerationStructureRead:
-        return VkPipelineStageFlagBits(
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR
-        );
+        return supportedShaderStageFlags | VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     case ResourceState::AccelerationStructureWrite:
         return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:

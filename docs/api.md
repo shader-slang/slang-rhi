@@ -14,7 +14,7 @@
 | `getSlangSession`                  | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getQueue`                         | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createTexture`                    | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
-| `createTextureFromNativeHandle`    | :x:     | :x:  | :x:   | yes   | :x:    | :x:     | :x:  |
+| `createTextureFromNativeHandle`    | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |
 | `createTextureFromSharedHandle`    | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
 | `createBuffer`                     | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createBufferFromNativeHandle`     | :x:     | :x:  | :x:   | yes   | yes    | :x:     | :x:  |

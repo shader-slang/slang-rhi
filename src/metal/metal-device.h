@@ -6,6 +6,7 @@
 #include "metal-buffer-address-map.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace rhi::metal {
 
@@ -26,6 +27,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
         const TextureDesc& desc,
         const SubresourceData* initData,
+        ITexture** outTexture
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
+        NativeHandle handle,
+        const TextureDesc& desc,
         ITexture** outTexture
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
@@ -176,6 +182,7 @@ public:
     bool m_hasResidencySet = false;
     bool m_residencySetDirty = false;
     std::mutex m_residencySetMutex;
+    std::unordered_map<MTL::Resource*, uint32_t> m_residencySetResourceRefCounts;
 
     // Fallback residency: maps GPU virtual addresses to their owning BufferImpl.
     // Only active when !m_hasResidencySet.
