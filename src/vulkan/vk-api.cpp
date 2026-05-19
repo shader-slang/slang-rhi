@@ -32,7 +32,18 @@ Result VulkanModule::init()
     m_module = dlopen("libvulkan.so.1", RTLD_NOW);
 #endif
 #elif SLANG_APPLE_FAMILY
-    m_module = dlopen("libvulkan.1.dylib", RTLD_NOW | RTLD_GLOBAL);
+    static const char* const kVulkanModuleCandidates[] = {
+        "libvulkan.1.dylib",
+        "libvulkan.dylib",
+        "/opt/homebrew/lib/libvulkan.1.dylib",
+        "/opt/homebrew/lib/libvulkan.dylib",
+        "/usr/local/lib/libvulkan.1.dylib",
+        "/usr/local/lib/libvulkan.dylib",
+    };
+    for (size_t i = 0; i < SLANG_COUNT_OF(kVulkanModuleCandidates) && !m_module; ++i)
+    {
+        m_module = dlopen(kVulkanModuleCandidates[i], RTLD_NOW | RTLD_GLOBAL);
+    }
 #else
 #error "Unsupported platform"
 #endif
@@ -122,6 +133,16 @@ Result VulkanApi::initInstanceProcs(VkInstance instance)
 
     // Get optional
     VK_API_INSTANCE_PROCS_OPT(VK_API_GET_INSTANCE_PROC)
+    if (!vkGetPhysicalDeviceFeatures2)
+    {
+        vkGetPhysicalDeviceFeatures2 =
+            (PFN_vkGetPhysicalDeviceFeatures2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures2KHR");
+    }
+    if (!vkGetPhysicalDeviceProperties2)
+    {
+        vkGetPhysicalDeviceProperties2 =
+            (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
+    }
 
     if (!areDefined(ProcType::Instance))
     {
@@ -142,6 +163,29 @@ Result VulkanApi::initPhysicalDevice(VkPhysicalDevice physicalDevice)
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_deviceMemoryProperties);
 
     return SLANG_OK;
+}
+
+void VulkanApi::initDerivedDeviceProperties()
+{
+    m_supportedShaderStageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    if (m_deviceFeatures.tessellationShader)
+    {
+        m_supportedShaderStageFlags |=
+            VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+    }
+
+    if (m_deviceFeatures.geometryShader)
+        m_supportedShaderStageFlags |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+
+    if (m_extendedFeatures.rayTracingPipelineFeatures.rayTracingPipeline)
+        m_supportedShaderStageFlags |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+
+    if (m_extendedFeatures.meshShaderFeatures.taskShader)
+        m_supportedShaderStageFlags |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
+    if (m_extendedFeatures.meshShaderFeatures.meshShader)
+        m_supportedShaderStageFlags |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
 }
 
 Result VulkanApi::initDeviceProcs(VkDevice device)
