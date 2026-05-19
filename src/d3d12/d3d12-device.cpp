@@ -1303,18 +1303,17 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc_, ITexture** outTexture)
 {
-    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
+    if (handle.type != NativeHandleType::D3D12Resource || handle.value == 0)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
 
-    if (handle.type == NativeHandleType::D3D12Resource)
-    {
-        texture->m_resource.setResource((ID3D12Resource*)handle.value);
-    }
-    else
-    {
-        return SLANG_FAIL;
-    }
+    TextureDesc desc = fixupTextureDesc(desc_);
+
+    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
+    ID3D12Resource* nativeResource = (ID3D12Resource*)handle.value;
 
     bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
     if (isDepthFormat(desc.format) &&
@@ -1323,8 +1322,25 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
         isTypeless = true;
     }
 
-    texture->m_format =
-        isTypeless ? getFormatMapping(desc.format).typelessFormat : getFormatMapping(desc.format).rtvFormat;
+    D3D12_RESOURCE_DESC expectedDesc = {};
+    if (SLANG_FAILED(initTextureDesc(expectedDesc, desc, isTypeless)))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    D3D12_RESOURCE_DESC nativeDesc = nativeResource->GetDesc();
+    if (nativeDesc.Dimension != expectedDesc.Dimension || nativeDesc.Format != expectedDesc.Format ||
+        nativeDesc.Width != expectedDesc.Width || nativeDesc.Height != expectedDesc.Height ||
+        nativeDesc.DepthOrArraySize != expectedDesc.DepthOrArraySize ||
+        nativeDesc.MipLevels != expectedDesc.MipLevels ||
+        nativeDesc.SampleDesc.Count != expectedDesc.SampleDesc.Count ||
+        nativeDesc.SampleDesc.Quality != expectedDesc.SampleDesc.Quality)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    texture->m_resource.setResource(nativeResource);
+    texture->m_format = expectedDesc.Format;
     texture->m_isTypeless = isTypeless;
     texture->m_defaultState = translateResourceState(desc.defaultState);
 

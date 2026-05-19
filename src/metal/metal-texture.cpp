@@ -225,12 +225,6 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
 {
     AUTORELEASEPOOL
 
-    if (!outTexture)
-    {
-        return SLANG_E_INVALID_ARG;
-    }
-    *outTexture = nullptr;
-
     if (handle.type != NativeHandleType::MTLTexture || handle.value == 0)
     {
         return SLANG_E_INVALID_ARG;
