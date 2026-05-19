@@ -142,6 +142,17 @@ GPU_TEST_CASE("texture-from-native-handle", D3D12 | Metal)
     NativeHandle handle = {};
     REQUIRE_CALL(originalTexture->getNativeHandle(&handle));
 
+    if (device->getDeviceType() == DeviceType::Metal)
+    {
+        TextureDesc invalidDesc = desc;
+        invalidDesc.size.width++;
+
+        ComPtr<ITexture> invalidTexture;
+        CHECK(
+            device->createTextureFromNativeHandle(handle, invalidDesc, invalidTexture.writeRef()) == SLANG_E_INVALID_ARG
+        );
+    }
+
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTextureFromNativeHandle(handle, desc, texture.writeRef()));
 
@@ -149,9 +160,13 @@ GPU_TEST_CASE("texture-from-native-handle", D3D12 | Metal)
     REQUIRE_CALL(texture->getNativeHandle(&wrappedHandle));
     CHECK_EQ(wrappedHandle.type, handle.type);
     CHECK_EQ(wrappedHandle.value, handle.value);
-    compareComputeResult(device, texture, 0, 0, initialData);
 
     auto queue = device->getQueue(QueueType::Graphics);
+    originalTexture = nullptr;
+    REQUIRE_CALL(queue->waitOnHost());
+
+    compareComputeResult(device, texture, 0, 0, initialData);
+
     auto commandEncoder = queue->createCommandEncoder();
 
     float clearValue[4] = {8.f, 9.f, 10.f, 11.f};

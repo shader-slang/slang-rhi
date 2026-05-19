@@ -6,6 +6,7 @@
 #include "metal-buffer-address-map.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace rhi::metal {
 
@@ -181,13 +182,13 @@ public:
     bool m_hasResidencySet = false;
     bool m_residencySetDirty = false;
     std::mutex m_residencySetMutex;
+    std::unordered_map<MTL::Resource*, uint32_t> m_residencySetResourceRefCounts;
 
     // Fallback residency: maps GPU virtual addresses to their owning BufferImpl.
     // Only active when !m_hasResidencySet.
     BufferAddressMap m_addressToBuffer;
 
     void registerResource(MTL::Resource* resource);
-    bool registerExternalResource(MTL::Resource* resource);
     void unregisterResource(MTL::Resource* resource);
 };
 
