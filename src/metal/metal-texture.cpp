@@ -221,6 +221,52 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     return SLANG_OK;
 }
 
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc_, ITexture** outTexture)
+{
+    AUTORELEASEPOOL
+
+    if (!outTexture)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    *outTexture = nullptr;
+
+    if (handle.type != NativeHandleType::MTLTexture || handle.value == 0)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    MTL::Texture* nativeTexture = reinterpret_cast<MTL::Texture*>(handle.value);
+
+    TextureDesc desc = fixupTextureDesc(desc_);
+    const MTL::TextureType nativeTextureType = nativeTexture->textureType();
+    const MTL::PixelFormat nativePixelFormat = nativeTexture->pixelFormat();
+    const MTL::PixelFormat descPixelFormat = translatePixelFormat(desc.format);
+    if (descPixelFormat == MTL::PixelFormatInvalid || translateTextureType(desc.type) != nativeTextureType ||
+        descPixelFormat != nativePixelFormat || desc.size.width != nativeTexture->width() ||
+        desc.size.height != nativeTexture->height() || desc.size.depth != nativeTexture->depth() ||
+        desc.mipCount != nativeTexture->mipmapLevelCount() || desc.arrayLength != nativeTexture->arrayLength() ||
+        desc.sampleCount != nativeTexture->sampleCount())
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    RefPtr<TextureImpl> textureImpl(new TextureImpl(this, desc));
+    textureImpl->m_texture = NS::RetainPtr(nativeTexture);
+    textureImpl->m_textureType = nativeTextureType;
+    textureImpl->m_pixelFormat = nativePixelFormat;
+
+    registerResource(textureImpl->m_texture.get());
+
+    if (desc.label)
+    {
+        textureImpl->m_texture->setLabel(createString(desc.label).get());
+    }
+
+    returnComPtr(outTexture, textureImpl);
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTextureView(ITexture* texture, const TextureViewDesc& desc, ITextureView** outView)
 {
     AUTORELEASEPOOL
