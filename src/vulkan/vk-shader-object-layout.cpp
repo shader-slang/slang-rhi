@@ -183,11 +183,10 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
                                      slangDescriptorSetIndex,
                                      descriptorRangeIndex
                                  );
-            vkBindingRangeDesc.descriptorCount =
-                (uint32_t)typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
-                    slangDescriptorSetIndex,
-                    descriptorRangeIndex
-                );
+            vkBindingRangeDesc.descriptorCount = (uint32_t)typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
+                slangDescriptorSetIndex,
+                descriptorRangeIndex
+            );
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 
@@ -481,12 +480,14 @@ Result ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflec
         {
             auto varLayout = slangLeafTypeLayout->getElementVarLayout();
             auto subTypeLayout = varLayout->getTypeLayout();
-            SLANG_RETURN_ON_FAIL(ShaderObjectLayoutImpl::createForElementType(
-                m_device,
-                m_session,
-                subTypeLayout,
-                subObjectLayout.writeRef()
-            ));
+            SLANG_RETURN_ON_FAIL(
+                ShaderObjectLayoutImpl::createForElementType(
+                    m_device,
+                    m_session,
+                    subTypeLayout,
+                    subObjectLayout.writeRef()
+                )
+            );
         }
         break;
 
@@ -731,13 +732,8 @@ Result RootShaderObjectLayoutImpl::create(
     if (outSyntheticLocations)
         outSyntheticLocations->clear();
 
-    RootShaderObjectLayoutImpl::Builder builder(
-        device,
-        program,
-        programLayout,
-        syntheticResources,
-        outSyntheticLocations
-    );
+    RootShaderObjectLayoutImpl::Builder
+        builder(device, program, programLayout, syntheticResources, outSyntheticLocations);
     SLANG_RETURN_ON_FAIL(builder.addGlobalParams(programLayout->getGlobalParamsVarLayout()));
     if (syntheticResources)
         SLANG_RETURN_ON_FAIL(builder.addSyntheticResources());
