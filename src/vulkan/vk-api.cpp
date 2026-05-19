@@ -140,13 +140,13 @@ Result VulkanApi::initEnumerationProcs(VkInstance instance)
         (PFN_vkEnumeratePhysicalDevices)vkGetInstanceProcAddr(instance, "vkEnumeratePhysicalDevices");
     vkGetPhysicalDeviceProperties2 =
         (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2");
-    vkEnumerateDeviceExtensionProperties =
-        (PFN_vkEnumerateDeviceExtensionProperties)vkGetInstanceProcAddr(
-            instance,
-            "vkEnumerateDeviceExtensionProperties"
-        );
+    if (!vkGetPhysicalDeviceProperties2)
+    {
+        vkGetPhysicalDeviceProperties2 =
+            (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
+    }
 
-    if (!(vkEnumeratePhysicalDevices && vkGetPhysicalDeviceProperties2 && vkEnumerateDeviceExtensionProperties))
+    if (!(vkEnumeratePhysicalDevices && vkGetPhysicalDeviceProperties2))
     {
         return SLANG_FAIL;
     }
@@ -165,6 +165,16 @@ Result VulkanApi::initInstanceProcs(VkInstance instance)
 
     // Get optional
     VK_API_INSTANCE_PROCS_OPT(VK_API_GET_INSTANCE_PROC)
+    if (!vkGetPhysicalDeviceFeatures2)
+    {
+        vkGetPhysicalDeviceFeatures2 =
+            (PFN_vkGetPhysicalDeviceFeatures2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures2KHR");
+    }
+    if (!vkGetPhysicalDeviceProperties2)
+    {
+        vkGetPhysicalDeviceProperties2 =
+            (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
+    }
 
     if (!areDefined(ProcType::Instance))
     {
