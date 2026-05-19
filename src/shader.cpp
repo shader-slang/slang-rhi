@@ -247,7 +247,17 @@ Result ShaderProgram::findSyntheticBindingLocationByID(
     return SLANG_E_INVALID_ARG;
 }
 
-Result ShaderProgram::addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location)
+Result ShaderProgram::setResolvedSyntheticBindingLocations(const std::vector<SyntheticBindingLocation>& locations)
+{
+    m_syntheticBindingLocations.clear();
+    for (const auto& location : locations)
+    {
+        SLANG_RETURN_ON_FAIL(_addResolvedSyntheticBindingLocation(location));
+    }
+    return SLANG_OK;
+}
+
+Result ShaderProgram::_addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location)
 {
     SyntheticBindingLocation ownedLocation = location;
     m_descHolder.holdString(ownedLocation.debugName);

@@ -127,15 +127,10 @@ inline size_t computeEntryPointParamsSize(slang::EntryPointReflection* entryPoin
     return paramsSize;
 }
 
-RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
-    Device* device,
-    ShaderProgram* shaderProgram,
-    slang::ProgramLayout* programLayout
-)
+RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout)
     : ShaderObjectLayoutImpl(device, programLayout->getSession(), programLayout->getGlobalParamsTypeLayout())
     , m_programLayout(programLayout)
 {
-    SLANG_RHI_ASSERT(shaderProgram);
     for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); i++)
     {
         EntryPointInfo entryPointInfo;
@@ -151,20 +146,27 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(
 
 Result RootShaderObjectLayoutImpl::create(
     Device* device,
-    ShaderProgram* shaderProgram,
     slang::ProgramLayout* programLayout,
+    const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+    std::vector<SyntheticBindingLocation>* outSyntheticLocations,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
-    RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl(device, shaderProgram, programLayout);
-    SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(shaderProgram));
+    if (outSyntheticLocations)
+        outSyntheticLocations->clear();
+
+    RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl(device, programLayout);
+    SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(syntheticResources, outSyntheticLocations));
     returnRefPtrMove(outLayout, layout);
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderProgram)
+Result RootShaderObjectLayoutImpl::_addSyntheticResources(
+    const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+    std::vector<SyntheticBindingLocation>* outSyntheticLocations
+)
 {
-    for (const auto& resource : shaderProgram->m_syntheticResourceInputs)
+    for (const auto& resource : syntheticResources)
     {
         if (resource.scope != SyntheticResourceScope::Global)
             return SLANG_E_NOT_IMPLEMENTED;
@@ -230,7 +232,8 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(ShaderProgram* shaderP
         location.offset.bindingRangeIndex = bindingRangeIndex;
         location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
 
-        SLANG_RETURN_ON_FAIL(shaderProgram->addResolvedSyntheticBindingLocation(location));
+        if (outSyntheticLocations)
+            outSyntheticLocations->push_back(location);
     }
 
     return SLANG_OK;

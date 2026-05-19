@@ -9,9 +9,26 @@
 #include "rhi-shared-fwd.h"
 #include "device-child.h"
 
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace rhi {
+
+struct SyntheticResourceBindingRecord
+{
+    uint32_t id = 0;
+    slang::BindingType bindingType = slang::BindingType::Unknown;
+    uint32_t arraySize = 1;
+    SyntheticResourceScope scope = SyntheticResourceScope::Global;
+    SyntheticResourceAccess access = SyntheticResourceAccess::Read;
+    int32_t entryPointIndex = -1;
+    int32_t space = -1;
+    int32_t binding = -1;
+    int32_t uniformOffset = -1;
+    int32_t uniformStride = 0;
+    std::string debugName;
+};
 
 struct SpecializationKey
 {
@@ -40,21 +57,6 @@ class ShaderProgram : public IShaderProgram, public ISyntheticShaderProgram, pub
 public:
     SLANG_COM_OBJECT_IUNKNOWN_ALL
     void* getInterface(const Guid& guid);
-
-    struct SyntheticResourceBindingRecord
-    {
-        uint32_t id = 0;
-        slang::BindingType bindingType = slang::BindingType::Unknown;
-        uint32_t arraySize = 1;
-        SyntheticResourceScope scope = SyntheticResourceScope::Global;
-        SyntheticResourceAccess access = SyntheticResourceAccess::Read;
-        int32_t entryPointIndex = -1;
-        int32_t space = -1;
-        int32_t binding = -1;
-        int32_t uniformOffset = -1;
-        int32_t uniformStride = 0;
-        std::string debugName;
-    };
 
     ShaderProgramDesc m_desc;
     StructHolder m_descHolder;
@@ -92,6 +94,12 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
+    const std::vector<SyntheticResourceBindingRecord>& getSyntheticResourceInputs() const
+    {
+        return m_syntheticResourceInputs;
+    }
+    Result setResolvedSyntheticBindingLocations(const std::vector<SyntheticBindingLocation>& locations);
+
     // IShaderProgram interface
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) override;
@@ -108,12 +116,11 @@ public:
 
     virtual ShaderObjectLayout* getRootShaderObjectLayout() = 0;
 
-    Result addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location);
-
 private:
     uint32_t _getEntryPointCount() const;
     Result _initSyntheticResourceDescs();
     Result _validateSyntheticResourceRecord(const SyntheticResourceBindingRecord& record) const;
+    Result _addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location);
 
     bool _isSpecializable()
     {

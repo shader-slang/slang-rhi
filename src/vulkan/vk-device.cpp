@@ -2221,15 +2221,16 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    SLANG_RETURN_ON_FAIL(
-        RootShaderObjectLayoutImpl::create(
-            this,
-            shaderProgram,
-            shaderProgram->linkedProgram,
-            shaderProgram->linkedProgram->getLayout(),
-            shaderProgram->m_rootShaderObjectLayout.writeRef()
-        )
-    );
+    std::vector<SyntheticBindingLocation> syntheticLocations;
+    SLANG_RETURN_ON_FAIL(RootShaderObjectLayoutImpl::create(
+        this,
+        shaderProgram->linkedProgram,
+        shaderProgram->linkedProgram->getLayout(),
+        shaderProgram->getSyntheticResourceInputs(),
+        &syntheticLocations,
+        shaderProgram->m_rootShaderObjectLayout.writeRef()
+    ));
+    SLANG_RETURN_ON_FAIL(shaderProgram->setResolvedSyntheticBindingLocations(syntheticLocations));
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }

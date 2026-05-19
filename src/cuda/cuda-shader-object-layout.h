@@ -3,7 +3,7 @@
 #include "cuda-base.h"
 
 namespace rhi {
-class ShaderProgram;
+struct SyntheticResourceBindingRecord;
 }
 
 namespace rhi::cuda {
@@ -86,8 +86,9 @@ public:
 
     static Result create(
         Device* device,
-        ShaderProgram* shaderProgram,
         slang::ProgramLayout* programLayout,
+        const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+        std::vector<SyntheticBindingLocation>* outSyntheticLocations,
         RootShaderObjectLayoutImpl** outLayout
     );
 
@@ -103,9 +104,12 @@ public:
     }
 
 private:
-    RootShaderObjectLayoutImpl(Device* device, ShaderProgram* shaderProgram, slang::ProgramLayout* programLayout);
+    RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout);
 
-    Result _addSyntheticResources(ShaderProgram* shaderProgram);
+    Result _addSyntheticResources(
+        const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+        std::vector<SyntheticBindingLocation>* outSyntheticLocations
+    );
 };
 
 } // namespace rhi::cuda

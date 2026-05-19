@@ -21,10 +21,11 @@ static Result loadModuleFromSource(slang::ISession* slangSession, std::string_vi
     return SLANG_OK;
 }
 
-static Result createComputeProgramWithSyntheticResource(
+static Result createComputeProgramWithSyntheticResources(
     IDevice* device,
     std::string_view source,
-    const SyntheticResourceBindingDesc& syntheticResourceDesc,
+    const SyntheticResourceBindingDesc* syntheticResourceDescs,
+    uint32_t syntheticResourceCount,
     IShaderProgram** outProgram
 )
 {
@@ -57,8 +58,8 @@ static Result createComputeProgramWithSyntheticResource(
     diagnoseIfNeeded(diagnosticsBlob);
 
     ShaderProgramSyntheticResourcesDesc syntheticResourcesDesc = {};
-    syntheticResourcesDesc.resources = &syntheticResourceDesc;
-    syntheticResourcesDesc.resourceCount = 1;
+    syntheticResourcesDesc.resources = syntheticResourceDescs;
+    syntheticResourcesDesc.resourceCount = syntheticResourceCount;
 
     ShaderProgramDesc programDesc = {};
     programDesc.slangGlobalScope = linkedProgram;
@@ -67,6 +68,16 @@ static Result createComputeProgramWithSyntheticResource(
     Result result = device->createShaderProgram(programDesc, outProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return result;
+}
+
+static Result createComputeProgramWithSyntheticResource(
+    IDevice* device,
+    std::string_view source,
+    const SyntheticResourceBindingDesc& syntheticResourceDesc,
+    IShaderProgram** outProgram
+)
+{
+    return createComputeProgramWithSyntheticResources(device, source, &syntheticResourceDesc, 1, outProgram);
 }
 
 static SyntheticResourceScope mapSyntheticResourceScope(slang::SyntheticResourceScope scope)
@@ -344,6 +355,76 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
         desc.bindingType = slang::BindingType::Sampler;
         checkCreateFails(desc, SLANG_E_NOT_IMPLEMENTED);
     }
+}
+
+GPU_TEST_CASE("synthetic-resource-bindings-layout-failure", Vulkan | CUDA)
+{
+    static constexpr uint32_t kFirstSyntheticResourceID = 17;
+    static constexpr uint32_t kSecondSyntheticResourceID = 18;
+    static constexpr char kShaderSource[] = R"(
+RWStructuredBuffer<uint> outBuffer;
+
+[numthreads(1, 1, 1)]
+void computeMain(uint3 tid : SV_DispatchThreadID)
+{
+    outBuffer[0] = tid.x;
+}
+)";
+
+    auto makeSyntheticResourceDesc = [](uint32_t id)
+    {
+        SyntheticResourceBindingDesc desc = {};
+        desc.id = id;
+        desc.bindingType = slang::BindingType::MutableRawBuffer;
+        desc.arraySize = 1;
+        desc.scope = SyntheticResourceScope::Global;
+        desc.access = SyntheticResourceAccess::ReadWrite;
+        desc.space = 0;
+        desc.binding = 11;
+        desc.uniformOffset = 16;
+        desc.uniformStride = 16;
+        desc.debugName = "__syntheticLayoutFailure";
+        return desc;
+    };
+
+    SyntheticResourceBindingDesc descs[] = {
+        makeSyntheticResourceDesc(kFirstSyntheticResourceID),
+        makeSyntheticResourceDesc(kSecondSyntheticResourceID),
+    };
+
+    Result expectedResult = SLANG_OK;
+    if (device->getDeviceType() == DeviceType::Vulkan)
+    {
+        // Two synthetic resources at the same descriptor binding pass the generic
+        // descriptor validation but fail when the Vulkan layout builder adds the
+        // second resource.
+        expectedResult = SLANG_E_INVALID_ARG;
+    }
+    else if (device->getDeviceType() == DeviceType::CUDA)
+    {
+        // CUDA accepts the first synthetic raw buffer, then fails on the second
+        // resource because samplers are not supported as synthetic CUDA bindings.
+        descs[1].bindingType = slang::BindingType::Sampler;
+        expectedResult = SLANG_E_NOT_IMPLEMENTED;
+    }
+    else
+    {
+        return;
+    }
+
+    ComPtr<IShaderProgram> shaderProgram;
+    {
+        SLANG_RHI_DISABLE_ASSERT_SCOPE();
+        Result result = createComputeProgramWithSyntheticResources(
+            device,
+            kShaderSource,
+            descs,
+            (uint32_t)SLANG_COUNT_OF(descs),
+            shaderProgram.writeRef()
+        );
+        CHECK_EQ(result, expectedResult);
+    }
+    CHECK(shaderProgram == nullptr);
 }
 
 GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata", Vulkan | CUDA | DontCreateDevice)

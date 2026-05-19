@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace rhi {
-class ShaderProgram;
+struct SyntheticResourceBindingRecord;
 }
 
 namespace rhi::vk {
@@ -421,14 +421,16 @@ public:
     {
         Builder(
             DeviceImpl* device,
-            ShaderProgram* shaderProgram,
             slang::IComponentType* program,
-            slang::ProgramLayout* programLayout
+            slang::ProgramLayout* programLayout,
+            const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+            std::vector<SyntheticBindingLocation>* outSyntheticLocations
         )
             : Super::Builder(device, program->getSession())
-            , m_shaderProgram(shaderProgram)
             , m_program(program)
             , m_programLayout(programLayout)
+            , m_syntheticResources(&syntheticResources)
+            , m_syntheticLocations(outSyntheticLocations)
         {
         }
 
@@ -439,9 +441,10 @@ public:
         void addEntryPoint(EntryPointLayout* entryPointLayout);
         Result addSyntheticResources();
 
-        ShaderProgram* m_shaderProgram = nullptr;
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
+        const std::vector<SyntheticResourceBindingRecord>* m_syntheticResources = nullptr;
+        std::vector<SyntheticBindingLocation>* m_syntheticLocations = nullptr;
         std::vector<EntryPointInfo> m_entryPoints;
     };
 
@@ -451,9 +454,10 @@ public:
 
     static Result create(
         DeviceImpl* device,
-        ShaderProgram* shaderProgram,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
+        const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+        std::vector<SyntheticBindingLocation>* outSyntheticLocations,
         RootShaderObjectLayoutImpl** outLayout
     );
 

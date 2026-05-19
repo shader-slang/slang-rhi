@@ -734,13 +734,23 @@ uint32_t RootShaderObjectLayoutImpl::findEntryPointIndex(VkShaderStageFlags stag
 
 Result RootShaderObjectLayoutImpl::create(
     DeviceImpl* device,
-    ShaderProgram* shaderProgram,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
+    const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
+    std::vector<SyntheticBindingLocation>* outSyntheticLocations,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
-    RootShaderObjectLayoutImpl::Builder builder(device, shaderProgram, program, programLayout);
+    if (outSyntheticLocations)
+        outSyntheticLocations->clear();
+
+    RootShaderObjectLayoutImpl::Builder builder(
+        device,
+        program,
+        programLayout,
+        syntheticResources,
+        outSyntheticLocations
+    );
     builder.addGlobalParams(programLayout->getGlobalParamsVarLayout());
     SLANG_RETURN_ON_FAIL(builder.getResult());
     SLANG_RETURN_ON_FAIL(builder.addSyntheticResources());
@@ -1051,10 +1061,10 @@ void RootShaderObjectLayoutImpl::Builder::addEntryPoint(EntryPointLayout* entryP
 
 Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
 {
-    if (!m_shaderProgram)
+    if (!m_syntheticResources)
         return SLANG_OK;
 
-    for (const auto& resource : m_shaderProgram->m_syntheticResourceInputs)
+    for (const auto& resource : *m_syntheticResources)
     {
         if (resource.scope != SyntheticResourceScope::Global)
             return SLANG_E_NOT_IMPLEMENTED;
@@ -1132,7 +1142,8 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
         location.offset.bindingRangeIndex = bindingRangeIndex;
         location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
 
-        SLANG_RETURN_ON_FAIL(m_shaderProgram->addResolvedSyntheticBindingLocation(location));
+        if (m_syntheticLocations)
+            m_syntheticLocations->push_back(location);
     }
 
     return SLANG_OK;
