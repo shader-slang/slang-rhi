@@ -353,11 +353,16 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.a
             )
+            set(SLANG_RHI_SLANG_CMARK_LIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcmark-gfm.a)
+            if(NOT EXISTS ${SLANG_RHI_SLANG_CMARK_LIB})
+                message(FATAL_ERROR "Slang Emscripten package is missing ${SLANG_RHI_SLANG_CMARK_LIB}")
+            endif()
             target_link_libraries(slang INTERFACE
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcompiler-core.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcore.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/liblz4.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libminiz.a
+                ${SLANG_RHI_SLANG_CMARK_LIB}
             )
         endif()
     endfunction()
