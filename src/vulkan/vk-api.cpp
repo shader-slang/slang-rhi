@@ -144,6 +144,29 @@ Result VulkanApi::initPhysicalDevice(VkPhysicalDevice physicalDevice)
     return SLANG_OK;
 }
 
+void VulkanApi::initDerivedDeviceProperties()
+{
+    m_supportedShaderStageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    if (m_deviceFeatures.tessellationShader)
+    {
+        m_supportedShaderStageFlags |=
+            VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+    }
+
+    if (m_deviceFeatures.geometryShader)
+        m_supportedShaderStageFlags |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+
+    if (m_extendedFeatures.rayTracingPipelineFeatures.rayTracingPipeline)
+        m_supportedShaderStageFlags |= VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+
+    if (m_extendedFeatures.meshShaderFeatures.taskShader)
+        m_supportedShaderStageFlags |= VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT;
+    if (m_extendedFeatures.meshShaderFeatures.meshShader)
+        m_supportedShaderStageFlags |= VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT;
+}
+
 Result VulkanApi::initDeviceProcs(VkDevice device)
 {
     SLANG_RHI_ASSERT(m_instance && device && vkGetDeviceProcAddr != nullptr);

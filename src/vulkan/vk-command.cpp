@@ -1751,8 +1751,10 @@ void CommandRecorder::commitBarriers()
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(bufferBarrier.buffer);
 
-        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(m_api, bufferBarrier.stateBefore, true);
-        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(m_api, bufferBarrier.stateAfter, false);
+        VkPipelineStageFlags beforeStageFlags =
+            calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, bufferBarrier.stateBefore, true);
+        VkPipelineStageFlags afterStageFlags =
+            calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, bufferBarrier.stateAfter, false);
 
         if ((beforeStageFlags != activeBeforeStageFlags || afterStageFlags != activeAfterStageFlags) &&
             !bufferBarriers.empty())
@@ -1786,8 +1788,10 @@ void CommandRecorder::commitBarriers()
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(textureBarrier.texture);
 
-        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(m_api, textureBarrier.stateBefore, true);
-        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(m_api, textureBarrier.stateAfter, false);
+        VkPipelineStageFlags beforeStageFlags =
+            calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, textureBarrier.stateBefore, true);
+        VkPipelineStageFlags afterStageFlags =
+            calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, textureBarrier.stateAfter, false);
 
         if ((beforeStageFlags != activeBeforeStageFlags || afterStageFlags != activeAfterStageFlags) &&
             !imageBarriers.empty())

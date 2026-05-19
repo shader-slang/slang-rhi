@@ -1241,6 +1241,7 @@ Result DeviceImpl::initVulkanDevice(
     {
         return SLANG_FAIL;
     }
+    m_api.initDerivedDeviceProperties();
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
 
     return SLANG_OK;
@@ -1611,8 +1612,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     barrier.offset = 0;
     barrier.size = bufferImpl->m_desc.size;
 
-    VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(m_api, bufferImpl->m_desc.defaultState, true);
-    VkPipelineStageFlags dstStageFlags = calcPipelineStageFlags(m_api, ResourceState::CopySource, false);
+    VkPipelineStageFlags srcStageFlags =
+        calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, bufferImpl->m_desc.defaultState, true);
+    VkPipelineStageFlags dstStageFlags =
+        calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, ResourceState::CopySource, false);
 
     m_api.vkCmdPipelineBarrier(
         commandBuffer,
