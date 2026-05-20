@@ -11,7 +11,7 @@
 #include <fstream>
 
 /// Enable dumping intermediate shader files (HLSL, SPIR-V, PTX etc.) to disk for debugging purposes.
-#define DUMP_INTERMEDIATES 0
+#define DUMP_INTERMEDIATES 1
 
 /// Enable device caching.
 /// This allows reusing the same device across multiple tests, which can speed up tests significantly.

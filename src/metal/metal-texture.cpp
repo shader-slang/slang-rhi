@@ -69,6 +69,25 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    switch (access)
+    {
+    case DescriptorHandleAccess::Read:
+        outHandle->type = DescriptorHandleType::Texture;
+        break;
+    case DescriptorHandleAccess::ReadWrite:
+        outHandle->type = DescriptorHandleType::RWTexture;
+        break;
+    default:
+        return SLANG_E_INVALID_ARG;
+    }
+
+    outHandle->value = m_textureView->gpuResourceID()._impl;
+
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
     AUTORELEASEPOOL

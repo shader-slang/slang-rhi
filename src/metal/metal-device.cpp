@@ -242,6 +242,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         addFeature(Feature::ArgumentBufferTier2);
         addFeature(Feature::ParameterBlock);
+        addFeature(Feature::Bindless);
     }
     if (m_hasResidencySet)
     {
