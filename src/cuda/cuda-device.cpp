@@ -36,6 +36,7 @@ static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
     COMPUTE_CAPABILITY(6, 0),
     COMPUTE_CAPABILITY(7, 0),
     COMPUTE_CAPABILITY(8, 0),
+    COMPUTE_CAPABILITY(8, 9),
     COMPUTE_CAPABILITY(9, 0),
 #undef COMPUTE_CAPABILITY
 };
@@ -245,6 +246,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (hasComputeCapability(8, 0))
     {
         addFeature(Feature::Bfloat16);
+    }
+    if (hasComputeCapability(8, 9))
+    {
+        addFeature(Feature::Float8);
     }
     if (hasComputeCapability(9, 0))
     {
