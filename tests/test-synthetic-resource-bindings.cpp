@@ -29,7 +29,8 @@ static Result createComputeProgramWithSyntheticResources(
     std::string_view source,
     const SyntheticResourceBindingDesc* syntheticResourceDescs,
     uint32_t syntheticResourceCount,
-    IShaderProgram** outProgram
+    IShaderProgram** outProgram,
+    bool forceSyntheticResourcesDesc = false
 )
 {
     auto slangSession = device->getSlangSession();
@@ -66,7 +67,7 @@ static Result createComputeProgramWithSyntheticResources(
 
     ShaderProgramDesc programDesc = {};
     programDesc.slangGlobalScope = linkedProgram;
-    if (syntheticResourceDescs || syntheticResourceCount)
+    if (forceSyntheticResourcesDesc || syntheticResourceDescs || syntheticResourceCount)
         programDesc.next = &syntheticResourcesDesc;
 
     Result result = device->createShaderProgram(programDesc, outProgram, diagnosticsBlob.writeRef());
@@ -82,6 +83,15 @@ static Result createComputeProgramWithSyntheticResource(
 )
 {
     return createComputeProgramWithSyntheticResources(device, source, &syntheticResourceDesc, 1, outProgram);
+}
+
+static Result createComputeProgramWithEmptySyntheticResourceDesc(
+    IDevice* device,
+    std::string_view source,
+    IShaderProgram** outProgram
+)
+{
+    return createComputeProgramWithSyntheticResources(device, source, nullptr, 0, outProgram, true);
 }
 
 static Result createComputeProgram(IDevice* device, std::string_view source, IShaderProgram** outProgram)
@@ -264,6 +274,28 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
 
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(createComputeProgram(device, kShaderSource, shaderProgram.writeRef()));
+
+    ComPtr<ISyntheticShaderProgram> syntheticProgram;
+    CHECK_EQ(
+        shaderProgram->queryInterface(ISyntheticShaderProgram::getTypeGuid(), (void**)syntheticProgram.writeRef()),
+        SLANG_E_NO_INTERFACE
+    );
+}
+
+GPU_TEST_CASE("synthetic-resource-bindings-empty-desc-is-no-op", ALL)
+{
+    static constexpr char kShaderSource[] = R"(
+RWStructuredBuffer<uint> outBuffer;
+
+[numthreads(1, 1, 1)]
+void computeMain(uint3 tid : SV_DispatchThreadID)
+{
+    outBuffer[0] = tid.x;
+}
+)";
+
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(createComputeProgramWithEmptySyntheticResourceDesc(device, kShaderSource, shaderProgram.writeRef()));
 
     ComPtr<ISyntheticShaderProgram> syntheticProgram;
     CHECK_EQ(
