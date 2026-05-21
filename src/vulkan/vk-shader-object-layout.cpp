@@ -9,35 +9,69 @@
 
 namespace rhi::vk {
 
+namespace {
+
+bool syntheticResourceConsumesBindingCount(slang::BindingType bindingType)
+{
+    switch (bindingType)
+    {
+    case slang::BindingType::Sampler:
+    case slang::BindingType::CombinedTextureSampler:
+    case slang::BindingType::Texture:
+    case slang::BindingType::MutableTexture:
+    case slang::BindingType::TypedBuffer:
+    case slang::BindingType::MutableTypedBuffer:
+    case slang::BindingType::InputRenderTarget:
+    case slang::BindingType::RayTracingAccelerationStructure:
+    case slang::BindingType::ConstantBuffer:
+        return true;
+    default:
+        return false;
+    }
+}
+
+} // namespace
+
 Result ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex)
 {
     if (!outDescriptorSetIndex)
         return SLANG_E_INVALID_ARG;
 
     if (!m_preserveDescriptorSetSpaces)
+        return _findOrAddCompactDescriptorSet(space, outDescriptorSetIndex);
+
+    return _findOrAddPreservedDescriptorSet(space, outDescriptorSetIndex);
+}
+
+Result ShaderObjectLayoutImpl::Builder::_findOrAddCompactDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex)
+{
+    for (uint32_t i = 0; i < (uint32_t)m_descriptorSetBuildInfos.size(); ++i)
     {
-        for (uint32_t i = 0; i < (uint32_t)m_descriptorSetBuildInfos.size(); ++i)
+        if (m_descriptorSetBuildInfos[i].space == (int32_t)space)
         {
-            if (m_descriptorSetBuildInfos[i].space == (int32_t)space)
-            {
-                *outDescriptorSetIndex = i;
-                return SLANG_OK;
-            }
+            *outDescriptorSetIndex = i;
+            return SLANG_OK;
         }
-
-        if (m_descriptorSetBuildInfos.size() >= kMaxDescriptorSets)
-        {
-            SLANG_RHI_ASSERT_FAILURE("Descriptor set count exceeds Vulkan layout limit");
-            return SLANG_E_INVALID_ARG;
-        }
-
-        DescriptorSetInfo info = {};
-        info.space = (int32_t)space;
-        *outDescriptorSetIndex = (uint32_t)m_descriptorSetBuildInfos.size();
-        m_descriptorSetBuildInfos.push_back(info);
-        return SLANG_OK;
     }
 
+    if (m_descriptorSetBuildInfos.size() >= kMaxDescriptorSets)
+    {
+        SLANG_RHI_ASSERT_FAILURE("Descriptor set count exceeds Vulkan layout limit");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    DescriptorSetInfo info = {};
+    info.space = (int32_t)space;
+    *outDescriptorSetIndex = (uint32_t)m_descriptorSetBuildInfos.size();
+    m_descriptorSetBuildInfos.push_back(info);
+    return SLANG_OK;
+}
+
+Result ShaderObjectLayoutImpl::Builder::_findOrAddPreservedDescriptorSet(
+    uint32_t space,
+    uint32_t* outDescriptorSetIndex
+)
+{
     if (space >= kMaxDescriptorSets)
     {
         SLANG_RHI_ASSERT_FAILURE("Descriptor set space exceeds Vulkan layout limit");
@@ -1068,86 +1102,118 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
 
     for (const auto& resource : *m_syntheticResources)
     {
-        if (resource.scope != SyntheticResourceScope::Global)
-            return SLANG_E_NOT_IMPLEMENTED;
-        if (resource.space < 0 || resource.binding < 0)
-            return SLANG_E_INVALID_ARG;
-
-        uint32_t descriptorSetIndex = 0;
-        SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet((uint32_t)resource.space, &descriptorSetIndex));
-
-        VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
-        vkBindingRangeDesc.binding = (uint32_t)resource.binding;
-        vkBindingRangeDesc.descriptorCount = resource.arraySize;
-        vkBindingRangeDesc.descriptorType = _mapDescriptorType(resource.bindingType);
-        if (vkBindingRangeDesc.descriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM)
-            return SLANG_E_INVALID_ARG;
-        if (resource.bindingType == slang::BindingType::InlineUniformData &&
-            !m_device->m_api.m_extendedFeatures.inlineUniformBlockFeatures.inlineUniformBlock)
-        {
-            return SLANG_E_NOT_AVAILABLE;
-        }
-        if (resource.bindingType == slang::BindingType::RayTracingAccelerationStructure &&
-            !m_device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-        {
-            return SLANG_E_NOT_AVAILABLE;
-        }
-        vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
-        SLANG_RETURN_ON_FAIL(addDescriptorSetBinding(
-            descriptorSetIndex,
-            vkBindingRangeDesc,
-            "Duplicate Vulkan descriptor binding between reflected and synthetic resources"
-        ));
-
-        if (resource.arraySize > std::numeric_limits<uint32_t>::max() - m_slotCount)
-            return SLANG_E_INVALID_ARG;
-
-        uint32_t slotIndex = m_slotCount;
-        m_slotCount += resource.arraySize;
-
-        switch (resource.bindingType)
-        {
-        case slang::BindingType::Sampler:
-        case slang::BindingType::CombinedTextureSampler:
-        case slang::BindingType::Texture:
-        case slang::BindingType::MutableTexture:
-        case slang::BindingType::TypedBuffer:
-        case slang::BindingType::MutableTypedBuffer:
-        case slang::BindingType::InputRenderTarget:
-        case slang::BindingType::RayTracingAccelerationStructure:
-        case slang::BindingType::ConstantBuffer:
-            m_totalBindingCount += 1;
-            break;
-        default:
-            break;
-        }
-
-        BindingRangeInfo bindingRangeInfo = {};
-        bindingRangeInfo.bindingType = resource.bindingType;
-        bindingRangeInfo.count = resource.arraySize;
-        bindingRangeInfo.slotIndex = slotIndex;
-        bindingRangeInfo.subObjectIndex = 0;
-        bindingRangeInfo.isSpecializable = false;
-        bindingRangeInfo.bindingOffset = (uint32_t)resource.binding;
-        bindingRangeInfo.setOffset = (uint32_t)resource.space;
-
-        uint32_t bindingRangeIndex = (uint32_t)m_bindingRanges.size();
-        m_bindingRanges.push_back(bindingRangeInfo);
-
-        SyntheticBindingLocation location = {};
-        location.syntheticResourceID = resource.id;
-        location.bindingType = resource.bindingType;
-        location.arraySize = resource.arraySize;
-        location.scope = resource.scope;
-        location.entryPointIndex = resource.entryPointIndex;
-        location.offset.bindingRangeIndex = bindingRangeIndex;
-        location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
-
-        if (m_syntheticLocations)
-            m_syntheticLocations->push_back(location);
+        SLANG_RETURN_ON_FAIL(_addSyntheticResource(resource));
     }
 
     return SLANG_OK;
+}
+
+Result RootShaderObjectLayoutImpl::Builder::_addSyntheticResource(const SyntheticResourceBindingRecord& resource)
+{
+    VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    SLANG_RETURN_ON_FAIL(_validateSyntheticResource(resource, &descriptorType));
+
+    uint32_t bindingRangeIndex = 0;
+    SLANG_RETURN_ON_FAIL(_addSyntheticDescriptorRange(resource, descriptorType, &bindingRangeIndex));
+    _recordSyntheticBindingLocation(resource, bindingRangeIndex);
+    return SLANG_OK;
+}
+
+Result RootShaderObjectLayoutImpl::Builder::_validateSyntheticResource(
+    const SyntheticResourceBindingRecord& resource,
+    VkDescriptorType* outDescriptorType
+)
+{
+    if (!outDescriptorType)
+        return SLANG_E_INVALID_ARG;
+    if (resource.scope != SyntheticResourceScope::Global)
+        return SLANG_E_NOT_IMPLEMENTED;
+    if (resource.space < 0 || resource.binding < 0)
+        return SLANG_E_INVALID_ARG;
+
+    VkDescriptorType descriptorType = _mapDescriptorType(resource.bindingType);
+    if (descriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM)
+        return SLANG_E_INVALID_ARG;
+
+    if (resource.bindingType == slang::BindingType::InlineUniformData &&
+        !m_device->m_api.m_extendedFeatures.inlineUniformBlockFeatures.inlineUniformBlock)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    if (resource.bindingType == slang::BindingType::RayTracingAccelerationStructure &&
+        !m_device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    *outDescriptorType = descriptorType;
+    return SLANG_OK;
+}
+
+Result RootShaderObjectLayoutImpl::Builder::_addSyntheticDescriptorRange(
+    const SyntheticResourceBindingRecord& resource,
+    VkDescriptorType descriptorType,
+    uint32_t* outBindingRangeIndex
+)
+{
+    if (!outBindingRangeIndex)
+        return SLANG_E_INVALID_ARG;
+
+    uint32_t descriptorSetIndex = 0;
+    SLANG_RETURN_ON_FAIL(findOrAddDescriptorSet((uint32_t)resource.space, &descriptorSetIndex));
+
+    VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
+    vkBindingRangeDesc.binding = (uint32_t)resource.binding;
+    vkBindingRangeDesc.descriptorCount = resource.arraySize;
+    vkBindingRangeDesc.descriptorType = descriptorType;
+    vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
+    SLANG_RETURN_ON_FAIL(addDescriptorSetBinding(
+        descriptorSetIndex,
+        vkBindingRangeDesc,
+        "Duplicate Vulkan descriptor binding between reflected and synthetic resources"
+    ));
+
+    if (resource.arraySize > std::numeric_limits<uint32_t>::max() - m_slotCount)
+        return SLANG_E_INVALID_ARG;
+
+    uint32_t slotIndex = m_slotCount;
+    m_slotCount += resource.arraySize;
+
+    if (syntheticResourceConsumesBindingCount(resource.bindingType))
+        m_totalBindingCount += 1;
+
+    BindingRangeInfo bindingRangeInfo = {};
+    bindingRangeInfo.bindingType = resource.bindingType;
+    bindingRangeInfo.count = resource.arraySize;
+    bindingRangeInfo.slotIndex = slotIndex;
+    bindingRangeInfo.subObjectIndex = 0;
+    bindingRangeInfo.isSpecializable = false;
+    bindingRangeInfo.bindingOffset = (uint32_t)resource.binding;
+    bindingRangeInfo.setOffset = (uint32_t)resource.space;
+
+    *outBindingRangeIndex = (uint32_t)m_bindingRanges.size();
+    m_bindingRanges.push_back(bindingRangeInfo);
+    return SLANG_OK;
+}
+
+void RootShaderObjectLayoutImpl::Builder::_recordSyntheticBindingLocation(
+    const SyntheticResourceBindingRecord& resource,
+    uint32_t bindingRangeIndex
+)
+{
+    if (!m_syntheticLocations)
+        return;
+
+    SyntheticBindingLocation location = {};
+    location.syntheticResourceID = resource.id;
+    location.bindingType = resource.bindingType;
+    location.arraySize = resource.arraySize;
+    location.scope = resource.scope;
+    location.entryPointIndex = resource.entryPointIndex;
+    location.offset.bindingRangeIndex = bindingRangeIndex;
+    location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
+
+    m_syntheticLocations->push_back(location);
 }
 
 } // namespace rhi::vk

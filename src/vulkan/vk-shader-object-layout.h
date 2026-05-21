@@ -322,6 +322,8 @@ protected:
         uint32_t m_totalOrdinaryDataSize = 0;
 
         Result findOrAddDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
+        Result _findOrAddCompactDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
+        Result _findOrAddPreservedDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
         Result addDescriptorSetBinding(
             uint32_t descriptorSetIndex,
             const VkDescriptorSetLayoutBinding& bindingDesc,
@@ -445,6 +447,20 @@ public:
 
         Result addEntryPoint(EntryPointLayout* entryPointLayout);
         Result addSyntheticResources();
+        Result _addSyntheticResource(const SyntheticResourceBindingRecord& resource);
+        Result _validateSyntheticResource(
+            const SyntheticResourceBindingRecord& resource,
+            VkDescriptorType* outDescriptorType
+        );
+        Result _addSyntheticDescriptorRange(
+            const SyntheticResourceBindingRecord& resource,
+            VkDescriptorType descriptorType,
+            uint32_t* outBindingRangeIndex
+        );
+        void _recordSyntheticBindingLocation(
+            const SyntheticResourceBindingRecord& resource,
+            uint32_t bindingRangeIndex
+        );
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
