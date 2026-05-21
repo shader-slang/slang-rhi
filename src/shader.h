@@ -92,6 +92,8 @@ public:
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) override;
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) override;
+
+    // ISyntheticShaderProgram interface
     virtual SLANG_NO_THROW uint32_t SLANG_MCALL getSyntheticBindingCount() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getSyntheticBindingLocation(
         uint32_t index,
