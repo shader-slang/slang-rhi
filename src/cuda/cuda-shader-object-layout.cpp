@@ -1,5 +1,5 @@
 #include "cuda-shader-object-layout.h"
-#include "../shader.h"
+#include "shader.h"
 #include "synthetic-resource-bindings.h"
 
 #include <limits>

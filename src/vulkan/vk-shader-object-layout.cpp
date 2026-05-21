@@ -1,7 +1,7 @@
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
 #include "vk-bindless-descriptor-set.h"
-#include "../shader.h"
+#include "shader.h"
 #include "synthetic-resource-bindings.h"
 #include "vk-utils.h"
 
