@@ -1,5 +1,6 @@
 #include "cuda-shader-object-layout.h"
 #include "../shader.h"
+#include "../synthetic-resource-bindings.h"
 
 #include <limits>
 
@@ -220,8 +221,8 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(
         // the layout's required uniform buffer size here. ShaderObject::init
         // and BindingDataBuilder::writeObjectData both consult this.
         const size_t requiredSize = uniformOffset + uniformStride * arraySize;
-        if (requiredSize > m_minUniformBufferSize)
-            m_minUniformBufferSize = requiredSize;
+        if (requiredSize > m_uniformBufferSize)
+            m_uniformBufferSize = requiredSize;
 
         SyntheticBindingLocation location = {};
         location.syntheticResourceID = resource.id;

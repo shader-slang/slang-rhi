@@ -8,7 +8,8 @@
 
 namespace rhi {
 struct SyntheticResourceBindingRecord;
-}
+struct SyntheticBindingLocation;
+} // namespace rhi
 
 namespace rhi::vk {
 
@@ -300,6 +301,12 @@ protected:
         uint32_t m_subObjectCount = 0;
         std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
 
+        // Ordinary programs keep the existing compact descriptor-set layout.
+        // Synthetic resources need explicit Vulkan set numbers, so the root
+        // layout switches to direct space-to-set indexing only when the feature
+        // is active.
+        bool m_preserveDescriptorSetSpaces = false;
+
         /// The number of descriptor sets allocated by child/descendent objects
         uint32_t m_childDescriptorSetCount = 0;
 
@@ -429,6 +436,7 @@ public:
             , m_syntheticResources(syntheticResources)
             , m_syntheticLocations(outSyntheticLocations)
         {
+            m_preserveDescriptorSetSpaces = syntheticResources && !syntheticResources->empty();
         }
 
         Result build(RootShaderObjectLayoutImpl** outLayout);

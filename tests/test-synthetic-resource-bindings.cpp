@@ -1,5 +1,7 @@
 #include "testing.h"
 
+#include <slang-rhi/synthetic-bindings.h>
+
 #include <cstring>
 #include <string>
 

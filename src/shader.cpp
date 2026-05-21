@@ -1,6 +1,7 @@
 #include "shader.h"
 
 #include "rhi-shared.h"
+#include "synthetic-resource-bindings.h"
 
 namespace rhi {
 
@@ -44,7 +45,7 @@ void* ShaderProgram::getInterface(const Guid& guid)
 {
     if (guid == ISlangUnknown::getTypeGuid() || guid == IShaderProgram::getTypeGuid())
         return static_cast<IShaderProgram*>(this);
-    if (guid == ISyntheticShaderProgram::getTypeGuid() && hasSyntheticResourceInputs())
+    if (guid == ISyntheticShaderProgram::getTypeGuid() && m_syntheticResources)
         return static_cast<ISyntheticShaderProgram*>(this);
     return nullptr;
 }
@@ -210,20 +211,14 @@ const ShaderProgramDesc& ShaderProgram::getDesc()
 
 uint32_t ShaderProgram::getSyntheticBindingCount()
 {
-    return (uint32_t)m_syntheticBindingLocations.size();
+    return m_syntheticResources ? m_syntheticResources->getLocationCount() : 0;
 }
 
 Result ShaderProgram::getSyntheticBindingLocation(uint32_t index, SyntheticBindingLocation* outLocation)
 {
-    if (!outLocation)
+    if (!m_syntheticResources)
         return SLANG_E_INVALID_ARG;
-    if (outLocation->structSize < sizeof(SyntheticBindingLocation))
-        return SLANG_E_INVALID_ARG;
-    if (index >= m_syntheticBindingLocations.size())
-        return SLANG_E_INVALID_ARG;
-
-    *outLocation = m_syntheticBindingLocations[index];
-    return SLANG_OK;
+    return m_syntheticResources->getLocation(index, outLocation);
 }
 
 Result ShaderProgram::findSyntheticBindingLocationByID(
@@ -231,48 +226,16 @@ Result ShaderProgram::findSyntheticBindingLocationByID(
     SyntheticBindingLocation* outLocation
 )
 {
-    if (!outLocation)
+    if (!m_syntheticResources)
         return SLANG_E_INVALID_ARG;
-    if (outLocation->structSize < sizeof(SyntheticBindingLocation))
-        return SLANG_E_INVALID_ARG;
-
-    for (const auto& location : m_syntheticBindingLocations)
-    {
-        if (location.syntheticResourceID == syntheticResourceID)
-        {
-            *outLocation = location;
-            return SLANG_OK;
-        }
-    }
-    return SLANG_E_INVALID_ARG;
+    return m_syntheticResources->findLocationByID(syntheticResourceID, outLocation);
 }
 
 Result ShaderProgram::setResolvedSyntheticBindingLocations(const std::vector<SyntheticBindingLocation>& locations)
 {
-    m_syntheticBindingLocations.clear();
-    for (const auto& location : locations)
-    {
-        SLANG_RETURN_ON_FAIL(_addResolvedSyntheticBindingLocation(location));
-    }
-    return SLANG_OK;
-}
-
-Result ShaderProgram::_addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location)
-{
-    SyntheticBindingLocation ownedLocation = location;
-    ownedLocation.structSize = sizeof(SyntheticBindingLocation);
-    m_descHolder.holdString(ownedLocation.debugName);
-
-    for (auto& existing : m_syntheticBindingLocations)
-    {
-        if (existing.syntheticResourceID == location.syntheticResourceID)
-        {
-            existing = ownedLocation;
-            return SLANG_OK;
-        }
-    }
-    m_syntheticBindingLocations.push_back(ownedLocation);
-    return SLANG_OK;
+    if (!m_syntheticResources)
+        return SLANG_E_INVALID_ARG;
+    return m_syntheticResources->setResolvedLocations(locations);
 }
 
 uint32_t ShaderProgram::_getEntryPointCount() const
@@ -289,115 +252,32 @@ uint32_t ShaderProgram::_getEntryPointCount() const
     return (uint32_t)layout->getEntryPointCount();
 }
 
-Result ShaderProgram::_validateSyntheticResourceRecord(const SyntheticResourceBindingRecord& record) const
+bool ShaderProgram::hasSyntheticResourceInputs() const
 {
-    if (record.id == 0)
-        return SLANG_E_INVALID_ARG;
-    if (record.bindingType == slang::BindingType::Unknown)
-        return SLANG_E_INVALID_ARG;
-    if (record.arraySize == 0)
-        return SLANG_E_INVALID_ARG;
-    if (record.space < -1 || record.binding < -1 || record.uniformOffset < -1)
-        return SLANG_E_INVALID_ARG;
-    if (record.uniformStride < 0)
-        return SLANG_E_INVALID_ARG;
-    if (record.scope == SyntheticResourceScope::EntryPoint)
-    {
-        if (record.entryPointIndex < 0)
-            return SLANG_E_INVALID_ARG;
-        if ((uint32_t)record.entryPointIndex >= _getEntryPointCount())
-            return SLANG_E_INVALID_ARG;
-    }
-    else
-    {
-        if (record.entryPointIndex != -1)
-            return SLANG_E_INVALID_ARG;
-    }
-    if (record.uniformOffset == -1 && record.uniformStride != 0)
-        return SLANG_E_INVALID_ARG;
-    return SLANG_OK;
+    return m_syntheticResources && m_syntheticResources->hasResources();
+}
+
+const std::vector<SyntheticResourceBindingRecord>& ShaderProgram::getSyntheticResourceInputs() const
+{
+    SLANG_RHI_ASSERT(m_syntheticResources);
+    return m_syntheticResources->getInputs();
 }
 
 Result ShaderProgram::_initSyntheticResourceDescs()
 {
-    const DescStructHeader* inputNext = static_cast<const DescStructHeader*>(m_desc.next);
-    m_syntheticResourceInputs.clear();
-    m_syntheticBindingLocations.clear();
-    m_syntheticResourcesDesc = {};
+    if (!m_desc.next)
+        return SLANG_OK;
+
+    std::unique_ptr<SyntheticResourceBindingState> syntheticResources =
+        std::make_unique<SyntheticResourceBindingState>();
+    SLANG_RETURN_ON_FAIL(syntheticResources->init(m_desc, _getEntryPointCount()));
+
     m_desc.next = nullptr;
 
-    for (const DescStructHeader* header = inputNext; header; header = header->next)
+    if (syntheticResources->hasResources())
     {
-        switch (header->type)
-        {
-        case StructType::ShaderProgramSyntheticResourcesDesc:
-        {
-            const auto* syntheticDesc = reinterpret_cast<const ShaderProgramSyntheticResourcesDesc*>(header);
-            if (syntheticDesc->resourceCount && !syntheticDesc->resources)
-                return SLANG_E_INVALID_ARG;
-            m_syntheticResourceInputs.reserve(m_syntheticResourceInputs.size() + syntheticDesc->resourceCount);
-            for (uint32_t i = 0; i < syntheticDesc->resourceCount; ++i)
-            {
-                const auto& src = syntheticDesc->resources[i];
-                SyntheticResourceBindingRecord record;
-                record.id = src.id;
-                record.bindingType = src.bindingType;
-                record.arraySize = src.arraySize;
-                record.scope = src.scope;
-                record.access = src.access;
-                record.entryPointIndex = src.entryPointIndex;
-                record.space = src.space;
-                record.binding = src.binding;
-                record.uniformOffset = src.uniformOffset;
-                record.uniformStride = src.uniformStride;
-                if (src.debugName)
-                    record.debugName = src.debugName;
-
-                SLANG_RETURN_ON_FAIL(_validateSyntheticResourceRecord(record));
-
-                for (const auto& existing : m_syntheticResourceInputs)
-                {
-                    if (existing.id == record.id)
-                        return SLANG_E_INVALID_ARG;
-                }
-
-                m_syntheticResourceInputs.push_back(record);
-            }
-            break;
-        }
-        default:
-            return SLANG_E_INVALID_ARG;
-        }
-    }
-
-    if (!m_syntheticResourceInputs.empty())
-    {
-        std::vector<SyntheticResourceBindingDesc> copiedResources(m_syntheticResourceInputs.size());
-        for (size_t i = 0; i < m_syntheticResourceInputs.size(); ++i)
-        {
-            auto& dst = copiedResources[i];
-            const auto& src = m_syntheticResourceInputs[i];
-            dst.id = src.id;
-            dst.bindingType = src.bindingType;
-            dst.arraySize = src.arraySize;
-            dst.scope = src.scope;
-            dst.access = src.access;
-            dst.entryPointIndex = src.entryPointIndex;
-            dst.space = src.space;
-            dst.binding = src.binding;
-            dst.uniformOffset = src.uniformOffset;
-            dst.uniformStride = src.uniformStride;
-            dst.debugName = src.debugName.empty() ? nullptr : src.debugName.c_str();
-        }
-        SyntheticResourceBindingDesc* resources = copiedResources.data();
-        m_descHolder.holdList(resources, copiedResources.size());
-        for (size_t i = 0; i < m_syntheticResourceInputs.size(); ++i)
-        {
-            m_descHolder.holdString(resources[i].debugName);
-        }
-        m_syntheticResourcesDesc.resources = resources;
-        m_syntheticResourcesDesc.resourceCount = (uint32_t)copiedResources.size();
-        m_desc.next = &m_syntheticResourcesDesc;
+        m_desc.next = syntheticResources->getDesc();
+        m_syntheticResources = std::move(syntheticResources);
     }
 
     return SLANG_OK;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <slang-rhi.h>
+#include <slang-rhi/synthetic-bindings.h>
 
 #include "core/common.h"
 #include "core/short_vector.h"
@@ -10,25 +10,14 @@
 #include "device-child.h"
 
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
 namespace rhi {
 
-struct SyntheticResourceBindingRecord
-{
-    uint32_t id = 0;
-    slang::BindingType bindingType = slang::BindingType::Unknown;
-    uint32_t arraySize = 1;
-    SyntheticResourceScope scope = SyntheticResourceScope::Global;
-    SyntheticResourceAccess access = SyntheticResourceAccess::Read;
-    int32_t entryPointIndex = -1;
-    int32_t space = -1;
-    int32_t binding = -1;
-    int32_t uniformOffset = -1;
-    int32_t uniformStride = 0;
-    std::string debugName;
-};
+struct SyntheticResourceBindingRecord;
+class SyntheticResourceBindingState;
 
 struct SpecializationKey
 {
@@ -60,7 +49,6 @@ public:
 
     ShaderProgramDesc m_desc;
     StructHolder m_descHolder;
-    ShaderProgramSyntheticResourcesDesc m_syntheticResourcesDesc;
 
     ShaderProgramID m_id;
 
@@ -79,8 +67,10 @@ public:
     bool m_compiledShaders = false;
 
     std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
-    std::vector<SyntheticResourceBindingRecord> m_syntheticResourceInputs;
-    std::vector<SyntheticBindingLocation> m_syntheticBindingLocations;
+
+    // Optional state for compiler-synthesized resources. Null for ordinary
+    // programs so the feature has no per-program vector/string storage cost.
+    std::unique_ptr<SyntheticResourceBindingState> m_syntheticResources;
 
     ShaderProgram(Device* device, const ShaderProgramDesc& desc);
     virtual ~ShaderProgram() override;
@@ -94,11 +84,8 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
-    bool hasSyntheticResourceInputs() const { return !m_syntheticResourceInputs.empty(); }
-    const std::vector<SyntheticResourceBindingRecord>& getSyntheticResourceInputs() const
-    {
-        return m_syntheticResourceInputs;
-    }
+    bool hasSyntheticResourceInputs() const;
+    const std::vector<SyntheticResourceBindingRecord>& getSyntheticResourceInputs() const;
     Result setResolvedSyntheticBindingLocations(const std::vector<SyntheticBindingLocation>& locations);
 
     // IShaderProgram interface
@@ -120,8 +107,6 @@ public:
 private:
     uint32_t _getEntryPointCount() const;
     Result _initSyntheticResourceDescs();
-    Result _validateSyntheticResourceRecord(const SyntheticResourceBindingRecord& record) const;
-    Result _addResolvedSyntheticBindingLocation(const SyntheticBindingLocation& location);
 
     bool _isSpecializable()
     {

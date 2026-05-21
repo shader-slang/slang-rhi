@@ -2,6 +2,7 @@
 #include "vk-device.h"
 #include "vk-bindless-descriptor-set.h"
 #include "../shader.h"
+#include "../synthetic-resource-bindings.h"
 #include "vk-utils.h"
 
 #include <limits>
@@ -12,6 +13,31 @@ Result ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space, u
 {
     if (!outDescriptorSetIndex)
         return SLANG_E_INVALID_ARG;
+
+    if (!m_preserveDescriptorSetSpaces)
+    {
+        for (uint32_t i = 0; i < (uint32_t)m_descriptorSetBuildInfos.size(); ++i)
+        {
+            if (m_descriptorSetBuildInfos[i].space == (int32_t)space)
+            {
+                *outDescriptorSetIndex = i;
+                return SLANG_OK;
+            }
+        }
+
+        if (m_descriptorSetBuildInfos.size() >= kMaxDescriptorSets)
+        {
+            SLANG_RHI_ASSERT_FAILURE("Descriptor set count exceeds Vulkan layout limit");
+            return SLANG_E_INVALID_ARG;
+        }
+
+        DescriptorSetInfo info = {};
+        info.space = (int32_t)space;
+        *outDescriptorSetIndex = (uint32_t)m_descriptorSetBuildInfos.size();
+        m_descriptorSetBuildInfos.push_back(info);
+        return SLANG_OK;
+    }
+
     if (space >= kMaxDescriptorSets)
     {
         SLANG_RHI_ASSERT_FAILURE("Descriptor set space exceeds Vulkan layout limit");
@@ -178,15 +204,15 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
 
             auto vkDescriptorType = _mapDescriptorType(slangDescriptorType);
             VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
-            vkBindingRangeDesc.binding =
-                offset.binding + (uint32_t)typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
-                                     slangDescriptorSetIndex,
-                                     descriptorRangeIndex
-                                 );
-            vkBindingRangeDesc.descriptorCount = (uint32_t)typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
+            auto bindingOffset = uint32_t(
+                typeLayout->getDescriptorSetDescriptorRangeIndexOffset(slangDescriptorSetIndex, descriptorRangeIndex)
+            );
+            auto descriptorCount = uint32_t(typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
                 slangDescriptorSetIndex,
                 descriptorRangeIndex
-            );
+            ));
+            vkBindingRangeDesc.binding = offset.binding + bindingOffset;
+            vkBindingRangeDesc.descriptorCount = descriptorCount;
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 

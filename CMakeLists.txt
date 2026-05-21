@@ -697,6 +697,7 @@ target_sources(slang-rhi PRIVATE
     src/shader-object.cpp
     src/shader.cpp
     src/staging-heap.cpp
+    src/synthetic-resource-bindings.cpp
     src/core/assert.cpp
     src/core/blob.cpp
     src/core/offset-allocator.cpp

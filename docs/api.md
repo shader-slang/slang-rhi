@@ -123,11 +123,9 @@
 
 ## `ISyntheticShaderProgram` interface
 
-`ISyntheticShaderProgram` is an opt-in interface. A shader program only
-exposes it when the program was created with
-`ShaderProgramSyntheticResourcesDesc` and the backend successfully merged
-those resources into the program layout. Ordinary programs return
-`SLANG_E_NO_INTERFACE` for this query.
+Optional API declared in
+[`synthetic-bindings.md`](synthetic-bindings.md) and
+`<slang-rhi/synthetic-bindings.h>`.
 
 | API                              | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |----------------------------------|-----|------|-------|-------|--------|-------|------|
@@ -137,36 +135,11 @@ those resources into the program layout. Ordinary programs return
 
 ## Shader program synthetic resource descriptors
 
-`createShaderProgram()` accepts an optional
-`ShaderProgramSyntheticResourcesDesc` chained through
-`ShaderProgramDesc.next`.
-
-This descriptor carries an array of `SyntheticResourceBindingDesc`
-records describing hidden bindable resources that should be merged into
-the program's internal layout model even though they are not part of the
-normal reflected shader interface.
-
-If this descriptor is omitted, no synthetic-resource layout work is
-performed and the created program does not expose
-`ISyntheticShaderProgram`. Backends that do not support this descriptor
-reject programs with one or more synthetic resources with
-`SLANG_E_NOT_IMPLEMENTED`.
-
-Current backend support for consuming these descriptors:
-
 | Descriptor path                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------------------------|-----|------|-------|-------|--------|-------|------|
 | `ShaderProgramSyntheticResourcesDesc`   | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
 
 ## Synthetic binding helper
-
-`bindSyntheticResource(...)` is a convenience helper that:
-
-1. queries `ISyntheticShaderProgram` from the shader program
-2. resolves the binding location for one synthetic resource id
-3. binds through `IShaderObject::setBinding()`
-
-Current backend support:
 
 | Helper API                   | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------------|-----|------|-------|-------|--------|-------|------|
