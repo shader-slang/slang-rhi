@@ -2,7 +2,7 @@
 #include "vk-device.h"
 #include "vk-bindless-descriptor-set.h"
 #include "../shader.h"
-#include "../synthetic-resource-bindings.h"
+#include "synthetic-resource-bindings.h"
 #include "vk-utils.h"
 
 #include <limits>

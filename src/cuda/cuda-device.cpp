@@ -13,7 +13,7 @@
 #include "cuda-shader-table.h"
 #include "cuda-utils.h"
 #include "cuda-heap.h"
-#include "../synthetic-resource-bindings.h"
+#include "synthetic-resource-bindings.h"
 
 namespace rhi::cuda {
 

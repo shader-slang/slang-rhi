@@ -17,7 +17,7 @@
 
 #include "aftermath.h"
 #include "cooperative-vector-utils.h"
-#include "../synthetic-resource-bindings.h"
+#include "synthetic-resource-bindings.h"
 
 #include "core/common.h"
 #include "core/short_vector.h"
