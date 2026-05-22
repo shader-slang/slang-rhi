@@ -20,10 +20,16 @@ macro(FetchPackage name)
     if(NOT FETCH_URL_HASH_DIGEST_LENGTH EQUAL 64 OR NOT FETCH_URL_HASH_DIGEST MATCHES "^[0-9a-fA-F]+$")
         message(FATAL_ERROR "FetchPackage(${name}) URL_HASH must be a 64-character SHA-256 digest")
     endif()
+    # Only attach the GitHub token to requests targeting github.com (or its subdomains)
+    # so the credential is not sent to third-party hosts (nuget.org, developer.nvidia.com,
+    # developer.apple.com, etc.) for FetchPackage downloads.
+    set(FETCH_HTTP_HEADER_ARG "")
     if(SLANG_GITHUB_TOKEN)
-        set(FETCH_HTTP_HEADER_ARG HTTP_HEADER "Authorization: token ${SLANG_GITHUB_TOKEN}")
-    else()
-        set(FETCH_HTTP_HEADER_ARG "")
+        string(REGEX MATCH "^https?://([^/]+)/" _fetch_url_host_match "${FETCH_URL}")
+        set(FETCH_URL_HOST "${CMAKE_MATCH_1}")
+        if(FETCH_URL_HOST MATCHES "(^|\\.)github\\.com$")
+            set(FETCH_HTTP_HEADER_ARG HTTP_HEADER "Authorization: token ${SLANG_GITHUB_TOKEN}")
+        endif()
     endif()
     FetchContent_Declare(
         ${name}
