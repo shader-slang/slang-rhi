@@ -260,6 +260,9 @@ static ComPtr<IBuffer> createTestBuffer(IDevice* device, size_t size = 256, cons
 
 } // namespace
 
+// Ordinary shader programs must not expose ISyntheticShaderProgram.
+// The synthetic-resource path is opt-in and should add no observable API
+// surface or per-program binding state for normal programs.
 GPU_TEST_CASE("synthetic-resource-bindings-interface-is-opt-in", ALL)
 {
     static constexpr char kShaderSource[] = R"(
@@ -282,6 +285,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     );
 }
 
+// An attached but empty synthetic-resource descriptor is still a no-op.
+// This checks that ShaderProgramDesc.next alone does not enable the
+// synthetic-resource interface or unsupported-backend failure paths.
 GPU_TEST_CASE("synthetic-resource-bindings-empty-desc-is-no-op", ALL)
 {
     static constexpr char kShaderSource[] = R"(
@@ -304,6 +310,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     );
 }
 
+// Backends that do not implement synthetic resources should reject only
+// non-empty synthetic-resource descriptors, and should fail at program
+// creation before any binding work is attempted.
 GPU_TEST_CASE("synthetic-resource-bindings-unsupported-backends", ALL & ~Vulkan & ~CUDA)
 {
     static constexpr uint32_t kSyntheticResourceID = 17;
@@ -341,6 +350,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     );
 }
 
+// Verifies the explicit host-provided synthetic-resource path. The test creates
+// one hidden resource, checks the query API, binds it through the helper, and
+// confirms Vulkan/CUDA can create the root object with the resolved location.
 GPU_TEST_CASE("synthetic-resource-bindings", Vulkan | CUDA)
 {
     static constexpr uint32_t kSyntheticResourceID = 17;
@@ -415,6 +427,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     shaderProgram.setNull();
 }
 
+// Invalid synthetic-resource records should be rejected by the shared
+// descriptor validation before backend layout creation. The CUDA-only sampler
+// case verifies backend-specific unsupported binding-type rejection.
 GPU_TEST_CASE("synthetic-resource-bindings-invalid-descs", Vulkan | CUDA)
 {
     static constexpr uint32_t kSyntheticResourceID = 17;
@@ -480,6 +495,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     }
 }
 
+// Layout-stage failures must propagate out of createShaderProgram instead of
+// becoming asserts or later binding errors. Vulkan rejects duplicate descriptor
+// bindings; CUDA rejects the unsupported second synthetic binding type.
 GPU_TEST_CASE("synthetic-resource-bindings-layout-failure", Vulkan | CUDA)
 {
     static constexpr uint32_t kFirstSyntheticResourceID = 17;
@@ -550,6 +568,9 @@ void computeMain(uint3 tid : SV_DispatchThreadID)
     CHECK(shaderProgram == nullptr);
 }
 
+// End-to-end coverage metadata path: ask Slang for coverage synthetic-resource
+// metadata, translate it into RHI descriptors, create the program, bind the
+// hidden coverage buffer, dispatch, and verify counters were written.
 GPU_TEST_CASE("synthetic-resource-bindings-from-slang-metadata", Vulkan | CUDA | DontCreateDevice)
 {
     static constexpr uint32_t kCoverageBinding = 11;
