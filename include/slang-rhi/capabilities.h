@@ -69,6 +69,7 @@
     x(_cuda_sm_6_0) \
     x(_cuda_sm_7_0) \
     x(_cuda_sm_8_0) \
+    x(_cuda_sm_8_9) \
     x(_cuda_sm_9_0) \
     x(optix_coopvec) \
     x(vertex) \
