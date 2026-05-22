@@ -45,13 +45,11 @@ Result ShaderObjectLayoutImpl::Builder::findOrAddDescriptorSet(uint32_t space, u
 
 Result ShaderObjectLayoutImpl::Builder::_findOrAddCompactDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex)
 {
-    for (uint32_t i = 0; i < (uint32_t)m_descriptorSetBuildInfos.size(); ++i)
+    auto it = m_mapSpaceToDescriptorSetIndex.find(space);
+    if (it != m_mapSpaceToDescriptorSetIndex.end())
     {
-        if (m_descriptorSetBuildInfos[i].space == (int32_t)space)
-        {
-            *outDescriptorSetIndex = i;
-            return SLANG_OK;
-        }
+        *outDescriptorSetIndex = it->second;
+        return SLANG_OK;
     }
 
     if (m_descriptorSetBuildInfos.size() >= kMaxDescriptorSets)
@@ -64,6 +62,7 @@ Result ShaderObjectLayoutImpl::Builder::_findOrAddCompactDescriptorSet(uint32_t 
     info.space = (int32_t)space;
     *outDescriptorSetIndex = (uint32_t)m_descriptorSetBuildInfos.size();
     m_descriptorSetBuildInfos.push_back(info);
+    m_mapSpaceToDescriptorSetIndex.emplace(space, *outDescriptorSetIndex);
     return SLANG_OK;
 }
 
@@ -238,15 +237,15 @@ Result ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
 
             auto vkDescriptorType = _mapDescriptorType(slangDescriptorType);
             VkDescriptorSetLayoutBinding vkBindingRangeDesc = {};
-            auto bindingOffset = uint32_t(
-                typeLayout->getDescriptorSetDescriptorRangeIndexOffset(slangDescriptorSetIndex, descriptorRangeIndex)
-            );
-            auto descriptorCount = uint32_t(typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
+            vkBindingRangeDesc.binding =
+                offset.binding + uint32_t(typeLayout->getDescriptorSetDescriptorRangeIndexOffset(
+                                     slangDescriptorSetIndex,
+                                     descriptorRangeIndex
+                                 ));
+            vkBindingRangeDesc.descriptorCount = uint32_t(typeLayout->getDescriptorSetDescriptorRangeDescriptorCount(
                 slangDescriptorSetIndex,
                 descriptorRangeIndex
             ));
-            vkBindingRangeDesc.binding = offset.binding + bindingOffset;
-            vkBindingRangeDesc.descriptorCount = descriptorCount;
             vkBindingRangeDesc.descriptorType = vkDescriptorType;
             vkBindingRangeDesc.stageFlags = VK_SHADER_STAGE_ALL;
 
@@ -922,6 +921,9 @@ Result RootShaderObjectLayoutImpl::addAllDescriptorSets()
 
 Result RootShaderObjectLayoutImpl::addAllDescriptorSetsRec(ShaderObjectLayoutImpl* layout)
 {
+    // Descriptor sets are already ordered by the builder: normal programs use
+    // the existing compact order, while synthetic resources preserve explicit
+    // Vulkan set numbers so binding locations match the compiler metadata.
     for (auto& descSetInfo : layout->getOwnDescriptorSets())
     {
         m_vkDescriptorSetLayouts.push_back(descSetInfo.descriptorSetLayout);
@@ -1007,6 +1009,18 @@ Result RootShaderObjectLayoutImpl::addChildPushConstantRangesRec(ShaderObjectLay
 
 Result RootShaderObjectLayoutImpl::Builder::build(RootShaderObjectLayoutImpl** outLayout)
 {
+    if (m_program->getSpecializationParamCount() == 0)
+    {
+        size_t totalDescriptorSetCount = m_descriptorSetBuildInfos.size() + m_childDescriptorSetCount;
+        if (m_device->m_bindlessDescriptorSet)
+            totalDescriptorSetCount++;
+        if (totalDescriptorSetCount > kMaxDescriptorSets)
+        {
+            SLANG_RHI_ASSERT_FAILURE("Descriptor set count exceeds Vulkan layout limit");
+            return SLANG_E_INVALID_ARG;
+        }
+    }
+
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl();
     SLANG_RETURN_ON_FAIL(layout->_init(this));
     returnRefPtrMove(outLayout, layout);
