@@ -20,12 +20,17 @@ macro(FetchPackage name)
     if(NOT FETCH_URL_HASH_DIGEST_LENGTH EQUAL 64 OR NOT FETCH_URL_HASH_DIGEST MATCHES "^[0-9a-fA-F]+$")
         message(FATAL_ERROR "FetchPackage(${name}) URL_HASH must be a 64-character SHA-256 digest")
     endif()
+    if(SLANG_GITHUB_TOKEN)
+        set(FETCH_HTTP_HEADER_ARG HTTP_HEADER "Authorization: token ${SLANG_GITHUB_TOKEN}")
+    else()
+        set(FETCH_HTTP_HEADER_ARG "")
+    endif()
     FetchContent_Declare(
         ${name}
         URL "${FETCH_URL}"
         URL_HASH "${FETCH_URL_HASH}"
         SOURCE_SUBDIR _does_not_exist_ # avoid adding contained CMakeLists.txt
-        HTTP_HEADER "Authorization: token ${SLANG_GITHUB_TOKEN}"
+        ${FETCH_HTTP_HEADER_ARG}
     )
     FetchContent_GetProperties(${name})
     if(NOT ${name}_POPULATED)
