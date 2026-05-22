@@ -97,6 +97,8 @@ void CommandExecutor::cmdCopyBuffer(const commands::CopyBuffer& cmd)
 {
     BufferImpl* dst = checked_cast<BufferImpl*>(cmd.dst);
     BufferImpl* src = checked_cast<BufferImpl*>(cmd.src);
+    SLANG_RHI_ASSERT(cmd.dstOffset + cmd.size <= dst->m_desc.size);
+    SLANG_RHI_ASSERT(cmd.srcOffset + cmd.size <= src->m_desc.size);
     std::memcpy(dst->m_data + cmd.dstOffset, src->m_data + cmd.srcOffset, cmd.size);
 }
 
@@ -115,6 +117,7 @@ void CommandExecutor::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
 void CommandExecutor::cmdClearBuffer(const commands::ClearBuffer& cmd)
 {
     BufferImpl* buffer = checked_cast<BufferImpl*>(cmd.buffer);
+    SLANG_RHI_ASSERT(cmd.range.offset + cmd.range.size <= buffer->m_desc.size);
     std::memset(buffer->m_data + cmd.range.offset, 0, cmd.range.size);
 }
 
