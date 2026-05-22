@@ -231,13 +231,6 @@ Result ShaderProgram::findSyntheticBindingLocationByID(
     return m_syntheticResources->findLocationByID(syntheticResourceID, outLocation);
 }
 
-Result ShaderProgram::setResolvedSyntheticBindingLocations(const std::vector<SyntheticBindingLocation>& locations)
-{
-    if (!m_syntheticResources)
-        return SLANG_E_INVALID_ARG;
-    return m_syntheticResources->setResolvedLocations(locations);
-}
-
 uint32_t ShaderProgram::_getEntryPointCount() const
 {
     if (m_desc.slangEntryPointCount != 0)
@@ -252,20 +245,9 @@ uint32_t ShaderProgram::_getEntryPointCount() const
     return (uint32_t)layout->getEntryPointCount();
 }
 
-bool ShaderProgram::hasSyntheticResourceInputs() const
-{
-    return m_syntheticResources && m_syntheticResources->hasResources();
-}
-
-const std::vector<SyntheticResourceBindingRecord>& ShaderProgram::getSyntheticResourceInputs() const
-{
-    SLANG_RHI_ASSERT(m_syntheticResources);
-    return m_syntheticResources->getInputs();
-}
-
 Result ShaderProgram::_initSyntheticResourceDescs()
 {
-    if (!m_desc.next)
+    if (!SyntheticResourceBindingState::findDesc(m_desc))
         return SLANG_OK;
 
     std::unique_ptr<SyntheticResourceBindingState> syntheticResources =

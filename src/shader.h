@@ -84,9 +84,8 @@ public:
 
     virtual Result createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode);
 
-    bool hasSyntheticResourceInputs() const;
-    const std::vector<SyntheticResourceBindingRecord>& getSyntheticResourceInputs() const;
-    Result setResolvedSyntheticBindingLocations(const std::vector<SyntheticBindingLocation>& locations);
+    SyntheticResourceBindingState* getSyntheticResourceBindingState() { return m_syntheticResources.get(); }
+    const SyntheticResourceBindingState* getSyntheticResourceBindingState() const { return m_syntheticResources.get(); }
 
     // IShaderProgram interface
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() override;

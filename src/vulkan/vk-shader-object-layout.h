@@ -10,6 +10,7 @@
 namespace rhi {
 struct SyntheticResourceBindingRecord;
 struct SyntheticBindingLocation;
+class SyntheticResourceBindingState;
 } // namespace rhi
 
 namespace rhi::vk {
@@ -431,16 +432,14 @@ public:
             DeviceImpl* device,
             slang::IComponentType* program,
             slang::ProgramLayout* programLayout,
-            const std::vector<SyntheticResourceBindingRecord>* syntheticResources,
-            std::vector<SyntheticBindingLocation>* outSyntheticLocations
+            SyntheticResourceBindingState* syntheticResources
         )
             : Super::Builder(device, program->getSession())
             , m_program(program)
             , m_programLayout(programLayout)
             , m_syntheticResources(syntheticResources)
-            , m_syntheticLocations(outSyntheticLocations)
         {
-            m_preserveDescriptorSetSpaces = syntheticResources && !syntheticResources->empty();
+            m_preserveDescriptorSetSpaces = syntheticResources != nullptr;
         }
 
         Result build(RootShaderObjectLayoutImpl** outLayout);
@@ -466,8 +465,8 @@ public:
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
-        const std::vector<SyntheticResourceBindingRecord>* m_syntheticResources = nullptr;
-        std::vector<SyntheticBindingLocation>* m_syntheticLocations = nullptr;
+        SyntheticResourceBindingState* m_syntheticResources = nullptr;
+        std::vector<SyntheticBindingLocation> m_syntheticLocations;
         std::vector<EntryPointInfo> m_entryPoints;
     };
 
@@ -479,8 +478,7 @@ public:
         DeviceImpl* device,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
-        const std::vector<SyntheticResourceBindingRecord>* syntheticResources,
-        std::vector<SyntheticBindingLocation>* outSyntheticLocations,
+        SyntheticResourceBindingState* syntheticResources,
         RootShaderObjectLayoutImpl** outLayout
     );
 

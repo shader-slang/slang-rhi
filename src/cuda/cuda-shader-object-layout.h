@@ -5,8 +5,7 @@
 #include <algorithm>
 
 namespace rhi {
-struct SyntheticResourceBindingRecord;
-struct SyntheticBindingLocation;
+class SyntheticResourceBindingState;
 } // namespace rhi
 
 namespace rhi::cuda {
@@ -93,8 +92,7 @@ public:
     static Result create(
         Device* device,
         slang::ProgramLayout* programLayout,
-        const std::vector<SyntheticResourceBindingRecord>* syntheticResources,
-        std::vector<SyntheticBindingLocation>* outSyntheticLocations,
+        SyntheticResourceBindingState* syntheticResources,
         RootShaderObjectLayoutImpl** outLayout
     );
 
@@ -112,10 +110,7 @@ public:
 private:
     RootShaderObjectLayoutImpl(Device* device, slang::ProgramLayout* programLayout);
 
-    Result _addSyntheticResources(
-        const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
-        std::vector<SyntheticBindingLocation>* outSyntheticLocations
-    );
+    Result _addSyntheticResources(SyntheticResourceBindingState* syntheticResources);
 };
 
 } // namespace rhi::cuda

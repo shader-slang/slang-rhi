@@ -27,6 +27,8 @@ struct SyntheticResourceBindingRecord
 class SyntheticResourceBindingState
 {
 public:
+    static const ShaderProgramSyntheticResourcesDesc* findDesc(const ShaderProgramDesc& desc);
+
     Result init(const ShaderProgramDesc& desc, uint32_t entryPointCount);
 
     bool hasResources() const { return !m_inputs.empty(); }

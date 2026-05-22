@@ -12,6 +12,17 @@ struct DescStructHeaderView
 
 } // namespace
 
+const ShaderProgramSyntheticResourcesDesc* SyntheticResourceBindingState::findDesc(const ShaderProgramDesc& desc)
+{
+    for (const auto* header = static_cast<const DescStructHeaderView*>(desc.next); header;
+         header = static_cast<const DescStructHeaderView*>(header->next))
+    {
+        if (header->type == StructType::ShaderProgramSyntheticResourcesDesc)
+            return reinterpret_cast<const ShaderProgramSyntheticResourcesDesc*>(header);
+    }
+    return nullptr;
+}
+
 Result SyntheticResourceBindingState::init(const ShaderProgramDesc& desc, uint32_t entryPointCount)
 {
     m_descHolder.reset();
@@ -61,7 +72,7 @@ Result SyntheticResourceBindingState::init(const ShaderProgramDesc& desc, uint32
             break;
         }
         default:
-            return SLANG_E_INVALID_ARG;
+            break;
         }
     }
 

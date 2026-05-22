@@ -148,27 +148,21 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::Pr
 Result RootShaderObjectLayoutImpl::create(
     Device* device,
     slang::ProgramLayout* programLayout,
-    const std::vector<SyntheticResourceBindingRecord>* syntheticResources,
-    std::vector<SyntheticBindingLocation>* outSyntheticLocations,
+    SyntheticResourceBindingState* syntheticResources,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
-    if (outSyntheticLocations)
-        outSyntheticLocations->clear();
-
     RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl(device, programLayout);
     if (syntheticResources)
-        SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(*syntheticResources, outSyntheticLocations));
+        SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(syntheticResources));
     returnRefPtrMove(outLayout, layout);
     return SLANG_OK;
 }
 
-Result RootShaderObjectLayoutImpl::_addSyntheticResources(
-    const std::vector<SyntheticResourceBindingRecord>& syntheticResources,
-    std::vector<SyntheticBindingLocation>* outSyntheticLocations
-)
+Result RootShaderObjectLayoutImpl::_addSyntheticResources(SyntheticResourceBindingState* syntheticResources)
 {
-    for (const auto& resource : syntheticResources)
+    std::vector<SyntheticBindingLocation> syntheticLocations;
+    for (const auto& resource : syntheticResources->getInputs())
     {
         if (resource.scope != SyntheticResourceScope::Global)
             return SLANG_E_NOT_IMPLEMENTED;
@@ -234,11 +228,10 @@ Result RootShaderObjectLayoutImpl::_addSyntheticResources(
         location.offset.bindingRangeIndex = bindingRangeIndex;
         location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
 
-        if (outSyntheticLocations)
-            outSyntheticLocations->push_back(location);
+        syntheticLocations.push_back(location);
     }
 
-    return SLANG_OK;
+    return syntheticResources->setResolvedLocations(syntheticLocations);
 }
 
 int RootShaderObjectLayoutImpl::getEntryPointIndex(std::string_view kernelName)

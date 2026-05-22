@@ -783,16 +783,11 @@ Result RootShaderObjectLayoutImpl::create(
     DeviceImpl* device,
     slang::IComponentType* program,
     slang::ProgramLayout* programLayout,
-    const std::vector<SyntheticResourceBindingRecord>* syntheticResources,
-    std::vector<SyntheticBindingLocation>* outSyntheticLocations,
+    SyntheticResourceBindingState* syntheticResources,
     RootShaderObjectLayoutImpl** outLayout
 )
 {
-    if (outSyntheticLocations)
-        outSyntheticLocations->clear();
-
-    RootShaderObjectLayoutImpl::Builder
-        builder(device, program, programLayout, syntheticResources, outSyntheticLocations);
+    RootShaderObjectLayoutImpl::Builder builder(device, program, programLayout, syntheticResources);
     SLANG_RETURN_ON_FAIL(builder.addGlobalParams(programLayout->getGlobalParamsVarLayout()));
     if (syntheticResources)
         SLANG_RETURN_ON_FAIL(builder.addSyntheticResources());
@@ -812,6 +807,8 @@ Result RootShaderObjectLayoutImpl::create(
     }
 
     SLANG_RETURN_ON_FAIL(builder.build(outLayout));
+    if (syntheticResources)
+        SLANG_RETURN_ON_FAIL(syntheticResources->setResolvedLocations(builder.m_syntheticLocations));
 
     return SLANG_OK;
 }
@@ -1114,7 +1111,7 @@ Result RootShaderObjectLayoutImpl::Builder::addSyntheticResources()
     if (!m_syntheticResources)
         return SLANG_OK;
 
-    for (const auto& resource : *m_syntheticResources)
+    for (const auto& resource : m_syntheticResources->getInputs())
     {
         SLANG_RETURN_ON_FAIL(_addSyntheticResource(resource));
     }
@@ -1215,9 +1212,6 @@ void RootShaderObjectLayoutImpl::Builder::_recordSyntheticBindingLocation(
     uint32_t bindingRangeIndex
 )
 {
-    if (!m_syntheticLocations)
-        return;
-
     SyntheticBindingLocation location = {};
     location.syntheticResourceID = resource.id;
     location.bindingType = resource.bindingType;
@@ -1227,7 +1221,7 @@ void RootShaderObjectLayoutImpl::Builder::_recordSyntheticBindingLocation(
     location.offset.bindingRangeIndex = bindingRangeIndex;
     location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
 
-    m_syntheticLocations->push_back(location);
+    m_syntheticLocations.push_back(location);
 }
 
 } // namespace rhi::vk
