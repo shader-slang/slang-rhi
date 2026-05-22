@@ -6,7 +6,11 @@ namespace rhi::d3d11 {
 
 Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
-    D3D11_INPUT_ELEMENT_DESC inputElements[16] = {};
+    constexpr uint32_t kMaxInputElements = 16;
+    if (desc.inputElementCount > kMaxInputElements)
+        return SLANG_FAIL;
+
+    D3D11_INPUT_ELEMENT_DESC inputElements[kMaxInputElements] = {};
 
     char hlslBuffer[1024];
     char* hlslEnd = &hlslBuffer[0] + sizeof(hlslBuffer);
