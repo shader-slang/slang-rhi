@@ -495,12 +495,8 @@ Result ShaderObject::init(Device* device, ShaderObjectLayout* layout)
     }
     else
     {
-        uniformSize = layout->getElementTypeLayout()->getSize();
+        uniformSize = layout->getUniformBufferSize();
     }
-
-    const size_t layoutUniformSize = layout->getUniformBufferSize();
-    if (layoutUniformSize > uniformSize)
-        uniformSize = layoutUniformSize;
 
     if (uniformSize)
     {

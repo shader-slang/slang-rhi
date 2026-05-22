@@ -127,23 +127,23 @@ Optional API declared in
 [`synthetic-bindings.md`](synthetic-bindings.md) and
 `<slang-rhi/synthetic-bindings.h>`.
 
-| API                              | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|----------------------------------|-----|------|-------|-------|--------|-------|------|
-| `getSyntheticBindingCount`       | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
-| `getSyntheticBindingLocation`    | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| API                                | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `getSyntheticBindingCount`         | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| `getSyntheticBindingLocation`      | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
 | `findSyntheticBindingLocationByID` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
 
 ## Shader program synthetic resource descriptors
 
-| Descriptor path                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-----------------------------------------|-----|------|-------|-------|--------|-------|------|
-| `ShaderProgramSyntheticResourcesDesc`   | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| Descriptor path                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|---------------------------------------|-----|------|-------|-------|--------|-------|------|
+| `ShaderProgramSyntheticResourcesDesc` | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
 
 ## Synthetic binding helper
 
-| Helper API                   | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-----------------------------|-----|------|-------|-------|--------|-------|------|
-| `bindSyntheticResource(...)`| :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
+| Helper API                    | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-------------------------------|-----|------|-------|-------|--------|-------|------|
+| `bindSyntheticResource(...)`  | :x: | yes  | :x:   | :x:   | yes    | :x:   | :x:  |
 
 ## `IShaderTable` interface
 

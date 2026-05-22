@@ -16,7 +16,6 @@
 
 namespace rhi {
 
-struct SyntheticResourceBindingRecord;
 class SyntheticResourceBindingState;
 
 struct SpecializationKey
