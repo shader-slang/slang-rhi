@@ -813,8 +813,6 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
                 );
             }
 
-            // Declare all acceleration structures as readable for inline ray tracing.
-            // Metal requires useResource for each BLAS referenced by a TLAS instance descriptor.
             const auto& asList = m_device->m_accelerationStructures.list;
             if (!asList.empty())
             {
