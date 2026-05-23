@@ -812,6 +812,34 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
                     MTL::ResourceUsageRead | MTL::ResourceUsageWrite
                 );
             }
+
+            // Declare all acceleration structures as readable for inline ray tracing.
+            // Metal requires useResource for each BLAS referenced by a TLAS instance descriptor.
+            const auto& asList = m_device->m_accelerationStructures.list;
+            if (!asList.empty())
+            {
+                std::vector<MTL::Resource*> validAS;
+                validAS.reserve(asList.size());
+                for (auto* as : asList)
+                {
+                    if (as)
+                        validAS.push_back(as);
+                }
+                if (!validAS.empty())
+                {
+                    encoder->useResources(validAS.data(), validAS.size(), MTL::ResourceUsageRead);
+                }
+            }
+        }
+
+        // Bind root-level acceleration structures via setAccelerationStructure:atBufferIndex:.
+        // Slang emits these as [[buffer(N)]] kernel parameters; setBuffers cannot bind them.
+        for (uint32_t i = 0; i < m_bindingData->rootAccelerationStructureCount; ++i)
+        {
+            encoder->setAccelerationStructure(
+                m_bindingData->rootAccelerationStructures[i],
+                m_bindingData->rootAccelerationStructureSlots[i]
+            );
         }
     }
 

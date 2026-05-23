@@ -101,6 +101,13 @@ Result BindingDataBuilder::bindAsRoot(
         m_bindingData->usedRWResources = nullptr;
     }
 
+    m_bindingData->rootAccelerationStructureCapacity = 16;
+    m_bindingData->rootAccelerationStructureCount = 0;
+    m_bindingData->rootAccelerationStructures =
+        m_allocator->allocate<MTL::AccelerationStructure*>(m_bindingData->rootAccelerationStructureCapacity);
+    m_bindingData->rootAccelerationStructureSlots =
+        m_allocator->allocate<NS::UInteger>(m_bindingData->rootAccelerationStructureCapacity);
+
     // Initialize binding offset for shader parameters.
     //
     BindingOffset offset;
@@ -267,7 +274,43 @@ Result BindingDataBuilder::bindAsValue(
             }
             break;
         case slang::BindingType::RayTracingAccelerationStructure:
-            // Acceleration structures are bound via argument buffers, not directly
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
+                AccelerationStructureImpl* accelerationStructure =
+                    checked_cast<AccelerationStructureImpl*>(slot.resource.get());
+                if (accelerationStructure)
+                {
+                    if (m_bindingData->rootAccelerationStructureCount >=
+                        m_bindingData->rootAccelerationStructureCapacity)
+                    {
+                        uint32_t newCapacity = m_bindingData->rootAccelerationStructureCapacity * 2;
+                        if (newCapacity == 0) newCapacity = 16;
+                        
+                        auto newStructures = m_allocator->allocate<MTL::AccelerationStructure*>(newCapacity);
+                        auto newSlots = m_allocator->allocate<NS::UInteger>(newCapacity);
+                        
+                        ::memcpy(newStructures, m_bindingData->rootAccelerationStructures, m_bindingData->rootAccelerationStructureCount * sizeof(MTL::AccelerationStructure*));
+                        ::memcpy(newSlots, m_bindingData->rootAccelerationStructureSlots, m_bindingData->rootAccelerationStructureCount * sizeof(NS::UInteger));
+                        
+                        m_bindingData->rootAccelerationStructures = newStructures;
+                        m_bindingData->rootAccelerationStructureSlots = newSlots;
+                        m_bindingData->rootAccelerationStructureCapacity = newCapacity;
+                    }
+                    
+                    uint32_t bufferSlot = bindingRangeInfo.registerOffset + offset.buffer + i;
+                    uint32_t idx = m_bindingData->rootAccelerationStructureCount++;
+                    m_bindingData->rootAccelerationStructures[idx] =
+                        accelerationStructure->m_accelerationStructure.get();
+                    m_bindingData->rootAccelerationStructureSlots[idx] = bufferSlot;
+                    if (!m_device->m_hasResidencySet)
+                    {
+                        SLANG_RETURN_ON_FAIL(
+                            addUsedResource(m_bindingData, accelerationStructure->m_accelerationStructure.get())
+                        );
+                    }
+                }
+            }
             break;
         case slang::BindingType::VaryingInput:
         case slang::BindingType::VaryingOutput:
