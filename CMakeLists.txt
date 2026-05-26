@@ -152,7 +152,7 @@ set(SLANG_RHI_FETCH_SLANG_VERSION "2026.4.1" CACHE STRING "Slang version to fetc
 # We don't use cache variables for the URLs to always fetch the required versions when switching branches or updating the repository.
 # If you want to override the URLs, you can set the variables in the parent CMakeLists.txt before including this file
 # or use cmake command line options like -DSLANG_RHI_DXC_URL=<url> to populate cache variables to override the default URLs.
-# When overriding a URL or fetched version, also set the corresponding SHA-256 URL hash variable, e.g. -DSLANG_RHI_DXC_URL_HASH=SHA256=<hash>.
+# When overriding a URL or fetched version, you can also set the corresponding SHA-256 URL hash variable, e.g. -DSLANG_RHI_DXC_URL_HASH=SHA256=<hash>.
 
 # DirectXShaderCompiler
 if(NOT DEFINED SLANG_RHI_DXC_URL)
@@ -352,11 +352,6 @@ if(SLANG_RHI_FETCH_SLANG)
         if(SLANG_VERSION STREQUAL SLANG_HASH_VERSION)
             set(SLANG_RHI_SLANG_URL_HASH "SHA256=43eb086360cd56fc245239bf788af887bebbb4dc6e79141b4afdcd994591d903")
         endif()
-    endif()
-
-    if(NOT DEFINED SLANG_RHI_SLANG_URL_HASH)
-        message(FATAL_ERROR "No SHA-256 hash defined for Slang ${SLANG_VERSION}. "
-            "Set -DSLANG_RHI_SLANG_URL_HASH=SHA256=<hash> when using a non-default Slang version.")
     endif()
 
     message(STATUS "Fetching Slang ${SLANG_VERSION} ...")

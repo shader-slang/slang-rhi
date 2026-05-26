@@ -9,16 +9,17 @@ macro(FetchPackage name)
     if(NOT FETCH_URL)
         message(FATAL_ERROR "FetchPackage(${name}) requires URL")
     endif()
-    if(NOT FETCH_URL_HASH)
-        message(FATAL_ERROR "FetchPackage(${name}) requires URL_HASH for ${FETCH_URL}")
-    endif()
-    if(NOT FETCH_URL_HASH MATCHES "^SHA256=")
-        message(FATAL_ERROR "FetchPackage(${name}) URL_HASH must use SHA256=<digest>")
-    endif()
-    string(REGEX REPLACE "^SHA256=" "" FETCH_URL_HASH_DIGEST "${FETCH_URL_HASH}")
-    string(LENGTH "${FETCH_URL_HASH_DIGEST}" FETCH_URL_HASH_DIGEST_LENGTH)
-    if(NOT FETCH_URL_HASH_DIGEST_LENGTH EQUAL 64 OR NOT FETCH_URL_HASH_DIGEST MATCHES "^[0-9a-fA-F]+$")
-        message(FATAL_ERROR "FetchPackage(${name}) URL_HASH must be a 64-character SHA-256 digest")
+    set(FETCH_URL_HASH_ARG "")
+    if(FETCH_URL_HASH)
+        if(NOT FETCH_URL_HASH MATCHES "^SHA256=")
+            message(FATAL_ERROR "FetchPackage(${name}) URL_HASH must use SHA256=<digest>")
+        endif()
+        string(REGEX REPLACE "^SHA256=" "" FETCH_URL_HASH_DIGEST "${FETCH_URL_HASH}")
+        string(LENGTH "${FETCH_URL_HASH_DIGEST}" FETCH_URL_HASH_DIGEST_LENGTH)
+        if(NOT FETCH_URL_HASH_DIGEST_LENGTH EQUAL 64 OR NOT FETCH_URL_HASH_DIGEST MATCHES "^[0-9a-fA-F]+$")
+            message(FATAL_ERROR "FetchPackage(${name}) URL_HASH must be a 64-character SHA-256 digest")
+        endif()
+        set(FETCH_URL_HASH_ARG URL_HASH "${FETCH_URL_HASH}")
     endif()
     # Only attach the GitHub token to requests targeting github.com (or its subdomains)
     # so the credential is not sent to third-party hosts (nuget.org, developer.nvidia.com,
@@ -34,7 +35,7 @@ macro(FetchPackage name)
     FetchContent_Declare(
         ${name}
         URL "${FETCH_URL}"
-        URL_HASH "${FETCH_URL_HASH}"
+        ${FETCH_URL_HASH_ARG}
         SOURCE_SUBDIR _does_not_exist_ # avoid adding contained CMakeLists.txt
         ${FETCH_HTTP_HEADER_ARG}
     )
