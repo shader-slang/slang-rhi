@@ -279,36 +279,42 @@ Result BindingDataBuilder::bindAsValue(
                 const ResourceSlot& slot = shaderObject->m_slots[slotIndex + i];
                 AccelerationStructureImpl* accelerationStructure =
                     checked_cast<AccelerationStructureImpl*>(slot.resource.get());
-                if (accelerationStructure)
+
+                if (m_bindingData->rootAccelerationStructureCount >= m_bindingData->rootAccelerationStructureCapacity)
                 {
-                    if (m_bindingData->rootAccelerationStructureCount >=
-                        m_bindingData->rootAccelerationStructureCapacity)
-                    {
-                        uint32_t newCapacity = m_bindingData->rootAccelerationStructureCapacity * 2;
-                        if (newCapacity == 0) newCapacity = 16;
-                        
-                        auto newStructures = m_allocator->allocate<MTL::AccelerationStructure*>(newCapacity);
-                        auto newSlots = m_allocator->allocate<NS::UInteger>(newCapacity);
-                        
-                        ::memcpy(newStructures, m_bindingData->rootAccelerationStructures, m_bindingData->rootAccelerationStructureCount * sizeof(MTL::AccelerationStructure*));
-                        ::memcpy(newSlots, m_bindingData->rootAccelerationStructureSlots, m_bindingData->rootAccelerationStructureCount * sizeof(NS::UInteger));
-                        
-                        m_bindingData->rootAccelerationStructures = newStructures;
-                        m_bindingData->rootAccelerationStructureSlots = newSlots;
-                        m_bindingData->rootAccelerationStructureCapacity = newCapacity;
-                    }
-                    
-                    uint32_t bufferSlot = bindingRangeInfo.registerOffset + offset.buffer + i;
-                    uint32_t idx = m_bindingData->rootAccelerationStructureCount++;
-                    m_bindingData->rootAccelerationStructures[idx] =
-                        accelerationStructure->m_accelerationStructure.get();
-                    m_bindingData->rootAccelerationStructureSlots[idx] = bufferSlot;
-                    if (!m_device->m_hasResidencySet)
-                    {
-                        SLANG_RETURN_ON_FAIL(
-                            addUsedResource(m_bindingData, accelerationStructure->m_accelerationStructure.get())
-                        );
-                    }
+                    uint32_t newCapacity = m_bindingData->rootAccelerationStructureCapacity * 2;
+                    if (newCapacity == 0)
+                        newCapacity = 16;
+
+                    auto newStructures = m_allocator->allocate<MTL::AccelerationStructure*>(newCapacity);
+                    auto newSlots = m_allocator->allocate<NS::UInteger>(newCapacity);
+
+                    ::memcpy(
+                        newStructures,
+                        m_bindingData->rootAccelerationStructures,
+                        m_bindingData->rootAccelerationStructureCount * sizeof(MTL::AccelerationStructure*)
+                    );
+                    ::memcpy(
+                        newSlots,
+                        m_bindingData->rootAccelerationStructureSlots,
+                        m_bindingData->rootAccelerationStructureCount * sizeof(NS::UInteger)
+                    );
+
+                    m_bindingData->rootAccelerationStructures = newStructures;
+                    m_bindingData->rootAccelerationStructureSlots = newSlots;
+                    m_bindingData->rootAccelerationStructureCapacity = newCapacity;
+                }
+
+                uint32_t bufferSlot = bindingRangeInfo.registerOffset + offset.buffer + i;
+                uint32_t idx = m_bindingData->rootAccelerationStructureCount++;
+                m_bindingData->rootAccelerationStructures[idx] =
+                    accelerationStructure ? accelerationStructure->m_accelerationStructure.get() : nullptr;
+                m_bindingData->rootAccelerationStructureSlots[idx] = bufferSlot;
+                if (accelerationStructure && !m_device->m_hasResidencySet)
+                {
+                    SLANG_RETURN_ON_FAIL(
+                        addUsedResource(m_bindingData, accelerationStructure->m_accelerationStructure.get())
+                    );
                 }
             }
             break;

@@ -817,11 +817,8 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
             const auto& validAS = m_device->m_accelerationStructures.validResources;
             if (!validAS.empty())
             {
-                encoder->useResources(
-                    (const MTL::Resource* const*)validAS.data(),
-                    validAS.size(),
-                    MTL::ResourceUsageRead
-                );
+                encoder
+                    ->useResources((const MTL::Resource* const*)validAS.data(), validAS.size(), MTL::ResourceUsageRead);
             }
         }
 
