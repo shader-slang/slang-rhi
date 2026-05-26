@@ -30,6 +30,11 @@
 
 namespace rhi::vk {
 
+static constexpr VkSubgroupFeatureFlags kWaveOpsSubgroupFeatureMask =
+    VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
+    VK_SUBGROUP_FEATURE_BALLOT_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT |
+    VK_SUBGROUP_FEATURE_CLUSTERED_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV;
+
 DeviceImpl::DeviceImpl() {}
 
 DeviceImpl::~DeviceImpl()
@@ -466,6 +471,8 @@ Result DeviceImpl::initVulkanDevice(
     // Get the API version
     const uint32_t majorVersion = VK_VERSION_MAJOR(basicProps.apiVersion);
     const uint32_t minorVersion = VK_VERSION_MINOR(basicProps.apiVersion);
+    m_hasSubgroupSizeControl = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
+                               extensionNames.count(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME) != 0;
 
     auto& extendedFeatures = m_api.m_extendedFeatures;
 
@@ -1033,11 +1040,7 @@ Result DeviceImpl::initVulkanDevice(
         m_api.m_rayTracingPipelineProperties = rtpProps;
 
         // Approximate DX12's WaveOps boolean
-        if (subgroupProps.supportedOperations &
-            (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
-             VK_SUBGROUP_FEATURE_BALLOT_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT |
-             VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT | VK_SUBGROUP_FEATURE_CLUSTERED_BIT |
-             VK_SUBGROUP_FEATURE_QUAD_BIT | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV))
+        if (subgroupProps.supportedOperations & kWaveOpsSubgroupFeatureMask)
         {
             availableFeatures.push_back(Feature::WaveOps);
         }
@@ -1304,8 +1307,17 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     SLANG_RETURN_ON_FAIL(initVulkanDevice(desc, extendedDesc, backend, availableFeatures, availableCapabilities));
 
     VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
+    VkPhysicalDeviceSubgroupProperties subgroupProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES};
+    VkPhysicalDeviceSubgroupSizeControlProperties subgroupSizeControlProps = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES
+    };
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-    props.pNext = &idProps;
+    EXTEND_DESC_CHAIN(props, idProps);
+    EXTEND_DESC_CHAIN(props, subgroupProps);
+    if (m_hasSubgroupSizeControl)
+    {
+        EXTEND_DESC_CHAIN(props, subgroupSizeControlProps);
+    }
     m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &props);
     const VkPhysicalDeviceProperties& basicProps = props.properties;
 
@@ -1354,6 +1366,21 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         limits.maxFramebufferDimensions[2] = basicProps.limits.maxFramebufferLayers;
 
         limits.maxShaderVisibleSamplers = basicProps.limits.maxPerStageDescriptorSamplers;
+
+        if (subgroupProps.subgroupSize > 0 && (subgroupProps.supportedOperations & kWaveOpsSubgroupFeatureMask))
+        {
+            if (m_hasSubgroupSizeControl && subgroupSizeControlProps.minSubgroupSize > 0 &&
+                subgroupSizeControlProps.maxSubgroupSize >= subgroupSizeControlProps.minSubgroupSize)
+            {
+                limits.minWaveSize = subgroupSizeControlProps.minSubgroupSize;
+                limits.maxWaveSize = subgroupSizeControlProps.maxSubgroupSize;
+            }
+            else
+            {
+                limits.minWaveSize = subgroupProps.subgroupSize;
+                limits.maxWaveSize = subgroupProps.subgroupSize;
+            }
+        }
 
         m_info.limits = limits;
     }

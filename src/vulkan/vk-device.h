@@ -231,6 +231,7 @@ public:
     VkDebugUtilsMessengerEXT m_debugReportCallback = VK_NULL_HANDLE;
 
     VkDevice m_device = VK_NULL_HANDLE;
+    bool m_hasSubgroupSizeControl = false;
 
     VulkanModule m_module;
     VulkanApi m_api;

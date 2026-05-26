@@ -730,13 +730,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         }
     }
     {
-        D3D12_FEATURE_DATA_D3D12_OPTIONS1 options;
+        D3D12_FEATURE_DATA_D3D12_OPTIONS1 options = {};
         if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &options, sizeof(options))))
         {
             // Check wave operations support
             if (options.WaveOps)
             {
                 addFeature(Feature::WaveOps);
+                m_info.limits.minWaveSize = options.WaveLaneCountMin;
+                m_info.limits.maxWaveSize = options.WaveLaneCountMax;
             }
             if (options.Int64ShaderOps)
             {
