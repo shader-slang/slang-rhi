@@ -3080,6 +3080,13 @@ struct DeviceLimits
     /// Maximum number of thread groups per dimension in a single dispatch.
     uint32_t maxComputeDispatchThreadGroups[3];
 
+    /// Minimum number of lanes in a wave/subgroup/warp.
+    /// 0 if the size is unknown or not applicable.
+    uint32_t minWaveSize;
+    /// Maximum number of lanes in a wave/subgroup/warp.
+    /// 0 if the size is unknown or not applicable.
+    uint32_t maxWaveSize;
+
     /// Maximum number of viewports per pipeline.
     uint32_t maxViewports;
     /// Maximum viewport dimensions.

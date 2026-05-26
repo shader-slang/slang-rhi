@@ -5,6 +5,25 @@
 using namespace rhi;
 using namespace rhi::testing;
 
+GPU_TEST_CASE("device-wave-size-limits", ALL)
+{
+    REQUIRE(device);
+
+    const DeviceLimits& limits = device->getInfo().limits;
+
+    if (limits.minWaveSize > 0 || limits.maxWaveSize > 0)
+    {
+        CHECK(limits.minWaveSize > 0);
+        CHECK(limits.maxWaveSize >= limits.minWaveSize);
+    }
+
+    if (device->hasFeature(Feature::WaveOps))
+    {
+        CHECK(limits.minWaveSize > 0);
+        CHECK(limits.maxWaveSize >= limits.minWaveSize);
+    }
+}
+
 GPU_TEST_CASE("cuda-device-features", CUDA)
 {
     REQUIRE(device);
