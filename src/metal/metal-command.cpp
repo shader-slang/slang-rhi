@@ -813,20 +813,15 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
                 );
             }
 
-            const auto& asList = m_device->m_accelerationStructures.list;
-            if (!asList.empty())
+            m_device->getAccelerationStructureArray();
+            const auto& validAS = m_device->m_accelerationStructures.validResources;
+            if (!validAS.empty())
             {
-                std::vector<MTL::Resource*> validAS;
-                validAS.reserve(asList.size());
-                for (auto* as : asList)
-                {
-                    if (as)
-                        validAS.push_back(as);
-                }
-                if (!validAS.empty())
-                {
-                    encoder->useResources(validAS.data(), validAS.size(), MTL::ResourceUsageRead);
-                }
+                encoder->useResources(
+                    (const MTL::Resource* const*)validAS.data(),
+                    validAS.size(),
+                    MTL::ResourceUsageRead
+                );
             }
         }
 

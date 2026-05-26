@@ -407,6 +407,12 @@ NS::Array* DeviceImpl::getAccelerationStructureArray()
 {
     if (m_accelerationStructures.dirty)
     {
+        m_accelerationStructures.validResources.clear();
+        for (auto* as : m_accelerationStructures.list)
+        {
+            if (as)
+                m_accelerationStructures.validResources.push_back(as);
+        }
         m_accelerationStructures.array = NS::TransferPtr(
             NS::Array::alloc()->init(
                 (const NS::Object* const*)m_accelerationStructures.list.data(),

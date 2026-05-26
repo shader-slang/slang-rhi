@@ -171,6 +171,7 @@ public:
         std::vector<MTL::AccelerationStructure*> list;
         std::vector<uint32_t> freeList;
         NS::SharedPtr<NS::Array> array;
+        std::vector<MTL::Resource*> validResources;
         bool dirty = true;
     } m_accelerationStructures;
 
