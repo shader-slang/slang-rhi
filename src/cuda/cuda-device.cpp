@@ -36,6 +36,7 @@ static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
     COMPUTE_CAPABILITY(6, 0),
     COMPUTE_CAPABILITY(7, 0),
     COMPUTE_CAPABILITY(8, 0),
+    COMPUTE_CAPABILITY(8, 9),
     COMPUTE_CAPABILITY(9, 0),
 #undef COMPUTE_CAPABILITY
 };
@@ -202,36 +203,67 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
-    addFeature(Feature::RealtimeClock);
-    // Not clear how to detect half support on CUDA. For now we'll assume we have it
-    addFeature(Feature::Half);
     addFeature(Feature::Pointer);
+
+    int computeCapabilityMajor = 0;
+    int computeCapabilityMinor = 0;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuDeviceGetAttribute(&computeCapabilityMajor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, m_ctx.device),
+        this
+    );
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuDeviceGetAttribute(&computeCapabilityMinor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
+        this
+    );
+
+    auto hasComputeCapability = [&](int major, int minor = 0) -> bool
+    {
+        return (computeCapabilityMajor > major) || (computeCapabilityMajor == major && computeCapabilityMinor >= minor);
+    };
+
+    // Conservative thresholds to avoid false positive feature advertisement.
+    if (hasComputeCapability(2, 0))
+    {
+        addFeature(Feature::Double);
+        addFeature(Feature::Int16);
+        addFeature(Feature::Int64);
+        addFeature(Feature::AtomicFloat);
+        addFeature(Feature::AtomicInt64);
+        addFeature(Feature::RealtimeClock);
+    }
+    if (hasComputeCapability(3, 0))
+    {
+        addFeature(Feature::WaveOps);
+    }
+    if (hasComputeCapability(6, 0))
+    {
+        addFeature(Feature::Half);
+    }
+    if (hasComputeCapability(7, 0))
+    {
+        addFeature(Feature::AtomicHalf);
+    }
+    if (hasComputeCapability(8, 0))
+    {
+        addFeature(Feature::Bfloat16);
+    }
+    if (hasComputeCapability(8, 9))
+    {
+        addFeature(Feature::Float8);
+    }
+    if (hasComputeCapability(9, 0))
+    {
+        addFeature(Feature::AtomicBfloat16);
+    }
 
     addCapability(Capability::cuda);
 
     // Detect supported compute capabilities
+    for (const auto& cc : kKnownComputeCapabilities)
     {
-        int major = 0, minor = 0;
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, m_ctx.device),
-            this
-        );
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
-            this
-        );
-        for (const auto& cc : kKnownComputeCapabilities)
+        if (hasComputeCapability(cc.major, cc.minor))
         {
-            if ((major == cc.major && minor >= cc.minor) || major > cc.major)
-            {
-                addCapability(cc.capability);
-            }
-        }
-
-        // BFloat16 atomic operations require SM 9.0 (Hopper) or higher
-        if (major >= 9)
-        {
-            addFeature(Feature::AtomicBfloat16);
+            addCapability(cc.capability);
         }
     }
 

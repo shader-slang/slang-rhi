@@ -539,8 +539,13 @@ void DeviceImpl::registerResource(MTL::Resource* resource)
     if (m_hasResidencySet)
     {
         std::lock_guard<std::mutex> lock(m_residencySetMutex);
-        m_residencySet->addAllocation(resource);
-        m_residencySetDirty = true;
+        uint32_t& refCount = m_residencySetResourceRefCounts[resource];
+        if (refCount == 0)
+        {
+            m_residencySet->addAllocation(resource);
+            m_residencySetDirty = true;
+        }
+        refCount++;
     }
 }
 
@@ -550,8 +555,24 @@ void DeviceImpl::unregisterResource(MTL::Resource* resource)
     if (m_hasResidencySet)
     {
         std::lock_guard<std::mutex> lock(m_residencySetMutex);
-        m_residencySet->removeAllocation(resource);
-        m_residencySetDirty = true;
+        auto it = m_residencySetResourceRefCounts.find(resource);
+        SLANG_RHI_ASSERT(it != m_residencySetResourceRefCounts.end());
+        if (it == m_residencySetResourceRefCounts.end())
+        {
+            return;
+        }
+
+        SLANG_RHI_ASSERT(it->second > 0);
+        if (it->second <= 1)
+        {
+            m_residencySet->removeAllocation(resource);
+            m_residencySetResourceRefCounts.erase(it);
+            m_residencySetDirty = true;
+        }
+        else
+        {
+            it->second--;
+        }
     }
 }
 

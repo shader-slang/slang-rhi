@@ -48,7 +48,11 @@ VkPipelineCreateFlags2 translateRayTracingPipelineFlags2(RayTracingPipelineFlags
 VkImageLayout translateImageLayout(ResourceState state);
 
 VkAccessFlagBits calcAccessFlags(ResourceState state);
-VkPipelineStageFlagBits calcPipelineStageFlags(ResourceState state, bool src);
+VkPipelineStageFlags calcPipelineStageFlags(
+    VkPipelineStageFlags supportedShaderStageFlags,
+    ResourceState state,
+    bool src
+);
 VkAccessFlags translateAccelerationStructureAccessFlag(AccessFlag access);
 
 VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage);
