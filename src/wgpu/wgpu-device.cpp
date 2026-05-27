@@ -193,6 +193,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     api.wgpuDeviceGetFeatures(m_ctx.device, &supportedFeatures);
     m_ctx.features.insert(supportedFeatures.features, supportedFeatures.features + supportedFeatures.featureCount);
 
+    uint32_t subgroupMinSize = 0;
+    uint32_t subgroupMaxSize = 0;
+
     // Initialize device info.
     {
         m_info.deviceType = DeviceType::WGPU;
@@ -201,8 +204,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
         WGPUAdapterInfo wgpuAdapterInfo = {};
         api.wgpuAdapterGetInfo(m_ctx.adapter, &wgpuAdapterInfo);
+        SLANG_RHI_DEFERRED({ api.wgpuAdapterInfoFreeMembers(wgpuAdapterInfo); });
         m_adapterName = std::string(wgpuAdapterInfo.device.data, wgpuAdapterInfo.device.length);
         m_info.adapterName = m_adapterName.c_str();
+        subgroupMinSize = wgpuAdapterInfo.subgroupMinSize;
+        subgroupMaxSize = wgpuAdapterInfo.subgroupMaxSize;
     }
 
     // Initialize device limits.
@@ -232,6 +238,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         limits.maxFramebufferDimensions[1] = m_ctx.limits.maxTextureDimension2D;
         limits.maxFramebufferDimensions[2] = m_ctx.limits.maxTextureArrayLayers;
         limits.maxShaderVisibleSamplers = m_ctx.limits.maxSamplersPerShaderStage;
+
+        if (m_ctx.features.count(WGPUFeatureName_Subgroups) && subgroupMinSize > 0 &&
+            subgroupMinSize != WGPU_LIMIT_U32_UNDEFINED && subgroupMaxSize > 0 &&
+            subgroupMaxSize != WGPU_LIMIT_U32_UNDEFINED)
+        {
+            limits.minWaveSize = subgroupMinSize;
+            limits.maxWaveSize = subgroupMaxSize;
+        }
     }
 
     // Initialize features & capabilities.
