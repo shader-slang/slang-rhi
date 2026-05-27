@@ -813,8 +813,7 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
                 );
             }
 
-            m_device->getAccelerationStructureArray();
-            const auto& validAS = m_device->m_accelerationStructures.validResources;
+            const auto& validAS = m_device->getValidAccelerationStructureResources();
             if (!validAS.empty())
             {
                 encoder
