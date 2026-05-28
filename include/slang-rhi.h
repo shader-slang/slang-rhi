@@ -3257,6 +3257,27 @@ struct DeviceDesc
     /// Enable reporting of shader compilation timings.
     bool enableCompilationReports = false;
 
+    /// Enable launching CUDA kernels from inside graphics command buffers
+    /// (Vulkan only, via VK_NVX_binary_import + VK_NVX_image_view_handle).
+    /// On by default to preserve historical behaviour. Set to false on
+    /// NVIDIA Linux + Blackwell sm_120 (driver 595.x) if you don't need
+    /// vkCmdCuLaunchKernelNVX: enabling those two extensions forces the
+    /// driver to bring up a dual-purpose CUDA primary context, which has
+    /// been observed to perturb cuDNN's MHA dispatcher engine catalog
+    /// (torch's _scaled_dot_product_cudnn_attention starts returning
+    /// mha_graph.execute().is_good() == false).
+    bool enableCUDALaunchFromGfx = true;
+
+    /// Enable Vulkan ray tracing extensions (VK_KHR_acceleration_structure,
+    /// VK_KHR_ray_tracing_pipeline, VK_KHR_ray_query, VK_KHR_ray_tracing_position_fetch,
+    /// VK_NV_ray_tracing_linear_swept_spheres, VK_NV_cluster_acceleration_structure).
+    /// On by default to preserve historical behaviour. Set to false on
+    /// NVIDIA Linux + Blackwell sm_120 (driver 595.x) if your application
+    /// doesn't use ray tracing: enabling these extensions initializes a
+    /// CUDA-adjacent BVH/RT execution path inside the driver that, like
+    /// CUDA-launch-from-gfx, can perturb cuDNN's MHA dispatcher.
+    bool enableRayTracing = true;
+
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;
 
