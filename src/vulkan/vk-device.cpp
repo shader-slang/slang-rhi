@@ -697,10 +697,7 @@ Result DeviceImpl::initVulkanDevice(
             deviceExtensions.push_back(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME);
         }
 
-        // Vulkan ray tracing extensions. Enabling these on the NVIDIA Linux
-        // driver initializes a CUDA-adjacent BVH/RT execution path that
-        // can poison cuDNN's MHA dispatcher on Blackwell sm_120 + driver
-        // 595.x. Gated by DeviceDesc::enableRayTracing.
+        // See DeviceDesc::enableRayTracing for rationale.
         if (desc.enableRayTracing &&
             extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
             extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) &&
@@ -1101,12 +1098,7 @@ Result DeviceImpl::initVulkanDevice(
         {
             deviceExtensions.push_back(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
         }
-        // VK_NVX_binary_import / VK_NVX_image_view_handle expose
-        // vkCmdCuLaunchKernelNVX (launching CUDA-style kernels from inside
-        // a Vulkan command buffer). Enabling them on the NVIDIA Linux
-        // driver brings up a dual-purpose CUDA primary context that can
-        // poison cuDNN's MHA dispatcher on Blackwell sm_120 + driver
-        // 595.x. Gated by DeviceDesc::enableCUDALaunchFromGfx.
+        // See DeviceDesc::enableCUDALaunchFromGfx for rationale.
         if (desc.enableCUDALaunchFromGfx &&
             extensionNames.count(VK_NVX_BINARY_IMPORT_EXTENSION_NAME))
         {
