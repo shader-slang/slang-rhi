@@ -697,7 +697,8 @@ Result DeviceImpl::initVulkanDevice(
             deviceExtensions.push_back(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME);
         }
 
-        if (extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
+        // See DeviceDesc::enableRayTracing for rationale.
+        if (desc.enableRayTracing && extendedFeatures.accelerationStructureFeatures.accelerationStructure &&
             extensionNames.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) &&
             extensionNames.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME))
         {
@@ -1096,7 +1097,8 @@ Result DeviceImpl::initVulkanDevice(
         {
             deviceExtensions.push_back(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
         }
-        if (extensionNames.count(VK_NVX_BINARY_IMPORT_EXTENSION_NAME))
+        // See DeviceDesc::enableCUDALaunchFromGfx for rationale.
+        if (desc.enableCUDALaunchFromGfx && extensionNames.count(VK_NVX_BINARY_IMPORT_EXTENSION_NAME))
         {
             deviceExtensions.push_back(VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
         }

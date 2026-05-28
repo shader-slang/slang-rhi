@@ -3257,6 +3257,21 @@ struct DeviceDesc
     /// Enable reporting of shader compilation timings.
     bool enableCompilationReports = false;
 
+    /// Enable launching CUDA kernels from inside graphics command buffers
+    /// (Vulkan only, via VK_NVX_binary_import). On by default. Set to
+    /// false if the application doesn't need vkCmdCuLaunchKernelNVX;
+    /// enabling this extension has been observed to interfere with
+    /// concurrent cuDNN usage on some driver/GPU pairs.
+    bool enableCUDALaunchFromGfx = true;
+
+    /// Enable Vulkan ray tracing extensions (acceleration_structure,
+    /// ray_tracing_pipeline, ray_query, ray_tracing_position_fetch, plus
+    /// NV variants). On by default. Set to false if the application
+    /// doesn't use ray tracing; enabling these extensions has been
+    /// observed to interfere with concurrent cuDNN usage on some
+    /// driver/GPU pairs.
+    bool enableRayTracing = true;
+
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;
 
