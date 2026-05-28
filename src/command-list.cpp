@@ -193,6 +193,36 @@ void CommandList::write(commands::DispatchRays&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::BeginWorkGraphPass&& cmd)
+{
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::EndWorkGraphPass&& cmd)
+{
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::write(commands::SetWorkGraphState&& cmd)
+{
+    retainResource<WorkGraphPipeline>(cmd.pipeline);
+    writeCommand(std::move(cmd));
+}
+
+void CommandList::writeDispatchGraph(commands::DispatchGraph&& cmd, const void* records)
+{
+    retainResource<Buffer>(cmd.backingStore);
+    if (records && cmd.numRecords > 0 && cmd.recordStrideInBytes > 0)
+        cmd.records = writeData(records, (size_t)cmd.numRecords * cmd.recordStrideInBytes);
+    else
+    {
+        cmd.records = nullptr;
+        cmd.numRecords = 0;
+        cmd.recordStrideInBytes = 0;
+    }
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::BuildAccelerationStructure&& cmd)
 {
     if (cmd.desc.inputs && cmd.desc.inputCount > 0)

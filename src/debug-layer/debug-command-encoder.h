@@ -128,6 +128,46 @@ public:
     bool m_pipelineBound = false;
 };
 
+class DebugWorkGraphPassEncoder : public UnownedDebugObject<IWorkGraphPassEncoder>
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE;
+    IWorkGraphPassEncoder* getInterface(const Guid& guid);
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
+
+    DebugWorkGraphPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder);
+
+public:
+    // IWorkGraphPassEncoder implementation
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IWorkGraphPipeline* pipeline) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
+        IWorkGraphPipeline* pipeline,
+        IShaderObject* rootObject
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchGraph(
+        IBuffer* backingStore,
+        uint32_t entryPointIndex,
+        uint32_t numRecords,
+        const void* records,
+        uint32_t recordStrideInBytes
+    ) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
+
+public:
+    DebugCommandEncoder* m_commandEncoder;
+    RefPtr<DebugRootShaderObject> m_rootObject;
+    bool m_pipelineBound = false;
+};
+
 class DebugCommandEncoder : public DebugObject<ICommandEncoder>
 {
 public:
@@ -143,6 +183,7 @@ public:
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) override;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() override;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() override;
+    virtual SLANG_NO_THROW IWorkGraphPassEncoder* SLANG_MCALL beginWorkGraphPass() override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(
         IBuffer* dst,
@@ -316,6 +357,7 @@ public:
     void requireRenderPass();
     void requireComputePass();
     void requireRayTracingPass();
+    void requireWorkGraphPass();
 
     enum class EncoderState
     {
@@ -329,6 +371,7 @@ public:
         RenderPass,
         ComputePass,
         RayTracingPass,
+        WorkGraphPass,
     };
 
     EncoderState m_state = EncoderState::Open;
@@ -337,6 +380,7 @@ public:
     DebugRenderPassEncoder m_renderPassEncoder;
     DebugComputePassEncoder m_computePassEncoder;
     DebugRayTracingPassEncoder m_rayTracingPassEncoder;
+    DebugWorkGraphPassEncoder m_workGraphPassEncoder;
 };
 
 } // namespace rhi::debug

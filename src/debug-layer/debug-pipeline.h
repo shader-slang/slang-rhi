@@ -52,4 +52,21 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 };
 
+class DebugWorkGraphPipeline : public DebugObject<IWorkGraphPipeline>
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL;
+    IWorkGraphPipeline* getInterface(const Guid& guid);
+
+    SLANG_RHI_DEBUG_OBJECT_CONSTRUCTOR(DebugWorkGraphPipeline);
+
+public:
+    // IWorkGraphPipeline implementation
+    virtual SLANG_NO_THROW const WorkGraphPipelineDesc& SLANG_MCALL getDesc() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getWorkGraphMemoryRequirements(
+        WorkGraphMemoryRequirements* outRequirements
+    ) override;
+};
+
 } // namespace rhi::debug

@@ -121,4 +121,30 @@ Result VirtualRayTracingPipeline::getNativeHandle(NativeHandle* outHandle)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+// ----------------------------------------------------------------------------
+// WorkGraphPipeline
+// ----------------------------------------------------------------------------
+
+IPipeline* WorkGraphPipeline::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IPipeline::getTypeGuid() ||
+        guid == IWorkGraphPipeline::getTypeGuid())
+        return static_cast<IWorkGraphPipeline*>(this);
+    return nullptr;
+}
+
+WorkGraphPipeline::WorkGraphPipeline(Device* device, const WorkGraphPipelineDesc& desc)
+    : Pipeline(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+    m_program = checked_cast<ShaderProgram*>(desc.program);
+}
+
+Result WorkGraphPipeline::getWorkGraphMemoryRequirements(WorkGraphMemoryRequirements* outRequirements)
+{
+    SLANG_UNUSED(outRequirements);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 } // namespace rhi

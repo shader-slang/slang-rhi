@@ -322,6 +322,9 @@ Result Device::getConcretePipeline(
         concretePipeline = checked_cast<RayTracingPipeline*>(rayTracingPipeline.get());
         break;
     }
+    case PipelineType::WorkGraph:
+        // Work graph pipelines don't support specialization — fall through to error.
+        return SLANG_E_NOT_AVAILABLE;
     }
 
     if (isSpecializable)
@@ -358,6 +361,13 @@ Result Device::createComputePipeline2(const ComputePipelineDesc& desc, IComputeP
 }
 
 Result Device::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outPipeline);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::createWorkGraphPipeline2(const WorkGraphPipelineDesc& desc, IWorkGraphPipeline** outPipeline)
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outPipeline);
@@ -754,6 +764,13 @@ Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRay
         SLANG_RETURN_ON_FAIL(program->compileShaders(this));
         return createRayTracingPipeline2(desc, outPipeline);
     }
+}
+
+Result Device::createWorkGraphPipeline(const WorkGraphPipelineDesc& desc, IWorkGraphPipeline** outPipeline)
+{
+    ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
+    SLANG_RETURN_ON_FAIL(program->compileShaders(this));
+    return createWorkGraphPipeline2(desc, outPipeline);
 }
 
 Result Device::getCompilationReportList(ISlangBlob** outReportListBlob)

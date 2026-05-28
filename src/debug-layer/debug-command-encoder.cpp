@@ -598,12 +598,160 @@ void DebugRayTracingPassEncoder::end()
 // ----------------------------------------------------------------------------
 // DebugCommandEncoder
 // ----------------------------------------------------------------------------
+// DebugWorkGraphPassEncoder
+// ----------------------------------------------------------------------------
+
+DebugWorkGraphPassEncoder::DebugWorkGraphPassEncoder(DebugContext* ctx, DebugCommandEncoder* commandEncoder)
+    : UnownedDebugObject<IWorkGraphPassEncoder>(ctx)
+    , m_commandEncoder(commandEncoder)
+{
+    m_rootObject = new DebugRootShaderObject(ctx);
+}
+
+IShaderObject* DebugWorkGraphPassEncoder::bindPipeline(IWorkGraphPipeline* pipeline)
+{
+    SLANG_RHI_DEBUG_API(IWorkGraphPassEncoder, bindPipeline);
+
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireWorkGraphPass();
+
+    if (!pipeline)
+    {
+        RHI_VALIDATION_ERROR("'pipeline' must not be null.");
+        return nullptr;
+    }
+
+    m_rootObject->reset();
+    m_rootObject->baseObject = baseObject->bindPipeline(pipeline);
+    m_pipelineBound = true;
+
+    return m_rootObject;
+}
+
+void DebugWorkGraphPassEncoder::bindPipeline(IWorkGraphPipeline* pipeline, IShaderObject* rootObject)
+{
+    SLANG_RHI_DEBUG_API(IWorkGraphPassEncoder, bindPipeline);
+
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireWorkGraphPass();
+
+    if (!pipeline)
+    {
+        RHI_VALIDATION_ERROR("'pipeline' must not be null.");
+        return;
+    }
+
+    baseObject->bindPipeline(pipeline, getInnerObj(rootObject));
+    m_pipelineBound = true;
+}
+
+void DebugWorkGraphPassEncoder::dispatchGraph(
+    IBuffer* backingStore,
+    uint32_t entryPointIndex,
+    uint32_t numRecords,
+    const void* records,
+    uint32_t recordStrideInBytes
+)
+{
+    SLANG_RHI_DEBUG_API(IWorkGraphPassEncoder, dispatchGraph);
+
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireWorkGraphPass();
+
+    if (!m_pipelineBound)
+    {
+        RHI_VALIDATION_ERROR("No pipeline bound.");
+        return;
+    }
+    if (!backingStore)
+    {
+        RHI_VALIDATION_ERROR("'backingStore' must not be null.");
+        return;
+    }
+    if (numRecords > 0 && !records)
+    {
+        RHI_VALIDATION_ERROR("'records' must not be null when 'numRecords' > 0.");
+        return;
+    }
+    if (numRecords > 0 && recordStrideInBytes == 0)
+    {
+        RHI_VALIDATION_ERROR("'recordStrideInBytes' must be > 0 when 'numRecords' > 0.");
+        return;
+    }
+
+    baseObject->dispatchGraph(backingStore, entryPointIndex, numRecords, records, recordStrideInBytes);
+}
+
+void DebugWorkGraphPassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
+{
+    SLANG_RHI_DEBUG_API(IWorkGraphPassEncoder, pushDebugGroup);
+
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireWorkGraphPass();
+
+    baseObject->pushDebugGroup(name, color);
+}
+
+void DebugWorkGraphPassEncoder::popDebugGroup()
+{
+    SLANG_RHI_DEBUG_API(IWorkGraphPassEncoder, popDebugGroup);
+
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireWorkGraphPass();
+
+    baseObject->popDebugGroup();
+}
+
+void DebugWorkGraphPassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
+{
+    SLANG_RHI_DEBUG_API(IWorkGraphPassEncoder, insertDebugMarker);
+
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireWorkGraphPass();
+
+    baseObject->insertDebugMarker(name, color);
+}
+
+void DebugWorkGraphPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    SLANG_RHI_DEBUG_API(IWorkGraphPassEncoder, writeTimestamp);
+
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireWorkGraphPass();
+
+    if (!queryPool)
+    {
+        RHI_VALIDATION_ERROR("'queryPool' must not be null.");
+        return;
+    }
+    if (queryIndex >= queryPool->getDesc().count)
+    {
+        RHI_VALIDATION_ERROR("'queryIndex' is out of range.");
+        return;
+    }
+
+    baseObject->writeTimestamp(getInnerObj(queryPool), queryIndex);
+}
+
+void DebugWorkGraphPassEncoder::end()
+{
+    SLANG_RHI_DEBUG_API(IWorkGraphPassEncoder, end);
+
+    m_commandEncoder->requireOpen();
+    m_commandEncoder->requireWorkGraphPass();
+    m_commandEncoder->m_passState = DebugCommandEncoder::PassState::NoPass;
+
+    baseObject->end();
+}
+
+// ----------------------------------------------------------------------------
 
 DebugCommandEncoder::DebugCommandEncoder(DebugContext* ctx)
     : DebugObject<ICommandEncoder>(ctx)
     , m_renderPassEncoder(ctx, this)
     , m_computePassEncoder(ctx, this)
     , m_rayTracingPassEncoder(ctx, this)
+    , m_workGraphPassEncoder(ctx, this)
 {
 }
 
@@ -805,6 +953,24 @@ IRayTracingPassEncoder* DebugCommandEncoder::beginRayTracingPass()
     m_rayTracingPassEncoder.baseObject = innerEncoder;
 
     return &m_rayTracingPassEncoder;
+}
+
+IWorkGraphPassEncoder* DebugCommandEncoder::beginWorkGraphPass()
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, beginWorkGraphPass);
+
+    requireOpen();
+    requireNoPass();
+
+    auto innerEncoder = baseObject->beginWorkGraphPass();
+    if (!innerEncoder)
+        return nullptr;
+
+    m_passState = PassState::WorkGraphPass;
+    m_workGraphPassEncoder.m_pipelineBound = false;
+    m_workGraphPassEncoder.baseObject = innerEncoder;
+
+    return &m_workGraphPassEncoder;
 }
 
 void DebugCommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
@@ -1988,6 +2154,14 @@ void DebugCommandEncoder::requireRayTracingPass()
     if (m_passState != PassState::RayTracingPass)
     {
         RHI_VALIDATION_ERROR("The command encoder must be in a ray-tracing pass.");
+    }
+}
+
+void DebugCommandEncoder::requireWorkGraphPass()
+{
+    if (m_passState != PassState::WorkGraphPass)
+    {
+        RHI_VALIDATION_ERROR("The command encoder must be in a work graph pass.");
     }
 }
 
