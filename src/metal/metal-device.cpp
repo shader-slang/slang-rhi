@@ -403,9 +403,45 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return SLANG_OK;
 }
 
+uint32_t DeviceImpl::registerAccelerationStructure(MTL::AccelerationStructure* accelerationStructure)
+{
+    SLANG_RHI_ASSERT(accelerationStructure);
+
+    uint32_t index = 0;
+    if (!m_accelerationStructures.freeList.empty())
+    {
+        index = m_accelerationStructures.freeList.back();
+        m_accelerationStructures.freeList.pop_back();
+        m_accelerationStructures.list[index] = accelerationStructure;
+    }
+    else
+    {
+        index = uint32_t(m_accelerationStructures.list.size());
+        m_accelerationStructures.list.push_back(accelerationStructure);
+    }
+
+    m_accelerationStructures.arrayDirty = true;
+    m_accelerationStructures.resourcesDirty = true;
+
+    return index;
+}
+
+void DeviceImpl::unregisterAccelerationStructure(uint32_t index, MTL::AccelerationStructure* accelerationStructure)
+{
+    SLANG_RHI_ASSERT(accelerationStructure);
+    SLANG_RHI_ASSERT(index < m_accelerationStructures.list.size());
+    SLANG_RHI_ASSERT(m_accelerationStructures.list[index] == accelerationStructure);
+
+    m_accelerationStructures.freeList.push_back(index);
+    m_accelerationStructures.list[index] = nullptr;
+
+    m_accelerationStructures.arrayDirty = true;
+    m_accelerationStructures.resourcesDirty = true;
+}
+
 NS::Array* DeviceImpl::getAccelerationStructureArray()
 {
-    if (m_accelerationStructures.dirty)
+    if (m_accelerationStructures.arrayDirty)
     {
         m_accelerationStructures.array = NS::TransferPtr(
             NS::Array::alloc()->init(
@@ -413,24 +449,27 @@ NS::Array* DeviceImpl::getAccelerationStructureArray()
                 m_accelerationStructures.list.size()
             )
         );
-        m_accelerationStructures.dirty = false;
+        m_accelerationStructures.arrayDirty = false;
     }
     return m_accelerationStructures.array.get();
 }
 
-const std::vector<MTL::Resource*>& DeviceImpl::getValidAccelerationStructureResources()
+std::span<MTL::Resource* const> DeviceImpl::getAccelerationStructureResources()
 {
     if (m_accelerationStructures.resourcesDirty)
     {
-        m_accelerationStructures.validResources.clear();
+        m_accelerationStructures.resources.clear();
         for (auto* as : m_accelerationStructures.list)
         {
             if (as)
-                m_accelerationStructures.validResources.push_back(as);
+                m_accelerationStructures.resources.push_back(as);
         }
         m_accelerationStructures.resourcesDirty = false;
     }
-    return m_accelerationStructures.validResources;
+    return std::span<MTL::Resource* const>(
+        m_accelerationStructures.resources.data(),
+        m_accelerationStructures.resources.size()
+    );
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
