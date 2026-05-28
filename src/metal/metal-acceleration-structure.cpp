@@ -20,6 +20,7 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     device->m_accelerationStructures.freeList.push_back(m_globalIndex);
     device->m_accelerationStructures.list[m_globalIndex] = nullptr;
     device->m_accelerationStructures.dirty = true;
+    device->m_accelerationStructures.resourcesDirty = true;
 }
 
 void AccelerationStructureImpl::deleteThis()
@@ -67,6 +68,7 @@ Result DeviceImpl::createAccelerationStructure(
         m_accelerationStructures.list.push_back(result->m_accelerationStructure.get());
     }
     m_accelerationStructures.dirty = true;
+    m_accelerationStructures.resourcesDirty = true;
     result->m_globalIndex = globalIndex;
 
     registerResource(result->m_accelerationStructure.get());

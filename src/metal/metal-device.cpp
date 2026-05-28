@@ -235,6 +235,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (m_device->supportsRaytracing())
     {
         addFeature(Feature::AccelerationStructure);
+        addFeature(Feature::RayQuery);
     }
 
     m_hasArgumentBufferTier2 = m_device->argumentBuffersSupport() >= MTL::ArgumentBuffersTier2;
@@ -415,6 +416,21 @@ NS::Array* DeviceImpl::getAccelerationStructureArray()
         m_accelerationStructures.dirty = false;
     }
     return m_accelerationStructures.array.get();
+}
+
+const std::vector<MTL::Resource*>& DeviceImpl::getValidAccelerationStructureResources()
+{
+    if (m_accelerationStructures.resourcesDirty)
+    {
+        m_accelerationStructures.validResources.clear();
+        for (auto* as : m_accelerationStructures.list)
+        {
+            if (as)
+                m_accelerationStructures.validResources.push_back(as);
+        }
+        m_accelerationStructures.resourcesDirty = false;
+    }
+    return m_accelerationStructures.validResources;
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)

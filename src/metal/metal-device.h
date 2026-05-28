@@ -172,9 +172,12 @@ public:
         std::vector<uint32_t> freeList;
         NS::SharedPtr<NS::Array> array;
         bool dirty = true;
+        std::vector<MTL::Resource*> validResources;
+        bool resourcesDirty = true;
     } m_accelerationStructures;
 
     NS::Array* getAccelerationStructureArray();
+    const std::vector<MTL::Resource*>& getValidAccelerationStructureResources();
 
     bool m_hasArgumentBufferTier2 = false;
 
