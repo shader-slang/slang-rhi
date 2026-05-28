@@ -812,6 +812,26 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
                     MTL::ResourceUsageRead | MTL::ResourceUsageWrite
                 );
             }
+
+            auto accelerationStructureResources = m_device->getAccelerationStructureResources();
+            if (!accelerationStructureResources.empty())
+            {
+                encoder->useResources(
+                    accelerationStructureResources.data(),
+                    accelerationStructureResources.size(),
+                    MTL::ResourceUsageRead
+                );
+            }
+        }
+
+        // Bind root-level acceleration structures via setAccelerationStructure:atBufferIndex:.
+        // Slang emits these as [[buffer(N)]] kernel parameters; setBuffers cannot bind them.
+        for (uint32_t i = 0; i < m_bindingData->rootAccelerationStructureCount; ++i)
+        {
+            encoder->setAccelerationStructure(
+                m_bindingData->rootAccelerationStructures[i],
+                m_bindingData->rootAccelerationStructureSlots[i]
+            );
         }
     }
 

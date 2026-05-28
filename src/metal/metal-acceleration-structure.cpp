@@ -15,11 +15,9 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
     DeviceImpl* device = getDevice<DeviceImpl>();
     if (m_accelerationStructure)
     {
+        device->unregisterAccelerationStructure(m_globalIndex, m_accelerationStructure.get());
         device->unregisterResource(m_accelerationStructure.get());
     }
-    device->m_accelerationStructures.freeList.push_back(m_globalIndex);
-    device->m_accelerationStructures.list[m_globalIndex] = nullptr;
-    device->m_accelerationStructures.dirty = true;
 }
 
 void AccelerationStructureImpl::deleteThis()
@@ -53,22 +51,11 @@ Result DeviceImpl::createAccelerationStructure(
 
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     result->m_accelerationStructure = NS::TransferPtr(m_device->newAccelerationStructure(desc.size));
-
-    uint32_t globalIndex = 0;
-    if (!m_accelerationStructures.freeList.empty())
+    if (!result->m_accelerationStructure)
     {
-        globalIndex = m_accelerationStructures.freeList.back();
-        m_accelerationStructures.freeList.pop_back();
-        m_accelerationStructures.list[globalIndex] = result->m_accelerationStructure.get();
+        return SLANG_FAIL;
     }
-    else
-    {
-        globalIndex = m_accelerationStructures.list.size();
-        m_accelerationStructures.list.push_back(result->m_accelerationStructure.get());
-    }
-    m_accelerationStructures.dirty = true;
-    result->m_globalIndex = globalIndex;
-
+    result->m_globalIndex = registerAccelerationStructure(result->m_accelerationStructure.get());
     registerResource(result->m_accelerationStructure.get());
 
     returnComPtr(outAccelerationStructure, result);
