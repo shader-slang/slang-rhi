@@ -290,20 +290,6 @@ void CommandList::write(commands::QueryAccelerationStructureProperties&& cmd)
     writeCommand(std::move(cmd));
 }
 
-void CommandList::write(commands::SerializeAccelerationStructure&& cmd)
-{
-    retainResource<Buffer>(cmd.dst.buffer);
-    retainResource<AccelerationStructure>(cmd.src);
-    writeCommand(std::move(cmd));
-}
-
-void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
-{
-    retainResource<AccelerationStructure>(cmd.dst);
-    retainResource<Buffer>(cmd.src.buffer);
-    writeCommand(std::move(cmd));
-}
-
 void CommandList::write(commands::ExecuteClusterOperation&& cmd)
 {
     retainResource<Buffer>(cmd.desc.argCountBuffer.buffer);

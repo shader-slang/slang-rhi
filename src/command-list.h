@@ -40,8 +40,6 @@
     x(BuildAccelerationStructure) \
     x(CopyAccelerationStructure) \
     x(QueryAccelerationStructureProperties) \
-    x(SerializeAccelerationStructure) \
-    x(DeserializeAccelerationStructure) \
     x(ExecuteClusterOperation) \
     x(ConvertCooperativeVectorMatrix) \
     x(SetBufferState) \
@@ -276,18 +274,6 @@ struct QueryAccelerationStructureProperties
     const AccelerationStructureQueryDesc* queryDescs;
 };
 
-struct SerializeAccelerationStructure
-{
-    BufferOffsetPair dst;
-    IAccelerationStructure* src;
-};
-
-struct DeserializeAccelerationStructure
-{
-    IAccelerationStructure* dst;
-    BufferOffsetPair src;
-};
-
 struct ExecuteClusterOperation
 {
     ClusterOperationDesc desc;
@@ -448,8 +434,6 @@ public:
     void write(commands::BuildAccelerationStructure&& cmd);
     void write(commands::CopyAccelerationStructure&& cmd);
     void write(commands::QueryAccelerationStructureProperties&& cmd);
-    void write(commands::SerializeAccelerationStructure&& cmd);
-    void write(commands::DeserializeAccelerationStructure&& cmd);
     void write(commands::ExecuteClusterOperation&& cmd);
     void write(commands::ConvertCooperativeVectorMatrix&& cmd);
     void write(commands::SetBufferState&& cmd);

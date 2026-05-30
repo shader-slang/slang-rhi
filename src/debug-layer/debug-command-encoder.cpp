@@ -1610,48 +1610,6 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
     );
 }
 
-void DebugCommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
-{
-    SLANG_RHI_DEBUG_API(ICommandEncoder, serializeAccelerationStructure);
-
-    requireOpen();
-    requireNoPass();
-
-    if (!src)
-    {
-        RHI_VALIDATION_ERROR("'src' must not be null.");
-        return;
-    }
-    if (!dst.buffer)
-    {
-        RHI_VALIDATION_ERROR("'dst.buffer' must not be null.");
-        return;
-    }
-
-    baseObject->serializeAccelerationStructure(dst, src);
-}
-
-void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
-{
-    SLANG_RHI_DEBUG_API(ICommandEncoder, deserializeAccelerationStructure);
-
-    requireOpen();
-    requireNoPass();
-
-    if (!dst)
-    {
-        RHI_VALIDATION_ERROR("'dst' must not be null.");
-        return;
-    }
-    if (!src.buffer)
-    {
-        RHI_VALIDATION_ERROR("'src.buffer' must not be null.");
-        return;
-    }
-
-    baseObject->deserializeAccelerationStructure(dst, src);
-}
-
 void DebugCommandEncoder::executeClusterOperation(const ClusterOperationDesc& desc)
 {
     SLANG_RHI_DEBUG_API(ICommandEncoder, executeClusterOperation);

@@ -824,22 +824,6 @@ void CommandEncoder::queryAccelerationStructureProperties(
     SLANG_RHI_UNIMPLEMENTED("queryAccelerationStructureProperties");
 }
 
-void CommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
-{
-    commands::SerializeAccelerationStructure cmd;
-    cmd.dst = dst;
-    cmd.src = checked_cast<AccelerationStructure*>(src);
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
-{
-    commands::DeserializeAccelerationStructure cmd;
-    cmd.dst = checked_cast<AccelerationStructure*>(dst);
-    cmd.src = src;
-    m_commandList->write(std::move(cmd));
-}
-
 void CommandEncoder::executeClusterOperation(const ClusterOperationDesc& desc)
 {
     commands::ExecuteClusterOperation cmd;
