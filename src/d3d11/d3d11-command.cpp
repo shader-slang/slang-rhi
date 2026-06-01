@@ -45,8 +45,7 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
-    bool m_usedDisjointQuery = false;
-    ComPtr<ID3D11Query> m_disjointQuery;
+    ID3D11Query* m_disjointQuery = nullptr;
 
     CommandExecutor(DeviceImpl* device, uint64_t submissionID)
         : m_device(device)
@@ -104,6 +103,16 @@ public:
 Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 {
     const CommandList& commandList = commandBuffer->m_commandList;
+    if (commandList.writesTimestamp())
+    {
+        m_disjointQuery = commandBuffer->m_disjointQuery;
+        if (!m_disjointQuery)
+        {
+            return SLANG_FAIL;
+        }
+        m_immediateContext->Begin(m_disjointQuery);
+    }
+
     auto command = commandList.getCommands();
     while (command)
     {
@@ -122,7 +131,7 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
         command = command->next;
     }
 
-    if (m_usedDisjointQuery)
+    if (m_disjointQuery)
     {
         m_immediateContext->End(m_disjointQuery);
     }
@@ -879,19 +888,6 @@ void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
-    if (!m_usedDisjointQuery)
-    {
-        D3D11_QUERY_DESC queryDesc = {};
-        queryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
-        HRESULT hr = m_device->m_device->CreateQuery(&queryDesc, m_disjointQuery.writeRef());
-        if (FAILED(hr))
-        {
-            m_device->printError("Failed to create D3D11 timestamp disjoint query.");
-            return;
-        }
-        m_immediateContext->Begin(m_disjointQuery);
-        m_usedDisjointQuery = true;
-    }
     m_immediateContext->End(queryPool->getQuery(cmd.queryIndex));
     queryPool->setDisjointQuery(cmd.queryIndex, m_disjointQuery);
     queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
@@ -1018,6 +1014,14 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     m_commandBuffer->setDesc(desc);
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->m_constantBufferPool.finish();
+    if (m_commandBuffer->m_commandList.writesTimestamp() && !m_commandBuffer->m_disjointQuery)
+    {
+        D3D11_QUERY_DESC queryDesc = {};
+        queryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+        SLANG_RETURN_ON_FAIL(
+            getDevice<DeviceImpl>()->m_device->CreateQuery(&queryDesc, m_commandBuffer->m_disjointQuery.writeRef())
+        );
+    }
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;
@@ -1040,6 +1044,7 @@ CommandBufferImpl::CommandBufferImpl(Device* device)
 Result CommandBufferImpl::reset()
 {
     m_bindingCache.reset();
+    m_disjointQuery.setNull();
     return CommandBuffer::reset();
 }
 
