@@ -412,7 +412,10 @@ void QueryPool::markQueryRangeReady(uint32_t queryIndex, uint32_t count, uint64_
 
 QueryPool::QueryRangeInfo QueryPool::getQueryRangeInfo(uint32_t queryIndex, uint32_t count) const
 {
-    SLANG_RHI_ASSERT(isValidQueryRange(queryIndex, count));
+    if (!isValidQueryRange(queryIndex, count))
+    {
+        return {QueryRangeState::Reset, 0};
+    }
 
     if (count == 0)
     {
@@ -427,7 +430,7 @@ QueryPool::QueryRangeInfo QueryPool::getQueryRangeInfo(uint32_t queryIndex, uint
         QueryStatus status = state.getStatus();
         if (status == QueryStatus::Reset)
         {
-            return {};
+            return {QueryRangeState::Reset, 0};
         }
         if (status == QueryStatus::Pending)
         {
