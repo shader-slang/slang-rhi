@@ -570,13 +570,6 @@ void translatePostBuildInfoDescs(
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
-        case QueryType::AccelerationStructureSerializedSize:
-            postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION;
-            postBuildInfoDescs[i].DestBuffer =
-                checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
-                sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC) *
-                    queryDescs[i].firstQueryIndex;
-            break;
         default:
             break;
         }

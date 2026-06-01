@@ -8,9 +8,15 @@ class QueryPoolImpl : public QueryPool
 {
 public:
     QueryPoolImpl(Device* device, const QueryPoolDesc& desc);
+    ~QueryPoolImpl();
 
     Result init();
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(
+        uint32_t queryIndex,
+        uint32_t count,
+        bool* outReady
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
         uint32_t queryIndex,
         uint32_t count,
@@ -23,12 +29,7 @@ public:
     D3D12_QUERY_TYPE m_queryType;
     ComPtr<ID3D12QueryHeap> m_queryHeap;
     D3D12Resource m_readBackBuffer;
-    ComPtr<ID3D12CommandAllocator> m_commandAllocator;
-    ComPtr<ID3D12GraphicsCommandList> m_commandList;
-    ComPtr<ID3D12Fence> m_fence;
-    ComPtr<ID3D12CommandQueue> m_commandQueue;
-    HANDLE m_waitEvent;
-    UINT64 m_eventValue = 0;
+    uint8_t* m_mappedReadBackData = nullptr;
 };
 
 /// Implements the IQueryPool interface with a plain buffer.
@@ -42,10 +43,15 @@ public:
 
 public:
     PlainBufferProxyQueryPoolImpl(Device* device, const QueryPoolDesc& desc);
+    ~PlainBufferProxyQueryPoolImpl();
 
     Result init(uint32_t stride);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(
+        uint32_t queryIndex,
+        uint32_t count,
+        bool* outReady
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
         uint32_t queryIndex,
         uint32_t count,
@@ -55,8 +61,8 @@ public:
 public:
     QueryType m_queryType;
     RefPtr<BufferImpl> m_buffer;
-    std::vector<uint8_t> m_result;
-    bool m_resultDirty = true;
+    D3D12Resource m_readBackBuffer;
+    uint8_t* m_mappedReadBackData = nullptr;
     uint32_t m_stride = 0;
     uint32_t m_count = 0;
 };

@@ -318,6 +318,8 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     queryPool->m_queries[cmd.queryIndex] = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, 0);
+    queryPool->markQueryRangeReady(cmd.queryIndex, 1, 0);
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)

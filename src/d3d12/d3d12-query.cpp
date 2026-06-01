@@ -11,6 +11,16 @@ QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
 {
 }
 
+QueryPoolImpl::~QueryPoolImpl()
+{
+    if (m_mappedReadBackData)
+    {
+        D3D12_RANGE writtenRange = {0, 0};
+        m_readBackBuffer.getResource()->Unmap(0, &writtenRange);
+        m_mappedReadBackData = nullptr;
+    }
+}
+
 Result QueryPoolImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
@@ -52,69 +62,84 @@ Result QueryPoolImpl::init()
         device->m_allocator
     ));
 
-    // Create command allocator.
+    D3D12_RANGE readRange = {0, sizeof(uint64_t) * m_desc.count};
     SLANG_RETURN_ON_FAIL(
-        d3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_commandAllocator.writeRef()))
+        m_readBackBuffer.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedReadBackData))
     );
 
-    // Create command list.
-    SLANG_RETURN_ON_FAIL(d3dDevice->CreateCommandList(
-        0,
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        m_commandAllocator,
-        nullptr,
-        IID_PPV_ARGS(m_commandList.writeRef())
-    ));
-    m_commandList->Close();
+    return SLANG_OK;
+}
 
-    // Create fence.
-    SLANG_RETURN_ON_FAIL(d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
+Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+{
+    if (!outReady || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
 
-    // Get command queue from device.
-    m_commandQueue = device->m_queue->m_d3dQueue;
+    *outReady = false;
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
+    if (queryInfo.state == QueryRangeState::Resolved)
+    {
+        *outReady = true;
+        return SLANG_OK;
+    }
 
-    // Create wait event.
-    m_waitEvent = CreateEventEx(nullptr, FALSE, 0, EVENT_ALL_ACCESS);
+    CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+    uint64_t submissionID = queryInfo.submissionID;
+    if (queue->updateLastFinishedID() < submissionID)
+    {
+        return SLANG_OK;
+    }
+
+    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+    *outReady = true;
 
     return SLANG_OK;
 }
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (!outData || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
     if (count == 0)
     {
         return SLANG_OK;
     }
 
-    m_commandList->Reset(m_commandAllocator, nullptr);
-    m_commandList->ResolveQueryData(
-        m_queryHeap,
-        m_queryType,
-        (UINT)queryIndex,
-        (UINT)count,
-        m_readBackBuffer,
-        sizeof(uint64_t) * queryIndex
-    );
-    m_commandList->Close();
-    ID3D12CommandList* cmdList = m_commandList;
-    m_commandQueue->ExecuteCommandLists(1, &cmdList);
-    m_eventValue++;
-    m_fence->SetEventOnCompletion(m_eventValue, m_waitEvent);
-    m_commandQueue->Signal(m_fence, m_eventValue);
-    WaitForSingleObject(m_waitEvent, INFINITE);
-    m_commandAllocator->Reset();
+    CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+    uint64_t submissionID = queryInfo.submissionID;
+    if (queue->updateLastFinishedID() < submissionID)
+    {
+        ResetEvent(queue->m_globalWaitHandle);
+        SLANG_RETURN_ON_FAIL(queue->m_trackingFence->SetEventOnCompletion(submissionID, queue->m_globalWaitHandle));
+        WaitForSingleObject(queue->m_globalWaitHandle, INFINITE);
+        queue->updateLastFinishedID();
+        queue->retireCommandBuffers();
+    }
 
-    int8_t* mappedData = nullptr;
-    D3D12_RANGE readRange = {sizeof(uint64_t) * queryIndex, sizeof(uint64_t) * (queryIndex + count)};
-    m_readBackBuffer.getResource()->Map(0, &readRange, (void**)&mappedData);
-    memcpy(outData, mappedData + sizeof(uint64_t) * queryIndex, sizeof(uint64_t) * count);
-    m_readBackBuffer.getResource()->Unmap(0, nullptr);
+    memcpy(outData, m_mappedReadBackData + sizeof(uint64_t) * queryIndex, sizeof(uint64_t) * count);
+    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+
     return SLANG_OK;
 }
 
 void QueryPoolImpl::writeTimestamp(ID3D12GraphicsCommandList* cmdList, uint32_t index)
 {
     cmdList->EndQuery(m_queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index);
+    cmdList->ResolveQueryData(m_queryHeap, m_queryType, index, 1, m_readBackBuffer, sizeof(uint64_t) * index);
 }
 
 IQueryPool* PlainBufferProxyQueryPoolImpl::getInterface(const Guid& guid)
@@ -129,19 +154,49 @@ PlainBufferProxyQueryPoolImpl::PlainBufferProxyQueryPoolImpl(Device* device, con
 {
 }
 
+PlainBufferProxyQueryPoolImpl::~PlainBufferProxyQueryPoolImpl()
+{
+    if (m_mappedReadBackData)
+    {
+        D3D12_RANGE writtenRange = {0, 0};
+        m_readBackBuffer.getResource()->Unmap(0, &writtenRange);
+        m_mappedReadBackData = nullptr;
+    }
+}
+
 Result PlainBufferProxyQueryPoolImpl::init(uint32_t stride)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+    uint64_t size = uint64_t(m_desc.count) * stride;
 
     ComPtr<IBuffer> buffer;
     BufferDesc bufferDesc = {};
     bufferDesc.defaultState = ResourceState::CopySource;
     bufferDesc.elementSize = 0;
-    bufferDesc.size = m_desc.count * stride;
+    bufferDesc.size = size;
     bufferDesc.format = Format::Undefined;
     bufferDesc.usage = BufferUsage::UnorderedAccess;
     SLANG_RETURN_ON_FAIL(device->createBuffer(bufferDesc, nullptr, buffer.writeRef()));
     m_buffer = checked_cast<BufferImpl*>(buffer.get());
+
+    D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_READBACK);
+    D3D12_RESOURCE_DESC resourceDesc = {};
+    initBufferDesc(size, resourceDesc);
+    SLANG_RETURN_ON_FAIL(m_readBackBuffer.initCommitted(
+        device->m_device,
+        heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        resourceDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr,
+        device->m_allocator
+    ));
+
+    D3D12_RANGE readRange = {0, size};
+    SLANG_RETURN_ON_FAIL(
+        m_readBackBuffer.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedReadBackData))
+    );
+
     m_queryType = m_desc.type;
     m_device = device;
     m_stride = stride;
@@ -149,70 +204,69 @@ Result PlainBufferProxyQueryPoolImpl::init(uint32_t stride)
     return SLANG_OK;
 }
 
-Result PlainBufferProxyQueryPoolImpl::reset()
+Result PlainBufferProxyQueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
 {
-    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (!outReady || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
 
-    m_resultDirty = true;
-    ID3D12GraphicsCommandList* commandList = device->beginImmediateCommandList();
-    D3D12_RESOURCE_BARRIER barrier = {};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-    barrier.Transition.pResource = m_buffer->m_resource.getResource();
-    commandList->ResourceBarrier(1, &barrier);
-    device->endImmediateCommandList();
+    *outReady = false;
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
+    if (queryInfo.state == QueryRangeState::Resolved)
+    {
+        *outReady = true;
+        return SLANG_OK;
+    }
+
+    CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+    uint64_t submissionID = queryInfo.submissionID;
+    if (queue->updateLastFinishedID() < submissionID)
+    {
+        return SLANG_OK;
+    }
+
+    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+    *outReady = true;
+
     return SLANG_OK;
 }
 
 Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (!outData || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
     if (count == 0)
     {
         return SLANG_OK;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
-
-    if (m_resultDirty)
+    CommandQueueImpl* queue = device->m_queue.get();
+    uint64_t submissionID = queryInfo.submissionID;
+    if (queue->updateLastFinishedID() < submissionID)
     {
-        ID3D12GraphicsCommandList* commandList = device->beginImmediateCommandList();
-        D3D12_RESOURCE_BARRIER barrier = {};
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        barrier.Transition.pResource = m_buffer->m_resource.getResource();
-        commandList->ResourceBarrier(1, &barrier);
-
-        D3D12Resource stageBuf;
-
-        uint64_t size = uint64_t(m_count) * m_stride;
-        D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_READBACK);
-
-        D3D12_RESOURCE_DESC stagingDesc;
-        initBufferDesc(size, stagingDesc);
-
-        SLANG_RETURN_ON_FAIL(stageBuf.initCommitted(
-            device->m_device,
-            heapProps,
-            D3D12_HEAP_FLAG_NONE,
-            stagingDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr,
-            device->m_allocator
-        ));
-
-        commandList->CopyBufferRegion(stageBuf, 0, m_buffer->m_resource.getResource(), 0, size);
-        device->endImmediateCommandList();
-        void* ptr = nullptr;
-        stageBuf.getResource()->Map(0, nullptr, &ptr);
-        m_result.resize(m_count * m_stride);
-        memcpy(m_result.data(), ptr, m_result.size());
-
-        m_resultDirty = false;
+        ResetEvent(queue->m_globalWaitHandle);
+        SLANG_RETURN_ON_FAIL(queue->m_trackingFence->SetEventOnCompletion(submissionID, queue->m_globalWaitHandle));
+        WaitForSingleObject(queue->m_globalWaitHandle, INFINITE);
+        queue->updateLastFinishedID();
+        queue->retireCommandBuffers();
     }
 
-    memcpy(outData, m_result.data() + queryIndex * m_stride, count * m_stride);
+    memcpy(outData, m_mappedReadBackData + uint64_t(m_stride) * queryIndex, uint64_t(m_stride) * count);
+    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
 
     return SLANG_OK;
 }

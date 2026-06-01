@@ -12,6 +12,9 @@
 #include "../strings.h"
 #include "../format-conversion.h"
 
+#include <chrono>
+#include <thread>
+
 namespace rhi::d3d11 {
 
 template<typename T>
@@ -25,6 +28,7 @@ class CommandExecutor
 public:
     DeviceImpl* m_device;
     ID3D11DeviceContext1* m_immediateContext;
+    uint64_t m_submissionID;
 
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
@@ -42,10 +46,12 @@ public:
     BindingDataImpl* m_bindingData = nullptr;
 
     bool m_usedDisjointQuery = false;
+    ComPtr<ID3D11Query> m_disjointQuery;
 
-    CommandExecutor(DeviceImpl* device)
+    CommandExecutor(DeviceImpl* device, uint64_t submissionID)
         : m_device(device)
         , m_immediateContext(device->m_immediateContext1.get())
+        , m_submissionID(submissionID)
     {
     }
 
@@ -118,7 +124,7 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 
     if (m_usedDisjointQuery)
     {
-        m_immediateContext->End(m_device->m_disjointQuery);
+        m_immediateContext->End(m_disjointQuery);
     }
 
     return SLANG_OK;
@@ -875,10 +881,20 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     if (!m_usedDisjointQuery)
     {
-        m_immediateContext->Begin(m_device->m_disjointQuery);
+        D3D11_QUERY_DESC queryDesc = {};
+        queryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+        HRESULT hr = m_device->m_device->CreateQuery(&queryDesc, m_disjointQuery.writeRef());
+        if (FAILED(hr))
+        {
+            m_device->printError("Failed to create D3D11 timestamp disjoint query.");
+            return;
+        }
+        m_immediateContext->Begin(m_disjointQuery);
         m_usedDisjointQuery = true;
     }
     m_immediateContext->End(queryPool->getQuery(cmd.queryIndex));
+    queryPool->setDisjointQuery(cmd.queryIndex, m_disjointQuery);
+    queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -924,9 +940,10 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    ++m_lastSubmittedID;
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(getDevice<DeviceImpl>());
+        CommandExecutor executor(getDevice<DeviceImpl>(), m_lastSubmittedID);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
     return SLANG_OK;
@@ -934,6 +951,26 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!m_waitQuery)
+    {
+        D3D11_QUERY_DESC queryDesc = {};
+        queryDesc.Query = D3D11_QUERY_EVENT;
+        SLANG_RETURN_ON_FAIL(device->m_device->CreateQuery(&queryDesc, m_waitQuery.writeRef()));
+    }
+
+    device->m_immediateContext->End(m_waitQuery);
+    device->m_immediateContext->Flush();
+
+    HRESULT hr = S_FALSE;
+    while ((hr = device->m_immediateContext->GetData(m_waitQuery, nullptr, 0, D3D11_ASYNC_GETDATA_DONOTFLUSH)) ==
+           S_FALSE)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    SLANG_RETURN_ON_FAIL(hr);
+
     return SLANG_OK;
 }
 

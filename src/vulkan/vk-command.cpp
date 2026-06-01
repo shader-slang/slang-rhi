@@ -1823,9 +1823,6 @@ void CommandRecorder::queryAccelerationStructureProperties(
         case QueryType::AccelerationStructureCompactedSize:
             queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
             break;
-        case QueryType::AccelerationStructureSerializedSize:
-            queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR;
-            break;
         case QueryType::AccelerationStructureCurrentSize:
             continue;
         default:
@@ -1836,15 +1833,17 @@ void CommandRecorder::queryAccelerationStructureProperties(
             );
             return;
         }
-        auto queryPool = checked_cast<QueryPoolImpl*>(queryDescs[i].queryPool)->m_pool;
-        m_device->m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool, (uint32_t)queryDescs[i].firstQueryIndex, 1);
+        auto queryPoolImpl = checked_cast<QueryPoolImpl*>(queryDescs[i].queryPool);
+        auto queryPool = queryPoolImpl->m_pool;
+        uint32_t queryIndex = (uint32_t)queryDescs[i].firstQueryIndex;
+        m_device->m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool, queryIndex, accelerationStructureCount);
         m_device->m_api.vkCmdWriteAccelerationStructuresPropertiesKHR(
             m_cmdBuffer,
             accelerationStructureCount,
             vkHandles.data(),
             queryType,
             queryPool,
-            queryDescs[i].firstQueryIndex
+            queryIndex
         );
     }
 }
@@ -1991,6 +1990,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
+        }
         m_commandBuffersInFlight.push_back(commandBuffer);
         vkCommandBuffers.push_back(commandBuffer->m_commandBuffer);
     }

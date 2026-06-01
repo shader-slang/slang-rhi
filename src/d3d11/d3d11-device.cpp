@@ -17,6 +17,9 @@
 
 #include "core/string.h"
 
+#include <chrono>
+#include <thread>
+
 namespace rhi::d3d11 {
 
 DeviceImpl::DeviceImpl() {}
@@ -191,13 +194,21 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         D3D11_QUERY_DESC disjointQueryDesc = {};
         disjointQueryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
-        SLANG_RETURN_ON_FAIL(m_device->CreateQuery(&disjointQueryDesc, m_disjointQuery.writeRef()));
-        m_immediateContext->Begin(m_disjointQuery);
-        m_immediateContext->End(m_disjointQuery);
+        ComPtr<ID3D11Query> disjointQuery;
+        SLANG_RETURN_ON_FAIL(m_device->CreateQuery(&disjointQueryDesc, disjointQuery.writeRef()));
+        m_immediateContext->Begin(disjointQuery);
+        m_immediateContext->End(disjointQuery);
         D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData = {};
         m_immediateContext->Flush();
-        m_immediateContext->GetData(m_disjointQuery, &disjointData, sizeof(disjointData), 0);
-        m_info.timestampFrequency = disjointData.Frequency;
+        HRESULT hr = S_FALSE;
+        while ((hr = m_immediateContext->GetData(disjointQuery, &disjointData, sizeof(disjointData), 0)) == S_FALSE)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        if (SUCCEEDED(hr) && !disjointData.Disjoint)
+        {
+            m_info.timestampFrequency = disjointData.Frequency;
+        }
     }
 
     // Query device limits
