@@ -2097,6 +2097,42 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const CalibratedTimestampSupport& timestampSupport = device->m_calibratedTimestampSupport;
+    if (!timestampSupport.available || !m_api.vkGetCalibratedTimestampsKHR)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    VkCalibratedTimestampInfoKHR timestampInfos[2] = {};
+    timestampInfos[0].sType = VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_KHR;
+    timestampInfos[0].timeDomain = VK_TIME_DOMAIN_DEVICE_KHR;
+    timestampInfos[1].sType = VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_KHR;
+    timestampInfos[1].timeDomain = timestampSupport.hostTimeDomain;
+
+    uint64_t timestamps[2] = {};
+    uint64_t maxDeviation = 0;
+    SLANG_VK_RETURN_ON_FAIL(
+        m_api.vkGetCalibratedTimestampsKHR(m_api.m_device, 2, timestampInfos, timestamps, &maxDeviation)
+    );
+
+    outCalibration->cpuDomain = timestampSupport.cpuTimestampDomain;
+    outCalibration->cpuTimestamp = timestamps[1];
+    outCalibration->cpuFrequency = timestampSupport.cpuTimestampFrequency;
+    outCalibration->gpuTimestamp = timestamps[0];
+    outCalibration->gpuFrequency = device->getInfo().timestampFrequency;
+    outCalibration->maxDeviationNs = maxDeviation;
+
+    return SLANG_OK;
+}
+
 // CommandEncoderImpl
 
 CommandEncoderImpl::CommandEncoderImpl(Device* device, CommandQueueImpl* queue, const CommandEncoderDesc& desc)

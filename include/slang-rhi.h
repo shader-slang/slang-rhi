@@ -130,6 +130,7 @@ enum class DeviceType
     x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
+    x(TimestampCalibration,                     "timestamp-calibration"                         ) \
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \
     x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
@@ -2776,6 +2777,31 @@ enum class QueueType
     Graphics,
 };
 
+enum class CpuTimestampDomain
+{
+    Unknown,
+    QueryPerformanceCounter,
+    ClockMonotonic,
+    ClockMonotonicRaw,
+    MachAbsoluteTime,
+};
+
+struct TimestampCalibration
+{
+    /// The domain of the CPU timestamp.
+    CpuTimestampDomain cpuDomain = CpuTimestampDomain::Unknown;
+    /// The current CPU timestamp.
+    uint64_t cpuTimestamp = 0;
+    /// The frequency of the CPU timestamp in ticks per second.
+    uint64_t cpuFrequency = 0;
+    /// The current GPU timestamp.
+    uint64_t gpuTimestamp = 0;
+    /// The frequency of the GPU timestamp in ticks per second.
+    uint64_t gpuFrequency = 0;
+    /// The maximum deviation between the CPU and GPU timestamps in nanoseconds.
+    uint64_t maxDeviationNs = 0;
+};
+
 // The NULL CUDA stream is valid (it refers to the default stream), so we
 // use this constant to indicate the absence of one.
 void* const kInvalidCUDAStream = reinterpret_cast<void*>(~uintptr_t{0});
@@ -2847,6 +2873,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) = 0;
 };
 
 struct SurfaceInfo
@@ -3128,6 +3156,10 @@ struct DeviceInfo
     AdapterLUID adapterLUID;
 
     /// The clock frequency used in timestamp queries.
+    /// This is a legacy/static convenience value for converting differences
+    /// between QueryType::Timestamp results. New code that needs to correlate
+    /// GPU timestamps with a CPU clock should use
+    /// ICommandQueue::getTimestampCalibration().
     uint64_t timestampFrequency = 0;
 
     /// The version of OptiX used by the device (0 if OptiX is not supported).

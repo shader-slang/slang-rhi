@@ -14,6 +14,8 @@
 #include "cuda-utils.h"
 #include "cuda-heap.h"
 
+#include "core/platform.h"
+
 namespace rhi::cuda {
 
 struct ComputeCapabilityInfo
@@ -210,6 +212,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
+    addFeature(Feature::TimestampCalibration);
     addFeature(Feature::Pointer);
 
     int computeCapabilityMajor = 0;

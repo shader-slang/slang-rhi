@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <initializer_list>
+#include <cmath>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -534,4 +535,72 @@ GPU_TEST_CASE("cmd-query-resolve-device", ALL & ~(D3D11 | CPU | CUDA))
     double durationGPU = maxTime - minTime;
     CHECK(durationGPU < durationCPU);
     // printf("Duration CPU: %.3f ms, GPU: %.3f\n", durationCPU * 1000.0, durationGPU * 1000.0);
+}
+
+static uint64_t getGpuToleranceTicks(const TimestampCalibration& calibration)
+{
+    return uint64_t(
+               std::ceil(
+                   (long double)calibration.maxDeviationNs * (long double)calibration.gpuFrequency /
+                   (long double)1000000000.0
+               )
+           ) +
+           1;
+}
+
+GPU_TEST_CASE("cmd-query-timestamp-calibration", ALL)
+{
+    if (!device->hasFeature(Feature::TimestampCalibration))
+    {
+        SKIP("Timestamp calibration not supported");
+    }
+
+    REQUIRE(device->hasFeature(Feature::TimestampQuery));
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    REQUIRE(queue);
+
+    TimestampCalibration calibration0 = {};
+    TimestampCalibration calibration1 = {};
+    REQUIRE_CALL(queue->getTimestampCalibration(&calibration0));
+    REQUIRE_CALL(queue->getTimestampCalibration(&calibration1));
+
+    CHECK(calibration0.cpuDomain != CpuTimestampDomain::Unknown);
+    CHECK(calibration0.cpuFrequency > 0);
+    CHECK(calibration0.gpuFrequency > 0);
+    CHECK(calibration1.cpuDomain == calibration0.cpuDomain);
+    CHECK(calibration1.cpuFrequency == calibration0.cpuFrequency);
+    CHECK(calibration1.gpuFrequency == calibration0.gpuFrequency);
+    CHECK(calibration1.cpuTimestamp >= calibration0.cpuTimestamp);
+    CHECK(calibration1.gpuTimestamp >= calibration0.gpuTimestamp);
+
+    QueryPoolDesc queryPoolDesc = {};
+    queryPoolDesc.type = QueryType::Timestamp;
+    queryPoolDesc.count = 1;
+    ComPtr<IQueryPool> queryPool;
+    REQUIRE_CALL(device->createQueryPool(queryPoolDesc, queryPool.writeRef()));
+
+    TimestampCalibration before = {};
+    TimestampCalibration after = {};
+    REQUIRE_CALL(queue->getTimestampCalibration(&before));
+
+    auto commandEncoder = queue->createCommandEncoder();
+    commandEncoder->writeTimestamp(queryPool, 0);
+    REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    REQUIRE_CALL(queue->getTimestampCalibration(&after));
+
+    uint64_t timestamp = 0;
+    REQUIRE_CALL(queryPool->getResult(0, 1, &timestamp));
+
+    const uint64_t lowerTolerance = getGpuToleranceTicks(before);
+    const uint64_t upperTolerance = getGpuToleranceTicks(after);
+    const uint64_t lowerBound = before.gpuTimestamp > lowerTolerance ? before.gpuTimestamp - lowerTolerance : 0;
+    const uint64_t upperBound = after.gpuTimestamp > std::numeric_limits<uint64_t>::max() - upperTolerance
+                                    ? std::numeric_limits<uint64_t>::max()
+                                    : after.gpuTimestamp + upperTolerance;
+
+    CHECK(timestamp >= lowerBound);
+    CHECK(timestamp <= upperBound);
 }

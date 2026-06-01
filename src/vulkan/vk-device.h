@@ -14,6 +14,15 @@ public:
     uint8_t m_deviceUUID[VK_UUID_SIZE];
 };
 
+struct CalibratedTimestampSupport
+{
+    bool available = false;
+    const char* deviceExtensionName = nullptr;
+    VkTimeDomainKHR hostTimeDomain = VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR;
+    CpuTimestampDomain cpuTimestampDomain = CpuTimestampDomain::Unknown;
+    uint64_t cpuTimestampFrequency = 0;
+};
+
 class DeviceImpl : public Device
 {
 public:
@@ -232,6 +241,7 @@ public:
 
     VkDevice m_device = VK_NULL_HANDLE;
     bool m_hasSubgroupSizeControl = false;
+    CalibratedTimestampSupport m_calibratedTimestampSupport;
 
     VulkanModule m_module;
     VulkanApi m_api;

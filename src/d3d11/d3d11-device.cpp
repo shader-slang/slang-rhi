@@ -296,6 +296,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     if (m_info.timestampFrequency > 0)
     {
         addFeature(Feature::TimestampQuery);
+        addFeature(Feature::TimestampCalibration);
     }
 
     addCapability(Capability::hlsl);
