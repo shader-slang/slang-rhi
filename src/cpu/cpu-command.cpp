@@ -5,7 +5,7 @@
 #include "../command-list.h"
 #include "../strings.h"
 
-#include <chrono>
+#include "core/platform.h"
 
 namespace rhi::cpu {
 
@@ -319,7 +319,7 @@ void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
-    queryPool->m_queries[cmd.queryIndex] = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    queryPool->m_queries[cmd.queryIndex] = getCpuTimestamp();
     queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
     queryPool->markQueryRangeReady(cmd.queryIndex, 1, m_submissionID);
 }
@@ -385,6 +385,26 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    const uint64_t cpuFrequency = getCpuTimestampFrequency();
+    const uint64_t cpuTimestamp = getCpuTimestamp();
+
+    outCalibration->cpuDomain = getCpuTimestampDomain();
+    outCalibration->cpuTimestamp = cpuTimestamp;
+    outCalibration->cpuFrequency = cpuFrequency;
+    outCalibration->gpuTimestamp = cpuTimestamp;
+    outCalibration->gpuFrequency = cpuFrequency;
+    outCalibration->maxDeviationNs = 0;
+
+    return SLANG_OK;
 }
 
 // CommandEncoderImpl

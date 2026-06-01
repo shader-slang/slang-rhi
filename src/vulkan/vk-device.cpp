@@ -22,6 +22,7 @@
 #include "core/short_vector.h"
 #include "core/static_vector.h"
 #include "core/deferred.h"
+#include "core/platform.h"
 
 #include <algorithm>
 #include <set>
@@ -34,6 +35,112 @@ static constexpr VkSubgroupFeatureFlags kWaveOpsSubgroupFeatureMask =
     VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
     VK_SUBGROUP_FEATURE_BALLOT_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT |
     VK_SUBGROUP_FEATURE_CLUSTERED_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT | VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV;
+
+static Result queryCalibratedTimestampSupport(
+    VulkanApi& api,
+    const std::set<std::string>& extensionNames,
+    CalibratedTimestampSupport& outSupport
+)
+{
+    outSupport = {};
+
+    const char* calibratedTimestampExtension = nullptr;
+    if (extensionNames.count(VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME))
+    {
+        calibratedTimestampExtension = VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME;
+    }
+    else if (extensionNames.count(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME))
+    {
+        calibratedTimestampExtension = VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME;
+    }
+
+    if (!calibratedTimestampExtension || !api.vkGetPhysicalDeviceCalibrateableTimeDomainsKHR)
+    {
+        return SLANG_OK;
+    }
+
+    uint32_t timeDomainCount = 0;
+    SLANG_VK_RETURN_ON_FAIL(
+        api.vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(api.m_physicalDevice, &timeDomainCount, nullptr)
+    );
+    if (timeDomainCount == 0)
+    {
+        return SLANG_OK;
+    }
+
+    std::vector<VkTimeDomainKHR> timeDomains(timeDomainCount);
+    SLANG_VK_RETURN_ON_FAIL(
+        api.vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(api.m_physicalDevice, &timeDomainCount, timeDomains.data())
+    );
+
+    const auto hasTimeDomain = [&](VkTimeDomainKHR domain)
+    {
+        return std::find(timeDomains.begin(), timeDomains.end(), domain) != timeDomains.end();
+    };
+    if (!hasTimeDomain(VK_TIME_DOMAIN_DEVICE_KHR))
+    {
+        return SLANG_OK;
+    }
+
+    struct Candidate
+    {
+        VkTimeDomainKHR vkDomain;
+        CpuTimestampDomain cpuTimestampDomain;
+        uint64_t cpuTimestampFrequency;
+    };
+
+    const CpuTimestampDomain cpuTimestampDomain = getCpuTimestampDomain();
+    const uint64_t cpuTimestampFrequency = getCpuTimestampFrequency();
+    if (cpuTimestampDomain == CpuTimestampDomain::Unknown || cpuTimestampFrequency == 0)
+    {
+        return SLANG_OK;
+    }
+
+    short_vector<Candidate, 3> candidates;
+#if SLANG_WINDOWS_FAMILY
+    if (cpuTimestampDomain == CpuTimestampDomain::QueryPerformanceCounter)
+    {
+        candidates.push_back({
+            VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_KHR,
+            CpuTimestampDomain::QueryPerformanceCounter,
+            cpuTimestampFrequency,
+        });
+    }
+#endif
+#if SLANG_LINUX_FAMILY
+    if (cpuTimestampDomain == CpuTimestampDomain::ClockMonotonicRaw)
+    {
+        candidates.push_back({
+            VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_KHR,
+            CpuTimestampDomain::ClockMonotonicRaw,
+            cpuTimestampFrequency,
+        });
+    }
+    else if (cpuTimestampDomain == CpuTimestampDomain::ClockMonotonic)
+    {
+        candidates.push_back({
+            VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR,
+            CpuTimestampDomain::ClockMonotonic,
+            cpuTimestampFrequency,
+        });
+    }
+#endif
+
+    for (const Candidate& candidate : candidates)
+    {
+        if (candidate.cpuTimestampFrequency != 0 && hasTimeDomain(candidate.vkDomain))
+        {
+            outSupport.available = true;
+            outSupport.deviceExtensionName = calibratedTimestampExtension;
+            outSupport.hostTimeDomain = candidate.vkDomain;
+            outSupport.cpuTimestampDomain = candidate.cpuTimestampDomain;
+            outSupport.cpuTimestampFrequency = candidate.cpuTimestampFrequency;
+            break;
+        }
+    }
+
+    return SLANG_OK;
+}
 
 DeviceImpl::DeviceImpl() {}
 
@@ -1016,6 +1123,12 @@ Result DeviceImpl::initVulkanDevice(
 
 #undef SIMPLE_EXTENSION_FEATURE
 
+        SLANG_RETURN_ON_FAIL(queryCalibratedTimestampSupport(m_api, extensionNames, m_calibratedTimestampSupport));
+        if (m_calibratedTimestampSupport.available && !desc.existingDeviceHandles.handles[2])
+        {
+            deviceExtensions.push_back(m_calibratedTimestampSupport.deviceExtensionName);
+        }
+
         if (extendedFeatures.vulkan12Features.shaderBufferInt64Atomics)
             availableFeatures.push_back(Feature::AtomicInt64);
 
@@ -1248,6 +1361,15 @@ Result DeviceImpl::initVulkanDevice(
     }
     m_api.initDerivedDeviceProperties();
     SLANG_RETURN_ON_FAIL(m_api.initDeviceProcs(m_device));
+
+    if (m_calibratedTimestampSupport.available && m_api.vkGetCalibratedTimestampsKHR)
+    {
+        availableFeatures.push_back(Feature::TimestampCalibration);
+    }
+    else
+    {
+        m_calibratedTimestampSupport = {};
+    }
 
     return SLANG_OK;
 }

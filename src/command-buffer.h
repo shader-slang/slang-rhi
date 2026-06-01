@@ -44,6 +44,11 @@ public:
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) override
+    {
+        SLANG_UNUSED(outCalibration);
+        return SLANG_E_NOT_AVAILABLE;
+    }
 
 public:
     QueueType m_type;

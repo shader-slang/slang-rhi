@@ -663,6 +663,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Rasterization);
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::TimestampQuery);
+    addFeature(Feature::TimestampCalibration);
 
     addCapability(Capability::hlsl);
 

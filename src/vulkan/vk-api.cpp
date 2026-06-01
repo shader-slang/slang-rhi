@@ -143,6 +143,10 @@ Result VulkanApi::initInstanceProcs(VkInstance instance)
         vkGetPhysicalDeviceProperties2 =
             (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
     }
+    if (!vkGetPhysicalDeviceCalibrateableTimeDomainsKHR && vkGetPhysicalDeviceCalibrateableTimeDomainsEXT)
+        vkGetPhysicalDeviceCalibrateableTimeDomainsKHR = vkGetPhysicalDeviceCalibrateableTimeDomainsEXT;
+    if (!vkGetPhysicalDeviceCalibrateableTimeDomainsEXT && vkGetPhysicalDeviceCalibrateableTimeDomainsKHR)
+        vkGetPhysicalDeviceCalibrateableTimeDomainsEXT = vkGetPhysicalDeviceCalibrateableTimeDomainsKHR;
 
     if (!areDefined(ProcType::Instance))
     {
@@ -209,6 +213,10 @@ Result VulkanApi::initDeviceProcs(VkDevice device)
         vkGetSemaphoreCounterValue = vkGetSemaphoreCounterValueKHR;
     if (!vkSignalSemaphore && vkSignalSemaphoreKHR)
         vkSignalSemaphore = vkSignalSemaphoreKHR;
+    if (!vkGetCalibratedTimestampsKHR && vkGetCalibratedTimestampsEXT)
+        vkGetCalibratedTimestampsKHR = vkGetCalibratedTimestampsEXT;
+    if (!vkGetCalibratedTimestampsEXT && vkGetCalibratedTimestampsKHR)
+        vkGetCalibratedTimestampsEXT = vkGetCalibratedTimestampsKHR;
     m_device = device;
     return SLANG_OK;
 }

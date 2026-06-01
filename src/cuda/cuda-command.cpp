@@ -13,6 +13,7 @@
 #include "../strings.h"
 
 #include "core/deferred.h"
+#include "core/platform.h"
 
 #include <chrono>
 
@@ -185,6 +186,31 @@ static Result resolveTimestampAnchor(CommandQueueImpl* queue, uint64_t generatio
 
     anchor->offsetUs = previous->offsetUs + cudaEventMillisecondsToMicroseconds(elapsedMs);
     anchor->resolved = true;
+    return SLANG_OK;
+}
+
+static Result resolveTimestampEvent(
+    CommandQueueImpl* queue,
+    CUevent event,
+    uint64_t anchorGeneration,
+    uint64_t* outTimestampUs
+)
+{
+    if (anchorGeneration == kInvalidTimestampAnchorGeneration)
+    {
+        return SLANG_FAIL;
+    }
+
+    SLANG_RETURN_ON_FAIL(resolveTimestampAnchor(queue, anchorGeneration));
+    TimestampAnchor* anchor = findTimestampAnchor(queue, anchorGeneration);
+    if (!anchor)
+    {
+        return SLANG_FAIL;
+    }
+
+    float elapsedMs = 0.0f;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventElapsedTime(&elapsedMs, anchor->event, event), queue);
+    *outTimestampUs = anchor->offsetUs + cudaEventMillisecondsToMicroseconds(elapsedMs);
     return SLANG_OK;
 }
 
@@ -1067,17 +1093,7 @@ Result CommandQueueImpl::resolveTimestampQueries(CommandBufferImpl* commandBuffe
             }
 
             QueryPoolImpl::Query& query = pool->m_queries[queryIndex];
-            SLANG_RETURN_ON_FAIL(resolveTimestampAnchor(this, query.anchorGeneration));
-
-            TimestampAnchor* anchor = findTimestampAnchor(this, query.anchorGeneration);
-            if (!anchor)
-            {
-                return SLANG_FAIL;
-            }
-
-            float elapsedMs = 0.0f;
-            SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventElapsedTime(&elapsedMs, anchor->event, query.event), this);
-            query.resultData = anchor->offsetUs + cudaEventMillisecondsToMicroseconds(elapsedMs);
+            SLANG_RETURN_ON_FAIL(resolveTimestampEvent(this, query.event, query.anchorGeneration, &query.resultData));
         }
 
         pool->markQueryRangeReady(queryWrite.index, queryWrite.count, commandBuffer->m_submissionID);
@@ -1108,6 +1124,43 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this, desc);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    uint64_t anchorGeneration = kInvalidTimestampAnchorGeneration;
+    SLANG_RETURN_ON_FAIL(getTimestampAnchorGeneration(this, &anchorGeneration));
+
+    CUevent event = nullptr;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&event, 0), this);
+    SLANG_RHI_DEFERRED({ SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(event)); });
+
+    uint64_t before = 0;
+    uint64_t after = 0;
+    uint64_t gpuTimestampUs = 0;
+
+    before = getCpuTimestamp();
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventRecord(event, m_stream), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventSynchronize(event), this);
+    after = getCpuTimestamp();
+    SLANG_RETURN_ON_FAIL(resolveTimestampEvent(this, event, anchorGeneration, &gpuTimestampUs));
+
+    const uint64_t cpuFrequency = getCpuTimestampFrequency();
+    const uint64_t cpuDelta = after - before;
+
+    outCalibration->cpuDomain = getCpuTimestampDomain();
+    outCalibration->cpuTimestamp = before + cpuDelta / 2;
+    outCalibration->cpuFrequency = cpuFrequency;
+    outCalibration->gpuTimestamp = gpuTimestampUs;
+    outCalibration->gpuFrequency = getDevice<DeviceImpl>()->getInfo().timestampFrequency;
+    outCalibration->maxDeviationNs = ticksToNanoseconds(cpuDelta, cpuFrequency) / 2 + 1;
+
     return SLANG_OK;
 }
 

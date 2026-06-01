@@ -12,6 +12,8 @@
 #include "../strings.h"
 #include "../format-conversion.h"
 
+#include "core/platform.h"
+
 #include <chrono>
 #include <thread>
 
@@ -974,6 +976,72 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    D3D11_QUERY_DESC timestampQueryDesc = {};
+    timestampQueryDesc.Query = D3D11_QUERY_TIMESTAMP;
+    ComPtr<ID3D11Query> timestampQuery;
+    SLANG_RETURN_ON_FAIL(device->m_device->CreateQuery(&timestampQueryDesc, timestampQuery.writeRef()));
+
+    D3D11_QUERY_DESC disjointQueryDesc = {};
+    disjointQueryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+    ComPtr<ID3D11Query> disjointQuery;
+    SLANG_RETURN_ON_FAIL(device->m_device->CreateQuery(&disjointQueryDesc, disjointQuery.writeRef()));
+
+    device->m_immediateContext->Begin(disjointQuery);
+    const uint64_t before = getCpuTimestamp();
+    device->m_immediateContext->End(timestampQuery);
+    device->m_immediateContext->End(disjointQuery);
+    device->m_immediateContext->Flush();
+
+    D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData = {};
+    HRESULT hr = S_FALSE;
+    while ((hr = device->m_immediateContext->GetData(disjointQuery, &disjointData, sizeof(disjointData), 0)) == S_FALSE)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    SLANG_RETURN_ON_FAIL(hr);
+    const uint64_t after = getCpuTimestamp();
+
+    if (disjointData.Disjoint || disjointData.Frequency == 0)
+    {
+        return SLANG_FAIL;
+    }
+
+    uint64_t gpuTimestamp = 0;
+    hr = S_FALSE;
+    while ((hr = device->m_immediateContext->GetData(timestampQuery, &gpuTimestamp, sizeof(gpuTimestamp), 0)) ==
+           S_FALSE)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    SLANG_RETURN_ON_FAIL(hr);
+
+    if (after < before)
+    {
+        return SLANG_FAIL;
+    }
+
+    const uint64_t cpuFrequency = getCpuTimestampFrequency();
+    const uint64_t cpuDelta = after - before;
+
+    outCalibration->cpuDomain = getCpuTimestampDomain();
+    outCalibration->cpuTimestamp = before + cpuDelta / 2;
+    outCalibration->cpuFrequency = cpuFrequency;
+    outCalibration->gpuTimestamp = gpuTimestamp;
+    outCalibration->gpuFrequency = disjointData.Frequency;
+    outCalibration->maxDeviationNs = ticksToNanoseconds(cpuDelta, cpuFrequency) / 2 + 1;
+
+    return SLANG_OK;
 }
 
 // CommandEncoderImpl

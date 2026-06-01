@@ -17,6 +17,7 @@
 
 #include "core/short_vector.h"
 #include "core/common.h"
+#include "core/platform.h"
 
 namespace rhi::d3d12 {
 
@@ -2067,6 +2068,41 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::D3D12CommandQueue;
     outHandle->value = (uint64_t)m_d3dQueue.get();
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    if (getCpuTimestampDomain() != CpuTimestampDomain::QueryPerformanceCounter)
+    {
+        return SLANG_FAIL;
+    }
+
+    const uint64_t before = getCpuTimestamp();
+
+    UINT64 gpuTimestamp = 0;
+    UINT64 cpuTimestamp = 0;
+    SLANG_RETURN_ON_FAIL(m_d3dQueue->GetClockCalibration(&gpuTimestamp, &cpuTimestamp));
+
+    const uint64_t after = getCpuTimestamp();
+
+    UINT64 gpuFrequency = 0;
+    SLANG_RETURN_ON_FAIL(m_d3dQueue->GetTimestampFrequency(&gpuFrequency));
+
+    const uint64_t cpuFrequency = getCpuTimestampFrequency();
+
+    outCalibration->cpuDomain = CpuTimestampDomain::QueryPerformanceCounter;
+    outCalibration->cpuTimestamp = cpuTimestamp;
+    outCalibration->cpuFrequency = cpuFrequency;
+    outCalibration->gpuTimestamp = gpuTimestamp;
+    outCalibration->gpuFrequency = gpuFrequency;
+    outCalibration->maxDeviationNs = ticksToNanoseconds(after - before, cpuFrequency);
+
     return SLANG_OK;
 }
 

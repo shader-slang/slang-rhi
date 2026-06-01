@@ -242,13 +242,14 @@
 
 ## `ICommandQueue` interface
 
-| API                     | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-------------------------|-----|------|-------|-------|--------|-------|------|
-| `getType`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `createCommandEncoder`  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `submit`                | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getNativeHandle`       | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
-| `waitOnHost`            | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| API                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|---------------------------|-----|------|-------|-------|--------|-------|------|
+| `getType`                 | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `createCommandEncoder`    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `submit`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getNativeHandle`         | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
+| `waitOnHost`              | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getTimestampCalibration` | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 
 ## `ISurface` interface
 
