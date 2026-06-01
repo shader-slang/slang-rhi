@@ -360,7 +360,7 @@ Result QueryPool::reset(uint32_t queryIndex, uint32_t count)
     for (uint32_t i = 0; i < count; ++i)
     {
         QueryState& state = m_queryStates[queryIndex + i];
-        state.set(QueryState::Status::Reset, 0);
+        state.set(QueryStatus::Reset, 0);
     }
 
     return SLANG_OK;
@@ -386,7 +386,7 @@ void QueryPool::markQueryRangeSubmitted(uint32_t queryIndex, uint32_t count, uin
     for (uint32_t i = 0; i < count; ++i)
     {
         QueryState& state = m_queryStates[queryIndex + i];
-        state.set(QueryState::Status::Pending, submissionID);
+        state.set(QueryStatus::Pending, submissionID);
     }
 }
 
@@ -401,11 +401,11 @@ void QueryPool::markQueryRangeReady(uint32_t queryIndex, uint32_t count, uint64_
     for (uint32_t i = 0; i < count; ++i)
     {
         QueryState& state = m_queryStates[queryIndex + i];
-        QueryState::Status status = state.getStatus();
+        QueryStatus status = state.getStatus();
         uint64_t submissionID = state.getSubmissionID();
-        if (status == QueryState::Status::Pending && submissionID <= completedSubmissionID)
+        if (status == QueryStatus::Pending && submissionID <= completedSubmissionID)
         {
-            state.set(QueryState::Status::Resolved, submissionID);
+            state.set(QueryStatus::Resolved, submissionID);
         }
     }
 }
@@ -424,12 +424,12 @@ QueryPool::QueryRangeInfo QueryPool::getQueryRangeInfo(uint32_t queryIndex, uint
     for (uint32_t i = 0; i < count; ++i)
     {
         const QueryState& state = m_queryStates[queryIndex + i];
-        QueryState::Status status = state.getStatus();
-        if (status == QueryState::Status::Reset)
+        QueryStatus status = state.getStatus();
+        if (status == QueryStatus::Reset)
         {
             return {};
         }
-        if (status == QueryState::Status::Pending)
+        if (status == QueryStatus::Pending)
         {
             info.state = QueryRangeState::Pending;
         }

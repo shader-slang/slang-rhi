@@ -273,27 +273,27 @@ public:
     QueryRangeInfo getQueryRangeInfo(uint32_t queryIndex, uint32_t count) const;
 
 public:
+    enum class QueryStatus : uint64_t
+    {
+        Reset = 0,
+        Pending = 1,
+        Resolved = 2,
+    };
+
     struct QueryState
     {
-        enum class Status : uint64_t
-        {
-            Reset = 0,
-            Pending = 1,
-            Resolved = 2,
-        };
-
         static constexpr uint64_t kStatusShift = 62;
         static constexpr uint64_t kSubmissionIDMask = (uint64_t(1) << kStatusShift) - 1;
 
         uint64_t state = 0;
 
-        void set(Status status, uint64_t submissionID)
+        void set(QueryStatus status, uint64_t submissionID)
         {
             SLANG_RHI_ASSERT((submissionID & ~kSubmissionIDMask) == 0);
             state = (uint64_t(status) << kStatusShift) | (submissionID & kSubmissionIDMask);
         }
 
-        Status getStatus() const { return Status(state >> kStatusShift); }
+        QueryStatus getStatus() const { return QueryStatus(state >> kStatusShift); }
 
         uint64_t getSubmissionID() const { return state & kSubmissionIDMask; }
     };
