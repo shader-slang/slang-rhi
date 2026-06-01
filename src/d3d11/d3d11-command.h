@@ -9,6 +9,9 @@ namespace rhi::d3d11 {
 class CommandQueueImpl : public CommandQueue
 {
 public:
+    ComPtr<ID3D11Query> m_waitQuery;
+    uint64_t m_lastSubmittedID = 0;
+
     CommandQueueImpl(Device* device, QueueType type);
 
     // ICommandQueue implementation
@@ -45,6 +48,7 @@ class CommandBufferImpl : public CommandBuffer
 public:
     ConstantBufferPool m_constantBufferPool;
     BindingCache m_bindingCache;
+    ComPtr<ID3D11Query> m_disjointQuery;
 
     CommandBufferImpl(Device* device);
 

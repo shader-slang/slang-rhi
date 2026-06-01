@@ -105,8 +105,6 @@ public:
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
-    void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
-    void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
@@ -130,6 +128,16 @@ public:
     void requireBufferState(BufferImpl* buffer, ResourceState state);
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
+
+    void requireAccelerationStructureQueryResultBuffers(
+        uint32_t queryCount,
+        const AccelerationStructureQueryDesc* queryDescs
+    );
+    void copyAccelerationStructureQueryResults(
+        uint32_t queryCount,
+        const AccelerationStructureQueryDesc* queryDescs,
+        uint32_t resultCount
+    );
 };
 
 Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
@@ -601,31 +609,20 @@ void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
     {
     case QueryType::AccelerationStructureCompactedSize:
     case QueryType::AccelerationStructureCurrentSize:
-    case QueryType::AccelerationStructureSerializedSize:
     {
         auto queryPoolImpl = checked_cast<PlainBufferProxyQueryPoolImpl*>(queryPool);
         auto srcQueryBuffer = queryPoolImpl->m_buffer->m_resource.getResource();
 
-        D3D12_RESOURCE_BARRIER barrier = {};
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        barrier.Transition.pResource = srcQueryBuffer;
-        m_cmdList->ResourceBarrier(1, &barrier);
+        requireBufferState(queryPoolImpl->m_buffer, ResourceState::CopySource);
+        commitBarriers();
 
         m_cmdList->CopyBufferRegion(
             buffer->m_resource.getResource(),
             cmd.offset,
             srcQueryBuffer,
-            cmd.index * sizeof(uint64_t),
-            cmd.count * sizeof(uint64_t)
+            uint64_t(cmd.index) * queryPoolImpl->m_stride,
+            uint64_t(cmd.count) * queryPoolImpl->m_stride
         );
-
-        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        barrier.Transition.pResource = srcQueryBuffer;
-        m_cmdList->ResourceBarrier(1, &barrier);
     }
     break;
     default:
@@ -1340,6 +1337,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
         }
     }
 
+    requireAccelerationStructureQueryResultBuffers(cmd.propertyQueryCount, cmd.queryDescs);
     commitBarriers();
 
 #if SLANG_RHI_ENABLE_NVAPI
@@ -1383,6 +1381,8 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
 
         m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, cmd.propertyQueryCount, postBuildInfoDescs.data());
     }
+
+    copyAccelerationStructureQueryResults(cmd.propertyQueryCount, cmd.queryDescs, 1);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
@@ -1417,43 +1417,14 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
     for (uint32_t i = 0; i < cmd.accelerationStructureCount; i++)
         asAddresses[i] = cmd.accelerationStructures[i]->getDeviceAddress();
     translatePostBuildInfoDescs(cmd.queryCount, cmd.queryDescs, postBuildInfoDescs);
+    requireAccelerationStructureQueryResultBuffers(cmd.queryCount, cmd.queryDescs);
+    commitBarriers();
     m_cmdList4->EmitRaytracingAccelerationStructurePostbuildInfo(
         postBuildInfoDescs.data(),
         cmd.accelerationStructureCount,
         asAddresses.data()
     );
-}
-
-void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
-{
-    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dst.buffer);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
-
-    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
-    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
-    commitBarriers();
-
-    m_cmdList4->CopyRaytracingAccelerationStructure(
-        cmd.dst.getDeviceAddress(),
-        src->getDeviceAddress(),
-        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_SERIALIZE
-    );
-}
-
-void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
-{
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.src.buffer);
-
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    requireBufferState(srcBuffer, ResourceState::ShaderResource);
-    commitBarriers();
-
-    m_cmdList4->CopyRaytracingAccelerationStructure(
-        dst->getDeviceAddress(),
-        cmd.src.getDeviceAddress(),
-        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_DESERIALIZE
-    );
+    copyAccelerationStructureQueryResults(cmd.queryCount, cmd.queryDescs, cmd.accelerationStructureCount);
 }
 
 void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
@@ -1837,6 +1808,53 @@ void CommandRecorder::commitBarriers()
     m_stateTracking.clearBarriers();
 }
 
+void CommandRecorder::requireAccelerationStructureQueryResultBuffers(
+    uint32_t queryCount,
+    const AccelerationStructureQueryDesc* queryDescs
+)
+{
+    if (!queryDescs)
+        return;
+
+    for (uint32_t i = 0; i < queryCount; ++i)
+    {
+        auto queryPool = checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool);
+        requireBufferState(queryPool->m_buffer, ResourceState::UnorderedAccess);
+    }
+}
+
+void CommandRecorder::copyAccelerationStructureQueryResults(
+    uint32_t queryCount,
+    const AccelerationStructureQueryDesc* queryDescs,
+    uint32_t resultCount
+)
+{
+    if (!queryDescs || queryCount == 0 || resultCount == 0)
+        return;
+
+    for (uint32_t i = 0; i < queryCount; ++i)
+    {
+        auto queryPool = checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool);
+        requireBufferState(queryPool->m_buffer, ResourceState::CopySource);
+    }
+    commitBarriers();
+
+    for (uint32_t i = 0; i < queryCount; ++i)
+    {
+        auto queryPool = checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool);
+        uint64_t offset = uint64_t(queryDescs[i].firstQueryIndex) * queryPool->m_stride;
+        uint64_t size = uint64_t(resultCount) * queryPool->m_stride;
+        m_cmdList->CopyBufferRegion(
+            queryPool->m_readBackBuffer.getResource(),
+            offset,
+            queryPool->m_buffer->m_resource.getResource(),
+            offset,
+            size
+        );
+    }
+}
+
+
 // CommandQueueImpl
 
 CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
@@ -1994,6 +2012,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
+        }
         m_commandBuffersInFlight.push_back(commandBuffer);
         commandLists.push_back(commandBuffer->m_d3dCommandList);
     }

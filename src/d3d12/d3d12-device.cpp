@@ -1769,14 +1769,10 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outSt
     switch (desc.type)
     {
     case QueryType::AccelerationStructureCompactedSize:
-    case QueryType::AccelerationStructureSerializedSize:
     case QueryType::AccelerationStructureCurrentSize:
     {
         RefPtr<PlainBufferProxyQueryPoolImpl> queryPoolImpl = new PlainBufferProxyQueryPoolImpl(this, desc);
-        uint32_t stride = 8;
-        if (desc.type == QueryType::AccelerationStructureSerializedSize)
-            stride = 16;
-        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(stride));
+        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(8));
         returnComPtr(outState, queryPoolImpl);
         return SLANG_OK;
     }

@@ -3,6 +3,7 @@
 #include <slang-rhi.h>
 #include "core/common.h"
 #include "core/arena-allocator.h"
+#include "core/short_vector.h"
 
 #include <utility>
 #include <set>
@@ -40,8 +41,6 @@
     x(BuildAccelerationStructure) \
     x(CopyAccelerationStructure) \
     x(QueryAccelerationStructureProperties) \
-    x(SerializeAccelerationStructure) \
-    x(DeserializeAccelerationStructure) \
     x(ExecuteClusterOperation) \
     x(ConvertCooperativeVectorMatrix) \
     x(SetBufferState) \
@@ -276,18 +275,6 @@ struct QueryAccelerationStructureProperties
     const AccelerationStructureQueryDesc* queryDescs;
 };
 
-struct SerializeAccelerationStructure
-{
-    BufferOffsetPair dst;
-    IAccelerationStructure* src;
-};
-
-struct DeserializeAccelerationStructure
-{
-    IAccelerationStructure* dst;
-    BufferOffsetPair src;
-};
-
 struct ExecuteClusterOperation
 {
     ClusterOperationDesc desc;
@@ -411,6 +398,14 @@ public:
         void* data;
     };
 
+    struct QueryWriteRange
+    {
+        IQueryPool* queryPool;
+        uint32_t index;
+        uint32_t count;
+    };
+    using QueryWriteRangeList = short_vector<QueryWriteRange, 16>;
+
     CommandList(
         ArenaAllocator& allocator,
         std::set<RefPtr<RefObject>>& trackedObjects,
@@ -448,8 +443,6 @@ public:
     void write(commands::BuildAccelerationStructure&& cmd);
     void write(commands::CopyAccelerationStructure&& cmd);
     void write(commands::QueryAccelerationStructureProperties&& cmd);
-    void write(commands::SerializeAccelerationStructure&& cmd);
-    void write(commands::DeserializeAccelerationStructure&& cmd);
     void write(commands::ExecuteClusterOperation&& cmd);
     void write(commands::ConvertCooperativeVectorMatrix&& cmd);
     void write(commands::SetBufferState&& cmd);
@@ -462,6 +455,8 @@ public:
     void write(commands::ExecuteCallback&& cmd);
 
     const CommandSlot* getCommands() const { return m_commandSlots; }
+    const QueryWriteRangeList& getQueryWrites() const { return m_queryWrites; }
+    bool writesTimestamp() const { return m_writesTimestamp; }
 
     template<typename T>
     T& getCommand(const CommandSlot* command)
@@ -508,6 +503,10 @@ private:
     std::vector<ExecuteCallbackObjectRetainer>& m_trackedExecuteCallbackObjects;
     CommandSlot* m_commandSlots = nullptr;
     CommandSlot* m_lastCommandSlot = nullptr;
+    QueryWriteRangeList m_queryWrites;
+    bool m_writesTimestamp = false;
+
+    void trackQueryWrite(IQueryPool* queryPool, uint32_t index, uint32_t count);
 
     template<typename T>
     void writeCommand(T&& cmd)

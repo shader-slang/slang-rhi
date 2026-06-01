@@ -341,6 +341,108 @@ QueryPool::QueryPool(Device* device, const QueryPoolDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
+    m_queryStates.resize(m_desc.count);
+}
+
+Result QueryPool::reset()
+{
+    return reset(0, m_desc.count);
+}
+
+Result QueryPool::reset(uint32_t queryIndex, uint32_t count)
+{
+    if (!isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    std::lock_guard<std::mutex> lock(m_queryStateMutex);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        QueryState& state = m_queryStates[queryIndex + i];
+        state.set(QueryStatus::Reset, 0);
+    }
+
+    return SLANG_OK;
+}
+
+bool QueryPool::isValidQueryRange(uint32_t queryIndex, uint32_t count) const
+{
+    if (count == 0)
+    {
+        return queryIndex <= m_desc.count;
+    }
+    return queryIndex < m_desc.count && count <= m_desc.count - queryIndex;
+}
+
+void QueryPool::markQueryRangeSubmitted(uint32_t queryIndex, uint32_t count, uint64_t submissionID)
+{
+    if (!isValidQueryRange(queryIndex, count))
+    {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_queryStateMutex);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        QueryState& state = m_queryStates[queryIndex + i];
+        state.set(QueryStatus::Pending, submissionID);
+    }
+}
+
+void QueryPool::markQueryRangeReady(uint32_t queryIndex, uint32_t count, uint64_t completedSubmissionID)
+{
+    if (!isValidQueryRange(queryIndex, count))
+    {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_queryStateMutex);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        QueryState& state = m_queryStates[queryIndex + i];
+        QueryStatus status = state.getStatus();
+        uint64_t submissionID = state.getSubmissionID();
+        if (status == QueryStatus::Pending && submissionID <= completedSubmissionID)
+        {
+            state.set(QueryStatus::Resolved, submissionID);
+        }
+    }
+}
+
+QueryPool::QueryRangeInfo QueryPool::getQueryRangeInfo(uint32_t queryIndex, uint32_t count) const
+{
+    if (!isValidQueryRange(queryIndex, count))
+    {
+        return {QueryRangeState::Reset, 0};
+    }
+
+    if (count == 0)
+    {
+        return {QueryRangeState::Resolved, 0};
+    }
+
+    QueryRangeInfo info;
+    std::lock_guard<std::mutex> lock(m_queryStateMutex);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        const QueryState& state = m_queryStates[queryIndex + i];
+        QueryStatus status = state.getStatus();
+        if (status == QueryStatus::Reset)
+        {
+            return {QueryRangeState::Reset, 0};
+        }
+        if (status == QueryStatus::Pending)
+        {
+            info.state = QueryRangeState::Pending;
+        }
+        info.submissionID = std::max(info.submissionID, state.getSubmissionID());
+    }
+    if (info.state != QueryRangeState::Pending)
+    {
+        info.state = QueryRangeState::Resolved;
+    }
+    return info;
 }
 
 // ----------------------------------------------------------------------------

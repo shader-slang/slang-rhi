@@ -106,8 +106,6 @@ public:
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
-    void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
-    void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
@@ -1396,42 +1394,6 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
     );
 }
 
-void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
-{
-    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dst.buffer);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
-
-    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
-    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
-    commitBarriers();
-
-    VkCopyAccelerationStructureToMemoryInfoKHR copyInfo = {
-        VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_TO_MEMORY_INFO_KHR
-    };
-    copyInfo.src = src->m_vkHandle;
-    copyInfo.dst.deviceAddress = cmd.dst.getDeviceAddress();
-    copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_SERIALIZE_KHR;
-    m_api.vkCmdCopyAccelerationStructureToMemoryKHR(m_cmdBuffer, &copyInfo);
-}
-
-void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
-{
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.src.buffer);
-
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    requireBufferState(srcBuffer, ResourceState::ShaderResource);
-    commitBarriers();
-
-    VkCopyMemoryToAccelerationStructureInfoKHR copyInfo = {
-        VK_STRUCTURE_TYPE_COPY_MEMORY_TO_ACCELERATION_STRUCTURE_INFO_KHR
-    };
-    copyInfo.src.deviceAddress = cmd.src.getDeviceAddress();
-    copyInfo.dst = dst->m_vkHandle;
-    copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
-    m_api.vkCmdCopyMemoryToAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
-}
-
 void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     if (!m_api.vkCmdBuildClusterAccelerationStructureIndirectNV)
@@ -1861,9 +1823,6 @@ void CommandRecorder::queryAccelerationStructureProperties(
         case QueryType::AccelerationStructureCompactedSize:
             queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
             break;
-        case QueryType::AccelerationStructureSerializedSize:
-            queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR;
-            break;
         case QueryType::AccelerationStructureCurrentSize:
             continue;
         default:
@@ -1874,15 +1833,17 @@ void CommandRecorder::queryAccelerationStructureProperties(
             );
             return;
         }
-        auto queryPool = checked_cast<QueryPoolImpl*>(queryDescs[i].queryPool)->m_pool;
-        m_device->m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool, (uint32_t)queryDescs[i].firstQueryIndex, 1);
+        auto queryPoolImpl = checked_cast<QueryPoolImpl*>(queryDescs[i].queryPool);
+        auto queryPool = queryPoolImpl->m_pool;
+        uint32_t queryIndex = (uint32_t)queryDescs[i].firstQueryIndex;
+        m_device->m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool, queryIndex, accelerationStructureCount);
         m_device->m_api.vkCmdWriteAccelerationStructuresPropertiesKHR(
             m_cmdBuffer,
             accelerationStructureCount,
             vkHandles.data(),
             queryType,
             queryPool,
-            queryDescs[i].firstQueryIndex
+            queryIndex
         );
     }
 }
@@ -2029,6 +1990,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
+        }
         m_commandBuffersInFlight.push_back(commandBuffer);
         vkCommandBuffers.push_back(commandBuffer->m_commandBuffer);
     }

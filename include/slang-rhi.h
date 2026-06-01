@@ -2234,7 +2234,6 @@ enum class QueryType
 {
     Timestamp,
     AccelerationStructureCompactedSize,
-    AccelerationStructureSerializedSize,
     AccelerationStructureCurrentSize,
 };
 
@@ -2255,8 +2254,33 @@ class IQueryPool : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() = 0;
+
+    /// Non-blocking host-readiness check for query results.
+    ///
+    /// Sets outReady to true when every requested query result is ready to read on the host,
+    /// and false when submitted query work is still pending. Returns SLANG_FAIL when the
+    /// requested range has no valid submitted result, and SLANG_E_INVALID_ARG for invalid
+    /// ranges or a null outReady pointer. A valid zero-count readiness check succeeds and
+    /// returns true. This call does not wait for GPU work and does not make reset or
+    /// never-submitted queries valid.
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady) = 0;
+
+    /// Read query results on the host.
+    ///
+    /// Blocks until the latest submitted work required by the requested range is complete.
+    /// Returns SLANG_FAIL if any query in the range has no valid submitted result, and
+    /// SLANG_E_INVALID_ARG for invalid ranges or a null outData pointer.
+    /// Reusing a query slot without reset is allowed; host reads return the most recent
+    /// submitted result tracked for that slot.
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData) = 0;
+
+    /// Reset all queries, invalidating any host-readable results.
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
+
+    /// Reset a range of queries, invalidating any host-readable results for that range.
+    ///
+    /// A valid zero-count reset succeeds and has no effect.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reset(uint32_t queryIndex, uint32_t count) = 0;
 };
 
 struct DrawArguments
@@ -2677,16 +2701,6 @@ public:
         IAccelerationStructure** accelerationStructures,
         uint32_t queryCount,
         const AccelerationStructureQueryDesc* queryDescs
-    ) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL serializeAccelerationStructure(
-        BufferOffsetPair dst,
-        IAccelerationStructure* src
-    ) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
-        IAccelerationStructure* dst,
-        BufferOffsetPair src
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL executeClusterOperation(const ClusterOperationDesc& desc) = 0;

@@ -9,6 +9,8 @@ namespace rhi::cpu {
 class CommandQueueImpl : public CommandQueue
 {
 public:
+    uint64_t m_lastSubmittedID = 0;
+
     CommandQueueImpl(Device* device, QueueType type);
 
     // ICommandQueue implementation

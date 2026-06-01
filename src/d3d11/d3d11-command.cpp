@@ -12,6 +12,9 @@
 #include "../strings.h"
 #include "../format-conversion.h"
 
+#include <chrono>
+#include <thread>
+
 namespace rhi::d3d11 {
 
 template<typename T>
@@ -25,6 +28,7 @@ class CommandExecutor
 public:
     DeviceImpl* m_device;
     ID3D11DeviceContext1* m_immediateContext;
+    uint64_t m_submissionID;
 
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
@@ -41,11 +45,12 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
-    bool m_usedDisjointQuery = false;
+    ID3D11Query* m_disjointQuery = nullptr;
 
-    CommandExecutor(DeviceImpl* device)
+    CommandExecutor(DeviceImpl* device, uint64_t submissionID)
         : m_device(device)
         , m_immediateContext(device->m_immediateContext1.get())
+        , m_submissionID(submissionID)
     {
     }
 
@@ -80,8 +85,6 @@ public:
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
-    void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
-    void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
@@ -100,6 +103,16 @@ public:
 Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 {
     const CommandList& commandList = commandBuffer->m_commandList;
+    if (commandList.writesTimestamp())
+    {
+        m_disjointQuery = commandBuffer->m_disjointQuery;
+        if (!m_disjointQuery)
+        {
+            return SLANG_FAIL;
+        }
+        m_immediateContext->Begin(m_disjointQuery);
+    }
+
     auto command = commandList.getCommands();
     while (command)
     {
@@ -118,9 +131,9 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
         command = command->next;
     }
 
-    if (m_usedDisjointQuery)
+    if (m_disjointQuery)
     {
-        m_immediateContext->End(m_device->m_disjointQuery);
+        m_immediateContext->End(m_disjointQuery);
     }
 
     return SLANG_OK;
@@ -830,18 +843,6 @@ void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::Qu
     NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
 }
 
-void CommandExecutor::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, serializeAccelerationStructure);
-}
-
-void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, deserializeAccelerationStructure);
-}
-
 void CommandExecutor::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     SLANG_UNUSED(cmd);
@@ -887,12 +888,9 @@ void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
-    if (!m_usedDisjointQuery)
-    {
-        m_immediateContext->Begin(m_device->m_disjointQuery);
-        m_usedDisjointQuery = true;
-    }
     m_immediateContext->End(queryPool->getQuery(cmd.queryIndex));
+    queryPool->setDisjointQuery(cmd.queryIndex, m_disjointQuery);
+    queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -938,9 +936,10 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    ++m_lastSubmittedID;
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(getDevice<DeviceImpl>());
+        CommandExecutor executor(getDevice<DeviceImpl>(), m_lastSubmittedID);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
     return SLANG_OK;
@@ -948,6 +947,26 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!m_waitQuery)
+    {
+        D3D11_QUERY_DESC queryDesc = {};
+        queryDesc.Query = D3D11_QUERY_EVENT;
+        SLANG_RETURN_ON_FAIL(device->m_device->CreateQuery(&queryDesc, m_waitQuery.writeRef()));
+    }
+
+    device->m_immediateContext->End(m_waitQuery);
+    device->m_immediateContext->Flush();
+
+    HRESULT hr = S_FALSE;
+    while ((hr = device->m_immediateContext->GetData(m_waitQuery, nullptr, 0, D3D11_ASYNC_GETDATA_DONOTFLUSH)) ==
+           S_FALSE)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    SLANG_RETURN_ON_FAIL(hr);
+
     return SLANG_OK;
 }
 
@@ -995,6 +1014,14 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     m_commandBuffer->setDesc(desc);
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->m_constantBufferPool.finish();
+    if (m_commandBuffer->m_commandList.writesTimestamp() && !m_commandBuffer->m_disjointQuery)
+    {
+        D3D11_QUERY_DESC queryDesc = {};
+        queryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+        SLANG_RETURN_ON_FAIL(
+            getDevice<DeviceImpl>()->m_device->CreateQuery(&queryDesc, m_commandBuffer->m_disjointQuery.writeRef())
+        );
+    }
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;
@@ -1017,6 +1044,7 @@ CommandBufferImpl::CommandBufferImpl(Device* device)
 Result CommandBufferImpl::reset()
 {
     m_bindingCache.reset();
+    m_disjointQuery.setNull();
     return CommandBuffer::reset();
 }
 

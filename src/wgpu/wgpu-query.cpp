@@ -16,6 +16,11 @@ QueryPoolImpl::~QueryPoolImpl()
     }
 }
 
+Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+{
+    return SLANG_E_NOT_IMPLEMENTED;
+}
+
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
     return SLANG_E_NOT_IMPLEMENTED;

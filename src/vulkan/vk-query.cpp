@@ -20,9 +20,6 @@ Result QueryPoolImpl::init()
     case QueryType::AccelerationStructureCompactedSize:
         createInfo.queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
         break;
-    case QueryType::AccelerationStructureSerializedSize:
-        createInfo.queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR;
-        break;
     case QueryType::AccelerationStructureCurrentSize:
         // Vulkan does not support CurrentSize query, will not create actual pools here.
         return SLANG_OK;
@@ -45,18 +42,88 @@ QueryPoolImpl::~QueryPoolImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    device->m_api.vkDestroyQueryPool(device->m_api.m_device, m_pool, nullptr);
+    if (m_pool != VK_NULL_HANDLE)
+    {
+        device->m_api.vkDestroyQueryPool(device->m_api.m_device, m_pool, nullptr);
+    }
 }
 
-Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
+Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
 {
+    if (!outReady || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    *outReady = false;
     if (count == 0)
     {
+        *outReady = true;
+        return SLANG_OK;
+    }
+    if (m_pool == VK_NULL_HANDLE)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
+    if (queryInfo.state == QueryRangeState::Resolved)
+    {
+        *outReady = true;
         return SLANG_OK;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
+    std::vector<uint64_t> data(count);
+    VkResult result = device->m_api.vkGetQueryPoolResults(
+        device->m_api.m_device,
+        m_pool,
+        queryIndex,
+        count,
+        sizeof(uint64_t) * count,
+        data.data(),
+        sizeof(uint64_t),
+        VK_QUERY_RESULT_64_BIT
+    );
+    if (result == VK_NOT_READY)
+    {
+        return SLANG_OK;
+    }
+    SLANG_VK_RETURN_ON_FAIL(result);
 
+    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+    *outReady = true;
+
+    return SLANG_OK;
+}
+
+Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
+{
+    if (!outData || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+    if (m_pool == VK_NULL_HANDLE)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetQueryPoolResults(
         device->m_api.m_device,
         m_pool,
@@ -67,6 +134,9 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
         sizeof(uint64_t),
         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
     ));
+
+    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+
     return SLANG_OK;
 }
 

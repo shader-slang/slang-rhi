@@ -13,6 +13,11 @@ public:
     ~QueryPoolImpl();
 
     // IQueryPool implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(
+        uint32_t queryIndex,
+        uint32_t count,
+        bool* outReady
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
         uint32_t queryIndex,
         uint32_t count,
