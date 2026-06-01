@@ -56,6 +56,16 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
     }
 
     *outReady = false;
+    if (count == 0)
+    {
+        *outReady = true;
+        return SLANG_OK;
+    }
+    if (m_pool == VK_NULL_HANDLE)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
     if (queryInfo.state == QueryRangeState::Reset)
     {
@@ -98,14 +108,19 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
         return SLANG_E_INVALID_ARG;
     }
 
+    if (count == 0)
+    {
+        return SLANG_OK;
+    }
+    if (m_pool == VK_NULL_HANDLE)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
     if (queryInfo.state == QueryRangeState::Reset)
     {
         return SLANG_FAIL;
-    }
-    if (count == 0)
-    {
-        return SLANG_OK;
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
