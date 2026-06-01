@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <initializer_list>
+#include <cmath>
 
 using namespace rhi;
 using namespace rhi::testing;
