@@ -36,6 +36,7 @@ ID3D11Query* QueryPoolImpl::getQuery(uint32_t index)
 
 void QueryPoolImpl::setDisjointQuery(uint32_t index, ID3D11Query* disjointQuery)
 {
+    SLANG_RHI_ASSERT(index < m_queries.size());
     m_queries[index].disjointQuery = disjointQuery;
 }
 
