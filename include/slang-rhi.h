@@ -2776,6 +2776,15 @@ enum class QueueType
     Graphics,
 };
 
+enum class CpuTimestampDomain
+{
+    Unknown,
+    QueryPerformanceCounter,
+    ClockMonotonic,
+    ClockMonotonicRaw,
+    MachAbsoluteTime,
+};
+
 // The NULL CUDA stream is valid (it refers to the default stream), so we
 // use this constant to indicate the absence of one.
 void* const kInvalidCUDAStream = reinterpret_cast<void*>(~uintptr_t{0});
