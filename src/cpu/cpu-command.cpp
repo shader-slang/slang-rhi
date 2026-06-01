@@ -13,12 +13,14 @@ class CommandExecutor
 {
 public:
     DeviceImpl* m_device;
+    uint64_t m_submissionID;
     RefPtr<ComputePipelineImpl> m_computePipeline;
     BindingDataImpl* m_bindingData = nullptr;
     bool m_computeStateValid = false;
 
-    CommandExecutor(DeviceImpl* device)
+    CommandExecutor(DeviceImpl* device, uint64_t submissionID)
         : m_device(device)
+        , m_submissionID(submissionID)
     {
     }
 
@@ -318,8 +320,8 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     queryPool->m_queries[cmd.queryIndex] = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, 0);
-    queryPool->markQueryRangeReady(cmd.queryIndex, 1, 0);
+    queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
+    queryPool->markQueryRangeReady(cmd.queryIndex, 1, m_submissionID);
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -356,10 +358,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         }
     }
 
+    ++m_lastSubmittedID;
+
     // Execute command buffers.
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(getDevice<DeviceImpl>());
+        CommandExecutor executor(getDevice<DeviceImpl>(), m_lastSubmittedID);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
 
