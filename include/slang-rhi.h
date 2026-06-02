@@ -133,6 +133,7 @@ enum class DeviceType
     x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
+    x(TimestampCalibration,                     "timestamp-calibration"                         ) \
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \
     x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
@@ -2237,7 +2238,6 @@ enum class QueryType
 {
     Timestamp,
     AccelerationStructureCompactedSize,
-    AccelerationStructureSerializedSize,
     AccelerationStructureCurrentSize,
 };
 
@@ -2258,8 +2258,33 @@ class IQueryPool : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() = 0;
+
+    /// Non-blocking host-readiness check for query results.
+    ///
+    /// Sets outReady to true when every requested query result is ready to read on the host,
+    /// and false when submitted query work is still pending. Returns SLANG_FAIL when the
+    /// requested range has no valid submitted result, and SLANG_E_INVALID_ARG for invalid
+    /// ranges or a null outReady pointer. A valid zero-count readiness check succeeds and
+    /// returns true. This call does not wait for GPU work and does not make reset or
+    /// never-submitted queries valid.
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady) = 0;
+
+    /// Read query results on the host.
+    ///
+    /// Blocks until the latest submitted work required by the requested range is complete.
+    /// Returns SLANG_FAIL if any query in the range has no valid submitted result, and
+    /// SLANG_E_INVALID_ARG for invalid ranges or a null outData pointer.
+    /// Reusing a query slot without reset is allowed; host reads return the most recent
+    /// submitted result tracked for that slot.
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData) = 0;
+
+    /// Reset all queries, invalidating any host-readable results.
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
+
+    /// Reset a range of queries, invalidating any host-readable results for that range.
+    ///
+    /// A valid zero-count reset succeeds and has no effect.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reset(uint32_t queryIndex, uint32_t count) = 0;
 };
 
 struct DrawArguments
@@ -2682,16 +2707,6 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL serializeAccelerationStructure(
-        BufferOffsetPair dst,
-        IAccelerationStructure* src
-    ) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
-        IAccelerationStructure* dst,
-        BufferOffsetPair src
-    ) = 0;
-
     virtual SLANG_NO_THROW void SLANG_MCALL executeClusterOperation(const ClusterOperationDesc& desc) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
@@ -2765,6 +2780,31 @@ enum class QueueType
     Graphics,
 };
 
+enum class CpuTimestampDomain
+{
+    Unknown,
+    QueryPerformanceCounter,
+    ClockMonotonic,
+    ClockMonotonicRaw,
+    MachAbsoluteTime,
+};
+
+struct TimestampCalibration
+{
+    /// The domain of the CPU timestamp.
+    CpuTimestampDomain cpuDomain = CpuTimestampDomain::Unknown;
+    /// The current CPU timestamp.
+    uint64_t cpuTimestamp = 0;
+    /// The frequency of the CPU timestamp in ticks per second.
+    uint64_t cpuFrequency = 0;
+    /// The current GPU timestamp.
+    uint64_t gpuTimestamp = 0;
+    /// The frequency of the GPU timestamp in ticks per second.
+    uint64_t gpuFrequency = 0;
+    /// The maximum deviation between the CPU and GPU timestamps in nanoseconds.
+    uint64_t maxDeviationNs = 0;
+};
+
 // The NULL CUDA stream is valid (it refers to the default stream), so we
 // use this constant to indicate the absence of one.
 void* const kInvalidCUDAStream = reinterpret_cast<void*>(~uintptr_t{0});
@@ -2836,6 +2876,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) = 0;
 };
 
 struct SurfaceInfo
@@ -3083,6 +3125,13 @@ struct DeviceLimits
     /// Maximum number of thread groups per dimension in a single dispatch.
     uint32_t maxComputeDispatchThreadGroups[3];
 
+    /// Minimum number of lanes in a wave/subgroup/warp.
+    /// 0 if the size is unknown or not applicable.
+    uint32_t minWaveSize;
+    /// Maximum number of lanes in a wave/subgroup/warp.
+    /// 0 if the size is unknown or not applicable.
+    uint32_t maxWaveSize;
+
     /// Maximum number of viewports per pipeline.
     uint32_t maxViewports;
     /// Maximum viewport dimensions.
@@ -3110,6 +3159,10 @@ struct DeviceInfo
     AdapterLUID adapterLUID;
 
     /// The clock frequency used in timestamp queries.
+    /// This is a legacy/static convenience value for converting differences
+    /// between QueryType::Timestamp results. New code that needs to correlate
+    /// GPU timestamps with a CPU clock should use
+    /// ICommandQueue::getTimestampCalibration().
     uint64_t timestampFrequency = 0;
 
     /// The version of OptiX used by the device (0 if OptiX is not supported).
@@ -3252,6 +3305,21 @@ struct DeviceDesc
 
     /// Enable reporting of shader compilation timings.
     bool enableCompilationReports = false;
+
+    /// Enable launching CUDA kernels from inside graphics command buffers
+    /// (Vulkan only, via VK_NVX_binary_import). On by default. Set to
+    /// false if the application doesn't need vkCmdCuLaunchKernelNVX;
+    /// enabling this extension has been observed to interfere with
+    /// concurrent cuDNN usage on some driver/GPU pairs.
+    bool enableCUDALaunchFromGfx = true;
+
+    /// Enable Vulkan ray tracing extensions (acceleration_structure,
+    /// ray_tracing_pipeline, ray_query, ray_tracing_position_fetch, plus
+    /// NV variants). On by default. Set to false if the application
+    /// doesn't use ray tracing; enabling these extensions has been
+    /// observed to interfere with concurrent cuDNN usage on some
+    /// driver/GPU pairs.
+    bool enableRayTracing = true;
 
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;

@@ -5,7 +5,7 @@
 #include "../command-list.h"
 #include "../strings.h"
 
-#include <chrono>
+#include "core/platform.h"
 
 namespace rhi::cpu {
 
@@ -13,12 +13,14 @@ class CommandExecutor
 {
 public:
     DeviceImpl* m_device;
+    uint64_t m_submissionID;
     RefPtr<ComputePipelineImpl> m_computePipeline;
     BindingDataImpl* m_bindingData = nullptr;
     bool m_computeStateValid = false;
 
-    CommandExecutor(DeviceImpl* device)
+    CommandExecutor(DeviceImpl* device, uint64_t submissionID)
         : m_device(device)
+        , m_submissionID(submissionID)
     {
     }
 
@@ -53,8 +55,6 @@ public:
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
-    void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
-    void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
@@ -274,18 +274,6 @@ void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::Qu
     NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
 }
 
-void CommandExecutor::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, serializeAccelerationStructure);
-}
-
-void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, deserializeAccelerationStructure);
-}
-
 void CommandExecutor::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     SLANG_UNUSED(cmd);
@@ -331,7 +319,9 @@ void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
-    queryPool->m_queries[cmd.queryIndex] = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    queryPool->m_queries[cmd.queryIndex] = getCpuTimestamp();
+    queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
+    queryPool->markQueryRangeReady(cmd.queryIndex, 1, m_submissionID);
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -368,10 +358,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         }
     }
 
+    ++m_lastSubmittedID;
+
     // Execute command buffers.
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(getDevice<DeviceImpl>());
+        CommandExecutor executor(getDevice<DeviceImpl>(), m_lastSubmittedID);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
 
@@ -393,6 +385,26 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    const uint64_t cpuFrequency = getCpuTimestampFrequency();
+    const uint64_t cpuTimestamp = getCpuTimestamp();
+
+    outCalibration->cpuDomain = getCpuTimestampDomain();
+    outCalibration->cpuTimestamp = cpuTimestamp;
+    outCalibration->cpuFrequency = cpuFrequency;
+    outCalibration->gpuTimestamp = cpuTimestamp;
+    outCalibration->gpuFrequency = cpuFrequency;
+    outCalibration->maxDeviationNs = 0;
+
+    return SLANG_OK;
 }
 
 // CommandEncoderImpl

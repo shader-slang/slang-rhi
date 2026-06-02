@@ -174,7 +174,7 @@ void RenderPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryInde
     if (m_commandList)
     {
         commands::WriteTimestamp cmd;
-        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryPool = queryPool;
         cmd.queryIndex = queryIndex;
         m_commandList->write(std::move(cmd));
     }
@@ -302,7 +302,7 @@ void ComputePassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryInd
     if (m_commandList)
     {
         commands::WriteTimestamp cmd;
-        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryPool = queryPool;
         cmd.queryIndex = queryIndex;
         m_commandList->write(std::move(cmd));
     }
@@ -428,7 +428,7 @@ void RayTracingPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t query
     if (m_commandList)
     {
         commands::WriteTimestamp cmd;
-        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryPool = queryPool;
         cmd.queryIndex = queryIndex;
         m_commandList->write(std::move(cmd));
     }
@@ -824,22 +824,6 @@ void CommandEncoder::queryAccelerationStructureProperties(
     SLANG_RHI_UNIMPLEMENTED("queryAccelerationStructureProperties");
 }
 
-void CommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
-{
-    commands::SerializeAccelerationStructure cmd;
-    cmd.dst = dst;
-    cmd.src = checked_cast<AccelerationStructure*>(src);
-    m_commandList->write(std::move(cmd));
-}
-
-void CommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
-{
-    commands::DeserializeAccelerationStructure cmd;
-    cmd.dst = checked_cast<AccelerationStructure*>(dst);
-    cmd.src = src;
-    m_commandList->write(std::move(cmd));
-}
-
 void CommandEncoder::executeClusterOperation(const ClusterOperationDesc& desc)
 {
     commands::ExecuteClusterOperation cmd;
@@ -913,7 +897,7 @@ void CommandEncoder::insertDebugMarker(const char* name, const MarkerColor& colo
 void CommandEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
 {
     commands::WriteTimestamp cmd;
-    cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+    cmd.queryPool = queryPool;
     cmd.queryIndex = queryIndex;
     m_commandList->write(std::move(cmd));
 }

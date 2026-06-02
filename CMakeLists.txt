@@ -459,7 +459,9 @@ if(SLANG_RHI_ENABLE_VULKAN)
     target_include_directories(slang-rhi-vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/vma)
     target_link_libraries(slang-rhi-vma PUBLIC slang-rhi-vulkan-headers)
     target_compile_features(slang-rhi-vma PRIVATE cxx_std_20)
-    target_compile_options(slang-rhi-vma PRIVATE $<$<CXX_COMPILER_ID:Clang>:-Wno-nullability-completeness>)
+    target_compile_options(slang-rhi-vma PRIVATE
+        $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-nullability-completeness>
+    )
     # Force-include VMA configuration header to route assertions through slang-rhi.
     target_include_directories(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     if(MSVC)

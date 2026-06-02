@@ -129,8 +129,6 @@ public:
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
-    void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
-    void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
@@ -812,6 +810,26 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
                     MTL::ResourceUsageRead | MTL::ResourceUsageWrite
                 );
             }
+
+            auto accelerationStructureResources = m_device->getAccelerationStructureResources();
+            if (!accelerationStructureResources.empty())
+            {
+                encoder->useResources(
+                    accelerationStructureResources.data(),
+                    accelerationStructureResources.size(),
+                    MTL::ResourceUsageRead
+                );
+            }
+        }
+
+        // Bind root-level acceleration structures via setAccelerationStructure:atBufferIndex:.
+        // Slang emits these as [[buffer(N)]] kernel parameters; setBuffers cannot bind them.
+        for (uint32_t i = 0; i < m_bindingData->rootAccelerationStructureCount; ++i)
+        {
+            encoder->setAccelerationStructure(
+                m_bindingData->rootAccelerationStructures[i],
+                m_bindingData->rootAccelerationStructureSlots[i]
+            );
         }
     }
 
@@ -925,18 +943,6 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
-}
-
-void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, serializeAccelerationStructure);
-}
-
-void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, deserializeAccelerationStructure);
 }
 
 void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)

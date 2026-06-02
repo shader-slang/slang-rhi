@@ -12,13 +12,215 @@
 #include "../command-list.h"
 #include "../strings.h"
 
+#include "core/deferred.h"
+#include "core/platform.h"
+
+#include <chrono>
+
 namespace rhi::cuda {
+
+// CUDA only exposes elapsed time between events, reported as float milliseconds. To present stable
+// query timestamps, the queue records periodic timestamp anchors on its default stream. Each timestamp
+// query stores the anchor generation that was current when the command buffer was submitted, and queue
+// retirement computes:
+//
+//     query timestamp = resolved anchor offset + elapsed(anchor event, query event)
+//
+// Anchors live in a generation-tagged ring. Query results are cached when their command buffer retires,
+// so old host reads do not need old anchor events. CUDA host callbacks are intentionally not used here
+// because timestamp resolution calls CUDA APIs.
+
+/// The maximum age of a timestamp anchor before it gets rolled.
+static constexpr uint64_t kCudaTimestampAnchorMaxAgeNs = 4ull * 1000ull * 1000ull * 1000ull;
+
+static uint64_t getTimestampAnchorTimeNs()
+{
+    return uint64_t(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
+            .count()
+    );
+}
+
+static void destroyTimestampAnchor(TimestampAnchor& anchor)
+{
+    if (anchor.event)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventSynchronize(anchor.event));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(anchor.event));
+    }
+    anchor = {};
+}
+
+static size_t getTimestampAnchorSlot(uint64_t generation)
+{
+    return size_t(generation % CommandQueueImpl::kTimestampAnchorRingSize);
+}
+
+static TimestampAnchor* findTimestampAnchor(CommandQueueImpl* queue, uint64_t generation)
+{
+    if (generation == kInvalidTimestampAnchorGeneration)
+    {
+        return nullptr;
+    }
+
+    TimestampAnchor& anchor = queue->m_timestampAnchors[getTimestampAnchorSlot(generation)];
+    return anchor.generation == generation ? &anchor : nullptr;
+}
+
+static Result resolveTimestampAnchor(CommandQueueImpl* queue, uint64_t generation);
+
+static bool isTimestampAnchorInUse(CommandQueueImpl* queue, uint64_t generation)
+{
+    for (const RefPtr<CommandBufferImpl>& commandBuffer : queue->m_commandBuffersInFlight)
+    {
+        if (commandBuffer->m_timestampAnchorGeneration == generation)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static Result prepareTimestampAnchorSlotForReuse(CommandQueueImpl* queue, TimestampAnchor& anchor)
+{
+    if (!anchor.event)
+    {
+        return SLANG_OK;
+    }
+
+    // Resolve the current cumulative offset while the old ring slot is still available.
+    if (anchor.generation != kInvalidTimestampAnchorGeneration)
+    {
+        SLANG_RETURN_ON_FAIL(resolveTimestampAnchor(queue, queue->m_currentAnchorGeneration));
+    }
+
+    SLANG_RETURN_ON_FAIL(queue->retireCommandBuffers());
+    if (anchor.generation != kInvalidTimestampAnchorGeneration && isTimestampAnchorInUse(queue, anchor.generation))
+    {
+        SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+    }
+    if (anchor.generation != kInvalidTimestampAnchorGeneration && isTimestampAnchorInUse(queue, anchor.generation))
+    {
+        return SLANG_FAIL;
+    }
+
+    destroyTimestampAnchor(anchor);
+    return SLANG_OK;
+}
+
+static Result recordTimestampAnchor(CommandQueueImpl* queue, uint64_t generation)
+{
+    TimestampAnchor anchor = {};
+    anchor.generation = generation;
+    const uint64_t anchorTimeNs = getTimestampAnchorTimeNs();
+
+    TimestampAnchor& slot = queue->m_timestampAnchors[getTimestampAnchorSlot(generation)];
+    SLANG_RETURN_ON_FAIL(prepareTimestampAnchorSlotForReuse(queue, slot));
+
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&anchor.event, 0), queue);
+    SLANG_RHI_DEFERRED({ destroyTimestampAnchor(anchor); });
+
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventRecord(anchor.event, queue->m_stream), queue);
+
+    slot = anchor;
+    anchor.event = nullptr;
+    queue->m_currentAnchorGeneration = generation;
+    queue->m_timestampAnchorTimeNs = anchorTimeNs;
+    return SLANG_OK;
+}
+
+static Result maybeRollTimestampAnchor(CommandQueueImpl* queue)
+{
+    const uint64_t now = getTimestampAnchorTimeNs();
+    const uint64_t ageNs = now - queue->m_timestampAnchorTimeNs;
+    if (ageNs < kCudaTimestampAnchorMaxAgeNs)
+    {
+        return SLANG_OK;
+    }
+
+    return recordTimestampAnchor(queue, queue->m_currentAnchorGeneration + 1);
+}
+
+static Result getTimestampAnchorGeneration(CommandQueueImpl* queue, uint64_t* outGeneration)
+{
+    SLANG_RETURN_ON_FAIL(maybeRollTimestampAnchor(queue));
+    if (!findTimestampAnchor(queue, queue->m_currentAnchorGeneration))
+    {
+        return SLANG_FAIL;
+    }
+    *outGeneration = queue->m_currentAnchorGeneration;
+    return SLANG_OK;
+}
+
+static Result resolveTimestampAnchor(CommandQueueImpl* queue, uint64_t generation)
+{
+    TimestampAnchor* anchor = findTimestampAnchor(queue, generation);
+    if (!anchor)
+    {
+        return SLANG_FAIL;
+    }
+
+    if (anchor->resolved)
+    {
+        return SLANG_OK;
+    }
+    if (generation == 0)
+    {
+        anchor->offsetUs = 0;
+        anchor->resolved = true;
+        return SLANG_OK;
+    }
+
+    SLANG_RETURN_ON_FAIL(resolveTimestampAnchor(queue, generation - 1));
+
+    TimestampAnchor* previous = findTimestampAnchor(queue, generation - 1);
+    if (!previous)
+    {
+        return SLANG_FAIL;
+    }
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventSynchronize(previous->event), queue);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventSynchronize(anchor->event), queue);
+
+    float elapsedMs = 0.0f;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventElapsedTime(&elapsedMs, previous->event, anchor->event), queue);
+
+    anchor->offsetUs = previous->offsetUs + cudaEventMillisecondsToMicroseconds(elapsedMs);
+    anchor->resolved = true;
+    return SLANG_OK;
+}
+
+static Result resolveTimestampEvent(
+    CommandQueueImpl* queue,
+    CUevent event,
+    uint64_t anchorGeneration,
+    uint64_t* outTimestampUs
+)
+{
+    if (anchorGeneration == kInvalidTimestampAnchorGeneration)
+    {
+        return SLANG_FAIL;
+    }
+
+    SLANG_RETURN_ON_FAIL(resolveTimestampAnchor(queue, anchorGeneration));
+    TimestampAnchor* anchor = findTimestampAnchor(queue, anchorGeneration);
+    if (!anchor)
+    {
+        return SLANG_FAIL;
+    }
+
+    float elapsedMs = 0.0f;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventElapsedTime(&elapsedMs, anchor->event, event), queue);
+    *outTimestampUs = anchor->offsetUs + cudaEventMillisecondsToMicroseconds(elapsedMs);
+    return SLANG_OK;
+}
+
 
 class CommandExecutor
 {
 public:
     DeviceImpl* m_device;
     CUstream m_stream;
+    uint64_t m_timestampAnchorGeneration;
 
     bool m_computePassActive = false;
     bool m_computeStateValid = false;
@@ -32,9 +234,10 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
-    CommandExecutor(DeviceImpl* device, CUstream stream)
+    CommandExecutor(DeviceImpl* device, CUstream stream, uint64_t timestampAnchorGeneration)
         : m_device(device)
         , m_stream(stream)
+        , m_timestampAnchorGeneration(timestampAnchorGeneration)
     {
     }
 
@@ -69,8 +272,6 @@ public:
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
-    void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
-    void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
@@ -598,18 +799,6 @@ void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::Qu
     NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
 }
 
-void CommandExecutor::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, serializeAccelerationStructure);
-}
-
-void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, deserializeAccelerationStructure);
-}
-
 void CommandExecutor::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     if (!m_device->m_ctx.optixContext)
@@ -665,8 +854,12 @@ void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 
 void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
+    SLANG_RHI_ASSERT(m_timestampAnchorGeneration != kInvalidTimestampAnchorGeneration);
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
-    SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(queryPool->m_events[cmd.queryIndex], m_stream));
+    QueryPoolImpl::Query& query = queryPool->m_queries[cmd.queryIndex];
+    query.anchorGeneration = m_timestampAnchorGeneration;
+    query.resultData = 0;
+    SLANG_CUDA_ASSERT_ON_FAIL(cuEventRecord(query.event, m_stream));
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -705,6 +898,15 @@ Result CommandQueueImpl::init()
         SLANG_RETURN_ON_FAIL(cuStreamCreate(&m_stream, 0));
     }
 
+    SLANG_RETURN_ON_FAIL(recordTimestampAnchor(this, 0));
+    TimestampAnchor* initialAnchor = findTimestampAnchor(this, 0);
+    if (!initialAnchor)
+    {
+        return SLANG_FAIL;
+    }
+    initialAnchor->offsetUs = 0;
+    initialAnchor->resolved = true;
+
     return SLANG_OK;
 }
 
@@ -730,8 +932,13 @@ void CommandQueueImpl::shutdown()
     m_lastFinishedID = m_lastSubmittedID;
 
     // Retire finished command buffers, which should be all of them now
-    retireCommandBuffers();
+    SLANG_RHI_ASSERT(retireCommandBuffers() == SLANG_OK);
     SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
+
+    for (TimestampAnchor& anchor : m_timestampAnchors)
+    {
+        destroyTimestampAnchor(anchor);
+    }
 
     // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
@@ -761,7 +968,7 @@ Result CommandQueueImpl::getOrCreateCommandBuffer(CommandBufferImpl** outCommand
     {
         // Pool exhausted - try lazy retirement to reclaim completed buffers
         // Use locked version since we already hold m_mutex
-        retireCommandBuffersLocked();
+        SLANG_RETURN_ON_FAIL(retireCommandBuffersLocked());
 
         // If retirement freed up buffers, use them instead of allocating new
         if (!m_commandBuffersPool.empty())
@@ -848,6 +1055,7 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
         if (commandBuffer->m_submissionID > m_lastFinishedID)
             break;
 
+        SLANG_RETURN_ON_FAIL(resolveTimestampQueries(commandBuffer));
         retireCommandBufferLocked(commandBuffer);
         cbIt = m_commandBuffersInFlight.erase(cbIt);
     }
@@ -860,6 +1068,36 @@ Result CommandQueueImpl::retireCommandBuffersLocked()
     // and never enter the pending list. This flush now only processes the rare
     // cross-stream allocations that were deferred. Much cheaper than before!
     SLANG_RETURN_ON_FAIL(getDevice<DeviceImpl>()->flushHeaps());
+
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::resolveTimestampQueries(CommandBufferImpl* commandBuffer)
+{
+    for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+    {
+        if (!queryWrite.queryPool || queryWrite.queryPool->getDesc().type != QueryType::Timestamp)
+        {
+            continue;
+        }
+
+        auto pool = checked_cast<QueryPoolImpl*>(queryWrite.queryPool);
+        for (uint32_t i = 0; i < queryWrite.count; ++i)
+        {
+            uint32_t queryIndex = queryWrite.index + i;
+            QueryPool::QueryRangeInfo queryInfo = pool->getQueryRangeInfo(queryIndex, 1);
+            if (queryInfo.state != QueryPool::QueryRangeState::Pending ||
+                queryInfo.submissionID != commandBuffer->m_submissionID)
+            {
+                continue;
+            }
+
+            QueryPoolImpl::Query& query = pool->m_queries[queryIndex];
+            SLANG_RETURN_ON_FAIL(resolveTimestampEvent(this, query.event, query.anchorGeneration, &query.resultData));
+        }
+
+        pool->markQueryRangeReady(queryWrite.index, queryWrite.count, commandBuffer->m_submissionID);
+    }
 
     return SLANG_OK;
 }
@@ -886,6 +1124,43 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
     RefPtr<CommandEncoderImpl> encoder = new CommandEncoderImpl(m_device, this, desc);
     SLANG_RETURN_ON_FAIL(encoder->init());
     returnComPtr(outEncoder, encoder);
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    uint64_t anchorGeneration = kInvalidTimestampAnchorGeneration;
+    SLANG_RETURN_ON_FAIL(getTimestampAnchorGeneration(this, &anchorGeneration));
+
+    CUevent event = nullptr;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&event, 0), this);
+    SLANG_RHI_DEFERRED({ SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(event)); });
+
+    uint64_t before = 0;
+    uint64_t after = 0;
+    uint64_t gpuTimestampUs = 0;
+
+    before = getCpuTimestamp();
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventRecord(event, m_stream), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventSynchronize(event), this);
+    after = getCpuTimestamp();
+    SLANG_RETURN_ON_FAIL(resolveTimestampEvent(this, event, anchorGeneration, &gpuTimestampUs));
+
+    const uint64_t cpuFrequency = getCpuTimestampFrequency();
+    const uint64_t cpuDelta = after - before;
+
+    outCalibration->cpuDomain = getCpuTimestampDomain();
+    outCalibration->cpuTimestamp = before + cpuDelta / 2;
+    outCalibration->cpuFrequency = cpuFrequency;
+    outCalibration->gpuTimestamp = gpuTimestampUs;
+    outCalibration->gpuFrequency = getDevice<DeviceImpl>()->getInfo().timestampFrequency;
+    outCalibration->maxDeviationNs = ticksToNanoseconds(cpuDelta, cpuFrequency) / 2 + 1;
+
     return SLANG_OK;
 }
 
@@ -954,6 +1229,21 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     // of this submission.
     CUstream requestedStream = desc.cudaStream == kInvalidCUDAStream ? m_stream : (CUstream)desc.cudaStream;
 
+    if (requestedStream != m_stream)
+    {
+        for (uint32_t i = 0; i < desc.commandBufferCount; i++)
+        {
+            CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
+            if (commandBuffer->m_commandList.writesTimestamp())
+            {
+                getDevice<DeviceImpl>()->printError(
+                    "CUDA timestamp queries are only supported on the queue's default stream."
+                );
+                return SLANG_E_NOT_AVAILABLE;
+            }
+        }
+    }
+
     // Wait for fences.
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
@@ -971,12 +1261,21 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         // Get/execute the buffer.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
-        CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream);
+        uint64_t timestampAnchorGeneration = kInvalidTimestampAnchorGeneration;
+        bool writesTimestamp = commandBuffer->m_commandList.writesTimestamp();
+        if (writesTimestamp)
+        {
+            SLANG_RETURN_ON_FAIL(getTimestampAnchorGeneration(this, &timestampAnchorGeneration));
+        }
+        commandBuffer->m_timestampAnchorGeneration = timestampAnchorGeneration;
+
+        CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream, timestampAnchorGeneration);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Lazy events: only create events for multi-stream workloads.
-        // Single-stream uses cuStreamQuery() instead - zero event overhead.
-        bool needsEvent = (requestedStream != m_stream) || m_submitsSinceEvent > kMaxSubmitsWithoutEvent;
+        // Lazy events: timestamp writes need per-submission completion so isResultReady can make
+        // progress without waiting for unrelated later work to drain the whole stream.
+        bool needsEvent =
+            writesTimestamp || (requestedStream != m_stream) || m_submitsSinceEvent > kMaxSubmitsWithoutEvent;
 
         if (needsEvent)
         {
@@ -991,6 +1290,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             m_lastSubmittedID++;
             m_submitsSinceEvent++;
             commandBuffer->m_submissionID = m_lastSubmittedID;
+        }
+
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, commandBuffer->m_submissionID);
         }
 
         m_commandBuffersInFlight.push_back(commandBuffer);
@@ -1012,7 +1317,7 @@ Result CommandQueueImpl::waitOnHost()
     m_lastFinishedID = m_lastSubmittedID;
 
     // Retire command buffers that have completed.
-    retireCommandBuffers();
+    SLANG_RETURN_ON_FAIL(retireCommandBuffers());
 
     // If there's any left, it represents a bug in slang-rhi
     SLANG_RHI_ASSERT(m_commandBuffersInFlight.empty());
@@ -1151,6 +1456,8 @@ Result CommandBufferImpl::reset()
 {
     m_bindingCache.reset();
     m_constantBufferPool.reset();
+    m_submissionID = 0;
+    m_timestampAnchorGeneration = kInvalidTimestampAnchorGeneration;
     return CommandBuffer::reset();
 }
 

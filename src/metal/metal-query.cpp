@@ -64,26 +64,14 @@ Result QueryPoolImpl::init()
     return m_counterSampleBuffer ? SLANG_OK : SLANG_FAIL;
 }
 
+Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+{
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
-    if (count == 0)
-    {
-        return SLANG_OK;
-    }
-
-    NS::Data* rawData = m_counterSampleBuffer->resolveCounterRange(NS::Range(queryIndex, count));
-    if (!rawData)
-    {
-        return SLANG_FAIL;
-    }
-    static_assert(sizeof(MTL::CounterResultTimestamp) == sizeof(uint64_t));
-    if (rawData->length() < count * sizeof(uint64_t))
-    {
-        return SLANG_FAIL;
-    }
-    std::memcpy(outData, rawData->mutableBytes(), count * sizeof(uint64_t));
-
-    return SLANG_OK;
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 } // namespace rhi::metal

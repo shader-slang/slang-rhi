@@ -5,6 +5,8 @@
 #include "cpu-shader-program.h"
 #include "cpu-texture.h"
 
+#include "core/platform.h"
+
 namespace rhi::cpu {
 
 DeviceImpl::~DeviceImpl() {}
@@ -19,13 +21,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_info.apiName = "CPU";
         m_info.adapterName = "CPU";
         m_info.adapterLUID = {};
-        m_info.timestampFrequency = 1000000000;
+        m_info.timestampFrequency = getCpuTimestampFrequency();
     }
 
     // Initialize features & capabilities
     addFeature(Feature::SoftwareDevice);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::TimestampQuery);
+    addFeature(Feature::TimestampCalibration);
     addFeature(Feature::Pointer);
 
     addCapability(Capability::cpp);

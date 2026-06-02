@@ -663,6 +663,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Rasterization);
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::TimestampQuery);
+    addFeature(Feature::TimestampCalibration);
 
     addCapability(Capability::hlsl);
 
@@ -730,13 +731,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         }
     }
     {
-        D3D12_FEATURE_DATA_D3D12_OPTIONS1 options;
+        D3D12_FEATURE_DATA_D3D12_OPTIONS1 options = {};
         if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &options, sizeof(options))))
         {
             // Check wave operations support
             if (options.WaveOps)
             {
                 addFeature(Feature::WaveOps);
+                m_info.limits.minWaveSize = options.WaveLaneCountMin;
+                m_info.limits.maxWaveSize = options.WaveLaneCountMax;
             }
             if (options.Int64ShaderOps)
             {
@@ -1769,14 +1772,10 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outSt
     switch (desc.type)
     {
     case QueryType::AccelerationStructureCompactedSize:
-    case QueryType::AccelerationStructureSerializedSize:
     case QueryType::AccelerationStructureCurrentSize:
     {
         RefPtr<PlainBufferProxyQueryPoolImpl> queryPoolImpl = new PlainBufferProxyQueryPoolImpl(this, desc);
-        uint32_t stride = 8;
-        if (desc.type == QueryType::AccelerationStructureSerializedSize)
-            stride = 16;
-        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(stride));
+        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(8));
         returnComPtr(outState, queryPoolImpl);
         return SLANG_OK;
     }
