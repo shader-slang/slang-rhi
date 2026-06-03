@@ -146,6 +146,7 @@ endif()
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
 set(SLANG_RHI_FETCH_SLANG_VERSION "2026.4.1" CACHE STRING "Slang version to fetch")
+option(SLANG_RHI_FETCH_DXC "Fetch DirectXShaderCompiler for the D3D12 backend" ON)
 
 # slang-rhi depends on a few external libraries.
 # These dependencies are fetched automatically if needed, using the URLs defined below.
@@ -454,7 +455,9 @@ if(SLANG_RHI_ENABLE_VULKAN)
     target_include_directories(slang-rhi-vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/vma)
     target_link_libraries(slang-rhi-vma PUBLIC slang-rhi-vulkan-headers)
     target_compile_features(slang-rhi-vma PRIVATE cxx_std_20)
-    target_compile_options(slang-rhi-vma PRIVATE $<$<CXX_COMPILER_ID:Clang>:-Wno-nullability-completeness>)
+    target_compile_options(slang-rhi-vma PRIVATE
+        $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-nullability-completeness>
+    )
     # Force-include VMA configuration header to route assertions through slang-rhi.
     target_include_directories(slang-rhi-vma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     if(MSVC)
@@ -475,14 +478,16 @@ endif()
 
 # Fetch & setup DirectXShaderCompiler
 if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
-    message(STATUS "Fetching DirectXShaderCompiler ...")
-    FetchPackage(dxc URL "${SLANG_RHI_DXC_URL}" URL_HASH "${SLANG_RHI_DXC_URL_HASH}")
-    if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
-        copy_file(${dxc_SOURCE_DIR}/bin/x64/dxcompiler.dll .)
-        copy_file(${dxc_SOURCE_DIR}/bin/x64/dxil.dll .)
-    elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
-        copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxcompiler.dll .)
-        copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxil.dll .)
+    if(SLANG_RHI_FETCH_DXC)
+        message(STATUS "Fetching DirectXShaderCompiler ...")
+        FetchPackage(dxc URL "${SLANG_RHI_DXC_URL}" URL_HASH "${SLANG_RHI_DXC_URL_HASH}")
+        if(SLANG_RHI_ARCHITECTURE MATCHES "x86_64")
+            copy_file(${dxc_SOURCE_DIR}/bin/x64/dxcompiler.dll .)
+            copy_file(${dxc_SOURCE_DIR}/bin/x64/dxil.dll .)
+        elseif(SLANG_RHI_ARCHITECTURE MATCHES "aarch64|arm64")
+            copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxcompiler.dll .)
+            copy_file(${dxc_SOURCE_DIR}/bin/arm64/dxil.dll .)
+        endif()
     endif()
 endif()
 
