@@ -392,31 +392,13 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            SLANG_RETURN_ON_FAIL(buffer->m_uploadBuffer.init(
-                m_api,
-                bufferSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            ));
-            // Copy into staging buffer
-            void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
-            ::memcpy(mappedData, initData, bufferSize);
-            m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
+            ComPtr<ICommandQueue> queue;
+            SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
 
-            // Copy from staging buffer to real buffer
-            VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
-
-            VkBufferCopy copyInfo = {};
-            copyInfo.size = bufferSize;
-            m_api.vkCmdCopyBuffer(
-                commandBuffer,
-                buffer->m_uploadBuffer.m_buffer,
-                buffer->m_buffer.m_buffer,
-                1,
-                &copyInfo
-            );
-            m_deviceQueue.flush();
+            ComPtr<ICommandEncoder> commandEncoder;
+            SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
+            SLANG_RETURN_ON_FAIL(commandEncoder->uploadBufferData(buffer, 0, bufferSize, initData));
+            SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
         }
         else
         {
