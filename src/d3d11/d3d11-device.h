@@ -108,6 +108,14 @@ public:
     ComPtr<ID3D11DeviceContext> m_immediateContext;
     ComPtr<ID3D11DeviceContext1> m_immediateContext1;
 
+    // Mutexes shared among resources for synchronizing per-resource operations that require CPU-side state tracking,
+    // such as view and descriptor allocation and caching. These are used to avoid the overhead of a mutex per resource,
+    // while still allowing for concurrent access to multiple resources.
+    std::mutex m_bufferMutex;
+    std::mutex m_bufferViewMutex;
+    std::mutex m_textureMutex;
+    std::mutex m_textureViewMutex;
+
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;
 #endif

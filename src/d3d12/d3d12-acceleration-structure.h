@@ -23,7 +23,7 @@ public:
 public:
     RefPtr<BufferImpl> m_buffer;
     CPUDescriptorAllocation m_descriptor;
-    DescriptorHandle m_descriptorHandle;
+    AtomicDescriptorHandle m_descriptorHandle;
 };
 
 struct AccelerationStructureBuildDescConverter
