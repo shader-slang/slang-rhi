@@ -168,10 +168,34 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     bufferDesc.memoryType = MemoryType::DeviceLocal;
     bufferDesc.usage = BufferUsage::ShaderTable | BufferUsage::CopyDestination;
     bufferDesc.defaultState = ResourceState::General;
-    bufferDesc.size = tableSize;
-    if (SLANG_FAILED(device->createBuffer(bufferDesc, tableData.get(), buffer.writeRef())))
+    const uint64_t tableAlignment = max<uint64_t>(1, rtpProps.shaderGroupBaseAlignment);
+    bufferDesc.size = tableSize + tableAlignment - 1;
+    if (SLANG_FAILED(device->createBuffer(bufferDesc, nullptr, buffer.writeRef())))
     {
         SLANG_RHI_ASSERT_FAILURE("Failed to create shader table buffer");
+        return nullptr;
+    }
+
+    const DeviceAddress bufferAddress = buffer->getDeviceAddress();
+    const DeviceAddress alignedTableAddress = (DeviceAddress)math::calcAligned2((size_t)bufferAddress, tableAlignment);
+    const uint32_t tableOffset = (uint32_t)(alignedTableAddress - bufferAddress);
+    SLANG_RHI_ASSERT((bufferAddress + tableOffset) % tableAlignment == 0);
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+    if (!encoder)
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to create command encoder for shader table upload");
+        return nullptr;
+    }
+    if (SLANG_FAILED(encoder->uploadBufferData(buffer, tableOffset, tableSize, tableData.get())))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to upload shader table data");
+        return nullptr;
+    }
+    if (SLANG_FAILED(queue->submit(encoder->finish())) || SLANG_FAILED(queue->waitOnHost()))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Failed to submit shader table upload");
         return nullptr;
     }
 
@@ -179,6 +203,7 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     pipelineData->buffer = checked_cast<BufferImpl*>(buffer.get());
     pipelineData->raygenInfos = std::move(raygenInfos);
+    pipelineData->tableOffset = tableOffset;
 
     pipelineData->missRecordStride = missRecordSize;
     pipelineData->hitGroupRecordStride = hitGroupRecordSize;
