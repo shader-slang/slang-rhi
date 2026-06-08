@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import pathlib
 import re
 import sys
@@ -111,12 +112,19 @@ def read_log(path: pathlib.Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Fail only for LeakSanitizer reports caused by slang-rhi frames.")
-    parser.add_argument("--log-dir", required=True, type=pathlib.Path)
-    parser.add_argument("--repo-root", required=True, type=pathlib.Path)
+    parser.add_argument("--log-dir", type=pathlib.Path)
+    parser.add_argument("--repo-root", type=pathlib.Path)
     args = parser.parse_args()
 
-    log_dir = args.log_dir
-    repo_root = str(args.repo_root.resolve())
+    if args.log_dir:
+        log_dir = args.log_dir
+    elif os.environ.get("SANITIZER_LOG_DIR"):
+        log_dir = pathlib.Path(os.environ["SANITIZER_LOG_DIR"])
+    else:
+        print("No sanitizer log directory provided and SANITIZER_LOG_DIR is not set.")
+        return 1
+    repo_root_arg = args.repo_root or pathlib.Path(os.environ.get("GITHUB_WORKSPACE", os.getcwd()))
+    repo_root = str(repo_root_arg.resolve())
     if not log_dir.exists():
         print(f"No sanitizer log directory found: {log_dir}")
         return 0
