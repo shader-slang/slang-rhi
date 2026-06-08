@@ -70,11 +70,15 @@ if(SLANG_RHI_ENABLE_ASAN)
         add_link_options(-fsanitize=address)
         # On Windows, the debug CRT conflicts with ASAN. Force the static release CRT
         # to match the static ASAN runtime library.
-        # Also prevent clang from emitting /INFERASANLIBS directives in object files,
-        # which are not supported by all versions of lld-link.
         if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
             set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
             add_compile_options(-fno-sanitize-link-runtime)
+            # The MSVC STL uses __has_feature(address_sanitizer) under Clang to
+            # activate ASAN container annotations and emits /INFERASANLIBS via a
+            # pragma in that path. Some lld-link versions reject that directive
+            # in .drectve sections. Defining __SANITIZE_ADDRESS__ selects the
+            # equivalent STL annotation path without emitting the directive.
+            add_compile_definitions(__SANITIZE_ADDRESS__)
         endif()
     else()
         message(FATAL_ERROR "AddressSanitizer is only supported with Clang")
