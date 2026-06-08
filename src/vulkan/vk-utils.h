@@ -5,21 +5,36 @@
 #include "vk-api.h"
 
 #include "core/common.h"
+#include "core/diagnostics.h"
+
+namespace rhi {
+class Device;
+}
 
 namespace rhi::vk {
 
 // Macros to make testing vulkan return codes simpler
 
-void reportVulkanError(VkResult res);
+const char* getVkResultName(VkResult res);
+void reportVulkanError(VkResult res, const char* call, const SourceLocation location, Device* device = nullptr);
 
 /// SLANG_VK_RETURN_ON_FAIL can be used in a similar way to SLANG_RETURN_ON_FAIL macro.
-/// Asserts on debug builds.
 #define SLANG_VK_RETURN_ON_FAIL(x)                                                                                     \
     {                                                                                                                  \
         VkResult _res = x;                                                                                             \
         if (_res != VK_SUCCESS)                                                                                        \
         {                                                                                                              \
-            ::rhi::vk::reportVulkanError(_res);                                                                        \
+            ::rhi::vk::reportVulkanError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                                       \
+            return SLANG_FAIL;                                                                                         \
+        }                                                                                                              \
+    }
+
+#define SLANG_VK_RETURN_ON_FAIL_REPORT(x, device)                                                                      \
+    {                                                                                                                  \
+        VkResult _res = x;                                                                                             \
+        if (_res != VK_SUCCESS)                                                                                        \
+        {                                                                                                              \
+            ::rhi::vk::reportVulkanError(_res, #x, SLANG_RHI_SOURCE_LOCATION(), device);                               \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
     }
@@ -30,7 +45,16 @@ void reportVulkanError(VkResult res);
         VkResult _res = x;                                                                                             \
         if (_res != VK_SUCCESS)                                                                                        \
         {                                                                                                              \
-            ::rhi::vk::reportVulkanError(_res);                                                                        \
+            ::rhi::vk::reportVulkanError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                                       \
+        }                                                                                                              \
+    }
+
+#define SLANG_VK_CHECK_REPORT(x, device)                                                                               \
+    {                                                                                                                  \
+        VkResult _res = x;                                                                                             \
+        if (_res != VK_SUCCESS)                                                                                        \
+        {                                                                                                              \
+            ::rhi::vk::reportVulkanError(_res, #x, SLANG_RHI_SOURCE_LOCATION(), device);                               \
         }                                                                                                              \
     }
 

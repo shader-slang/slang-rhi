@@ -50,7 +50,10 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.hinstance = ::GetModuleHandle(nullptr);
         surfaceCreateInfo.hwnd = (HWND)windowHandle.handleValues[0];
-        SLANG_VK_RETURN_ON_FAIL(api.vkCreateWin32SurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateWin32SurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_device
+        );
         break;
     }
 #elif SLANG_APPLE_FAMILY
@@ -60,7 +63,10 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         VkMetalSurfaceCreateInfoEXT surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
         surfaceCreateInfo.pLayer = (CAMetalLayer*)m_metalLayer;
-        SLANG_VK_RETURN_ON_FAIL(api.vkCreateMetalSurfaceEXT(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateMetalSurfaceEXT(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_device
+        );
         break;
     }
 #elif SLANG_LINUX_FAMILY
@@ -71,7 +77,10 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.window = (ANativeWindow*)windowHandle.handleValues[0];
-        SLANG_VK_RETURN_ON_FAIL(api.vkCreateAndroidSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateAndroidSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_device
+        );
         break;
     }
 #else
@@ -81,7 +90,10 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
         surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
-        SLANG_VK_RETURN_ON_FAIL(api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface),
+            m_device
+        );
         break;
     }
 #endif
@@ -144,8 +156,9 @@ Result SurfaceImpl::createSwapchain()
     // issue an error. The reported supportedUsageFlags are also used below to clamp the
     // requested image usage.
     VkSurfaceCapabilitiesKHR surfaceCaps;
-    SLANG_VK_RETURN_ON_FAIL(
-        api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(api.m_physicalDevice, m_surface, &surfaceCaps)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(api.m_physicalDevice, m_surface, &surfaceCaps),
+        m_device
     );
 
     // Query available present modes.
@@ -209,7 +222,10 @@ Result SurfaceImpl::createSwapchain()
     swapchainDesc.clipped = VK_TRUE;
     swapchainDesc.oldSwapchain = oldSwapchain;
 
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreateSwapchainKHR(api.m_device, &swapchainDesc, nullptr, &m_swapchain));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkCreateSwapchainKHR(api.m_device, &swapchainDesc, nullptr, &m_swapchain),
+        m_device
+    );
 
     uint32_t swapchainImageCount = 0;
     api.vkGetSwapchainImagesKHR(api.m_device, m_swapchain, &swapchainImageCount, nullptr);
@@ -245,17 +261,22 @@ Result SurfaceImpl::createSwapchain()
         {
             VkFenceCreateInfo createInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
             createInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            SLANG_VK_RETURN_ON_FAIL(api.vkCreateFence(api.m_device, &createInfo, nullptr, &frameData.fence));
+            SLANG_VK_RETURN_ON_FAIL_REPORT(
+                api.vkCreateFence(api.m_device, &createInfo, nullptr, &frameData.fence),
+                m_device
+            );
         }
 
         // Create semaphores.
         {
             VkSemaphoreCreateInfo createInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-            SLANG_VK_RETURN_ON_FAIL(
-                api.vkCreateSemaphore(api.m_device, &createInfo, nullptr, &frameData.imageAvailableSemaphore)
+            SLANG_VK_RETURN_ON_FAIL_REPORT(
+                api.vkCreateSemaphore(api.m_device, &createInfo, nullptr, &frameData.imageAvailableSemaphore),
+                m_device
             );
-            SLANG_VK_RETURN_ON_FAIL(
-                api.vkCreateSemaphore(api.m_device, &createInfo, nullptr, &frameData.renderFinishedSemaphore)
+            SLANG_VK_RETURN_ON_FAIL_REPORT(
+                api.vkCreateSemaphore(api.m_device, &createInfo, nullptr, &frameData.renderFinishedSemaphore),
+                m_device
             );
         }
     }
@@ -370,8 +391,11 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     auto& api = m_device->m_api;
 
     FrameData& frameData = m_frameData[m_currentFrameIndex];
-    SLANG_VK_RETURN_ON_FAIL(api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
-    SLANG_VK_RETURN_ON_FAIL(api.vkResetFences(api.m_device, 1, &frameData.fence));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX),
+        m_device
+    );
+    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkResetFences(api.m_device, 1, &frameData.fence), m_device);
 
     m_currentTextureIndex = -1;
     VkResult result = api.vkAcquireNextImageKHR(

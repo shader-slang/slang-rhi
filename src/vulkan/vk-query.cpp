@@ -26,7 +26,10 @@ Result QueryPoolImpl::init()
     default:
         return SLANG_E_INVALID_ARG;
     }
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkCreateQueryPool(device->m_api.m_device, &createInfo, nullptr, &m_pool));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkCreateQueryPool(device->m_api.m_device, &createInfo, nullptr, &m_pool),
+        device
+    );
 
     device->_labelObject((uint64_t)m_pool, VK_OBJECT_TYPE_QUERY_POOL, m_desc.label);
 
@@ -93,7 +96,7 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
     {
         return SLANG_OK;
     }
-    SLANG_VK_RETURN_ON_FAIL(result);
+    SLANG_VK_RETURN_ON_FAIL_REPORT(result, device);
 
     markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
     *outReady = true;
@@ -124,16 +127,19 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     }
 
     DeviceImpl* device = getDevice<DeviceImpl>();
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetQueryPoolResults(
-        device->m_api.m_device,
-        m_pool,
-        queryIndex,
-        count,
-        sizeof(uint64_t) * count,
-        outData,
-        sizeof(uint64_t),
-        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
-    ));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkGetQueryPoolResults(
+            device->m_api.m_device,
+            m_pool,
+            queryIndex,
+            count,
+            sizeof(uint64_t) * count,
+            outData,
+            sizeof(uint64_t),
+            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+        ),
+        device
+    );
 
     markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
 
