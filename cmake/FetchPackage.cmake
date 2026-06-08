@@ -37,17 +37,10 @@ macro(FetchPackage name)
         endif()
     endif()
 
-    set(FETCH_DOWNLOAD_DIR_ARG "")
-    if(SLANG_RHI_FETCH_PACKAGE_DOWNLOAD_DIR)
-        file(TO_CMAKE_PATH "${SLANG_RHI_FETCH_PACKAGE_DOWNLOAD_DIR}" FETCH_DOWNLOAD_ROOT)
-        set(FETCH_DOWNLOAD_DIR_ARG DOWNLOAD_DIR "${FETCH_DOWNLOAD_ROOT}/${name}")
-    endif()
-
     FetchContent_Declare(
         ${name}
         URL "${FETCH_URL}"
         ${FETCH_URL_HASH_ARG}
-        ${FETCH_DOWNLOAD_DIR_ARG}
         SOURCE_SUBDIR _does_not_exist_ # avoid adding contained CMakeLists.txt
         ${FETCH_HTTP_HEADER_ARG}
     )
