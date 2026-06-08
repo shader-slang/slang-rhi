@@ -9,7 +9,6 @@ on:
       - "LICENSES/**"
       - "LICENSE"
       - "**.md"
-      - .github/workflows/ci-gcp.yml
   pull_request:
     branches: [main]
     paths-ignore:
@@ -17,7 +16,6 @@ on:
       - "LICENSES/**"
       - "LICENSE"
       - "**.md"
-      - .github/workflows/ci-gcp.yml
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
