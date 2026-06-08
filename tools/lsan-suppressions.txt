@@ -1,6 +1,11 @@
 # LeakSanitizer suppressions for slang-rhi
 # These suppress known leaks in third-party GPU driver libraries that are outside our control.
 # Reference: https://clang.llvm.org/docs/AddressSanitizer.html#suppressing-memory-leaks
+#
+# CI ASAN integration jobs still run LSan, but make leak-only exits non-fatal
+# and post-filter the reports for slang-rhi frames. Several GPU driver/compiler
+# stacks report allocations from <unknown module>, which leaves no stable
+# function or library name for LSan to match here.
 
 # NVIDIA CUDA driver
 leak:libcuda.so

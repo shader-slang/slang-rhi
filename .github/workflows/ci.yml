@@ -104,10 +104,15 @@ jobs:
           if [[ -n "$SYMBOLIZER" ]]; then
             echo "ASAN_SYMBOLIZER_PATH=$SYMBOLIZER" >> "$GITHUB_ENV"
           fi
-          ASAN_OPTS="halt_on_error=1:symbolize=1:fast_unwind_on_malloc=0:suppressions=${{ github.workspace }}/tools/asan-suppressions.txt"
+          SANITIZER_LOG_DIR="$PWD/build/${{matrix.config}}/sanitizer-logs"
+          mkdir -p "$SANITIZER_LOG_DIR"
+          echo "SANITIZER_LOG_DIR=$SANITIZER_LOG_DIR" >> "$GITHUB_ENV"
+          ASAN_OPTS="halt_on_error=1:symbolize=1:fast_unwind_on_malloc=0"
+          ASAN_OPTS="${ASAN_OPTS}:log_path=${SANITIZER_LOG_DIR}/sanitizer.log"
+          ASAN_OPTS="${ASAN_OPTS}:suppressions=${{ github.workspace }}/tools/asan-suppressions.txt"
           if [[ "${{ matrix.os }}" != "macos" ]]; then
             ASAN_OPTS="detect_leaks=1:protect_shadow_gap=0:${ASAN_OPTS}"
-            echo "LSAN_OPTIONS=suppressions=${{ github.workspace }}/tools/lsan-suppressions.txt" >> "$GITHUB_ENV"
+            echo "LSAN_OPTIONS=suppressions=${{ github.workspace }}/tools/lsan-suppressions.txt:exitcode=0" >> "$GITHUB_ENV"
           fi
           echo "ASAN_OPTIONS=${ASAN_OPTS}" >> "$GITHUB_ENV"
 
@@ -131,6 +136,17 @@ jobs:
         working-directory: build/${{matrix.config}}
         env:
           XDG_RUNTIME_DIR: /tmp
+
+      - name: Check LeakSanitizer Reports
+        if: contains(matrix.flags, 'asan')
+        shell: bash
+        run: |
+          PYTHON=$(command -v python3 || command -v python || true)
+          if [[ -z "$PYTHON" ]]; then
+            echo "::error::Python is required to filter LeakSanitizer reports"
+            exit 1
+          fi
+          "$PYTHON" tools/filter-lsan-reports.py --log-dir "$SANITIZER_LOG_DIR" --repo-root "$PWD"
 
       - name: Coverage Report
         if: contains(matrix.flags, 'coverage')
