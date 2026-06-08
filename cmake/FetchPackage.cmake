@@ -25,13 +25,18 @@ macro(FetchPackage name)
     # so the credential is not sent to third-party hosts (nuget.org, developer.nvidia.com,
     # developer.apple.com, etc.) for FetchPackage downloads.
     set(FETCH_HTTP_HEADER_ARG "")
-    if(SLANG_GITHUB_TOKEN)
-        string(REGEX MATCH "^https?://([^/]+)/" _fetch_url_host_match "${FETCH_URL}")
-        set(FETCH_URL_HOST "${CMAKE_MATCH_1}")
-        if(FETCH_URL_HOST MATCHES "(^|\\.)github\\.com$")
-            set(FETCH_HTTP_HEADER_ARG HTTP_HEADER "Authorization: token ${SLANG_GITHUB_TOKEN}")
+    set(FETCH_GITHUB_TOKEN "$ENV{SLANG_GITHUB_TOKEN}")
+    if(FETCH_GITHUB_TOKEN)
+        set(FETCH_URL_HOST "")
+        if(FETCH_URL MATCHES "^https?://([^/:]+)(:[0-9]+)?(/|$)")
+            set(FETCH_URL_HOST "${CMAKE_MATCH_1}")
+            string(TOLOWER "${FETCH_URL_HOST}" FETCH_URL_HOST)
+            if(FETCH_URL_HOST MATCHES "(^|\\.)github\\.com$")
+                set(FETCH_HTTP_HEADER_ARG HTTP_HEADER "Authorization: token ${FETCH_GITHUB_TOKEN}")
+            endif()
         endif()
     endif()
+
     FetchContent_Declare(
         ${name}
         URL "${FETCH_URL}"

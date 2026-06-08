@@ -9,7 +9,6 @@ on:
       - "LICENSES/**"
       - "LICENSE"
       - "**.md"
-      - .github/workflows/ci-gcp.yml
   pull_request:
     branches: [main]
     paths-ignore:
@@ -17,7 +16,6 @@ on:
       - "LICENSES/**"
       - "LICENSE"
       - "**.md"
-      - .github/workflows/ci-gcp.yml
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -90,6 +88,8 @@ jobs:
           version: '5.0.6'
 
       - name: Configure
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
 
       - name: Build
