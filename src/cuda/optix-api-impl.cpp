@@ -35,48 +35,17 @@
 
 namespace rhi::cuda::optix::VERSION_TAG {
 
-inline bool isOptixError(OptixResult result)
+void reportOptixError(OptixResult result, const char* call, const SourceLocation location, Device* device = nullptr)
 {
-    return result != OPTIX_SUCCESS;
-}
-
-void reportOptixError(OptixResult result, const char* call, const char* file, int line, DeviceAdapter device)
-{
-    if (!device)
-        return;
-
-    char buf[4096];
-    snprintf(
-        buf,
-        sizeof(buf),
-        "%s failed: %s (%s)\nAt %s:%d\n",
-        call,
-        optixGetErrorName(result),
-        optixGetErrorName(result),
-        file,
-        line
-    );
-    buf[sizeof(buf) - 1] = 0; // Ensure null termination
-    device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
-}
-
-void reportOptixAssert(OptixResult result, const char* call, const char* file, int line)
-{
-    std::fprintf(
-        stderr,
-        "%s:%d: %s failed: %s (%s)\n",
-        file,
-        line,
-        call,
-        optixGetErrorString(result),
-        optixGetErrorName(result)
-    );
+    const char* errorString = optixGetErrorString(result);
+    const char* errorName = optixGetErrorName(result);
+    reportNativeCallError(device, call, result, errorName, location, errorString);
 }
 
 #define SLANG_OPTIX_RETURN_ON_FAIL(x)                                                                                  \
     {                                                                                                                  \
         auto _res = x;                                                                                                 \
-        if (::rhi::cuda::optix::VERSION_TAG::isOptixError(_res))                                                       \
+        if (_res != OPTIX_SUCCESS)                                                                                     \
         {                                                                                                              \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
@@ -85,9 +54,9 @@ void reportOptixAssert(OptixResult result, const char* call, const char* file, i
 #define SLANG_OPTIX_RETURN_ON_FAIL_REPORT(x, device)                                                                   \
     {                                                                                                                  \
         auto _res = x;                                                                                                 \
-        if (::rhi::cuda::optix::VERSION_TAG::isOptixError(_res))                                                       \
+        if (_res != OPTIX_SUCCESS)                                                                                     \
         {                                                                                                              \
-            ::rhi::cuda::optix::VERSION_TAG::reportOptixError(_res, #x, __FILE__, __LINE__, device);                   \
+            ::rhi::cuda::optix::VERSION_TAG::reportOptixError(_res, #x, SLANG_RHI_SOURCE_LOCATION(), device);          \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
     }
@@ -95,9 +64,9 @@ void reportOptixAssert(OptixResult result, const char* call, const char* file, i
 #define SLANG_OPTIX_ASSERT_ON_FAIL(x)                                                                                  \
     {                                                                                                                  \
         auto _res = x;                                                                                                 \
-        if (::rhi::cuda::optix::VERSION_TAG::isOptixError(_res))                                                       \
+        if (_res != OPTIX_SUCCESS)                                                                                     \
         {                                                                                                              \
-            ::rhi::cuda::optix::VERSION_TAG::reportOptixAssert(_res, #x, __FILE__, __LINE__);                          \
+            ::rhi::cuda::optix::VERSION_TAG::reportOptixError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                  \
             SLANG_RHI_ASSERT_FAILURE("OptiX call failed");                                                             \
         }                                                                                                              \
     }
