@@ -25,17 +25,29 @@ macro(FetchPackage name)
     # so the credential is not sent to third-party hosts (nuget.org, developer.nvidia.com,
     # developer.apple.com, etc.) for FetchPackage downloads.
     set(FETCH_HTTP_HEADER_ARG "")
-    if(SLANG_GITHUB_TOKEN)
-        string(REGEX MATCH "^https?://([^/]+)/" _fetch_url_host_match "${FETCH_URL}")
-        set(FETCH_URL_HOST "${CMAKE_MATCH_1}")
-        if(FETCH_URL_HOST MATCHES "(^|\\.)github\\.com$")
-            set(FETCH_HTTP_HEADER_ARG HTTP_HEADER "Authorization: token ${SLANG_GITHUB_TOKEN}")
+    set(FETCH_GITHUB_TOKEN "$ENV{SLANG_GITHUB_TOKEN}")
+    if(FETCH_GITHUB_TOKEN)
+        set(FETCH_URL_HOST "")
+        if(FETCH_URL MATCHES "^https?://([^/:]+)(:[0-9]+)?(/|$)")
+            set(FETCH_URL_HOST "${CMAKE_MATCH_1}")
+            string(TOLOWER "${FETCH_URL_HOST}" FETCH_URL_HOST)
+            if(FETCH_URL_HOST MATCHES "(^|\\.)github\\.com$")
+                set(FETCH_HTTP_HEADER_ARG HTTP_HEADER "Authorization: token ${FETCH_GITHUB_TOKEN}")
+            endif()
         endif()
     endif()
+
+    set(FETCH_DOWNLOAD_DIR_ARG "")
+    if(SLANG_RHI_FETCH_PACKAGE_DOWNLOAD_DIR)
+        file(TO_CMAKE_PATH "${SLANG_RHI_FETCH_PACKAGE_DOWNLOAD_DIR}" FETCH_DOWNLOAD_ROOT)
+        set(FETCH_DOWNLOAD_DIR_ARG DOWNLOAD_DIR "${FETCH_DOWNLOAD_ROOT}/${name}")
+    endif()
+
     FetchContent_Declare(
         ${name}
         URL "${FETCH_URL}"
         ${FETCH_URL_HASH_ARG}
+        ${FETCH_DOWNLOAD_DIR_ARG}
         SOURCE_SUBDIR _does_not_exist_ # avoid adding contained CMakeLists.txt
         ${FETCH_HTTP_HEADER_ARG}
     )

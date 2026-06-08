@@ -87,8 +87,16 @@ jobs:
         with:
           version: '5.0.6'
 
+      - name: Cache FetchPackage downloads
+        uses: actions/cache@v4
+        with:
+          path: .cache/fetch-package-downloads
+          key: fetch-package-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.preset }}-${{ hashFiles('CMakeLists.txt', 'cmake/FetchPackage.cmake', 'CMakePresets.json') }}
+
       - name: Configure
-        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cmake --preset ${{matrix.preset}} -DSLANG_RHI_FETCH_PACKAGE_DOWNLOAD_DIR=${{ github.workspace }}/.cache/fetch-package-downloads ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
