@@ -6,6 +6,8 @@
 
 #include "core/ring-queue.h"
 
+#include <array>
+
 namespace rhi::cuda {
 
 struct SubmitEvent
@@ -14,12 +16,24 @@ struct SubmitEvent
     uint64_t submitID = 0;
 };
 
+struct TimestampAnchor
+{
+    CUevent event = nullptr;
+    uint64_t generation = kInvalidTimestampAnchorGeneration;
+    uint64_t offsetUs = 0;
+    bool resolved = false;
+};
+
 class CommandQueueImpl : public CommandQueue
 {
 public:
     static constexpr size_t kMaxSubmitsWithoutEvent = 128;
+    static constexpr size_t kTimestampAnchorRingSize = 16;
 
     CUstream m_stream;
+    std::array<TimestampAnchor, kTimestampAnchorRingSize> m_timestampAnchors;
+    uint64_t m_currentAnchorGeneration = 0;
+    uint64_t m_timestampAnchorTimeNs = 0;
 
     uint64_t m_lastSubmittedID = 0;
     uint64_t m_lastFinishedID = 0;
@@ -53,6 +67,7 @@ public:
     Result retireCommandBuffers();
     Result retireCommandBuffersLocked();
 
+    Result resolveTimestampQueries(CommandBufferImpl* commandBuffer);
     Result signalFence(CUstream stream, uint64_t* outId);
     Result updateFence();
 
@@ -71,6 +86,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) override;
 };
 
 class CommandEncoderImpl : public CommandEncoder
@@ -100,6 +116,7 @@ public:
     BindingCache m_bindingCache;
     ConstantBufferPool m_constantBufferPool;
     uint64_t m_submissionID = 0;
+    uint64_t m_timestampAnchorGeneration = kInvalidTimestampAnchorGeneration;
 
     CommandBufferImpl(Device* device);
     virtual ~CommandBufferImpl() = default;

@@ -119,8 +119,15 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     }
 
     m_info.preferredFormat = preferredFormat;
-    m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::UnorderedAccess |
-                            TextureUsage::CopyDestination;
+    m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
+    // Only advertise UnorderedAccess when the preferred format genuinely supports storage,
+    // rather than claiming it unconditionally regardless of the chosen format.
+    FormatSupport preferredFormatSupport = {};
+    m_device->getFormatSupport(preferredFormat, &preferredFormatSupport);
+    if (is_set(preferredFormatSupport, FormatSupport::ShaderUavStore))
+    {
+        m_info.supportedUsage |= TextureUsage::UnorderedAccess;
+    }
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();
 
@@ -134,14 +141,12 @@ Result SurfaceImpl::createSwapchain()
     VkExtent2D imageExtent = {m_config.width, m_config.height};
 
     // It is necessary to query the caps -> otherwise the LunarG verification layer will
-    // issue an error
-    {
-        VkSurfaceCapabilitiesKHR surfaceCaps;
-
-        SLANG_VK_RETURN_ON_FAIL(
-            api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(api.m_physicalDevice, m_surface, &surfaceCaps)
-        );
-    }
+    // issue an error. The reported supportedUsageFlags are also used below to clamp the
+    // requested image usage.
+    VkSurfaceCapabilitiesKHR surfaceCaps;
+    SLANG_VK_RETURN_ON_FAIL(
+        api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(api.m_physicalDevice, m_surface, &surfaceCaps)
+    );
 
     // Query available present modes.
     uint32_t presentModeCount = 0;
@@ -193,7 +198,10 @@ Result SurfaceImpl::createSwapchain()
     swapchainDesc.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     swapchainDesc.imageExtent = imageExtent;
     swapchainDesc.imageArrayLayers = 1;
-    swapchainDesc.imageUsage = _calcImageUsageFlags(m_config.usage);
+    // Clamp the requested usage to what the surface actually supports. supportedUsageFlags is
+    // format-independent, so this is a defense-in-depth backstop; the primary guard against
+    // requesting storage on a format that can't support it is the usage derivation in configure().
+    swapchainDesc.imageUsage = _calcImageUsageFlags(m_config.usage) & surfaceCaps.supportedUsageFlags;
     swapchainDesc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     swapchainDesc.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     swapchainDesc.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -301,11 +309,12 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     m_device->getFormatSupport(m_config.format, &formatSupport);
     if (m_config.usage == TextureUsage::None)
     {
+        // Do not auto-add UnorderedAccess here: a format's optimal-tiling features may report
+        // storage support while the swapchain still rejects VK_IMAGE_USAGE_STORAGE_BIT for that
+        // format (e.g. *_SRGB), tripping VUID-VkSwapchainCreateInfoKHR-imageFormat-01778. Apps
+        // that need storage on the swapchain must request it explicitly; configure() then
+        // validates it against the format below.
         m_config.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
-        if (is_set(formatSupport, FormatSupport::ShaderUavStore))
-        {
-            m_config.usage |= TextureUsage::UnorderedAccess;
-        }
     }
     else
     {

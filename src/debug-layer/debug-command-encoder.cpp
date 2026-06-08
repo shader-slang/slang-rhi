@@ -7,6 +7,52 @@
 
 namespace rhi::debug {
 
+namespace {
+
+bool isAccelerationStructureQueryType(QueryType queryType)
+{
+    return queryType == QueryType::AccelerationStructureCompactedSize ||
+           queryType == QueryType::AccelerationStructureCurrentSize;
+}
+
+bool validateAccelerationStructureQueryDescs(
+    DebugContext* ctx,
+    uint32_t queryCount,
+    const AccelerationStructureQueryDesc* queryDescs,
+    uint32_t resultCount
+)
+{
+    for (uint32_t i = 0; i < queryCount; ++i)
+    {
+        const AccelerationStructureQueryDesc& queryDesc = queryDescs[i];
+        if (!queryDesc.queryPool)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'queryDescs[%u].queryPool' must not be null.", i);
+            return false;
+        }
+        if (!isAccelerationStructureQueryType(queryDesc.queryType))
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'queryDescs[%u].queryType' is not valid for acceleration structures.", i);
+            return false;
+        }
+
+        const QueryPoolDesc& queryPoolDesc = queryDesc.queryPool->getDesc();
+        if (queryPoolDesc.type != queryDesc.queryType)
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'queryDescs[%u].queryPool' type must match 'queryType'.", i);
+            return false;
+        }
+        if (resultCount > 0 && !isValidSubrange(queryDesc.firstQueryIndex, resultCount, queryPoolDesc.count))
+        {
+            RHI_VALIDATION_ERROR_FORMAT("'queryDescs[%u]' query range exceeds the query pool size.", i);
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
 // ----------------------------------------------------------------------------
 // DebugRenderPassEncoder
 // ----------------------------------------------------------------------------
@@ -1525,6 +1571,10 @@ void DebugCommandEncoder::buildAccelerationStructure(
             return;
         }
     }
+    if (!validateAccelerationStructureQueryDescs(ctx, propertyQueryCount, queryDescs, 1))
+    {
+        return;
+    }
 
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
     for (uint32_t i = 0; i < propertyQueryCount; ++i)
@@ -1591,6 +1641,10 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
         RHI_VALIDATION_ERROR("'queryDescs' must not be null when 'queryCount' > 0.");
         return;
     }
+    if (!validateAccelerationStructureQueryDescs(ctx, queryCount, queryDescs, accelerationStructureCount))
+    {
+        return;
+    }
 
     std::vector<AccelerationStructureQueryDesc> innerQueryDescs;
     for (uint32_t i = 0; i < queryCount; ++i)
@@ -1608,48 +1662,6 @@ void DebugCommandEncoder::queryAccelerationStructureProperties(
         queryCount,
         innerQueryDescs.data()
     );
-}
-
-void DebugCommandEncoder::serializeAccelerationStructure(BufferOffsetPair dst, IAccelerationStructure* src)
-{
-    SLANG_RHI_DEBUG_API(ICommandEncoder, serializeAccelerationStructure);
-
-    requireOpen();
-    requireNoPass();
-
-    if (!src)
-    {
-        RHI_VALIDATION_ERROR("'src' must not be null.");
-        return;
-    }
-    if (!dst.buffer)
-    {
-        RHI_VALIDATION_ERROR("'dst.buffer' must not be null.");
-        return;
-    }
-
-    baseObject->serializeAccelerationStructure(dst, src);
-}
-
-void DebugCommandEncoder::deserializeAccelerationStructure(IAccelerationStructure* dst, BufferOffsetPair src)
-{
-    SLANG_RHI_DEBUG_API(ICommandEncoder, deserializeAccelerationStructure);
-
-    requireOpen();
-    requireNoPass();
-
-    if (!dst)
-    {
-        RHI_VALIDATION_ERROR("'dst' must not be null.");
-        return;
-    }
-    if (!src.buffer)
-    {
-        RHI_VALIDATION_ERROR("'src.buffer' must not be null.");
-        return;
-    }
-
-    baseObject->deserializeAccelerationStructure(dst, src);
 }
 
 void DebugCommandEncoder::executeClusterOperation(const ClusterOperationDesc& desc)

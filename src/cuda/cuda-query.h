@@ -7,17 +7,30 @@ namespace rhi::cuda {
 class QueryPoolImpl : public QueryPool
 {
 public:
-    /// The event object for each query. Owned by the pool.
-    std::vector<CUevent> m_events;
+    struct Query
+    {
+        /// The event object for this query. Owned by the pool.
+        CUevent event = nullptr;
+        /// The queue timestamp anchor generation that was current when this query event was recorded.
+        uint64_t anchorGeneration = kInvalidTimestampAnchorGeneration;
+        /// Cached host-readable timestamp result, resolved when queue progress retires the command buffer.
+        uint64_t resultData = 0;
+    };
 
-    /// The event that marks the starting point.
-    CUevent m_startEvent;
+    std::vector<Query> m_queries;
 
     QueryPoolImpl(Device* device, const QueryPoolDesc& desc);
     ~QueryPoolImpl();
 
     Result init();
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL reset(uint32_t queryIndex, uint32_t count) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(
+        uint32_t queryIndex,
+        uint32_t count,
+        bool* outReady
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
         uint32_t queryIndex,
         uint32_t count,
@@ -39,6 +52,11 @@ public:
     Result init();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(
+        uint32_t queryIndex,
+        uint32_t count,
+        bool* outReady
+    ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
         uint32_t queryIndex,
         uint32_t count,

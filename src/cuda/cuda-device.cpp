@@ -14,6 +14,8 @@
 #include "cuda-utils.h"
 #include "cuda-heap.h"
 
+#include "core/platform.h"
+
 namespace rhi::cuda {
 
 struct ComputeCapabilityInfo
@@ -189,6 +191,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         limits.maxComputeDispatchThreadGroups[1] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y);
         limits.maxComputeDispatchThreadGroups[2] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z);
 
+        int warpSize = getAttribute(CU_DEVICE_ATTRIBUTE_WARP_SIZE);
+        if (warpSize > 0)
+        {
+            limits.minWaveSize = uint32_t(warpSize);
+            limits.maxWaveSize = uint32_t(warpSize);
+        }
+
         m_info.limits = limits;
     }
 
@@ -203,6 +212,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
+    addFeature(Feature::TimestampCalibration);
     addFeature(Feature::Pointer);
 
     int computeCapabilityMajor = 0;

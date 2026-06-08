@@ -4,6 +4,8 @@
 
 #include "cuda-api.h"
 
+#include <cmath>
+
 /// Enable CUDA context check.
 /// This is useful for debugging to ensure that the CUDA context is set correctly when calling CUDA APIs.
 #define SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK 0
@@ -100,5 +102,10 @@ void reportCUDAAssert(CUresult result, const char* call, const char* file, int l
     }
 
 AdapterLUID getAdapterLUID(int deviceIndex);
+
+inline uint64_t cudaEventMillisecondsToMicroseconds(float elapsedMs)
+{
+    return uint64_t(std::llround(double(elapsedMs) * 1000.0));
+}
 
 } // namespace rhi::cuda

@@ -1,4 +1,5 @@
 #include "cuda-query.h"
+#include "cuda-command.h"
 #include "cuda-device.h"
 #include "cuda-utils.h"
 
@@ -13,38 +14,112 @@ QueryPoolImpl::~QueryPoolImpl()
 {
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
 
-    for (auto& e : m_events)
+    for (Query& query : m_queries)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(e));
+        if (query.event)
+        {
+            SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(query.event));
+        }
     }
-    SLANG_CUDA_ASSERT_ON_FAIL(cuEventDestroy(m_startEvent));
 }
 
 Result QueryPoolImpl::init()
 {
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&m_startEvent, 0), this);
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventRecord(m_startEvent, 0), this);
-    m_events.resize(m_desc.count);
-    for (size_t i = 0; i < m_events.size(); i++)
+    m_queries.resize(m_desc.count);
+    for (Query& query : m_queries)
     {
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&m_events[i], 0), this);
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&query.event, 0), this);
     }
     return SLANG_OK;
 }
 
+Result QueryPoolImpl::reset()
+{
+    return reset(0, m_desc.count);
+}
+
+Result QueryPoolImpl::reset(uint32_t queryIndex, uint32_t count)
+{
+    SLANG_RETURN_ON_FAIL(QueryPool::reset(queryIndex, count));
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        Query& query = m_queries[queryIndex + i];
+        query.anchorGeneration = kInvalidTimestampAnchorGeneration;
+        query.resultData = 0;
+    }
+    return SLANG_OK;
+}
+
+Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+{
+    if (!outReady || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    *outReady = false;
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
+    if (queryInfo.state == QueryRangeState::Resolved)
+    {
+        *outReady = true;
+        return SLANG_OK;
+    }
+
+    CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+    SLANG_RETURN_ON_FAIL(queue->retireCommandBuffers());
+
+    queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
+    if (queryInfo.state == QueryRangeState::Resolved)
+    {
+        *outReady = true;
+        return SLANG_OK;
+    }
+    if (queue->m_lastFinishedID < queryInfo.submissionID)
+    {
+        return SLANG_OK;
+    }
+
+    return SLANG_FAIL;
+}
+
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (!outData || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
     if (count == 0)
     {
         return SLANG_OK;
     }
 
+    if (queryInfo.state != QueryRangeState::Resolved)
+    {
+        CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+        SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+        queryInfo = getQueryRangeInfo(queryIndex, count);
+        if (queryInfo.state != QueryRangeState::Resolved)
+        {
+            return SLANG_FAIL;
+        }
+    }
+
     for (uint32_t i = 0; i < count; i++)
     {
-        float time = 0.0f;
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventSynchronize(m_events[i + queryIndex]), this);
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventElapsedTime(&time, m_startEvent, m_events[i + queryIndex]), this);
-        outData[i] = (uint64_t)((double)time * 1000.0f);
+        outData[i] = m_queries[queryIndex + i].resultData;
     }
     return SLANG_OK;
 }
@@ -72,21 +147,71 @@ Result PlainBufferProxyQueryPoolImpl::init()
 
 Result PlainBufferProxyQueryPoolImpl::reset()
 {
+    SLANG_RETURN_ON_FAIL(QueryPool::reset());
+    return SLANG_OK;
+}
+
+Result PlainBufferProxyQueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+{
+    if (!outReady || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    *outReady = false;
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
+    if (queryInfo.state == QueryRangeState::Resolved)
+    {
+        *outReady = true;
+        return SLANG_OK;
+    }
+
+    CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+    SLANG_RETURN_ON_FAIL(queue->retireCommandBuffers());
+    uint64_t submissionID = queryInfo.submissionID;
+    if (queue->m_lastFinishedID < submissionID)
+    {
+        return SLANG_OK;
+    }
+
+    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+    *outReady = true;
+
     return SLANG_OK;
 }
 
 Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (!outData || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
+    if (queryInfo.state == QueryRangeState::Reset)
+    {
+        return SLANG_FAIL;
+    }
     if (count == 0)
     {
         return SLANG_OK;
     }
 
-    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuCtxSynchronize(), this);
+    CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
+    if (queue->m_lastFinishedID < queryInfo.submissionID)
+    {
+        SLANG_RETURN_ON_FAIL(queue->waitOnHost());
+    }
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(
         cuMemcpyDtoH(outData, m_buffer + queryIndex * sizeof(uint64_t), count * sizeof(uint64_t)),
         this
     );
+
+    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+
     return SLANG_OK;
 }
 

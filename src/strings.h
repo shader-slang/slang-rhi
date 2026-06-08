@@ -154,7 +154,6 @@
 // QueryType
 #define S_QueryType_Timestamp "Timestamp"
 #define S_QueryType_AccelerationStructureCompactedSize "AccelerationStructureCompactedSize"
-#define S_QueryType_AccelerationStructureSerializedSize "AccelerationStructureSerializedSize"
 #define S_QueryType_AccelerationStructureCurrentSize "AccelerationStructureCurrentSize"
 
 // CooperativeVectorComponentType

@@ -423,7 +423,7 @@ void* TextureViewImpl::_getTexelPtr(const int32_t* texelCoords)
         if (coord < 0)
             coord = 0;
 
-        texelOffset += texelCoords[axis] * mipLevelInfo.pitches[axis];
+        texelOffset += coord * mipLevelInfo.pitches[axis];
     }
 
     return (uint8_t*)texture->m_data + texelOffset;

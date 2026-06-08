@@ -21,6 +21,7 @@
 #include <map>
 #include <set>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -250,11 +251,59 @@ public:
     QueryPool(Device* device, const QueryPoolDesc& desc);
 
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() override { return m_desc; }
-    virtual SLANG_NO_THROW Result SLANG_MCALL reset() override { return SLANG_OK; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL reset() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL reset(uint32_t queryIndex, uint32_t count) override;
+
+    enum class QueryRangeState
+    {
+        Reset,
+        Pending,
+        Resolved,
+    };
+
+    struct QueryRangeInfo
+    {
+        QueryRangeState state = QueryRangeState::Reset;
+        uint64_t submissionID = 0;
+    };
+
+    bool isValidQueryRange(uint32_t queryIndex, uint32_t count) const;
+    void markQueryRangeSubmitted(uint32_t queryIndex, uint32_t count, uint64_t submissionID);
+    void markQueryRangeReady(uint32_t queryIndex, uint32_t count, uint64_t completedSubmissionID);
+    QueryRangeInfo getQueryRangeInfo(uint32_t queryIndex, uint32_t count) const;
 
 public:
+    enum class QueryStatus : uint64_t
+    {
+        Reset = 0,
+        Pending = 1,
+        Resolved = 2,
+    };
+
+    struct QueryState
+    {
+        static constexpr uint64_t kStatusShift = 62;
+        static constexpr uint64_t kSubmissionIDMask = (uint64_t(1) << kStatusShift) - 1;
+
+        uint64_t state = 0;
+
+        void set(QueryStatus status, uint64_t submissionID)
+        {
+            SLANG_RHI_ASSERT((submissionID & ~kSubmissionIDMask) == 0);
+            state = (uint64_t(status) << kStatusShift) | (submissionID & kSubmissionIDMask);
+        }
+
+        QueryStatus getStatus() const { return QueryStatus(state >> kStatusShift); }
+
+        uint64_t getSubmissionID() const { return state & kSubmissionIDMask; }
+    };
+
+    static_assert(sizeof(QueryState) == 8, "QueryState should remain compact.");
+
     QueryPoolDesc m_desc;
     StructHolder m_descHolder;
+    std::vector<QueryState> m_queryStates;
+    mutable std::mutex m_queryStateMutex;
 };
 
 class ShaderTable : public IShaderTable, public DeviceChild

@@ -68,6 +68,8 @@ protected:
     x(vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV) \
     x(vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR) \
     x(vkGetPhysicalDeviceCooperativeVectorPropertiesNV) \
+    x(vkGetPhysicalDeviceCalibrateableTimeDomainsKHR) \
+    x(vkGetPhysicalDeviceCalibrateableTimeDomainsEXT) \
     /* */
 
 #define VK_API_INSTANCE_PROCS(x) \
@@ -288,6 +290,8 @@ protected:
     x(vkGetPipelineKeyKHR) \
     x(vkReleaseCapturedPipelineDataKHR) \
     x(vkCmdSetCheckpointNV) \
+    x(vkGetCalibratedTimestampsKHR) \
+    x(vkGetCalibratedTimestampsEXT) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \

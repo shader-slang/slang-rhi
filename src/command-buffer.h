@@ -44,6 +44,11 @@ public:
 
     // ICommandQueue implementation
     virtual SLANG_NO_THROW QueueType SLANG_MCALL getType() override { return m_type; }
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) override
+    {
+        SLANG_UNUSED(outCalibration);
+        return SLANG_E_NOT_AVAILABLE;
+    }
 
 public:
     QueueType m_type;
@@ -345,16 +350,6 @@ public:
         IAccelerationStructure** accelerationStructures,
         uint32_t queryCount,
         const AccelerationStructureQueryDesc* queryDescs
-    ) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL serializeAccelerationStructure(
-        BufferOffsetPair dst,
-        IAccelerationStructure* src
-    ) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
-        IAccelerationStructure* dst,
-        BufferOffsetPair src
     ) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL executeClusterOperation(const ClusterOperationDesc& desc) override;

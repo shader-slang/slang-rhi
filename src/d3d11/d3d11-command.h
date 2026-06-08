@@ -9,6 +9,9 @@ namespace rhi::d3d11 {
 class CommandQueueImpl : public CommandQueue
 {
 public:
+    ComPtr<ID3D11Query> m_waitQuery;
+    uint64_t m_lastSubmittedID = 0;
+
     CommandQueueImpl(Device* device, QueueType type);
 
     // ICommandQueue implementation
@@ -19,6 +22,7 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL submit(const SubmitDesc& desc) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) override;
 };
 
 class CommandEncoderImpl : public CommandEncoder
@@ -45,6 +49,7 @@ class CommandBufferImpl : public CommandBuffer
 public:
     ConstantBufferPool m_constantBufferPool;
     BindingCache m_bindingCache;
+    ComPtr<ID3D11Query> m_disjointQuery;
 
     CommandBufferImpl(Device* device);
 

@@ -171,10 +171,15 @@ public:
         std::vector<MTL::AccelerationStructure*> list;
         std::vector<uint32_t> freeList;
         NS::SharedPtr<NS::Array> array;
-        bool dirty = true;
+        bool arrayDirty = true;
+        std::vector<MTL::Resource*> resources;
+        bool resourcesDirty = true;
     } m_accelerationStructures;
 
+    uint32_t registerAccelerationStructure(MTL::AccelerationStructure* accelerationStructure);
+    void unregisterAccelerationStructure(uint32_t index, MTL::AccelerationStructure* accelerationStructure);
     NS::Array* getAccelerationStructureArray();
+    std::span<MTL::Resource* const> getAccelerationStructureResources();
 
     bool m_hasArgumentBufferTier2 = false;
 
