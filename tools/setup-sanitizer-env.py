@@ -27,11 +27,7 @@ def main() -> int:
 
     workspace = pathlib.Path(os.environ.get("GITHUB_WORKSPACE", os.getcwd())).resolve()
     test_working_dir = workspace / "build" / args.config
-    sanitizer_log_dir = test_working_dir / "sanitizer-logs"
-    sanitizer_log_dir.mkdir(parents=True, exist_ok=True)
-
     asan_suppressions = os.path.relpath(workspace / "tools" / "asan-suppressions.txt", test_working_dir)
-    lsan_suppressions = os.path.relpath(workspace / "tools" / "lsan-suppressions.txt", test_working_dir)
 
     symbolizer = (
         shutil.which("llvm-symbolizer")
@@ -45,11 +41,14 @@ def main() -> int:
         "halt_on_error=1",
         "symbolize=1",
         "fast_unwind_on_malloc=0",
-        "log_path=sanitizer-logs/sanitizer.log",
         f"suppressions={sanitizer_path(pathlib.Path(asan_suppressions))}",
     ]
 
-    if args.os != "macos":
+    if args.os == "linux":
+        sanitizer_log_dir = test_working_dir / "sanitizer-logs"
+        sanitizer_log_dir.mkdir(parents=True, exist_ok=True)
+        lsan_suppressions = os.path.relpath(workspace / "tools" / "lsan-suppressions.txt", test_working_dir)
+
         asan_options = [
             "detect_leaks=1",
             "protect_shadow_gap=0",
@@ -57,10 +56,10 @@ def main() -> int:
         ]
         append_github_env(
             "LSAN_OPTIONS",
-            f"suppressions={sanitizer_path(pathlib.Path(lsan_suppressions))}:exitcode=0",
+            f"suppressions={sanitizer_path(pathlib.Path(lsan_suppressions))}:exitcode=0:log_path=sanitizer-logs/lsan.log",
         )
+        append_github_env("SANITIZER_LOG_DIR", str(sanitizer_log_dir))
 
-    append_github_env("SANITIZER_LOG_DIR", str(sanitizer_log_dir))
     append_github_env("ASAN_OPTIONS", ":".join(asan_options))
     return 0
 

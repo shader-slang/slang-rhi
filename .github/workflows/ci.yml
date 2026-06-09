@@ -127,7 +127,7 @@ jobs:
           XDG_RUNTIME_DIR: /tmp
 
       - name: Check LeakSanitizer Reports
-        if: contains(matrix.flags, 'asan')
+        if: contains(matrix.flags, 'asan') && matrix.os == 'linux'
         run: python tools/filter-lsan-reports.py
 
       - name: Coverage Report
