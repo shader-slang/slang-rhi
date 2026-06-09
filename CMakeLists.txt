@@ -1077,6 +1077,12 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-texture-view.cpp
         tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/stress/stress-context.cpp
+        tests/stress/stress-shaders.cpp
+        tests/stress/test-stress-acceleration-structure-lifetime.cpp
+        tests/stress/test-stress-mixed.cpp
+        tests/stress/test-stress-resource-lifetime.cpp
+        tests/stress/test-stress-shader-cache-execution.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/texture-test.cpp

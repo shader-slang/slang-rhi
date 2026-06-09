@@ -20,12 +20,28 @@ static constexpr size_t kDeviceTypeCount = 7;
 
 struct Options
 {
+    struct StressOptions
+    {
+        bool enabled = false;
+        uint32_t durationSec = 300;
+        uint32_t iterations = 0;
+        uint64_t seed = 0x5a17c0de;
+        uint32_t inflight = 8;
+        uint32_t resourceBudgetMB = 256;
+        uint32_t reportIntervalSec = 30;
+        uint32_t logOps = 128;
+        uint32_t validateEvery = 64;
+        uint32_t shaderCorpus = 32;
+        bool enableRayTracing = false;
+    };
+
     bool verbose = false;
     bool checkDevices = false;
     bool listDevices = false;
     std::array<bool, kDeviceTypeCount + 1> deviceSelected;
     std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
     int optixVersion = 0;
+    StressOptions stress;
 
     Options()
     {
@@ -431,6 +447,7 @@ enum GpuTestFlags
     // Additional flags
     DontCreateDevice = (1 << 10), // Do not create a device (device argument is nullptr)
     DontCacheDevice = (1 << 11),  // Do not use cached devices (create a new device for this test case)
+    Stress = (1 << 12),           // Test is opt-in and only runs when -stress is supplied.
 };
 
 /// Struct that converts into DebugLayerOptions.
@@ -510,6 +527,14 @@ bool checkNoSilentGpuSkips();
 // - GpuTestFlag::DontCreateDevice: Do not create a device (device argument is nullptr)
 // - GpuTestFlag::DontCacheDevice: Do not use cached devices (create a new device for this test case)
 #define GPU_TEST_CASE(name, flags) GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, std::nullopt)
+
+#define GPU_STRESS_TEST_CASE(name, flags)                                                                              \
+    GPU_TEST_CASE_IMPL(                                                                                                \
+        name,                                                                                                          \
+        DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_),                                                                        \
+        static_cast<::rhi::testing::GpuTestFlags>((flags) | ::rhi::testing::GpuTestFlags::Stress),                     \
+        std::nullopt                                                                                                   \
+    )
 
 // Register a GPU test case, similar to `GPU_TEST_CASE`, but with an additional `debugLayerOptions` parameter.
 // Runs the test with the specified debug layer options instead of the currently active debug layer options.

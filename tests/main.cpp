@@ -1,6 +1,9 @@
 #include "testing.h"
 #include <slang-rhi/agility-sdk.h>
 
+#include <cstdlib>
+#include <limits>
+
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest.h>
 
@@ -24,6 +27,36 @@ std::string getCurrentTestCaseName()
 }
 
 } // namespace rhi::testing
+
+static bool parseUInt32Option(int argc, const char** argv, const char* pattern, uint32_t& outValue)
+{
+    doctest::String value;
+    if (!doctest::parseOption(argc, argv, pattern, &value))
+        return false;
+
+    char* end = nullptr;
+    unsigned long parsed = std::strtoul(value.c_str(), &end, 0);
+    if (!end || *end != '\0' || parsed > std::numeric_limits<uint32_t>::max())
+        return false;
+
+    outValue = uint32_t(parsed);
+    return true;
+}
+
+static bool parseUInt64Option(int argc, const char** argv, const char* pattern, uint64_t& outValue)
+{
+    doctest::String value;
+    if (!doctest::parseOption(argc, argv, pattern, &value))
+        return false;
+
+    char* end = nullptr;
+    unsigned long long parsed = std::strtoull(value.c_str(), &end, 0);
+    if (!end || *end != '\0')
+        return false;
+
+    outValue = uint64_t(parsed);
+    return true;
+}
 
 int main(int argc, const char** argv)
 {
@@ -53,6 +86,23 @@ int main(int argc, const char** argv)
         {
             options.listDevices = true;
         }
+        if (doctest::parseFlag(argc, argv, "stress"))
+        {
+            options.stress.enabled = true;
+        }
+        if (doctest::parseFlag(argc, argv, "stress-enable-rt"))
+        {
+            options.stress.enableRayTracing = true;
+        }
+        parseUInt32Option(argc, argv, "stress-duration-sec=", options.stress.durationSec);
+        parseUInt32Option(argc, argv, "stress-iterations=", options.stress.iterations);
+        parseUInt64Option(argc, argv, "stress-seed=", options.stress.seed);
+        parseUInt32Option(argc, argv, "stress-inflight=", options.stress.inflight);
+        parseUInt32Option(argc, argv, "stress-resource-budget-mb=", options.stress.resourceBudgetMB);
+        parseUInt32Option(argc, argv, "stress-report-interval-sec=", options.stress.reportIntervalSec);
+        parseUInt32Option(argc, argv, "stress-log-ops=", options.stress.logOps);
+        parseUInt32Option(argc, argv, "stress-validate-every=", options.stress.validateEvery);
+        parseUInt32Option(argc, argv, "stress-shader-corpus=", options.stress.shaderCorpus);
         std::vector<doctest::String> strings;
         if (doctest::parseCommaSepArgs(argc, argv, "select-devices=", strings))
         {

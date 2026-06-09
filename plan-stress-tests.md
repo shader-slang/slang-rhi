@@ -106,12 +106,10 @@ Add explicit files; avoid a large monolithic stress test.
 
 ```text
 tests/stress/
-  stress-options.h
   stress-context.h
   stress-context.cpp
   stress-rng.h
   stress-op-log.h
-  stress-resource-pool.h
   stress-cache.h
   stress-shaders.h
   stress-shaders.cpp
@@ -306,9 +304,9 @@ Validate:
 - The default resource budget should be conservative enough for developer machines and CI agents.
 - If process isolation becomes necessary, build a thin `slang-rhi-stress` wrapper around the same stress helpers instead of duplicating scenarios.
 
-## Open Questions
-- Should `-stress-enable-rt` default to off for all runs, or should AS/ray-tracing stress run automatically whenever `-stress` and required features are present?
-- Which backends should be considered required for v1 acceptance: D3D12 only, D3D12 plus Vulkan, or D3D12/Vulkan/CUDA?
-- Do you want v1 to include only deterministic generated shaders, or also load a small fixed set of `.slang` files for easier debugging?
-- Should stress progress be plain text only, or should it also write a JSON/CSV artifact into `getCaseTempDirectory()` for nightly tracking?
-- Is a one-hour soak the right initial target, or do you want a shorter default nightly duration with a longer manual command?
+## Resolved V1 Decisions
+- Ray-tracing/AS stress is opt-in with `-stress-enable-rt`.
+- Initial backend focus is D3D12, Vulkan, and CUDA where the relevant features are available.
+- Shader stress uses deterministic generated shaders for v1.
+- Reporting is plain doctest text output for v1; JSON/CSV artifacts can be added once nightly consumers exist.
+- The recommended manual soak remains one hour, while smoke validation should use short iteration-count runs.

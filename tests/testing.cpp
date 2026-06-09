@@ -970,13 +970,19 @@ static void gpuTestTrampoline()
     DeviceType deviceType = info->deviceType;
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+    bool isStressTest = (info->flags & GpuTestFlags::Stress) != 0;
 
-    sGpuTestsEncountered[deviceType]++;
+    if (isStressTest && !options().stress.enabled)
+    {
+        SKIP("stress tests require -stress");
+    }
 
     if (!isDeviceTypeSelected(deviceType))
     {
         SKIP("device not selected");
     }
+
+    sGpuTestsEncountered[deviceType]++;
 
     if (isDeviceTypeAvailable(deviceType))
     {
