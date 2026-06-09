@@ -6,6 +6,7 @@
 #include "../src/cuda/cuda-device.h"
 #include "../src/cuda/cuda-api.h"
 #include "../src/cuda/cuda-utils.h"
+#include "../src/core/diagnostics.h"
 #include "debug-layer/debug-device.h"
 
 using namespace rhi;
@@ -94,6 +95,7 @@ void runPointerCopyTest(rhi::cuda::DeviceImpl* device, CUstream stream, bool exp
         // the result comparison should detect the real error.
         {
             SLANG_RHI_DISABLE_ASSERT_SCOPE();
+            SLANG_RHI_DISABLE_NATIVE_CALL_ERROR_SCOPE();
             queue->submit(desc);
         }
 

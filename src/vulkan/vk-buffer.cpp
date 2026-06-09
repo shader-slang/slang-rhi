@@ -217,7 +217,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
             return SLANG_FAIL;
         }
         HANDLE handle = NULL;
-        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(api.m_device, &info, &handle));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetMemoryWin32HandleKHR(api.m_device, &info, &handle), device);
         m_sharedHandle = NativeHandle{NativeHandleType::Win32, (uint64_t)handle};
 #else
         VkMemoryGetFdInfoKHR info = {};
@@ -231,7 +231,7 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
             return SLANG_FAIL;
         }
         int handle = 0;
-        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(api.m_device, &info, &handle));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetMemoryFdKHR(api.m_device, &info, &handle), device);
         m_sharedHandle = NativeHandle{NativeHandleType::FileDescriptor, (uint64_t)handle};
 #endif
     }
@@ -400,7 +400,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             ));
             // Copy into staging buffer
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_RETURN_ON_FAIL_REPORT(
+                m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData),
+                this
+            );
             ::memcpy(mappedData, initData, bufferSize);
             m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
 
@@ -422,7 +425,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         {
             // Copy into mapped buffer directly
             void* mappedData = nullptr;
-            SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData));
+            SLANG_VK_RETURN_ON_FAIL_REPORT(
+                m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),
+                this
+            );
             ::memcpy(mappedData, initData, bufferSize);
             m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
         }
@@ -452,8 +458,9 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outData)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outData),
+        this
     );
     return SLANG_OK;
 }

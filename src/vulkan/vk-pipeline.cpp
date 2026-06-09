@@ -62,7 +62,7 @@ Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** ou
     // Hash global key.
     {
         VkPipelineBinaryKeyKHR pipelineKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
-        SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineKeyKHR(device->m_device, nullptr, &pipelineKey));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetPipelineKeyKHR(device->m_device, nullptr, &pipelineKey), device);
         sha1.update(pipelineKey.key, pipelineKey.keySize);
     }
     // Hash pipeline key.
@@ -70,7 +70,10 @@ Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** ou
         VkPipelineCreateInfoKHR pipelineCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_INFO_KHR};
         pipelineCreateInfo.pNext = createInfo;
         VkPipelineBinaryKeyKHR pipelineKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
-        SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineKeyKHR(device->m_device, &pipelineCreateInfo, &pipelineKey));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkGetPipelineKeyKHR(device->m_device, &pipelineCreateInfo, &pipelineKey),
+            device
+        );
         sha1.update(pipelineKey.key, pipelineKey.keySize);
     }
     SHA1::Digest digest = sha1.getDigest();
@@ -89,14 +92,16 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
 
     VkPipelineBinaryHandlesInfoKHR binaryHandlesInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_HANDLES_INFO_KHR};
 
-    SLANG_VK_RETURN_ON_FAIL(
-        api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo),
+        device
     );
 
     short_vector<VkPipelineBinaryKHR> pipelineBinaries(binaryHandlesInfo.pipelineBinaryCount, VK_NULL_HANDLE);
     binaryHandlesInfo.pPipelineBinaries = pipelineBinaries.data();
-    SLANG_VK_RETURN_ON_FAIL(
-        api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo),
+        device
     );
 
     // Compute total size of the cache data blob.
@@ -108,8 +113,9 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
         binaryInfo.pipelineBinary = pipelineBinaries[i];
         VkPipelineBinaryKeyKHR binaryKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
         size_t binaryDataSize = 0;
-        SLANG_VK_RETURN_ON_FAIL(
-            api.vkGetPipelineBinaryDataKHR(device->m_device, &binaryInfo, &binaryKey, &binaryDataSize, nullptr)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkGetPipelineBinaryDataKHR(device->m_device, &binaryInfo, &binaryKey, &binaryDataSize, nullptr),
+            device
         );
         dataSize += binaryDataSize;
     }
@@ -135,17 +141,21 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
 
         VkPipelineBinaryKeyKHR binaryKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
         size_t binaryDataSize = 0;
-        SLANG_VK_RETURN_ON_FAIL(
-            api.vkGetPipelineBinaryDataKHR(device->m_device, &binaryInfo, &binaryKey, &binaryDataSize, nullptr)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkGetPipelineBinaryDataKHR(device->m_device, &binaryInfo, &binaryKey, &binaryDataSize, nullptr),
+            device
         );
 
-        SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineBinaryDataKHR(
-            device->m_device,
-            &binaryInfo,
-            &binaryKey,
-            &binaryDataSize,
-            data + binaryDataOffset
-        ));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkGetPipelineBinaryDataKHR(
+                device->m_device,
+                &binaryInfo,
+                &binaryKey,
+                &binaryDataSize,
+                data + binaryDataOffset
+            ),
+            device
+        );
 
         PipelineCacheBinaryHeader* binaryHeader = (PipelineCacheBinaryHeader*)dataPtr;
         std::memset(binaryHeader->key, 0, sizeof(PipelineCacheBinaryHeader::key));
@@ -215,7 +225,10 @@ Result deserializePipelineBinaries(DeviceImpl* device, ISlangBlob* blob, short_v
     handlesInfo.pipelineBinaryCount = binaries.size();
     handlesInfo.pPipelineBinaries = binaries.data();
 
-    SLANG_VK_RETURN_ON_FAIL(api.vkCreatePipelineBinariesKHR(device->m_device, &createInfo, nullptr, &handlesInfo));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkCreatePipelineBinariesKHR(device->m_device, &createInfo, nullptr, &handlesInfo),
+        device
+    );
 
     outBinaries = binaries;
     return SLANG_OK;
@@ -324,7 +337,7 @@ Result createPipelineWithCache(
                 createInfo->pNext = &createFlags;
             }
         }
-        SLANG_VK_RETURN_ON_FAIL(createPipelineFunc(device, createInfo, &pipeline));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(createPipelineFunc(device, createInfo, &pipeline), device);
     }
 
     // Write to the cache.
@@ -346,7 +359,10 @@ Result createPipelineWithCache(
     {
         VkReleaseCapturedPipelineDataInfoKHR releaseInfo = {VK_STRUCTURE_TYPE_RELEASE_CAPTURED_PIPELINE_DATA_INFO_KHR};
         releaseInfo.pipeline = pipeline;
-        SLANG_VK_RETURN_ON_FAIL(api.vkReleaseCapturedPipelineDataKHR(device->m_device, &releaseInfo, nullptr));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkReleaseCapturedPipelineDataKHR(device->m_device, &releaseInfo, nullptr),
+            device
+        );
     }
 
     *outPipeline = pipeline;

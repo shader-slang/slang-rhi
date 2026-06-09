@@ -1,6 +1,8 @@
 #include "d3d11-query.h"
 #include "d3d11-device.h"
 
+#include "d3d/d3d-utils.h"
+
 #include <thread>
 #include <chrono>
 
@@ -76,7 +78,7 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
         {
             return SLANG_OK;
         }
-        SLANG_RETURN_ON_FAIL(hr);
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
         if (disjointData.Disjoint || disjointData.Frequency == 0)
         {
             return SLANG_FAIL;
@@ -90,7 +92,7 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
         {
             return SLANG_OK;
         }
-        SLANG_RETURN_ON_FAIL(hr);
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
     }
 
     markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
@@ -135,7 +137,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        SLANG_RETURN_ON_FAIL(hr);
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
         if (disjointData.Disjoint || disjointData.Frequency == 0)
         {
             return SLANG_FAIL;
@@ -147,7 +149,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        SLANG_RETURN_ON_FAIL(hr);
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
     }
 
     markQueryRangeReady(queryIndex, count, queryInfo.submissionID);

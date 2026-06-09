@@ -754,6 +754,7 @@ target_sources(slang-rhi PRIVATE
     src/staging-heap.cpp
     src/core/assert.cpp
     src/core/blob.cpp
+    src/core/diagnostics.cpp
     src/core/offset-allocator.cpp
     src/core/platform.cpp
     src/core/sha1.cpp

@@ -122,7 +122,7 @@ Result D3D12Resource::initCommitted(
         if (desc.Alignment == 0 && (isPlanarFormat(desc.Format) || desc.SampleDesc.Count > 1))
             desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
 
-        SLANG_RETURN_ON_FAIL(
+        SLANG_D3D_RETURN_ON_FAIL(
             allocator
                 ->CreateResource(&allocDesc, &desc, initState, clearValue, m_allocation.writeRef(), IID_NULL, nullptr)
         );
@@ -132,7 +132,7 @@ Result D3D12Resource::initCommitted(
     }
 
     ComPtr<ID3D12Resource> resource;
-    SLANG_RETURN_ON_FAIL(device->CreateCommittedResource(
+    SLANG_D3D_RETURN_ON_FAIL(device->CreateCommittedResource(
         &heapProps,
         heapFlags,
         &resourceDesc,

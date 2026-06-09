@@ -18,10 +18,11 @@
 #include "shader.h"
 #include "pipeline.h"
 
+#include <cstddef>
 #include <map>
-#include <set>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -360,20 +361,20 @@ public:
     bool m_configured = false;
 };
 
-struct DeviceAdapter
+inline Device* getDiagnosticDevice(Device* device)
 {
-    Device* device;
-    DeviceAdapter(Device* device)
-        : device(device)
-    {
-    }
-    DeviceAdapter(DeviceChild* deviceChild)
-        : device(deviceChild && deviceChild->getDevice() ? deviceChild->getDevice() : nullptr)
-    {
-    }
-    explicit operator bool() const { return device != nullptr; }
-    Device* operator->() const { return device; }
-};
+    return device;
+}
+
+inline Device* getDiagnosticDevice(std::nullptr_t)
+{
+    return nullptr;
+}
+
+inline Device* getDiagnosticDevice(DeviceChild* deviceChild)
+{
+    return deviceChild ? deviceChild->getDevice() : nullptr;
+}
 
 bool isDepthFormat(Format format);
 bool isStencilFormat(Format format);

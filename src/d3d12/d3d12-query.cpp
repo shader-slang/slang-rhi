@@ -41,7 +41,10 @@ Result QueryPoolImpl::init()
 
     // Create query heap.
     auto d3dDevice = device->m_device;
-    SLANG_RETURN_ON_FAIL(d3dDevice->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(m_queryHeap.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        d3dDevice->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(m_queryHeap.writeRef())),
+        device
+    );
 
     if (m_desc.label)
     {
@@ -63,8 +66,9 @@ Result QueryPoolImpl::init()
     ));
 
     D3D12_RANGE readRange = {0, sizeof(uint64_t) * m_desc.count};
-    SLANG_RETURN_ON_FAIL(
-        m_readBackBuffer.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedReadBackData))
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_readBackBuffer.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedReadBackData)),
+        device
     );
 
     return SLANG_OK;
@@ -124,7 +128,10 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     if (queue->updateLastFinishedID() < submissionID)
     {
         ResetEvent(queue->m_globalWaitHandle);
-        SLANG_RETURN_ON_FAIL(queue->m_trackingFence->SetEventOnCompletion(submissionID, queue->m_globalWaitHandle));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            queue->m_trackingFence->SetEventOnCompletion(submissionID, queue->m_globalWaitHandle),
+            getDevice<DeviceImpl>()
+        );
         WaitForSingleObject(queue->m_globalWaitHandle, INFINITE);
         queue->updateLastFinishedID();
         queue->retireCommandBuffers();
@@ -193,8 +200,9 @@ Result PlainBufferProxyQueryPoolImpl::init(uint32_t stride)
     ));
 
     D3D12_RANGE readRange = {0, size};
-    SLANG_RETURN_ON_FAIL(
-        m_readBackBuffer.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedReadBackData))
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_readBackBuffer.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&m_mappedReadBackData)),
+        device
     );
 
     m_queryType = m_desc.type;
@@ -259,7 +267,10 @@ Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t co
     if (queue->updateLastFinishedID() < submissionID)
     {
         ResetEvent(queue->m_globalWaitHandle);
-        SLANG_RETURN_ON_FAIL(queue->m_trackingFence->SetEventOnCompletion(submissionID, queue->m_globalWaitHandle));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            queue->m_trackingFence->SetEventOnCompletion(submissionID, queue->m_globalWaitHandle),
+            device
+        );
         WaitForSingleObject(queue->m_globalWaitHandle, INFINITE);
         queue->updateLastFinishedID();
         queue->retireCommandBuffers();

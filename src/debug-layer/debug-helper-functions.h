@@ -16,19 +16,19 @@
 
 namespace rhi::debug {
 
-extern thread_local const char* _currentFunctionName;
+extern thread_local const char* tls_currentFunctionName;
 
 struct ScopedAPIName
 {
-    ScopedAPIName(const char* name) { _currentFunctionName = name; }
-    ~ScopedAPIName() { _currentFunctionName = nullptr; }
+    ScopedAPIName(const char* name) { tls_currentFunctionName = name; }
+    ~ScopedAPIName() { tls_currentFunctionName = nullptr; }
 };
 
 #define SLANG_RHI_DEBUG_API(interface, method) ScopedAPIName scopedAPIName(#interface "::" #method)
 
 inline const char* getAPIName()
 {
-    return _currentFunctionName ? _currentFunctionName : "<unknown function>";
+    return tls_currentFunctionName ? tls_currentFunctionName : "<unknown function>";
 }
 
 template<typename... TArgs>

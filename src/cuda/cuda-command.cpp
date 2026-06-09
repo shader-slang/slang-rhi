@@ -1173,8 +1173,8 @@ Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
     // Record submission event so we can detect completion
     SubmitEvent ev;
     ev.submitID = m_lastSubmittedID;
-    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
-    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventRecord(ev.event, stream), this);
     m_submitEvents.push_back(ev);
 
     if (outId)

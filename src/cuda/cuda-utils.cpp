@@ -1,11 +1,13 @@
 #include "cuda-utils.h"
 #include "cuda-device.h"
 
+#include <cstdio>
+
 namespace rhi::cuda {
 
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-static thread_local CUcontext g_currentContext = nullptr;
-static thread_local std::atomic<uint32_t> g_contextStackDepth = 0;
+static thread_local CUcontext tls_currentContext = nullptr;
+static thread_local std::atomic<uint32_t> tls_contextStackDepth = 0;
 #endif
 
 ContextScope::ContextScope(const DeviceImpl* device)
@@ -17,8 +19,8 @@ ContextScope::ContextScope(const DeviceImpl* device)
         m_didPush = true;
         SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPushCurrent(device->m_ctx.context));
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-        g_currentContext = device->m_ctx.context;
-        g_contextStackDepth++;
+        tls_currentContext = device->m_ctx.context;
+        tls_contextStackDepth++;
 #endif
     }
 }
@@ -30,8 +32,8 @@ ContextScope::~ContextScope()
         CUcontext ctx;
         SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPopCurrent(&ctx));
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-        g_currentContext = ctx;
-        g_contextStackDepth--;
+        tls_currentContext = ctx;
+        tls_contextStackDepth--;
 #endif
     }
 }
@@ -39,7 +41,7 @@ ContextScope::~ContextScope()
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
 CUcontext getCurrentContext()
 {
-    return g_contextStackDepth.load() > 0 ? g_currentContext : nullptr;
+    return tls_contextStackDepth.load() > 0 ? tls_currentContext : nullptr;
 }
 
 void checkCurrentContext()
@@ -58,18 +60,18 @@ void checkCurrentContext()
 
 // Helper to check if a result is an error, filtering out ones that occur when cuCtxSynchronize is called
 // outside of a valid context.
-bool isCUDASyncError(CUresult result)
+static bool isCUDASyncError(CUresult result)
 {
-    return isCUDAError(result) && result != CUDA_ERROR_NOT_INITIALIZED && result != CUDA_ERROR_INVALID_CONTEXT;
+    return result != CUDA_SUCCESS && result != CUDA_ERROR_NOT_INITIALIZED && result != CUDA_ERROR_INVALID_CONTEXT;
 }
 
 // Sync full CUDA and check for errors, asserting if any are found.
-void checkCudaSyncError(bool pre, const char* call, const char* file, int line)
+void checkCudaSyncError(bool pre, const char* call, const SourceLocation location)
 {
     CUresult result = cuCtxSynchronize();
     if (isCUDASyncError(result))
     {
-        reportCUDAAssert(result, call, file, line);
+        reportCUDAError(result, call, location);
         if (pre)
         {
             std::fprintf(
@@ -81,59 +83,35 @@ void checkCudaSyncError(bool pre, const char* call, const char* file, int line)
         {
             std::fprintf(stderr, "Error detected AFTER the call, suggesting it is responsible\n");
         }
-        ::rhi::handleAssert("CUDA error detected", file, line);
+        ::rhi::handleAssert("CUDA error detected", location.file, location.line);
     }
 }
 
 // Sync full CUDA and check for errors, reporting to device if any are found.
-void checkCudaSyncErrorReport(bool pre, const char* call, const char* file, int line, DeviceAdapter device)
+void checkCudaSyncErrorReport(bool pre, const char* call, const SourceLocation location, Device* device)
 {
     CUresult result = cuCtxSynchronize();
     if (isCUDASyncError(result))
     {
-        reportCUDAError(result, call, file, line, device);
-        if (pre)
-        {
-            device->handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Driver,
-                "Error detected BEFORE the call, suggesting a prior, uncaptured CUDA call is responsible\n"
-            );
-        }
+        reportCUDAError(result, call, location, device);
+        const char* message =
+            pre ? "Error detected BEFORE the call, suggesting a prior, uncaptured CUDA call is responsible\n"
+                : "Error detected AFTER the call, suggesting it is responsible\n";
+        if (device)
+            device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, message);
         else
-        {
-            device->handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Driver,
-                "Error detected AFTER the call, suggesting it is responsible\n"
-            );
-        }
+            std::fprintf(stderr, "%s", message);
     }
 }
 #endif
 
-void reportCUDAError(CUresult result, const char* call, const char* file, int line, DeviceAdapter device)
+void reportCUDAError(CUresult result, const char* call, const SourceLocation location, Device* device)
 {
-    if (!device)
-        return;
-
-    const char* errorString = nullptr;
     const char* errorName = nullptr;
-    cuGetErrorString(result, &errorString);
-    cuGetErrorName(result, &errorName);
-    char buf[4096];
-    snprintf(buf, sizeof(buf), "%s failed: %s (%s)\nAt %s:%d\n", call, errorString, errorName, file, line);
-    buf[sizeof(buf) - 1] = 0; // Ensure null termination
-    device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, buf);
-}
-
-void reportCUDAAssert(CUresult result, const char* call, const char* file, int line)
-{
     const char* errorString = nullptr;
-    const char* errorName = nullptr;
-    cuGetErrorString(result, &errorString);
     cuGetErrorName(result, &errorName);
-    std::fprintf(stderr, "%s failed: %s (%s)\n", call, errorString, errorName);
+    cuGetErrorString(result, &errorString);
+    reportNativeCallError(device, call, result, errorName, location, errorString);
 }
 
 AdapterLUID getAdapterLUID(int deviceIndex)
