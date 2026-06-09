@@ -15,6 +15,12 @@ struct SourceLocation
     int line = 0;
 };
 
+#define SLANG_RHI_SOURCE_LOCATION()                                                                                    \
+    ::rhi::SourceLocation                                                                                              \
+    {                                                                                                                  \
+        __FILE__, __LINE__                                                                                             \
+    }
+
 void formatNativeCallError(
     char* buffer,
     size_t bufferSize,
@@ -36,10 +42,14 @@ void reportNativeCallError(
     const char* detail = nullptr
 );
 
-} // namespace rhi
+class ScopedDisableNativeCallError
+{
+public:
+    ScopedDisableNativeCallError();
+    ~ScopedDisableNativeCallError();
+};
 
-#define SLANG_RHI_SOURCE_LOCATION()                                                                                    \
-    ::rhi::SourceLocation                                                                                              \
-    {                                                                                                                  \
-        __FILE__, __LINE__                                                                                             \
-    }
+#define SLANG_RHI_DISABLE_NATIVE_CALL_ERROR_SCOPE() ::rhi::ScopedDisableNativeCallError disable_native_call_error__;
+
+
+} // namespace rhi

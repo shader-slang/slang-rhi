@@ -8,6 +8,8 @@
 
 namespace rhi {
 
+thread_local int gDisableNativeCallError;
+
 void formatNativeCallError(
     char* buffer,
     size_t bufferSize,
@@ -69,6 +71,9 @@ void reportNativeCallError(
     const char* detail
 )
 {
+    if (gDisableNativeCallError > 0)
+        return;
+
     char message[4096];
     formatNativeCallError(message, sizeof(message), call, result, resultName, location, detail);
 
@@ -82,5 +87,16 @@ void reportNativeCallError(
         std::fprintf(stderr, "%s\n", message);
     }
 }
+
+ScopedDisableNativeCallError::ScopedDisableNativeCallError()
+{
+    gDisableNativeCallError++;
+}
+
+ScopedDisableNativeCallError::~ScopedDisableNativeCallError()
+{
+    gDisableNativeCallError--;
+}
+
 
 } // namespace rhi
