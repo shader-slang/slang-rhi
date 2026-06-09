@@ -19,7 +19,7 @@ Result DescriptorHeap::init(
     heapDesc.NumDescriptors = size;
     heapDesc.Flags = flags;
     heapDesc.Type = type;
-    SLANG_RETURN_ON_FAIL(m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_heap.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL(m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_heap.writeRef())));
 
     m_cpuStart = m_heap->GetCPUDescriptorHandleForHeapStart();
     if (flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)

@@ -944,12 +944,15 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
         return SLANG_FAIL;
     }
 
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateRootSignature(
-        0,
-        signature->GetBufferPointer(),
-        signature->GetBufferSize(),
-        IID_PPV_ARGS(outRootSignature)
-    ));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateRootSignature(
+            0,
+            signature->GetBufferPointer(),
+            signature->GetBufferSize(),
+            IID_PPV_ARGS(outRootSignature)
+        ),
+        device
+    );
     return SLANG_OK;
 }
 

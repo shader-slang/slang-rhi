@@ -10,7 +10,10 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_queue = m_device->m_queue->m_d3dQueue;
     m_dxgiFactory = device->m_dxgiFactory;
     SLANG_RETURN_ON_FAIL(D3DSurface::init(windowHandle, DXGI_SWAP_EFFECT_FLIP_DISCARD, false));
-    SLANG_RETURN_ON_FAIL(m_device->m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_device->m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.writeRef())),
+        m_device
+    );
     return SLANG_OK;
 }
 
@@ -84,7 +87,10 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
-    m_fence->SetEventOnCompletion(fenceValue, m_frameEvents[m_swapChain3->GetCurrentBackBufferIndex()]);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_fence->SetEventOnCompletion(fenceValue, m_frameEvents[m_swapChain3->GetCurrentBackBufferIndex()]),
+        m_device
+    );
     SLANG_RETURN_ON_FAIL(D3DSurface::present());
     fenceValue++;
     m_queue->Signal(m_fence, fenceValue);

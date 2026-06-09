@@ -2,6 +2,7 @@
 
 #include "device.h"
 #include "core/common.h"
+#include "core/diagnostics.h"
 
 #include <slang-com-helper.h>
 #include <slang-com-ptr.h>
@@ -55,6 +56,30 @@ Result enumAdapters(std::vector<ComPtr<IDXGIAdapter>>& outAdapters);
 AdapterInfo getAdapterInfo(IDXGIAdapter* dxgiAdapter);
 
 AdapterLUID getAdapterLUID(LUID luid);
+
+const char* getHRESULTName(HRESULT result);
+
+void reportD3DError(HRESULT result, const char* call, const SourceLocation location, Device* device = nullptr);
+
+#define SLANG_D3D_RETURN_ON_FAIL(x)                                                                                    \
+    {                                                                                                                  \
+        HRESULT _res = x;                                                                                              \
+        if (FAILED(_res))                                                                                              \
+        {                                                                                                              \
+            ::rhi::reportD3DError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                                              \
+            return SLANG_FAIL;                                                                                         \
+        }                                                                                                              \
+    }
+
+#define SLANG_D3D_RETURN_ON_FAIL_REPORT(x, device)                                                                     \
+    {                                                                                                                  \
+        HRESULT _res = x;                                                                                              \
+        if (FAILED(_res))                                                                                              \
+        {                                                                                                              \
+            ::rhi::reportD3DError(_res, #x, SLANG_RHI_SOURCE_LOCATION(), device);                                      \
+            return SLANG_FAIL;                                                                                         \
+        }                                                                                                              \
+    }
 
 uint32_t getPlaneSlice(DXGI_FORMAT format, TextureAspect aspect);
 
