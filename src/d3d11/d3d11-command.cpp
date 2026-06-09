@@ -962,8 +962,9 @@ Result CommandQueueImpl::waitOnHost()
     device->m_immediateContext->Flush();
 
     HRESULT hr = S_FALSE;
-    while ((hr = device->m_immediateContext->GetData(m_waitQuery, nullptr, 0, D3D11_ASYNC_GETDATA_DONOTFLUSH)) ==
-           S_FALSE)
+    // Let GetData flush/progress the runtime; DONOTFLUSH can leave event queries pending
+    // for seconds on some D3D11 drivers even after an explicit Flush above.
+    while ((hr = device->m_immediateContext->GetData(m_waitQuery, nullptr, 0, 0)) == S_FALSE)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
