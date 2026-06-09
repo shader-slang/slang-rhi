@@ -5,6 +5,7 @@
 #include <thread>
 #include <string>
 #include <functional>
+#include <vector>
 
 using namespace rhi;
 
@@ -159,6 +160,60 @@ void testSimpleDependency(ITaskPool* pool)
     }
 }
 
+void testDependencyReleaseFromCallback(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    static constexpr size_t N = 1000;
+    static std::atomic<size_t> depsFinished;
+    static std::atomic<size_t> childrenFinished;
+
+    depsFinished = 0;
+    childrenFinished = 0;
+
+    struct Payload
+    {
+        ITaskPool* pool;
+        ITaskPool::TaskHandle dep;
+    };
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        ITaskPool::TaskHandle dep = pool->submitTask(
+            [](void*)
+            {
+                depsFinished.fetch_add(1, std::memory_order_relaxed);
+            },
+            nullptr,
+            nullptr,
+            nullptr,
+            0
+        );
+
+        Payload* payload = new Payload{pool, dep};
+        ITaskPool::TaskHandle child = pool->submitTask(
+            [](void* p)
+            {
+                Payload* payload = static_cast<Payload*>(p);
+                payload->pool->releaseTask(payload->dep);
+                childrenFinished.fetch_add(1, std::memory_order_relaxed);
+            },
+            payload,
+            [](void* p)
+            {
+                delete static_cast<Payload*>(p);
+            },
+            &dep,
+            1
+        );
+        pool->releaseTask(child);
+    }
+
+    pool->waitAll();
+    CHECK(depsFinished.load(std::memory_order_relaxed) == N);
+    CHECK(childrenFinished.load(std::memory_order_relaxed) == N);
+}
+
 inline ITaskPool::TaskHandle spawn(ITaskPool* pool, int depth)
 {
     if (depth > 0)
@@ -269,7 +324,7 @@ void testFibonacci(ITaskPool* pool)
     REQUIRE(pool != nullptr);
 
     fibonacciPool = pool;
-    int N = 25;
+    int N = 35;
     int expected = fibonacci(N);
     ITaskPool::TaskHandle task = fibonacciTask(N);
     pool->waitTask(task);
@@ -458,6 +513,67 @@ void testGroupWithDependencies(ITaskPool* pool)
     pool->releaseTaskGroup(group);
 }
 
+struct TeardownPayload
+{
+    std::atomic<size_t>* started;
+    std::atomic<size_t>* finished;
+    std::atomic<size_t>* deleted;
+};
+
+void testThreadedTeardownDrainsReleasedTasks(int workerCount)
+{
+    static constexpr size_t leafCount = 128;
+
+    std::atomic<size_t> started{0};
+    std::atomic<size_t> finished{0};
+    std::atomic<size_t> deleted{0};
+
+    {
+        ComPtr<ITaskPool> pool(new ThreadedTaskPool(workerCount));
+        std::vector<ITaskPool::TaskHandle> leaves;
+        leaves.reserve(leafCount);
+
+        auto taskFunc = [](void* p)
+        {
+            TeardownPayload* payload = static_cast<TeardownPayload*>(p);
+            payload->started->fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::yield();
+            payload->finished->fetch_add(1, std::memory_order_relaxed);
+        };
+        auto payloadDeleter = [](void* p)
+        {
+            TeardownPayload* payload = static_cast<TeardownPayload*>(p);
+            payload->deleted->fetch_add(1, std::memory_order_relaxed);
+            delete payload;
+        };
+
+        for (size_t i = 0; i < leafCount; ++i)
+        {
+            TeardownPayload* payload = new TeardownPayload{&started, &finished, &deleted};
+            leaves.push_back(pool->submitTask(taskFunc, payload, payloadDeleter, nullptr, 0));
+        }
+
+        TeardownPayload* finalPayload = new TeardownPayload{&started, &finished, &deleted};
+        ITaskPool::TaskHandle finalTask = pool->submitTask(
+            taskFunc,
+            finalPayload,
+            payloadDeleter,
+            leaves.data(),
+            leaves.size()
+        );
+
+        for (ITaskPool::TaskHandle leaf : leaves)
+        {
+            pool->releaseTask(leaf);
+        }
+        pool->releaseTask(finalTask);
+    }
+
+    CHECK(started.load(std::memory_order_relaxed) == leafCount + 1);
+    CHECK(finished.load(std::memory_order_relaxed) == leafCount + 1);
+    CHECK(deleted.load(std::memory_order_relaxed) == leafCount + 1);
+}
+
 void testTaskPool(ITaskPool* pool, int iterations)
 {
     SUBCASE("simple")
@@ -479,6 +595,13 @@ void testTaskPool(ITaskPool* pool, int iterations)
         for (int i = 0; i < iterations; ++i)
         {
             testSimpleDependency(pool);
+        }
+    }
+    SUBCASE("dependency-release-from-callback")
+    {
+        for (int i = 0; i < iterations; ++i)
+        {
+            testDependencyReleaseFromCallback(pool);
         }
     }
     SUBCASE("recursive-dependency")
@@ -538,6 +661,25 @@ TEST_CASE("task-pool-threaded-single-worker")
 {
     ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
     testTaskPool(pool, 1);
+}
+
+TEST_CASE("task-pool-threaded-teardown")
+{
+    SUBCASE("multi-worker")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testThreadedTeardownDrainsReleasedTasks(4);
+        }
+    }
+
+    SUBCASE("single-worker")
+    {
+        for (int i = 0; i < 100; ++i)
+        {
+            testThreadedTeardownDrainsReleasedTasks(1);
+        }
+    }
 }
 
 // Work-stealing tests: use a single worker thread to force scenarios that

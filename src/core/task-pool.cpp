@@ -1,5 +1,7 @@
 #include "task-pool.h"
 
+#include "deferred.h"
+
 #include <condition_variable>
 #include <exception>
 #include <memory>
@@ -443,6 +445,10 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     // circular dependencies where a stolen task's callback waits on a task
     // already mid-execution higher up the same call stack.
     tls_stealDepth++;
+    SLANG_RHI_DEFERRED({
+        SLANG_RHI_ASSERT(tls_stealDepth > 0);
+        tls_stealDepth--;
+    });
     try
     {
         task->func(task->payload);
@@ -453,27 +459,38 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     {
         SLANG_RHI_ASSERT_FAILURE("Task threw an unknown exception");
     }
-    tls_stealDepth--;
     // Capture the group pointer before we potentially release the task.
     TaskGroup* group = task->group;
-    // Mark the task as done and notify child tasks.
-    // We hold childrenMutex to safely process the children list and to
-    // synchronize with submitTask() which checks done under the same lock.
+    // Mark the task as done and snapshot child tasks.
+    // We hold childrenMutex to synchronize with submitTask() which checks done
+    // under the same lock. Enqueueing children and releasing child references
+    // happens after unlocking so callbacks/deleters cannot run while this
+    // task's mutex is locked.
+    std::vector<Task*> children;
+    std::vector<Task*> readyChildren;
     {
         std::lock_guard<std::mutex> childLock(task->childrenMutex);
         task->done.store(true, std::memory_order_release);
-        for (Task* child : task->children)
+        task->children.swap(children);
+        readyChildren.reserve(children.size());
+        for (Task* child : children)
         {
             // Decrement the child's dependency counter.
             if (child->depsRemaining.fetch_sub(1, std::memory_order_relaxed) == 1)
             {
-                // All dependencies satisfied; enqueue the child.
-                enqueue(child);
+                readyChildren.push_back(child);
             }
-            // Release the extra reference taken when adding as a dependency.
-            releaseTask(child);
         }
-        task->children.clear();
+    }
+    for (Task* child : readyChildren)
+    {
+        // All dependencies satisfied; enqueue the child.
+        enqueue(child);
+    }
+    for (Task* child : children)
+    {
+        // Release the extra reference taken when adding as a dependency.
+        releaseTask(child);
     }
     // Release the pool's reference.
     // This must happen before decrementing m_tasksRemaining so that
