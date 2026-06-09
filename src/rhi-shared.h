@@ -18,10 +18,11 @@
 #include "shader.h"
 #include "pipeline.h"
 
+#include <cstddef>
 #include <map>
-#include <set>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -363,6 +364,11 @@ public:
 inline Device* getDiagnosticDevice(Device* device)
 {
     return device;
+}
+
+inline Device* getDiagnosticDevice(std::nullptr_t)
+{
+    return nullptr;
 }
 
 inline Device* getDiagnosticDevice(DeviceChild* deviceChild)

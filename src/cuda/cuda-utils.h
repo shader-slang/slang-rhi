@@ -43,6 +43,7 @@ void checkCurrentContext();
 void checkCudaSyncError(bool pre, const char* call, const SourceLocation location);
 void checkCudaSyncErrorReport(bool pre, const char* call, const SourceLocation location, Device* device);
 #define SLANG_CUDA_CHECK_SYNC_ERROR(pre, call) ::rhi::cuda::checkCudaSyncError(pre, call, SLANG_RHI_SOURCE_LOCATION())
+/// Pass nullptr for device to write the diagnostic to stderr.
 #define SLANG_CUDA_CHECK_SYNC_ERROR_REPORT(pre, call, device)                                                          \
     ::rhi::cuda::checkCudaSyncErrorReport(pre, call, SLANG_RHI_SOURCE_LOCATION(), getDiagnosticDevice(device))
 #else
@@ -70,6 +71,7 @@ void reportCUDAError(CUresult result, const char* call, const SourceLocation loc
         SLANG_CUDA_CHECK_SYNC_ERROR(false, #x);                                                                        \
     }
 
+/// Pass nullptr for device to write the diagnostic to stderr.
 #define SLANG_CUDA_RETURN_ON_FAIL_REPORT(x, device)                                                                    \
     {                                                                                                                  \
         SLANG_RHI_CHECK_CUDA_CTX();                                                                                    \

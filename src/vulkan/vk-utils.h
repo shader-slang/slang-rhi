@@ -28,6 +28,7 @@ void reportVulkanError(VkResult res, const char* call, const SourceLocation loca
         }                                                                                                              \
     }
 
+/// Pass nullptr for device to write the diagnostic to stderr.
 #define SLANG_VK_RETURN_ON_FAIL_REPORT(x, device)                                                                      \
     {                                                                                                                  \
         VkResult _res = x;                                                                                             \
@@ -38,22 +39,14 @@ void reportVulkanError(VkResult res, const char* call, const SourceLocation loca
         }                                                                                                              \
     }
 
-/// Is similar to SLANG_VK_RETURN_ON_FAIL, but does not return.
-#define SLANG_VK_CHECK(x)                                                                                              \
+/// Report and assert if a Vulkan call fails.
+#define SLANG_VK_ASSERT_ON_FAIL(x)                                                                                     \
     {                                                                                                                  \
         VkResult _res = x;                                                                                             \
         if (_res != VK_SUCCESS)                                                                                        \
         {                                                                                                              \
             ::rhi::vk::reportVulkanError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                                       \
-        }                                                                                                              \
-    }
-
-#define SLANG_VK_CHECK_REPORT(x, device)                                                                               \
-    {                                                                                                                  \
-        VkResult _res = x;                                                                                             \
-        if (_res != VK_SUCCESS)                                                                                        \
-        {                                                                                                              \
-            ::rhi::vk::reportVulkanError(_res, #x, SLANG_RHI_SOURCE_LOCATION(), device);                               \
+            SLANG_RHI_ASSERT_FAILURE("Vulkan call failed");                                                            \
         }                                                                                                              \
     }
 

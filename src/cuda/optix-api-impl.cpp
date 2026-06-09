@@ -51,6 +51,7 @@ void reportOptixError(OptixResult result, const char* call, const SourceLocation
         }                                                                                                              \
     }
 
+/// Pass nullptr for device to write the diagnostic to stderr.
 #define SLANG_OPTIX_RETURN_ON_FAIL_REPORT(x, device)                                                                   \
     {                                                                                                                  \
         OptixResult _res = x;                                                                                          \

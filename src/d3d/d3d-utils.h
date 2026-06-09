@@ -70,6 +70,7 @@ void reportD3DError(HRESULT result, const char* call, const SourceLocation locat
         }                                                                                                              \
     }
 
+/// Pass nullptr for device to write the diagnostic to stderr.
 #define SLANG_D3D_RETURN_ON_FAIL_REPORT(x, device)                                                                     \
     {                                                                                                                  \
         HRESULT _res = x;                                                                                              \

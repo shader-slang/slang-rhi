@@ -400,7 +400,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             ));
             // Copy into staging buffer
             void* mappedData = nullptr;
-            SLANG_VK_CHECK_REPORT(
+            SLANG_VK_RETURN_ON_FAIL_REPORT(
                 m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData),
                 this
             );
@@ -425,7 +425,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         {
             // Copy into mapped buffer directly
             void* mappedData = nullptr;
-            SLANG_VK_CHECK_REPORT(
+            SLANG_VK_RETURN_ON_FAIL_REPORT(
                 m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),
                 this
             );

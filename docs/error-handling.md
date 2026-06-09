@@ -145,13 +145,13 @@ The shared helper records the failing call expression, native result value, nati
 The backend-specific wrappers add native result names and details:
 
 - D3D11/D3D12 use `reportD3DError()`, `getHRESULTName()`, and `SLANG_D3D_RETURN_ON_FAIL_REPORT()`.
-- Vulkan uses `reportVulkanError()`, `getVkResultName()`, `SLANG_VK_RETURN_ON_FAIL_REPORT()`, and `SLANG_VK_CHECK_REPORT()`. `VK_ERROR_DEVICE_LOST` also gives Aftermath a chance to write a crash dump when Aftermath is enabled.
+- Vulkan uses `reportVulkanError()`, `getVkResultName()`, `SLANG_VK_RETURN_ON_FAIL_REPORT()`, and `SLANG_VK_ASSERT_ON_FAIL()`. `VK_ERROR_DEVICE_LOST` also gives Aftermath a chance to write a crash dump when Aftermath is enabled.
 - CUDA uses `reportCUDAError()` and `SLANG_CUDA_RETURN_ON_FAIL_REPORT()`, including `cuGetErrorName()` and `cuGetErrorString()` detail text.
 - OptiX uses `reportOptixError()` and `SLANG_OPTIX_RETURN_ON_FAIL_REPORT()`, including OptiX error names and strings.
 - WGPU reports device-lost, uncaptured-error, and callback-specific errors directly through the device callback.
 - Metal reports Objective-C and Metal API errors directly through the device callback.
 
-The `_REPORT` macros should be used whenever a diagnostic callback can be reached from the current object. They route diagnostics to the application's callback. Plain `RETURN_ON_FAIL` variants deliberately do not report; use them for backend probing, pre-device setup, or paths where another layer will emit the diagnostic.
+The `_REPORT` macros should be used whenever a diagnostic is useful. Pass the backend's supported device object when available to route diagnostics to the application's callback; pass `nullptr` to write the diagnostic to `stderr`. Plain `RETURN_ON_FAIL` variants deliberately do not report; use them for backend probing or paths where another layer will emit the diagnostic.
 
 ## Internal guidelines
 
