@@ -1022,6 +1022,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-cooperative-vector.cpp
         tests/test-cuda-external-devices.cpp
         tests/test-deferred-delete.cpp
+        tests/test-diagnostics.cpp
         tests/test-device-from-handle.cpp
         tests/test-device-lifetime.cpp
         tests/test-fence.cpp
@@ -1097,6 +1098,12 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
+    if(SLANG_RHI_ENABLE_VULKAN)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-vulkan-headers)
+    endif()
+    if(SLANG_RHI_ENABLE_WGPU AND NOT EMSCRIPTEN)
+        target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-dawn)
+    endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})

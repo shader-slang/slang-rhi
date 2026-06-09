@@ -961,6 +961,26 @@ Result CommandQueueImpl::waitOnHost()
         WGPUWaitStatus waitStatus = wgpu::wait(device->m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
+            if (waitStatus != WGPUWaitStatus_Success)
+            {
+                reportWGPUStatusFailure(
+                    device,
+                    "wgpuQueueOnSubmittedWorkDone wait",
+                    getWGPUWaitStatusName(waitStatus),
+                    int64_t(waitStatus),
+                    SLANG_RHI_CALL_SITE(wgpu::wait(device->m_ctx, future))
+                );
+            }
+            else
+            {
+                reportWGPUStatusFailure(
+                    device,
+                    "wgpuQueueOnSubmittedWorkDone",
+                    getWGPUQueueWorkDoneStatusName(status),
+                    int64_t(status),
+                    SLANG_RHI_CALL_SITE(device->m_ctx.api.wgpuQueueOnSubmittedWorkDone(m_queue, callbackInfo))
+                );
+            }
             return SLANG_FAIL;
         }
     }

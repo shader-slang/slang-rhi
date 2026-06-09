@@ -52,6 +52,13 @@ std::string getCurrentTestSuiteName();
 /// Get name of running test case (note: defined in main.cpp).
 std::string getCurrentTestCaseName();
 
+/// Returns the currently executing GPU test device type, or DeviceType::Default when not in a GPU test.
+DeviceType getCurrentTestDeviceType();
+
+/// Format/report helpers used by CHECK_CALL and REQUIRE_CALL.
+doctest::String formatCallFailure(Result result, const char* expression, const char* file, int line);
+const char* resultToString(Result result);
+
 /// Get global temp directory for tests.
 std::string getTestTempDirectory();
 
@@ -518,8 +525,29 @@ bool checkNoSilentGpuSkips();
 #define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
     GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, debugLayerOptions)
 
-#define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
-#define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))
+#define CHECK_CALL(x)                                                                                                  \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        ::rhi::Result _result = (x);                                                                                   \
+        if (SLANG_FAILED(_result))                                                                                     \
+        {                                                                                                              \
+            INFO(::rhi::testing::formatCallFailure(_result, #x, __FILE__, __LINE__));                                  \
+        }                                                                                                              \
+        CHECK(!SLANG_FAILED(_result));                                                                                 \
+    }                                                                                                                  \
+    while (0)
+
+#define REQUIRE_CALL(x)                                                                                                \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        ::rhi::Result _result = (x);                                                                                   \
+        if (SLANG_FAILED(_result))                                                                                     \
+        {                                                                                                              \
+            INFO(::rhi::testing::formatCallFailure(_result, #x, __FILE__, __LINE__));                                  \
+        }                                                                                                              \
+        REQUIRE(!SLANG_FAILED(_result));                                                                               \
+    }                                                                                                                  \
+    while (0)
 
 // doctest does not support skipping tests at runtime.
 // We add this functionality using this SKIP macro which should only be called in the main scope of the test function.

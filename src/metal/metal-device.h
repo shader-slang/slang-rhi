@@ -5,6 +5,7 @@
 
 #include "metal-buffer-address-map.h"
 
+#include <atomic>
 #include <string>
 #include <unordered_map>
 
@@ -195,6 +196,8 @@ public:
 
     void registerResource(MTL::Resource* resource);
     void unregisterResource(MTL::Resource* resource);
+
+    std::atomic<bool> m_hasCommandBufferError{false};
 };
 
 } // namespace rhi::metal

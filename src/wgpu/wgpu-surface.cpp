@@ -237,6 +237,13 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
         surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal)
 #endif
     {
+        reportWGPUStatusFailure(
+            m_device,
+            "wgpuSurfaceGetCurrentTexture",
+            getWGPUSurfaceGetCurrentTextureStatusName(surfaceTexture.status),
+            int64_t(surfaceTexture.status),
+            SLANG_RHI_CALL_SITE(m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture))
+        );
         return SLANG_FAIL;
     }
 

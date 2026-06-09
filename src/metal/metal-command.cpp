@@ -14,18 +14,16 @@
 
 namespace rhi::metal {
 
-static void addErrorHandler(MTL::CommandBuffer* commandBuffer)
+static void addErrorHandler(DeviceImpl* device, MTL::CommandBuffer* commandBuffer)
 {
     commandBuffer->addCompletedHandler(^(MTL::CommandBuffer* cb) {
       if (cb->status() == MTL::CommandBufferStatusError)
       {
           NS::Error* error = cb->error();
-          std::fprintf(
-              stderr,
-              "Metal command buffer error: %s\n",
-              error ? error->localizedDescription()->utf8String() : "unknown"
-          );
-          SLANG_RHI_ASSERT_FAILURE("Metal command buffer error");
+          std::string message = "Metal command buffer error: ";
+          message += error ? error->localizedDescription()->utf8String() : "unknown";
+          device->m_hasCommandBufferError.store(true);
+          device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, message.c_str());
       }
     });
 }
@@ -1216,6 +1214,7 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 Result CommandQueueImpl::waitOnHost()
 {
     AUTORELEASEPOOL
+    DeviceImpl* device = getDevice<DeviceImpl>();
 
     if (updateLastFinishedID() < m_lastSubmittedID)
     {
@@ -1248,6 +1247,11 @@ Result CommandQueueImpl::waitOnHost()
     SLANG_RHI_ASSERT(m_lastFinishedID == m_lastSubmittedID);
     SLANG_RHI_ASSERT(m_commandBuffersInFlight.size() == 0);
 
+    if (device->m_hasCommandBufferError.exchange(false))
+    {
+        return SLANG_FAIL;
+    }
+
     return SLANG_OK;
 }
 
@@ -1261,6 +1265,12 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     AUTORELEASEPOOL
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (device->m_hasCommandBufferError.exchange(false))
+    {
+        return SLANG_FAIL;
+    }
 
     // If there are any wait fences, encode them to a new command buffer.
     // Metal ensures that command buffers are executed in the order they are committed.
@@ -1276,13 +1286,12 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
             commandBuffer->encodeWait(fence->m_event.get(), desc.waitFenceValues[i]);
         }
-        addErrorHandler(commandBuffer);
+        addErrorHandler(device, commandBuffer);
         commandBuffer->commit();
     }
 
     // Commit any pending residency set changes.
     {
-        auto* device = getDevice<DeviceImpl>();
         if (device->m_hasResidencySet)
         {
             std::lock_guard<std::mutex> lock(device->m_residencySetMutex);
@@ -1318,7 +1327,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             commandBuffer->m_commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
         }
 
-        addErrorHandler(commandBuffer->m_commandBuffer.get());
+        addErrorHandler(device, commandBuffer->m_commandBuffer.get());
         commandBuffer->m_commandBuffer->commit();
     }
 
@@ -1336,12 +1345,17 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
             commandBuffer->encodeSignalEvent(fence->m_event.get(), desc.signalFenceValues[i]);
         }
         commandBuffer->encodeSignalEvent(m_trackingEvent.get(), m_lastSubmittedID);
-        addErrorHandler(commandBuffer);
+        addErrorHandler(device, commandBuffer);
         commandBuffer->commit();
     }
 
     // Retire command buffers that are finished
     retireCommandBuffers();
+
+    if (device->m_hasCommandBufferError.exchange(false))
+    {
+        return SLANG_FAIL;
+    }
 
     return SLANG_OK;
 }

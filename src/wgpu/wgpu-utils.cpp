@@ -2,9 +2,11 @@
 #include "wgpu-device.h"
 
 #include "core/assert.h"
+#include "core/diagnostics.h"
 
 #include <array>
 #include <cstring>
+#include <cstdio>
 
 namespace rhi::wgpu {
 
@@ -43,6 +45,145 @@ Result createWGPUInstance(API& api, WGPUInstance* outInstance)
     return SLANG_OK;
 }
 
+const char* getWGPUWaitStatusName(WGPUWaitStatus status)
+{
+    switch (status)
+    {
+    case WGPUWaitStatus_Success:
+        return "WGPUWaitStatus_Success";
+    case WGPUWaitStatus_TimedOut:
+        return "WGPUWaitStatus_TimedOut";
+    case WGPUWaitStatus_Error:
+        return "WGPUWaitStatus_Error";
+    default:
+        return "WGPUWaitStatus_UNKNOWN";
+    }
+}
+
+const char* getWGPURequestAdapterStatusName(WGPURequestAdapterStatus status)
+{
+    switch (status)
+    {
+    case WGPURequestAdapterStatus_Success:
+        return "WGPURequestAdapterStatus_Success";
+    case WGPURequestAdapterStatus_InstanceDropped:
+        return "WGPURequestAdapterStatus_InstanceDropped";
+    case WGPURequestAdapterStatus_Unavailable:
+        return "WGPURequestAdapterStatus_Unavailable";
+    case WGPURequestAdapterStatus_Error:
+        return "WGPURequestAdapterStatus_Error";
+    default:
+        return "WGPURequestAdapterStatus_UNKNOWN";
+    }
+}
+
+const char* getWGPURequestDeviceStatusName(WGPURequestDeviceStatus status)
+{
+    switch (status)
+    {
+    case WGPURequestDeviceStatus_Success:
+        return "WGPURequestDeviceStatus_Success";
+    case WGPURequestDeviceStatus_InstanceDropped:
+        return "WGPURequestDeviceStatus_InstanceDropped";
+    case WGPURequestDeviceStatus_Error:
+        return "WGPURequestDeviceStatus_Error";
+    default:
+        return "WGPURequestDeviceStatus_UNKNOWN";
+    }
+}
+
+const char* getWGPUQueueWorkDoneStatusName(WGPUQueueWorkDoneStatus status)
+{
+    switch (status)
+    {
+    case WGPUQueueWorkDoneStatus_Success:
+        return "WGPUQueueWorkDoneStatus_Success";
+    case WGPUQueueWorkDoneStatus_InstanceDropped:
+        return "WGPUQueueWorkDoneStatus_InstanceDropped";
+    case WGPUQueueWorkDoneStatus_Error:
+        return "WGPUQueueWorkDoneStatus_Error";
+    default:
+        return "WGPUQueueWorkDoneStatus_UNKNOWN";
+    }
+}
+
+const char* getWGPUMapAsyncStatusName(WGPUMapAsyncStatus status)
+{
+    switch (status)
+    {
+    case WGPUMapAsyncStatus_Success:
+        return "WGPUMapAsyncStatus_Success";
+    case WGPUMapAsyncStatus_InstanceDropped:
+        return "WGPUMapAsyncStatus_InstanceDropped";
+    case WGPUMapAsyncStatus_Error:
+        return "WGPUMapAsyncStatus_Error";
+    case WGPUMapAsyncStatus_Aborted:
+        return "WGPUMapAsyncStatus_Aborted";
+    default:
+        return "WGPUMapAsyncStatus_UNKNOWN";
+    }
+}
+
+const char* getWGPUSurfaceGetCurrentTextureStatusName(WGPUSurfaceGetCurrentTextureStatus status)
+{
+    switch (status)
+    {
+#if !SLANG_WASM
+    case WGPUSurfaceGetCurrentTextureStatus_Success:
+        return "WGPUSurfaceGetCurrentTextureStatus_Success";
+#else
+    case WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal:
+        return "WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal";
+    case WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal:
+        return "WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal";
+#endif
+    case WGPUSurfaceGetCurrentTextureStatus_Timeout:
+        return "WGPUSurfaceGetCurrentTextureStatus_Timeout";
+    case WGPUSurfaceGetCurrentTextureStatus_Outdated:
+        return "WGPUSurfaceGetCurrentTextureStatus_Outdated";
+    case WGPUSurfaceGetCurrentTextureStatus_Lost:
+        return "WGPUSurfaceGetCurrentTextureStatus_Lost";
+    case WGPUSurfaceGetCurrentTextureStatus_OutOfMemory:
+        return "WGPUSurfaceGetCurrentTextureStatus_OutOfMemory";
+    case WGPUSurfaceGetCurrentTextureStatus_DeviceLost:
+        return "WGPUSurfaceGetCurrentTextureStatus_DeviceLost";
+    case WGPUSurfaceGetCurrentTextureStatus_Error:
+        return "WGPUSurfaceGetCurrentTextureStatus_Error";
+    default:
+        return "WGPUSurfaceGetCurrentTextureStatus_UNKNOWN";
+    }
+}
+
+void reportWGPUStatusFailure(
+    DeviceImpl* device,
+    const char* operation,
+    const char* statusName,
+    int64_t statusValue,
+    const CallSite& callSite,
+    const char* detail
+)
+{
+    std::string message = formatNativeCallFailure(
+        "WGPU",
+        statusName,
+        statusValue,
+        uint64_t(statusValue),
+        callSite,
+        detail
+    );
+    if (operation && operation[0])
+    {
+        message += "  operation: ";
+        message += operation;
+        message += "\n";
+    }
+
+    if (device)
+        device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, message.c_str());
+    else
+        std::fprintf(stderr, "%s", message.c_str());
+}
+
 Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapter)
 {
     // Request adapter.
@@ -64,6 +205,7 @@ Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapte
     {
         WGPURequestAdapterStatus status = WGPURequestAdapterStatus(0);
         WGPUAdapter adapter = nullptr;
+        std::string message;
     };
     AdapterRequestState state;
 
@@ -83,6 +225,8 @@ Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapte
             AdapterRequestState* requestState = (AdapterRequestState*)userdata1;
             requestState->status = status_;
             requestState->adapter = adapter_;
+            if (message.length > 0)
+                requestState->message.assign(message.data, message.length);
         };
         callbackInfo.userdata1 = &state;
         callbackInfo.userdata2 = nullptr;
@@ -91,6 +235,27 @@ Result createWGPUAdapter(API& api, WGPUInstance instance, WGPUAdapter* outAdapte
         WGPUWaitStatus waitStatus = wgpu::wait(api, instance, future);
         if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestAdapterStatus_Success)
         {
+            if (waitStatus != WGPUWaitStatus_Success)
+            {
+                reportWGPUStatusFailure(
+                    nullptr,
+                    "wgpuInstanceRequestAdapter wait",
+                    getWGPUWaitStatusName(waitStatus),
+                    int64_t(waitStatus),
+                    SLANG_RHI_CALL_SITE(wgpu::wait(api, instance, future))
+                );
+            }
+            else
+            {
+                reportWGPUStatusFailure(
+                    nullptr,
+                    "wgpuInstanceRequestAdapter",
+                    getWGPURequestAdapterStatusName(state.status),
+                    int64_t(state.status),
+                    SLANG_RHI_CALL_SITE(api.wgpuInstanceRequestAdapter(instance, &options, callbackInfo)),
+                    state.message.c_str()
+                );
+            }
             return SLANG_FAIL;
         }
     }

@@ -16,10 +16,14 @@ namespace rhi::testing {
 // Has to be defined in the same file as DOCTEST_CONFIG_IMPLEMENT
 std::string getCurrentTestSuiteName()
 {
+    if (!doctest::detail::g_cs || !doctest::detail::g_cs->currentTest)
+        return "<none>";
     return doctest::detail::g_cs->currentTest->m_test_suite;
 }
 std::string getCurrentTestCaseName()
 {
+    if (!doctest::detail::g_cs || !doctest::detail::g_cs->currentTest)
+        return "<none>";
     return doctest::detail::g_cs->currentTest->m_name;
 }
 

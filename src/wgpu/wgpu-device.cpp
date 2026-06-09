@@ -178,6 +178,27 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || state.status != WGPURequestDeviceStatus_Success)
         {
+            if (waitStatus != WGPUWaitStatus_Success)
+            {
+                reportWGPUStatusFailure(
+                    this,
+                    "wgpuAdapterRequestDevice wait",
+                    getWGPUWaitStatusName(waitStatus),
+                    int64_t(waitStatus),
+                    SLANG_RHI_CALL_SITE(wgpu::wait(m_ctx, future))
+                );
+            }
+            else
+            {
+                reportWGPUStatusFailure(
+                    this,
+                    "wgpuAdapterRequestDevice",
+                    getWGPURequestDeviceStatusName(state.status),
+                    int64_t(state.status),
+                    SLANG_RHI_CALL_SITE(m_ctx.api.wgpuAdapterRequestDevice(m_ctx.adapter, &deviceDesc, callbackInfo)),
+                    state.message.c_str()
+                );
+            }
             return SLANG_FAIL;
         }
         m_ctx.device = state.device;
@@ -478,6 +499,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     WGPUBuffer stagingBuffer = m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &stagingBufferDesc);
     if (!stagingBuffer)
     {
+        reportWGPUStatusFailure(
+            this,
+            "wgpuDeviceCreateBuffer",
+            "WGPU_NULL_HANDLE",
+            0,
+            SLANG_RHI_CALL_SITE(m_ctx.api.wgpuDeviceCreateBuffer(m_ctx.device, &stagingBufferDesc))
+        );
         return SLANG_FAIL;
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuBufferRelease(stagingBuffer); });
@@ -485,6 +513,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     WGPUCommandEncoder encoder = m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, nullptr);
     if (!encoder)
     {
+        reportWGPUStatusFailure(
+            this,
+            "wgpuDeviceCreateCommandEncoder",
+            "WGPU_NULL_HANDLE",
+            0,
+            SLANG_RHI_CALL_SITE(m_ctx.api.wgpuDeviceCreateCommandEncoder(m_ctx.device, nullptr))
+        );
         return SLANG_FAIL;
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandEncoderRelease(encoder); });
@@ -493,6 +528,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     WGPUCommandBuffer commandBuffer = m_ctx.api.wgpuCommandEncoderFinish(encoder, nullptr);
     if (!commandBuffer)
     {
+        reportWGPUStatusFailure(
+            this,
+            "wgpuCommandEncoderFinish",
+            "WGPU_NULL_HANDLE",
+            0,
+            SLANG_RHI_CALL_SITE(m_ctx.api.wgpuCommandEncoderFinish(encoder, nullptr))
+        );
         return SLANG_FAIL;
     }
     SLANG_RHI_DEFERRED({ m_ctx.api.wgpuCommandBufferRelease(commandBuffer); });
@@ -519,29 +561,76 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
         if (waitStatus != WGPUWaitStatus_Success || status != WGPUQueueWorkDoneStatus_Success)
         {
+            if (waitStatus != WGPUWaitStatus_Success)
+            {
+                reportWGPUStatusFailure(
+                    this,
+                    "wgpuQueueOnSubmittedWorkDone wait",
+                    getWGPUWaitStatusName(waitStatus),
+                    int64_t(waitStatus),
+                    SLANG_RHI_CALL_SITE(wgpu::wait(m_ctx, future))
+                );
+            }
+            else
+            {
+                reportWGPUStatusFailure(
+                    this,
+                    "wgpuQueueOnSubmittedWorkDone",
+                    getWGPUQueueWorkDoneStatusName(status),
+                    int64_t(status),
+                    SLANG_RHI_CALL_SITE(m_ctx.api.wgpuQueueOnSubmittedWorkDone(queue, callbackInfo))
+                );
+            }
             return SLANG_FAIL;
         }
     }
 
     // Map the staging buffer
     {
-        WGPUMapAsyncStatus status = WGPUMapAsyncStatus(0);
+        struct MapRequestState
+        {
+            WGPUMapAsyncStatus status = WGPUMapAsyncStatus(0);
+            std::string message;
+        };
+        MapRequestState state;
         WGPUBufferMapCallbackInfo callbackInfo = {};
         callbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
         callbackInfo.callback = [](WGPUMapAsyncStatus status_, WGPUStringView message, void* userdata1, void* userdata2)
         {
-            *(WGPUMapAsyncStatus*)userdata1 = status_;
+            MapRequestState* requestState = static_cast<MapRequestState*>(userdata1);
+            requestState->status = status_;
             if (status_ != WGPUMapAsyncStatus_Success)
             {
-                static_cast<DeviceImpl*>(userdata2)->reportError("wgpuBufferMapAsync", message);
+                requestState->message.assign(message.data, message.length);
             }
         };
-        callbackInfo.userdata1 = &status;
+        callbackInfo.userdata1 = &state;
         callbackInfo.userdata2 = this;
         WGPUFuture future = m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo);
         WGPUWaitStatus waitStatus = wgpu::wait(m_ctx, future);
-        if (waitStatus != WGPUWaitStatus_Success || status != WGPUMapAsyncStatus_Success)
+        if (waitStatus != WGPUWaitStatus_Success || state.status != WGPUMapAsyncStatus_Success)
         {
+            if (waitStatus != WGPUWaitStatus_Success)
+            {
+                reportWGPUStatusFailure(
+                    this,
+                    "wgpuBufferMapAsync wait",
+                    getWGPUWaitStatusName(waitStatus),
+                    int64_t(waitStatus),
+                    SLANG_RHI_CALL_SITE(wgpu::wait(m_ctx, future))
+                );
+            }
+            else
+            {
+                reportWGPUStatusFailure(
+                    this,
+                    "wgpuBufferMapAsync",
+                    getWGPUMapAsyncStatusName(state.status),
+                    int64_t(state.status),
+                    SLANG_RHI_CALL_SITE(m_ctx.api.wgpuBufferMapAsync(stagingBuffer, WGPUMapMode_Read, 0, size, callbackInfo)),
+                    state.message.c_str()
+                );
+            }
             return SLANG_FAIL;
         }
     }
@@ -550,6 +639,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     const void* data = m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, size);
     if (!data)
     {
+        reportWGPUStatusFailure(
+            this,
+            "wgpuBufferGetConstMappedRange",
+            "WGPU_NULL_MAPPED_RANGE",
+            0,
+            SLANG_RHI_CALL_SITE(m_ctx.api.wgpuBufferGetConstMappedRange(stagingBuffer, 0, size))
+        );
         return SLANG_FAIL;
     }
 

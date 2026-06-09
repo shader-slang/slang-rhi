@@ -1,10 +1,9 @@
 #include "testing.h"
 #include "shader-cache.h"
 #include "core/platform.h"
-#include <algorithm>
-#include <cctype>
 #include <ctime>
 #include <cstdlib>
+#include <cstdio>
 #include <filesystem>
 #include <map>
 #include <string>
@@ -31,6 +30,7 @@ namespace rhi::testing {
 
 static std::map<DeviceType, ComPtr<IDevice>> gCachedDevices;
 static ShaderCache gShaderCache;
+static thread_local DeviceType gCurrentTestDeviceType = DeviceType::Default;
 
 // Temp directory to create files for teting in.
 static std::filesystem::path gTestTempDirectory;
@@ -53,7 +53,7 @@ static std::string buildCurrentDateString()
 
 std::string getTestTempDirectory()
 {
-    if (gTestTempDirectory == "")
+    if (gTestTempDirectory.empty())
     {
         std::string datetime_str = buildCurrentDateString();
         gTestTempDirectory = std::filesystem::current_path() / ".test_temp" / datetime_str;
@@ -78,7 +78,8 @@ std::string getCaseTempDirectory()
 
 void cleanupTestTempDirectories()
 {
-    remove_all(gTestTempDirectory);
+    if (!gTestTempDirectory.empty())
+        remove_all(gTestTempDirectory);
 }
 
 const char* getEnvVariable(const char* name, const char* defaultValue = nullptr)
@@ -86,7 +87,7 @@ const char* getEnvVariable(const char* name, const char* defaultValue = nullptr)
 #if SLANG_WINDOWS_FAMILY
     static char value[4096];
     size_t len = 0;
-    if (::getenv_s(&len, value, sizeof(value), "SLANG_RHI_TESTS_DIR") == 0 && len > 0)
+    if (::getenv_s(&len, value, sizeof(value), name) == 0 && len > 0)
         return static_cast<const char*>(value);
     else
         return defaultValue;
@@ -94,6 +95,68 @@ const char* getEnvVariable(const char* name, const char* defaultValue = nullptr)
     const char* value = ::getenv(name);
     return value ? value : defaultValue;
 #endif
+}
+
+DeviceType getCurrentTestDeviceType()
+{
+    return gCurrentTestDeviceType;
+}
+
+const char* resultToString(Result result)
+{
+    if (result == SLANG_OK)
+        return "SLANG_OK";
+    if (result == SLANG_FAIL)
+        return "SLANG_FAIL";
+    if (result == SLANG_E_NOT_IMPLEMENTED)
+        return "SLANG_E_NOT_IMPLEMENTED";
+    if (result == SLANG_E_NOT_AVAILABLE)
+        return "SLANG_E_NOT_AVAILABLE";
+    if (result == SLANG_E_INVALID_ARG)
+        return "SLANG_E_INVALID_ARG";
+    if (result == SLANG_E_OUT_OF_MEMORY)
+        return "SLANG_E_OUT_OF_MEMORY";
+    if (result == SLANG_E_BUFFER_TOO_SMALL)
+        return "SLANG_E_BUFFER_TOO_SMALL";
+    if (result == SLANG_E_NOT_FOUND)
+        return "SLANG_E_NOT_FOUND";
+    if (result == SLANG_E_TIME_OUT)
+        return "SLANG_E_TIME_OUT";
+    if (result == SLANG_E_NO_INTERFACE)
+        return "SLANG_E_NO_INTERFACE";
+    if (result == SLANG_E_INVALID_HANDLE)
+        return "SLANG_E_INVALID_HANDLE";
+    if (result == SLANG_E_UNINITIALIZED)
+        return "SLANG_E_UNINITIALIZED";
+    return "UNKNOWN_RESULT";
+}
+
+doctest::String formatCallFailure(Result result, const char* expression, const char* file, int line)
+{
+    const DeviceType deviceType = getCurrentTestDeviceType();
+    const char* deviceName = deviceType == DeviceType::Default ? "<none>" : deviceTypeToString(deviceType);
+
+    char buffer[2048];
+    snprintf(
+        buffer,
+        sizeof(buffer),
+        "RHI call failed\n"
+        "  expression: %s\n"
+        "  result: %s (%d / 0x%08x)\n"
+        "  location: %s:%d\n"
+        "  test: %s::%s\n"
+        "  device: %s",
+        expression ? expression : "<unknown>",
+        resultToString(result),
+        int(result),
+        uint32_t(result),
+        file ? file : "<unknown>",
+        line,
+        getCurrentTestSuiteName().c_str(),
+        getCurrentTestCaseName().c_str(),
+        deviceName
+    );
+    return doctest::String(buffer);
 }
 
 std::string readFile(std::string_view path)
@@ -195,7 +258,9 @@ public:
     }
 };
 
+#if SLANG_RHI_DEBUG
 static DebugCallback sDebugCallback;
+#endif
 
 void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
 {
@@ -579,7 +644,7 @@ ComPtr<IDevice> createTestingDevice(
         deviceDesc.aftermathFlags = extraOptions->aftermathFlags;
     }
 
-#ifdef SLANG_RHI_DEBUG
+#if SLANG_RHI_DEBUG
     deviceDesc.debugCallback = &sDebugCallback;
 #endif
 
@@ -826,9 +891,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     DeviceDesc desc;
     desc.deviceType = deviceType;
     desc.adapter = getSelectedDeviceAdapter(deviceType);
-#if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
-#endif
 #if SLANG_RHI_ENABLE_NVAPI
     if (deviceType == DeviceType::D3D12)
     {
@@ -968,6 +1031,17 @@ static void gpuTestTrampoline()
     const GpuTestInfo* info = reinterpret_cast<const GpuTestInfo*>(tc->m_name) - 1;
 
     DeviceType deviceType = info->deviceType;
+    struct ScopedCurrentTestDeviceType
+    {
+        DeviceType previousDeviceType;
+        ScopedCurrentTestDeviceType(DeviceType deviceType)
+            : previousDeviceType(gCurrentTestDeviceType)
+        {
+            gCurrentTestDeviceType = deviceType;
+        }
+        ~ScopedCurrentTestDeviceType() { gCurrentTestDeviceType = previousDeviceType; }
+    } scopedCurrentTestDeviceType(deviceType);
+
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
 
