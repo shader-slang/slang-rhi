@@ -6,8 +6,8 @@
 namespace rhi::cuda {
 
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-static thread_local CUcontext g_currentContext = nullptr;
-static thread_local std::atomic<uint32_t> g_contextStackDepth = 0;
+static thread_local CUcontext tls_currentContext = nullptr;
+static thread_local std::atomic<uint32_t> tls_contextStackDepth = 0;
 #endif
 
 ContextScope::ContextScope(const DeviceImpl* device)
@@ -19,8 +19,8 @@ ContextScope::ContextScope(const DeviceImpl* device)
         m_didPush = true;
         SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPushCurrent(device->m_ctx.context));
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-        g_currentContext = device->m_ctx.context;
-        g_contextStackDepth++;
+        tls_currentContext = device->m_ctx.context;
+        tls_contextStackDepth++;
 #endif
     }
 }
@@ -32,8 +32,8 @@ ContextScope::~ContextScope()
         CUcontext ctx;
         SLANG_CUDA_ASSERT_ON_FAIL(cuCtxPopCurrent(&ctx));
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
-        g_currentContext = ctx;
-        g_contextStackDepth--;
+        tls_currentContext = ctx;
+        tls_contextStackDepth--;
 #endif
     }
 }
@@ -41,7 +41,7 @@ ContextScope::~ContextScope()
 #if SLANG_RHI_ENABLE_CUDA_CONTEXT_CHECK
 CUcontext getCurrentContext()
 {
-    return g_contextStackDepth.load() > 0 ? g_currentContext : nullptr;
+    return tls_contextStackDepth.load() > 0 ? tls_currentContext : nullptr;
 }
 
 void checkCurrentContext()

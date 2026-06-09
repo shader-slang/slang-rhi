@@ -8,7 +8,7 @@
 
 namespace rhi {
 
-thread_local int gDisableNativeCallError;
+thread_local int tls_disableNativeCallError = 0;
 
 void formatNativeCallError(
     char* buffer,
@@ -71,7 +71,7 @@ void reportNativeCallError(
     const char* detail
 )
 {
-    if (gDisableNativeCallError > 0)
+    if (tls_disableNativeCallError > 0)
         return;
 
     char message[4096];
@@ -90,12 +90,12 @@ void reportNativeCallError(
 
 ScopedDisableNativeCallError::ScopedDisableNativeCallError()
 {
-    gDisableNativeCallError++;
+    tls_disableNativeCallError++;
 }
 
 ScopedDisableNativeCallError::~ScopedDisableNativeCallError()
 {
-    gDisableNativeCallError--;
+    tls_disableNativeCallError--;
 }
 
 
