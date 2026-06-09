@@ -44,7 +44,7 @@ void reportOptixError(OptixResult result, const char* call, const SourceLocation
 
 #define SLANG_OPTIX_RETURN_ON_FAIL(x)                                                                                  \
     {                                                                                                                  \
-        auto _res = x;                                                                                                 \
+        OptixResult _res = x;                                                                                          \
         if (_res != OPTIX_SUCCESS)                                                                                     \
         {                                                                                                              \
             return SLANG_FAIL;                                                                                         \
@@ -53,7 +53,7 @@ void reportOptixError(OptixResult result, const char* call, const SourceLocation
 
 #define SLANG_OPTIX_RETURN_ON_FAIL_REPORT(x, device)                                                                   \
     {                                                                                                                  \
-        auto _res = x;                                                                                                 \
+        OptixResult _res = x;                                                                                          \
         if (_res != OPTIX_SUCCESS)                                                                                     \
         {                                                                                                              \
             ::rhi::cuda::optix::VERSION_TAG::reportOptixError(_res, #x, SLANG_RHI_SOURCE_LOCATION(), device);          \
@@ -63,7 +63,7 @@ void reportOptixError(OptixResult result, const char* call, const SourceLocation
 
 #define SLANG_OPTIX_ASSERT_ON_FAIL(x)                                                                                  \
     {                                                                                                                  \
-        auto _res = x;                                                                                                 \
+        OptixResult _res = x;                                                                                          \
         if (_res != OPTIX_SUCCESS)                                                                                     \
         {                                                                                                              \
             ::rhi::cuda::optix::VERSION_TAG::reportOptixError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                  \

@@ -66,7 +66,6 @@ void reportD3DError(HRESULT result, const char* call, const SourceLocation locat
         HRESULT _res = x;                                                                                              \
         if (FAILED(_res))                                                                                              \
         {                                                                                                              \
-            ::rhi::reportD3DError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                                              \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
     }

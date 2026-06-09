@@ -151,7 +151,7 @@ The backend-specific wrappers add native result names and details:
 - WGPU reports device-lost, uncaptured-error, and callback-specific errors directly through the device callback.
 - Metal reports Objective-C and Metal API errors directly through the device callback.
 
-The `_REPORT` macros should be used whenever a diagnostic callback can be reached from the current object. They route diagnostics to the application's callback. Non-reporting variants are only appropriate during backend probing or before a device exists.
+The `_REPORT` macros should be used whenever a diagnostic callback can be reached from the current object. They route diagnostics to the application's callback. Plain `RETURN_ON_FAIL` variants deliberately do not report; use them for backend probing, pre-device setup, or paths where another layer will emit the diagnostic.
 
 ## Internal guidelines
 

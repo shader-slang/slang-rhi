@@ -24,7 +24,6 @@ void reportVulkanError(VkResult res, const char* call, const SourceLocation loca
         VkResult _res = x;                                                                                             \
         if (_res != VK_SUCCESS)                                                                                        \
         {                                                                                                              \
-            ::rhi::vk::reportVulkanError(_res, #x, SLANG_RHI_SOURCE_LOCATION());                                       \
             return SLANG_FAIL;                                                                                         \
         }                                                                                                              \
     }

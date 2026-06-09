@@ -94,22 +94,13 @@ void checkCudaSyncErrorReport(bool pre, const char* call, const SourceLocation l
     if (isCUDASyncError(result))
     {
         reportCUDAError(result, call, location, device);
-        if (pre)
-        {
-            device->handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Driver,
-                "Error detected BEFORE the call, suggesting a prior, uncaptured CUDA call is responsible\n"
-            );
-        }
+        const char* message =
+            pre ? "Error detected BEFORE the call, suggesting a prior, uncaptured CUDA call is responsible\n"
+                : "Error detected AFTER the call, suggesting it is responsible\n";
+        if (device)
+            device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, message);
         else
-        {
-            device->handleMessage(
-                DebugMessageType::Error,
-                DebugMessageSource::Driver,
-                "Error detected AFTER the call, suggesting it is responsible\n"
-            );
-        }
+            std::fprintf(stderr, "%s", message);
     }
 }
 #endif
