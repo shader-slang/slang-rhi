@@ -249,3 +249,20 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics-hit-object", ALL)
     test.init(device);
     test.run("rayGenLssIntrinsicsHitObject", "closestHitNOP");
 }
+
+// Inline ray-query variant: the raygen shader uses RayQuery<>.CommittedIsLss()
+// and RayQuery<>.CommittedLssObjectPositionsAndRadii() instead of the TraceRay
+// closesthit path. Reuses the same single-segment LSS BLAS and result checks.
+GPU_TEST_CASE("ray-tracing-lss-intrinsics-inline-ray-query", ALL)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::RayQuery))
+        SKIP("ray query not supported");
+    if (!device->hasFeature(Feature::AccelerationStructureLinearSweptSpheres))
+        SKIP("acceleration structure linear swept spheres not supported");
+
+    RayTracingLssIntrinsicsTest test;
+    test.init(device);
+    test.run("rayGenLssInlineRayQuery", "closestHitNOP");
+}
