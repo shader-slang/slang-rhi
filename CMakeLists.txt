@@ -1097,6 +1097,11 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
+    # MSVC 14.51+ emits C5285 on doctest's vendored std::tuple forward declaration
+    # (external/doctest/doctest.h); without this, /WX promotes it to an error. Scoped
+    # to this target alone, the only one that pulls in doctest. Remove once the
+    # vendored doctest carries the upstream C5285 fix (doctest#1160).
+    target_compile_options(slang-rhi-tests PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/wd5285>)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
