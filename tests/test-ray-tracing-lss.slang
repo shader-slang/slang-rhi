@@ -121,3 +121,29 @@ void rayGenLssIntrinsicsHitObject()
     resultBuffer[0].isLssHit = hit.IsLssHit();
     resultBuffer[0].lssPositionsAndRadii = hit.GetLssPositionsAndRadii();
 }
+
+// Inline ray-query LSS intrinsics, invoked from a raygen shader.
+// Traces a ray straight down the -z axis into the single-segment LSS, lets the
+// fixed-function traversal commit the built-in curve hit, then reads back the
+// committed LSS classification and endpoint positions/radii via the inline
+// ray-query accessors.
+[shader("raygeneration")]
+void rayGenLssInlineRayQuery()
+{
+    RayDesc ray;
+    ray.Origin = {0.0f, 0.0f, 0.0f};
+    ray.Direction = {0.0f, 0.0f, -1.0f};
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+
+    RayQuery<RAY_FLAG_NONE> q;
+    q.TraceRayInline(sceneBVH, RAY_FLAG_NONE, ~0, ray);
+    while (q.Proceed())
+    {
+    }
+
+    Result res = {};
+    res.isLssHit = q.CommittedIsLss() ? 1 : 0;
+    res.lssPositionsAndRadii = q.CommittedLssObjectPositionsAndRadii();
+    resultBuffer[0] = res;
+}
