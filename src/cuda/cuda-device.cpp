@@ -13,6 +13,7 @@
 #include "cuda-shader-table.h"
 #include "cuda-utils.h"
 #include "cuda-heap.h"
+#include "synthetic-resource-bindings.h"
 
 #include "core/platform.h"
 
@@ -454,7 +455,14 @@ Result DeviceImpl::createShaderProgram(
 {
     RefPtr<ShaderProgramImpl> shaderProgram = new ShaderProgramImpl(this, desc);
     SLANG_RETURN_ON_FAIL(shaderProgram->init());
-    shaderProgram->m_rootObjectLayout = new RootShaderObjectLayoutImpl(this, shaderProgram->linkedProgram->getLayout());
+    SLANG_RETURN_ON_FAIL(
+        RootShaderObjectLayoutImpl::create(
+            this,
+            shaderProgram->linkedProgram->getLayout(),
+            shaderProgram->getSyntheticResourceBindingState(),
+            shaderProgram->m_rootObjectLayout.writeRef()
+        )
+    );
     returnComPtr(outProgram, shaderProgram);
     return SLANG_OK;
 }

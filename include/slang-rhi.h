@@ -85,6 +85,9 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 
     VulkanDeviceExtendedDesc,
+
+    // Optional extension declared in <slang-rhi/synthetic-bindings.h>.
+    ShaderProgramSyntheticResourcesDesc,
 };
 
 // TODO: Implementation or backend or something else?
