@@ -180,7 +180,13 @@ GPU_TEST_CASE("cmd-query-resolve-host", ALL)
     }
 
     double durationGPU = maxTime - minTime;
-    CHECK(durationGPU < durationCPU);
+    // durationCPU is intended to bound the GPU timestamp span, but it is
+    // truncated to whole microseconds above and a fast loop spans only a few
+    // microseconds, so the containment margin can vanish. Allow for truncation
+    // and cross-clock jitter (~2us) plus the GPU's own timestamp granularity
+    // (2 / timestampFrequency, which dominates on coarse-timer backends) so this
+    // stays a units sanity-check rather than a sub-microsecond race.
+    CHECK(durationGPU <= durationCPU + 2e-6 + 2.0 / static_cast<double>(timestampFrequency));
     // printf("Duration CPU: %.3f ms, GPU: %.3f\n", durationCPU * 1000.0, durationGPU * 1000.0);
 }
 
@@ -533,7 +539,13 @@ GPU_TEST_CASE("cmd-query-resolve-device", ALL & ~(D3D11 | CPU | CUDA))
     }
 
     double durationGPU = maxTime - minTime;
-    CHECK(durationGPU < durationCPU);
+    // durationCPU is intended to bound the GPU timestamp span, but it is
+    // truncated to whole microseconds above and a fast loop spans only a few
+    // microseconds, so the containment margin can vanish. Allow for truncation
+    // and cross-clock jitter (~2us) plus the GPU's own timestamp granularity
+    // (2 / timestampFrequency, which dominates on coarse-timer backends) so this
+    // stays a units sanity-check rather than a sub-microsecond race.
+    CHECK(durationGPU <= durationCPU + 2e-6 + 2.0 / static_cast<double>(timestampFrequency));
     // printf("Duration CPU: %.3f ms, GPU: %.3f\n", durationCPU * 1000.0, durationGPU * 1000.0);
 }
 
