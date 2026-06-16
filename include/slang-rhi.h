@@ -3776,7 +3776,6 @@ public:
 
 /// RAII helper that pushes a device's CUDA context on construction and pops it on destruction.
 /// For non-CUDA devices, this is a no-op.
-/// Usage: SLANG_DEVICE_SCOPE(device);
 class DeviceScope
 {
 public:
@@ -3794,7 +3793,11 @@ private:
     IDevice* m_device;
 };
 
-#define SLANG_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
+/// Helper macro for creating a DeviceScope with a unique name. Usage: SLANG_RHI_DEVICE_SCOPE(device);
+#define SLANG_RHI_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
+
+/// Deprecated alias for SLANG_RHI_DEVICE_SCOPE
+#define SLANG_DEVICE_SCOPE(device) SLANG_RHI_DEVICE_SCOPE(device)
 
 /// \brief Interface for a task pool that supports dependency-based scheduling.
 ///
