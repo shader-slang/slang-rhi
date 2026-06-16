@@ -154,8 +154,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         WGPUPresentMode_Fifo,
     };
     static const WGPUPresentMode kVsyncOnModes[] = {
-        WGPUPresentMode_FifoRelaxed,
         WGPUPresentMode_Fifo,
+        WGPUPresentMode_FifoRelaxed,
         WGPUPresentMode_Immediate,
         WGPUPresentMode_Mailbox,
     };
