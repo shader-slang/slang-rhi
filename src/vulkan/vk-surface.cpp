@@ -150,16 +150,64 @@ Result SurfaceImpl::createSwapchain()
 {
     auto& api = m_device->m_api;
 
-    VkExtent2D imageExtent = {m_config.width, m_config.height};
-
     // It is necessary to query the caps -> otherwise the LunarG verification layer will
     // issue an error. The reported supportedUsageFlags are also used below to clamp the
     // requested image usage.
-    VkSurfaceCapabilitiesKHR surfaceCaps;
+    VkSurfaceCapabilitiesKHR surfaceCaps = {};
     SLANG_VK_RETURN_ON_FAIL_REPORT(
         api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(api.m_physicalDevice, m_surface, &surfaceCaps),
         m_device
     );
+
+    VkExtent2D imageExtent = {};
+    if (surfaceCaps.currentExtent.width != UINT32_MAX)
+    {
+        imageExtent = surfaceCaps.currentExtent;
+    }
+    else
+    {
+        imageExtent.width =
+            std::clamp(m_config.width, surfaceCaps.minImageExtent.width, surfaceCaps.maxImageExtent.width);
+        imageExtent.height =
+            std::clamp(m_config.height, surfaceCaps.minImageExtent.height, surfaceCaps.maxImageExtent.height);
+    }
+
+    if (imageExtent.width == 0 || imageExtent.height == 0)
+    {
+        return SLANG_FAIL;
+    }
+
+    uint32_t imageCount = std::max(m_config.desiredImageCount, surfaceCaps.minImageCount);
+    if (surfaceCaps.maxImageCount > 0)
+    {
+        imageCount = std::min(imageCount, surfaceCaps.maxImageCount);
+    }
+
+    VkSurfaceTransformFlagBitsKHR preTransform =
+        (surfaceCaps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+            ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+            : surfaceCaps.currentTransform;
+
+    VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    if (!(surfaceCaps.supportedCompositeAlpha & compositeAlpha))
+    {
+        static const VkCompositeAlphaFlagBitsKHR kCompositeAlphaModes[] = {
+            VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
+        };
+        for (VkCompositeAlphaFlagBitsKHR mode : kCompositeAlphaModes)
+        {
+            if (surfaceCaps.supportedCompositeAlpha & mode)
+            {
+                compositeAlpha = mode;
+                break;
+            }
+        }
+    }
+
+    m_config.width = imageExtent.width;
+    m_config.height = imageExtent.height;
 
     // Query available present modes.
     uint32_t presentModeCount = 0;
@@ -180,8 +228,8 @@ Result SurfaceImpl::createSwapchain()
         VK_PRESENT_MODE_MAX_ENUM_KHR
     };
     static const VkPresentModeKHR kVsyncOnModes[] = {
-        VK_PRESENT_MODE_FIFO_RELAXED_KHR,
         VK_PRESENT_MODE_FIFO_KHR,
+        VK_PRESENT_MODE_FIFO_RELAXED_KHR,
         VK_PRESENT_MODE_IMMEDIATE_KHR,
         VK_PRESENT_MODE_MAILBOX_KHR,
         VK_PRESENT_MODE_MAX_ENUM_KHR
@@ -206,7 +254,7 @@ Result SurfaceImpl::createSwapchain()
 
     VkSwapchainCreateInfoKHR swapchainDesc = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     swapchainDesc.surface = m_surface;
-    swapchainDesc.minImageCount = m_config.desiredImageCount;
+    swapchainDesc.minImageCount = imageCount;
     swapchainDesc.imageFormat = format;
     swapchainDesc.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     swapchainDesc.imageExtent = imageExtent;
@@ -216,8 +264,8 @@ Result SurfaceImpl::createSwapchain()
     // requesting storage on a format that can't support it is the usage derivation in configure().
     swapchainDesc.imageUsage = _calcImageUsageFlags(m_config.usage) & surfaceCaps.supportedUsageFlags;
     swapchainDesc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    swapchainDesc.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-    swapchainDesc.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchainDesc.preTransform = preTransform;
+    swapchainDesc.compositeAlpha = compositeAlpha;
     swapchainDesc.presentMode = selectedPresentMode;
     swapchainDesc.clipped = VK_TRUE;
     swapchainDesc.oldSwapchain = oldSwapchain;
@@ -307,6 +355,7 @@ void SurfaceImpl::destroySwapchain()
         }
     }
     m_frameData.clear();
+    m_currentTextureIndex = -1;
     if (m_swapchain != VK_NULL_HANDLE)
     {
         api.vkDestroySwapchainKHR(api.m_device, m_swapchain, nullptr);
@@ -415,7 +464,10 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     // Setup queue's next submit for synchronization with the swapchain.
     m_device->m_queue->m_surfaceSync.fence = frameData.fence;
     m_device->m_queue->m_surfaceSync.imageAvailableSemaphore = frameData.imageAvailableSemaphore;
-    m_device->m_queue->m_surfaceSync.renderFinishedSemaphore = frameData.renderFinishedSemaphore;
+    // Present consumes this semaphore outside the submitted command buffer's fence.
+    // Reuse it only when the same swapchain image is acquired again.
+    m_device->m_queue->m_surfaceSync.renderFinishedSemaphore =
+        m_frameData[m_currentTextureIndex].renderFinishedSemaphore;
 
     // Mark texture to be in swapchain initial state.
     // This is used by the first image barrier to transition the texture from the correct state.
@@ -433,9 +485,13 @@ Result SurfaceImpl::present()
     {
         return SLANG_FAIL;
     }
+    if (m_currentTextureIndex == -1)
+    {
+        return SLANG_FAIL;
+    }
 
-    FrameData& frameData = m_frameData[m_currentFrameIndex];
     m_currentFrameIndex = (m_currentFrameIndex + 1) % m_frameData.size();
+    VkSemaphore renderFinishedSemaphore = m_frameData[m_currentTextureIndex].renderFinishedSemaphore;
 
     // If no submit has taken place yet, then we need to submit a dummy command buffer to transition the texture to the
     // correct state.
@@ -454,16 +510,14 @@ Result SurfaceImpl::present()
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &m_currentTextureIndex;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &frameData.renderFinishedSemaphore;
-    if (m_currentTextureIndex != -1)
+    presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
+    VkResult result = api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
-        api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
-        return SLANG_OK;
-    }
-    else
-    {
+        reportVulkanError(result, "vkQueuePresentKHR", SLANG_RHI_SOURCE_LOCATION(), m_device);
         return SLANG_FAIL;
     }
+    return SLANG_OK;
 }
 
 Result DeviceImpl::createSurface(WindowHandle windowHandle, ISurface** outSurface)

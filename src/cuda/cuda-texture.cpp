@@ -152,6 +152,10 @@ TextureImpl::~TextureImpl()
     {
         SLANG_CUDA_ASSERT_ON_FAIL(cuMipmappedArrayDestroy(m_cudaMipMappedArray));
     }
+    if (m_cudaExternalMemory)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuDestroyExternalMemory((CUexternalMemory)m_cudaExternalMemory));
+    }
 }
 
 void TextureImpl::deleteThis()
@@ -500,6 +504,17 @@ Result DeviceImpl::createTextureFromSharedHandle(
     ITexture** outTexture
 )
 {
+    return createTextureFromSharedHandle(handle, desc, size, false, outTexture);
+}
+
+Result DeviceImpl::createTextureFromSharedHandle(
+    NativeHandle handle,
+    const TextureDesc& desc,
+    const size_t size,
+    bool isDedicated,
+    ITexture** outTexture
+)
+{
     if (!handle)
     {
         *outTexture = nullptr;
@@ -527,7 +542,7 @@ Result DeviceImpl::createTextureFromSharedHandle(
     }
     externalMemoryHandleDesc.handle.win32.handle = (void*)handle.value;
     externalMemoryHandleDesc.size = size;
-    externalMemoryHandleDesc.flags = 0; // CUDA_EXTERNAL_MEMORY_DEDICATED;
+    externalMemoryHandleDesc.flags = isDedicated ? CUDA_EXTERNAL_MEMORY_DEDICATED : 0;
 
     CUexternalMemory externalMemory;
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuImportExternalMemory(&externalMemory, &externalMemoryHandleDesc), this);
@@ -545,7 +560,10 @@ Result DeviceImpl::createTextureFromSharedHandle(
     CUDA_ARRAY3D_DESCRIPTOR arrayDesc = {};
     arrayDesc.Format = mapping.arrayFormat;
     arrayDesc.NumChannels = mapping.channelCount;
-    arrayDesc.Flags = 0; // TODO: Flags? CUDA_ARRAY_LAYERED/SURFACE_LDST/CUBEMAP/TEXTURE_GATHER
+    if (is_set(desc.usage, TextureUsage::UnorderedAccess))
+    {
+        arrayDesc.Flags |= CUDA_ARRAY3D_SURFACE_LDST;
+    }
 
     switch (desc.type)
     {
