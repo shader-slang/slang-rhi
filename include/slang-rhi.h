@@ -57,7 +57,7 @@ typedef SlangResult Result;
 typedef size_t Size;
 typedef size_t Offset;
 
-constexpr uint64_t kTimeoutInfinite {0xFFFFFFFFFFFFFFFFU};
+constexpr uint64_t kTimeoutInfinite{0xFFFFFFFFFFFFFFFFU};
 
 
 enum class StructType
