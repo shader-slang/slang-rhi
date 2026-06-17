@@ -1083,6 +1083,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-texture-view.cpp
         tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/test-work-graph-trivial.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/texture-test.cpp

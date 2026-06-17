@@ -1015,6 +1015,18 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             }
         }
     }
+#if SLANG_RHI_ENABLE_AGILITY_SDK
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS21 options = {};
+        if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS21, &options, sizeof(options))))
+        {
+            if (options.WorkGraphsTier >= D3D12_WORK_GRAPHS_TIER_1_0)
+            {
+                addFeature(Feature::WorkGraph);
+            }
+        }
+    }
+#endif // SLANG_RHI_ENABLE_AGILITY_SDK
 
     // Initialize NVAPI
 #if SLANG_RHI_ENABLE_NVAPI

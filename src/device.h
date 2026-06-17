@@ -223,6 +223,10 @@ public:
         const RayTracingPipelineDesc& desc,
         IRayTracingPipeline** outPipeline
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createWorkGraphPipeline(
+        const WorkGraphPipelineDesc& desc,
+        IWorkGraphPipeline** outPipeline
+    ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReportList(ISlangBlob** outReportListBlob) override;
 
@@ -439,6 +443,7 @@ public:
     virtual Result createRenderPipeline2(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline);
     virtual Result createComputePipeline2(const ComputePipelineDesc& desc, IComputePipeline** outPipeline);
     virtual Result createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline);
+    virtual Result createWorkGraphPipeline2(const WorkGraphPipelineDesc& desc, IWorkGraphPipeline** outPipeline);
 
 protected:
     Result initialize(const DeviceDesc& desc);

@@ -1074,6 +1074,24 @@ Result DebugDevice::createRayTracingPipeline(const RayTracingPipelineDesc& desc,
     return baseObject->createRayTracingPipeline(patchedDesc, outPipeline);
 }
 
+Result DebugDevice::createWorkGraphPipeline(const WorkGraphPipelineDesc& desc, IWorkGraphPipeline** outPipeline)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createWorkGraphPipeline);
+
+    if (!outPipeline)
+    {
+        RHI_VALIDATION_ERROR("'outPipeline' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.program == nullptr)
+    {
+        RHI_VALIDATION_ERROR("Program must be specified.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->createWorkGraphPipeline(desc, outPipeline);
+}
+
 Result DebugDevice::getCompilationReportList(ISlangBlob** outReportListBlob)
 {
     SLANG_RHI_DEBUG_API(IDevice, getCompilationReportList);

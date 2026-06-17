@@ -36,6 +36,9 @@ public:
     ComPtr<ID3D12GraphicsCommandList1> m_cmdList1;
     ComPtr<ID3D12GraphicsCommandList4> m_cmdList4;
     ComPtr<ID3D12GraphicsCommandList6> m_cmdList6;
+#if SLANG_RHI_ENABLE_AGILITY_SDK
+    ComPtr<ID3D12GraphicsCommandList10> m_cmdList10;
+#endif
 
     GPUDescriptorArena* m_cbvSrvUavArena = nullptr;
     GPUDescriptorArena* m_samplerArena = nullptr;
@@ -62,6 +65,12 @@ public:
     D3D12_DISPATCH_RAYS_DESC m_dispatchRaysDesc = {};
     UINT64 m_rayGenTableAddr = 0;
     UINT64 m_rayGenRecordStride = 0;
+
+    bool m_workGraphPassActive = false;
+    bool m_workGraphStateValid = false;
+#if SLANG_RHI_ENABLE_AGILITY_SDK
+    RefPtr<WorkGraphPipelineImpl> m_workGraphPipeline;
+#endif
 
     BindingDataImpl* m_bindingData = nullptr;
 
@@ -103,6 +112,10 @@ public:
     void cmdEndRayTracingPass(const commands::EndRayTracingPass& cmd);
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
+    void cmdBeginWorkGraphPass(const commands::BeginWorkGraphPass& cmd);
+    void cmdEndWorkGraphPass(const commands::EndWorkGraphPass& cmd);
+    void cmdSetWorkGraphState(const commands::SetWorkGraphState& cmd);
+    void cmdDispatchGraph(const commands::DispatchGraph& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
@@ -147,6 +160,9 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList1>(m_cmdList1.writeRef());
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList4>(m_cmdList4.writeRef());
     m_cmdList->QueryInterface<ID3D12GraphicsCommandList6>(m_cmdList6.writeRef());
+#if SLANG_RHI_ENABLE_AGILITY_SDK
+    m_cmdList->QueryInterface<ID3D12GraphicsCommandList10>(m_cmdList10.writeRef());
+#endif
     m_cbvSrvUavArena = &commandBuffer->m_cbvSrvUavArena;
     m_samplerArena = &commandBuffer->m_samplerArena;
 
@@ -1218,6 +1234,95 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
     m_dispatchRaysDesc.Height = cmd.height;
     m_dispatchRaysDesc.Depth = cmd.depth;
     m_cmdList4->DispatchRays(&m_dispatchRaysDesc);
+}
+
+void CommandRecorder::cmdBeginWorkGraphPass(const commands::BeginWorkGraphPass& cmd)
+{
+    m_workGraphPassActive = true;
+}
+
+void CommandRecorder::cmdEndWorkGraphPass(const commands::EndWorkGraphPass& cmd)
+{
+    m_workGraphPassActive = false;
+    m_workGraphStateValid = false;
+}
+
+void CommandRecorder::cmdSetWorkGraphState(const commands::SetWorkGraphState& cmd)
+{
+    if (!m_workGraphPassActive)
+        return;
+
+#if SLANG_RHI_ENABLE_AGILITY_SDK
+    if (!m_cmdList10)
+        return;
+
+    bool updatePipeline = !m_workGraphStateValid || cmd.pipeline != m_workGraphPipeline;
+    bool updateBindings = updatePipeline || cmd.bindingData != m_bindingData;
+
+    if (updatePipeline)
+    {
+        m_workGraphPipeline = checked_cast<WorkGraphPipelineImpl*>(cmd.pipeline);
+    }
+
+    if (updateBindings)
+    {
+        m_bindingData = static_cast<BindingDataImpl*>(cmd.bindingData);
+        // Work graph dispatch uses compute root signature binding.
+        m_cmdList->SetComputeRootSignature(m_workGraphPipeline->m_rootObjectLayout->m_rootSignature);
+        setBindings(m_bindingData, BindMode::Compute);
+    }
+
+    commitBarriers();
+    m_workGraphStateValid = true;
+    m_renderStateValid = false;
+    m_computeStateValid = false;
+    m_rayTracingStateValid = false;
+#endif // SLANG_RHI_ENABLE_AGILITY_SDK
+}
+
+void CommandRecorder::cmdDispatchGraph(const commands::DispatchGraph& cmd)
+{
+    if (!m_workGraphStateValid)
+        return;
+
+#if SLANG_RHI_ENABLE_AGILITY_SDK
+    if (!m_cmdList10)
+        return;
+
+    BufferImpl* backingStoreBuffer = checked_cast<BufferImpl*>(cmd.backingStore);
+
+    // Set the work graph program with backing store.
+    // Query program identifier from the state object properties.
+    ComPtr<ID3D12StateObjectProperties1> stateObjectProps;
+    m_workGraphPipeline->m_stateObject->QueryInterface(stateObjectProps.writeRef());
+    if (!stateObjectProps)
+        return;
+
+    D3D12_SET_PROGRAM_DESC setProgramDesc = {};
+    setProgramDesc.Type = D3D12_PROGRAM_TYPE_WORK_GRAPH;
+    setProgramDesc.WorkGraph.ProgramIdentifier =
+        stateObjectProps->GetProgramIdentifier(m_workGraphPipeline->m_programName.c_str());
+    setProgramDesc.WorkGraph.Flags = D3D12_SET_WORK_GRAPH_FLAG_INITIALIZE;
+    setProgramDesc.WorkGraph.BackingMemory.StartAddress =
+        backingStoreBuffer->m_resource.getResource()->GetGPUVirtualAddress();
+    setProgramDesc.WorkGraph.BackingMemory.SizeInBytes = backingStoreBuffer->m_desc.size;
+    setProgramDesc.WorkGraph.NodeLocalRootArgumentsTable = {};
+
+    requireBufferState(backingStoreBuffer, ResourceState::UnorderedAccess);
+    commitBarriers();
+
+    m_cmdList10->SetProgram(&setProgramDesc);
+
+    // Dispatch with CPU input records.
+    D3D12_DISPATCH_GRAPH_DESC dispatchDesc = {};
+    dispatchDesc.Mode = D3D12_DISPATCH_MODE_NODE_CPU_INPUT;
+    dispatchDesc.NodeCPUInput.EntrypointIndex = cmd.entryPointIndex;
+    dispatchDesc.NodeCPUInput.NumRecords = cmd.numRecords;
+    dispatchDesc.NodeCPUInput.pRecords = const_cast<void*>(cmd.records);
+    dispatchDesc.NodeCPUInput.RecordStrideInBytes = cmd.recordStrideInBytes;
+
+    m_cmdList10->DispatchGraph(&dispatchDesc);
+#endif // SLANG_RHI_ENABLE_AGILITY_SDK
 }
 
 void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)

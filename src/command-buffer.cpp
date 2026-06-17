@@ -445,6 +445,131 @@ void RayTracingPassEncoder::end()
 }
 
 // ----------------------------------------------------------------------------
+// WorkGraphPassEncoder
+// ----------------------------------------------------------------------------
+
+IWorkGraphPassEncoder* WorkGraphPassEncoder::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IWorkGraphPassEncoder::getTypeGuid())
+        return static_cast<IWorkGraphPassEncoder*>(this);
+    return nullptr;
+}
+
+WorkGraphPassEncoder::WorkGraphPassEncoder(CommandEncoder* commandEncoder)
+    : m_commandEncoder(commandEncoder)
+{
+}
+
+void WorkGraphPassEncoder::writeWorkGraphState()
+{
+    commands::SetWorkGraphState cmd;
+    cmd.pipeline = m_pipeline;
+    m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
+    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    {
+        m_commandEncoder->getDevice()
+            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+        return;
+    }
+    m_commandList->write(std::move(cmd));
+}
+
+IShaderObject* WorkGraphPassEncoder::bindPipeline(IWorkGraphPipeline* pipeline)
+{
+    if (m_commandList)
+    {
+        m_pipeline = pipeline;
+        ShaderProgram* program = checked_cast<ShaderProgram*>(pipeline->getProgram());
+        if (SLANG_FAILED(m_commandEncoder->getDevice()->createRootShaderObject(program, m_rootObject.writeRef())))
+            return nullptr;
+        return m_rootObject;
+    }
+    return nullptr;
+}
+
+void WorkGraphPassEncoder::bindPipeline(IWorkGraphPipeline* pipeline, IShaderObject* rootObject)
+{
+    if (m_commandList)
+    {
+        m_pipeline = checked_cast<WorkGraphPipeline*>(pipeline);
+        m_rootObject = checked_cast<RootShaderObject*>(rootObject);
+    }
+}
+
+void WorkGraphPassEncoder::dispatchGraph(
+    IBuffer* backingStore,
+    uint32_t entryPointIndex,
+    uint32_t numRecords,
+    const void* records,
+    uint32_t recordStrideInBytes
+)
+{
+    if (m_commandList)
+    {
+        writeWorkGraphState();
+        commands::DispatchGraph cmd;
+        cmd.backingStore = backingStore;
+        cmd.entryPointIndex = entryPointIndex;
+        cmd.numRecords = numRecords;
+        cmd.recordStrideInBytes = recordStrideInBytes;
+        cmd.records = nullptr;
+        m_commandList->writeDispatchGraph(std::move(cmd), records);
+    }
+}
+
+void WorkGraphPassEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
+{
+    if (m_commandList)
+    {
+        commands::PushDebugGroup cmd;
+        cmd.name = name;
+        cmd.color = color;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void WorkGraphPassEncoder::popDebugGroup()
+{
+    if (m_commandList)
+    {
+        commands::PopDebugGroup cmd;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void WorkGraphPassEncoder::insertDebugMarker(const char* name, const MarkerColor& color)
+{
+    if (m_commandList)
+    {
+        commands::InsertDebugMarker cmd;
+        cmd.name = name;
+        cmd.color = color;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void WorkGraphPassEncoder::writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex)
+{
+    if (m_commandList)
+    {
+        commands::WriteTimestamp cmd;
+        cmd.queryPool = checked_cast<QueryPool*>(queryPool);
+        cmd.queryIndex = queryIndex;
+        m_commandList->write(std::move(cmd));
+    }
+}
+
+void WorkGraphPassEncoder::end()
+{
+    if (m_commandList)
+    {
+        commands::EndWorkGraphPass cmd;
+        m_commandList->write(std::move(cmd));
+        m_commandList = nullptr;
+    }
+}
+
+// ----------------------------------------------------------------------------
 // CommandEncoder
 // ----------------------------------------------------------------------------
 
@@ -478,6 +603,14 @@ IRayTracingPassEncoder* CommandEncoder::beginRayTracingPass()
     m_commandList->write(std::move(cmd));
     m_rayTracingPassEncoder.m_commandList = m_commandList;
     return &m_rayTracingPassEncoder;
+}
+
+IWorkGraphPassEncoder* CommandEncoder::beginWorkGraphPass()
+{
+    commands::BeginWorkGraphPass cmd;
+    m_commandList->write(std::move(cmd));
+    m_workGraphPassEncoder.m_commandList = m_commandList;
+    return &m_workGraphPassEncoder;
 }
 
 void CommandEncoder::copyBuffer(IBuffer* dst, Offset dstOffset, IBuffer* src, Offset srcOffset, Size size)
@@ -970,6 +1103,16 @@ Result CommandEncoder::resolvePipelines(Device* device)
             Pipeline* concretePipeline = nullptr;
             SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
             cmd.pipeline = static_cast<RayTracingPipeline*>(concretePipeline);
+            cmd.specializationArgs = nullptr;
+        }
+        else if (command->id == CommandID::SetWorkGraphState)
+        {
+            auto& cmd = commandList->getCommand<commands::SetWorkGraphState>(command);
+            WorkGraphPipeline* pipeline = checked_cast<WorkGraphPipeline*>(cmd.pipeline);
+            auto specializationArgs = static_cast<ExtendedShaderObjectTypeListObject*>(cmd.specializationArgs);
+            Pipeline* concretePipeline = nullptr;
+            SLANG_RETURN_ON_FAIL(device->getConcretePipeline(pipeline, specializationArgs, concretePipeline));
+            cmd.pipeline = static_cast<WorkGraphPipeline*>(concretePipeline);
             cmd.specializationArgs = nullptr;
         }
         command = command->next;

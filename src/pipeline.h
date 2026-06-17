@@ -16,6 +16,7 @@ enum class PipelineType
     Render,
     Compute,
     RayTracing,
+    WorkGraph,
 };
 
 class Pipeline : public DeviceChild
@@ -135,6 +136,30 @@ public:
 
     // IRayTracingPipeline interface
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+};
+
+class WorkGraphPipeline : public IWorkGraphPipeline, public Pipeline
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    IPipeline* getInterface(const Guid& guid);
+
+public:
+    WorkGraphPipelineDesc m_desc;
+    StructHolder m_descHolder;
+
+    WorkGraphPipeline(Device* device, const WorkGraphPipelineDesc& desc);
+
+    virtual PipelineType getType() const override { return PipelineType::WorkGraph; }
+
+    // IPipeline interface
+    virtual SLANG_NO_THROW const WorkGraphPipelineDesc& SLANG_MCALL getDesc() override { return m_desc; }
+    virtual SLANG_NO_THROW IShaderProgram* SLANG_MCALL getProgram() override { return m_program.get(); }
+
+    // IWorkGraphPipeline interface
+    virtual SLANG_NO_THROW Result SLANG_MCALL getWorkGraphMemoryRequirements(
+        WorkGraphMemoryRequirements* outRequirements
+    ) override;
 };
 
 } // namespace rhi

@@ -187,6 +187,49 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL end() override;
 };
 
+class WorkGraphPassEncoder : public IWorkGraphPassEncoder
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_QUERY_INTERFACE
+    IWorkGraphPassEncoder* getInterface(const Guid& guid);
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL addRef() override { return 1; }
+    virtual SLANG_NO_THROW uint32_t SLANG_MCALL release() override { return 1; }
+
+public:
+    CommandEncoder* m_commandEncoder = nullptr;
+    ComPtr<IWorkGraphPipeline> m_pipeline;
+    RefPtr<RootShaderObject> m_rootObject;
+    /// Command list, nullptr if pass encoder is not active.
+    CommandList* m_commandList;
+
+    WorkGraphPassEncoder(CommandEncoder* commandEncoder);
+
+    void writeWorkGraphState();
+
+    // IWorkGraphPassEncoder implementation
+    virtual SLANG_NO_THROW IShaderObject* SLANG_MCALL bindPipeline(IWorkGraphPipeline* pipeline) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL bindPipeline(
+        IWorkGraphPipeline* pipeline,
+        IShaderObject* rootObject
+    ) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL dispatchGraph(
+        IBuffer* backingStore,
+        uint32_t entryPointIndex,
+        uint32_t numRecords,
+        const void* records,
+        uint32_t recordStrideInBytes
+    ) override;
+
+    // IPassEncoder implementation
+    virtual SLANG_NO_THROW void SLANG_MCALL pushDebugGroup(const char* name, const MarkerColor& color) override;
+    virtual SLANG_NO_THROW void SLANG_MCALL popDebugGroup() override;
+    virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL end() override;
+};
+
 class CommandEncoder : public ICommandEncoder, public DeviceChild
 {
 public:
@@ -203,6 +246,7 @@ public:
     RenderPassEncoder m_renderPassEncoder;
     ComputePassEncoder m_computePassEncoder;
     RayTracingPassEncoder m_rayTracingPassEncoder;
+    WorkGraphPassEncoder m_workGraphPassEncoder;
 
     // List of persisted pipeline specialization data.
     // This is populated during command encoding and later used when asynchronously resolving pipelines.
@@ -214,6 +258,7 @@ public:
         , m_renderPassEncoder(this)
         , m_computePassEncoder(this)
         , m_rayTracingPassEncoder(this)
+        , m_workGraphPassEncoder(this)
     {
         m_descHolder.holdString(m_desc.label);
     }
@@ -233,6 +278,7 @@ public:
     virtual SLANG_NO_THROW IRenderPassEncoder* SLANG_MCALL beginRenderPass(const RenderPassDesc& desc) override;
     virtual SLANG_NO_THROW IComputePassEncoder* SLANG_MCALL beginComputePass() override;
     virtual SLANG_NO_THROW IRayTracingPassEncoder* SLANG_MCALL beginRayTracingPass() override;
+    virtual SLANG_NO_THROW IWorkGraphPassEncoder* SLANG_MCALL beginWorkGraphPass() override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyBuffer(
         IBuffer* dst,
