@@ -250,6 +250,7 @@ struct ComputeSurfaceTest : SurfaceTest
             {
             case Format::RGBA8Unorm:
             case Format::BGRA8Unorm:
+            case Format::BGRX8Unorm:
                 return info.formats[i];
             default:
                 break;
