@@ -2238,6 +2238,13 @@ enum class QueryType
     AccelerationStructureCurrentSize,
 };
 
+enum class QueryResultState
+{
+    Reset,
+    Pending,
+    Resolved,
+};
+
 struct QueryPoolDesc
 {
     StructType structType = StructType::QueryPoolDesc;
@@ -2256,15 +2263,21 @@ class IQueryPool : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() = 0;
 
-    /// Non-blocking host-readiness check for query results.
+    /// Non-blocking host-state check for query results.
     ///
-    /// Sets outReady to true when every requested query result is ready to read on the host,
-    /// and false when submitted query work is still pending. Returns SLANG_FAIL when the
-    /// requested range has no valid submitted result, and SLANG_E_INVALID_ARG for invalid
-    /// ranges or a null outReady pointer. A valid zero-count readiness check succeeds and
-    /// returns true. This call does not wait for GPU work and does not make reset or
-    /// never-submitted queries valid.
-    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady) = 0;
+    /// Sets outState to Reset when any query in the range has no valid submitted result,
+    /// including newly-created, reset, or never-submitted queries. Sets outState to Pending
+    /// when every query in the range has valid submitted work, but at least one result is not
+    /// host-readable yet. Sets outState to Resolved when every result in the range is
+    /// host-readable. A valid zero-count state check succeeds and returns Resolved.
+    ///
+    /// This call may poll or otherwise progress backend readiness, but it does not wait for
+    /// GPU work. Returns SLANG_E_INVALID_ARG for invalid ranges or a null outState pointer.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResultState(
+        uint32_t queryIndex,
+        uint32_t count,
+        QueryResultState* outState
+    ) = 0;
 
     /// Read query results on the host.
     ///
