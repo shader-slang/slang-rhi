@@ -1,0 +1,4 @@
+interface:
+  display_name: "Slang RHI Compile Research"
+  short_description: "Run measured compile-time include experiments"
+  default_prompt: "Use $slang-rhi-compile-research to run a measured include-cleanup experiment in slang-rhi."
