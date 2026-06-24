@@ -1,0 +1,23 @@
+# AddressSanitizer suppressions for slang-rhi
+# These suppress known issues in third-party GPU driver libraries that are outside our control.
+# Reference: https://clang.llvm.org/docs/AddressSanitizer.html#suppressing-errors-in-recompiled-code-blacklist
+
+# NVIDIA CUDA driver
+interceptor_via_lib:libcuda.so
+interceptor_via_lib:libnvidia
+
+# NVIDIA Runtime Compiler
+interceptor_via_lib:libnvrtc
+
+# NVIDIA OptiX ray tracing engine
+interceptor_via_lib:libnvoptix
+
+# Vulkan loader and drivers
+interceptor_via_lib:libvulkan
+
+# OpenGL/GLX/EGL (used by some drivers)
+interceptor_via_lib:libGLX
+interceptor_via_lib:libEGL
+
+# Dawn WebGPU
+interceptor_via_lib:libdawn
