@@ -7,6 +7,12 @@
 #include <map>
 #include <vector>
 
+namespace rhi {
+struct SyntheticResourceBindingRecord;
+struct SyntheticBindingLocation;
+class SyntheticResourceBindingState;
+} // namespace rhi
+
 namespace rhi::vk {
 
 enum
@@ -298,6 +304,12 @@ protected:
         std::vector<DescriptorSetInfo> m_descriptorSetBuildInfos;
         std::map<uint32_t, uint32_t> m_mapSpaceToDescriptorSetIndex;
 
+        // Ordinary programs keep the existing compact descriptor-set layout.
+        // Synthetic resources need explicit Vulkan set numbers, so the root
+        // layout switches to direct space-to-set indexing only when the feature
+        // is active.
+        bool m_preserveDescriptorSetSpaces = false;
+
         /// The number of descriptor sets allocated by child/descendent objects
         uint32_t m_childDescriptorSetCount = 0;
 
@@ -312,13 +324,20 @@ protected:
 
         uint32_t m_totalOrdinaryDataSize = 0;
 
-        uint32_t findOrAddDescriptorSet(uint32_t space);
+        Result findOrAddDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
+        Result _findOrAddCompactDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
+        Result _findOrAddPreservedDescriptorSet(uint32_t space, uint32_t* outDescriptorSetIndex);
+        Result addDescriptorSetBinding(
+            uint32_t descriptorSetIndex,
+            const VkDescriptorSetLayoutBinding& bindingDesc,
+            const char* sourceLabel
+        );
 
         static VkDescriptorType _mapDescriptorType(slang::BindingType slangBindingType);
 
         /// Add any descriptor ranges implied by this object containing a leaf
         /// sub-object described by `typeLayout`, at the given `offset`.
-        void _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, const BindingOffset& offset);
+        Result _addDescriptorRangesAsValue(slang::TypeLayoutReflection* typeLayout, const BindingOffset& offset);
 
         /// Add the descriptor ranges implied by a `ConstantBuffer<X>` where `X` is
         /// described by `elementTypeLayout`.
@@ -326,7 +345,7 @@ protected:
         /// The `containerOffset` and `elementOffset` are the binding offsets that
         /// should apply to the buffer itself and the contents of the buffer, respectively.
         ///
-        void _addDescriptorRangesAsConstantBuffer(
+        Result _addDescriptorRangesAsConstantBuffer(
             slang::TypeLayoutReflection* elementTypeLayout,
             const BindingOffset& containerOffset,
             const BindingOffset& elementOffset
@@ -338,7 +357,7 @@ protected:
         /// The `containerOffset` and `elementOffset` are the binding offsets that
         /// should apply to the buffer itself and the contents of the buffer, respectively.
         ///
-        void _addDescriptorRangesAsPushConstantBuffer(
+        Result _addDescriptorRangesAsPushConstantBuffer(
             slang::TypeLayoutReflection* elementTypeLayout,
             const BindingOffset& containerOffset,
             const BindingOffset& elementOffset
@@ -346,7 +365,7 @@ protected:
 
         /// Add binding ranges to this shader object layout, as implied by the given
         /// `typeLayout`
-        void addBindingRanges(slang::TypeLayoutReflection* typeLayout);
+        Result addBindingRanges(slang::TypeLayoutReflection* typeLayout);
 
         Result setElementTypeLayout(slang::TypeLayoutReflection* typeLayout);
 
@@ -370,7 +389,7 @@ public:
 
         Result build(EntryPointLayout** outLayout);
 
-        void addEntryPointParams(slang::EntryPointLayout* entryPointLayout);
+        Result addEntryPointParams(slang::EntryPointLayout* entryPointLayout);
 
         slang::EntryPointLayout* m_slangEntryPointLayout = nullptr;
 
@@ -409,21 +428,45 @@ public:
 
     struct Builder : Super::Builder
     {
-        Builder(DeviceImpl* device, slang::IComponentType* program, slang::ProgramLayout* programLayout)
+        Builder(
+            DeviceImpl* device,
+            slang::IComponentType* program,
+            slang::ProgramLayout* programLayout,
+            SyntheticResourceBindingState* syntheticResources
+        )
             : Super::Builder(device, program->getSession())
             , m_program(program)
             , m_programLayout(programLayout)
+            , m_syntheticResources(syntheticResources)
         {
+            m_preserveDescriptorSetSpaces = syntheticResources != nullptr;
         }
 
         Result build(RootShaderObjectLayoutImpl** outLayout);
 
-        void addGlobalParams(slang::VariableLayoutReflection* globalsLayout);
+        Result addGlobalParams(slang::VariableLayoutReflection* globalsLayout);
 
-        void addEntryPoint(EntryPointLayout* entryPointLayout);
+        Result addEntryPoint(EntryPointLayout* entryPointLayout);
+        Result addSyntheticResources();
+        Result _addSyntheticResource(const SyntheticResourceBindingRecord& resource);
+        Result _validateSyntheticResource(
+            const SyntheticResourceBindingRecord& resource,
+            VkDescriptorType* outDescriptorType
+        );
+        Result _addSyntheticDescriptorRange(
+            const SyntheticResourceBindingRecord& resource,
+            VkDescriptorType descriptorType,
+            uint32_t* outBindingRangeIndex
+        );
+        void _recordSyntheticBindingLocation(
+            const SyntheticResourceBindingRecord& resource,
+            uint32_t bindingRangeIndex
+        );
 
         slang::IComponentType* m_program;
         slang::ProgramLayout* m_programLayout;
+        SyntheticResourceBindingState* m_syntheticResources = nullptr;
+        std::vector<SyntheticBindingLocation> m_syntheticLocations;
         std::vector<EntryPointInfo> m_entryPoints;
     };
 
@@ -435,6 +478,7 @@ public:
         DeviceImpl* device,
         slang::IComponentType* program,
         slang::ProgramLayout* programLayout,
+        SyntheticResourceBindingState* syntheticResources,
         RootShaderObjectLayoutImpl** outLayout
     );
 

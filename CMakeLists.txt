@@ -145,7 +145,9 @@ endif()
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2026.4.1" CACHE STRING "Slang version to fetch")
+# Synthetic resource binding APIs require Slang 2026.9.1 or newer; pinned to
+# the latest stable release.
+set(SLANG_RHI_FETCH_SLANG_VERSION "2026.10.2" CACHE STRING "Slang version to fetch")
 option(SLANG_RHI_FETCH_DXC "Fetch DirectXShaderCompiler for the D3D12 backend" ON)
 
 # slang-rhi depends on a few external libraries.
@@ -408,11 +410,16 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
                 INTERFACE_INCLUDE_DIRECTORIES ${SLANG_RHI_SLANG_INCLUDE_DIR}
                 IMPORTED_LOCATION ${SLANG_RHI_SLANG_BINARY_DIR}/lib/lib${SLANG_LIB_NAME}.a
             )
+            set(SLANG_RHI_SLANG_CMARK_LIB ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcmark-gfm.a)
+            if(NOT EXISTS ${SLANG_RHI_SLANG_CMARK_LIB})
+                message(FATAL_ERROR "Slang Emscripten package is missing ${SLANG_RHI_SLANG_CMARK_LIB}")
+            endif()
             target_link_libraries(slang INTERFACE
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcompiler-core.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcore.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/liblz4.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libminiz.a
+                ${SLANG_RHI_SLANG_CMARK_LIB}
             )
         endif()
     endfunction()
@@ -752,6 +759,7 @@ target_sources(slang-rhi PRIVATE
     src/shader-object.cpp
     src/shader.cpp
     src/staging-heap.cpp
+    src/synthetic-resource-bindings.cpp
     src/core/assert.cpp
     src/core/blob.cpp
     src/core/diagnostics.cpp
@@ -1073,6 +1081,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-staging-heap.cpp
         tests/test-static-vector.cpp
         tests/test-surface.cpp
+        tests/test-synthetic-resource-bindings.cpp
         tests/test-texture-allocation-info.cpp
         tests/test-texture-create.cpp
         tests/test-texture-from-handle.cpp

@@ -670,10 +670,12 @@ Result BindingDataBuilder::allocateDescriptorSets(
     ShaderObjectLayoutImpl* specializedLayout
 )
 {
-    SLANG_RHI_ASSERT(specializedLayout->getOwnDescriptorSets().size() <= 1);
     // The number of sets to allocate and their layouts was already pre-computed
     // as part of the shader object layout, so we use that information here.
     //
+    // A shader object can own multiple descriptor sets. This is expected for
+    // layouts that preserve explicit Vulkan set numbers, such as programs with
+    // synthetic resources whose compiler metadata reports a non-zero set.
     for (auto descriptorSetInfo : specializedLayout->getOwnDescriptorSets())
     {
         auto descriptorSetHandle = m_descriptorSetAllocator->allocate(descriptorSetInfo.descriptorSetLayout).handle;

@@ -1,4 +1,8 @@
 #include "cuda-shader-object-layout.h"
+#include "shader.h"
+#include "synthetic-resource-bindings.h"
+
+#include <limits>
 
 namespace rhi::cuda {
 
@@ -139,6 +143,95 @@ RootShaderObjectLayoutImpl::RootShaderObjectLayoutImpl(Device* device, slang::Pr
         entryPointInfo.paramsSize = computeEntryPointParamsSize(programLayout->getEntryPointByIndex(i));
         m_entryPoints.push_back(entryPointInfo);
     }
+}
+
+Result RootShaderObjectLayoutImpl::create(
+    Device* device,
+    slang::ProgramLayout* programLayout,
+    SyntheticResourceBindingState* syntheticResources,
+    RootShaderObjectLayoutImpl** outLayout
+)
+{
+    RefPtr<RootShaderObjectLayoutImpl> layout = new RootShaderObjectLayoutImpl(device, programLayout);
+    if (syntheticResources)
+        SLANG_RETURN_ON_FAIL(layout->_addSyntheticResources(syntheticResources));
+    returnRefPtrMove(outLayout, layout);
+    return SLANG_OK;
+}
+
+Result RootShaderObjectLayoutImpl::_addSyntheticResources(SyntheticResourceBindingState* syntheticResources)
+{
+    std::vector<SyntheticBindingLocation> syntheticLocations;
+    for (const auto& resource : syntheticResources->getInputs())
+    {
+        if (resource.scope != SyntheticResourceScope::Global)
+            return SLANG_E_NOT_IMPLEMENTED;
+        switch (resource.bindingType)
+        {
+        case slang::BindingType::RawBuffer:
+        case slang::BindingType::TypedBuffer:
+        case slang::BindingType::MutableRawBuffer:
+        case slang::BindingType::MutableTypedBuffer:
+        case slang::BindingType::Texture:
+        case slang::BindingType::MutableTexture:
+        case slang::BindingType::CombinedTextureSampler:
+        case slang::BindingType::RayTracingAccelerationStructure:
+            break;
+        default:
+            return SLANG_E_NOT_IMPLEMENTED;
+        }
+        if (resource.uniformOffset < 0)
+            return SLANG_E_INVALID_ARG;
+        if (resource.uniformStride <= 0)
+            return SLANG_E_INVALID_ARG;
+        if (resource.arraySize == 0)
+            return SLANG_E_INVALID_ARG;
+        if (resource.arraySize > (std::numeric_limits<uint32_t>::max() - m_slotCount))
+            return SLANG_E_INVALID_ARG;
+
+        const size_t uniformOffset = (size_t)resource.uniformOffset;
+        const size_t uniformStride = (size_t)resource.uniformStride;
+        const size_t arraySize = (size_t)resource.arraySize;
+        if (uniformOffset > std::numeric_limits<uint32_t>::max())
+            return SLANG_E_INVALID_ARG;
+        if (arraySize > (std::numeric_limits<size_t>::max() - uniformOffset) / uniformStride)
+            return SLANG_E_INVALID_ARG;
+
+        BindingRangeInfo bindingRangeInfo = {};
+        bindingRangeInfo.bindingType = resource.bindingType;
+        bindingRangeInfo.count = resource.arraySize;
+        bindingRangeInfo.slotIndex = m_slotCount;
+        bindingRangeInfo.uniformOffset = static_cast<uint32_t>(uniformOffset);
+        bindingRangeInfo.subObjectIndex = 0;
+        bindingRangeInfo.isSpecializable = false;
+
+        uint32_t bindingRangeIndex = (uint32_t)m_bindingRanges.size();
+        m_bindingRanges.push_back(bindingRangeInfo);
+        m_slotCount += resource.arraySize;
+
+        // The synthetic resource's binding data lives at `uniformOffset` in
+        // the global parameter buffer. Slang's element-type-layout for the
+        // global scope does not account for synthesized resources, so widen
+        // the layout's required uniform buffer size here. ShaderObject::init
+        // and BindingDataBuilder::writeObjectData both consult this.
+        const size_t requiredSize = uniformOffset + uniformStride * arraySize;
+        if (requiredSize > m_uniformBufferSize)
+            m_uniformBufferSize = requiredSize;
+
+        SyntheticBindingLocation location = {};
+        location.syntheticResourceID = resource.id;
+        location.bindingType = resource.bindingType;
+        location.arraySize = resource.arraySize;
+        location.scope = resource.scope;
+        location.entryPointIndex = resource.entryPointIndex;
+        location.offset.uniformOffset = static_cast<uint32_t>(uniformOffset);
+        location.offset.bindingRangeIndex = bindingRangeIndex;
+        location.debugName = resource.debugName.empty() ? nullptr : resource.debugName.c_str();
+
+        syntheticLocations.push_back(location);
+    }
+
+    return syntheticResources->setResolvedLocations(syntheticLocations);
 }
 
 int RootShaderObjectLayoutImpl::getEntryPointIndex(std::string_view kernelName)
