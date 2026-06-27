@@ -166,12 +166,13 @@ enum class DeviceType
     x(ProgrammableSamplePositions2,             "programmable-sample-positions-2"               ) \
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
-    x(ShaderAbort,                              "shader-abort"                                  ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
-    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
+    /* Appended (not grouped) to keep existing enumerator values stable; Feature is public API. */ \
+    x(ShaderAbort,                              "shader-abort"                                  )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,

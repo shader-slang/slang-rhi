@@ -734,14 +734,17 @@ Result DeviceImpl::initVulkanDevice(
         if (extensionNames.count(VK_KHR_SHADER_ABORT_EXTENSION_NAME) &&
             extensionNames.count(VK_KHR_DEVICE_FAULT_EXTENSION_NAME) &&
             extensionNames.count(VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME) &&
-            extendedFeatures.shaderAbortFeatures.shaderAbort && extendedFeatures.faultFeatures.deviceFault)
+            extendedFeatures.shaderAbortFeatures.shaderAbort && extendedFeatures.faultFeatures.deviceFault &&
+            extendedFeatures.shaderConstantDataFeatures.shaderConstantData)
         {
-            // shader_constant_data is a required dependency; enable the extension and chain its
-            // (queried) feature struct. The other two are chained via addFeatureExtension below.
-            deviceExtensions.push_back(VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME);
-            extendedFeatures.shaderConstantDataFeatures.pNext = (void*)deviceCreateInfo.pNext;
-            deviceCreateInfo.pNext = &extendedFeatures.shaderConstantDataFeatures;
-
+            // Enable all three extensions/features together (shader_abort hard-depends on the other
+            // two), chaining each queried feature struct into the device-create chain. The gate above
+            // has already verified each feature bit, so every call here succeeds.
+            addFeatureExtension(
+                extendedFeatures.shaderConstantDataFeatures.shaderConstantData,
+                extendedFeatures.shaderConstantDataFeatures,
+                VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME
+            );
             addFeatureExtension(
                 extendedFeatures.faultFeatures.deviceFault,
                 extendedFeatures.faultFeatures,
@@ -1424,7 +1427,10 @@ Result DeviceImpl::initVulkanDevice(
 
 void DeviceImpl::reportShaderAbortMessage()
 {
-#if defined(VK_KHR_device_fault)
+    // VkDeviceFaultShaderAbortMessageInfoKHR comes from VK_KHR_shader_abort while
+    // vkGetDeviceFaultDebugInfoKHR / VkDeviceFaultDebugInfoKHR come from VK_KHR_device_fault, so both
+    // header guards are required for this body to compile.
+#if defined(VK_KHR_device_fault) && defined(VK_KHR_shader_abort)
     if (!m_supportsShaderAbort || m_device == VK_NULL_HANDLE)
         return;
 
@@ -2524,7 +2530,15 @@ Result DeviceImpl::waitForFences(
     auto result = m_api.vkWaitSemaphores(m_api.m_device, &waitInfo, timeout);
     if (result == VK_TIMEOUT)
         return SLANG_E_TIME_OUT;
-    return result == VK_SUCCESS ? SLANG_OK : SLANG_FAIL;
+    if (result != VK_SUCCESS)
+    {
+        // Report the failure instead of dropping it silently, so that device loss (and any
+        // shader-abort message it carries) is surfaced when a caller waits on timeline fences
+        // after an aborting dispatch rather than via the command queue.
+        reportVulkanError(result, "vkWaitSemaphores", SLANG_RHI_SOURCE_LOCATION(), this);
+        return SLANG_FAIL;
+    }
+    return SLANG_OK;
 }
 
 } // namespace rhi::vk
