@@ -241,7 +241,14 @@ public:
 
     VkDevice m_device = VK_NULL_HANDLE;
     bool m_hasSubgroupSizeControl = false;
+    /// True when VK_KHR_shader_abort + VK_KHR_device_fault are enabled (Feature::ShaderAbort).
+    bool m_supportsShaderAbort = false;
     CalibratedTimestampSupport m_calibratedTimestampSupport;
+
+    /// If a shader called abort() (OpAbortKHR) the device is lost; retrieve the abort message via
+    /// VK_KHR_device_fault and report it through the debug message callback. No-op when
+    /// Feature::ShaderAbort is unavailable. Safe to call after VK_ERROR_DEVICE_LOST.
+    void reportShaderAbortMessage();
 
     VulkanModule m_module;
     VulkanApi m_api;

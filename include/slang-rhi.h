@@ -166,6 +166,7 @@ enum class DeviceType
     x(ProgrammableSamplePositions2,             "programmable-sample-positions-2"               ) \
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
+    x(ShaderAbort,                              "shader-abort"                                  ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \

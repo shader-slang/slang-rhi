@@ -646,6 +646,15 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
+#if defined(VK_KHR_shader_abort)
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderAbortFeatures);
+#endif
+#if defined(VK_KHR_device_fault)
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.faultFeatures);
+#endif
+#if defined(VK_KHR_shader_constant_data)
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderConstantDataFeatures);
+#endif
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -713,6 +722,40 @@ Result DeviceImpl::initVulkanDevice(
             code                                                                                                       \
         }                                                                                                              \
     }
+
+#if defined(VK_KHR_shader_abort) && defined(VK_KHR_device_fault) && defined(VK_KHR_shader_constant_data)
+        // VK_KHR_shader_abort lets a shader call abort() (lowered by Slang to OpAbortKHR). Executing
+        // it ceases the invocation and loses the device; the abort message is then retrievable only
+        // via VK_KHR_device_fault (vkGetDeviceFaultDebugInfoKHR + VkDeviceFaultShaderAbortMessageInfoKHR).
+        // VK_KHR_shader_abort hard-depends on both VK_KHR_device_fault and VK_KHR_shader_constant_data,
+        // so the three must be enabled together. Feature::ShaderAbort is reported only when the whole
+        // round-trip (abort + fault-message retrieval) is available, since that is what the dependent
+        // runtime test (shader-slang/slang#11790) needs.
+        if (extensionNames.count(VK_KHR_SHADER_ABORT_EXTENSION_NAME) &&
+            extensionNames.count(VK_KHR_DEVICE_FAULT_EXTENSION_NAME) &&
+            extensionNames.count(VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME) &&
+            extendedFeatures.shaderAbortFeatures.shaderAbort && extendedFeatures.faultFeatures.deviceFault)
+        {
+            // shader_constant_data is a required dependency; enable the extension and chain its
+            // (queried) feature struct. The other two are chained via addFeatureExtension below.
+            deviceExtensions.push_back(VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME);
+            extendedFeatures.shaderConstantDataFeatures.pNext = (void*)deviceCreateInfo.pNext;
+            deviceCreateInfo.pNext = &extendedFeatures.shaderConstantDataFeatures;
+
+            addFeatureExtension(
+                extendedFeatures.faultFeatures.deviceFault,
+                extendedFeatures.faultFeatures,
+                VK_KHR_DEVICE_FAULT_EXTENSION_NAME
+            );
+            addFeatureExtension(
+                extendedFeatures.shaderAbortFeatures.shaderAbort,
+                extendedFeatures.shaderAbortFeatures,
+                VK_KHR_SHADER_ABORT_EXTENSION_NAME
+            );
+            availableFeatures.push_back(Feature::ShaderAbort);
+            m_supportsShaderAbort = true;
+        }
+#endif
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderDrawParametersFeatures,
@@ -1377,6 +1420,39 @@ Result DeviceImpl::initVulkanDevice(
     }
 
     return SLANG_OK;
+}
+
+void DeviceImpl::reportShaderAbortMessage()
+{
+#if defined(VK_KHR_device_fault)
+    if (!m_supportsShaderAbort || m_device == VK_NULL_HANDLE)
+        return;
+
+    // vkGetDeviceFaultDebugInfoKHR is an error-path entry point, so load it on demand rather than
+    // through the device proc table.
+    auto vkGetDeviceFaultDebugInfoKHR =
+        (PFN_vkGetDeviceFaultDebugInfoKHR)m_api.vkGetDeviceProcAddr(m_device, "vkGetDeviceFaultDebugInfoKHR");
+    if (!vkGetDeviceFaultDebugInfoKHR)
+        return;
+
+    // Chain VkDeviceFaultShaderAbortMessageInfoKHR so the driver fills in the message produced by
+    // OpAbortKHR. Use the standard two-call pattern: query the size first, then retrieve the data.
+    VkDeviceFaultShaderAbortMessageInfoKHR abortInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_SHADER_ABORT_MESSAGE_INFO_KHR};
+    VkDeviceFaultDebugInfoKHR debugInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_DEBUG_INFO_KHR};
+    debugInfo.pNext = &abortInfo;
+
+    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS || abortInfo.messageDataSize == 0)
+        return;
+
+    std::vector<char> buffer(abortInfo.messageDataSize);
+    abortInfo.pMessageData = buffer.data();
+    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS)
+        return;
+
+    // The message data is not guaranteed to be null-terminated; bound it to the reported size.
+    std::string message(buffer.data(), buffer.size());
+    handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, ("Shader abort: " + message).c_str());
+#endif
 }
 
 Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)

@@ -542,6 +542,22 @@ struct VulkanExtendedFeatures
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV cooperativeMatrix2Features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
     };
+
+    // Shader abort features (VK_KHR_shader_abort). Guarded because these symbols only exist in
+    // Vulkan-Headers >= v1.4.347; older overrides of SLANG_RHI_VULKAN_HEADERS_URL still compile.
+#if defined(VK_KHR_shader_abort)
+    VkPhysicalDeviceShaderAbortFeaturesKHR shaderAbortFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ABORT_FEATURES_KHR
+    };
+#endif
+#if defined(VK_KHR_device_fault)
+    VkPhysicalDeviceFaultFeaturesKHR faultFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_KHR};
+#endif
+#if defined(VK_KHR_shader_constant_data)
+    VkPhysicalDeviceShaderConstantDataFeaturesKHR shaderConstantDataFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CONSTANT_DATA_FEATURES_KHR
+    };
+#endif
 };
 
 struct VulkanApi
