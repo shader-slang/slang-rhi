@@ -1,0 +1,76 @@
+version = 1
+SPDX-PackageName = "Slang Render Hardware Interface"
+SPDX-PackageSupplier = "The Khronos Group, Inc."
+SPDX-PackageDownloadLocation = "https://github.com/shader-slang/slang-rhi"
+
+[[annotations]]
+path = [
+  ".claude/**",
+  ".github/**",
+  ".gitignore/**",
+  ".clang-format",
+  ".coderabbit.yaml",
+  ".editorconfig",
+  ".gitignore",
+  ".pre-commit-config.yaml",
+  "CHANGELOG",
+  "cmake/**",
+  "CMake*",
+  "docs/**",
+  "examples/**",
+  "include/**",
+  "src/**",
+  "tests/**",
+  "tools/**",
+]
+precedence = "closest"
+SPDX-FileCopyrightText = [
+  "Carnegie Mellon University and NVIDIA Corporation",
+  "The Khronos Group, Inc.",
+]
+SPDX-License-Identifier = "Apache-2.0 WITH LLVM-exception"
+
+[[annotations]]
+path = [
+  "external/d3d12ma/**",
+  "external/vma/**",
+]
+precedence = "closest"
+SPDX-FileCopyrightText = ["Advanced Micro Devices, Inc."]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "external/doctest/doctest.h"
+precedence = "closest"
+SPDX-FileCopyrightText = "2016-2023 Viktor Kirilov"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "external/renderdoc/**"
+precedence = "closest"
+SPDX-FileCopyrightText = ["Baldur Karlsson"]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "external/stb/**"
+precedence = "closest"
+SPDX-FileCopyrightText = ["Sean Barrett"]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "examples/shader-toy/circle.slang"
+precedence = "closest"
+SPDX-FileCopyrightText = "Shader Toy"
+SPDX-License-Identifier = "CC-BY-NC-SA-3.0"
+
+[[annotations]]
+path = "examples/shader-toy/ocean.slang"
+precedence = "closest"
+SPDX-FileCopyrightText = "Shader Toy"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = ["src/core/offset-allocator.h", "src/core/offset-allocator.cpp", "tests/test-offset-allocator.cpp"]
+precedence = "closest"
+SPDX-FileCopyrightText = "Sebastian Aaltonen 2023"
+SPDX-License-Identifier = "MIT"
