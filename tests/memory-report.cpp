@@ -33,14 +33,15 @@ struct MemoryReportSnapshot
     ProcessMemoryUsage usage;
 };
 
+static constexpr size_t kInvalidSnapshotIndex = std::numeric_limits<size_t>::max();
+
 struct MemoryReportState
 {
     std::vector<MemoryReportSnapshot> snapshots;
-    size_t sampledPeakSnapshotIndex = std::numeric_limits<size_t>::max();
+    size_t sampledPeakSnapshotIndex = kInvalidSnapshotIndex;
 };
 
 static MemoryReportState gMemoryReport;
-static constexpr size_t kInvalidSnapshotIndex = std::numeric_limits<size_t>::max();
 
 static std::string jsonEscape(std::string_view value)
 {
