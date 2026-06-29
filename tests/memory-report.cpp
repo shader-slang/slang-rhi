@@ -9,7 +9,6 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <limits>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -33,15 +32,7 @@ struct MemoryReportSnapshot
     ProcessMemoryUsage usage;
 };
 
-static constexpr size_t kInvalidSnapshotIndex = std::numeric_limits<size_t>::max();
-
-struct MemoryReportState
-{
-    std::vector<MemoryReportSnapshot> snapshots;
-    size_t sampledPeakSnapshotIndex = kInvalidSnapshotIndex;
-};
-
-static MemoryReportState gMemoryReport;
+static std::vector<MemoryReportSnapshot> gMemoryReportSnapshots;
 
 static std::string jsonEscape(std::string_view value)
 {
@@ -110,14 +101,20 @@ static void writeJsonNull(std::ostream& stream, const char* name, bool trailingC
     stream << "  \"" << name << "\": null" << (trailingComma ? ",\n" : "\n");
 }
 
+static void writeJsonSnapshotFields(std::ostream& stream, const MemoryReportSnapshot& snapshot, const char* indent)
+{
+    const std::string usageIndent = std::string(indent) + "  ";
+    stream << indent << "\"label\": \"" << jsonEscape(snapshot.label) << "\",\n";
+    stream << indent << "\"usage\": {\n";
+    writeJsonUsageFields(stream, snapshot.usage, usageIndent.c_str());
+    stream << indent << "}\n";
+}
+
 static void writeJsonSnapshotValue(std::ostream& stream, const MemoryReportSnapshot& snapshot, const char* indent)
 {
-    std::string usageIndent = std::string(indent) + "    ";
+    const std::string fieldIndent = std::string(indent) + "  ";
     stream << indent << "{\n";
-    stream << indent << "  \"label\": \"" << jsonEscape(snapshot.label) << "\",\n";
-    stream << indent << "  \"usage\": {\n";
-    writeJsonUsageFields(stream, snapshot.usage, usageIndent.c_str());
-    stream << indent << "  }\n";
+    writeJsonSnapshotFields(stream, snapshot, fieldIndent.c_str());
     stream << indent << "}";
 }
 
@@ -135,10 +132,7 @@ static void writeJsonSnapshot(
     }
 
     stream << "  \"" << name << "\": {\n";
-    stream << "    \"label\": \"" << jsonEscape(snapshot->label) << "\",\n";
-    stream << "    \"usage\": {\n";
-    writeJsonUsageFields(stream, snapshot->usage, "      ");
-    stream << "    }\n";
+    writeJsonSnapshotFields(stream, *snapshot, "    ");
     stream << "  }" << (trailingComma ? ",\n" : "\n");
 }
 
@@ -167,9 +161,16 @@ static ProcessMemoryUsage maxObservedUsage(const ProcessMemoryUsage& usage)
 
 static const MemoryReportSnapshot* getSampledPeakSnapshot()
 {
-    if (gMemoryReport.sampledPeakSnapshotIndex == kInvalidSnapshotIndex)
+    if (gMemoryReportSnapshots.empty())
         return nullptr;
-    return &gMemoryReport.snapshots[gMemoryReport.sampledPeakSnapshotIndex];
+
+    const MemoryReportSnapshot* result = &gMemoryReportSnapshots.front();
+    for (const MemoryReportSnapshot& snapshot : gMemoryReportSnapshots)
+    {
+        if (snapshot.usage.residentBytes >= result->usage.residentBytes)
+            result = &snapshot;
+    }
+    return result;
 }
 
 static void printMemorySnapshot(const char* label, const ProcessMemoryUsage& usage)
@@ -235,18 +236,19 @@ Result getProcessMemoryUsage(ProcessMemoryUsage* outUsage)
     rusage resourceUsage = {};
     if (getrusage(RUSAGE_SELF, &resourceUsage) == 0)
         usage.peakResidentBytes = uint64_t(resourceUsage.ru_maxrss);
-    usage.peakResidentBytes = std::max(usage.peakResidentBytes, usage.residentBytes);
 #else
     return SLANG_E_NOT_AVAILABLE;
 #endif
 
+    usage.peakResidentBytes = std::max(usage.peakResidentBytes, usage.residentBytes);
+    usage.peakCommitBytes = std::max(usage.peakCommitBytes, usage.commitBytes);
     *outUsage = usage;
     return SLANG_OK;
 }
 
 void resetMemoryReport()
 {
-    gMemoryReport = MemoryReportState();
+    gMemoryReportSnapshots = {};
 }
 
 void sampleMemoryReport(std::string_view label)
@@ -258,17 +260,7 @@ void sampleMemoryReport(std::string_view label)
     if (SLANG_FAILED(getProcessMemoryUsage(&usage)))
         return;
 
-    MemoryReportSnapshot snapshot;
-    snapshot.label = std::string(label);
-    snapshot.usage = usage;
-    gMemoryReport.snapshots.push_back(snapshot);
-
-    const size_t snapshotIndex = gMemoryReport.snapshots.size() - 1;
-    if (gMemoryReport.sampledPeakSnapshotIndex == kInvalidSnapshotIndex ||
-        usage.residentBytes >= gMemoryReport.snapshots[gMemoryReport.sampledPeakSnapshotIndex].usage.residentBytes)
-    {
-        gMemoryReport.sampledPeakSnapshotIndex = snapshotIndex;
-    }
+    gMemoryReportSnapshots.push_back({std::string(label), usage});
 }
 
 void printMemoryReport()
@@ -277,9 +269,9 @@ void printMemoryReport()
         return;
 
     std::printf("\nMemory report:\n");
-    std::printf("  samples: %llu\n", static_cast<unsigned long long>(gMemoryReport.snapshots.size()));
+    std::printf("  samples: %llu\n", static_cast<unsigned long long>(gMemoryReportSnapshots.size()));
 
-    if (gMemoryReport.snapshots.empty())
+    if (gMemoryReportSnapshots.empty())
     {
         std::printf("  no process memory measurements available\n");
         return;
@@ -289,7 +281,7 @@ void printMemoryReport()
     if (sampledPeakSnapshot)
         printMemorySnapshot("sampled peak", sampledPeakSnapshot->usage);
 
-    ProcessMemoryUsage observedPeak = maxObservedUsage(gMemoryReport.snapshots.back().usage);
+    ProcessMemoryUsage observedPeak = maxObservedUsage(gMemoryReportSnapshots.back().usage);
     std::printf(
         "  %-29s resident=%s, private/commit=%s\n",
         "os observed peak",
@@ -301,7 +293,7 @@ void printMemoryReport()
         std::printf("  highest sampled point: %s\n", sampledPeakSnapshot->label.c_str());
     }
 
-    for (const MemoryReportSnapshot& snapshot : gMemoryReport.snapshots)
+    for (const MemoryReportSnapshot& snapshot : gMemoryReportSnapshots)
     {
         printMemorySnapshot(snapshot.label.c_str(), snapshot.usage);
     }
@@ -325,13 +317,13 @@ void writeMemoryReport()
     }
 
     stream << "{\n";
-    stream << "  \"sampleCount\": " << gMemoryReport.snapshots.size() << ",\n";
+    stream << "  \"sampleCount\": " << gMemoryReportSnapshots.size() << ",\n";
 
     const MemoryReportSnapshot* sampledPeakSnapshot = getSampledPeakSnapshot();
     writeJsonSnapshot(stream, "sampledPeak", sampledPeakSnapshot, true);
 
     const MemoryReportSnapshot* lastSnapshot =
-        gMemoryReport.snapshots.empty() ? nullptr : &gMemoryReport.snapshots.back();
+        gMemoryReportSnapshots.empty() ? nullptr : &gMemoryReportSnapshots.back();
     writeJsonSnapshot(stream, "last", lastSnapshot, true);
 
     if (lastSnapshot)
@@ -345,10 +337,10 @@ void writeMemoryReport()
     }
 
     stream << "  \"snapshots\": [\n";
-    for (size_t i = 0; i < gMemoryReport.snapshots.size(); ++i)
+    for (size_t i = 0; i < gMemoryReportSnapshots.size(); ++i)
     {
-        writeJsonSnapshotValue(stream, gMemoryReport.snapshots[i], "    ");
-        stream << (i + 1 < gMemoryReport.snapshots.size() ? ",\n" : "\n");
+        writeJsonSnapshotValue(stream, gMemoryReportSnapshots[i], "    ");
+        stream << (i + 1 < gMemoryReportSnapshots.size() ? ",\n" : "\n");
     }
     stream << "  ]\n";
     stream << "}\n";
