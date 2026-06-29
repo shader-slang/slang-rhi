@@ -10,8 +10,10 @@
 #include <filesystem>
 #include <fstream>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 #if SLANG_WINDOWS_FAMILY
@@ -85,8 +87,8 @@ static void writeJsonUsageFields(std::ostream& stream, const ProcessMemoryUsage&
 {
     stream << indent << "\"residentBytes\": " << usage.residentBytes << ",\n";
     stream << indent << "\"peakResidentBytes\": " << usage.peakResidentBytes << ",\n";
-    stream << indent << "\"commitBytes\": " << usage.commitBytes << ",\n";
-    stream << indent << "\"peakCommitBytes\": " << usage.peakCommitBytes << "\n";
+    stream << indent << "\"commitOrVirtualBytes\": " << usage.commitOrVirtualBytes << ",\n";
+    stream << indent << "\"peakCommitOrVirtualBytes\": " << usage.peakCommitOrVirtualBytes << "\n";
 }
 
 static void writeJsonUsage(std::ostream& stream, const char* name, const ProcessMemoryUsage& usage, bool trailingComma)
@@ -155,17 +157,17 @@ static ProcessMemoryUsage maxObservedUsage(const ProcessMemoryUsage& usage)
 {
     ProcessMemoryUsage result = usage;
     result.residentBytes = std::max(usage.residentBytes, usage.peakResidentBytes);
-    result.commitBytes = std::max(usage.commitBytes, usage.peakCommitBytes);
+    result.commitOrVirtualBytes = std::max(usage.commitOrVirtualBytes, usage.peakCommitOrVirtualBytes);
     return result;
 }
 
-static const MemoryReportSnapshot* getSampledPeakSnapshot()
+static const MemoryReportSnapshot* getSampledPeakSnapshot(const std::vector<MemoryReportSnapshot>& snapshots)
 {
-    if (gMemoryReportSnapshots.empty())
+    if (snapshots.empty())
         return nullptr;
 
-    const MemoryReportSnapshot* result = &gMemoryReportSnapshots.front();
-    for (const MemoryReportSnapshot& snapshot : gMemoryReportSnapshots)
+    const MemoryReportSnapshot* result = &snapshots.front();
+    for (const MemoryReportSnapshot& snapshot : snapshots)
     {
         if (snapshot.usage.residentBytes >= result->usage.residentBytes)
             result = &snapshot;
@@ -176,13 +178,47 @@ static const MemoryReportSnapshot* getSampledPeakSnapshot()
 static void printMemorySnapshot(const char* label, const ProcessMemoryUsage& usage)
 {
     std::printf(
-        "  %-29s resident=%s, os-peak-resident=%s, private/commit=%s, peak-private/commit=%s\n",
+        "  %-29s resident=%s, os-peak-resident=%s, commit/virtual=%s, peak-commit/virtual=%s\n",
         label,
         formatBytes(usage.residentBytes).c_str(),
         formatBytes(usage.peakResidentBytes).c_str(),
-        formatBytes(usage.commitBytes).c_str(),
-        formatBytes(usage.peakCommitBytes).c_str()
+        formatBytes(usage.commitOrVirtualBytes).c_str(),
+        formatBytes(usage.peakCommitOrVirtualBytes).c_str()
     );
+}
+
+static void writeMemoryReportToStream(
+    std::ostream& stream,
+    const std::vector<MemoryReportSnapshot>& memoryReportSnapshots
+)
+{
+    stream << "{\n";
+    stream << "  \"sampleCount\": " << memoryReportSnapshots.size() << ",\n";
+
+    const MemoryReportSnapshot* sampledPeakSnapshot = getSampledPeakSnapshot(memoryReportSnapshots);
+    writeJsonSnapshot(stream, "sampledPeak", sampledPeakSnapshot, true);
+
+    const MemoryReportSnapshot* lastSnapshot = memoryReportSnapshots.empty() ? nullptr : &memoryReportSnapshots.back();
+    writeJsonSnapshot(stream, "last", lastSnapshot, true);
+
+    if (lastSnapshot)
+    {
+        ProcessMemoryUsage observedPeak = maxObservedUsage(lastSnapshot->usage);
+        writeJsonUsage(stream, "osObservedPeak", observedPeak, true);
+    }
+    else
+    {
+        writeJsonNull(stream, "osObservedPeak", true);
+    }
+
+    stream << "  \"snapshots\": [\n";
+    for (size_t i = 0; i < memoryReportSnapshots.size(); ++i)
+    {
+        writeJsonSnapshotValue(stream, memoryReportSnapshots[i], "    ");
+        stream << (i + 1 < memoryReportSnapshots.size() ? ",\n" : "\n");
+    }
+    stream << "  ]\n";
+    stream << "}\n";
 }
 
 Result getProcessMemoryUsage(ProcessMemoryUsage* outUsage)
@@ -205,8 +241,8 @@ Result getProcessMemoryUsage(ProcessMemoryUsage* outUsage)
     }
     usage.residentBytes = uint64_t(counters.WorkingSetSize);
     usage.peakResidentBytes = uint64_t(counters.PeakWorkingSetSize);
-    usage.commitBytes = uint64_t(counters.PrivateUsage);
-    usage.peakCommitBytes = uint64_t(counters.PeakPagefileUsage);
+    usage.commitOrVirtualBytes = uint64_t(counters.PrivateUsage);
+    usage.peakCommitOrVirtualBytes = uint64_t(counters.PeakPagefileUsage);
 #elif SLANG_LINUX_FAMILY
     std::ifstream status("/proc/self/status");
     if (!status.is_open())
@@ -219,9 +255,9 @@ Result getProcessMemoryUsage(ProcessMemoryUsage* outUsage)
         else if (uint64_t vmHwm = parseStatusBytes(line, "VmHWM:"))
             usage.peakResidentBytes = vmHwm;
         else if (uint64_t vmSize = parseStatusBytes(line, "VmSize:"))
-            usage.commitBytes = vmSize;
+            usage.commitOrVirtualBytes = vmSize;
         else if (uint64_t vmPeak = parseStatusBytes(line, "VmPeak:"))
-            usage.peakCommitBytes = vmPeak;
+            usage.peakCommitOrVirtualBytes = vmPeak;
     }
     rusage resourceUsage = {};
     if (getrusage(RUSAGE_SELF, &resourceUsage) == 0 && usage.peakResidentBytes == 0)
@@ -232,7 +268,7 @@ Result getProcessMemoryUsage(ProcessMemoryUsage* outUsage)
     if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&info), &count) != KERN_SUCCESS)
         return SLANG_FAIL;
     usage.residentBytes = uint64_t(info.resident_size);
-    usage.commitBytes = uint64_t(info.virtual_size);
+    usage.commitOrVirtualBytes = uint64_t(info.virtual_size);
     rusage resourceUsage = {};
     if (getrusage(RUSAGE_SELF, &resourceUsage) == 0)
         usage.peakResidentBytes = uint64_t(resourceUsage.ru_maxrss);
@@ -241,7 +277,7 @@ Result getProcessMemoryUsage(ProcessMemoryUsage* outUsage)
 #endif
 
     usage.peakResidentBytes = std::max(usage.peakResidentBytes, usage.residentBytes);
-    usage.peakCommitBytes = std::max(usage.peakCommitBytes, usage.commitBytes);
+    usage.peakCommitOrVirtualBytes = std::max(usage.peakCommitOrVirtualBytes, usage.commitOrVirtualBytes);
     *outUsage = usage;
     return SLANG_OK;
 }
@@ -265,7 +301,7 @@ void sampleMemoryReport(std::string_view label)
 
 void printMemoryReport()
 {
-    if (!options().memoryReport)
+    if (!options().printMemoryReport)
         return;
 
     std::printf("\nMemory report:\n");
@@ -277,16 +313,16 @@ void printMemoryReport()
         return;
     }
 
-    const MemoryReportSnapshot* sampledPeakSnapshot = getSampledPeakSnapshot();
+    const MemoryReportSnapshot* sampledPeakSnapshot = getSampledPeakSnapshot(gMemoryReportSnapshots);
     if (sampledPeakSnapshot)
         printMemorySnapshot("sampled peak", sampledPeakSnapshot->usage);
 
     ProcessMemoryUsage observedPeak = maxObservedUsage(gMemoryReportSnapshots.back().usage);
     std::printf(
-        "  %-29s resident=%s, private/commit=%s\n",
+        "  %-29s resident=%s, commit/virtual=%s\n",
         "os observed peak",
         formatBytes(observedPeak.residentBytes).c_str(),
-        formatBytes(observedPeak.commitBytes).c_str()
+        formatBytes(observedPeak.commitOrVirtualBytes).c_str()
     );
     if (sampledPeakSnapshot && !sampledPeakSnapshot->label.empty())
     {
@@ -306,8 +342,21 @@ void writeMemoryReport()
         return;
 
     std::filesystem::path reportPath(path);
+    std::error_code errorCode;
     if (reportPath.has_parent_path())
-        std::filesystem::create_directories(reportPath.parent_path());
+    {
+        std::filesystem::create_directories(reportPath.parent_path(), errorCode);
+        if (errorCode)
+        {
+            std::fprintf(
+                stderr,
+                "Failed to create memory report directory: %s (%s)\n",
+                path.c_str(),
+                errorCode.message().c_str()
+            );
+            return;
+        }
+    }
 
     std::ofstream stream(reportPath);
     if (!stream.is_open())
@@ -316,34 +365,7 @@ void writeMemoryReport()
         return;
     }
 
-    stream << "{\n";
-    stream << "  \"sampleCount\": " << gMemoryReportSnapshots.size() << ",\n";
-
-    const MemoryReportSnapshot* sampledPeakSnapshot = getSampledPeakSnapshot();
-    writeJsonSnapshot(stream, "sampledPeak", sampledPeakSnapshot, true);
-
-    const MemoryReportSnapshot* lastSnapshot =
-        gMemoryReportSnapshots.empty() ? nullptr : &gMemoryReportSnapshots.back();
-    writeJsonSnapshot(stream, "last", lastSnapshot, true);
-
-    if (lastSnapshot)
-    {
-        ProcessMemoryUsage observedPeak = maxObservedUsage(lastSnapshot->usage);
-        writeJsonUsage(stream, "osObservedPeak", observedPeak, true);
-    }
-    else
-    {
-        writeJsonNull(stream, "osObservedPeak", true);
-    }
-
-    stream << "  \"snapshots\": [\n";
-    for (size_t i = 0; i < gMemoryReportSnapshots.size(); ++i)
-    {
-        writeJsonSnapshotValue(stream, gMemoryReportSnapshots[i], "    ");
-        stream << (i + 1 < gMemoryReportSnapshots.size() ? ",\n" : "\n");
-    }
-    stream << "  ]\n";
-    stream << "}\n";
+    writeMemoryReportToStream(stream, gMemoryReportSnapshots);
 }
 
 } // namespace rhi::testing

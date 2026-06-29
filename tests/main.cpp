@@ -91,6 +91,7 @@ int main(int argc, const char** argv)
         if (doctest::parseFlag(argc, argv, "memory-report"))
         {
             options.memoryReport = true;
+            options.printMemoryReport = true;
         }
 
         doctest::String memoryReportFile;

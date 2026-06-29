@@ -11,8 +11,9 @@ struct ProcessMemoryUsage
 {
     uint64_t residentBytes = 0;
     uint64_t peakResidentBytes = 0;
-    uint64_t commitBytes = 0;
-    uint64_t peakCommitBytes = 0;
+    // Windows reports commit/private usage here; Linux and macOS report virtual address space.
+    uint64_t commitOrVirtualBytes = 0;
+    uint64_t peakCommitOrVirtualBytes = 0;
 };
 
 Result getProcessMemoryUsage(ProcessMemoryUsage* outUsage);

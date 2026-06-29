@@ -25,6 +25,7 @@ struct Options
     bool checkDevices = false;
     bool listDevices = false;
     bool memoryReport = false;
+    bool printMemoryReport = false;
     std::string memoryReportFile;
     std::array<bool, kDeviceTypeCount + 1> deviceSelected;
     std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
