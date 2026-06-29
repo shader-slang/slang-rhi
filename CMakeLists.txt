@@ -1083,6 +1083,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-texture-view.cpp
         tests/test-timer.cpp
         tests/test-uint16-structured-buffer.cpp
+        tests/memory-report.cpp
         tests/testing.cpp
         tests/texture-utils.cpp
         tests/texture-test.cpp
@@ -1103,6 +1104,9 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
     target_include_directories(slang-rhi-tests PRIVATE tests src)
     target_link_libraries(slang-rhi-tests PRIVATE slang-rhi-warnings slang-rhi-warnings-as-errors)
     target_link_libraries(slang-rhi-tests PRIVATE doctest slang-rhi-stb slang slang-rhi $<$<BOOL:${SLANG_RHI_BUILD_TESTS_WITH_GLFW}>:glfw> renderdoc)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        target_link_libraries(slang-rhi-tests PRIVATE psapi)
+    endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_package(Threads REQUIRED)
         target_link_libraries(slang-rhi-tests PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
