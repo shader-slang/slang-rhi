@@ -85,7 +85,7 @@ void reportVulkanError(VkResult res, const char* call, const SourceLocation loca
         // is enabled. `device` in the Vulkan backend is always a vk::DeviceImpl.
         if (device)
         {
-            static_cast<DeviceImpl*>(device)->reportShaderAbortMessage();
+            checked_cast<DeviceImpl*>(device)->reportShaderAbortMessage();
         }
     }
 

@@ -646,15 +646,9 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
-#if defined(VK_KHR_shader_abort)
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderAbortFeatures);
-#endif
-#if defined(VK_KHR_device_fault)
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.faultFeatures);
-#endif
-#if defined(VK_KHR_shader_constant_data)
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderConstantDataFeatures);
-#endif
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -723,7 +717,6 @@ Result DeviceImpl::initVulkanDevice(
         }                                                                                                              \
     }
 
-#if defined(VK_KHR_shader_abort) && defined(VK_KHR_device_fault) && defined(VK_KHR_shader_constant_data)
         // VK_KHR_shader_abort lets a shader call abort() (lowered by Slang to OpAbortKHR). Executing
         // it ceases the invocation and loses the device; the abort message is then retrievable only
         // via VK_KHR_device_fault (vkGetDeviceFaultDebugInfoKHR + VkDeviceFaultShaderAbortMessageInfoKHR).
@@ -756,9 +749,7 @@ Result DeviceImpl::initVulkanDevice(
                 VK_KHR_SHADER_ABORT_EXTENSION_NAME
             );
             availableFeatures.push_back(Feature::ShaderAbort);
-            m_supportsShaderAbort = true;
         }
-#endif
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderDrawParametersFeatures,
@@ -1427,11 +1418,9 @@ Result DeviceImpl::initVulkanDevice(
 
 void DeviceImpl::reportShaderAbortMessage()
 {
-    // VkDeviceFaultShaderAbortMessageInfoKHR comes from VK_KHR_shader_abort while
-    // vkGetDeviceFaultDebugInfoKHR / VkDeviceFaultDebugInfoKHR come from VK_KHR_device_fault, so both
-    // header guards are required for this body to compile.
-#if defined(VK_KHR_device_fault) && defined(VK_KHR_shader_abort)
-    if (!m_supportsShaderAbort || m_device == VK_NULL_HANDLE)
+    // No-op unless the full shader-abort round-trip was enabled at device creation (Feature::ShaderAbort)
+    // and we still hold a device handle to query.
+    if (!hasFeature(Feature::ShaderAbort) || m_device == VK_NULL_HANDLE)
         return;
 
     // vkGetDeviceFaultDebugInfoKHR is an error-path entry point, so load it on demand rather than
@@ -1458,7 +1447,6 @@ void DeviceImpl::reportShaderAbortMessage()
     // The message data is not guaranteed to be null-terminated; bound it to the reported size.
     std::string message(buffer.data(), buffer.size());
     handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, ("Shader abort: " + message).c_str());
-#endif
 }
 
 Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)

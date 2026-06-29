@@ -241,8 +241,6 @@ public:
 
     VkDevice m_device = VK_NULL_HANDLE;
     bool m_hasSubgroupSizeControl = false;
-    /// True when VK_KHR_shader_abort + VK_KHR_device_fault are enabled (Feature::ShaderAbort).
-    bool m_supportsShaderAbort = false;
     CalibratedTimestampSupport m_calibratedTimestampSupport;
 
     /// If a shader called abort() (OpAbortKHR) the device is lost; retrieve the abort message via
