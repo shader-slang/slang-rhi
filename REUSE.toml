@@ -4,9 +4,30 @@ SPDX-PackageSupplier = "The Khronos Group, Inc."
 SPDX-PackageDownloadLocation = "https://github.com/shader-slang/slang-rhi"
 
 [[annotations]]
-path = "**"
+path = [
+  ".claude/**",
+  ".github/**",
+  ".gitignore/**",
+  ".clang-format",
+  ".coderabbit.yaml",
+  ".editorconfig",
+  ".gitignore",
+  ".pre-commit-config.yaml",
+  "CHANGELOG",
+  "cmake/**",
+  "CMake*",
+  "docs/**",
+  "examples/**",
+  "include/**",
+  "src/**",
+  "tests/**",
+  "tools/**",
+]
 precedence = "closest"
-SPDX-FileCopyrightText = ["2016, Carnegie Mellon University and NVIDIA Corporation", "2024-2026 The Khronos Group, Inc."]
+SPDX-FileCopyrightText = [
+  "Carnegie Mellon University and NVIDIA Corporation",
+  "The Khronos Group, Inc.",
+]
 SPDX-License-Identifier = "Apache-2.0 WITH LLVM-exception"
 
 [[annotations]]
@@ -53,9 +74,3 @@ path = ["src/core/offset-allocator.h", "src/core/offset-allocator.cpp", "tests/t
 precedence = "closest"
 SPDX-FileCopyrightText = "Sebastian Aaltonen 2023"
 SPDX-License-Identifier = "MIT"
-
-[[annotations]]
-path = ["CODE_OF_CONDUCT.md", "CONTRIBUTING.md", "README.md"]
-precedence = "closest"
-SPDX-FileCopyrightText = "2024-2026 The Khronos Group, Inc."
-SPDX-License-Identifier = "CC-BY-4.0"
