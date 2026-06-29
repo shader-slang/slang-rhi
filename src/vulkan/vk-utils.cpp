@@ -3,6 +3,7 @@
 #include "aftermath.h"
 #include "core/common.h"
 #include "core/diagnostics.h"
+#include "device-child.h"
 #include "device.h"
 #include "vk-device.h"
 
@@ -82,10 +83,13 @@ void reportVulkanError(VkResult res, const char* call, const SourceLocation loca
         // A device loss may have been caused by a shader calling abort(); if so, surface the abort
         // message (retrieved via VK_KHR_device_fault) before the generic device-lost error so the
         // caller can distinguish an abort from an unrelated failure. No-op unless Feature::ShaderAbort
-        // is enabled. `device` in the Vulkan backend is always a vk::DeviceImpl.
+        // is enabled.
         if (device)
         {
-            checked_cast<DeviceImpl*>(device)->reportShaderAbortMessage();
+            // `device` in the Vulkan backend is always a vk::DeviceImpl; recover it through the
+            // standard getDevice<>() helper rather than an explicit cast.
+            DeviceChild deviceChild(device);
+            deviceChild.getDevice<DeviceImpl>()->reportShaderAbortMessage();
         }
     }
 
