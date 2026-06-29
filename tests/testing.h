@@ -8,6 +8,7 @@
 #include "../src/core/blob.h"
 
 #include <array>
+#include <string>
 #include <string_view>
 #include <vector>
 #include <span>
@@ -23,6 +24,9 @@ struct Options
     bool verbose = false;
     bool checkDevices = false;
     bool listDevices = false;
+    bool memoryReport = false;
+    bool printMemoryReport = false;
+    std::string memoryReportFile;
     std::array<bool, kDeviceTypeCount + 1> deviceSelected;
     std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
     int optixVersion = 0;
