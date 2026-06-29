@@ -1,4 +1,5 @@
 #include "testing.h"
+#include "memory-report.h"
 #include <slang-rhi/agility-sdk.h>
 
 #define DOCTEST_CONFIG_IMPLEMENT
@@ -41,18 +42,22 @@ int main(int argc, const char** argv)
     // Parse extra command line options.
     {
         auto& options = rhi::testing::options();
+
         if (doctest::parseFlag(argc, argv, "verbose"))
         {
             options.verbose = true;
         }
+
         if (doctest::parseFlag(argc, argv, "check-devices"))
         {
             options.checkDevices = true;
         }
+
         if (doctest::parseFlag(argc, argv, "list-devices"))
         {
             options.listDevices = true;
         }
+
         std::vector<doctest::String> strings;
         if (doctest::parseCommaSepArgs(argc, argv, "select-devices=", strings))
         {
@@ -80,7 +85,20 @@ int main(int argc, const char** argv)
                 }
             }
         }
+
         doctest::parseIntOption(argc, argv, "optix-version=", doctest::option_int, options.optixVersion);
+
+        if (doctest::parseFlag(argc, argv, "memory-report"))
+        {
+            options.memoryReport = true;
+        }
+
+        doctest::String memoryReportFile;
+        if (doctest::parseOption(argc, argv, "memory-report-file=", &memoryReportFile))
+        {
+            options.memoryReport = true;
+            options.memoryReportFile = memoryReportFile.c_str();
+        }
     }
 
     int result = 1;
@@ -102,11 +120,16 @@ int main(int argc, const char** argv)
             result = 1;
 
         rhi::testing::releaseCachedDevices();
+        rhi::testing::sampleMemoryReport("after-release-cached-devices");
     }
 
     rhi::testing::cleanupTestTempDirectories();
 
     rhi::destroyRHI();
+
+    rhi::testing::sampleMemoryReport("after-destroy-rhi");
+    rhi::testing::printMemoryReport();
+    rhi::testing::writeMemoryReport();
 
 #if SLANG_RHI_ENABLE_REF_OBJECT_TRACKING
     if (!rhi::RefObjectTracker::instance().objects.empty())
