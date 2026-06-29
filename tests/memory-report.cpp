@@ -214,14 +214,14 @@ Result getProcessMemoryUsage(ProcessMemoryUsage* outUsage)
     std::string line;
     while (std::getline(status, line))
     {
-        if (uint64_t value = parseStatusBytes(line, "VmRSS:"))
-            usage.residentBytes = value;
-        else if (uint64_t value = parseStatusBytes(line, "VmHWM:"))
-            usage.peakResidentBytes = value;
-        else if (uint64_t value = parseStatusBytes(line, "VmSize:"))
-            usage.commitBytes = value;
-        else if (uint64_t value = parseStatusBytes(line, "VmPeak:"))
-            usage.peakCommitBytes = value;
+        if (uint64_t vmRss = parseStatusBytes(line, "VmRSS:"))
+            usage.residentBytes = vmRss;
+        else if (uint64_t vmHwm = parseStatusBytes(line, "VmHWM:"))
+            usage.peakResidentBytes = vmHwm;
+        else if (uint64_t vmSize = parseStatusBytes(line, "VmSize:"))
+            usage.commitBytes = vmSize;
+        else if (uint64_t vmPeak = parseStatusBytes(line, "VmPeak:"))
+            usage.peakCommitBytes = vmPeak;
     }
     rusage resourceUsage = {};
     if (getrusage(RUSAGE_SELF, &resourceUsage) == 0 && usage.peakResidentBytes == 0)
