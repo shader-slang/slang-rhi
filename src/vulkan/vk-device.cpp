@@ -286,6 +286,39 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
     return ((DeviceImpl*)pUserData)->handleDebugMessage(messageSeverity, messageTypes, pCallbackData);
 }
 
+void DeviceImpl::reportShaderAbortMessage()
+{
+    // No-op unless the full shader-abort round-trip was enabled at device creation (Feature::ShaderAbort)
+    // and we still hold a device handle to query.
+    if (!hasFeature(Feature::ShaderAbort) || m_device == VK_NULL_HANDLE)
+        return;
+
+    // vkGetDeviceFaultDebugInfoKHR is an error-path entry point, so load it on demand rather than
+    // through the device proc table.
+    auto vkGetDeviceFaultDebugInfoKHR =
+        (PFN_vkGetDeviceFaultDebugInfoKHR)m_api.vkGetDeviceProcAddr(m_device, "vkGetDeviceFaultDebugInfoKHR");
+    if (!vkGetDeviceFaultDebugInfoKHR)
+        return;
+
+    // Chain VkDeviceFaultShaderAbortMessageInfoKHR so the driver fills in the message produced by
+    // OpAbortKHR. Use the standard two-call pattern: query the size first, then retrieve the data.
+    VkDeviceFaultShaderAbortMessageInfoKHR abortInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_SHADER_ABORT_MESSAGE_INFO_KHR};
+    VkDeviceFaultDebugInfoKHR debugInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_DEBUG_INFO_KHR};
+    debugInfo.pNext = &abortInfo;
+
+    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS || abortInfo.messageDataSize == 0)
+        return;
+
+    std::vector<char> buffer(abortInfo.messageDataSize);
+    abortInfo.pMessageData = buffer.data();
+    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS)
+        return;
+
+    // The message data is not guaranteed to be null-terminated; bound it to the reported size.
+    std::string message(buffer.data(), buffer.size());
+    handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, ("Shader abort: " + message).c_str());
+}
+
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
 {
     outHandles->handles[0].type = NativeHandleType::VkInstance;
@@ -1414,39 +1447,6 @@ Result DeviceImpl::initVulkanDevice(
     }
 
     return SLANG_OK;
-}
-
-void DeviceImpl::reportShaderAbortMessage()
-{
-    // No-op unless the full shader-abort round-trip was enabled at device creation (Feature::ShaderAbort)
-    // and we still hold a device handle to query.
-    if (!hasFeature(Feature::ShaderAbort) || m_device == VK_NULL_HANDLE)
-        return;
-
-    // vkGetDeviceFaultDebugInfoKHR is an error-path entry point, so load it on demand rather than
-    // through the device proc table.
-    auto vkGetDeviceFaultDebugInfoKHR =
-        (PFN_vkGetDeviceFaultDebugInfoKHR)m_api.vkGetDeviceProcAddr(m_device, "vkGetDeviceFaultDebugInfoKHR");
-    if (!vkGetDeviceFaultDebugInfoKHR)
-        return;
-
-    // Chain VkDeviceFaultShaderAbortMessageInfoKHR so the driver fills in the message produced by
-    // OpAbortKHR. Use the standard two-call pattern: query the size first, then retrieve the data.
-    VkDeviceFaultShaderAbortMessageInfoKHR abortInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_SHADER_ABORT_MESSAGE_INFO_KHR};
-    VkDeviceFaultDebugInfoKHR debugInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_DEBUG_INFO_KHR};
-    debugInfo.pNext = &abortInfo;
-
-    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS || abortInfo.messageDataSize == 0)
-        return;
-
-    std::vector<char> buffer(abortInfo.messageDataSize);
-    abortInfo.pMessageData = buffer.data();
-    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS)
-        return;
-
-    // The message data is not guaranteed to be null-terminated; bound it to the reported size.
-    std::string message(buffer.data(), buffer.size());
-    handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, ("Shader abort: " + message).c_str());
 }
 
 Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
