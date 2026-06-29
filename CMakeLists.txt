@@ -212,8 +212,8 @@ endif()
 
 # Vulkan headers
 if(NOT DEFINED SLANG_RHI_VULKAN_HEADERS_URL)
-    set(SLANG_RHI_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.318.zip")
-    set(SLANG_RHI_VULKAN_HEADERS_URL_HASH "SHA256=182bcf135d01d1cd27afac116acdb9b91e860c07a535af4cde75429909fa6e2c")
+    set(SLANG_RHI_VULKAN_HEADERS_URL "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.347.zip")
+    set(SLANG_RHI_VULKAN_HEADERS_URL_HASH "SHA256=ac260b9d0bacbdff95c6eda03f9af48a4d235eeba76b2bc55db26e970219687e")
 endif()
 
 # Metal C++ headers
