@@ -181,7 +181,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     commitBarriers();
     m_stateTracking.clear();
 
-    SLANG_RETURN_ON_FAIL(m_cmdList->Close());
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_cmdList->Close(), m_device);
 
     return SLANG_OK;
 }
@@ -1873,7 +1873,10 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
 
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_d3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_d3dQueue.writeRef())),
+        m_device
+    );
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     if (device->m_aftermathCrashDumper)
@@ -1882,7 +1885,10 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     }
 #endif
 
-    SLANG_RETURN_ON_FAIL(m_d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_trackingFence.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_d3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_trackingFence.writeRef())),
+        m_device
+    );
     m_globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
     return SLANG_OK;
@@ -2004,7 +2010,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     for (uint32_t i = 0; i < desc.waitFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.waitFences[i]);
-        SLANG_RETURN_ON_FAIL(m_d3dQueue->Wait(fence->m_fence.get(), desc.waitFenceValues[i]));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Wait(fence->m_fence.get(), desc.waitFenceValues[i]), m_device);
     }
 
     // Execute command lists.
@@ -2030,10 +2036,10 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     for (uint32_t i = 0; i < desc.signalFenceCount; ++i)
     {
         FenceImpl* fence = checked_cast<FenceImpl*>(desc.signalFences[i]);
-        SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(fence->m_fence.get(), desc.signalFenceValues[i]));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Signal(fence->m_fence.get(), desc.signalFenceValues[i]), m_device);
     }
 
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID), m_device);
 
     retireCommandBuffers();
 
@@ -2055,9 +2061,12 @@ Result CommandQueueImpl::waitOnHost()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_lastSubmittedID++;
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->Signal(m_trackingFence.get(), m_lastSubmittedID), m_device);
     ResetEvent(m_globalWaitHandle);
-    SLANG_RETURN_ON_FAIL(m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_trackingFence->SetEventOnCompletion(m_lastSubmittedID, m_globalWaitHandle),
+        m_device
+    );
     WaitForSingleObject(m_globalWaitHandle, INFINITE);
     device->flushValidationMessages();
     retireCommandBuffers();
@@ -2087,12 +2096,12 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
 
     UINT64 gpuTimestamp = 0;
     UINT64 cpuTimestamp = 0;
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->GetClockCalibration(&gpuTimestamp, &cpuTimestamp));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->GetClockCalibration(&gpuTimestamp, &cpuTimestamp), m_device);
 
     const uint64_t after = getCpuTimestamp();
 
     UINT64 gpuFrequency = 0;
-    SLANG_RETURN_ON_FAIL(m_d3dQueue->GetTimestampFrequency(&gpuFrequency));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dQueue->GetTimestampFrequency(&gpuFrequency), m_device);
 
     const uint64_t cpuFrequency = getCpuTimestampFrequency();
 
@@ -2203,17 +2212,21 @@ CommandBufferImpl::~CommandBufferImpl()
 Result CommandBufferImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateCommandAllocator(
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        IID_PPV_ARGS(m_d3dCommandAllocator.writeRef())
-    ));
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateCommandList(
-        0,
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-        m_d3dCommandAllocator,
-        nullptr,
-        IID_PPV_ARGS(m_d3dCommandList.writeRef())
-    ));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device
+            ->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_d3dCommandAllocator.writeRef())),
+        device
+    );
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateCommandList(
+            0,
+            D3D12_COMMAND_LIST_TYPE_DIRECT,
+            m_d3dCommandAllocator,
+            nullptr,
+            IID_PPV_ARGS(m_d3dCommandList.writeRef())
+        ),
+        device
+    );
 
 #if SLANG_RHI_ENABLE_AFTERMATH
     if (device->m_aftermathCrashDumper)
@@ -2239,8 +2252,8 @@ Result CommandBufferImpl::init()
 Result CommandBufferImpl::reset()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    SLANG_RETURN_ON_FAIL(m_d3dCommandAllocator->Reset());
-    SLANG_RETURN_ON_FAIL(m_d3dCommandList->Reset(m_d3dCommandAllocator, nullptr));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dCommandAllocator->Reset(), device);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(m_d3dCommandList->Reset(m_d3dCommandAllocator, nullptr), device);
     ID3D12DescriptorHeap* heaps[] = {
         device->m_gpuCbvSrvUavHeap->getHeap(),
         device->m_gpuSamplerHeap->getHeap(),

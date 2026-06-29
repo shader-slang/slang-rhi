@@ -21,6 +21,8 @@
 #include "core/string.h"
 
 #include <algorithm>
+#include <cstdarg>
+#include <cstdio>
 
 namespace rhi::d3d12 {
 
@@ -67,6 +69,151 @@ static ShaderModelInfo kKnownShaderModels[] = {
     SHADER_MODEL_INFO_DXIL(6, 9)
 #undef SHADER_MODEL_INFO_DXIL
 };
+
+struct D3D12CreateDeviceAttempt
+{
+    D3D_FEATURE_LEVEL featureLevel;
+    HRESULT result;
+};
+
+struct D3D12ShaderModelAttempt
+{
+    D3D_SHADER_MODEL requested;
+    D3D_SHADER_MODEL detected;
+    HRESULT result;
+};
+
+static const char* getAdapterTypeName(AdapterType adapterType)
+{
+    switch (adapterType)
+    {
+    case AdapterType::Discrete:
+        return "discrete";
+    case AdapterType::Integrated:
+        return "integrated";
+    case AdapterType::Software:
+        return "software";
+    case AdapterType::Unknown:
+        return "unknown";
+    }
+    return "unknown";
+}
+
+static const char* getFeatureLevelName(D3D_FEATURE_LEVEL featureLevel)
+{
+    switch (featureLevel)
+    {
+    case D3D_FEATURE_LEVEL_12_2:
+        return "D3D_FEATURE_LEVEL_12_2";
+    case D3D_FEATURE_LEVEL_12_1:
+        return "D3D_FEATURE_LEVEL_12_1";
+    case D3D_FEATURE_LEVEL_12_0:
+        return "D3D_FEATURE_LEVEL_12_0";
+    case D3D_FEATURE_LEVEL_11_1:
+        return "D3D_FEATURE_LEVEL_11_1";
+    case D3D_FEATURE_LEVEL_11_0:
+        return "D3D_FEATURE_LEVEL_11_0";
+    default:
+        return "D3D_FEATURE_LEVEL_UNKNOWN";
+    }
+}
+
+static const char* getShaderModelName(D3D_SHADER_MODEL shaderModel)
+{
+    for (const ShaderModelInfo& info : kKnownShaderModels)
+    {
+        if (info.shaderModel == shaderModel)
+            return info.profileName;
+    }
+    return "unknown";
+}
+
+static std::string formatAdapterLUID(const AdapterLUID& luid)
+{
+    char buffer[sizeof(AdapterLUID::luid) * 2 + 1];
+    for (size_t i = 0; i < sizeof(AdapterLUID::luid); ++i)
+    {
+        snprintf(buffer + i * 2, 3, "%02x", uint32_t(luid.luid[i]));
+    }
+    return std::string(buffer);
+}
+
+static void appendFormatLine(std::string& message, const char* format, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    message += buffer;
+}
+
+static void appendShaderModelAttempts(
+    std::string& message,
+    const D3D12ShaderModelAttempt* attempts,
+    size_t attemptCount
+)
+{
+    for (size_t i = 0; i < attemptCount; ++i)
+    {
+        const D3D12ShaderModelAttempt& attempt = attempts[i];
+        appendFormatLine(
+            message,
+            "  - requested %s (0x%04x): %s (0x%08x), detected %s (0x%04x)\n",
+            getShaderModelName(attempt.requested),
+            uint32_t(attempt.requested),
+            getHRESULTName(attempt.result),
+            uint32_t(attempt.result),
+            getShaderModelName(attempt.detected),
+            uint32_t(attempt.detected)
+        );
+    }
+}
+
+static void reportD3D12DeviceCreationFailure(
+    DeviceImpl* device,
+    const AdapterImpl* adapter,
+    int64_t adapterIndex,
+    const D3D12CreateDeviceAttempt* attempts,
+    size_t attemptCount
+)
+{
+    std::string message = "D3D12CreateDevice failed.\n";
+    if (adapter)
+    {
+        const AdapterInfo& info = adapter->m_info;
+        appendFormatLine(
+            message,
+            "Selected adapter: index=%lld, name=\"%s\", type=%s, vendorID=0x%04x, deviceID=0x%04x, LUID=%s\n",
+            static_cast<long long>(adapterIndex),
+            info.name,
+            getAdapterTypeName(info.adapterType),
+            info.vendorID,
+            info.deviceID,
+            formatAdapterLUID(info.luid).c_str()
+        );
+    }
+    else
+    {
+        message += "Selected adapter: <none>\n";
+    }
+
+    message += "Feature-level attempts:\n";
+    for (size_t i = 0; i < attemptCount; ++i)
+    {
+        const D3D12CreateDeviceAttempt& attempt = attempts[i];
+        appendFormatLine(
+            message,
+            "  - %s (0x%04x): %s (0x%08x)\n",
+            getFeatureLevelName(attempt.featureLevel),
+            uint32_t(attempt.featureLevel),
+            getHRESULTName(attempt.result),
+            uint32_t(attempt.result)
+        );
+    }
+    message += "Shader model probing: unavailable because no D3D12 device was created.\n";
+    device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, message.c_str());
+}
 
 inline int getShaderModelFromProfileName(const char* name)
 {
@@ -347,15 +494,30 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
         const D3D_FEATURE_LEVEL featureLevels[] =
             {D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
+        D3D12CreateDeviceAttempt createDeviceAttempts[SLANG_COUNT_OF(featureLevels)] = {};
+        size_t createDeviceAttemptCount = 0;
         for (auto featureLevel : featureLevels)
         {
-            if (SUCCEEDED(m_D3D12CreateDevice(m_dxgiAdapter, featureLevel, IID_PPV_ARGS(m_device.writeRef()))))
+            HRESULT result = m_D3D12CreateDevice(m_dxgiAdapter, featureLevel, IID_PPV_ARGS(m_device.writeRef()));
+            createDeviceAttempts[createDeviceAttemptCount++] = {featureLevel, result};
+            if (SUCCEEDED(result))
             {
                 break;
             }
         }
         if (!m_device)
         {
+            auto adapters = backend->getAdapters();
+            int64_t adapterIndex = -1;
+            if (adapter && adapters.data())
+                adapterIndex = adapter - adapters.data();
+            reportD3D12DeviceCreationFailure(
+                this,
+                adapter,
+                adapterIndex,
+                createDeviceAttempts,
+                createDeviceAttemptCount
+            );
             return SLANG_FAIL;
         }
     }
@@ -501,7 +663,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAGS(D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS);
         allocatorDesc.pDevice = m_device.get();
         allocatorDesc.pAdapter = m_dxgiAdapter.get();
-        SLANG_RETURN_ON_FAIL(D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.writeRef()), this);
     }
 
     // Initialize descriptor heaps.
@@ -561,8 +723,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         signatureDesc.pArgumentDescs = &args;
         signatureDesc.NodeMask = 0;
 
-        SLANG_RETURN_ON_FAIL(
-            m_device->CreateCommandSignature(&signatureDesc, nullptr, IID_PPV_ARGS(drawIndirectCmdSignature.writeRef()))
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device
+                ->CreateCommandSignature(&signatureDesc, nullptr, IID_PPV_ARGS(drawIndirectCmdSignature.writeRef())),
+            this
         );
     }
 
@@ -578,11 +742,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         signatureDesc.pArgumentDescs = &args;
         signatureDesc.NodeMask = 0;
 
-        SLANG_RETURN_ON_FAIL(m_device->CreateCommandSignature(
-            &signatureDesc,
-            nullptr,
-            IID_PPV_ARGS(drawIndexedIndirectCmdSignature.writeRef())
-        ));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateCommandSignature(
+                &signatureDesc,
+                nullptr,
+                IID_PPV_ARGS(drawIndexedIndirectCmdSignature.writeRef())
+            ),
+            this
+        );
     }
 
     // Allocate a D3D12 "command signature" object that matches the behavior
@@ -597,11 +764,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         signatureDesc.pArgumentDescs = &args;
         signatureDesc.NodeMask = 0;
 
-        SLANG_RETURN_ON_FAIL(m_device->CreateCommandSignature(
-            &signatureDesc,
-            nullptr,
-            IID_PPV_ARGS(dispatchIndirectCmdSignature.writeRef())
-        ));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateCommandSignature(
+                &signatureDesc,
+                nullptr,
+                IID_PPV_ARGS(dispatchIndirectCmdSignature.writeRef())
+            ),
+            this
+        );
     }
 
     // Initialize device info.
@@ -668,6 +838,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addCapability(Capability::hlsl);
 
     D3D12_FEATURE_DATA_SHADER_MODEL shaderModelData = {};
+    D3D12ShaderModelAttempt shaderModelAttempts[SLANG_COUNT_OF(kKnownShaderModels) + 1] = {};
+    size_t shaderModelAttemptCount = 0;
+    bool shaderModelDetected = false;
 
     {
         // CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL) can fail if the runtime/driver does not yet know the
@@ -681,10 +854,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         for (D3D_SHADER_MODEL shaderModel : shaderModels)
         {
             shaderModelData.HighestShaderModel = shaderModel;
-            if (SLANG_SUCCEEDED(
-                    m_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModelData, sizeof(shaderModelData))
-                ))
+            HRESULT result =
+                m_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModelData, sizeof(shaderModelData));
+            shaderModelAttempts[shaderModelAttemptCount++] =
+                D3D12ShaderModelAttempt{shaderModel, shaderModelData.HighestShaderModel, result};
+            if (SLANG_SUCCEEDED(result))
+            {
+                shaderModelDetected = true;
                 break;
+            }
         }
     }
     {
@@ -1006,11 +1184,22 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     int userSpecifiedShaderModel = getShaderModelFromProfileName(desc.slang.targetProfile);
     if (userSpecifiedShaderModel > shaderModelData.HighestShaderModel)
     {
-        handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "The requested shader model is not supported by the system."
+        std::string message;
+        appendFormatLine(
+            message,
+            "The requested shader model is not supported by the system.\n"
+            "Requested shader model: %s (0x%04x)\n"
+            "Highest detected shader model: %s (0x%04x)\n"
+            "Shader model detected successfully: %s\n"
+            "Shader model probing attempts:\n",
+            getShaderModelName(D3D_SHADER_MODEL(userSpecifiedShaderModel)),
+            uint32_t(userSpecifiedShaderModel),
+            getShaderModelName(shaderModelData.HighestShaderModel),
+            uint32_t(shaderModelData.HighestShaderModel),
+            shaderModelDetected ? "yes" : "no"
         );
+        appendShaderModelAttempts(message, shaderModelAttempts, shaderModelAttemptCount);
+        handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, message.c_str());
         return SLANG_E_NOT_AVAILABLE;
     }
 
@@ -1171,7 +1360,7 @@ Result DeviceImpl::createBuffer(
 
         ID3D12Resource* dxUploadResource = uploadResourceRef.getResource();
 
-        SLANG_RETURN_ON_FAIL(dxUploadResource->Map(0, &readRange, reinterpret_cast<void**>(&dstData)));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(dxUploadResource->Map(0, &readRange, reinterpret_cast<void**>(&dstData)), this);
         ::memcpy(dstData, srcData, srcDataSize);
         dxUploadResource->Unmap(0, nullptr);
 
@@ -1567,7 +1756,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         UINT8* data;
         D3D12_RANGE readRange = {0, size};
 
-        SLANG_RETURN_ON_FAIL(stageBufRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&data)));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            stageBufRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&data)),
+            this
+        );
 
         // Copy to memory buffer
         std::memcpy(outData, data, size);
@@ -1808,7 +2000,10 @@ Result DeviceImpl::waitForFences(
     {
         auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         waitHandles.push_back(fenceImpl->getWaitEvent());
-        SLANG_RETURN_ON_FAIL(fenceImpl->m_fence->SetEventOnCompletion(fenceValues[i], fenceImpl->getWaitEvent()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            fenceImpl->m_fence->SetEventOnCompletion(fenceValues[i], fenceImpl->getWaitEvent()),
+            this
+        );
     }
     auto result = WaitForMultipleObjects(
         fenceCount,

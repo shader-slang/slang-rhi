@@ -22,6 +22,11 @@ BufferImpl::~BufferImpl()
             getDevice<DeviceImpl>()->m_hostMemHeap->free(m_alloc);
         }
     }
+    if (m_cudaExternalMemory)
+    {
+        SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
+        SLANG_CUDA_ASSERT_ON_FAIL(cuDestroyExternalMemory((CUexternalMemory)m_cudaExternalMemory));
+    }
 }
 
 void BufferImpl::deleteThis()

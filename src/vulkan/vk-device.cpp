@@ -481,8 +481,9 @@ Result DeviceImpl::initVulkanInstance(
         messengerCreateInfo.pfnUserCallback = &debugMessageCallback;
         messengerCreateInfo.pUserData = this;
 
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback),
+            this
         );
     }
     return SLANG_OK;
@@ -509,10 +510,14 @@ Result DeviceImpl::initVulkanDevice(
         SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr),
+            this
+        );
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data())
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data()),
+            this
         );
 
         // Find the physical device that matches the selected adapter UUID.
@@ -1694,7 +1699,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler), this);
     }
 
     // Create bindless descriptor set if needed.
@@ -1901,8 +1906,9 @@ Result DeviceImpl::createAccelerationStructure(
             createInfo.pNext = &motionInfo;
         }
     }
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle),
+        this
     );
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
@@ -2036,7 +2042,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkImage image;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image), this);
 
     VkMemoryRequirements memRequirements;
     m_api.vkGetImageMemoryRequirements(m_device, image, &memRequirements);
@@ -2238,11 +2244,14 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
             vkPropertyCount,
             {VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV}
         );
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
-            m_api.m_physicalDevice,
-            &vkPropertyCount,
-            vkProperties.data()
-        ));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
+                m_api.m_physicalDevice,
+                &vkPropertyCount,
+                vkProperties.data()
+            ),
+            this
+        );
         for (const auto& vkProps : vkProperties)
         {
             CooperativeVectorProperties props;
@@ -2287,7 +2296,7 @@ Result DeviceImpl::getCooperativeVectorMatrixSize(
     info.srcStride = rowColumnStride;
     info.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     info.dstStride = rowColumnStride;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info), this);
     return SLANG_OK;
 }
 
@@ -2322,7 +2331,7 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
         info.srcStride = srcDesc.rowColumnStride;
         info.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
         info.dstStride = dstDesc.rowColumnStride;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info), this);
     }
     return SLANG_OK;
 }

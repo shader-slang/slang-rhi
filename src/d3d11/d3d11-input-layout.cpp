@@ -76,13 +76,16 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     SLANG_RETURN_ON_FAIL(compileHLSLShader("inputLayout", hlslBuffer, "main", "vs_5_0", vertexShaderBlob));
 
     ComPtr<ID3D11InputLayout> inputLayout;
-    SLANG_RETURN_ON_FAIL(m_device->CreateInputLayout(
-        &inputElements[0],
-        (UINT)desc.inputElementCount,
-        vertexShaderBlob->GetBufferPointer(),
-        vertexShaderBlob->GetBufferSize(),
-        inputLayout.writeRef()
-    ));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_device->CreateInputLayout(
+            &inputElements[0],
+            (UINT)desc.inputElementCount,
+            vertexShaderBlob->GetBufferPointer(),
+            vertexShaderBlob->GetBufferSize(),
+            inputLayout.writeRef()
+        ),
+        this
+    );
 
     RefPtr<InputLayoutImpl> layout = new InputLayoutImpl();
     layout->m_layout.swap(inputLayout);
