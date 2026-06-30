@@ -145,7 +145,7 @@ endif()
 
 # Fetch slang options
 option(SLANG_RHI_FETCH_SLANG "Fetch slang" ON)
-set(SLANG_RHI_FETCH_SLANG_VERSION "2026.4.1" CACHE STRING "Slang version to fetch")
+set(SLANG_RHI_FETCH_SLANG_VERSION "2026.12" CACHE STRING "Slang version to fetch")
 option(SLANG_RHI_FETCH_DXC "Fetch DirectXShaderCompiler for the D3D12 backend" ON)
 
 # slang-rhi depends on a few external libraries.
@@ -413,6 +413,7 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcore.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/liblz4.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libminiz.a
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcmark-gfm.a
             )
         endif()
     endfunction()

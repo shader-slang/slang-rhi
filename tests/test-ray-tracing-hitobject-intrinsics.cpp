@@ -348,8 +348,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-invoke-hit-ms", ALL)
     checkQueryAndInvokeResult(resultBlob);
 }
 
-// CUDA disabled due to https://github.com/shader-slang/slang/issues/8836
-GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-front-face", ALL & ~CUDA)
+GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-front-face", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -370,8 +369,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-front-face", ALL & ~CUDA)
     checkQueryAndInvokeResult(resultBlob);
 }
 
-// CUDA disabled due to https://github.com/shader-slang/slang/issues/8836
-GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-back-face", ALL & ~CUDA)
+GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-back-face", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -392,7 +390,7 @@ GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-back-face", ALL & ~CUDA)
     checkQueryAndInvokeResult(resultBlob);
 }
 
-GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-custom", ALL & ~CUDA)
+GPU_TEST_CASE("ray-tracing-hitobject-query-hit-kind-custom", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -480,10 +478,6 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-hit", ALL | DontCreateDevice)
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
-    // Disabled under pre OptiX 9.0 due to https://github.com/shader-slang/slang/issues/8723
-    if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
-        SKIP("MakeHit not functional with specified OptiX version");
-
     RayTracingSingleTriangleTest test;
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
@@ -553,10 +547,6 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-motion-hit", ALL | DontCreateDevice)
         SKIP("shader execution reordering not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
-
-    // Disabled under pre OptiX 9.0 due to https://github.com/shader-slang/slang/issues/8723
-    if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
-        SKIP("MakeHit not functional with specified OptiX version");
 
     RayTracingSingleTriangleMotionTest test;
     test.init(device);
