@@ -122,8 +122,7 @@ void checkMatrix(const TransformResult* result, const std::array<float, 12>& exp
 
 } // namespace
 
-// Disabled under CUDA/OptiX due to https://github.com/shader-slang/slang/issues/9256
-GPU_TEST_CASE("ray-tracing-transform-object-to-world-3x4", ALL & ~CUDA)
+GPU_TEST_CASE("ray-tracing-transform-object-to-world-3x4", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -144,8 +143,7 @@ GPU_TEST_CASE("ray-tracing-transform-object-to-world-3x4", ALL & ~CUDA)
     checkMatrix(result, kObjectToWorld3x4);
 }
 
-// Disabled under CUDA/OptiX due to https://github.com/shader-slang/slang/issues/9256
-GPU_TEST_CASE("ray-tracing-transform-world-to-object-3x4", ALL & ~CUDA)
+GPU_TEST_CASE("ray-tracing-transform-world-to-object-3x4", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -166,8 +164,7 @@ GPU_TEST_CASE("ray-tracing-transform-world-to-object-3x4", ALL & ~CUDA)
     checkMatrix(result, kWorldToObject3x4);
 }
 
-// Disabled under CUDA/OptiX due to https://github.com/shader-slang/slang/issues/9256
-GPU_TEST_CASE("ray-tracing-transform-object-to-world-4x3", ALL & ~CUDA)
+GPU_TEST_CASE("ray-tracing-transform-object-to-world-4x3", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -188,8 +185,7 @@ GPU_TEST_CASE("ray-tracing-transform-object-to-world-4x3", ALL & ~CUDA)
     checkMatrix(result, kObjectToWorld4x3);
 }
 
-// Disabled under CUDA/OptiX due to https://github.com/shader-slang/slang/issues/9256
-GPU_TEST_CASE("ray-tracing-transform-world-to-object-4x3", ALL & ~CUDA)
+GPU_TEST_CASE("ray-tracing-transform-world-to-object-4x3", ALL)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -210,9 +206,8 @@ GPU_TEST_CASE("ray-tracing-transform-world-to-object-4x3", ALL & ~CUDA)
     checkMatrix(result, kWorldToObject4x3);
 }
 
-// Disabled under CUDA/OptiX due to https://github.com/shader-slang/slang/issues/9256
 // Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/9257
-GPU_TEST_CASE("ray-tracing-transform-hitobject-world-to-object", ALL & ~CUDA & ~D3D12)
+GPU_TEST_CASE("ray-tracing-transform-hitobject-world-to-object", ALL & ~D3D12)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
@@ -235,9 +230,8 @@ GPU_TEST_CASE("ray-tracing-transform-hitobject-world-to-object", ALL & ~CUDA & ~
     checkMatrix(result, kWorldToObject4x3);
 }
 
-// Disabled under CUDA/OptiX because it isn't implemented.
 // Disabled under D3D12 due to https://github.com/shader-slang/slang/issues/9257
-GPU_TEST_CASE("ray-tracing-transform-hitobject-object-to-world", ALL & ~CUDA & ~D3D12)
+GPU_TEST_CASE("ray-tracing-transform-hitobject-object-to-world", ALL & ~D3D12)
 {
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
