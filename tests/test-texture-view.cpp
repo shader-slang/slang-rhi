@@ -484,8 +484,8 @@ struct TexelData {
         source += "[numthreads(1,1,1)]\n";
         source += "void writeTexels(\n";
         source += "    uint3 tid : SV_DispatchThreadID,\n";
-        source += "    uniform " + slangTextureType + " texture,\n";
-        source += "    uniform RWStructuredBuffer<TexelData> texelData,\n";
+        source += "    " + slangTextureType + " texture,\n";
+        source += "    RWStructuredBuffer<TexelData> texelData,\n";
         source += "    uniform uint texelCount)\n";
         source += "{\n";
         source += "    if (tid.x > texelCount)\n";
@@ -620,8 +620,8 @@ struct TexelData {
         source += "[numthreads(1,1,1)]\n";
         source += "void readTexels(\n";
         source += "    uint3 tid : SV_DispatchThreadID,\n";
-        source += "    uniform " + slangTextureType + " texture,\n";
-        source += "    uniform RWStructuredBuffer<TexelData> texelData,\n";
+        source += "    " + slangTextureType + " texture,\n";
+        source += "    RWStructuredBuffer<TexelData> texelData,\n";
         source += "    uniform uint texelCount)\n";
         source += "{\n";
         source += "    if (tid.x > texelCount)\n";
