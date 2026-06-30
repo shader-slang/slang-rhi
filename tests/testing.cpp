@@ -694,6 +694,20 @@ ComPtr<IDevice> createTestingDevice(
     }
 #endif
 
+    auto disableWarning = [](const char* warningCode) -> slang::CompilerOptionEntry
+    {
+        slang::CompilerOptionEntry entry;
+        entry.name = slang::CompilerOptionName::DisableWarning;
+        entry.value.kind = slang::CompilerOptionValueKind::String;
+        entry.value.stringValue0 = warningCode;
+        return entry;
+    };
+
+    // Disable noisy warnings 31106 and 31107 until slang fixes them.
+    // https://github.com/shader-slang/slang/issues/11825
+    compilerOptions.push_back(disableWarning("31106"));
+    compilerOptions.push_back(disableWarning("31107"));
+
     deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
     deviceDesc.slang.searchPaths = searchPaths.data();
     deviceDesc.slang.searchPathCount = searchPaths.size();
