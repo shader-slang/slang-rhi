@@ -423,7 +423,7 @@ void rayGenShaderMakeMotionMiss()
     const bool isMiss = hitObjectMiss.IsMiss();
     const bool timeIsCorrect = hitObjectMiss.GetCurrentTime() == currentTime;
 
-    resultBuffer[0].queryWasSuccess = isMiss/* && timeIsCorrect*/;
+    resultBuffer[0].queryWasSuccess = isMiss && timeIsCorrect;
 
     RayPayload payload = {};
     HitObject.Invoke(sceneBVH, hitObjectMiss, payload);
