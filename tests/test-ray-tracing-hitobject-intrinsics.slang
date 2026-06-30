@@ -281,14 +281,7 @@ void rayGenShaderQueryHitKindFrontFace()
     RayPayload payload = { {} };
     HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
 
-#if (defined(__D3D12__) || defined(__VULKAN__))
-  resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
-#elif defined(__CUDA__)
-  // TODO: GetHitKind not implemented for OptiX target
-  resultBuffer[0].queryWasSuccess = 0;
-#else
-  resultBuffer[0].queryWasSuccess = 0;
-#endif
+    resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
 
     // We don't need to invoke the hit object for this test
     resultBuffer[0].invokeWasSuccess = 1;
@@ -312,14 +305,7 @@ void rayGenShaderQueryHitKindBackFace()
     RayPayload payload = { {} };
     HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
 
-#if (defined(__D3D12__) || defined(__VULKAN__))
-  resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
-#elif defined(__CUDA__)
-  // TODO: GetHitKind not implemented for OptiX target
-  resultBuffer[0].queryWasSuccess = 0;
-#else
-  resultBuffer[0].queryWasSuccess = 0;
-#endif
+    resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
 
     // We don't need to invoke the hit object for this test
     resultBuffer[0].invokeWasSuccess = 1;
@@ -342,14 +328,7 @@ void rayGenShaderQueryHitKindCustom()
     RayPayload payload = { {} };
     HitObject hitObjectHit = HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, payload);
 
-#if (defined(__D3D12__) || defined(__VULKAN__))
-  resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == CUSTOM_HIT_KIND;
-#elif defined(__CUDA__)
-  // TODO: GetHitKind not implemented for OptiX target
-  resultBuffer[0].queryWasSuccess = 0;
-#else
-  resultBuffer[0].queryWasSuccess = 0;
-#endif
+    resultBuffer[0].queryWasSuccess = hitObjectHit.GetHitKind() == CUSTOM_HIT_KIND;
 
     // We don't need to invoke the hit object for this test
     resultBuffer[0].invokeWasSuccess = 1;
