@@ -478,10 +478,6 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-hit", ALL | DontCreateDevice)
     if (!device->hasFeature(Feature::ShaderExecutionReordering))
         SKIP("shader execution reordering not supported");
 
-    // Disabled under pre OptiX 9.0 due to https://github.com/shader-slang/slang/issues/8723
-    if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
-        SKIP("MakeHit not functional with specified OptiX version");
-
     RayTracingSingleTriangleTest test;
     test.init(device);
     test.createResultBuffer(sizeof(TestResult));
@@ -551,10 +547,6 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-motion-hit", ALL | DontCreateDevice)
         SKIP("shader execution reordering not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
-
-    // Disabled under pre OptiX 9.0 due to https://github.com/shader-slang/slang/issues/8723
-    if (device->getDeviceType() == DeviceType::CUDA && device->getInfo().optixVersion < 90000)
-        SKIP("MakeHit not functional with specified OptiX version");
 
     RayTracingSingleTriangleMotionTest test;
     test.init(device);
