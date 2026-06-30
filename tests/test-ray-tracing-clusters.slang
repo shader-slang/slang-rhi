@@ -98,14 +98,36 @@ void writeTriArgs(uint3 tid : SV_DispatchThreadID)
     uint64_t indexAddr  = gIndexBuffer;
     uint64_t vertexAddr = gVertexBuffer + uint64_t(idx) * uint64_t(gVertexOffsetElemsPerCluster) * uint64_t(gVertexStrideBytes);
 
-    rhi::TriangleClusterArgs args = {};
+    // TODO: Default initialization doesn't work for structs with bit fields.
+    // The workaround is to initialize all fields manually to avoid warnings.
+    // https://github.com/shader-slang/slang/issues/11844
+    // rhi::TriangleClusterArgs args = {};
+    // args.clusterId = idx;
+    // args.triangleCount = gTriangleCount;
+    // args.vertexCount = gVertexCount;
+    // args.vertexBufferStride = uint16_t(gVertexStrideBytes);
+    // args.indexBuffer = indexAddr;
+    // args.vertexBuffer = vertexAddr;
+    // args.indexFormat = rhi::kClusterIndexFormat32bit;
+    rhi::TriangleClusterArgs args;
     args.clusterId = idx;
+    args.clusterFlags = 0;
     args.triangleCount = gTriangleCount;
     args.vertexCount = gVertexCount;
+    args.positionTruncateBitCount = 0;
+    args.indexFormat = rhi::kClusterIndexFormat32bit;
+    args.opacityMicromapIndexFormat = 0;
+    args.baseGeometryIndexAndFlags = 0;
+    args.indexBufferStride = uint16_t(0);
     args.vertexBufferStride = uint16_t(gVertexStrideBytes);
+    args.geometryIndexAndFlagsBufferStride = uint16_t(0);
+    args.opacityMicromapIndexBufferStride = uint16_t(0);
     args.indexBuffer = indexAddr;
     args.vertexBuffer = vertexAddr;
-    args.indexFormat = rhi::kClusterIndexFormat32bit;
+    args.geometryIndexAndFlagsBuffer = 0;
+    args.opacityMicromapArray = 0;
+    args.opacityMicromapIndexBuffer = 0;
+    args.instantiationBoundingBoxLimit = 0;
 
     gTriArgs[idx] = args;
 }
