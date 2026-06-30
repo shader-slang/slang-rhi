@@ -1,3 +1,5 @@
+#include "test-ray-tracing-motion.slang"
+
 struct Result
 {
     float3 value;
@@ -257,11 +259,13 @@ void closestHitWriteHitTriangleVertexPosition(inout RayPayloadAttribute payload,
     payload.triangleVertex1 = HitTriangleVertexPosition(1);
     payload.triangleVertex2 = HitTriangleVertexPosition(2);
 }
+#endif
 
+#if !defined(__D3D12__)
 [shader("closesthit")]
 void closestHitWriteRayCurrentTime(inout RayPayloadAttribute payload, in BuiltInTriangleIntersectionAttributes attr)
 {
-    payload.rayCurrentTime = RayCurrentTime();
+    payload.rayCurrentTime = rhi::rayCurrentTime();
 }
 #endif
 
@@ -306,7 +310,7 @@ void rayGenShaderAttributeTest()
 }
 
 // Raygen shader for motion blur attribute tests - writes all attributes to result
-#if !(defined(__CUDA__) || defined(__D3D12__))
+#if !defined(__D3D12__)
 [shader("raygeneration")]
 void rayGenShaderMotionBlurAttributeTest()
 {
@@ -319,7 +323,7 @@ void rayGenShaderMotionBlurAttributeTest()
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
     float currentTime = 0.5; // midpoint of motion
-    TraceMotionRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, currentTime, payload);
+    rhi::traceMotionRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, currentTime, payload);
 
     Result result = {};
     result.rayCurrentTime = payload.rayCurrentTime;

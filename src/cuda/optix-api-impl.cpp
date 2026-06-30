@@ -227,10 +227,10 @@ inline OptixClusterAccelBuildMode translateClusterOperationMode(ClusterOperation
 struct AccelerationStructureBuildDescConverter
 {
 public:
-    stable_vector<CUdeviceptr> pointerList;
+    stable_vector<std::array<CUdeviceptr, kMaxAccelerationStructureMotionKeyCount>> pointerArrays;
     stable_vector<unsigned int> flagList;
     std::vector<OptixBuildInput> buildInputs;
-    OptixAccelBuildOptions buildOptions;
+    OptixAccelBuildOptions buildOptions = {};
 
     Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
 
@@ -249,10 +249,15 @@ Result AccelerationStructureBuildDescConverter::convert(
         return SLANG_E_INVALID_ARG;
     }
 
-    // Motion blur is not supported in CUDA/OptiX
-    if (is_set(buildDesc.flags, AccelerationStructureBuildFlags::CreateMotion))
+    const bool isMotionBuild = is_set(buildDesc.flags, AccelerationStructureBuildFlags::CreateMotion);
+    const uint32_t motionKeyCount = isMotionBuild ? buildDesc.motionOptions.keyCount : 1;
+    if (motionKeyCount < 1 || motionKeyCount > kMaxAccelerationStructureMotionKeyCount)
     {
-        return SLANG_E_NOT_AVAILABLE;
+        return SLANG_E_INVALID_ARG;
+    }
+    if (isMotionBuild && (motionKeyCount < 2 || buildDesc.motionOptions.timeStart >= buildDesc.motionOptions.timeEnd))
+    {
+        return SLANG_E_INVALID_ARG;
     }
 
     AccelerationStructureBuildInputType type = buildDesc.inputs[0].type;
@@ -265,7 +270,7 @@ Result AccelerationStructureBuildDescConverter::convert(
     }
 
     buildOptions.buildFlags = translateBuildFlags(buildDesc.flags);
-    buildOptions.motionOptions.numKeys = buildDesc.motionOptions.keyCount;
+    buildOptions.motionOptions.numKeys = motionKeyCount;
     buildOptions.motionOptions.flags = OPTIX_MOTION_FLAG_NONE;
     buildOptions.motionOptions.timeBegin = buildDesc.motionOptions.timeStart;
     buildOptions.motionOptions.timeEnd = buildDesc.motionOptions.timeEnd;
@@ -305,7 +310,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
-            if (triangles.vertexBufferCount != 1)
+            if (triangles.vertexBufferCount != motionKeyCount)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -314,8 +319,11 @@ Result AccelerationStructureBuildDescConverter::convert(
             buildInput = {};
             buildInput.type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
 
-            pointerList.push_back(triangles.vertexBuffers[0].getDeviceAddress());
-            buildInput.triangleArray.vertexBuffers = &pointerList.back();
+            pointerArrays.push_back({});
+            auto& vertexBuffers = pointerArrays.back();
+            for (uint32_t key = 0; key < motionKeyCount; ++key)
+                vertexBuffers[key] = triangles.vertexBuffers[key].getDeviceAddress();
+            buildInput.triangleArray.vertexBuffers = vertexBuffers.data();
             buildInput.triangleArray.numVertices = triangles.vertexCount;
             buildInput.triangleArray.vertexFormat = translateVertexFormat(triangles.vertexFormat);
             buildInput.triangleArray.vertexStrideInBytes = triangles.vertexStride;
@@ -349,7 +357,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         {
             const AccelerationStructureBuildInputProceduralPrimitives& proceduralPrimitives =
                 buildDesc.inputs[i].proceduralPrimitives;
-            if (proceduralPrimitives.aabbBufferCount != 1)
+            if (proceduralPrimitives.aabbBufferCount != motionKeyCount)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -358,8 +366,11 @@ Result AccelerationStructureBuildDescConverter::convert(
             buildInput = {};
             buildInput.type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
 
-            pointerList.push_back(proceduralPrimitives.aabbBuffers[0].getDeviceAddress());
-            buildInput.customPrimitiveArray.aabbBuffers = &pointerList.back();
+            pointerArrays.push_back({});
+            auto& aabbBuffers = pointerArrays.back();
+            for (uint32_t key = 0; key < motionKeyCount; ++key)
+                aabbBuffers[key] = proceduralPrimitives.aabbBuffers[key].getDeviceAddress();
+            buildInput.customPrimitiveArray.aabbBuffers = aabbBuffers.data();
             buildInput.customPrimitiveArray.numPrimitives = proceduralPrimitives.primitiveCount;
             buildInput.customPrimitiveArray.strideInBytes = proceduralPrimitives.aabbStride;
             flagList.push_back(translateGeometryFlags(proceduralPrimitives.flags));
@@ -373,7 +384,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputSpheres& spheres = buildDesc.inputs[i].spheres;
-            if (spheres.vertexBufferCount != 1)
+            if (spheres.vertexBufferCount != motionKeyCount)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -394,12 +405,18 @@ Result AccelerationStructureBuildDescConverter::convert(
             buildInput = {};
             buildInput.type = OPTIX_BUILD_INPUT_TYPE_SPHERES;
 
-            pointerList.push_back(spheres.vertexPositionBuffers[0].getDeviceAddress());
-            buildInput.sphereArray.vertexBuffers = &pointerList.back();
+            pointerArrays.push_back({});
+            auto& vertexBuffers = pointerArrays.back();
+            for (uint32_t key = 0; key < motionKeyCount; ++key)
+                vertexBuffers[key] = spheres.vertexPositionBuffers[key].getDeviceAddress();
+            buildInput.sphereArray.vertexBuffers = vertexBuffers.data();
             buildInput.sphereArray.vertexStrideInBytes = spheres.vertexPositionStride;
             buildInput.sphereArray.numVertices = spheres.vertexCount;
-            pointerList.push_back(spheres.vertexRadiusBuffers[0].getDeviceAddress());
-            buildInput.sphereArray.radiusBuffers = &pointerList.back();
+            pointerArrays.push_back({});
+            auto& radiusBuffers = pointerArrays.back();
+            for (uint32_t key = 0; key < motionKeyCount; ++key)
+                radiusBuffers[key] = spheres.vertexRadiusBuffers[key].getDeviceAddress();
+            buildInput.sphereArray.radiusBuffers = radiusBuffers.data();
             buildInput.sphereArray.radiusStrideInBytes = spheres.vertexRadiusStride;
             flagList.push_back(translateGeometryFlags(spheres.flags));
             buildInput.sphereArray.flags = &flagList.back();
@@ -413,7 +430,7 @@ Result AccelerationStructureBuildDescConverter::convert(
         {
             const AccelerationStructureBuildInputLinearSweptSpheres& linearSweptSpheres =
                 buildDesc.inputs[i].linearSweptSpheres;
-            if (linearSweptSpheres.vertexBufferCount != 1)
+            if (linearSweptSpheres.vertexBufferCount != motionKeyCount)
             {
                 return SLANG_E_INVALID_ARG;
             }
@@ -444,13 +461,19 @@ Result AccelerationStructureBuildDescConverter::convert(
             buildInput.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
             buildInput.curveArray.numPrimitives = linearSweptSpheres.primitiveCount;
 
-            pointerList.push_back(linearSweptSpheres.vertexPositionBuffers[0].getDeviceAddress());
+            pointerArrays.push_back({});
+            auto& vertexBuffers = pointerArrays.back();
+            for (uint32_t key = 0; key < motionKeyCount; ++key)
+                vertexBuffers[key] = linearSweptSpheres.vertexPositionBuffers[key].getDeviceAddress();
             buildInput.curveArray.numVertices = linearSweptSpheres.vertexCount;
-            buildInput.curveArray.vertexBuffers = &pointerList.back();
+            buildInput.curveArray.vertexBuffers = vertexBuffers.data();
             buildInput.curveArray.vertexStrideInBytes = linearSweptSpheres.vertexPositionStride;
 
-            pointerList.push_back(linearSweptSpheres.vertexRadiusBuffers[0].getDeviceAddress());
-            buildInput.curveArray.widthBuffers = &pointerList.back();
+            pointerArrays.push_back({});
+            auto& widthBuffers = pointerArrays.back();
+            for (uint32_t key = 0; key < motionKeyCount; ++key)
+                widthBuffers[key] = linearSweptSpheres.vertexRadiusBuffers[key].getDeviceAddress();
+            buildInput.curveArray.widthBuffers = widthBuffers.data();
             buildInput.curveArray.widthStrideInBytes = linearSweptSpheres.vertexRadiusStride;
 
             buildInput.curveArray.indexBuffer = linearSweptSpheres.indexBuffer.getDeviceAddress();
@@ -677,8 +700,11 @@ public:
         SLANG_RHI_ASSERT(!program->m_modules.empty());
 
         OptixPipelineCompileOptions optixPipelineCompileOptions = {};
-        optixPipelineCompileOptions.usesMotionBlur = 0;
-        optixPipelineCompileOptions.traversableGraphFlags = OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
+        const bool enableMotion = is_set(desc.flags, RayTracingPipelineFlags::EnableMotion);
+        optixPipelineCompileOptions.usesMotionBlur = enableMotion ? 1 : 0;
+        optixPipelineCompileOptions.traversableGraphFlags =
+            enableMotion ? OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_ANY
+                         : OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
         optixPipelineCompileOptions.numPayloadValues =
             (desc.maxRayPayloadSize + sizeof(uint32_t) - 1) / sizeof(uint32_t);
         optixPipelineCompileOptions.numAttributeValues =
@@ -877,6 +903,7 @@ public:
         {
             OptixBuiltinISOptions builtinISOptions = {};
             builtinISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
+            builtinISOptions.usesMotionBlur = enableMotion ? 1 : 0;
             SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
                 optixBuiltinISModuleGet(
                     m_deviceContext,
@@ -895,6 +922,7 @@ public:
         {
             OptixBuiltinISOptions builtinISOptions = {};
             builtinISOptions.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+            builtinISOptions.usesMotionBlur = enableMotion ? 1 : 0;
             SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
                 optixBuiltinISModuleGet(
                     m_deviceContext,
@@ -1192,6 +1220,93 @@ public:
         outSizes->accelerationStructureSize = sizes.outputSizeInBytes;
         outSizes->scratchSize = sizes.tempSizeInBytes;
         outSizes->updateScratchSize = sizes.tempUpdateSizeInBytes;
+        return SLANG_OK;
+    }
+
+    virtual Result createMotionTransform(
+        const AccelerationStructureMotionTransformDesc& desc,
+        CUdeviceptr* outBuffer,
+        size_t* outBufferSize,
+        OptixTraversableHandle* outHandle
+    ) override
+    {
+        if (!outBuffer || !outBufferSize || !outHandle || !desc.child ||
+            desc.motionOptions.keyCount != kMaxAccelerationStructureMotionKeyCount ||
+            desc.motionOptions.timeStart >= desc.motionOptions.timeEnd)
+        {
+            return SLANG_E_INVALID_ARG;
+        }
+
+        OptixTraversableType traversableType;
+        const void* transformData;
+        size_t transformSize;
+        OptixMatrixMotionTransform matrixTransform = {};
+        OptixSRTMotionTransform srtTransform = {};
+
+        auto setMotionOptions = [&](OptixMotionOptions& options)
+        {
+            options.numKeys = uint16_t(desc.motionOptions.keyCount);
+            options.flags = OPTIX_MOTION_FLAG_NONE;
+            options.timeBegin = desc.motionOptions.timeStart;
+            options.timeEnd = desc.motionOptions.timeEnd;
+        };
+
+        switch (desc.type)
+        {
+        case AccelerationStructureMotionTransformType::Matrix:
+            matrixTransform.child = desc.child->getHandle().value;
+            setMotionOptions(matrixTransform.motionOptions);
+            std::memcpy(matrixTransform.transform, desc.matrixKeys, sizeof(matrixTransform.transform));
+            traversableType = OPTIX_TRAVERSABLE_TYPE_MATRIX_MOTION_TRANSFORM;
+            transformData = &matrixTransform;
+            transformSize = sizeof(matrixTransform);
+            break;
+        case AccelerationStructureMotionTransformType::SRT:
+            srtTransform.child = desc.child->getHandle().value;
+            setMotionOptions(srtTransform.motionOptions);
+            static_assert(sizeof(srtTransform.srtData) == sizeof(desc.srtKeys));
+            std::memcpy(srtTransform.srtData, desc.srtKeys, sizeof(srtTransform.srtData));
+            traversableType = OPTIX_TRAVERSABLE_TYPE_SRT_MOTION_TRANSFORM;
+            transformData = &srtTransform;
+            transformSize = sizeof(srtTransform);
+            break;
+        default:
+            return SLANG_E_INVALID_ARG;
+        }
+
+        CUdeviceptr buffer = 0;
+        CUresult cudaResult = cuMemAlloc(&buffer, transformSize);
+        if (cudaResult != CUDA_SUCCESS)
+        {
+            reportCUDAError(cudaResult, "cuMemAlloc", SLANG_RHI_SOURCE_LOCATION(), m_device);
+            return SLANG_FAIL;
+        }
+        cudaResult = cuMemcpyHtoD(buffer, transformData, transformSize);
+        if (cudaResult != CUDA_SUCCESS)
+        {
+            reportCUDAError(cudaResult, "cuMemcpyHtoD", SLANG_RHI_SOURCE_LOCATION(), m_device);
+            cuMemFree(buffer);
+            return SLANG_FAIL;
+        }
+
+        OptixTraversableHandle handle = 0;
+        OptixResult optixResult =
+            optixConvertPointerToTraversableHandle(m_deviceContext, buffer, traversableType, &handle);
+        if (optixResult != OPTIX_SUCCESS)
+        {
+            reportOptixError(
+                optixResult,
+                "optixConvertPointerToTraversableHandle",
+                SLANG_RHI_SOURCE_LOCATION(),
+                m_device
+            );
+            cuMemFree(buffer);
+            return SLANG_FAIL;
+        }
+
+        *outBuffer = buffer;
+        *outBufferSize = transformSize;
+        *outHandle = handle;
         return SLANG_OK;
     }
 

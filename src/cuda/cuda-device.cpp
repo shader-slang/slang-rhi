@@ -286,6 +286,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         addFeature(Feature::AccelerationStructure);
         addFeature(Feature::RayTracing);
+        addFeature(Feature::RayTracingMotionBlur);
         uint32_t optixVersion = m_ctx.optixContext->getOptixVersion();
         m_info.optixVersion = optixVersion;
         if (optixVersion >= 80100)
@@ -571,10 +572,38 @@ Result DeviceImpl::createAccelerationStructure(
     {
         return SLANG_E_NOT_AVAILABLE;
     }
+
+    if (desc.kind == AccelerationStructureKind::MotionTransform)
+    {
+        const AccelerationStructureMotionTransformDesc* motionTransformDesc = nullptr;
+        for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
+             header = header->next)
+        {
+            if (header->type == StructType::AccelerationStructureMotionTransformDesc)
+            {
+                motionTransformDesc = reinterpret_cast<const AccelerationStructureMotionTransformDesc*>(header);
+                break;
+            }
+        }
+        if (!motionTransformDesc)
+            return SLANG_E_INVALID_ARG;
+
+        AccelerationStructureDesc patchedDesc = desc;
+        patchedDesc.next = nullptr;
+        RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, patchedDesc);
+        size_t transformSize = 0;
+        SLANG_RETURN_ON_FAIL(
+            m_ctx.optixContext
+                ->createMotionTransform(*motionTransformDesc, &result->m_buffer, &transformSize, &result->m_handle)
+        );
+        result->m_desc.size = transformSize;
+        returnComPtr(outAccelerationStructure, result);
+        return SLANG_OK;
+    }
+
     RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
-    result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
 }

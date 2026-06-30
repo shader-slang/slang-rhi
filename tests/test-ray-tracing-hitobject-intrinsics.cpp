@@ -547,6 +547,8 @@ GPU_TEST_CASE("ray-tracing-hitobject-make-motion-hit", ALL | DontCreateDevice)
         SKIP("shader execution reordering not supported");
     if (!device->hasFeature(Feature::RayTracingMotionBlur))
         SKIP("ray tracing motion blur not supported");
+    if (device->getDeviceType() == DeviceType::CUDA)
+        SKIP("HitObject.MakeMotionHit is not supported by Slang's CUDA target");
 
     RayTracingSingleTriangleMotionTest test;
     test.init(device);

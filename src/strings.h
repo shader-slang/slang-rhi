@@ -150,6 +150,7 @@
 #define S_AccelerationStructureKind_Unknown "Unknown"
 #define S_AccelerationStructureKind_BottomLevel "BottomLevel"
 #define S_AccelerationStructureKind_TopLevel "TopLevel"
+#define S_AccelerationStructureKind_MotionTransform "MotionTransform"
 
 // QueryType
 #define S_QueryType_Timestamp "Timestamp"

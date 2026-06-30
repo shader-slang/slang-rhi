@@ -232,7 +232,7 @@ inline bool isValidQueryType(QueryType value)
 
 inline bool isValidAccelerationStructureKind(AccelerationStructureKind value)
 {
-    return isValidEnum<AccelerationStructureKind, AccelerationStructureKind::TopLevel>(value);
+    return isValidEnum<AccelerationStructureKind, AccelerationStructureKind::MotionTransform>(value);
 }
 
 inline bool isValidAccelerationStructureCopyMode(AccelerationStructureCopyMode value)

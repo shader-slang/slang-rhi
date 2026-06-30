@@ -85,6 +85,8 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 
     VulkanDeviceExtendedDesc,
+
+    AccelerationStructureMotionTransformDesc,
 };
 
 // TODO: Implementation or backend or something else?
@@ -1424,6 +1426,51 @@ struct AccelerationStructureBuildInputMotionOptions
     float timeEnd = 1.f;
 };
 
+class IAccelerationStructure;
+
+enum class AccelerationStructureMotionTransformType
+{
+    Matrix,
+    SRT,
+};
+
+struct AccelerationStructureMotionTransformSRT
+{
+    float sx = 1.f;
+    float a = 0.f;
+    float b = 0.f;
+    float pvx = 0.f;
+    float sy = 1.f;
+    float c = 0.f;
+    float pvy = 0.f;
+    float sz = 1.f;
+    float pvz = 0.f;
+    float qx = 0.f;
+    float qy = 0.f;
+    float qz = 0.f;
+    float qw = 1.f;
+    float tx = 0.f;
+    float ty = 0.f;
+    float tz = 0.f;
+};
+
+/// Describes an acceleration structure motion transform traversable.
+///
+/// This descriptor is passed through AccelerationStructureDesc::next when creating an
+/// acceleration structure with kind AccelerationStructureKind::MotionTransform.
+struct AccelerationStructureMotionTransformDesc
+{
+    StructType structType = StructType::AccelerationStructureMotionTransformDesc;
+    const void* next = nullptr;
+
+    AccelerationStructureMotionTransformType type = AccelerationStructureMotionTransformType::Matrix;
+    /// Child traversable. It must remain alive as long as the motion transform is in use.
+    IAccelerationStructure* child = nullptr;
+    AccelerationStructureBuildInputMotionOptions motionOptions = {2, 0.f, 1.f};
+    float matrixKeys[kMaxAccelerationStructureMotionKeyCount][3][4] = {};
+    AccelerationStructureMotionTransformSRT srtKeys[kMaxAccelerationStructureMotionKeyCount] = {};
+};
+
 struct AccelerationStructureBuildDesc
 {
     /// List of build inputs. All inputs must be of the same type.
@@ -1456,6 +1503,7 @@ enum class AccelerationStructureKind
     Unknown,
     BottomLevel,
     TopLevel,
+    MotionTransform,
 };
 
 struct AccelerationStructureDesc
@@ -1464,7 +1512,7 @@ struct AccelerationStructureDesc
     const void* next = nullptr;
 
     AccelerationStructureKind kind = AccelerationStructureKind::Unknown;
-    uint64_t size;
+    uint64_t size = 0;
     AccelerationStructureBuildFlags flags = AccelerationStructureBuildFlags::None;
 
     AccelerationStructureMotionCreateInfo motionInfo;
