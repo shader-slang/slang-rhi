@@ -9,7 +9,7 @@ void missNOP(inout RayPayload payload)
 }
 
 [shader("closesthit")]
-void closestHitNOP(inout RayPayload payload)
+void closestHitNOP(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     // Nop
 }
