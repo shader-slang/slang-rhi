@@ -413,6 +413,7 @@ if(NOT SLANG_RHI_BUILD_FROM_SLANG_REPO)
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcore.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/liblz4.a
                 ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libminiz.a
+                ${SLANG_RHI_SLANG_BINARY_DIR}/lib/libcmark-gfm.a
             )
         endif()
     endfunction()
