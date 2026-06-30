@@ -1221,7 +1221,9 @@ if(SLANG_RHI_INSTALL)
     install(
         DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.h"
+        FILES_MATCHING
+        PATTERN "*.h"
+        PATTERN "*.slang"
     )
     install(
         FILES ${CMAKE_CURRENT_BINARY_DIR}/include/slang-rhi-config.h

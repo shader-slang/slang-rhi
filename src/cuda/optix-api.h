@@ -74,6 +74,14 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
+    /// Create a native motion transform traversable.
+    virtual Result createMotionTransform(
+        const AccelerationStructureMotionTransformDesc& desc,
+        CUdeviceptr* outBuffer,
+        size_t* outBufferSize,
+        OptixTraversableHandle* outHandle
+    ) = 0;
+
     /// Get the sizes required for building a cluster acceleration structure or BLAS-from-CLAS.
     virtual Result getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes) = 0;
 

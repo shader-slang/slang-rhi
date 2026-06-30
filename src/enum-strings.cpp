@@ -387,6 +387,8 @@ const char* enumToString(AccelerationStructureKind value)
         return S_AccelerationStructureKind_BottomLevel;
     case AccelerationStructureKind::TopLevel:
         return S_AccelerationStructureKind_TopLevel;
+    case AccelerationStructureKind::MotionTransform:
+        return S_AccelerationStructureKind_MotionTransform;
     }
     return S_INVALID;
 }

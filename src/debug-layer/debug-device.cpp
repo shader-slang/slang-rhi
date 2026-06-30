@@ -760,10 +760,36 @@ Result DebugDevice::createAccelerationStructure(
         RHI_VALIDATION_ERROR("Invalid acceleration structure kind.");
         return SLANG_E_INVALID_ARG;
     }
-    if (desc.size == 0)
+    if (desc.size == 0 && desc.kind != AccelerationStructureKind::MotionTransform)
     {
         RHI_VALIDATION_ERROR("Acceleration structure size must be greater than 0.");
         return SLANG_E_INVALID_ARG;
+    }
+    if (desc.kind == AccelerationStructureKind::MotionTransform)
+    {
+        const AccelerationStructureMotionTransformDesc* motionTransformDesc = nullptr;
+        for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
+             header = header->next)
+        {
+            if (header->type == StructType::AccelerationStructureMotionTransformDesc)
+            {
+                motionTransformDesc = reinterpret_cast<const AccelerationStructureMotionTransformDesc*>(header);
+                break;
+            }
+        }
+        if (!motionTransformDesc || !motionTransformDesc->child)
+        {
+            RHI_VALIDATION_ERROR(
+                "Motion transform creation requires an AccelerationStructureMotionTransformDesc with a child."
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+        if (motionTransformDesc->motionOptions.keyCount != kMaxAccelerationStructureMotionKeyCount ||
+            motionTransformDesc->motionOptions.timeStart >= motionTransformDesc->motionOptions.timeEnd)
+        {
+            RHI_VALIDATION_ERROR("Motion transform creation requires two keys and a non-empty time interval.");
+            return SLANG_E_INVALID_ARG;
+        }
     }
     if (!isValidAccelerationStructureBuildFlags(desc.flags))
     {

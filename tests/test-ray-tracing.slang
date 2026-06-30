@@ -1,5 +1,7 @@
 // ray-tracing-test-shaders.slang
 
+#include "test-ray-tracing-motion.slang"
+
 [raypayload]
 struct RayPayload
 {
@@ -82,7 +84,7 @@ void closestHitShaderIdx1(inout RayPayload payload, in BuiltInTriangleIntersecti
     payload.color = color;
 }
 
-#if !(defined(__CUDA__) || defined(__D3D12__))
+#if !defined(__D3D12__)
 [shader("raygeneration")]
 void rayGenShaderMotion()
 {
@@ -100,17 +102,15 @@ void rayGenShaderMotion()
     ray.TMax = 10000.0;
     float currentTime = 0.5; // midpoint of motion
     RayPayload payload = { float4(0, 0, 0, 0) };
-    TraceMotionRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, currentTime, payload);
+    rhi::traceMotionRay(sceneBVH, RAY_FLAG_NONE, ~0, 0, 0, 0, ray, currentTime, payload);
 
     resultTexture[pixel] = payload.color;
 }
-#endif // !(defined(__CUDA__) || defined(__D3D12__))
+#endif // !defined(__D3D12__)
 
-#if !defined(__CUDA__)
 [shader("closesthit")]
 void closestHitShaderMotion(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     // Set color to green for motion hit
     payload.color = float4(0, 1, 0, 1);
 }
-#endif // __CUDA__

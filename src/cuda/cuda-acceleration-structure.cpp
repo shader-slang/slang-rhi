@@ -11,8 +11,10 @@ AccelerationStructureImpl::AccelerationStructureImpl(Device* device, const Accel
 
 AccelerationStructureImpl::~AccelerationStructureImpl()
 {
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
-    SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_propertyBuffer));
+    if (m_buffer)
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
+    if (m_propertyBuffer)
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_propertyBuffer));
 }
 
 void AccelerationStructureImpl::deleteThis()

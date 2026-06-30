@@ -1056,6 +1056,8 @@ VkAccelerationStructureTypeKHR translateAccelerationStructureKind(AccelerationSt
         return VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
     case AccelerationStructureKind::TopLevel:
         return VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    case AccelerationStructureKind::MotionTransform:
+        break;
     }
     SLANG_RHI_ASSERT_FAILURE("Invalid AccelerationStructureKind value");
     return VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;

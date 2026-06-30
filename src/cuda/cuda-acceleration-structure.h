@@ -23,9 +23,9 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 
 public:
-    CUdeviceptr m_buffer;
-    CUdeviceptr m_propertyBuffer;
-    optix::OptixTraversableHandle m_handle;
+    CUdeviceptr m_buffer = 0;
+    CUdeviceptr m_propertyBuffer = 0;
+    optix::OptixTraversableHandle m_handle = 0;
 };
 
 } // namespace rhi::cuda
