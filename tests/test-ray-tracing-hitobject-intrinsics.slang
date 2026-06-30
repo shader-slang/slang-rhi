@@ -442,9 +442,7 @@ void rayGenShaderMakeMotionMiss()
     HitObject hitObjectMiss = HitObject.MakeMotionMiss(0, ray, currentTime);
 
     const bool isMiss = hitObjectMiss.IsMiss();
-
-    // TODO: Enable this when https://github.com/shader-slang/slang/issues/9018 is fixed
-    // const bool timeIsCorrect = hitObjectMiss.GetCurrentTime() == currentTime;
+    const bool timeIsCorrect = hitObjectMiss.GetCurrentTime() == currentTime;
 
     resultBuffer[0].queryWasSuccess = isMiss/* && timeIsCorrect*/;
 
