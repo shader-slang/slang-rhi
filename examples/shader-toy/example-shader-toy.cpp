@@ -182,6 +182,9 @@ public:
         m_future = std::async(
             [this]() -> Result
             {
+                // Needed for CUDA-based devices to ensure the correct context
+                // is current in this thread when creating the pipeline.
+                SLANG_RHI_DEVICE_SCOPE(m_device);
                 return createComputePipeline(
                     m_device,
                     kShaders[m_shaderIndex],

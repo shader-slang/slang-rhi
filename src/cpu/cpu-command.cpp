@@ -321,7 +321,7 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     queryPool->m_queries[cmd.queryIndex] = getCpuTimestamp();
     queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
-    queryPool->markQueryRangeReady(cmd.queryIndex, 1, m_submissionID);
+    queryPool->markQueryRangeResolved(cmd.queryIndex, 1, m_submissionID);
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)

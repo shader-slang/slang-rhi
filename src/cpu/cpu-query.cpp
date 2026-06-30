@@ -8,26 +8,6 @@ QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
 {
 }
 
-Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
-{
-    if (!outReady || !isValidQueryRange(queryIndex, count))
-    {
-        return SLANG_E_INVALID_ARG;
-    }
-
-    *outReady = false;
-    QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
-    {
-        return SLANG_FAIL;
-    }
-    if (queryInfo.state == QueryRangeState::Resolved)
-    {
-        *outReady = true;
-    }
-    return SLANG_OK;
-}
-
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
     if (!outData || !isValidQueryRange(queryIndex, count))
@@ -35,7 +15,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
         return SLANG_E_INVALID_ARG;
     }
 
-    if (getQueryRangeInfo(queryIndex, count).state != QueryRangeState::Resolved)
+    if (getQueryRangeInfo(queryIndex, count).state != QueryResultState::Resolved)
     {
         return SLANG_FAIL;
     }

@@ -1633,14 +1633,15 @@ void DebugDevice::validateCudaContext()
     if (currentContext == nullptr)
     {
         RHI_VALIDATION_WARNING(
-            "No CUDA context is current. Use setCudaContextCurrent() or SLANG_DEVICE_SCOPE to set the device context."
+            "No CUDA context is current. "
+            "Use setCudaContextCurrent() or SLANG_RHI_DEVICE_SCOPE to set the device context."
         );
     }
     else if (currentContext != expectedContext)
     {
         RHI_VALIDATION_WARNING(
-            "Wrong CUDA context is current. Use setCudaContextCurrent() or SLANG_DEVICE_SCOPE to set the correct "
-            "device context."
+            "Wrong CUDA context is current. "
+            "Use setCudaContextCurrent() or SLANG_RHI_DEVICE_SCOPE to set the correct device context."
         );
     }
 #endif

@@ -198,9 +198,9 @@ GPU_TEST_CASE("cuda-device-scope", CUDA)
     cuCtxGetCurrent(&current);
     REQUIRE(current == otherContext);
 
-    // Use SLANG_DEVICE_SCOPE to temporarily switch to the RHI device's context.
+    // Use SLANG_RHI_DEVICE_SCOPE to temporarily switch to the RHI device's context.
     {
-        SLANG_DEVICE_SCOPE(device.get());
+        SLANG_RHI_DEVICE_SCOPE(device.get());
 
         // Inside the scope, the device's context should be current.
         cuCtxGetCurrent(&current);

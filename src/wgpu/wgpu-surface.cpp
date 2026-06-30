@@ -154,8 +154,8 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         WGPUPresentMode_Fifo,
     };
     static const WGPUPresentMode kVsyncOnModes[] = {
-        WGPUPresentMode_FifoRelaxed,
         WGPUPresentMode_Fifo,
+        WGPUPresentMode_FifoRelaxed,
         WGPUPresentMode_Immediate,
         WGPUPresentMode_Mailbox,
     };
@@ -230,12 +230,8 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
 
     WGPUSurfaceTexture surfaceTexture;
     m_device->m_ctx.api.wgpuSurfaceGetCurrentTexture(m_surface, &surfaceTexture);
-#if !SLANG_WASM
-    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_Success)
-#else
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal &&
         surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal)
-#endif
     {
         return SLANG_FAIL;
     }

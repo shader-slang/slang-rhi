@@ -542,6 +542,16 @@ struct VulkanExtendedFeatures
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV cooperativeMatrix2Features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
     };
+
+    // Shader abort feature chain: VK_KHR_shader_abort hard-depends on VK_KHR_device_fault and
+    // VK_KHR_shader_constant_data, so all three are queried and enabled together.
+    VkPhysicalDeviceShaderAbortFeaturesKHR shaderAbortFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ABORT_FEATURES_KHR
+    };
+    VkPhysicalDeviceFaultFeaturesKHR faultFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_KHR};
+    VkPhysicalDeviceShaderConstantDataFeaturesKHR shaderConstantDataFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CONSTANT_DATA_FEATURES_KHR
+    };
 };
 
 struct VulkanApi

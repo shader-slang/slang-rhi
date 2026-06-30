@@ -4,6 +4,7 @@
 #include <cstdarg>
 
 #include "testing.h"
+#include "memory-report.h"
 
 namespace doctest {
 
@@ -45,6 +46,8 @@ struct CustomReporter : public IReporter
             stream << "                                       to select a specific adapter, the adapter index can be appended after a colon (i.e. d3d12:1)\n";
             stream << "                                       use * to select all available devices\n";
             stream << " -optix-version=<version>              select a specific OptiX version to use, e.g. 80100 for version 8.1\n";
+            stream << " -memory-report                        print process memory summary at the end of the run\n";
+            stream << " -memory-report-file=<path>            write process memory summary JSON to a file\n";
             // clang-format on
         }
     }
@@ -75,6 +78,8 @@ struct CustomReporter : public IReporter
         }
 
         runTimer.start();
+        rhi::testing::resetMemoryReport();
+        rhi::testing::sampleMemoryReport("test-run-start");
         consoleReporter.test_run_start();
 
         if (rhi::testing::options().checkDevices)
@@ -91,6 +96,7 @@ struct CustomReporter : public IReporter
         printf("\n");
         double seconds = runTimer.getElapsedSeconds();
         printf("Total time: %.2fs\n", seconds);
+        rhi::testing::sampleMemoryReport("test-run-end");
 
         consoleReporter.test_run_end(in);
     }

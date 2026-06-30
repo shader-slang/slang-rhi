@@ -42,22 +42,22 @@ void QueryPoolImpl::setDisjointQuery(uint32_t index, ID3D11Query* disjointQuery)
     m_queries[index].disjointQuery = disjointQuery;
 }
 
-Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
 {
-    if (!outReady || !isValidQueryRange(queryIndex, count))
+    if (!outState || !isValidQueryRange(queryIndex, count))
     {
         return SLANG_E_INVALID_ARG;
     }
 
-    *outReady = false;
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
-        return SLANG_FAIL;
+        *outState = QueryResultState::Reset;
+        return SLANG_OK;
     }
-    if (queryInfo.state == QueryRangeState::Resolved)
+    if (queryInfo.state == QueryResultState::Resolved)
     {
-        *outReady = true;
+        *outState = QueryResultState::Resolved;
         return SLANG_OK;
     }
 
@@ -76,6 +76,7 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
                 ->GetData(query.disjointQuery, &disjointData, sizeof(disjointData), D3D11_ASYNC_GETDATA_DONOTFLUSH);
         if (hr == S_FALSE)
         {
+            *outState = QueryResultState::Pending;
             return SLANG_OK;
         }
         SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
@@ -90,13 +91,14 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
                  ->GetData(query.timestampQuery, &value, sizeof(value), D3D11_ASYNC_GETDATA_DONOTFLUSH);
         if (hr == S_FALSE)
         {
+            *outState = QueryResultState::Pending;
             return SLANG_OK;
         }
         SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
     }
 
-    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
-    *outReady = true;
+    markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
+    *outState = QueryResultState::Resolved;
 
     return SLANG_OK;
 }
@@ -109,7 +111,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
     }
 
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
         return SLANG_FAIL;
     }
@@ -152,7 +154,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
         SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
     }
 
-    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+    markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
 
     return SLANG_OK;
 }
