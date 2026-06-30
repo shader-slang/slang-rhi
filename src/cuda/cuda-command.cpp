@@ -640,38 +640,64 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     SLANG_RHI_ASSERT(computePipeline->m_entryPointIndex < bindingData->entryPointCount);
     const auto& entryPointData = bindingData->entryPoints[computePipeline->m_entryPointIndex];
 
+    // The argument data for the entry-point parameters is stored in host memory, normally passed
+    // to cuLaunchKernel as the launch parameter buffer.
+    const void* launchParamData = entryPointData.data;
+    size_t launchParamSize = entryPointData.size;
+
     // Copy global parameter data to the `SLANG_globalParams` symbol.
     if (computePipeline->m_globalParams)
     {
+        // A late CUDA IR pass can hoist a compute kernel's entry-point uniform parameters into the
+        // `SLANG_globalParams` __constant__ block. In that case reflection still reports them as
+        // entry-point uniforms (so their data lands in `entryPointData` and `globalParams` is
+        // empty), but the emitted kernel reads `__constant__` and takes no launch arguments. Detect
+        // that and route the entry-point uniform blob (host memory) into the symbol, then launch
+        // with no argument buffer.
+        const bool hoistedEntryPointUniforms = (bindingData->globalParamsSize == 0 && launchParamSize > 0);
+
         // TODO: Slang sometimes computes the size of the global parameters layout incorrectly.
         // Instead of the assert, we currently warn about this mismatch once.
         // SLANG_RHI_ASSERT(computePipeline->m_globalParamsSize == bindingData->globalParamsSize);
-        if (computePipeline->m_globalParamsSize != bindingData->globalParamsSize &&
-            !computePipeline->m_warnedAboutGlobalParamsSizeMismatch)
+        const size_t srcSize = hoistedEntryPointUniforms ? launchParamSize : bindingData->globalParamsSize;
+        if (computePipeline->m_globalParamsSize != srcSize && !computePipeline->m_warnedAboutGlobalParamsSizeMismatch)
         {
             m_device->printWarning(
                 "Warning: Incorrect global parameter size (expected %llu, got %llu) for pipeline %s",
                 computePipeline->m_globalParamsSize,
-                bindingData->globalParamsSize,
+                srcSize,
                 computePipeline->m_entryPointName.c_str()
             );
             computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
         }
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
-            computePipeline->m_globalParams,
-            bindingData->globalParams,
-            min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
-            m_stream
-        ));
+
+        if (hoistedEntryPointUniforms)
+        {
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyHtoDAsync(
+                computePipeline->m_globalParams,
+                launchParamData,
+                min(launchParamSize, computePipeline->m_globalParamsSize),
+                m_stream
+            ));
+            launchParamData = nullptr;
+            launchParamSize = 0;
+        }
+        else
+        {
+            SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
+                computePipeline->m_globalParams,
+                bindingData->globalParams,
+                min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
+                m_stream
+            ));
+        }
     }
 
-    // The argument data for the entry-point parameters are already
-    // stored in host memory, as expected by cuLaunchKernel.
     void* extraOptions[] = {
         CU_LAUNCH_PARAM_BUFFER_POINTER,
-        (void*)entryPointData.data,
+        (void*)launchParamData,
         CU_LAUNCH_PARAM_BUFFER_SIZE,
-        (void*)&entryPointData.size,
+        (void*)&launchParamSize,
         CU_LAUNCH_PARAM_END,
     };
 
