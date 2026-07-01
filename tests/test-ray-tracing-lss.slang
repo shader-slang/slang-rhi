@@ -143,7 +143,7 @@ void rayGenLssInlineRayQuery()
     }
 
     Result res = {};
-    res.isLssHit = q.CommittedIsLss() ? 1 : 0;
-    res.lssPositionsAndRadii = q.CommittedLssObjectPositionsAndRadii();
+    res.isLssHit = q.CommittedIsLssNV() ? 1 : 0;
+    res.lssPositionsAndRadii = q.CommittedLssObjectPositionsAndRadiiNV();
     resultBuffer[0] = res;
 }
