@@ -206,16 +206,18 @@ void compareResult(const T* result, const T* expectedResult, size_t count, bool 
     }
 }
 
-// Absolute tolerance for fuzzy float comparisons. It must be loose enough to absorb the
-// cross-backend precision/timing variance seen in release builds (notably CUDA<->Vulkan
-// shared-texture interop read-back), yet tight enough to still catch gross value errors.
-static constexpr float kFuzzyComparisonTolerance = 0.05f;
+// Default absolute tolerance for fuzzy float comparisons: tight enough to catch value errors
+// in typical GPU compute results. A test that must absorb larger but benign cross-backend
+// variance (e.g. CUDA<->Vulkan shared-texture read-back on release builds) can pass a wider
+// tolerance explicitly to compareComputeResult / compareResultFuzzy.
+static constexpr float kDefaultFuzzyComparisonTolerance = 0.01f;
 
 inline void compareResultFuzzy(
     const float* result,
     const float* expectedResult,
     size_t count,
-    bool expectFailure = false
+    bool expectFailure = false,
+    float tolerance = kDefaultFuzzyComparisonTolerance
 )
 {
     if (expectFailure)
@@ -223,8 +225,7 @@ inline void compareResultFuzzy(
         size_t mismatchCount = 0;
         for (size_t i = 0; i < count; ++i)
         {
-            if (result[i] > expectedResult[i] + kFuzzyComparisonTolerance ||
-                result[i] < expectedResult[i] - kFuzzyComparisonTolerance)
+            if (result[i] > expectedResult[i] + tolerance || result[i] < expectedResult[i] - tolerance)
             {
                 mismatchCount++;
             }
@@ -236,14 +237,20 @@ inline void compareResultFuzzy(
         for (size_t i = 0; i < count; ++i)
         {
             CAPTURE(i);
-            CHECK_LE(result[i], expectedResult[i] + kFuzzyComparisonTolerance);
-            CHECK_GE(result[i], expectedResult[i] - kFuzzyComparisonTolerance);
+            CHECK_LE(result[i], expectedResult[i] + tolerance);
+            CHECK_GE(result[i], expectedResult[i] - tolerance);
         }
     }
 }
 
 template<typename T>
-void compareComputeResult(IDevice* device, IBuffer* buffer, std::span<T> expectedResult, bool expectFailure = false)
+void compareComputeResult(
+    IDevice* device,
+    IBuffer* buffer,
+    std::span<T> expectedResult,
+    bool expectFailure = false,
+    [[maybe_unused]] float tolerance = kDefaultFuzzyComparisonTolerance
+)
 {
     size_t bufferSize = expectedResult.size() * sizeof(T);
     // Read back the results.
@@ -253,7 +260,7 @@ void compareComputeResult(IDevice* device, IBuffer* buffer, std::span<T> expecte
     const T* result = reinterpret_cast<const T*>(bufferData->getBufferPointer());
 
     if constexpr (std::is_same<T, float>::value)
-        compareResultFuzzy(result, expectedResult.data(), expectedResult.size(), expectFailure);
+        compareResultFuzzy(result, expectedResult.data(), expectedResult.size(), expectFailure, tolerance);
     else
         compareResult<T>(result, expectedResult.data(), expectedResult.size(), expectFailure);
 }
@@ -263,10 +270,11 @@ void compareComputeResult(
     IDevice* device,
     IBuffer* buffer,
     std::array<T, Count> expectedResult,
-    bool expectFailure = false
+    bool expectFailure = false,
+    float tolerance = kDefaultFuzzyComparisonTolerance
 )
 {
-    compareComputeResult(device, buffer, std::span<T>(expectedResult.data(), Count), expectFailure);
+    compareComputeResult(device, buffer, std::span<T>(expectedResult.data(), Count), expectFailure, tolerance);
 }
 
 template<typename T>
@@ -276,7 +284,8 @@ void compareComputeResult(
     uint32_t layer,
     uint32_t mip,
     std::span<T> expectedResult,
-    bool expectFailure = false
+    bool expectFailure = false,
+    [[maybe_unused]] float tolerance = kDefaultFuzzyComparisonTolerance
 )
 {
     size_t bufferSize = expectedResult.size() * sizeof(T);
@@ -307,7 +316,7 @@ void compareComputeResult(
     const T* result = reinterpret_cast<const T*>(textureData->getBufferPointer());
 
     if constexpr (std::is_same<T, float>::value)
-        compareResultFuzzy(result, expectedResult.data(), expectedResult.size(), expectFailure);
+        compareResultFuzzy(result, expectedResult.data(), expectedResult.size(), expectFailure, tolerance);
     else
         compareResult<T>(result, expectedResult.data(), expectedResult.size(), expectFailure);
 }
@@ -319,10 +328,19 @@ void compareComputeResult(
     uint32_t layer,
     uint32_t mip,
     std::array<T, Count> expectedResult,
-    bool expectFailure = false
+    bool expectFailure = false,
+    float tolerance = kDefaultFuzzyComparisonTolerance
 )
 {
-    compareComputeResult(device, texture, layer, mip, std::span<T>(expectedResult.data(), Count), expectFailure);
+    compareComputeResult(
+        device,
+        texture,
+        layer,
+        mip,
+        std::span<T>(expectedResult.data(), Count),
+        expectFailure,
+        tolerance
+    );
 }
 
 const char* deviceTypeToString(DeviceType deviceType);
