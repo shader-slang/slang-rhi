@@ -671,8 +671,13 @@ ComPtr<IDevice> createTestingDevice(
     }
 #endif
 
-    // Set SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT if NVAPI is disabled.
-    if (deviceType == DeviceType::D3D12 && options().d3d12DisableNVAPI)
+    // Set SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT if NVAPI is disabled explicitly or unavailable in this build.
+#if SLANG_RHI_ENABLE_NVAPI
+    const bool useNativeD3D12HitObject = options().d3d12DisableNVAPI;
+#else
+    const bool useNativeD3D12HitObject = true;
+#endif
+    if (deviceType == DeviceType::D3D12 && useNativeD3D12HitObject)
     {
         preprocessorMacros.push_back({"SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT", "1"});
     }
