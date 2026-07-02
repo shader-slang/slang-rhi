@@ -52,7 +52,7 @@ static ShaderModelInfo kKnownShaderModels[] = {
     SHADER_MODEL_INFO_DXBC(5, 1),
 #undef SHADER_MODEL_INFO_DXBC
 #define SHADER_MODEL_INFO_DXIL(major, minor)                                                                           \
-    {(D3D_SHADER_MODEL)0x##major##minor,                                                                               \
+    {(D3D_SHADER_MODEL)((major << 4) | minor),                                                                         \
      SLANG_DXIL,                                                                                                       \
      "sm_" #major "_" #minor,                                                                                          \
      Feature::SM_##major##_##minor,                                                                                    \
@@ -66,7 +66,8 @@ static ShaderModelInfo kKnownShaderModels[] = {
     SHADER_MODEL_INFO_DXIL(6, 6),
     SHADER_MODEL_INFO_DXIL(6, 7),
     SHADER_MODEL_INFO_DXIL(6, 8),
-    SHADER_MODEL_INFO_DXIL(6, 9)
+    SHADER_MODEL_INFO_DXIL(6, 9),
+    SHADER_MODEL_INFO_DXIL(6, 10)
 #undef SHADER_MODEL_INFO_DXIL
 };
 
@@ -226,7 +227,7 @@ inline int getShaderModelFromProfileName(const char* name)
 
     for (int i = 0; i < SLANG_COUNT_OF(kKnownShaderModels); ++i)
     {
-        std::string_view versionStr(kKnownShaderModels[i].profileName + 3, 3);
+        std::string_view versionStr(kKnownShaderModels[i].profileName + 3);
         if (string::ends_with(nameStr, versionStr))
         {
             return kKnownShaderModels[i].shaderModel;

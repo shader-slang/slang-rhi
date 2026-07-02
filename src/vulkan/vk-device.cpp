@@ -1639,7 +1639,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         for (int i = SLANG_COUNT_OF(featureTable) - 1; i >= 0; --i)
         {
             Feature feature = featureTable[i];
-            if (int(feature) >= int(Feature::SM_6_0) && int(feature) <= int(Feature::SM_6_9))
+            if (int(feature) >= int(Feature::SM_6_0) && int(feature) <= int(Feature::SM_6_10))
             {
                 addFeature(feature);
             }

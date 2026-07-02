@@ -62,6 +62,8 @@ static Feature getShaderModelFeature(uint32_t shaderModel)
         return Feature::SM_6_8;
     case 0x69:
         return Feature::SM_6_9;
+    case 0x6a:
+        return Feature::SM_6_10;
     default:
         SLANG_RHI_ASSERT_FAILURE("Unhandled D3D12 shader model");
         return Feature::_Count;

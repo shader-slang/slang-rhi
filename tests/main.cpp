@@ -105,12 +105,12 @@ int main(int argc, const char** argv)
             bool validFormat = separator != std::string_view::npos &&
                                parseComponent(value.substr(0, separator), major) &&
                                parseComponent(value.substr(separator + 1), minor);
-            bool validVersion = (major == 5 && minor == 1) || (major == 6 && minor <= 9);
+            bool validVersion = (major == 5 && minor == 1) || (major == 6 && minor <= 10);
             if (!validFormat || !validVersion)
             {
                 std::fprintf(
                     stderr,
-                    "Invalid D3D12 shader model '%s'; expected 5.1 or 6.0 through 6.9 in major.minor format.\n",
+                    "Invalid D3D12 shader model '%s'; expected 5.1 or 6.0 through 6.10 in major.minor format.\n",
                     d3d12ShaderModel.c_str()
                 );
                 return 1;
