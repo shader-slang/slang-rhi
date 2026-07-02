@@ -86,6 +86,11 @@ int main(int argc, const char** argv)
             }
         }
 
+        if (doctest::parseFlag(argc, argv, "d3d12-disable-nvapi"))
+        {
+            options.d3d12DisableNVAPI = true;
+        }
+
         doctest::parseIntOption(argc, argv, "optix-version=", doctest::option_int, options.optixVersion);
 
         if (doctest::parseFlag(argc, argv, "memory-report"))

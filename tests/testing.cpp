@@ -626,7 +626,7 @@ ComPtr<IDevice> createTestingDevice(
         compilerOptions.push_back(nvapiSearchPath);
     }
 #endif
-    if (deviceType == DeviceType::D3D12)
+    if (deviceType == DeviceType::D3D12 && !options().d3d12DisableNVAPI)
     {
         deviceDesc.nvapiExtUavSlot = 999;
         preprocessorMacros.push_back({"NV_SHADER_EXTN_SLOT", "u999"});
@@ -638,6 +638,12 @@ ComPtr<IDevice> createTestingDevice(
         compilerOptions.push_back(nvapiSearchPath);
     }
 #endif
+
+    // Set SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT if NVAPI is disabled.
+    if (deviceType == DeviceType::D3D12 && options().d3d12DisableNVAPI)
+    {
+        preprocessorMacros.push_back({"SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT", "1"});
+    }
 
 #if SLANG_RHI_ENABLE_OPTIX
     // Setup OptiX headers
@@ -845,7 +851,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
 #if SLANG_RHI_ENABLE_NVAPI
-    if (deviceType == DeviceType::D3D12)
+    if (deviceType == DeviceType::D3D12 && !options().d3d12DisableNVAPI)
     {
         desc.nvapiExtUavSlot = 999;
     }
