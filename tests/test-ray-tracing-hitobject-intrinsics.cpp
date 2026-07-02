@@ -624,6 +624,9 @@ GPU_TEST_CASE("ray-tracing-hitobject-trace-motion-ray", ALL)
 GPU_TEST_CASE("ray-tracing-hitobject-query-ray-desc", ALL)
 {
     SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
+    if (device->getDeviceType() == DeviceType::D3D12 && device->hasFeature(Feature::SM_6_9) &&
+        !device->hasCapability(Capability::hlsl_nvapi))
+        SKIP("Skipping due to slang bug");
 
     if (!device->hasFeature(Feature::RayTracing))
         SKIP("ray tracing not supported");
