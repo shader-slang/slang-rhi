@@ -192,8 +192,8 @@ endif()
 
 # NVAPI
 if(NOT DEFINED SLANG_RHI_NVAPI_URL)
-    set(SLANG_RHI_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/3d34a4faf095996663321646ebe003539a908f89.zip") # R580
-    set(SLANG_RHI_NVAPI_URL_HASH "SHA256=9c3172f1d6236b81f1666d169f72afbf36cf520eb8386febe053edb322baa10d")
+    set(SLANG_RHI_NVAPI_URL "https://github.com/NVIDIA/nvapi/archive/cd6918f60b3c9a0476fdfe7e89bb32330602049d.zip") # R610
+    set(SLANG_RHI_NVAPI_URL_HASH "SHA256=e9832432139331aef90356c78f92a0ad7d238fc527128ad9f51350614d3c598a")
 endif()
 
 # OptiX headers
