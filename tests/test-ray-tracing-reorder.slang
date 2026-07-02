@@ -32,7 +32,11 @@ void rayGenShaderReorderHint()
     uint numHintBits = 1;
     ReorderThread(hint, numHintBits);
 
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hit, payload);
+#else
     HitObject.Invoke(sceneBVH, hit, payload);
+#endif
     resultTexture[pixel] = payload.color;
 }
 
@@ -56,7 +60,11 @@ void rayGenShaderReorderHitObj()
 
     ReorderThread(hit);
 
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hit, payload);
+#else
     HitObject.Invoke(sceneBVH, hit, payload);
+#endif
     resultTexture[pixel] = payload.color;
 }
 
@@ -82,7 +90,11 @@ void rayGenShaderReorderHitObjAndHint()
     uint numHintBits = 1;
     ReorderThread(hit, hint, numHintBits);
 
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hit, payload);
+#else
     HitObject.Invoke(sceneBVH, hit, payload);
+#endif
     resultTexture[pixel] = payload.color;
 }
 

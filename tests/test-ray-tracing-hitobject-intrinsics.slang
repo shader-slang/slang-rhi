@@ -43,7 +43,11 @@ void rayGenShaderMakeQueryInvokeNOP()
 
     // Invoking a NOP shouldn't have an effect, but we do it anyway to make sure it doesn't crash.
     RayPayload payload = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectNOP, payload);
+#else
     HitObject.Invoke(sceneBVH, hitObjectNOP, payload);
+#endif
     resultBuffer[0].invokeWasSuccess = 1;
 }
 
@@ -76,7 +80,11 @@ void closestHitMakeQueryInvokeNOP(inout RayPayload payload, in BuiltInTriangleIn
 
     // Invoking a NOP shouldn't have an effect, but we do it anyway to make sure it doesn't crash.
     RayPayload hitObjPayload = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectNOP, hitObjPayload);
+#else
     HitObject.Invoke(sceneBVH, hitObjectNOP, hitObjPayload);
+#endif
 
     payload.invokeWasSuccess = 1;
 }
@@ -110,7 +118,11 @@ void missMakeQueryInvokeNOP(inout RayPayload payload)
 
     // Invoking a NOP shouldn't have an effect, but we do it anyway to make sure it doesn't crash.
     RayPayload hitObjPayload = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectNOP, hitObjPayload);
+#else
     HitObject.Invoke(sceneBVH, hitObjectNOP, hitObjPayload);
+#endif
 
     payload.invokeWasSuccess = 1;
 }
@@ -134,7 +146,11 @@ void rayGenShaderMakeQueryInvokeMiss()
     resultBuffer[0].queryWasSuccess = hitObjectMiss.IsMiss();
 
     RayPayload payloadMiss = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectMiss, payloadMiss);
+#else
     HitObject.Invoke(sceneBVH, hitObjectMiss, payloadMiss);
+#endif
     resultBuffer[0].invokeWasSuccess = payloadMiss.invokeWasSuccess;
 }
 
@@ -163,7 +179,11 @@ void closestHitMakeQueryInvokeMiss(inout RayPayload payload, in BuiltInTriangleI
     payload.queryWasSuccess = hitObjectMiss.IsMiss();
 
     RayPayload payloadMiss = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectMiss, payloadMiss);
+#else
     HitObject.Invoke(sceneBVH, hitObjectMiss, payloadMiss);
+#endif
     payload.invokeWasSuccess = payloadMiss.invokeWasSuccess;
 }
 
@@ -188,7 +208,11 @@ void missMakeQueryInvokeMiss(inout RayPayload payload)
     payload.queryWasSuccess = hitObjectMiss.IsMiss();
 
     RayPayload payloadMiss = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectMiss, payloadMiss);
+#else
     HitObject.Invoke(sceneBVH, hitObjectMiss, payloadMiss);
+#endif
     payload.invokeWasSuccess = payloadMiss.invokeWasSuccess;
 }
 
@@ -210,7 +234,11 @@ void rayGenShaderTraceQueryInvokeHit()
     resultBuffer[0].queryWasSuccess = hitObjectHit.IsHit();
 
     RayPayload payloadHit = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectHit, payloadHit);
+#else
     HitObject.Invoke(sceneBVH, hitObjectHit, payloadHit);
+#endif
     resultBuffer[0].invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
@@ -239,7 +267,11 @@ void closestHitMakeQueryInvokeHit(inout RayPayload payload, in BuiltInTriangleIn
     payload.queryWasSuccess = hitObjectHit.IsHit();
 
     RayPayload payloadHit = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectHit, payloadHit);
+#else
     HitObject.Invoke(sceneBVH, hitObjectHit, payloadHit);
+#endif
     payload.invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
@@ -262,7 +294,11 @@ void missMakeQueryInvokeHit(inout RayPayload payload)
     payload.queryWasSuccess = hitObjectHit.IsHit();
 
     RayPayload payloadHit = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectHit, payloadHit);
+#else
     HitObject.Invoke(sceneBVH, hitObjectHit, payloadHit);
+#endif
     payload.invokeWasSuccess = payloadHit.invokeWasSuccess;
 }
 
@@ -395,12 +431,20 @@ void rayGenShaderMakeMiss()
     ray.TMin = 0.001;
     ray.TMax = 10000.0;
 
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject hitObjectMiss = HitObject.MakeMiss(0, 0, ray);
+#else
     HitObject hitObjectMiss = HitObject.MakeMiss(0, ray);
+#endif
 
     resultBuffer[0].queryWasSuccess = hitObjectMiss.IsMiss();
 
     RayPayload payload = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitObjectMiss, payload);
+#else
     HitObject.Invoke(sceneBVH, hitObjectMiss, payload);
+#endif
     resultBuffer[0].invokeWasSuccess = payload.invokeWasSuccess;
 }
 
@@ -451,7 +495,11 @@ void rayGenShaderTraceMotionRay()
 
     // Invoke the hit
     RayPayload payloadInvoke = {};
+#ifdef SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT
+    HitObject.Invoke(hitobj, payloadInvoke);
+#else
     HitObject.Invoke(sceneBVH, hitobj, payloadInvoke);
+#endif
     resultBuffer[0].invokeWasSuccess = payloadInvoke.invokeWasSuccess;
 }
 
