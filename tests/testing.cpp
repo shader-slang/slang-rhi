@@ -36,6 +36,38 @@ static ShaderCache gShaderCache;
 // Temp directory to create files for teting in.
 static std::filesystem::path gTestTempDirectory;
 
+static Feature getShaderModelFeature(uint32_t shaderModel)
+{
+    switch (shaderModel)
+    {
+    case 0x51:
+        return Feature::SM_5_1;
+    case 0x60:
+        return Feature::SM_6_0;
+    case 0x61:
+        return Feature::SM_6_1;
+    case 0x62:
+        return Feature::SM_6_2;
+    case 0x63:
+        return Feature::SM_6_3;
+    case 0x64:
+        return Feature::SM_6_4;
+    case 0x65:
+        return Feature::SM_6_5;
+    case 0x66:
+        return Feature::SM_6_6;
+    case 0x67:
+        return Feature::SM_6_7;
+    case 0x68:
+        return Feature::SM_6_8;
+    case 0x69:
+        return Feature::SM_6_9;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unhandled D3D12 shader model");
+        return Feature::_Count;
+    }
+}
+
 // Calculates a files sytem compatible date string formatted YYYY-MM-DD-hh-mm-ss.
 static std::string buildCurrentDateString()
 {
@@ -723,12 +755,18 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.slang.compilerOptionEntryCount = compilerOptions.size();
 
     D3D12DeviceExtendedDesc extDesc = {};
+    bool requireSpecificD3D12ShaderModel = false;
     if (deviceType == DeviceType::D3D12)
     {
         extDesc.rootParameterShaderAttributeName = "root";
         if (extraOptions && extraOptions->d3d12HighestShaderModel != 0)
         {
             extDesc.highestShaderModel = extraOptions->d3d12HighestShaderModel;
+        }
+        else if (options().d3d12ShaderModel != 0)
+        {
+            extDesc.highestShaderModel = options().d3d12ShaderModel;
+            requireSpecificD3D12ShaderModel = true;
         }
         deviceDesc.next = &extDesc;
     }
@@ -741,6 +779,12 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
+
+    if (requireSpecificD3D12ShaderModel)
+    {
+        Feature feature = getShaderModelFeature(extDesc.highestShaderModel);
+        REQUIRE(device->hasFeature(feature));
+    }
 
     if (useCachedDevice)
     {
@@ -850,6 +894,12 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
+    D3D12DeviceExtendedDesc d3d12ExtDesc = {};
+    if (deviceType == DeviceType::D3D12 && options().d3d12ShaderModel != 0)
+    {
+        d3d12ExtDesc.highestShaderModel = options().d3d12ShaderModel;
+        desc.next = &d3d12ExtDesc;
+    }
 #if SLANG_RHI_ENABLE_NVAPI
     if (deviceType == DeviceType::D3D12 && !options().d3d12DisableNVAPI)
     {

@@ -29,6 +29,7 @@ struct Options
     std::string memoryReportFile;
     std::array<bool, kDeviceTypeCount + 1> deviceSelected;
     std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
+    uint32_t d3d12ShaderModel = 0;
     bool d3d12DisableNVAPI = false;
     int optixVersion = 0;
 
