@@ -165,7 +165,7 @@ struct RayTracingLssIntrinsicsTest
 
     void init(IDevice* device_) { this->device = device_; }
 
-    void run(const char* raygenName, const char* closestHitName)
+    void run(const char* raygenName, const char* closestHitName, const char* shaderModule = "test-ray-tracing-lss")
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
 
@@ -182,7 +182,7 @@ struct RayTracingLssIntrinsicsTest
 
         RayTracingTestPipeline pipeline(
             device,
-            "test-ray-tracing-lss",
+            shaderModule,
             {raygenName},
             {{closestHitName, /*anyhit=*/nullptr, intersectionName}},
             {"missNOP"},
@@ -264,5 +264,5 @@ GPU_TEST_CASE("ray-tracing-lss-intrinsics-inline-ray-query", ALL)
 
     RayTracingLssIntrinsicsTest test;
     test.init(device);
-    test.run("rayGenLssInlineRayQuery", "closestHitNOP");
+    test.run("rayGenLssInlineRayQuery", "closestHitNOP", "test-ray-tracing-lss-inline-rq");
 }
