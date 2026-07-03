@@ -47,9 +47,119 @@ struct PipelineCacheBinaryHeader
     uint32_t dataOffset;
 };
 
+template<typename T>
+void hashValue(SHA1& sha1, const T& value)
+{
+    sha1.update(&value, sizeof(value));
+}
+
+inline void hashString(SHA1& sha1, const char* value)
+{
+    const uint64_t size = value ? strlen(value) : UINT64_MAX;
+    hashValue(sha1, size);
+    if (value)
+    {
+        sha1.update(value, size);
+    }
+}
+
+// Generate a stable ray tracing pipeline key from the inputs owned by slang-rhi. This is used only when
+// vkGetPipelineKeyKHR returns an unusable all-zero key. Keep the version and hashed fields in sync with
+// RayTracingPipelineDesc and the Vulkan ray tracing pipeline creation code.
+static Result getRayTracingPipelineFallbackKey(
+    ShaderProgramImpl* program,
+    const RayTracingPipelineDesc& desc,
+    SHA1::Digest& outDigest
+)
+{
+    // Unknown extension structures cannot be hashed safely.
+    if (desc.next)
+        return SLANG_E_NOT_AVAILABLE;
+
+    SHA1 sha1;
+    static constexpr char kKeyTag[] = "slang-rhi-vulkan-ray-tracing-pipeline";
+    static constexpr uint32_t kKeyVersion = 1;
+    sha1.update(kKeyTag, sizeof(kKeyTag));
+    hashValue(sha1, kKeyVersion);
+
+    const uint32_t moduleCount = (uint32_t)program->m_modules.size();
+    if (moduleCount != program->m_stageCreateInfos.size())
+        return SLANG_FAIL;
+    hashValue(sha1, moduleCount);
+    for (uint32_t i = 0; i < moduleCount; ++i)
+    {
+        const ShaderProgramImpl::Module& module = program->m_modules[i];
+        const VkPipelineShaderStageCreateInfo& stage = program->m_stageCreateInfos[i];
+        if (!module.code || stage.pNext)
+            return SLANG_E_NOT_AVAILABLE;
+
+        hashValue(sha1, stage.flags);
+        hashValue(sha1, stage.stage);
+        hashString(sha1, module.entryPointName.c_str());
+
+        const uint64_t codeSize = module.code->getBufferSize();
+        hashValue(sha1, codeSize);
+        sha1.update(module.code->getBufferPointer(), codeSize);
+
+        const VkSpecializationInfo* specialization = stage.pSpecializationInfo;
+        const uint8_t hasSpecialization = specialization != nullptr;
+        hashValue(sha1, hasSpecialization);
+        if (specialization)
+        {
+            hashValue(sha1, specialization->mapEntryCount);
+            for (uint32_t j = 0; j < specialization->mapEntryCount; ++j)
+            {
+                const VkSpecializationMapEntry& entry = specialization->pMapEntries[j];
+                hashValue(sha1, entry.constantID);
+                const uint64_t offset = entry.offset;
+                const uint64_t size = entry.size;
+                hashValue(sha1, offset);
+                hashValue(sha1, size);
+            }
+            const uint64_t dataSize = specialization->dataSize;
+            hashValue(sha1, dataSize);
+            sha1.update(specialization->pData, dataSize);
+        }
+    }
+
+    hashValue(sha1, desc.hitGroupCount);
+    for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
+    {
+        const HitGroupDesc& hitGroup = desc.hitGroups[i];
+        hashString(sha1, hitGroup.hitGroupName);
+        hashString(sha1, hitGroup.closestHitEntryPoint);
+        hashString(sha1, hitGroup.anyHitEntryPoint);
+        hashString(sha1, hitGroup.intersectionEntryPoint);
+    }
+    hashValue(sha1, desc.maxRecursion);
+    hashValue(sha1, desc.maxRayPayloadSize);
+    hashValue(sha1, desc.maxAttributeSizeInBytes);
+    hashValue(sha1, desc.flags);
+
+    outDigest = sha1.getDigest();
+    return SLANG_OK;
+}
+
+static bool isAllZeroPipelineKey(const VkPipelineBinaryKeyKHR& key)
+{
+    if (key.keySize == 0)
+        return true;
+    for (uint32_t i = 0; i < key.keySize; ++i)
+    {
+        if (key.key[i] != 0)
+            return false;
+    }
+    return true;
+}
+
 // Create a pipeline cache key based on the device and pipeline create info.
 // The key is a SHA1 hash that includes the adapter LUID, global pipeline key, and the pipeline create info key.
-Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** outBlob)
+Result getPipelineCacheKey(
+    DeviceImpl* device,
+    void* createInfo,
+    const SHA1::Digest* fallbackPipelineKey,
+    ISlangBlob** outBlob
+)
 {
     auto& api = device->m_api;
 
@@ -74,7 +184,22 @@ Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** ou
             api.vkGetPipelineKeyKHR(device->m_device, &pipelineCreateInfo, &pipelineKey),
             device
         );
-        sha1.update(pipelineKey.key, pipelineKey.keySize);
+        if (isAllZeroPipelineKey(pipelineKey))
+        {
+            if (!fallbackPipelineKey)
+            {
+                device->printWarning(
+                    "vkGetPipelineKeyKHR returned an all-zero pipeline key and application didn't provide a fallback "
+                    "key, disabling caching for this pipeline."
+                );
+                return SLANG_E_NOT_AVAILABLE;
+            }
+            sha1.update(fallbackPipelineKey->data(), fallbackPipelineKey->size());
+        }
+        else
+        {
+            sha1.update(pipelineKey.key, pipelineKey.keySize);
+        }
     }
     SHA1::Digest digest = sha1.getDigest();
     ComPtr<ISlangBlob> blob = OwnedBlob::create(digest.data(), digest.size());
@@ -241,7 +366,8 @@ Result createPipelineWithCache(
     VkResult (*createPipelineFunc)(DeviceImpl* device, VkPipelineCreateInfo* createInfo, VkPipeline* outPipeline),
     VkPipeline* outPipeline,
     bool& outCached,
-    size_t& outCacheSize
+    size_t& outCacheSize,
+    const SHA1::Digest* fallbackPipelineKey = nullptr
 )
 {
     auto& api = device->m_api;
@@ -261,7 +387,7 @@ Result createPipelineWithCache(
     VkPipeline pipeline = VK_NULL_HANDLE;
 
     // Create pipeline cache key.
-    if (SLANG_FAILED(getPipelineCacheKey(device, createInfo, pipelineCacheKey.writeRef())))
+    if (SLANG_FAILED(getPipelineCacheKey(device, createInfo, fallbackPipelineKey, pipelineCacheKey.writeRef())))
     {
         device->printWarning("Failed to get pipeline cache key, disabling pipeline cache.");
         return createPipelineFunc(device, createInfo, outPipeline);
@@ -294,6 +420,7 @@ Result createPipelineWithCache(
             {
                 createInfo->pNext = binaryInfo.pNext;
                 pipeline = VK_NULL_HANDLE;
+                device->printWarning("Failed to create pipeline from cache, creating new pipeline.");
             }
             for (auto& binary : pipelineBinaries)
             {
@@ -844,6 +971,16 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.basePipelineIndex = 0;
 
+    SHA1::Digest fallbackPipelineKey;
+    const SHA1::Digest* fallbackPipelineKeyPtr = nullptr;
+    if (m_persistentPipelineCache)
+    {
+        // NVIDIA drivers have returned the same all-zero pipeline key for distinct ray tracing pipelines.
+        // Prepare a stable application key so caching remains safe and useful if that happens.
+        if (SLANG_SUCCEEDED(getRayTracingPipelineFallbackKey(program, desc, fallbackPipelineKey)))
+            fallbackPipelineKeyPtr = &fallbackPipelineKey;
+    }
+
     VkPipeline vkPipeline = VK_NULL_HANDLE;
     bool cached = false;
     size_t cacheSize = 0;
@@ -865,7 +1002,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             },
             &vkPipeline,
             cached,
-            cacheSize
+            cacheSize,
+            fallbackPipelineKeyPtr
         )
     );
 
