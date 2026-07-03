@@ -47,9 +47,57 @@ struct PipelineCacheBinaryHeader
     uint32_t dataOffset;
 };
 
+Result hashSlangEntryPointHash(
+    SHA1& sha1,
+    slang::IComponentType* componentType,
+    uint32_t entryPointIndex,
+    uint32_t targetIndex
+)
+{
+    ComPtr<ISlangBlob> hashBlob;
+    componentType->getEntryPointHash(entryPointIndex, targetIndex, hashBlob.writeRef());
+
+    uint64_t hashSize = hashBlob->getBufferSize();
+    sha1.update(&hashSize, sizeof(hashSize));
+    sha1.update(hashBlob->getBufferPointer(), hashBlob->getBufferSize());
+
+    return SLANG_OK;
+}
+
+Result hashSlangEntryPointHashes(SHA1& sha1, ShaderProgramImpl* program)
+{
+    uint32_t linkedEntryPointCount = (uint32_t)program->linkedEntryPoints.size();
+    sha1.update(&linkedEntryPointCount, sizeof(linkedEntryPointCount));
+
+    if (program->linkedEntryPoints.empty())
+    {
+        auto programReflection = program->linkedProgram->getLayout();
+        uint32_t entryPointCount = programReflection->getEntryPointCount();
+        sha1.update(&entryPointCount, sizeof(entryPointCount));
+
+        for (uint32_t i = 0; i < entryPointCount; ++i)
+        {
+            SLANG_RETURN_ON_FAIL(hashSlangEntryPointHash(sha1, program->linkedProgram, i, 0));
+        }
+    }
+    else
+    {
+        uint32_t entryPointCount = linkedEntryPointCount;
+        sha1.update(&entryPointCount, sizeof(entryPointCount));
+
+        for (auto& entryPoint : program->linkedEntryPoints)
+        {
+            SLANG_RETURN_ON_FAIL(hashSlangEntryPointHash(sha1, entryPoint, 0, 0));
+        }
+    }
+
+    return SLANG_OK;
+}
+
 // Create a pipeline cache key based on the device and pipeline create info.
-// The key is a SHA1 hash that includes the adapter LUID, global pipeline key, and the pipeline create info key.
-Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** outBlob)
+// The key is a SHA1 hash that includes the adapter LUID, global pipeline key, pipeline create info key,
+// and Slang entry-point hashes.
+Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ShaderProgramImpl* program, ISlangBlob** outBlob)
 {
     auto& api = device->m_api;
 
@@ -76,6 +124,7 @@ Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** ou
         );
         sha1.update(pipelineKey.key, pipelineKey.keySize);
     }
+    SLANG_RETURN_ON_FAIL(hashSlangEntryPointHashes(sha1, program));
     SHA1::Digest digest = sha1.getDigest();
     ComPtr<ISlangBlob> blob = OwnedBlob::create(digest.data(), digest.size());
     returnComPtr(outBlob, blob);
@@ -238,6 +287,7 @@ template<typename VkPipelineCreateInfo>
 Result createPipelineWithCache(
     DeviceImpl* device,
     VkPipelineCreateInfo* createInfo,
+    ShaderProgramImpl* program,
     VkResult (*createPipelineFunc)(DeviceImpl* device, VkPipelineCreateInfo* createInfo, VkPipeline* outPipeline),
     VkPipeline* outPipeline,
     bool& outCached,
@@ -261,7 +311,7 @@ Result createPipelineWithCache(
     VkPipeline pipeline = VK_NULL_HANDLE;
 
     // Create pipeline cache key.
-    if (SLANG_FAILED(getPipelineCacheKey(device, createInfo, pipelineCacheKey.writeRef())))
+    if (SLANG_FAILED(getPipelineCacheKey(device, createInfo, program, pipelineCacheKey.writeRef())))
     {
         device->printWarning("Failed to get pipeline cache key, disabling pipeline cache.");
         return createPipelineFunc(device, createInfo, outPipeline);
@@ -590,6 +640,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         createPipelineWithCache<VkGraphicsPipelineCreateInfo>(
             this,
             &createInfo,
+            program,
             [](DeviceImpl* device, VkGraphicsPipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
             {
                 return device->m_api
@@ -664,6 +715,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         createPipelineWithCache<VkComputePipelineCreateInfo>(
             this,
             &createInfo,
+            program,
             [](DeviceImpl* device, VkComputePipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
             {
                 return device->m_api
@@ -851,6 +903,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         createPipelineWithCache<VkRayTracingPipelineCreateInfoKHR>(
             this,
             &createInfo,
+            program,
             [](DeviceImpl* device, VkRayTracingPipelineCreateInfoKHR* createInfo2, VkPipeline* pipeline) -> VkResult
             {
                 return device->m_api.vkCreateRayTracingPipelinesKHR(
