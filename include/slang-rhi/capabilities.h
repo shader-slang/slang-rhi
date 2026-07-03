@@ -58,6 +58,7 @@
     x(_sm_6_7) \
     x(_sm_6_8) \
     x(_sm_6_9) \
+    x(_sm_6_10) \
     x(hlsl_nvapi) \
     x(hlsl_2018) \
     x(_cuda_sm_1_0) \

@@ -45,6 +45,8 @@ struct CustomReporter : public IReporter
             stream << "                                       <device> can be d3d11, d3d12, vulkan, metal, cpu, cuda, wgpu\n";
             stream << "                                       to select a specific adapter, the adapter index can be appended after a colon (i.e. d3d12:1)\n";
             stream << "                                       use * to select all available devices\n";
+            stream << " -d3d12-shader-model=<major.minor>     require and cap D3D12 tests to a shader model, e.g. 6.8\n";
+            stream << " -d3d12-disable-nvapi                  disable the NVAPI shader extension for native D3D12 testing\n";
             stream << " -optix-version=<version>              select a specific OptiX version to use, e.g. 80100 for version 8.1\n";
             stream << " -memory-report                        print process memory summary at the end of the run\n";
             stream << " -memory-report-file=<path>            write process memory summary JSON to a file\n";

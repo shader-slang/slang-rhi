@@ -29,6 +29,8 @@ struct Options
     std::string memoryReportFile;
     std::array<bool, kDeviceTypeCount + 1> deviceSelected;
     std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
+    uint32_t d3d12ShaderModel = 0;
+    bool d3d12DisableNVAPI = false;
     int optixVersion = 0;
 
     Options()
@@ -521,6 +523,19 @@ bool checkNoSilentGpuSkips();
 // configuration.
 #define GPU_TEST_CASE_EX(name, flags, debugLayerOptions)                                                               \
     GPU_TEST_CASE_IMPL(name, DOCTEST_ANONYMOUS(GPU_TEST_ANONYMOUS_), flags, debugLayerOptions)
+
+// TODO: Slang current emits invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled.
+// https://github.com/shader-slang/slang/issues/11903
+#define SKIP_D3D12_NVAPI_WITH_SM_6_9(device)                                                                           \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        if (device && device->getDeviceType() == ::rhi::DeviceType::D3D12 &&                                           \
+            device->hasFeature(::rhi::Feature::SM_6_9) && device->hasCapability(::rhi::Capability::hlsl_nvapi))        \
+        {                                                                                                              \
+            SKIP("Slang generates invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled");                    \
+        }                                                                                                              \
+    }                                                                                                                  \
+    while (0)
 
 #define CHECK_CALL(x) CHECK(!SLANG_FAILED(x))
 #define REQUIRE_CALL(x) REQUIRE(!SLANG_FAILED(x))
