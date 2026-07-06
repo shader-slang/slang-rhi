@@ -56,7 +56,7 @@ public:
         m_bits += static_cast<uint64_t>(len) * 8;
 
         // If there's existing data in the buffer, try to fill it.
-        if (m_index != 0)
+        if (m_index != 0 && m_index < sizeof(m_buf))
         {
             const uint32_t space = 64 - m_index;
             if (len < space)
