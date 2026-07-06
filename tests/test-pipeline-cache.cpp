@@ -542,6 +542,11 @@ GPU_TEST_CASE("pipeline-cache-ray-tracing", Vulkan | DontCreateDevice)
     runTest<PipelineCacheTestRayTracing<false>>(ctx);
 }
 
+GPU_TEST_CASE("pipeline-cache-ray-tracing-corrupt", Vulkan | DontCreateDevice)
+{
+    runTest<PipelineCacheTestRayTracing<true>>(ctx);
+}
+
 #if 0
 // TODO: D3D12 does fail in debug layers and not return an error correctly.
 GPU_TEST_CASE("pipeline-cache-render-corrupt", Vulkan | DontCreateDevice)

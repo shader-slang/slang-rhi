@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <type_traits>
 
 namespace rhi {
 
@@ -88,6 +89,17 @@ public:
         }
 
         return *this;
+    }
+
+    /**
+     * Update hash by adding the given basic value.
+     * \param data Data to hash.
+     */
+    template<typename T>
+    SHA1& update(const T& value)
+        requires std::is_fundamental_v<T> || std::is_enum_v<T>
+    {
+        return update(&value, sizeof(value));
     }
 
     /**
