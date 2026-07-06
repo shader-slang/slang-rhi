@@ -44,6 +44,8 @@
     x(metallib_2_4) \
     x(metallib_3_0) \
     x(metallib_3_1) \
+    x(metallib_3_2) \
+    x(metallib_4_0) \
     x(_sm_4_0) \
     x(_sm_4_1) \
     x(_sm_5_0) \
