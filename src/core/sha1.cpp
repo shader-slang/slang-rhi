@@ -12,7 +12,11 @@
 #endif
 #include <immintrin.h>
 #elif SLANG_PROCESSOR_ARM_64
+#if SLANG_VC && !defined(__clang__)
+#include <arm64_neon.h>
+#else
 #include <arm_neon.h>
+#endif
 #if SLANG_WINDOWS_FAMILY
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
