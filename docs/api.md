@@ -156,10 +156,10 @@
 | API                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`                   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getResultState`            | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
-| `getResult`                 | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
-| `reset`                     | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
-| `reset(queryIndex, count)`  | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
+| `getResultState`            | yes | yes  | yes   | yes   | yes    | yes   | :x:  |
+| `getResult`                 | yes | yes  | yes   | yes   | yes    | yes   | :x:  |
+| `reset`                     | yes | yes  | yes   | yes   | yes    | yes   | :x:  |
+| `reset(queryIndex, count)`  | yes | yes  | yes   | yes   | yes    | yes   | :x:  |
 
 ## `ICommandEncoder` interface
 
@@ -192,7 +192,7 @@
 | `pushDebugGroup`                       | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `popDebugGroup`                        | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
 | `insertDebugMarker`                    | :x: | :x:  | :x:   | yes   | yes    | yes   | yes  |
-| `writeTimestamp`                       | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
+| `writeTimestamp`                       | yes | yes  | yes   | yes   | yes    | yes   | :x:  |
 | `finish`                               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle`                      | :x: | :x:  | :x:   | :x:   | :x:    | :x:   | :x:  |
 
@@ -249,7 +249,7 @@
 | `submit`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getNativeHandle`         | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
 | `waitOnHost`              | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getTimestampCalibration` | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
+| `getTimestampCalibration` | yes | yes  | yes   | yes   | yes    | yes   | :x:  |
 
 ## `ISurface` interface
 

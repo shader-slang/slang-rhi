@@ -67,6 +67,7 @@ public:
     NS::SharedPtr<MTL::ComputeCommandEncoder> m_computeCommandEncoder;
     NS::SharedPtr<MTL::AccelerationStructureCommandEncoder> m_accelerationStructureCommandEncoder;
     NS::SharedPtr<MTL::BlitCommandEncoder> m_blitCommandEncoder;
+    short_vector<QueryPoolImpl*> m_timestampQueryPools;
 
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
@@ -153,6 +154,21 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     m_commandBuffer = commandBuffer->m_commandBuffer;
 
     CommandList& commandList = commandBuffer->m_commandList;
+    for (const auto& queryWrite : commandList.getQueryWrites())
+    {
+        QueryPoolImpl* queryPool = checked_cast<QueryPoolImpl*>(queryWrite.queryPool);
+        if (std::find(m_timestampQueryPools.begin(), m_timestampQueryPools.end(), queryPool) ==
+            m_timestampQueryPools.end())
+        {
+            // Metal exposes four counter sample-buffer attachments per pass descriptor.
+            if (m_timestampQueryPools.size() == 4)
+            {
+                return SLANG_E_NOT_AVAILABLE;
+            }
+            m_timestampQueryPools.push_back(queryPool);
+        }
+    }
+
     auto command = commandList.getCommands();
     while (command)
     {
@@ -172,6 +188,22 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     }
 
     endCommandEncoder();
+
+    if (!commandList.getQueryWrites().empty())
+    {
+        auto encoder = getBlitCommandEncoder();
+        for (const auto& queryWrite : commandList.getQueryWrites())
+        {
+            QueryPoolImpl* queryPool = checked_cast<QueryPoolImpl*>(queryWrite.queryPool);
+            encoder->resolveCounters(
+                queryPool->m_counterSampleBuffer.get(),
+                NS::Range(queryWrite.index, queryWrite.count),
+                queryPool->m_readbackBuffer.get(),
+                sizeof(MTL::CounterResultTimestamp) * queryWrite.index
+            );
+        }
+        endCommandEncoder();
+    }
 
     return SLANG_OK;
 }
@@ -528,6 +560,16 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
     renderPassDesc->setRenderTargetWidth(width);
     renderPassDesc->setRenderTargetHeight(height);
+
+    for (size_t i = 0; i < m_timestampQueryPools.size(); ++i)
+    {
+        auto attachment = renderPassDesc->sampleBufferAttachments()->object(i);
+        attachment->setSampleBuffer(m_timestampQueryPools[i]->m_counterSampleBuffer.get());
+        attachment->setStartOfVertexSampleIndex(MTL::CounterDontSample);
+        attachment->setEndOfVertexSampleIndex(MTL::CounterDontSample);
+        attachment->setStartOfFragmentSampleIndex(MTL::CounterDontSample);
+        attachment->setEndOfFragmentSampleIndex(MTL::CounterDontSample);
+    }
 
     m_useDepthStencil = desc.depthStencilAttachment != nullptr;
 
@@ -1008,13 +1050,17 @@ void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 
 void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
-    SLANG_UNUSED(cmd);
-    // auto encoder = getBlitCommandEncoder();
-    // encoder->sampleCountersInBuffer(
-    //     checked_cast<QueryPoolImpl*>(cmd.queryPool)->m_counterSampleBuffer.get(),
-    //     cmd.queryIndex,
-    //     true
-    // );
+    MTL::CounterSampleBuffer* sampleBuffer =
+        checked_cast<QueryPoolImpl*>(cmd.queryPool)->m_counterSampleBuffer.get();
+
+    if (m_renderCommandEncoder)
+        m_renderCommandEncoder->sampleCountersInBuffer(sampleBuffer, cmd.queryIndex, true);
+    else if (m_computeCommandEncoder)
+        m_computeCommandEncoder->sampleCountersInBuffer(sampleBuffer, cmd.queryIndex, true);
+    else if (m_accelerationStructureCommandEncoder)
+        m_accelerationStructureCommandEncoder->sampleCountersInBuffer(sampleBuffer, cmd.queryIndex, true);
+    else
+        getBlitCommandEncoder()->sampleCountersInBuffer(sampleBuffer, cmd.queryIndex, true);
 }
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
@@ -1045,7 +1091,16 @@ MTL::ComputeCommandEncoder* CommandRecorder::getComputeCommandEncoder()
     if (!m_computeCommandEncoder)
     {
         endCommandEncoder();
-        m_computeCommandEncoder = NS::RetainPtr(m_commandBuffer->computeCommandEncoder());
+        NS::SharedPtr<MTL::ComputePassDescriptor> desc =
+            NS::TransferPtr(MTL::ComputePassDescriptor::alloc()->init());
+        for (size_t i = 0; i < m_timestampQueryPools.size(); ++i)
+        {
+            auto attachment = desc->sampleBufferAttachments()->object(i);
+            attachment->setSampleBuffer(m_timestampQueryPools[i]->m_counterSampleBuffer.get());
+            attachment->setStartOfEncoderSampleIndex(MTL::CounterDontSample);
+            attachment->setEndOfEncoderSampleIndex(MTL::CounterDontSample);
+        }
+        m_computeCommandEncoder = NS::RetainPtr(m_commandBuffer->computeCommandEncoder(desc.get()));
         m_computeCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_computeCommandEncoder.get();
@@ -1056,7 +1111,17 @@ MTL::AccelerationStructureCommandEncoder* CommandRecorder::getAccelerationStruct
     if (!m_accelerationStructureCommandEncoder)
     {
         endCommandEncoder();
-        m_accelerationStructureCommandEncoder = NS::RetainPtr(m_commandBuffer->accelerationStructureCommandEncoder());
+        NS::SharedPtr<MTL::AccelerationStructurePassDescriptor> desc =
+            NS::TransferPtr(MTL::AccelerationStructurePassDescriptor::alloc()->init());
+        for (size_t i = 0; i < m_timestampQueryPools.size(); ++i)
+        {
+            auto attachment = desc->sampleBufferAttachments()->object(i);
+            attachment->setSampleBuffer(m_timestampQueryPools[i]->m_counterSampleBuffer.get());
+            attachment->setStartOfEncoderSampleIndex(MTL::CounterDontSample);
+            attachment->setEndOfEncoderSampleIndex(MTL::CounterDontSample);
+        }
+        m_accelerationStructureCommandEncoder =
+            NS::RetainPtr(m_commandBuffer->accelerationStructureCommandEncoder(desc.get()));
         m_accelerationStructureCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_accelerationStructureCommandEncoder.get();
@@ -1067,7 +1132,15 @@ MTL::BlitCommandEncoder* CommandRecorder::getBlitCommandEncoder()
     if (!m_blitCommandEncoder)
     {
         endCommandEncoder();
-        m_blitCommandEncoder = NS::RetainPtr(m_commandBuffer->blitCommandEncoder());
+        NS::SharedPtr<MTL::BlitPassDescriptor> desc = NS::TransferPtr(MTL::BlitPassDescriptor::alloc()->init());
+        for (size_t i = 0; i < m_timestampQueryPools.size(); ++i)
+        {
+            auto attachment = desc->sampleBufferAttachments()->object(i);
+            attachment->setSampleBuffer(m_timestampQueryPools[i]->m_counterSampleBuffer.get());
+            attachment->setStartOfEncoderSampleIndex(MTL::CounterDontSample);
+            attachment->setEndOfEncoderSampleIndex(MTL::CounterDontSample);
+        }
+        m_blitCommandEncoder = NS::RetainPtr(m_commandBuffer->blitCommandEncoder(desc.get()));
         m_blitCommandEncoder->waitForFence(m_commandBufferImpl->m_queue->m_queueFence.get());
     }
     return m_blitCommandEncoder.get();
@@ -1203,6 +1276,30 @@ uint64_t CommandQueueImpl::updateLastFinishedID()
     return m_lastFinishedID;
 }
 
+Result CommandQueueImpl::waitForSubmission(uint64_t submissionID)
+{
+    AUTORELEASEPOOL
+
+    if (updateLastFinishedID() >= submissionID)
+    {
+        return SLANG_OK;
+    }
+
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+    MTL::SharedEventNotificationBlock block = ^(MTL::SharedEvent* event, uint64_t eventValue) {
+      SLANG_UNUSED(event);
+      SLANG_UNUSED(eventValue);
+      dispatch_semaphore_signal(semaphore);
+    };
+    m_trackingEvent->notifyListener(m_trackingEventListener.get(), submissionID, block);
+    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+    dispatch_release(semaphore);
+
+    updateLastFinishedID();
+    retireCommandBuffers();
+    return SLANG_OK;
+}
+
 Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, ICommandEncoder** outEncoder)
 {
     AUTORELEASEPOOL
@@ -1258,6 +1355,29 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const uint64_t before = getCpuTimestamp();
+    MTL::Timestamp cpuTimestamp = 0;
+    MTL::Timestamp gpuTimestamp = 0;
+    device->m_device->sampleTimestamps(&cpuTimestamp, &gpuTimestamp);
+    const uint64_t after = getCpuTimestamp();
+
+    outCalibration->cpuDomain = getCpuTimestampDomain();
+    outCalibration->cpuTimestamp = cpuTimestamp;
+    outCalibration->cpuFrequency = getCpuTimestampFrequency();
+    outCalibration->gpuTimestamp = gpuTimestamp;
+    outCalibration->gpuFrequency = device->getInfo().timestampFrequency;
+    outCalibration->maxDeviationNs = ticksToNanoseconds(after - before, outCalibration->cpuFrequency);
+    return outCalibration->gpuFrequency ? SLANG_OK : SLANG_E_NOT_AVAILABLE;
+}
+
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
     AUTORELEASEPOOL
@@ -1303,6 +1423,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         // Get command buffer, assign updated submission id and store in the in-flight list.
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
+        }
         m_commandBuffersInFlight.push_back(commandBuffer);
 
         // Signal fences if this is the last command buffer.

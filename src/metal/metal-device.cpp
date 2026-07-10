@@ -226,6 +226,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         limits.maxFramebufferDimensions[2] = 2048;
 
         limits.maxShaderVisibleSamplers = 16;
+
+        // Timestamps returned by Metal's common timestamp counter are in nanoseconds.
+        if (supportsTimestampQueries(m_device.get()))
+        {
+            m_info.timestampFrequency = 1000000000;
+        }
     }
 
     // Initialize features & capabilities.
@@ -233,6 +239,12 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::HardwareDevice);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
+
+    if (m_info.timestampFrequency != 0)
+    {
+        addFeature(Feature::TimestampQuery);
+        addFeature(Feature::TimestampCalibration);
+    }
 
     if (m_device->supportsRaytracing())
     {

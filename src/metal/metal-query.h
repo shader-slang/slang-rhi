@@ -8,6 +8,7 @@ class QueryPoolImpl : public QueryPool
 {
 public:
     NS::SharedPtr<MTL::CounterSampleBuffer> m_counterSampleBuffer;
+    NS::SharedPtr<MTL::Buffer> m_readbackBuffer;
 
     QueryPoolImpl(Device* device, const QueryPoolDesc& desc);
     ~QueryPoolImpl();
@@ -25,5 +26,8 @@ public:
         uint64_t* outData
     ) override;
 };
+
+MTL::CounterSet* findTimestampCounterSet(MTL::Device* device);
+bool supportsTimestampQueries(MTL::Device* device);
 
 } // namespace rhi::metal
