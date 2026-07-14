@@ -1,5 +1,6 @@
 #include "testing.h"
 
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -148,7 +149,7 @@ struct PipelineCacheTestCompute : PipelineCacheTest
     ComPtr<IComputePipeline> computePipeline;
     ComPtr<IBuffer> buffer;
 
-    std::string computeShader = std::string(
+    std::string computeShaderAdd = std::string(
         R"(
         [shader("compute")]
         [numthreads(4, 1, 1)]
@@ -158,6 +159,20 @@ struct PipelineCacheTestCompute : PipelineCacheTest
         {
             var input = buffer[sv_dispatchThreadID.x];
             buffer[sv_dispatchThreadID.x] = input + 1.0f;
+        }
+        )"
+    );
+
+    std::string computeShaderMultiply = std::string(
+        R"(
+        [shader("compute")]
+        [numthreads(4, 1, 1)]
+        void main(
+            uint3 sv_dispatchThreadID : SV_DispatchThreadID,
+            uniform RWStructuredBuffer<float> buffer)
+        {
+            var input = buffer[sv_dispatchThreadID.x];
+            buffer[sv_dispatchThreadID.x] = input * 2.0f;
         }
         )"
     );
@@ -223,16 +238,17 @@ struct PipelineCacheTestCompute : PipelineCacheTest
 
     void runTests()
     {
-        // Cache is cold and we expect 1 miss.
+        // Cache is cold and we expect 2 misses for 2 different programs.
         createDevice();
         if (!device->hasFeature(Feature::PipelineCache))
             SKIP("Pipeline cache is not supported on this device type.");
-        runComputePipeline(computeShader, {1.f, 2.f, 3.f, 4.f});
-        CHECK_EQ(getStats().writeCount, 1);
-        CHECK_EQ(getStats().queryCount, 1);
-        CHECK_EQ(getStats().missCount, 1);
+        runComputePipeline(computeShaderAdd, {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline(computeShaderMultiply, {0.f, 2.f, 4.f, 6.f});
+        CHECK_EQ(getStats().writeCount, 2);
+        CHECK_EQ(getStats().queryCount, 2);
+        CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 0);
-        CHECK_EQ(getStats().entryCount, 1);
+        CHECK_EQ(getStats().entryCount, 2);
 
         // Corrupt the cache.
         if constexpr (Corrupt)
@@ -240,14 +256,15 @@ struct PipelineCacheTestCompute : PipelineCacheTest
             pipelineCache.corrupt();
         }
 
-        // Cache is hot and we expect 1 hit.
+        // Cache is hot and we expect 2 hits.
         createDevice();
-        runComputePipeline(computeShader, {1.f, 2.f, 3.f, 4.f});
-        CHECK_EQ(getStats().writeCount, Corrupt ? 2 : 1);
-        CHECK_EQ(getStats().queryCount, 2);
-        CHECK_EQ(getStats().missCount, 1);
-        CHECK_EQ(getStats().hitCount, 1);
-        CHECK_EQ(getStats().entryCount, 1);
+        runComputePipeline(computeShaderAdd, {1.f, 2.f, 3.f, 4.f});
+        runComputePipeline(computeShaderMultiply, {0.f, 2.f, 4.f, 6.f});
+        CHECK_EQ(getStats().writeCount, Corrupt ? 4 : 2);
+        CHECK_EQ(getStats().queryCount, 4);
+        CHECK_EQ(getStats().missCount, 2);
+        CHECK_EQ(getStats().hitCount, 2);
+        CHECK_EQ(getStats().entryCount, 2);
     }
 };
 
@@ -257,7 +274,7 @@ struct PipelineCacheTestRender : PipelineCacheTest
     ComPtr<IRenderPipeline> renderPipeline;
     ComPtr<ITexture> texture;
 
-    std::string renderShader = std::string(
+    std::string renderShaderMagenta = std::string(
         R"(
         [shader("vertex")]
         float4 vertexMain(uint vid: SV_VertexID) : SV_Position
@@ -277,6 +294,24 @@ struct PipelineCacheTestRender : PipelineCacheTest
         )"
     );
 
+    std::string renderShaderCyan = std::string(
+        R"(
+        [shader("vertex")]
+        float4 vertexMain(uint vid: SV_VertexID) : SV_Position
+        {
+            float2 uv = float2((vid << 1) & 2, vid & 2);
+            return float4(uv * float2(2, -2) + float2(-1, 1), 0, 1);
+        }
+
+        [shader("fragment")]
+        float4 fragmentMain()
+            : SV_Target
+        {
+            return float4(0.0, 1.0, 1.0, 1.0);
+        }
+        )"
+    );
+
     void createResources()
     {
         TextureDesc textureDesc = {};
@@ -292,7 +327,7 @@ struct PipelineCacheTestRender : PipelineCacheTest
         renderPipeline = nullptr;
     }
 
-    void createRenderPipeline(std::string_view shaderSource)
+    void createRenderPipeline(std::string_view shaderSource, bool enableBlend)
     {
         ComPtr<IShaderProgram> shaderProgram;
         REQUIRE_CALL(
@@ -303,6 +338,7 @@ struct PipelineCacheTestRender : PipelineCacheTest
         pipelineDesc.program = shaderProgram.get();
         ColorTargetDesc colorTargetDesc = {};
         colorTargetDesc.format = Format::RGBA32Float;
+        colorTargetDesc.enableBlend = enableBlend;
         pipelineDesc.targetCount = 1;
         pipelineDesc.targets = &colorTargetDesc;
         REQUIRE_CALL(device->createRenderPipeline(pipelineDesc, renderPipeline.writeRef()));
@@ -345,10 +381,10 @@ struct PipelineCacheTestRender : PipelineCacheTest
                ) == 0;
     }
 
-    void runRenderPipeline(std::string_view shaderSource, const std::vector<float>& expectedOutput)
+    void runRenderPipeline(std::string_view shaderSource, bool enableBlend, const std::vector<float>& expectedOutput)
     {
         createResources();
-        createRenderPipeline(shaderSource);
+        createRenderPipeline(shaderSource, enableBlend);
         dispatchRenderPipeline();
         CHECK(checkOutput(expectedOutput));
         freeResources();
@@ -356,16 +392,17 @@ struct PipelineCacheTestRender : PipelineCacheTest
 
     void runTests()
     {
-        // Cache is cold and we expect 1 miss.
+        // Cache is cold and we expect 2 misses for different programs and blend configurations.
         createDevice();
         if (!device->hasFeature(Feature::PipelineCache))
             SKIP("Pipeline cache is not supported on this device type.");
-        runRenderPipeline(renderShader, {1.f, 0.f, 1.f, 1.f});
-        CHECK_EQ(getStats().writeCount, 1);
-        CHECK_EQ(getStats().queryCount, 1);
-        CHECK_EQ(getStats().missCount, 1);
+        runRenderPipeline(renderShaderMagenta, false, {1.f, 0.f, 1.f, 1.f});
+        runRenderPipeline(renderShaderCyan, true, {0.f, 1.f, 1.f, 1.f});
+        CHECK_EQ(getStats().writeCount, 2);
+        CHECK_EQ(getStats().queryCount, 2);
+        CHECK_EQ(getStats().missCount, 2);
         CHECK_EQ(getStats().hitCount, 0);
-        CHECK_EQ(getStats().entryCount, 1);
+        CHECK_EQ(getStats().entryCount, 2);
 
         // Corrupt the cache.
         if constexpr (Corrupt)
@@ -373,14 +410,104 @@ struct PipelineCacheTestRender : PipelineCacheTest
             pipelineCache.corrupt();
         }
 
-        // Cache is hot and we expect 1 hit.
+        // Cache is hot and we expect 2 hits.
         createDevice();
-        runRenderPipeline(renderShader, {1.f, 0.f, 1.f, 1.f});
-        CHECK_EQ(getStats().writeCount, Corrupt ? 2 : 1);
-        CHECK_EQ(getStats().queryCount, 2);
-        CHECK_EQ(getStats().missCount, 1);
-        CHECK_EQ(getStats().hitCount, 1);
-        CHECK_EQ(getStats().entryCount, 1);
+        runRenderPipeline(renderShaderMagenta, false, {1.f, 0.f, 1.f, 1.f});
+        runRenderPipeline(renderShaderCyan, true, {0.f, 1.f, 1.f, 1.f});
+        CHECK_EQ(getStats().writeCount, Corrupt ? 4 : 2);
+        CHECK_EQ(getStats().queryCount, 4);
+        CHECK_EQ(getStats().missCount, 2);
+        CHECK_EQ(getStats().hitCount, 2);
+        CHECK_EQ(getStats().entryCount, 2);
+    }
+};
+
+template<bool Corrupt>
+struct PipelineCacheTestRayTracing : PipelineCacheTest
+{
+    ComPtr<IRayTracingPipeline> rayTracingPipeline;
+
+    void runRayTracingPipeline(
+        const char* entryPointName,
+        uint32_t value,
+        uint32_t maxRecursion,
+        RayTracingPipelineFlags flags,
+        const std::array<uint32_t, 4>& expectedOutput
+    )
+    {
+        ComPtr<IShaderProgram> shaderProgram;
+        REQUIRE_CALL(
+            loadProgram(device, "test-ray-tracing-raygen-entrypoint", entryPointName, shaderProgram.writeRef())
+        );
+
+        RayTracingPipelineDesc pipelineDesc = {};
+        pipelineDesc.program = shaderProgram;
+        pipelineDesc.maxRecursion = maxRecursion;
+        pipelineDesc.flags = flags;
+        REQUIRE_CALL(device->createRayTracingPipeline(pipelineDesc, rayTracingPipeline.writeRef()));
+
+        ComPtr<IShaderTable> shaderTable;
+        ShaderTableDesc shaderTableDesc = {};
+        shaderTableDesc.program = shaderProgram;
+        shaderTableDesc.rayGenShaderCount = 1;
+        shaderTableDesc.rayGenShaderEntryPointNames = &entryPointName;
+        REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
+
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = expectedOutput.size() * sizeof(uint32_t);
+        bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        ComPtr<IBuffer> outputBuffer;
+        REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, outputBuffer.writeRef()));
+
+        auto queue = device->getQueue(QueueType::Graphics);
+        auto commandEncoder = queue->createCommandEncoder();
+        auto passEncoder = commandEncoder->beginRayTracingPass();
+        auto rootObject = passEncoder->bindPipeline(rayTracingPipeline, shaderTable);
+        auto cursor = ShaderCursor(rootObject->getEntryPoint(0));
+        cursor["output"].setBinding(outputBuffer);
+        cursor["value"].setData(value);
+        passEncoder->dispatchRays(0, 2, 2, 1);
+        passEncoder->end();
+        REQUIRE_CALL(queue->submit(commandEncoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        compareComputeResult(device, outputBuffer, expectedOutput);
+
+        rayTracingPipeline = nullptr;
+    }
+
+    void runTests()
+    {
+        // Cache is cold and we expect 3 misses for different programs and pipeline configurations.
+        createDevice();
+        if (!device->hasFeature(Feature::PipelineCache))
+            SKIP("Pipeline cache is not supported on this device type.");
+        if (!device->hasFeature(Feature::RayTracing))
+            SKIP("Ray tracing is not supported on this device type.");
+        runRayTracingPipeline("rayGenA", 1, 1, RayTracingPipelineFlags::None, {1, 2, 3, 4});
+        runRayTracingPipeline("rayGenB", 10, 1, RayTracingPipelineFlags::None, {10, 12, 14, 16});
+        runRayTracingPipeline("rayGenA", 100, 2, RayTracingPipelineFlags::None, {100, 101, 102, 103});
+        CHECK_EQ(getStats().writeCount, 3);
+        CHECK_EQ(getStats().queryCount, 3);
+        CHECK_EQ(getStats().missCount, 3);
+        CHECK_EQ(getStats().hitCount, 0);
+        CHECK_EQ(getStats().entryCount, 3);
+
+        // Corrupt the cache.
+        if constexpr (Corrupt)
+        {
+            pipelineCache.corrupt();
+        }
+
+        // Cache is hot and we expect 3 hits.
+        createDevice();
+        runRayTracingPipeline("rayGenA", 1, 1, RayTracingPipelineFlags::None, {1, 2, 3, 4});
+        runRayTracingPipeline("rayGenB", 10, 1, RayTracingPipelineFlags::None, {10, 12, 14, 16});
+        runRayTracingPipeline("rayGenA", 100, 2, RayTracingPipelineFlags::None, {100, 101, 102, 103});
+        CHECK_EQ(getStats().writeCount, Corrupt ? 6 : 3);
+        CHECK_EQ(getStats().queryCount, 6);
+        CHECK_EQ(getStats().missCount, 3);
+        CHECK_EQ(getStats().hitCount, 3);
+        CHECK_EQ(getStats().entryCount, 3);
     }
 };
 
@@ -408,6 +535,16 @@ GPU_TEST_CASE("pipeline-cache-compute-corrupt", Vulkan | DontCreateDevice)
 GPU_TEST_CASE("pipeline-cache-render", D3D12 | Vulkan | DontCreateDevice)
 {
     runTest<PipelineCacheTestRender<false>>(ctx);
+}
+
+GPU_TEST_CASE("pipeline-cache-ray-tracing", Vulkan | DontCreateDevice)
+{
+    runTest<PipelineCacheTestRayTracing<false>>(ctx);
+}
+
+GPU_TEST_CASE("pipeline-cache-ray-tracing-corrupt", Vulkan | DontCreateDevice)
+{
+    runTest<PipelineCacheTestRayTracing<true>>(ctx);
 }
 
 #if 0

@@ -2,6 +2,10 @@
 
 #include "testing.h"
 
+#if SLANG_RHI_ENABLE_METAL
+#include <Foundation/NSProcessInfo.hpp>
+#endif
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -60,3 +64,20 @@ GPU_TEST_CASE("cuda-device-features", CUDA)
     // Compute capability 9.0 features
     CHECK(device->hasFeature(Feature::AtomicBfloat16) == has_sm9_0);
 }
+
+#if SLANG_RHI_ENABLE_METAL
+GPU_TEST_CASE("metal-device-capabilities", Metal)
+{
+    REQUIRE(device);
+
+    const auto osVersion = NS::ProcessInfo::processInfo()->operatingSystemVersion();
+    const auto macOSMajorVersion = osVersion.majorVersion;
+
+    CHECK(device->hasCapability(Capability::metallib_2_3) == (macOSMajorVersion >= 11));
+    CHECK(device->hasCapability(Capability::metallib_2_4) == (macOSMajorVersion >= 12));
+    CHECK(device->hasCapability(Capability::metallib_3_0) == (macOSMajorVersion >= 13));
+    CHECK(device->hasCapability(Capability::metallib_3_1) == (macOSMajorVersion >= 14));
+    CHECK(device->hasCapability(Capability::metallib_3_2) == (macOSMajorVersion >= 15));
+    CHECK(device->hasCapability(Capability::metallib_4_0) == (macOSMajorVersion >= 26));
+}
+#endif

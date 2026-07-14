@@ -16,6 +16,8 @@
 
 #include "core/common.h"
 
+#include <Foundation/NSProcessInfo.hpp>
+
 #include <cstdlib>
 #include <vector>
 
@@ -250,6 +252,19 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     }
 
     addCapability(Capability::metal);
+    const auto osVersion = NS::ProcessInfo::processInfo()->operatingSystemVersion();
+    if (osVersion.majorVersion >= 11)
+        addCapability(Capability::metallib_2_3);
+    if (osVersion.majorVersion >= 12)
+        addCapability(Capability::metallib_2_4);
+    if (osVersion.majorVersion >= 13)
+        addCapability(Capability::metallib_3_0);
+    if (osVersion.majorVersion >= 14)
+        addCapability(Capability::metallib_3_1);
+    if (osVersion.majorVersion >= 15)
+        addCapability(Capability::metallib_3_2);
+    if (osVersion.majorVersion >= 26)
+        addCapability(Capability::metallib_4_0);
 
     auto supportsAnyGPUFamilyInRange = [&](MTL::GPUFamily first, MTL::GPUFamily last)
     {
