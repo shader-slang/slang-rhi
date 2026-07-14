@@ -87,10 +87,22 @@ jobs:
         with:
           version: '5.0.6'
 
+      # TEMPORARY (revert once a slang release contains shader-slang/slang#12089):
+      # Build slang from the PR branch so CI exercises the `nvapi_hit_objects` capability,
+      # which is not in any slang release yet. Applied to all jobs except Emscripten
+      # (whose wasm libs cannot be built from source with this preset).
+      - name: Build slang from source (PR shader-slang/slang#12089)
+        if: matrix.compiler != 'emscripten'
+        run: |
+          git clone --recursive --branch ser-abi-single-source https://github.com/shader-slang/slang slang-src
+          cd slang-src
+          cmake --preset default
+          cmake --build --preset release
+
       - name: Configure
         env:
           SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }}
+        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }} ${{ matrix.compiler != 'emscripten' && format('-DSLANG_RHI_FETCH_SLANG=OFF -DSLANG_RHI_SLANG_INCLUDE_DIR={0}/slang-src/include -DSLANG_RHI_SLANG_BINARY_DIR={0}/slang-src/build/Release', github.workspace) || '' }}
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
