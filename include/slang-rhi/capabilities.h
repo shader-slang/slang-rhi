@@ -241,7 +241,8 @@
     x(_GL_NV_shader_subgroup_partitioned) \
     x(_GL_NV_shader_texture_footprint) \
     x(_GL_NV_cluster_acceleration_structure) \
-    x(_GL_NV_cooperative_vector)
+    x(_GL_NV_cooperative_vector) \
+    x(nvapi_hit_objects)
 // clang-format on
 
 namespace rhi {

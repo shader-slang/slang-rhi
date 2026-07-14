@@ -1076,6 +1076,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
                     reorderingCaps == NVAPI_D3D12_RAYTRACING_THREAD_REORDERING_CAP_STANDARD)
                 {
                     addFeature(Feature::ShaderExecutionReordering);
+                    // Opt into the NVAPI HitObject / SER ABI (slang `nvapi_hit_objects`, shader-slang/slang#12089).
+                    // Under that design native DXR is the default and the NVAPI HitObject ABI must be requested
+                    // explicitly. Slang releases that predate the atom silently ignore this capability.
+                    addCapability(Capability::nvapi_hit_objects);
                 }
                 NVAPI_D3D12_RAYTRACING_CLUSTER_OPERATIONS_CAPS clusterOpsCaps;
                 if (NvAPI_D3D12_GetRaytracingCaps(
