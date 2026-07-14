@@ -775,15 +775,6 @@ ComPtr<IDevice> createTestingDevice(
             extDesc.highestShaderModel = options().d3d12ShaderModel;
             requireSpecificD3D12ShaderModel = true;
         }
-        else
-        {
-            // TODO: Slang current emits invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled.
-            // https://github.com/shader-slang/slang/issues/11903
-            // We currently default testing to cap at SM 6.8 to avoid this issue,
-            // but ideally we should be able to test SM 6.9 with NVAPI enabled.
-            // We can test SM 6.9 with/without NVAPI using -d3d12-shader-model and -d3d12-disable-nvapi cli options.
-            extDesc.highestShaderModel = 0x68;
-        }
         deviceDesc.next = &extDesc;
     }
 
