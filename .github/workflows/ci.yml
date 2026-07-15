@@ -99,15 +99,23 @@ jobs:
           cmake --preset default
           cmake --build --preset release
 
-      # github.workspace is a backslash path on Windows (e.g. W:\ghbridge-runner\...), and
-      # CMake's if(EXISTS ...) rejects backslash escapes when the path flows into slang-rhi's
-      # copy_file(). Export a forward-slash copy of the slang-src dir for the -D paths below.
-      - name: Normalize slang-src path (forward slashes)
-        if: matrix.compiler != 'emscripten'
+      # github.workspace is a backslash path on Windows self-hosted runners
+      # (e.g. W:\ghbridge-runner\...); CMake's if(EXISTS ...) then rejects \g and
+      # similar as invalid escapes once the path reaches slang-rhi's copy_file().
+      # Export a forward-slash slang-src dir for the -D paths in Configure. The
+      # Windows runner has no bash, so normalize with cmd there and pass the
+      # already-forward-slash workspace through with bash elsewhere.
+      - name: Normalize slang-src path (non-Windows)
+        if: matrix.compiler != 'emscripten' && runner.os != 'Windows'
         shell: bash
+        run: echo "SLANG_SRC_DIR=${{ github.workspace }}/slang-src" >> "$GITHUB_ENV"
+
+      - name: Normalize slang-src path (Windows)
+        if: matrix.compiler != 'emscripten' && runner.os == 'Windows'
+        shell: cmd
         run: |
-          WS='${{ github.workspace }}'
-          echo "SLANG_SRC_DIR=${WS//\\//}/slang-src" >> "$GITHUB_ENV"
+          set "WS=${{ github.workspace }}"
+          echo SLANG_SRC_DIR=%WS:\=/%/slang-src>>%GITHUB_ENV%
 
       - name: Configure
         env:
