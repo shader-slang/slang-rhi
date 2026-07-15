@@ -99,10 +99,20 @@ jobs:
           cmake --preset default
           cmake --build --preset release
 
+      # github.workspace is a backslash path on Windows (e.g. W:\ghbridge-runner\...), and
+      # CMake's if(EXISTS ...) rejects backslash escapes when the path flows into slang-rhi's
+      # copy_file(). Export a forward-slash copy of the slang-src dir for the -D paths below.
+      - name: Normalize slang-src path (forward slashes)
+        if: matrix.compiler != 'emscripten'
+        shell: bash
+        run: |
+          WS='${{ github.workspace }}'
+          echo "SLANG_SRC_DIR=${WS//\\//}/slang-src" >> "$GITHUB_ENV"
+
       - name: Configure
         env:
           SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }} ${{ matrix.compiler != 'emscripten' && format('-DSLANG_RHI_FETCH_SLANG=OFF -DSLANG_RHI_SLANG_INCLUDE_DIR={0}/slang-src/include -DSLANG_RHI_SLANG_BINARY_DIR={0}/slang-src/build/Release', github.workspace) || '' }}
+        run: cmake --preset ${{matrix.preset}} ${{ contains(matrix.flags, 'coverage') && '-DSLANG_RHI_ENABLE_COVERAGE=ON' || '' }} ${{ matrix.compiler != 'emscripten' && format('-DSLANG_RHI_FETCH_SLANG=OFF -DSLANG_RHI_SLANG_INCLUDE_DIR={0}/include -DSLANG_RHI_SLANG_BINARY_DIR={0}/build/Release', env.SLANG_SRC_DIR) || '' }}
 
       - name: Build
         run: cmake --build build --config ${{matrix.config}}
