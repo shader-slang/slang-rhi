@@ -71,7 +71,7 @@ void rayGenClustersHitObject()
 
     // Color
     BuiltInTriangleIntersectionAttributes attribs = hit.GetAttributes<BuiltInTriangleIntersectionAttributes>();
-    resultTexture[pixel] = float4(attribs.barycentrics, 1.f);
+    resultTexture[pixel] = float4(attribs.barycentrics, 1.f, 1.f);
 
     // IDs
     uint index = pixel.y * dim.x + pixel.x;
