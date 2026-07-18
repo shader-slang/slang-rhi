@@ -224,7 +224,7 @@
 |---------------------------|-----|------|-------|-------|--------|-------|------|
 | `bindPipeline`            | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `dispatchCompute`         | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `dispatchComputeIndirect` | :x: | yes  | yes   | yes   | yes    | :x:   | yes  |
+| `dispatchComputeIndirect` | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
 
 ## `IRayTracingPassEncoder` interface
 
