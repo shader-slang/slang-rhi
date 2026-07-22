@@ -1,5 +1,7 @@
 #include "d3d12-descriptor-heap.h"
 
+#include <cstdio>
+
 namespace rhi::d3d12 {
 
 // DescriptorHeap
@@ -205,6 +207,16 @@ GPUDescriptorRangeAllocation GPUDescriptorHeap::allocate(uint32_t count)
         allocation.heapOffset = heapOffset;
         return allocation;
     }
+    const auto report = m_allocator.storageReport();
+    std::fprintf(
+        stderr,
+        "GPU descriptor allocation failed: requested=%u free=%u largest=%u allocations=%u metadata_free=%u\n",
+        count,
+        report.totalFreeSpace,
+        report.largestFreeRegion,
+        m_allocator.getCurrentAllocs(),
+        m_allocator.getFreeStorage()
+    );
     return {};
 }
 
