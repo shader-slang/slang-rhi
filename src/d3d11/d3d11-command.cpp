@@ -955,19 +955,20 @@ Result CommandQueueImpl::waitOnHost()
     {
         D3D11_QUERY_DESC queryDesc = {};
         queryDesc.Query = D3D11_QUERY_EVENT;
-        SLANG_RETURN_ON_FAIL(device->m_device->CreateQuery(&queryDesc, m_waitQuery.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(device->m_device->CreateQuery(&queryDesc, m_waitQuery.writeRef()), device);
     }
 
     device->m_immediateContext->End(m_waitQuery);
     device->m_immediateContext->Flush();
 
     HRESULT hr = S_FALSE;
-    while ((hr = device->m_immediateContext->GetData(m_waitQuery, nullptr, 0, D3D11_ASYNC_GETDATA_DONOTFLUSH)) ==
-           S_FALSE)
+    // Let GetData flush/progress the runtime; DONOTFLUSH can leave event queries pending
+    // for seconds on some D3D11 drivers even after an explicit Flush above.
+    while ((hr = device->m_immediateContext->GetData(m_waitQuery, nullptr, 0, 0)) == S_FALSE)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    SLANG_RETURN_ON_FAIL(hr);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
 
     return SLANG_OK;
 }
@@ -990,12 +991,18 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
     D3D11_QUERY_DESC timestampQueryDesc = {};
     timestampQueryDesc.Query = D3D11_QUERY_TIMESTAMP;
     ComPtr<ID3D11Query> timestampQuery;
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateQuery(&timestampQueryDesc, timestampQuery.writeRef()));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateQuery(&timestampQueryDesc, timestampQuery.writeRef()),
+        device
+    );
 
     D3D11_QUERY_DESC disjointQueryDesc = {};
     disjointQueryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
     ComPtr<ID3D11Query> disjointQuery;
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateQuery(&disjointQueryDesc, disjointQuery.writeRef()));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateQuery(&disjointQueryDesc, disjointQuery.writeRef()),
+        device
+    );
 
     device->m_immediateContext->Begin(disjointQuery);
     const uint64_t before = getCpuTimestamp();
@@ -1009,7 +1016,7 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    SLANG_RETURN_ON_FAIL(hr);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
     const uint64_t after = getCpuTimestamp();
 
     if (disjointData.Disjoint || disjointData.Frequency == 0)
@@ -1024,7 +1031,7 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    SLANG_RETURN_ON_FAIL(hr);
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
 
     if (after < before)
     {
@@ -1086,8 +1093,10 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     {
         D3D11_QUERY_DESC queryDesc = {};
         queryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
-        SLANG_RETURN_ON_FAIL(
-            getDevice<DeviceImpl>()->m_device->CreateQuery(&queryDesc, m_commandBuffer->m_disjointQuery.writeRef())
+        DeviceImpl* device = getDevice<DeviceImpl>();
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            device->m_device->CreateQuery(&queryDesc, m_commandBuffer->m_disjointQuery.writeRef()),
+            device
         );
     }
     returnComPtr(outCommandBuffer, m_commandBuffer);

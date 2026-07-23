@@ -72,8 +72,9 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
     if (!m_sharedHandle)
     {
         HANDLE handle = NULL;
-        SLANG_RETURN_ON_FAIL(
-            device->m_device->CreateSharedHandle(m_resource.getResource(), NULL, GENERIC_ALL, nullptr, &handle)
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            device->m_device->CreateSharedHandle(m_resource.getResource(), NULL, GENERIC_ALL, nullptr, &handle),
+            device
         );
         m_sharedHandle = {NativeHandleType::Win32, (uint64_t)handle};
     }
@@ -210,7 +211,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE BufferImpl::getUAV(
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    SLANG_RETURN_ON_FAIL(bufferImpl->m_resource.getResource()->Map(0, nullptr, outData));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(bufferImpl->m_resource.getResource()->Map(0, nullptr, outData), this);
     return SLANG_OK;
 }
 

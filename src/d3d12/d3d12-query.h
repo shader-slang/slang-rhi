@@ -12,10 +12,10 @@ public:
 
     Result init();
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResultState(
         uint32_t queryIndex,
         uint32_t count,
-        bool* outReady
+        QueryResultState* outState
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
         uint32_t queryIndex,
@@ -47,10 +47,10 @@ public:
 
     Result init(uint32_t stride);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResultState(
         uint32_t queryIndex,
         uint32_t count,
-        bool* outReady
+        QueryResultState* outState
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
         uint32_t queryIndex,

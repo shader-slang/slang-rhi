@@ -64,7 +64,7 @@ Result QueryPoolImpl::init()
     return m_counterSampleBuffer ? SLANG_OK : SLANG_FAIL;
 }
 
-Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
 {
     return SLANG_E_NOT_AVAILABLE;
 }

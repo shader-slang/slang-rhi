@@ -144,8 +144,9 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     VkShaderModuleCreateInfo moduleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     moduleCreateInfo.pCode = (uint32_t*)module.code->getBufferPointer();
     moduleCreateInfo.codeSize = module.code->getBufferSize();
-    SLANG_VK_RETURN_ON_FAIL(
-        device->m_api.vkCreateShaderModule(device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkCreateShaderModule(device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule),
+        device
     );
 
 #if SLANG_RHI_ENABLE_AFTERMATH

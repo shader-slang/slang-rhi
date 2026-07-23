@@ -10,22 +10,22 @@ const QueryPoolDesc& DebugQueryPool::getDesc()
     return baseObject->getDesc();
 }
 
-Result DebugQueryPool::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+Result DebugQueryPool::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
 {
-    SLANG_RHI_DEBUG_API(IQueryPool, isResultReady);
+    SLANG_RHI_DEBUG_API(IQueryPool, getResultState);
 
     if (!isValidSubrange(queryIndex, count, baseObject->getDesc().count))
     {
         RHI_VALIDATION_ERROR("'queryIndex' and 'count' must specify a valid range within the query pool.");
         return SLANG_E_INVALID_ARG;
     }
-    if (!outReady)
+    if (!outState)
     {
-        RHI_VALIDATION_ERROR("'outReady' must not be null.");
+        RHI_VALIDATION_ERROR("'outState' must not be null.");
         return SLANG_E_INVALID_ARG;
     }
 
-    return baseObject->isResultReady(queryIndex, count, outReady);
+    return baseObject->getResultState(queryIndex, count, outState);
 }
 
 Result DebugQueryPool::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)

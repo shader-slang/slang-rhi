@@ -235,7 +235,7 @@ VkBool32 DeviceImpl::handleDebugMessage(
     // Ignore: VUID-VkShaderModuleCreateInfo-pCode-08737:
     // https://vulkan.lunarg.com/doc/view/1.4.321.1/windows/antora/spec/latest/chapters/shaders.html#VUID-VkShaderModuleCreateInfo-pCode-08737
     // This validation error is triggered by incorrect SPIR-V outputted by Slang:
-    // https://github.com/shader-slang/slang/issues/9106
+    // https://github.com/shader-slang/slang/issues/11841
     if (pCallbackData->messageIdNumber == -1520283006)
     {
         return VK_FALSE;
@@ -284,6 +284,39 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DeviceImpl::debugMessageCallback(
 )
 {
     return ((DeviceImpl*)pUserData)->handleDebugMessage(messageSeverity, messageTypes, pCallbackData);
+}
+
+void DeviceImpl::reportShaderAbortMessage()
+{
+    // No-op unless the full shader-abort round-trip was enabled at device creation (Feature::ShaderAbort)
+    // and we still hold a device handle to query.
+    if (!hasFeature(Feature::ShaderAbort) || m_device == VK_NULL_HANDLE)
+        return;
+
+    // vkGetDeviceFaultDebugInfoKHR is an error-path entry point, so load it on demand rather than
+    // through the device proc table.
+    auto vkGetDeviceFaultDebugInfoKHR =
+        (PFN_vkGetDeviceFaultDebugInfoKHR)m_api.vkGetDeviceProcAddr(m_device, "vkGetDeviceFaultDebugInfoKHR");
+    if (!vkGetDeviceFaultDebugInfoKHR)
+        return;
+
+    // Chain VkDeviceFaultShaderAbortMessageInfoKHR so the driver fills in the message produced by
+    // OpAbortKHR. Use the standard two-call pattern: query the size first, then retrieve the data.
+    VkDeviceFaultShaderAbortMessageInfoKHR abortInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_SHADER_ABORT_MESSAGE_INFO_KHR};
+    VkDeviceFaultDebugInfoKHR debugInfo = {VK_STRUCTURE_TYPE_DEVICE_FAULT_DEBUG_INFO_KHR};
+    debugInfo.pNext = &abortInfo;
+
+    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS || abortInfo.messageDataSize == 0)
+        return;
+
+    std::vector<char> buffer(abortInfo.messageDataSize);
+    abortInfo.pMessageData = buffer.data();
+    if (vkGetDeviceFaultDebugInfoKHR(m_device, &debugInfo) != VK_SUCCESS)
+        return;
+
+    // The message data is not guaranteed to be null-terminated; bound it to the reported size.
+    std::string message(buffer.data(), buffer.size());
+    handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, ("Shader abort: " + message).c_str());
 }
 
 Result DeviceImpl::getNativeDeviceHandles(DeviceNativeHandles* outHandles)
@@ -481,8 +514,9 @@ Result DeviceImpl::initVulkanInstance(
         messengerCreateInfo.pfnUserCallback = &debugMessageCallback;
         messengerCreateInfo.pUserData = this;
 
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback),
+            this
         );
     }
     return SLANG_OK;
@@ -509,10 +543,14 @@ Result DeviceImpl::initVulkanDevice(
         SLANG_RETURN_ON_FAIL(selectAdapter(this, backend->getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, nullptr),
+            this
+        );
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data())
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkEnumeratePhysicalDevices(m_api.m_instance, &physicalDeviceCount, physicalDevices.data()),
+            this
         );
 
         // Find the physical device that matches the selected adapter UUID.
@@ -641,6 +679,9 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderDemoteToHelperInvocationFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderBfloat16Features);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.cooperativeMatrix2Features);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderAbortFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.faultFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.shaderConstantDataFeatures);
 
         if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2)
         {
@@ -708,6 +749,40 @@ Result DeviceImpl::initVulkanDevice(
             code                                                                                                       \
         }                                                                                                              \
     }
+
+        // VK_KHR_shader_abort lets a shader call abort() (lowered by Slang to OpAbortKHR). Executing
+        // it ceases the invocation and loses the device; the abort message is then retrievable only
+        // via VK_KHR_device_fault (vkGetDeviceFaultDebugInfoKHR + VkDeviceFaultShaderAbortMessageInfoKHR).
+        // VK_KHR_shader_abort hard-depends on both VK_KHR_device_fault and VK_KHR_shader_constant_data,
+        // so the three must be enabled together. Feature::ShaderAbort is reported only when the whole
+        // round-trip (abort + fault-message retrieval) is available, since that is what the dependent
+        // runtime test (shader-slang/slang#11790) needs.
+        if (extensionNames.count(VK_KHR_SHADER_ABORT_EXTENSION_NAME) &&
+            extensionNames.count(VK_KHR_DEVICE_FAULT_EXTENSION_NAME) &&
+            extensionNames.count(VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME) &&
+            extendedFeatures.shaderAbortFeatures.shaderAbort && extendedFeatures.faultFeatures.deviceFault &&
+            extendedFeatures.shaderConstantDataFeatures.shaderConstantData)
+        {
+            // Enable all three extensions/features together (shader_abort hard-depends on the other
+            // two), chaining each queried feature struct into the device-create chain. The gate above
+            // has already verified each feature bit, so every call here succeeds.
+            addFeatureExtension(
+                extendedFeatures.shaderConstantDataFeatures.shaderConstantData,
+                extendedFeatures.shaderConstantDataFeatures,
+                VK_KHR_SHADER_CONSTANT_DATA_EXTENSION_NAME
+            );
+            addFeatureExtension(
+                extendedFeatures.faultFeatures.deviceFault,
+                extendedFeatures.faultFeatures,
+                VK_KHR_DEVICE_FAULT_EXTENSION_NAME
+            );
+            addFeatureExtension(
+                extendedFeatures.shaderAbortFeatures.shaderAbort,
+                extendedFeatures.shaderAbortFeatures,
+                VK_KHR_SHADER_ABORT_EXTENSION_NAME
+            );
+            availableFeatures.push_back(Feature::ShaderAbort);
+        }
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.shaderDrawParametersFeatures,
@@ -1564,7 +1639,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         for (int i = SLANG_COUNT_OF(featureTable) - 1; i >= 0; --i)
         {
             Feature feature = featureTable[i];
-            if (int(feature) >= int(Feature::SM_6_0) && int(feature) <= int(Feature::SM_6_9))
+            if (int(feature) >= int(Feature::SM_6_0) && int(feature) <= int(Feature::SM_6_10))
             {
                 addFeature(feature);
             }
@@ -1694,7 +1769,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler), this);
     }
 
     // Create bindless descriptor set if needed.
@@ -1901,8 +1976,9 @@ Result DeviceImpl::createAccelerationStructure(
             createInfo.pNext = &motionInfo;
         }
     }
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle),
+        this
     );
     returnComPtr(outAccelerationStructure, result);
     return SLANG_OK;
@@ -2036,7 +2112,7 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkImage image;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image), this);
 
     VkMemoryRequirements memRequirements;
     m_api.vkGetImageMemoryRequirements(m_device, image, &memRequirements);
@@ -2238,11 +2314,14 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
             vkPropertyCount,
             {VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV}
         );
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
-            m_api.m_physicalDevice,
-            &vkPropertyCount,
-            vkProperties.data()
-        ));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
+                m_api.m_physicalDevice,
+                &vkPropertyCount,
+                vkProperties.data()
+            ),
+            this
+        );
         for (const auto& vkProps : vkProperties)
         {
             CooperativeVectorProperties props;
@@ -2287,7 +2366,7 @@ Result DeviceImpl::getCooperativeVectorMatrixSize(
     info.srcStride = rowColumnStride;
     info.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     info.dstStride = rowColumnStride;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info), this);
     return SLANG_OK;
 }
 
@@ -2322,7 +2401,7 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
         info.srcStride = srcDesc.rowColumnStride;
         info.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
         info.dstStride = dstDesc.rowColumnStride;
-        SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info), this);
     }
     return SLANG_OK;
 }
@@ -2439,7 +2518,15 @@ Result DeviceImpl::waitForFences(
     auto result = m_api.vkWaitSemaphores(m_api.m_device, &waitInfo, timeout);
     if (result == VK_TIMEOUT)
         return SLANG_E_TIME_OUT;
-    return result == VK_SUCCESS ? SLANG_OK : SLANG_FAIL;
+    if (result != VK_SUCCESS)
+    {
+        // Report the failure instead of dropping it silently, so that device loss (and any
+        // shader-abort message it carries) is surfaced when a caller waits on timeline fences
+        // after an aborting dispatch rather than via the command queue.
+        reportVulkanError(result, "vkWaitSemaphores", SLANG_RHI_SOURCE_LOCATION(), this);
+        return SLANG_FAIL;
+    }
+    return SLANG_OK;
 }
 
 } // namespace rhi::vk

@@ -354,7 +354,10 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         fillCommonGraphicsState(meshDesc);
         CD3DX12_PIPELINE_STATE_STREAM2 meshStateStream{meshDesc};
         D3D12_PIPELINE_STATE_STREAM_DESC streamDesc{sizeof(meshStateStream), &meshStateStream};
-        SLANG_RETURN_ON_FAIL(m_device5->CreatePipelineState(&streamDesc, IID_PPV_ARGS(pipelineState.writeRef())));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device5->CreatePipelineState(&streamDesc, IID_PPV_ARGS(pipelineState.writeRef())),
+            this
+        );
     }
     else
     {
@@ -707,7 +710,10 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     rtpsoDesc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
     rtpsoDesc.NumSubobjects = (UINT)subObjects.size();
     rtpsoDesc.pSubobjects = subObjects.data();
-    SLANG_RETURN_ON_FAIL(m_device5->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(stateObject.writeRef())));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_device5->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(stateObject.writeRef())),
+        this
+    );
 
 #if SLANG_RHI_ENABLE_NVAPI
     if (m_nvapiShaderExtension)

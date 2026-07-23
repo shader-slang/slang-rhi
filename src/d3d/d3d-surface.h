@@ -67,11 +67,11 @@ public:
         if (!dxgiFactory2)
         {
             ComPtr<IDXGISwapChain> swapChain;
-            SLANG_RETURN_ON_FAIL(
+            SLANG_D3D_RETURN_ON_FAIL(
                 getDXGIFactory()->CreateSwapChain(getOwningDevice(), &swapChainDesc, swapChain.writeRef())
             );
-            SLANG_RETURN_ON_FAIL(getDXGIFactory()->MakeWindowAssociation(m_windowHandle, DXGI_MWA_NO_ALT_ENTER));
-            SLANG_RETURN_ON_FAIL(swapChain->QueryInterface(m_swapChain.writeRef()));
+            SLANG_D3D_RETURN_ON_FAIL(getDXGIFactory()->MakeWindowAssociation(m_windowHandle, DXGI_MWA_NO_ALT_ENTER));
+            SLANG_D3D_RETURN_ON_FAIL(swapChain->QueryInterface(m_swapChain.writeRef()));
         }
         else
         {
@@ -85,7 +85,7 @@ public:
             desc1.SampleDesc = swapChainDesc.SampleDesc;
             desc1.SwapEffect = swapChainDesc.SwapEffect;
             ComPtr<IDXGISwapChain1> swapChain1;
-            SLANG_RETURN_ON_FAIL(dxgiFactory2->CreateSwapChainForHwnd(
+            SLANG_D3D_RETURN_ON_FAIL(dxgiFactory2->CreateSwapChainForHwnd(
                 getOwningDevice(),
                 m_windowHandle,
                 &desc1,
@@ -93,7 +93,7 @@ public:
                 nullptr,
                 swapChain1.writeRef()
             ));
-            SLANG_RETURN_ON_FAIL(swapChain1->QueryInterface(m_swapChain.writeRef()));
+            SLANG_D3D_RETURN_ON_FAIL(swapChain1->QueryInterface(m_swapChain.writeRef()));
         }
 
         createSwapchainTextures(m_config.desiredImageCount);

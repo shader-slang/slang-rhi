@@ -148,7 +148,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo), m_device);
 
     CommandList& commandList = commandBuffer->m_commandList;
 
@@ -193,7 +193,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     commitBarriers();
     m_stateTracking.clear();
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkEndCommandBuffer(m_cmdBuffer));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkEndCommandBuffer(m_cmdBuffer), m_device);
 
     return SLANG_OK;
 }
@@ -2073,7 +2073,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
     }
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence), m_device);
     m_surfaceSync.fence = VK_NULL_HANDLE;
 
     retireCommandBuffers();
@@ -2085,7 +2085,7 @@ Result CommandQueueImpl::waitOnHost()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     auto& api = device->m_api;
-    api.vkQueueWaitIdle(m_queue);
+    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkQueueWaitIdle(m_queue), device);
     retireCommandBuffers();
     return SLANG_OK;
 }
@@ -2119,8 +2119,9 @@ Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibr
 
     uint64_t timestamps[2] = {};
     uint64_t maxDeviation = 0;
-    SLANG_VK_RETURN_ON_FAIL(
-        m_api.vkGetCalibratedTimestampsKHR(m_api.m_device, 2, timestampInfos, timestamps, &maxDeviation)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkGetCalibratedTimestampsKHR(m_api.m_device, 2, timestampInfos, timestamps, &maxDeviation),
+        m_device
     );
 
     outCalibration->cpuDomain = timestampSupport.cpuTimestampDomain;
@@ -2242,16 +2243,18 @@ Result CommandBufferImpl::init()
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     createInfo.queueFamilyIndex = m_queue->m_queueFamilyIndex;
-    SLANG_VK_RETURN_ON_FAIL(
-        device->m_api.vkCreateCommandPool(device->m_api.m_device, &createInfo, nullptr, &m_commandPool)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkCreateCommandPool(device->m_api.m_device, &createInfo, nullptr, &m_commandPool),
+        device
     );
 
     VkCommandBufferAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     allocInfo.commandPool = m_commandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
-    SLANG_VK_RETURN_ON_FAIL(
-        device->m_api.vkAllocateCommandBuffers(device->m_api.m_device, &allocInfo, &m_commandBuffer)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkAllocateCommandBuffers(device->m_api.m_device, &allocInfo, &m_commandBuffer),
+        device
     );
 
     return SLANG_OK;
@@ -2261,7 +2264,7 @@ Result CommandBufferImpl::reset()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_commandList.reset();
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkResetCommandPool(device->m_device, m_commandPool, 0));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(device->m_api.vkResetCommandPool(device->m_device, m_commandPool, 0), device);
     m_constantBufferPool.reset();
     m_descriptorSetAllocator.reset();
     m_bindingCache.reset();

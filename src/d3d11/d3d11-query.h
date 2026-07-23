@@ -23,10 +23,10 @@ public:
     ID3D11Query* getQuery(uint32_t index);
     void setDisjointQuery(uint32_t index, ID3D11Query* disjointQuery);
 
-    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResultState(
         uint32_t queryIndex,
         uint32_t count,
-        bool* outReady
+        QueryResultState* outState
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(
         uint32_t queryIndex,

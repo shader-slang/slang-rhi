@@ -341,7 +341,19 @@ QueryPool::QueryPool(Device* device, const QueryPoolDesc& desc)
     , m_desc(desc)
 {
     m_descHolder.holdString(m_desc.label);
-    m_queryStates.resize(m_desc.count);
+    m_querySlotStates.resize(m_desc.count);
+}
+
+Result QueryPool::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
+{
+    if (!outState || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    *outState = getQueryRangeInfo(queryIndex, count).state;
+
+    return SLANG_OK;
 }
 
 Result QueryPool::reset()
@@ -359,8 +371,8 @@ Result QueryPool::reset(uint32_t queryIndex, uint32_t count)
     std::lock_guard<std::mutex> lock(m_queryStateMutex);
     for (uint32_t i = 0; i < count; ++i)
     {
-        QueryState& state = m_queryStates[queryIndex + i];
-        state.set(QueryStatus::Reset, 0);
+        QuerySlotState& slotState = m_querySlotStates[queryIndex + i];
+        slotState.set(QueryResultState::Reset, 0);
     }
 
     return SLANG_OK;
@@ -385,12 +397,12 @@ void QueryPool::markQueryRangeSubmitted(uint32_t queryIndex, uint32_t count, uin
     std::lock_guard<std::mutex> lock(m_queryStateMutex);
     for (uint32_t i = 0; i < count; ++i)
     {
-        QueryState& state = m_queryStates[queryIndex + i];
-        state.set(QueryStatus::Pending, submissionID);
+        QuerySlotState& slotState = m_querySlotStates[queryIndex + i];
+        slotState.set(QueryResultState::Pending, submissionID);
     }
 }
 
-void QueryPool::markQueryRangeReady(uint32_t queryIndex, uint32_t count, uint64_t completedSubmissionID)
+void QueryPool::markQueryRangeResolved(uint32_t queryIndex, uint32_t count, uint64_t completedSubmissionID)
 {
     if (!isValidQueryRange(queryIndex, count))
     {
@@ -400,12 +412,12 @@ void QueryPool::markQueryRangeReady(uint32_t queryIndex, uint32_t count, uint64_
     std::lock_guard<std::mutex> lock(m_queryStateMutex);
     for (uint32_t i = 0; i < count; ++i)
     {
-        QueryState& state = m_queryStates[queryIndex + i];
-        QueryStatus status = state.getStatus();
-        uint64_t submissionID = state.getSubmissionID();
-        if (status == QueryStatus::Pending && submissionID <= completedSubmissionID)
+        QuerySlotState& slotState = m_querySlotStates[queryIndex + i];
+        QueryResultState state = slotState.getState();
+        uint64_t submissionID = slotState.getSubmissionID();
+        if (state == QueryResultState::Pending && submissionID <= completedSubmissionID)
         {
-            state.set(QueryStatus::Resolved, submissionID);
+            slotState.set(QueryResultState::Resolved, submissionID);
         }
     }
 }
@@ -414,33 +426,33 @@ QueryPool::QueryRangeInfo QueryPool::getQueryRangeInfo(uint32_t queryIndex, uint
 {
     if (!isValidQueryRange(queryIndex, count))
     {
-        return {QueryRangeState::Reset, 0};
+        return {QueryResultState::Reset, 0};
     }
 
     if (count == 0)
     {
-        return {QueryRangeState::Resolved, 0};
+        return {QueryResultState::Resolved, 0};
     }
 
     QueryRangeInfo info;
     std::lock_guard<std::mutex> lock(m_queryStateMutex);
     for (uint32_t i = 0; i < count; ++i)
     {
-        const QueryState& state = m_queryStates[queryIndex + i];
-        QueryStatus status = state.getStatus();
-        if (status == QueryStatus::Reset)
+        const QuerySlotState& slotState = m_querySlotStates[queryIndex + i];
+        QueryResultState state = slotState.getState();
+        if (state == QueryResultState::Reset)
         {
-            return {QueryRangeState::Reset, 0};
+            return {QueryResultState::Reset, 0};
         }
-        if (status == QueryStatus::Pending)
+        if (state == QueryResultState::Pending)
         {
-            info.state = QueryRangeState::Pending;
+            info.state = QueryResultState::Pending;
         }
-        info.submissionID = std::max(info.submissionID, state.getSubmissionID());
+        info.submissionID = std::max(info.submissionID, slotState.getSubmissionID());
     }
-    if (info.state != QueryRangeState::Pending)
+    if (info.state != QueryResultState::Pending)
     {
-        info.state = QueryRangeState::Resolved;
+        info.state = QueryResultState::Resolved;
     }
     return info;
 }

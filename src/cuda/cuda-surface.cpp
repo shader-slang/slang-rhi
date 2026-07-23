@@ -84,6 +84,7 @@ public:
     short_vector<FrameData> m_frameData;
     uint32_t m_currentFrameIndex = 0;
     short_vector<VkImage> m_swapchainImages;
+    short_vector<VkImageLayout> m_swapchainImageLayouts;
     uint32_t m_currentSwapchainImageIndex = -1;
 
 public:
@@ -102,6 +103,7 @@ public:
 
     Result createSharedTexture(SharedTexture& sharedTexture);
     void destroySharedTexture(SharedTexture& sharedTexture);
+    Result prepareSharedTextureForCuda(FrameData& frameData);
 
     virtual SLANG_NO_THROW Result SLANG_MCALL configure(const SurfaceConfig& config) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL unconfigure() override;
@@ -394,17 +396,60 @@ Result SurfaceImpl::createVulkanDevice()
 
 Result SurfaceImpl::createSwapchain()
 {
-    VkExtent2D imageExtent = {m_config.width, m_config.height};
-
     // It is necessary to query the caps -> otherwise the LunarG verification layer will
     // issue an error
-    {
-        VkSurfaceCapabilitiesKHR surfaceCaps;
+    VkSurfaceCapabilitiesKHR surfaceCaps = {};
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps));
 
-        SLANG_VK_RETURN_ON_FAIL(
-            m_api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps)
-        );
+    VkExtent2D imageExtent = {};
+    if (surfaceCaps.currentExtent.width != UINT32_MAX)
+    {
+        imageExtent = surfaceCaps.currentExtent;
     }
+    else
+    {
+        imageExtent.width =
+            std::clamp(m_config.width, surfaceCaps.minImageExtent.width, surfaceCaps.maxImageExtent.width);
+        imageExtent.height =
+            std::clamp(m_config.height, surfaceCaps.minImageExtent.height, surfaceCaps.maxImageExtent.height);
+    }
+
+    if (imageExtent.width == 0 || imageExtent.height == 0)
+    {
+        return SLANG_FAIL;
+    }
+
+    uint32_t imageCount = std::max(m_config.desiredImageCount, surfaceCaps.minImageCount);
+    if (surfaceCaps.maxImageCount > 0)
+    {
+        imageCount = std::min(imageCount, surfaceCaps.maxImageCount);
+    }
+
+    VkSurfaceTransformFlagBitsKHR preTransform =
+        (surfaceCaps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+            ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+            : surfaceCaps.currentTransform;
+
+    VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    if (!(surfaceCaps.supportedCompositeAlpha & compositeAlpha))
+    {
+        static const VkCompositeAlphaFlagBitsKHR kCompositeAlphaModes[] = {
+            VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
+        };
+        for (VkCompositeAlphaFlagBitsKHR mode : kCompositeAlphaModes)
+        {
+            if (surfaceCaps.supportedCompositeAlpha & mode)
+            {
+                compositeAlpha = mode;
+                break;
+            }
+        }
+    }
+
+    m_config.width = imageExtent.width;
+    m_config.height = imageExtent.height;
 
     // Query available present modes.
     uint32_t presentModeCount = 0;
@@ -421,8 +466,8 @@ Result SurfaceImpl::createSwapchain()
         VK_PRESENT_MODE_MAX_ENUM_KHR
     };
     static const VkPresentModeKHR kVsyncOnModes[] = {
-        VK_PRESENT_MODE_FIFO_RELAXED_KHR,
         VK_PRESENT_MODE_FIFO_KHR,
+        VK_PRESENT_MODE_FIFO_RELAXED_KHR,
         VK_PRESENT_MODE_IMMEDIATE_KHR,
         VK_PRESENT_MODE_MAILBOX_KHR,
         VK_PRESENT_MODE_MAX_ENUM_KHR
@@ -447,15 +492,15 @@ Result SurfaceImpl::createSwapchain()
 
     VkSwapchainCreateInfoKHR swapchainDesc = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
     swapchainDesc.surface = m_surface;
-    swapchainDesc.minImageCount = m_config.desiredImageCount;
+    swapchainDesc.minImageCount = imageCount;
     swapchainDesc.imageFormat = format;
     swapchainDesc.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     swapchainDesc.imageExtent = imageExtent;
     swapchainDesc.imageArrayLayers = 1;
     swapchainDesc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     swapchainDesc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    swapchainDesc.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-    swapchainDesc.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchainDesc.preTransform = preTransform;
+    swapchainDesc.compositeAlpha = compositeAlpha;
     swapchainDesc.presentMode = selectedPresentMode;
     swapchainDesc.clipped = VK_TRUE;
     swapchainDesc.oldSwapchain = oldSwapchain;
@@ -466,6 +511,7 @@ Result SurfaceImpl::createSwapchain()
     m_api.vkGetSwapchainImagesKHR(m_device, m_swapchain, &swapchainImageCount, nullptr);
     m_swapchainImages.resize(swapchainImageCount);
     m_api.vkGetSwapchainImagesKHR(m_device, m_swapchain, &swapchainImageCount, m_swapchainImages.data());
+    m_swapchainImageLayouts.resize(swapchainImageCount, VK_IMAGE_LAYOUT_UNDEFINED);
 
     // Create frame data.
     m_frameData.resize(swapchainImageCount);
@@ -492,6 +538,9 @@ void SurfaceImpl::destroySwapchain()
         destroyFrameData(frameData);
     }
     m_frameData.clear();
+    m_swapchainImages.clear();
+    m_swapchainImageLayouts.clear();
+    m_currentSwapchainImageIndex = -1;
 
     if (m_swapchain != VK_NULL_HANDLE)
     {
@@ -590,6 +639,7 @@ Result SurfaceImpl::createFrameData(FrameData& frameData)
     }
 
     SLANG_RETURN_ON_FAIL(createSharedTexture(frameData.sharedTexture));
+    SLANG_RETURN_ON_FAIL(prepareSharedTextureForCuda(frameData));
 
     return SLANG_OK;
 }
@@ -617,6 +667,10 @@ void SurfaceImpl::destroyFrameData(FrameData& frameData)
     if (frameData.renderFinishedSemaphore)
     {
         m_api.vkDestroySemaphore(m_device, frameData.renderFinishedSemaphore, nullptr);
+    }
+    if (frameData.cudaSemaphore)
+    {
+        SLANG_CUDA_ASSERT_ON_FAIL(cuDestroyExternalSemaphore(frameData.cudaSemaphore));
     }
     if (frameData.sharedSemaphore)
     {
@@ -674,6 +728,8 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
     VkMemoryAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = memoryTypeIndex;
+    VkMemoryDedicatedAllocateInfo dedicatedAllocateInfo = {VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO};
+    dedicatedAllocateInfo.image = sharedTexture.vulkanImage;
 #if SLANG_WINDOWS_FAMILY
     VkExportMemoryWin32HandleInfoKHR exportMemoryWin32HandleInfo = {
         VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR
@@ -691,7 +747,8 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
                                          : nullptr;
 #endif
     exportMemoryAllocateInfo.handleTypes = extMemoryHandleType;
-    allocInfo.pNext = &exportMemoryAllocateInfo;
+    dedicatedAllocateInfo.pNext = &exportMemoryAllocateInfo;
+    allocInfo.pNext = &dedicatedAllocateInfo;
 
     SLANG_VK_RETURN_ON_FAIL(m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &sharedTexture.vulkanMemory));
 
@@ -739,6 +796,7 @@ Result SurfaceImpl::createSharedTexture(SharedTexture& sharedTexture)
         sharedTexture.sharedHandle,
         textureDesc,
         memRequirements.size,
+        true,
         (ITexture**)sharedTexture.cudaTexture.writeRef()
     ));
 
@@ -766,6 +824,53 @@ void SurfaceImpl::destroySharedTexture(SharedTexture& sharedTexture)
     {
         m_api.vkFreeMemory(m_device, sharedTexture.vulkanMemory, nullptr);
     }
+}
+
+Result SurfaceImpl::prepareSharedTextureForCuda(FrameData& frameData)
+{
+    VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkBeginCommandBuffer(frameData.commandBuffer, &beginInfo));
+
+    VkImageSubresourceRange subresourceRange;
+    subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresourceRange.baseMipLevel = 0;
+    subresourceRange.levelCount = 1;
+    subresourceRange.baseArrayLayer = 0;
+    subresourceRange.layerCount = 1;
+
+    VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = 0;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.srcQueueFamilyIndex = m_queueFamilyIndex;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+    barrier.image = frameData.sharedTexture.vulkanImage;
+    barrier.subresourceRange = subresourceRange;
+    m_api.vkCmdPipelineBarrier(
+        frameData.commandBuffer,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0,
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &barrier
+    );
+
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkEndCommandBuffer(frameData.commandBuffer));
+
+    VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &frameData.commandBuffer;
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE));
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueWaitIdle(m_queue));
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkResetCommandBuffer(frameData.commandBuffer, 0));
+
+    return SLANG_OK;
 }
 
 Result SurfaceImpl::configure(const SurfaceConfig& config)
@@ -860,7 +965,11 @@ Result SurfaceImpl::present()
     FrameData& frameData = m_frameData[m_currentFrameIndex];
     m_currentFrameIndex = (m_currentFrameIndex + 1) % m_frameData.size();
     VkImage swapchainImage = m_swapchainImages[m_currentSwapchainImageIndex];
+    VkImageLayout swapchainImageLayout = m_swapchainImageLayouts[m_currentSwapchainImageIndex];
     VkImage sharedImage = frameData.sharedTexture.vulkanImage;
+    // Present consumes this semaphore outside the submitted command buffer's fence.
+    // Reuse it only when the same swapchain image is acquired again.
+    VkSemaphore renderFinishedSemaphore = m_frameData[m_currentSwapchainImageIndex].renderFinishedSemaphore;
 
     // On classic graphics devices surface presentation would syncronize with the graphics queue. This
     // is emulated in CUDA by treating the default (NULL) CUDA stream as the graphics queue.
@@ -904,7 +1013,7 @@ Result SurfaceImpl::present()
         VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.oldLayout = swapchainImageLayout;
         barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         barrier.srcQueueFamilyIndex = m_queueFamilyIndex;
         barrier.dstQueueFamilyIndex = m_queueFamilyIndex;
@@ -987,7 +1096,6 @@ Result SurfaceImpl::present()
         );
     }
 
-#if 0
     // Change layout of shared texture to be optimal for CUDA
     {
         VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
@@ -1012,7 +1120,6 @@ Result SurfaceImpl::present()
             &barrier
         );
     }
-#endif
 
     // Change layout of swapchain image to be optimal for presenting
     {
@@ -1042,7 +1149,7 @@ Result SurfaceImpl::present()
     SLANG_VK_RETURN_ON_FAIL(m_api.vkEndCommandBuffer(frameData.commandBuffer));
 
     VkSemaphore waitSemaphores[] = {frameData.imageAvailableSemaphore, frameData.sharedSemaphore};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT};
     uint64_t waitValues[] = {0, frameData.signalValue};
 
     VkTimelineSemaphoreSubmitInfo timelineSubmitInfo = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
@@ -1057,17 +1164,22 @@ Result SurfaceImpl::present()
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &frameData.commandBuffer;
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &frameData.renderFinishedSemaphore;
+    submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
     SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, frameData.fence));
 
     // Present the image.
     VkPresentInfoKHR presentInfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &frameData.renderFinishedSemaphore;
+    presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &m_currentSwapchainImageIndex;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueuePresentKHR(m_queue, &presentInfo));
+    VkResult result = m_api.vkQueuePresentKHR(m_queue, &presentInfo);
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        return SLANG_FAIL;
+    }
+    m_swapchainImageLayouts[m_currentSwapchainImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     return SLANG_OK;
 }

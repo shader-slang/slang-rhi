@@ -57,7 +57,7 @@ typedef SlangResult Result;
 typedef size_t Size;
 typedef size_t Offset;
 
-const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
+constexpr uint64_t kTimeoutInfinite{0xFFFFFFFFFFFFFFFFU};
 
 
 enum class StructType
@@ -146,6 +146,7 @@ enum class DeviceType
     x(SM_6_7,                                   "sm_6_7"                                        ) \
     x(SM_6_8,                                   "sm_6_8"                                        ) \
     x(SM_6_9,                                   "sm_6_9"                                        ) \
+    x(SM_6_10,                                  "sm_6_10"                                       ) \
     x(Half,                                     "half"                                          ) \
     x(Double,                                   "double"                                        ) \
     x(Int16,                                    "int16"                                         ) \
@@ -166,6 +167,7 @@ enum class DeviceType
     x(ProgrammableSamplePositions2,             "programmable-sample-positions-2"               ) \
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
+    x(ShaderAbort,                              "shader-abort"                                  ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \
@@ -2238,6 +2240,13 @@ enum class QueryType
     AccelerationStructureCurrentSize,
 };
 
+enum class QueryResultState
+{
+    Reset,
+    Pending,
+    Resolved,
+};
+
 struct QueryPoolDesc
 {
     StructType structType = StructType::QueryPoolDesc;
@@ -2256,15 +2265,21 @@ class IQueryPool : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() = 0;
 
-    /// Non-blocking host-readiness check for query results.
+    /// Non-blocking host-state check for query results.
     ///
-    /// Sets outReady to true when every requested query result is ready to read on the host,
-    /// and false when submitted query work is still pending. Returns SLANG_FAIL when the
-    /// requested range has no valid submitted result, and SLANG_E_INVALID_ARG for invalid
-    /// ranges or a null outReady pointer. A valid zero-count readiness check succeeds and
-    /// returns true. This call does not wait for GPU work and does not make reset or
-    /// never-submitted queries valid.
-    virtual SLANG_NO_THROW Result SLANG_MCALL isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady) = 0;
+    /// Sets outState to Reset when any query in the range has no valid submitted result,
+    /// including newly-created, reset, or never-submitted queries. Sets outState to Pending
+    /// when every query in the range has valid submitted work, but at least one result is not
+    /// host-readable yet. Sets outState to Resolved when every result in the range is
+    /// host-readable. A valid zero-count state check succeeds and returns Resolved.
+    ///
+    /// This call may poll or otherwise progress backend readiness, but it does not wait for
+    /// GPU work. Returns SLANG_E_INVALID_ARG for invalid ranges or a null outState pointer.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResultState(
+        uint32_t queryIndex,
+        uint32_t count,
+        QueryResultState* outState
+    ) = 0;
 
     /// Read query results on the host.
     ///
@@ -3776,7 +3791,6 @@ public:
 
 /// RAII helper that pushes a device's CUDA context on construction and pops it on destruction.
 /// For non-CUDA devices, this is a no-op.
-/// Usage: SLANG_DEVICE_SCOPE(device);
 class DeviceScope
 {
 public:
@@ -3794,7 +3808,11 @@ private:
     IDevice* m_device;
 };
 
-#define SLANG_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
+/// Helper macro for creating a DeviceScope with a unique name. Usage: SLANG_RHI_DEVICE_SCOPE(device);
+#define SLANG_RHI_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
+
+/// Deprecated alias for SLANG_RHI_DEVICE_SCOPE
+#define SLANG_DEVICE_SCOPE(device) SLANG_RHI_DEVICE_SCOPE(device)
 
 /// \brief Interface for a task pool that supports dependency-based scheduling.
 ///
@@ -4052,6 +4070,8 @@ struct D3D12DeviceExtendedDesc
 
     const char* rootParameterShaderAttributeName = nullptr;
     bool debugBreakOnD3D12Error = false;
+    /// Limits the maximum shader model using D3D_SHADER_MODEL encoding (for example, 0x6a for SM 6.10).
+    /// A value of 0 uses automatic detection.
     uint32_t highestShaderModel = 0;
 };
 

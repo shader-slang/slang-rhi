@@ -1086,8 +1086,7 @@ Result CommandQueueImpl::resolveTimestampQueries(CommandBufferImpl* commandBuffe
         {
             uint32_t queryIndex = queryWrite.index + i;
             QueryPool::QueryRangeInfo queryInfo = pool->getQueryRangeInfo(queryIndex, 1);
-            if (queryInfo.state != QueryPool::QueryRangeState::Pending ||
-                queryInfo.submissionID != commandBuffer->m_submissionID)
+            if (queryInfo.state != QueryResultState::Pending || queryInfo.submissionID != commandBuffer->m_submissionID)
             {
                 continue;
             }
@@ -1096,7 +1095,7 @@ Result CommandQueueImpl::resolveTimestampQueries(CommandBufferImpl* commandBuffe
             SLANG_RETURN_ON_FAIL(resolveTimestampEvent(this, query.event, query.anchorGeneration, &query.resultData));
         }
 
-        pool->markQueryRangeReady(queryWrite.index, queryWrite.count, commandBuffer->m_submissionID);
+        pool->markQueryRangeResolved(queryWrite.index, queryWrite.count, commandBuffer->m_submissionID);
     }
 
     return SLANG_OK;
@@ -1173,8 +1172,8 @@ Result CommandQueueImpl::signalFence(CUstream stream, uint64_t* outId)
     // Record submission event so we can detect completion
     SubmitEvent ev;
     ev.submitID = m_lastSubmittedID;
-    SLANG_CUDA_RETURN_ON_FAIL(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING));
-    SLANG_CUDA_RETURN_ON_FAIL(cuEventRecord(ev.event, stream));
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventCreate(&ev.event, CU_EVENT_DISABLE_TIMING), this);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuEventRecord(ev.event, stream), this);
     m_submitEvents.push_back(ev);
 
     if (outId)
@@ -1272,7 +1271,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         CommandExecutor executor(getDevice<DeviceImpl>(), requestedStream, timestampAnchorGeneration);
         SLANG_RETURN_ON_FAIL(executor.execute(commandBuffer));
 
-        // Lazy events: timestamp writes need per-submission completion so isResultReady can make
+        // Lazy events: timestamp writes need per-submission completion so getResultState can make
         // progress without waiting for unrelated later work to drain the whole stream.
         bool needsEvent =
             writesTimestamp || (requestedStream != m_stream) || m_submitsSinceEvent > kMaxSubmitsWithoutEvent;

@@ -50,22 +50,22 @@ Result QueryPoolImpl::reset(uint32_t queryIndex, uint32_t count)
     return SLANG_OK;
 }
 
-Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+Result QueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
 {
-    if (!outReady || !isValidQueryRange(queryIndex, count))
+    if (!outState || !isValidQueryRange(queryIndex, count))
     {
         return SLANG_E_INVALID_ARG;
     }
 
-    *outReady = false;
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
-        return SLANG_FAIL;
+        *outState = QueryResultState::Reset;
+        return SLANG_OK;
     }
-    if (queryInfo.state == QueryRangeState::Resolved)
+    if (queryInfo.state == QueryResultState::Resolved)
     {
-        *outReady = true;
+        *outState = QueryResultState::Resolved;
         return SLANG_OK;
     }
 
@@ -73,17 +73,19 @@ Result QueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* o
     SLANG_RETURN_ON_FAIL(queue->retireCommandBuffers());
 
     queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
-        return SLANG_FAIL;
+        *outState = QueryResultState::Reset;
+        return SLANG_OK;
     }
-    if (queryInfo.state == QueryRangeState::Resolved)
+    if (queryInfo.state == QueryResultState::Resolved)
     {
-        *outReady = true;
+        *outState = QueryResultState::Resolved;
         return SLANG_OK;
     }
     if (queue->m_lastFinishedID < queryInfo.submissionID)
     {
+        *outState = QueryResultState::Pending;
         return SLANG_OK;
     }
 
@@ -97,7 +99,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
         return SLANG_E_INVALID_ARG;
     }
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
         return SLANG_FAIL;
     }
@@ -106,12 +108,12 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* o
         return SLANG_OK;
     }
 
-    if (queryInfo.state != QueryRangeState::Resolved)
+    if (queryInfo.state != QueryResultState::Resolved)
     {
         CommandQueueImpl* queue = getDevice<DeviceImpl>()->m_queue.get();
         SLANG_RETURN_ON_FAIL(queue->waitOnHost());
         queryInfo = getQueryRangeInfo(queryIndex, count);
-        if (queryInfo.state != QueryRangeState::Resolved)
+        if (queryInfo.state != QueryResultState::Resolved)
         {
             return SLANG_FAIL;
         }
@@ -151,22 +153,22 @@ Result PlainBufferProxyQueryPoolImpl::reset()
     return SLANG_OK;
 }
 
-Result PlainBufferProxyQueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_t count, bool* outReady)
+Result PlainBufferProxyQueryPoolImpl::getResultState(uint32_t queryIndex, uint32_t count, QueryResultState* outState)
 {
-    if (!outReady || !isValidQueryRange(queryIndex, count))
+    if (!outState || !isValidQueryRange(queryIndex, count))
     {
         return SLANG_E_INVALID_ARG;
     }
 
-    *outReady = false;
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
-        return SLANG_FAIL;
+        *outState = QueryResultState::Reset;
+        return SLANG_OK;
     }
-    if (queryInfo.state == QueryRangeState::Resolved)
+    if (queryInfo.state == QueryResultState::Resolved)
     {
-        *outReady = true;
+        *outState = QueryResultState::Resolved;
         return SLANG_OK;
     }
 
@@ -175,11 +177,12 @@ Result PlainBufferProxyQueryPoolImpl::isResultReady(uint32_t queryIndex, uint32_
     uint64_t submissionID = queryInfo.submissionID;
     if (queue->m_lastFinishedID < submissionID)
     {
+        *outState = QueryResultState::Pending;
         return SLANG_OK;
     }
 
-    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
-    *outReady = true;
+    markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
+    *outState = QueryResultState::Resolved;
 
     return SLANG_OK;
 }
@@ -191,7 +194,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t co
         return SLANG_E_INVALID_ARG;
     }
     QueryRangeInfo queryInfo = getQueryRangeInfo(queryIndex, count);
-    if (queryInfo.state == QueryRangeState::Reset)
+    if (queryInfo.state == QueryResultState::Reset)
     {
         return SLANG_FAIL;
     }
@@ -210,7 +213,7 @@ Result PlainBufferProxyQueryPoolImpl::getResult(uint32_t queryIndex, uint32_t co
         this
     );
 
-    markQueryRangeReady(queryIndex, count, queryInfo.submissionID);
+    markQueryRangeResolved(queryIndex, count, queryInfo.submissionID);
 
     return SLANG_OK;
 }

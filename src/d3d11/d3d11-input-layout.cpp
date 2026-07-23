@@ -6,7 +6,11 @@ namespace rhi::d3d11 {
 
 Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout** outLayout)
 {
-    D3D11_INPUT_ELEMENT_DESC inputElements[16] = {};
+    constexpr uint32_t kMaxInputElements = 16;
+    if (desc.inputElementCount > kMaxInputElements)
+        return SLANG_FAIL;
+
+    D3D11_INPUT_ELEMENT_DESC inputElements[kMaxInputElements] = {};
 
     char hlslBuffer[1024];
     char* hlslEnd = &hlslBuffer[0] + sizeof(hlslBuffer);
@@ -72,13 +76,16 @@ Result DeviceImpl::createInputLayout(const InputLayoutDesc& desc, IInputLayout**
     SLANG_RETURN_ON_FAIL(compileHLSLShader("inputLayout", hlslBuffer, "main", "vs_5_0", vertexShaderBlob));
 
     ComPtr<ID3D11InputLayout> inputLayout;
-    SLANG_RETURN_ON_FAIL(m_device->CreateInputLayout(
-        &inputElements[0],
-        (UINT)desc.inputElementCount,
-        vertexShaderBlob->GetBufferPointer(),
-        vertexShaderBlob->GetBufferSize(),
-        inputLayout.writeRef()
-    ));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        m_device->CreateInputLayout(
+            &inputElements[0],
+            (UINT)desc.inputElementCount,
+            vertexShaderBlob->GetBufferPointer(),
+            vertexShaderBlob->GetBufferSize(),
+            inputLayout.writeRef()
+        ),
+        this
+    );
 
     RefPtr<InputLayoutImpl> layout = new InputLayoutImpl();
     layout->m_layout.swap(inputLayout);

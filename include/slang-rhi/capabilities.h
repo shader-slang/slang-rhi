@@ -44,6 +44,8 @@
     x(metallib_2_4) \
     x(metallib_3_0) \
     x(metallib_3_1) \
+    x(metallib_3_2) \
+    x(metallib_4_0) \
     x(_sm_4_0) \
     x(_sm_4_1) \
     x(_sm_5_0) \
@@ -58,6 +60,7 @@
     x(_sm_6_7) \
     x(_sm_6_8) \
     x(_sm_6_9) \
+    x(_sm_6_10) \
     x(hlsl_nvapi) \
     x(hlsl_2018) \
     x(_cuda_sm_1_0) \
