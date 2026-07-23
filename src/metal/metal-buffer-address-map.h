@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
@@ -25,14 +26,25 @@ public:
     void insert(DeviceAddress baseAddr, DeviceAddress size, BufferImpl* buffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_baseAddrMap[baseAddr] = {buffer, size};
+        Entry& entry = m_baseAddrMap[baseAddr];
+        if (entry.buffers.empty())
+            entry.size = size;
+        else
+            SLANG_RHI_ASSERT(entry.size == size);
+        entry.buffers.push_back(buffer);
         m_sortedDirty = true;
     }
 
-    void erase(DeviceAddress baseAddr)
+    void erase(DeviceAddress baseAddr, BufferImpl* buffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_baseAddrMap.erase(baseAddr);
+        auto entry = m_baseAddrMap.find(baseAddr);
+        if (entry == m_baseAddrMap.end())
+            return;
+        auto& buffers = entry->second.buffers;
+        buffers.erase(std::remove(buffers.begin(), buffers.end(), buffer), buffers.end());
+        if (buffers.empty())
+            m_baseAddrMap.erase(entry);
         m_sortedDirty = true;
     }
 
@@ -45,7 +57,7 @@ public:
         // Fast path: exact base-address match.
         auto it = m_baseAddrMap.find(addr);
         if (it != m_baseAddrMap.end())
-            return it->second.buffer;
+            return it->second.buffers.back();
 
         // Slow path: address may point into the middle of a buffer.
         return findByRange(addr);
@@ -54,8 +66,8 @@ public:
 private:
     struct Entry
     {
-        BufferImpl* buffer;
-        DeviceAddress size;
+        std::vector<BufferImpl*> buffers;
+        DeviceAddress size = 0;
     };
 
     BufferImpl* findByRange(DeviceAddress addr)
@@ -82,7 +94,7 @@ private:
 
         --it;
         if (addr < it->first + it->second.size)
-            return it->second.buffer;
+            return it->second.buffers.back();
 
         return nullptr;
     }

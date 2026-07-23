@@ -15,15 +15,18 @@ BufferImpl::~BufferImpl()
     if (m_buffer)
     {
         auto* device = getDevice<DeviceImpl>();
-        if (!device->m_hasResidencySet && m_deviceAddress != 0)
-            device->m_addressToBuffer.erase(m_deviceAddress);
         device->unregisterResource(m_buffer.get());
     }
 }
 
 void BufferImpl::deleteThis()
 {
-    getDevice<DeviceImpl>()->deferDelete(this);
+    auto* device = getDevice<DeviceImpl>();
+    // Stop resolving this raw address to an object whose public reference
+    // count has reached zero, even though Metal destruction is deferred.
+    if (!device->m_hasResidencySet && m_deviceAddress != 0)
+        device->m_addressToBuffer.erase(m_deviceAddress, this);
+    device->deferDelete(this);
 }
 
 Result BufferImpl::getNativeHandle(NativeHandle* outHandle)
@@ -124,7 +127,31 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 {
     AUTORELEASEPOOL
 
-    return SLANG_E_NOT_IMPLEMENTED;
+    if (handle.type != NativeHandleType::MTLBuffer || handle.value == 0)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    MTL::Buffer* nativeBuffer = reinterpret_cast<MTL::Buffer*>(handle.value);
+    if (nativeBuffer->device() != m_device.get() || desc.size > nativeBuffer->length())
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    BufferDesc fixedDesc = fixupBufferDesc(desc);
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, fixedDesc));
+    buffer->m_buffer = NS::RetainPtr(nativeBuffer);
+    buffer->m_deviceAddress = nativeBuffer->gpuAddress();
+
+    if (!m_hasResidencySet && buffer->m_deviceAddress != 0)
+        m_addressToBuffer.insert(buffer->m_deviceAddress, nativeBuffer->length(), buffer.get());
+    registerResource(nativeBuffer);
+
+    if (fixedDesc.label)
+        nativeBuffer->addDebugMarker(createString(fixedDesc.label).get(), NS::Range(0, fixedDesc.size));
+
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
 }
 
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
