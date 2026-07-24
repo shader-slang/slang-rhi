@@ -1,6 +1,7 @@
 #include "metal-buffer.h"
 #include "metal-command.h"
 #include "metal-device.h"
+#include "metal-bindless-descriptor-set.h"
 #include "metal-utils.h"
 
 namespace rhi::metal {
@@ -42,6 +43,21 @@ Result BufferImpl::getSharedHandle(NativeHandle* outHandle)
 DeviceAddress BufferImpl::getDeviceAddress()
 {
     return m_deviceAddress;
+}
+
+Result BufferImpl::getDescriptorHandle(
+    DescriptorHandleAccess access,
+    Format format,
+    BufferRange range,
+    DescriptorHandle* outHandle
+)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    return device->m_bindlessDescriptorSet->allocBufferHandle(this, access, format, range, outHandle);
 }
 
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)

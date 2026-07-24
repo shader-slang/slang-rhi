@@ -17,6 +17,7 @@ class TextureImpl;
 class TextureViewImpl;
 class SamplerImpl;
 class AccelerationStructureImpl;
+class BindlessDescriptorSet;
 class RenderPipelineImpl;
 class ComputePipelineImpl;
 class RayTracingPipelineImpl;

@@ -2,6 +2,7 @@
 #include "metal-buffer.h"
 #include "metal-command.h"
 #include "metal-device.h"
+#include "metal-bindless-descriptor-set.h"
 #include "metal-utils.h"
 
 namespace rhi::metal {
@@ -67,6 +68,16 @@ Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
     outHandle->type = NativeHandleType::MTLTexture;
     outHandle->value = (uint64_t)m_textureView.get();
     return SLANG_OK;
+}
+
+Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    return device->m_bindlessDescriptorSet->allocTextureHandle(this, access, outHandle);
 }
 
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
