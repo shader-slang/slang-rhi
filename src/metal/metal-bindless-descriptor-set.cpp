@@ -7,11 +7,12 @@
 
 namespace rhi::metal {
 
-BindlessDescriptorSet::BindlessDescriptorSet(DeviceImpl* device, const BindlessDesc& desc)
-    : m_device(device)
-    , m_desc(desc)
-{
-}
+// The texture/sampler/AS handles store gpuResourceID()._impl and the arg-buffer consumer memcpy's
+// the whole MTL::ResourceID; that equivalence holds only while ResourceID is a single uint64, so a
+// metal-cpp bump that widened it must not silently pass here.
+static_assert(sizeof(MTL::ResourceID) == sizeof(uint64_t), "MTL::ResourceID must be a single uint64");
+
+BindlessDescriptorSet::BindlessDescriptorSet(DeviceImpl*, const BindlessDesc&) {}
 
 Result BindlessDescriptorSet::initialize()
 {
