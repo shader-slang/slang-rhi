@@ -1,4 +1,7 @@
 #include "cpu-command.h"
+#ifdef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+#include "cpu-acceleration-structure.h"
+#endif
 #include "cpu-query.h"
 #include "cpu-shader-program.h"
 #include "cpu-pipeline.h"
@@ -17,6 +20,7 @@ public:
     RefPtr<ComputePipelineImpl> m_computePipeline;
     BindingDataImpl* m_bindingData = nullptr;
     bool m_computeStateValid = false;
+    Result m_result = SLANG_OK;
 
     CommandExecutor(DeviceImpl* device, uint64_t submissionID)
         : m_device(device)
@@ -76,6 +80,8 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 #define SLANG_RHI_COMMAND_EXECUTE_X(x)                                                                                 \
     case CommandID::x:                                                                                                 \
         cmd##x(commandList.getCommand<commands::x>(command));                                                          \
+        if (SLANG_FAILED(m_result))                                                                                    \
+            return m_result;                                                                                           \
         break;
 
         switch (command->id)
@@ -258,20 +264,80 @@ void CommandExecutor::cmdDispatchRays(const commands::DispatchRays& cmd)
 
 void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd)
 {
+#ifdef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+    if (cmd.src)
+    {
+        m_device->printError("CPU acceleration-structure builds do not support update sources.\n");
+        m_result = SLANG_E_NOT_AVAILABLE;
+        return;
+    }
+
+    for (uint32_t queryIndex = 0; queryIndex < cmd.propertyQueryCount; ++queryIndex)
+    {
+        if (!cmd.queryDescs || !cmd.queryDescs[queryIndex].queryPool)
+        {
+            m_result = SLANG_E_INVALID_ARG;
+            return;
+        }
+
+        const AccelerationStructureQueryDesc& queryDesc = cmd.queryDescs[queryIndex];
+        QueryPoolImpl* queryPool = checked_cast<QueryPoolImpl*>(queryDesc.queryPool);
+        if (queryDesc.queryType != QueryType::AccelerationStructureCompactedSize ||
+            (uint32_t(cmd.desc.flags) & uint32_t(AccelerationStructureBuildFlags::AllowCompaction)) == 0 ||
+            queryPool->getDesc().type != queryDesc.queryType ||
+            !queryPool->isValidQueryRange(queryDesc.firstQueryIndex, 1))
+        {
+            m_result = SLANG_E_INVALID_ARG;
+            return;
+        }
+    }
+
+    AccelerationStructureImpl* accelerationStructure = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    m_result = accelerationStructure->build(cmd.desc);
+    if (SLANG_FAILED(m_result))
+        return;
+
+    // The CPU hierarchy is already stored in its final backend representation, so its compacted
+    // logical size is the size requested when the object was created.
+    for (uint32_t queryIndex = 0; queryIndex < cmd.propertyQueryCount; ++queryIndex)
+    {
+        const AccelerationStructureQueryDesc& queryDesc = cmd.queryDescs[queryIndex];
+        QueryPoolImpl* queryPool = checked_cast<QueryPoolImpl*>(queryDesc.queryPool);
+        queryPool->m_queries[queryDesc.firstQueryIndex] = accelerationStructure->getDesc().size;
+        queryPool->markQueryRangeSubmitted(queryDesc.firstQueryIndex, 1, m_submissionID);
+        queryPool->markQueryRangeResolved(queryDesc.firstQueryIndex, 1, m_submissionID);
+    }
+#else
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(ICommandEncoder, buildAccelerationStructure);
+    m_result = SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
 {
+#ifdef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+    if (cmd.mode != AccelerationStructureCopyMode::Compact)
+    {
+        m_device->printError("CPU acceleration structures only support compact copies.\n");
+        m_result = SLANG_E_NOT_AVAILABLE;
+        return;
+    }
+    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
+    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
+    m_result = dst->copyFrom(*src);
+#else
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(ICommandEncoder, copyAccelerationStructure);
+    m_result = SLANG_E_NOT_AVAILABLE;
+#endif
 }
 
 void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd)
 {
     SLANG_UNUSED(cmd);
     NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
+    m_result = SLANG_E_NOT_AVAILABLE;
 }
 
 void CommandExecutor::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)

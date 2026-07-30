@@ -1,4 +1,7 @@
 #include "cpu-shader-object.h"
+#ifdef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+#include "cpu-acceleration-structure.h"
+#endif
 #include "cpu-device.h"
 #include "cpu-buffer.h"
 #include "cpu-texture.h"
@@ -39,6 +42,16 @@ void shaderObjectSetBinding(
         memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
         break;
     }
+#ifdef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+    case slang::BindingType::RayTracingAccelerationStructure:
+    {
+        AccelerationStructureImpl* accelerationStructure =
+            checked_cast<AccelerationStructureImpl*>(slot.resource.get());
+        slang_prelude::IRaytracingAccelerationStructure* handle = accelerationStructure;
+        memcpy(dst + offset.uniformOffset, &handle, sizeof(handle));
+        break;
+    }
+#endif
     default:
         break;
     }
