@@ -153,7 +153,8 @@ TestResult runStandardQuery(
                     config.proceduralTBase +
                     float(query.CandidatePrimitiveIndex()) * config.proceduralTPrimitiveStep +
                     float(query.CandidateGeometryIndex()) * config.proceduralTGeometryStep;
-                query.CommitProceduralPrimitiveHit(hitT);
+                if (hitT >= query.RayTMin() && hitT <= query.CommittedRayT())
+                    query.CommitProceduralPrimitiveHit(hitT);
             }
         }
         else if (query.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)

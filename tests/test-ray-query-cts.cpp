@@ -39,7 +39,7 @@ enum class CaseID : uint32_t
     FlagsSkipTriangles,
     FlagsTerminateFirstAabbs,
     FlagsTerminateFirstTriangles,
-    WatertightNoMissTriangles,
+    WatertightNoMissAabbs,
     WatertightSingleHitTriangles,
     InsideAabbRayEndInside,
     DirectionLengthTriangles,
@@ -67,6 +67,7 @@ enum class SceneKind
     TriangleInBetween,
     TwoAabbs,
     TwoTriangles,
+    SharedFaceAabbs,
     SharedEdgeTriangles,
     DirectionTriangle,
     StressAabbs,
@@ -387,15 +388,15 @@ CaseSetup getCaseSetup(CaseID caseID)
         expectTriangleHit(setup, 1.0f);
         break;
 
-    case CaseID::WatertightNoMissTriangles:
-        setup.scene = SceneKind::SharedEdgeTriangles;
-        setup.config.rayFlags = RayFlag::ForceNonOpaque;
-        setup.config.behavior = CommitTriangles;
+    case CaseID::WatertightNoMissAabbs:
+        setup.scene = SceneKind::SharedFaceAabbs;
+        setup.config.behavior = CommitProcedural;
         setup.config.rayOriginAndTMin[0] = 0.0f;
         setup.config.rayOriginAndTMin[1] = 0.0f;
+        setup.config.proceduralTBase = 1.5f;
         setup.expected.candidateCount = 1;
-        setup.expected.triangleCandidateCount = 1;
-        expectTriangleHit(setup, 1.0f);
+        setup.expected.proceduralCandidateCount = 1;
+        expectProceduralHit(setup, 1.5f);
         break;
 
     case CaseID::WatertightSingleHitTriangles:
@@ -633,6 +634,17 @@ public:
             const auto second = makeTriangle(2.0f);
             geometry.vertices.insert(geometry.vertices.end(), second.begin(), second.end());
             auto bottomLevel = buildTriangles({geometry});
+            buildTopLevel({{bottomLevel}});
+            break;
+        }
+        case SceneKind::SharedFaceAabbs:
+        {
+            AabbGeometry geometry;
+            geometry.bounds = {
+                {-1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 2.0f},
+                {0.0f, -1.0f, 1.0f, 1.0f, 1.0f, 2.0f},
+            };
+            auto bottomLevel = buildAabbs({geometry});
             buildTopLevel({{bottomLevel}});
             break;
         }
@@ -928,6 +940,13 @@ bool floatEqual(float actual, float expected)
     return std::abs(actual - expected) <= 0.00001f;
 }
 
+void checkFloatEqual(float actual, float expected)
+{
+    CAPTURE(actual);
+    CAPTURE(expected);
+    CHECK(floatEqual(actual, expected));
+}
+
 void checkExactResult(const TestResult& actual, const TestResult& expected)
 {
     CHECK_EQ(actual.committedStatus, expected.committedStatus);
@@ -942,14 +961,14 @@ void checkExactResult(const TestResult& actual, const TestResult& expected)
     CHECK_EQ(actual.committedGeometryIndex, expected.committedGeometryIndex);
     CHECK_EQ(actual.committedInstanceID, expected.committedInstanceID);
     CHECK_EQ(actual.committedInstanceIndex, expected.committedInstanceIndex);
-    CHECK(floatEqual(actual.committedT, expected.committedT));
+    checkFloatEqual(actual.committedT, expected.committedT);
     CHECK_EQ(actual.committedFrontFace, expected.committedFrontFace);
-    CHECK(floatEqual(actual.committedBarycentricU, expected.committedBarycentricU));
-    CHECK(floatEqual(actual.committedBarycentricV, expected.committedBarycentricV));
-    CHECK(floatEqual(actual.transformM00, expected.transformM00));
-    CHECK(floatEqual(actual.transformM03, expected.transformM03));
-    CHECK(floatEqual(actual.transformM11, expected.transformM11));
-    CHECK(floatEqual(actual.transformM23, expected.transformM23));
+    checkFloatEqual(actual.committedBarycentricU, expected.committedBarycentricU);
+    checkFloatEqual(actual.committedBarycentricV, expected.committedBarycentricV);
+    checkFloatEqual(actual.transformM00, expected.transformM00);
+    checkFloatEqual(actual.transformM03, expected.transformM03);
+    checkFloatEqual(actual.transformM11, expected.transformM11);
+    checkFloatEqual(actual.transformM23, expected.transformM23);
     CHECK_EQ(actual.auxiliary0, expected.auxiliary0);
     CHECK_EQ(actual.auxiliary1, expected.auxiliary1);
     CHECK_EQ(actual.auxiliary2, expected.auxiliary2);
@@ -965,6 +984,7 @@ void checkResult(CaseID caseID, const TestResult& actual, const TestResult& expe
         const bool matchesFirst = floatEqual(actual.committedT, expected.committedT);
         const bool matchesSecond = floatEqual(actual.committedT, alternative.committedT);
         const bool matchesAllowedHit = matchesFirst || matchesSecond;
+        CAPTURE(actual.committedT);
         CHECK(matchesAllowedHit);
         TestResult normalized = actual;
         normalized.committedT = expected.committedT;
@@ -976,20 +996,22 @@ void checkResult(CaseID caseID, const TestResult& actual, const TestResult& expe
         const bool matchesNear = floatEqual(actual.committedT, 1.0f);
         const bool matchesFar = floatEqual(actual.committedT, 2.0f);
         const bool matchesAllowedHit = matchesNear || matchesFar;
+        CAPTURE(actual.committedT);
         CHECK(matchesAllowedHit);
         TestResult normalized = actual;
         normalized.committedT = expected.committedT;
         checkExactResult(normalized, expected);
         return;
     }
-    if (caseID == CaseID::WatertightNoMissTriangles)
+    if (caseID == CaseID::WatertightNoMissAabbs)
     {
-        const bool hasOneOrTwoSharedEdgeHits = actual.candidateCount == 1 || actual.candidateCount == 2;
-        CHECK(hasOneOrTwoSharedEdgeHits);
-        CHECK_EQ(actual.triangleCandidateCount, actual.candidateCount);
+        const bool hasOneOrTwoSharedFaceHits = actual.candidateCount == 1 || actual.candidateCount == 2;
+        CAPTURE(actual.candidateCount);
+        CHECK(hasOneOrTwoSharedFaceHits);
+        CHECK_EQ(actual.proceduralCandidateCount, actual.candidateCount);
         TestResult normalized = actual;
         normalized.candidateCount = expected.candidateCount;
-        normalized.triangleCandidateCount = expected.triangleCandidateCount;
+        normalized.proceduralCandidateCount = expected.proceduralCandidateCount;
         checkExactResult(normalized, expected);
         return;
     }
@@ -1082,7 +1104,7 @@ RAY_QUERY_CTS_CASE("ray-query-cts-flags-skip-aabbs", FlagsSkipAabbs)
 RAY_QUERY_CTS_CASE("ray-query-cts-flags-skip-triangles", FlagsSkipTriangles)
 RAY_QUERY_CTS_CASE("ray-query-cts-flags-terminate-first-aabbs", FlagsTerminateFirstAabbs)
 RAY_QUERY_CTS_CASE("ray-query-cts-flags-terminate-first-triangles", FlagsTerminateFirstTriangles)
-RAY_QUERY_CTS_CASE("ray-query-cts-watertight-no-miss-triangles", WatertightNoMissTriangles)
+RAY_QUERY_CTS_CASE("ray-query-cts-watertight-no-miss-aabbs", WatertightNoMissAabbs)
 RAY_QUERY_CTS_CASE("ray-query-cts-watertight-single-hit-triangles", WatertightSingleHitTriangles)
 RAY_QUERY_CTS_CASE("ray-query-cts-inside-aabb-ray-end-inside", InsideAabbRayEndInside)
 RAY_QUERY_CTS_CASE("ray-query-cts-direction-length-triangles", DirectionLengthTriangles)

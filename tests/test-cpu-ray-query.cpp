@@ -2,6 +2,8 @@
 
 #include "cpu/cpu-acceleration-structure.h"
 
+#include <cstdint>
+#include <cstring>
 #include <limits>
 
 using namespace rhi;
@@ -256,6 +258,8 @@ GPU_TEST_CASE("cpu-ray-query-triangle-state-machine", CPU)
     CHECK(transformedQuery.CommittedObjectRayOrigin().z == doctest::Approx(-3.0f));
     CHECK(transformedQuery.CommittedObjectToWorld3x4().rows[2][3] == doctest::Approx(3.0f));
     CHECK(transformedQuery.CommittedWorldToObject3x4().rows[2][3] == doctest::Approx(-3.0f));
+    CHECK(transformedQuery.CommittedObjectToWorld4x3().rows[3][2] == doctest::Approx(3.0f));
+    CHECK(transformedQuery.CommittedWorldToObject4x3().rows[3][2] == doctest::Approx(-3.0f));
 
     // The ray parameter remains unchanged across affine instance transforms. In particular, the
     // direction is not normalized even when the instance has non-uniform scale.
@@ -490,6 +494,8 @@ GPU_TEST_CASE("cpu-ray-query-procedural-state-machine", CPU)
     commitQuery.TraceRayInline(shaderHandle, 0, 0x1, ray);
     REQUIRE(commitQuery.Proceed());
     CHECK(commitQuery.CandidateGeometryIndex() == 0);
+    // The CPU host implementation deliberately ignores NaN hit distances as a defensive
+    // extension; DXR only defines CommitProceduralPrimitiveHit for valid ray parameters.
     commitQuery.CommitProceduralPrimitiveHit(std::numeric_limits<float>::quiet_NaN());
     commitQuery.CommitProceduralPrimitiveHit(1.5f);
     commitQuery.CommitProceduralPrimitiveHit(1.25f);
