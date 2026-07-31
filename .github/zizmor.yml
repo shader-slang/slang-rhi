@@ -9,7 +9,8 @@ rules:
   unpinned-uses:
     config:
       policies:
-        shader-slang/slang: ref-pin
+        # owner/repo alone does not match reusable-workflow subpaths; need /*.
+        shader-slang/slang/*: ref-pin
         actions/*: ref-pin
         github/*: ref-pin
         dependabot/*: ref-pin
