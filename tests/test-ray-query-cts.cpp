@@ -977,29 +977,34 @@ void checkExactResult(const TestResult& actual, const TestResult& expected)
 
 void checkResult(CaseID caseID, const TestResult& actual, const TestResult& expected)
 {
-    if (caseID == CaseID::FlagsTerminateFirstAabbs)
+    if (caseID == CaseID::FlagsTerminateFirstAabbs || caseID == CaseID::FlagsTerminateFirstTriangles)
     {
-        TestResult alternative = expected;
-        alternative.committedT = 3.25f;
-        const bool matchesFirst = floatEqual(actual.committedT, expected.committedT);
-        const bool matchesSecond = floatEqual(actual.committedT, alternative.committedT);
-        const bool matchesAllowedHit = matchesFirst || matchesSecond;
-        CAPTURE(actual.committedT);
-        CHECK(matchesAllowedHit);
-        TestResult normalized = actual;
-        normalized.committedT = expected.committedT;
-        checkExactResult(normalized, expected);
-        return;
-    }
-    if (caseID == CaseID::FlagsTerminateFirstTriangles)
-    {
-        const bool matchesNear = floatEqual(actual.committedT, 1.0f);
-        const bool matchesFar = floatEqual(actual.committedT, 2.0f);
+        const bool isProcedural = caseID == CaseID::FlagsTerminateFirstAabbs;
+        const float farT = isProcedural ? 3.25f : 2.0f;
+        const bool matchesNear = floatEqual(actual.committedT, expected.committedT);
+        const bool matchesFar = floatEqual(actual.committedT, farT);
         const bool matchesAllowedHit = matchesNear || matchesFar;
         CAPTURE(actual.committedT);
         CHECK(matchesAllowedHit);
+
+        // The source CTS only checks that this flag produces a valid hit; it calls Proceed once
+        // and does not constrain the total number of shader-managed candidates. D3D12 WARP may
+        // expose both candidates before completing the query. Keep this adapted CTS oracle at the
+        // same level, while the CPU state-machine tests separately require accept-first commits to
+        // make the next Proceed call return false.
+        const bool hasAllowedCandidateCount = actual.candidateCount == 1 || actual.candidateCount == 2;
+        CAPTURE(actual.candidateCount);
+        CHECK(hasAllowedCandidateCount);
+        if (isProcedural)
+            CHECK_EQ(actual.proceduralCandidateCount, actual.candidateCount);
+        else
+            CHECK_EQ(actual.triangleCandidateCount, actual.candidateCount);
+
         TestResult normalized = actual;
         normalized.committedT = expected.committedT;
+        normalized.candidateCount = expected.candidateCount;
+        normalized.proceduralCandidateCount = expected.proceduralCandidateCount;
+        normalized.triangleCandidateCount = expected.triangleCandidateCount;
         checkExactResult(normalized, expected);
         return;
     }
