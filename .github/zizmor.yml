@@ -1,15 +1,9 @@
-# zizmor config for CodeRabbit (and local zizmor runs).
-#
-# Board-sync callers intentionally use:
-#   uses: shader-slang/slang/.github/workflows/pr-board-sync.yml@master
-# so consumer repos pick up board-sync changes without a pin-bump PR.
-# Allow ref-pinning for that first-party reusable workflow; keep hash-pin
-# as the default for everything else.
+# Allow ref-pinning for slang reusable workflows (@master by design) and
+# first-party GitHub actions; silence zizmor/CodeRabbit unpinned-uses nags.
 rules:
   unpinned-uses:
     config:
       policies:
-        # owner/repo alone does not match reusable-workflow subpaths; need /*.
         shader-slang/slang/*: ref-pin
         actions/*: ref-pin
         github/*: ref-pin
