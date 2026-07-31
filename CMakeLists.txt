@@ -827,7 +827,11 @@ if(SLANG_RHI_ENABLE_CPU)
     if(SLANG_RHI_ENABLE_CPU_RAY_QUERY)
         set(SLANG_RHI_TINYBVH_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/tinybvh")
         if(NOT EXISTS "${SLANG_RHI_TINYBVH_INCLUDE_DIR}/tiny_bvh.h")
-            message(FATAL_ERROR "SLANG_RHI_TINYBVH_INCLUDE_DIR does not contain tiny_bvh.h")
+            message(
+                FATAL_ERROR
+                "The TinyBVH submodule is not initialized. "
+                "Run `git submodule update --init --recursive`."
+            )
         endif()
         target_sources(slang-rhi PRIVATE src/cpu/cpu-acceleration-structure.cpp)
         target_include_directories(
