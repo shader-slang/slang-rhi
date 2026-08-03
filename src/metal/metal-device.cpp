@@ -263,8 +263,11 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         addCapability(Capability::metallib_3_1);
     if (osVersion.majorVersion >= 15)
         addCapability(Capability::metallib_3_2);
-    if (osVersion.majorVersion >= 26)
-        addCapability(Capability::metallib_4_0);
+    // TODO: Re-enable once Slang passes -std=metal4.0 to the downstream Metal compiler.
+    // Slang 2026.12.2 emits Metal 4.0-only attributes when this capability is enabled.
+    // https://github.com/shader-slang/slang/issues/12325
+    // if (osVersion.majorVersion >= 26)
+    //     addCapability(Capability::metallib_4_0);
 
     auto supportsAnyGPUFamilyInRange = [&](MTL::GPUFamily first, MTL::GPUFamily last)
     {
