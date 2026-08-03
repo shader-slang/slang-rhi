@@ -1,15 +1,16 @@
 #pragma once
 
+#include <algorithm>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "metal-buffer.h"
+
 #include "slang-rhi.h"
 
 namespace rhi::metal {
-
-class BufferImpl;
 
 /// Thread-safe map from GPU virtual addresses to their owning BufferImpl.
 ///
@@ -25,14 +26,33 @@ public:
     void insert(DeviceAddress baseAddr, DeviceAddress size, BufferImpl* buffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_baseAddrMap[baseAddr] = {buffer, size};
+        Entry& entry = m_baseAddrMap[baseAddr];
+        if (!entry.head)
+            entry.size = size;
+        else
+            SLANG_RHI_ASSERT(entry.size == size);
+        buffer->m_nextAtSameAddr = entry.head;
+        entry.head = buffer;
         m_sortedDirty = true;
     }
 
-    void erase(DeviceAddress baseAddr)
+    void erase(DeviceAddress baseAddr, BufferImpl* buffer)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_baseAddrMap.erase(baseAddr);
+        auto entry = m_baseAddrMap.find(baseAddr);
+        if (entry == m_baseAddrMap.end())
+            return;
+        for (BufferImpl** link = &entry->second.head; *link; link = &(*link)->m_nextAtSameAddr)
+        {
+            if (*link == buffer)
+            {
+                *link = buffer->m_nextAtSameAddr;
+                buffer->m_nextAtSameAddr = nullptr;
+                break;
+            }
+        }
+        if (!entry->second.head)
+            m_baseAddrMap.erase(entry);
         m_sortedDirty = true;
     }
 
@@ -45,7 +65,7 @@ public:
         // Fast path: exact base-address match.
         auto it = m_baseAddrMap.find(addr);
         if (it != m_baseAddrMap.end())
-            return it->second.buffer;
+            return it->second.head;
 
         // Slow path: address may point into the middle of a buffer.
         return findByRange(addr);
@@ -54,8 +74,10 @@ public:
 private:
     struct Entry
     {
-        BufferImpl* buffer;
-        DeviceAddress size;
+        /// Buffers sharing this base address, linked through BufferImpl::m_nextAtSameAddr.
+        /// Imported buffers can alias an existing address; chaining avoids allocating here.
+        BufferImpl* head = nullptr;
+        DeviceAddress size = 0;
     };
 
     BufferImpl* findByRange(DeviceAddress addr)
@@ -82,7 +104,7 @@ private:
 
         --it;
         if (addr < it->first + it->second.size)
-            return it->second.buffer;
+            return it->second.head;
 
         return nullptr;
     }
