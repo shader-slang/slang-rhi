@@ -1,4 +1,7 @@
 #include "cpu-device.h"
+#ifdef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+#include "cpu-acceleration-structure.h"
+#endif
 #include "cpu-pipeline.h"
 #include "cpu-query.h"
 #include "cpu-shader-object.h"
@@ -30,6 +33,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::TimestampQuery);
     addFeature(Feature::TimestampCalibration);
     addFeature(Feature::Pointer);
+#ifdef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+    addFeature(Feature::RayQuery);
+#endif
 
     addCapability(Capability::cpp);
 
@@ -126,6 +132,70 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     SLANG_UNUSED(desc);
     *outSampler = nullptr;
     return SLANG_OK;
+}
+
+Result DeviceImpl::getAccelerationStructureSizes(
+    const AccelerationStructureBuildDesc& desc,
+    AccelerationStructureSizes* outSizes
+)
+{
+#ifndef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outSizes);
+    return SLANG_E_NOT_AVAILABLE;
+#else
+    if (!outSizes || !desc.inputs || desc.inputCount == 0)
+        return SLANG_E_INVALID_ARG;
+    if (desc.mode != AccelerationStructureBuildMode::Build || desc.motionOptions.keyCount != 1)
+        return SLANG_E_NOT_AVAILABLE;
+
+    const uint32_t unsupportedFlags = uint32_t(AccelerationStructureBuildFlags::AllowUpdate) |
+                                      uint32_t(AccelerationStructureBuildFlags::CreateMotion);
+    if ((uint32_t(desc.flags) & unsupportedFlags) != 0)
+        return SLANG_E_NOT_AVAILABLE;
+
+    const AccelerationStructureBuildInputType inputType = desc.inputs[0].type;
+    if (inputType != AccelerationStructureBuildInputType::Triangles &&
+        inputType != AccelerationStructureBuildInputType::ProceduralPrimitives &&
+        inputType != AccelerationStructureBuildInputType::Instances)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    for (uint32_t inputIndex = 1; inputIndex < desc.inputCount; ++inputIndex)
+    {
+        if (desc.inputs[inputIndex].type != inputType)
+            return SLANG_E_INVALID_ARG;
+    }
+
+    // CPU acceleration structures own their hierarchy storage. RHI still requires non-zero
+    // logical result and scratch sizes so callers can follow the common build path.
+    outSizes->accelerationStructureSize = 1;
+    outSizes->scratchSize = 1;
+    outSizes->updateScratchSize = 0;
+    return SLANG_OK;
+#endif
+}
+
+Result DeviceImpl::createAccelerationStructure(
+    const AccelerationStructureDesc& desc,
+    IAccelerationStructure** outAccelerationStructure
+)
+{
+#ifndef SLANG_RHI_ENABLE_CPU_RAY_QUERY
+    SLANG_UNUSED(desc);
+    if (outAccelerationStructure)
+        *outAccelerationStructure = nullptr;
+    return SLANG_E_NOT_AVAILABLE;
+#else
+    if (!outAccelerationStructure)
+        return SLANG_E_INVALID_ARG;
+    if (desc.motionInfo.enabled)
+        return SLANG_E_NOT_AVAILABLE;
+
+    RefPtr<AccelerationStructureImpl> result = new AccelerationStructureImpl(this, desc);
+    returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+#endif
 }
 
 Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)

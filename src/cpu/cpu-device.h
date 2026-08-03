@@ -73,6 +73,16 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createQueryPool(const QueryPoolDesc& desc, IQueryPool** outPool) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getAccelerationStructureSizes(
+        const AccelerationStructureBuildDesc& desc,
+        AccelerationStructureSizes* outSizes
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
+        const AccelerationStructureDesc& desc,
+        IAccelerationStructure** outAccelerationStructure
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createSampler(const SamplerDesc& desc, ISampler** outSampler) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getQueue(QueueType type, ICommandQueue** outQueue) override;

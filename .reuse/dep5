@@ -16,6 +16,10 @@ Files: external/doctest/doctest.h
 Copyright: 2016-2023 Viktor Kirilov
 License: MIT
 
+Files: external/tinybvh/tiny_bvh.h
+Copyright: 2024-2026 Jacco Bikker / Breda University of Applied Sciences
+License: MIT
+
 Files: CODE_OF_CONDUCT.md CONTRIBUTING.md README.md
 Copyright: 2024 The Khronos Group, Inc.
 License: CC-BY-4.0
