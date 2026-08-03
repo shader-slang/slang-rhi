@@ -78,7 +78,8 @@ GPU_TEST_CASE("metal-device-capabilities", Metal)
     CHECK(device->hasCapability(Capability::metallib_3_0) == (macOSMajorVersion >= 13));
     CHECK(device->hasCapability(Capability::metallib_3_1) == (macOSMajorVersion >= 14));
     CHECK(device->hasCapability(Capability::metallib_3_2) == (macOSMajorVersion >= 15));
-    // Temporarily disabled until Slang's Metal 4.0 output selects the Metal 4.0 downstream language standard.
-    CHECK_FALSE(device->hasCapability(Capability::metallib_4_0));
+    // TODO: Temporarily disabled until Slang's Metal 4.0 output selects the Metal 4.0 downstream language standard.
+    // https://github.com/shader-slang/slang/issues/12325
+    // CHECK(device->hasCapability(Capability::metallib_4_0) == (macOSMajorVersion >= 26));
 }
 #endif
