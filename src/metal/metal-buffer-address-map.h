@@ -6,11 +6,11 @@
 #include <utility>
 #include <vector>
 
+#include "metal-buffer.h"
+
 #include "slang-rhi.h"
 
 namespace rhi::metal {
-
-class BufferImpl;
 
 /// Thread-safe map from GPU virtual addresses to their owning BufferImpl.
 ///
@@ -27,11 +27,12 @@ public:
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         Entry& entry = m_baseAddrMap[baseAddr];
-        if (entry.buffers.empty())
+        if (!entry.head)
             entry.size = size;
         else
             SLANG_RHI_ASSERT(entry.size == size);
-        entry.buffers.push_back(buffer);
+        buffer->m_nextAtSameAddr = entry.head;
+        entry.head = buffer;
         m_sortedDirty = true;
     }
 
@@ -41,9 +42,16 @@ public:
         auto entry = m_baseAddrMap.find(baseAddr);
         if (entry == m_baseAddrMap.end())
             return;
-        auto& buffers = entry->second.buffers;
-        buffers.erase(std::remove(buffers.begin(), buffers.end(), buffer), buffers.end());
-        if (buffers.empty())
+        for (BufferImpl** link = &entry->second.head; *link; link = &(*link)->m_nextAtSameAddr)
+        {
+            if (*link == buffer)
+            {
+                *link = buffer->m_nextAtSameAddr;
+                buffer->m_nextAtSameAddr = nullptr;
+                break;
+            }
+        }
+        if (!entry->second.head)
             m_baseAddrMap.erase(entry);
         m_sortedDirty = true;
     }
@@ -57,7 +65,7 @@ public:
         // Fast path: exact base-address match.
         auto it = m_baseAddrMap.find(addr);
         if (it != m_baseAddrMap.end())
-            return it->second.buffers.back();
+            return it->second.head;
 
         // Slow path: address may point into the middle of a buffer.
         return findByRange(addr);
@@ -66,7 +74,9 @@ public:
 private:
     struct Entry
     {
-        std::vector<BufferImpl*> buffers;
+        /// Buffers sharing this base address, linked through BufferImpl::m_nextAtSameAddr.
+        /// Imported buffers can alias an existing address; chaining avoids allocating here.
+        BufferImpl* head = nullptr;
         DeviceAddress size = 0;
     };
 
@@ -94,7 +104,7 @@ private:
 
         --it;
         if (addr < it->first + it->second.size)
-            return it->second.buffers.back();
+            return it->second.head;
 
         return nullptr;
     }
