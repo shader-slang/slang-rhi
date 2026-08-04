@@ -1254,10 +1254,7 @@ Result DeviceImpl::initVulkanDevice(
             extendedFeatures.pipelineBinaryFeatures,
             pipelineBinaries,
             VK_KHR_PIPELINE_BINARY_EXTENSION_NAME,
-            {
-                deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
-                availableFeatures.push_back(Feature::PipelineCache);
-            }
+            { deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -1550,6 +1547,18 @@ Result DeviceImpl::initVulkanDevice(
     else
     {
         m_calibratedTimestampSupport = {};
+    }
+
+    // Disable pipeline caching if any required device entry point is unavailable.
+    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries &&
+        !(m_api.vkGetPipelineKeyKHR && m_api.vkCreatePipelineBinariesKHR && m_api.vkGetPipelineBinaryDataKHR &&
+          m_api.vkDestroyPipelineBinaryKHR && m_api.vkReleaseCapturedPipelineDataKHR))
+    {
+        m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries = VK_FALSE;
+    }
+    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries)
+    {
+        availableFeatures.push_back(Feature::PipelineCache);
     }
 
 #if SLANG_PROCESSOR_ARM_64
