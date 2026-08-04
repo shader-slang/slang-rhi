@@ -1046,6 +1046,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-nvrtc.cpp
         tests/test-nvapi.cpp
         tests/test-offset-allocator.cpp
+        tests/test-parameter-block-entry-point-uniform.cpp
         tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp

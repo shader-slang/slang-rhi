@@ -56,6 +56,24 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::Bind
     }
 }
 
+/// Slang deliberately reports push constants as descriptor ranges and expects the host to filter
+/// them; Vulkan binds them through `VkPipelineLayoutCreateInfo::pPushConstantRanges` instead. Such a
+/// set therefore yields a `VkDescriptorSetLayout` with no bindings, and because set indices are
+/// assigned by insertion order it would still consume an index, shifting every later set away from
+/// the space that SPIR-V decorates it with.
+static bool _isPushConstantOnlyDescriptorSet(slang::TypeLayoutReflection* typeLayout, uint32_t descriptorSetIndex)
+{
+    SlangInt descriptorRangeCount = typeLayout->getDescriptorSetDescriptorRangeCount(descriptorSetIndex);
+    if (descriptorRangeCount == 0)
+        return false;
+    for (SlangInt i = 0; i < descriptorRangeCount; ++i)
+    {
+        if (typeLayout->getDescriptorSetDescriptorRangeType(descriptorSetIndex, i) != slang::BindingType::PushConstant)
+            return false;
+    }
+    return true;
+}
+
 /// Add any descriptor ranges implied by this object containing a leaf
 /// sub-object described by `typeLayout`, at the given `offset`.
 
@@ -76,6 +94,8 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
     {
         SlangInt descriptorRangeCount = typeLayout->getDescriptorSetDescriptorRangeCount(i);
         if (descriptorRangeCount == 0)
+            continue;
+        if (_isPushConstantOnlyDescriptorSet(typeLayout, i))
             continue;
         auto descriptorSetIndex =
             findOrAddDescriptorSet(offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(i));
