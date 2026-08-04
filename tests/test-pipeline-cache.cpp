@@ -1,6 +1,7 @@
 #include "testing.h"
 
 #include <array>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -547,6 +548,7 @@ GPU_TEST_CASE("pipeline-cache-ray-tracing-corrupt", Vulkan | DontCreateDevice)
     runTest<PipelineCacheTestRayTracing<true>>(ctx);
 }
 
+
 #if 0
 // TODO: D3D12 does fail in debug layers and not return an error correctly.
 GPU_TEST_CASE("pipeline-cache-render-corrupt", Vulkan | DontCreateDevice)
@@ -554,3 +556,166 @@ GPU_TEST_CASE("pipeline-cache-render-corrupt", Vulkan | DontCreateDevice)
     runTest<PipelineCacheTestRender<true>>(ctx);
 }
 #endif
+
+
+#if SLANG_RHI_ENABLE_VULKAN
+#include <vulkan/vulkan.h>
+#include "core/short_vector.h"
+
+namespace rhi::vk {
+// Declared here rather than via vk-pipeline.h, which pulls in the full Vulkan API loader.
+Result parsePipelineCacheBlob(
+    const void* blobData,
+    size_t blobSize,
+    short_vector<VkPipelineBinaryKeyKHR>& outKeys,
+    short_vector<VkPipelineBinaryDataKHR>& outData
+);
+} // namespace rhi::vk
+
+// A cache entry whose header passes the magic/version check but carries an out-of-range length or
+// offset must be rejected rather than trusted: the key size drives a copy into a fixed-size array,
+// and the data offset becomes a pointer handed to the driver.
+//
+// The parser is exercised directly because reaching it through the cache requires a device
+// supporting VK_KHR_pipeline_binary, which the pipeline-cache-* tests above skip without.
+// VirtualCache::corrupt() cannot reach these checks either: its first flipped byte falls in the magic
+// field, so a corrupted entry is rejected before any record is examined.
+TEST_CASE("pipeline-cache-blob-validation")
+{
+    // Mirrors the layout written by serializePipelineBinaries.
+    struct Header
+    {
+        uint32_t magic = 0x12345678;
+        uint32_t version = 1;
+        uint32_t binaryCount = 1;
+    };
+    struct Record
+    {
+        uint32_t keySize = VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR;
+        uint8_t key[VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR] = {};
+        uint32_t dataSize = 16;
+        uint32_t dataOffset = 56;
+    };
+    // Must match the structs the Vulkan backend writes; asserted there too.
+    static_assert(sizeof(Header) == 12);
+    static_assert(sizeof(Record) == 44);
+
+    auto build = [](const Header& header, const Record& record)
+    {
+        std::vector<uint8_t> blob(sizeof(Header) + sizeof(Record) + 16, 0xab);
+        std::memcpy(blob.data(), &header, sizeof(header));
+        std::memcpy(blob.data() + sizeof(Header), &record, sizeof(record));
+        return blob;
+    };
+    auto parse = [](const std::vector<uint8_t>& blob)
+    {
+        short_vector<VkPipelineBinaryKeyKHR> keys;
+        short_vector<VkPipelineBinaryDataKHR> data;
+        return rhi::vk::parsePipelineCacheBlob(blob.data(), blob.size(), keys, data);
+    };
+
+    SUBCASE("blob at the limits of the valid range is accepted")
+    {
+        // The rejection cases below are only meaningful if these pass, and each sits exactly on a
+        // bound: data starting at the first byte after the record table, and an empty payload at the
+        // very end of the blob.
+        Record atTableEnd;
+        atTableEnd.dataOffset = sizeof(Header) + sizeof(Record);
+        atTableEnd.dataSize = 16;
+        CHECK(SLANG_SUCCEEDED(parse(build(Header{}, atTableEnd))));
+
+        Record emptyAtBlobEnd;
+        emptyAtBlobEnd.dataOffset = sizeof(Header) + sizeof(Record) + 16;
+        emptyAtBlobEnd.dataSize = 0;
+        CHECK(SLANG_SUCCEEDED(parse(build(Header{}, emptyAtBlobEnd))));
+
+        Record maximumKey;
+        maximumKey.keySize = VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR;
+        CHECK(SLANG_SUCCEEDED(parse(build(Header{}, maximumKey))));
+    }
+
+    SUBCASE("blob with two records is accepted")
+    {
+        // Covers the per-record walk across the table, which a single-record blob cannot exercise.
+        Header header;
+        header.binaryCount = 2;
+        const size_t tableEnd = sizeof(Header) + 2 * sizeof(Record);
+        std::vector<uint8_t> blob(tableEnd + 32, 0xab);
+        std::memcpy(blob.data(), &header, sizeof(header));
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            Record record;
+            record.dataSize = 16;
+            record.dataOffset = (uint32_t)(tableEnd + i * 16);
+            std::memcpy(blob.data() + sizeof(Header) + i * sizeof(Record), &record, sizeof(record));
+        }
+        CHECK(SLANG_SUCCEEDED(parse(blob)));
+    }
+
+    SUBCASE("well-formed blob is accepted")
+    {
+        // Guards against the rejection cases below passing for the wrong reason.
+        CHECK(SLANG_SUCCEEDED(parse(build(Header{}, Record{}))));
+
+        Record emptyKey;
+        emptyKey.keySize = 0;
+        CHECK(SLANG_SUCCEEDED(parse(build(Header{}, emptyKey))));
+
+        Record noPayload;
+        noPayload.dataSize = 0;
+        CHECK(SLANG_SUCCEEDED(parse(build(Header{}, noPayload))));
+    }
+
+    SUBCASE("key size larger than the key array is rejected")
+    {
+        Record record;
+        record.keySize = VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR + 1;
+        CHECK(SLANG_FAILED(parse(build(Header{}, record))));
+
+        record.keySize = 0xffffffff;
+        CHECK(SLANG_FAILED(parse(build(Header{}, record))));
+    }
+
+    SUBCASE("data offset outside the payload region is rejected")
+    {
+        Record past;
+        past.dataOffset = 0xffffffff;
+        CHECK(SLANG_FAILED(parse(build(Header{}, past))));
+
+        // Memory-safe, but binary data must not point back into the header or record table.
+        Record intoTable;
+        intoTable.dataOffset = 0;
+        CHECK(SLANG_FAILED(parse(build(Header{}, intoTable))));
+    }
+
+    SUBCASE("data size running past the end of the blob is rejected")
+    {
+        Record record;
+        record.dataSize = 0xffffffff;
+        CHECK(SLANG_FAILED(parse(build(Header{}, record))));
+    }
+
+    SUBCASE("binary count inconsistent with the blob is rejected")
+    {
+        Header tooMany;
+        tooMany.binaryCount = 0xffffffff;
+        CHECK(SLANG_FAILED(parse(build(tooMany, Record{}))));
+
+        Header none;
+        none.binaryCount = 0;
+        CHECK(SLANG_FAILED(parse(build(none, Record{}))));
+    }
+
+    SUBCASE("truncated blob is rejected")
+    {
+        std::vector<uint8_t> shorterThanHeader(sizeof(Header) - 1, 0);
+        CHECK(SLANG_FAILED(parse(shorterThanHeader)));
+
+        // Header claims a record that the blob does not contain.
+        std::vector<uint8_t> headerOnly(sizeof(Header), 0);
+        Header header;
+        std::memcpy(headerOnly.data(), &header, sizeof(header));
+        CHECK(SLANG_FAILED(parse(headerOnly)));
+    }
+}
+#endif // SLANG_RHI_ENABLE_VULKAN
