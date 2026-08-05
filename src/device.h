@@ -26,6 +26,10 @@ namespace testing {
 extern bool gDebugDisableStateTracking;
 // Counter for tracking active Resource instances (for testing deferred delete)
 extern std::atomic<uint64_t> gResourceCount;
+// Number of entries in the device's shader object layout cache. Exposed so tests
+// can assert that createShaderObjectFromTypeLayout does not retain the caller's
+// TypeLayoutReflection pointer (shader-slang/slang#10893).
+size_t getShaderObjectLayoutCacheSize(IDevice* device);
 } // namespace testing
 
 // Base class for adapters.

@@ -12,6 +12,11 @@ namespace rhi {
 namespace testing {
 bool gDebugDisableStateTracking = false;
 std::atomic<uint64_t> gResourceCount{0};
+
+size_t getShaderObjectLayoutCacheSize(IDevice* device)
+{
+    return checked_cast<Device*>(device)->m_shaderObjectLayoutCache.size();
+}
 } // namespace testing
 
 // ----------------------------------------------------------------------------
@@ -784,8 +789,25 @@ Result Device::createShaderObject(
 
 Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
 {
+    // Build the layout directly rather than going through m_shaderObjectLayoutCache.
+    //
+    // That cache is keyed on a raw `slang::TypeLayoutReflection*` and lives as
+    // long as the `Device`. Every other way in supplies a key obtained from
+    // `ISession::getTypeLayout`, which the `Linkage` owns, so the entry's
+    // `ComPtr<slang::ISession>` genuinely covers the key's lifetime. Here the key
+    // comes from the caller, and in practice it is a layout owned by a
+    // `TargetProgram` -- an object slang-rhi holds no reference to and knows
+    // nothing about. Caching it leaves an entry that outlives the layout as soon
+    // as the caller releases its program, and a later allocation landing on the
+    // recycled address turns the next lookup into a use-after-free
+    // (shader-slang/slang#10893).
+    //
+    // slang-rhi cannot vouch for the lifetime of a pointer it was handed, so it
+    // must not retain one past the call. Skipping the cache here keeps every
+    // cached key session-owned, which makes the existing session reference
+    // load-bearing rather than incidental.
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
-    SLANG_RETURN_ON_FAIL(getShaderObjectLayout(m_slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
+    SLANG_RETURN_ON_FAIL(createShaderObjectLayout(m_slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
     RefPtr<ShaderObject> shaderObject;
     SLANG_RETURN_ON_FAIL(createShaderObject(shaderObjectLayout, shaderObject.writeRef()));
     returnComPtr(outObject, shaderObject);
