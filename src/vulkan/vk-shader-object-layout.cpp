@@ -56,16 +56,26 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::Bind
     }
 }
 
-/// Slang deliberately reports push constants as descriptor ranges and expects the host to filter
-/// them; Vulkan binds them through `VkPipelineLayoutCreateInfo::pPushConstantRanges` instead. Such a
-/// set therefore yields a `VkDescriptorSetLayout` with no bindings, and because set indices are
-/// assigned by insertion order it would still consume an index, shifting every later set away from
-/// the space that SPIR-V decorates it with.
+/// Returns true if every descriptor range of the reflected descriptor set at `descriptorSetIndex` is a
+/// push constant, meaning the set can only ever produce a `VkDescriptorSetLayout` with no bindings.
+/// Requires a set with at least one range.
+///
+/// Slang deliberately reports push constants as descriptor ranges and expects the host to filter them;
+/// Vulkan binds them through `VkPipelineLayoutCreateInfo::pPushConstantRanges` instead. That the result is
+/// *necessarily* empty rather than merely empty in practice comes from `_mapDescriptorType`, which treats
+/// `PushConstant` as an unsupported binding type: no such range can become a `VkDescriptorSetLayoutBinding`.
+///
+/// `PushConstant` is deliberately the only type tested, even though the binding loop below also skips
+/// `ExistentialValue` and `InlineUniformData`. The invariant that makes the narrower test sufficient lives
+/// in Slang's reflection, not here: `ExistentialObjectParam` is excluded from the descriptor ranges it
+/// reports, and `InlineUniformData` is only produced from a `Uniform` resource kind, which is likewise
+/// excluded. Should Slang ever report `InlineUniformData` as a descriptor range, the two filters must be
+/// reconciled - this code maps it to a real Vulkan descriptor type while the loop below skips it, which is
+/// the same divergence that caused this bug.
 static bool _isPushConstantOnlyDescriptorSet(slang::TypeLayoutReflection* typeLayout, uint32_t descriptorSetIndex)
 {
     SlangInt descriptorRangeCount = typeLayout->getDescriptorSetDescriptorRangeCount(descriptorSetIndex);
-    if (descriptorRangeCount == 0)
-        return false;
+    SLANG_RHI_ASSERT(descriptorRangeCount > 0);
     for (SlangInt i = 0; i < descriptorRangeCount; ++i)
     {
         if (typeLayout->getDescriptorSetDescriptorRangeType(descriptorSetIndex, i) != slang::BindingType::PushConstant)
@@ -95,6 +105,11 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         SlangInt descriptorRangeCount = typeLayout->getDescriptorSetDescriptorRangeCount(i);
         if (descriptorRangeCount == 0)
             continue;
+        // Set indices come from arrival order here, while SPIR-V decorates each resource with the space
+        // its own reflection assigned. A set that can only ever be empty must therefore not take an
+        // index, or the sets that do carry bindings no longer sit where the shader looks for them.
+        // Declining the index also lowers the root's own-set count, which matters: allocateDescriptorSets
+        // asserts a shader object owns at most one set.
         if (_isPushConstantOnlyDescriptorSet(typeLayout, i))
             continue;
         auto descriptorSetIndex =
