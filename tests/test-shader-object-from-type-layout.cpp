@@ -1,9 +1,20 @@
 #include "testing.h"
 
 #include "device.h"
+#include "debug-layer/debug-device.h"
 
 using namespace rhi;
 using namespace rhi::testing;
+
+// When validation is enabled the test receives the debug-layer wrapper rather
+// than the device that owns the cache, so unwrap it first. Same idiom as
+// test-cmd-upload-buffer.cpp.
+static IDevice* getInnerDevice(IDevice* device)
+{
+    if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
+        return debugDevice->baseObject.get();
+    return device;
+}
 
 // Regression test for shader-slang/slang#10893.
 //
@@ -49,7 +60,8 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     }
     REQUIRE(typeLayout != nullptr);
 
-    const size_t cacheSizeBefore = getShaderObjectLayoutCacheSize(device);
+    IDevice* innerDevice = getInnerDevice(device);
+    const size_t cacheSizeBefore = getShaderObjectLayoutCacheSize(innerDevice);
 
     ComPtr<IShaderObject> shaderObject;
     REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, shaderObject.writeRef()));
@@ -61,5 +73,5 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     ComPtr<IShaderObject> secondShaderObject;
     REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, secondShaderObject.writeRef()));
 
-    CHECK_EQ(getShaderObjectLayoutCacheSize(device), cacheSizeBefore);
+    CHECK_EQ(getShaderObjectLayoutCacheSize(innerDevice), cacheSizeBefore);
 }
