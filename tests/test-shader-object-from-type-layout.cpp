@@ -19,7 +19,7 @@ using namespace rhi::testing;
 //
 // The failure that follows from that is a use-after-free whose visibility
 // depends on the allocator handing the freed address back out, so testing for
-// it directly means testing for "ASan happened to stay quiet" — which is exactly
+// it directly means testing for "ASan happened to stay quiet" - which is exactly
 // how these findings were previously written off as fixed. This asserts the
 // invariant instead: slang-rhi must not retain a `TypeLayoutReflection*` it was
 // handed. That fails deterministically, on every platform, sanitizer or not.
