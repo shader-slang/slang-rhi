@@ -56,9 +56,9 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::Bind
     }
 }
 
-/// Returns true if every descriptor range of the reflected descriptor set at `descriptorSetIndex` is a
-/// push constant, meaning the set can only ever produce a `VkDescriptorSetLayout` with no bindings.
-/// Requires a set with at least one range.
+/// Returns true if every one of the set's `descriptorRangeCount` descriptor ranges is a push constant,
+/// meaning the reflected descriptor set at `descriptorSetIndex` can only ever produce a
+/// `VkDescriptorSetLayout` with no bindings. An empty set is not push-constant-only.
 ///
 /// Slang deliberately reports push constants as descriptor ranges and expects the host to filter them;
 /// Vulkan binds them through `VkPipelineLayoutCreateInfo::pPushConstantRanges` instead. That the result is
@@ -72,10 +72,14 @@ VkDescriptorType ShaderObjectLayoutImpl::Builder::_mapDescriptorType(slang::Bind
 /// excluded. Should Slang ever report `InlineUniformData` as a descriptor range, the two filters must be
 /// reconciled - this code maps it to a real Vulkan descriptor type while the loop below skips it, which is
 /// the same divergence that caused this bug.
-static bool _isPushConstantOnlyDescriptorSet(slang::TypeLayoutReflection* typeLayout, uint32_t descriptorSetIndex)
+static bool _isPushConstantOnlyDescriptorSet(
+    slang::TypeLayoutReflection* typeLayout,
+    uint32_t descriptorSetIndex,
+    SlangInt descriptorRangeCount
+)
 {
-    SlangInt descriptorRangeCount = typeLayout->getDescriptorSetDescriptorRangeCount(descriptorSetIndex);
-    SLANG_RHI_ASSERT(descriptorRangeCount > 0);
+    if (descriptorRangeCount == 0)
+        return false;
     for (SlangInt i = 0; i < descriptorRangeCount; ++i)
     {
         if (typeLayout->getDescriptorSetDescriptorRangeType(descriptorSetIndex, i) != slang::BindingType::PushConstant)
@@ -110,7 +114,7 @@ void ShaderObjectLayoutImpl::Builder::_addDescriptorRangesAsValue(
         // index, or the sets that do carry bindings no longer sit where the shader looks for them.
         // Declining the index also lowers the root's own-set count, which matters: allocateDescriptorSets
         // asserts a shader object owns at most one set.
-        if (_isPushConstantOnlyDescriptorSet(typeLayout, i))
+        if (_isPushConstantOnlyDescriptorSet(typeLayout, i, descriptorRangeCount))
             continue;
         auto descriptorSetIndex =
             findOrAddDescriptorSet(offset.bindingSet + typeLayout->getDescriptorSetSpaceOffset(i));
