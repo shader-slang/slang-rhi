@@ -3,6 +3,7 @@
 #include "rhi-shared.h"
 #include "shader.h"
 #include "heap.h"
+#include "debug-layer/debug-device.h"
 
 #include <algorithm>
 #include <cstdarg>
@@ -15,6 +16,13 @@ std::atomic<uint64_t> gResourceCount{0};
 
 size_t getShaderObjectLayoutCacheSize(IDevice* device)
 {
+    // Unwrap the debug layer here rather than requiring callers to do it. Tests hold
+    // whatever createDevice returned, which is the wrapper whenever validation is
+    // enabled, and the cost of forgetting is uneven: checked_cast only verifies the
+    // downcast under SLANG_RHI_DEBUG, so a wrapper reaching it aborts in debug builds
+    // but silently reads a bogus pointer in release ones.
+    if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
+        device = debugDevice->baseObject.get();
     return checked_cast<Device*>(device)->m_shaderObjectLayoutCache.size();
 }
 } // namespace testing
@@ -789,23 +797,13 @@ Result Device::createShaderObject(
 
 Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
 {
-    // Build the layout directly rather than going through m_shaderObjectLayoutCache.
+    // Build the layout directly rather than caching it.
     //
-    // That cache is keyed on a raw `slang::TypeLayoutReflection*` and lives as
-    // long as the `Device`. Every other way in supplies a key obtained from
-    // `ISession::getTypeLayout`, which the `Linkage` owns, so the entry's
-    // `ComPtr<slang::ISession>` genuinely covers the key's lifetime. Here the key
-    // comes from the caller, and in practice it is a layout owned by a
-    // `TargetProgram` -- an object slang-rhi holds no reference to and knows
-    // nothing about. Caching it leaves an entry that outlives the layout as soon
-    // as the caller releases its program, and a later allocation landing on the
-    // recycled address turns the next lookup into a use-after-free
-    // (shader-slang/slang#10893).
-    //
-    // slang-rhi cannot vouch for the lifetime of a pointer it was handed, so it
-    // must not retain one past the call. Skipping the cache here keeps every
-    // cached key session-owned, which makes the existing session reference
-    // load-bearing rather than incidental.
+    // m_shaderObjectLayoutCache requires session-owned keys (see the invariant on its
+    // declaration). `typeLayout` comes from the caller instead, and in practice belongs
+    // to a `TargetProgram` that slang-rhi holds no reference to, so it does not qualify.
+    // More generally, slang-rhi cannot vouch for the lifetime of a pointer it was handed
+    // and so must not retain one past this call.
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
     SLANG_RETURN_ON_FAIL(createShaderObjectLayout(m_slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
     RefPtr<ShaderObject> shaderObject;
@@ -1112,18 +1110,12 @@ Result Device::getShaderObjectLayout(
         break;
     }
 
+    // Deriving the key here, rather than accepting one, is what keeps the cache
+    // safe: `getTypeLayout` returns a layout owned by the `Linkage`, and the entry
+    // records a strong reference to that same session below, so the key cannot
+    // outlive the entry. See the invariant on m_shaderObjectLayoutCache.
     auto typeLayout = session->getTypeLayout(type);
-    SLANG_RETURN_ON_FAIL(getShaderObjectLayout(session, typeLayout, outLayout));
-    (*outLayout)->m_slangSession = session;
-    return SLANG_OK;
-}
 
-Result Device::getShaderObjectLayout(
-    slang::ISession* session,
-    slang::TypeLayoutReflection* typeLayout,
-    ShaderObjectLayout** outLayout
-)
-{
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
     auto it = m_shaderObjectLayoutCache.find(typeLayout);
     if (it != m_shaderObjectLayoutCache.end())
@@ -1136,6 +1128,7 @@ Result Device::getShaderObjectLayout(
         m_shaderObjectLayoutCache.emplace(typeLayout, shaderObjectLayout);
     }
     *outLayout = shaderObjectLayout.detach();
+    (*outLayout)->m_slangSession = session;
     return SLANG_OK;
 }
 

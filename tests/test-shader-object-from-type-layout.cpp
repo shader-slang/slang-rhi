@@ -1,39 +1,23 @@
 #include "testing.h"
 
 #include "device.h"
-#include "debug-layer/debug-device.h"
 
 using namespace rhi;
 using namespace rhi::testing;
 
-// When validation is enabled the test receives the debug-layer wrapper rather
-// than the device that owns the cache, so unwrap it first. Same idiom as
-// test-cmd-upload-buffer.cpp.
-static IDevice* getInnerDevice(IDevice* device)
-{
-    if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
-        return debugDevice->baseObject.get();
-    return device;
-}
-
 // Regression test for shader-slang/slang#10893.
 //
-// `Device::m_shaderObjectLayoutCache` is keyed on a raw
-// `slang::TypeLayoutReflection*` and lives as long as the `Device`. Every other
-// way into that cache supplies a key obtained from `ISession::getTypeLayout`,
-// which the `Linkage` owns, so the entry's `ComPtr<slang::ISession>` covers the
-// key. `createShaderObjectFromTypeLayout` is different: the key comes from the
-// caller, and in practice it is a layout owned by a `TargetProgram`. Caching it
-// leaves an entry that outlives the layout as soon as the caller releases its
-// program, and a later allocation landing on the recycled address turns the next
-// lookup into a use-after-free.
+// The rule being defended is the m_shaderObjectLayoutCache invariant documented in
+// device.h: every cache key must be a session-owned layout. This test covers the one
+// entry point that takes a layout from the caller, where that rule cannot be met,
+// and so must not cache at all.
 //
-// The failure that follows from that is a use-after-free whose visibility
-// depends on the allocator handing the freed address back out, so testing for
-// it directly means testing for "ASan happened to stay quiet" - which is exactly
-// how these findings were previously written off as fixed. This asserts the
-// invariant instead: slang-rhi must not retain a `TypeLayoutReflection*` it was
-// handed. That fails deterministically, on every platform, sanitizer or not.
+// It asserts the invariant rather than the symptom on purpose. The symptom is a
+// use-after-free that only becomes visible when the allocator hands the freed address
+// back out, so testing for it amounts to testing that a sanitizer happened to stay
+// quiet - which is how this issue was previously written off as fixed. Checking that
+// the device did not retain the pointer fails deterministically instead, on every
+// platform, with or without a sanitizer.
 GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
 {
     ComPtr<IShaderProgram> shaderProgram;
@@ -60,18 +44,17 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     }
     REQUIRE(typeLayout != nullptr);
 
-    IDevice* innerDevice = getInnerDevice(device);
-    const size_t cacheSizeBefore = getShaderObjectLayoutCacheSize(innerDevice);
+    const size_t cacheSizeBefore = getShaderObjectLayoutCacheSize(device);
 
     ComPtr<IShaderObject> shaderObject;
     REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, shaderObject.writeRef()));
     REQUIRE(shaderObject != nullptr);
 
-    // The device must not have taken a reference to the caller's pointer. A
-    // second call is included because a cache would only be observable on the
-    // insert, and this also pins the "no reuse across calls" behaviour.
+    // Called twice so that the check below also rules out entries accumulating across
+    // repeated calls, not just an insert on the first one.
     ComPtr<IShaderObject> secondShaderObject;
     REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, secondShaderObject.writeRef()));
 
-    CHECK_EQ(getShaderObjectLayoutCacheSize(innerDevice), cacheSizeBefore);
+    // The device must not have retained the caller's type layout.
+    CHECK_EQ(getShaderObjectLayoutCacheSize(device), cacheSizeBefore);
 }

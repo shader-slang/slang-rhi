@@ -26,9 +26,8 @@ namespace testing {
 extern bool gDebugDisableStateTracking;
 // Counter for tracking active Resource instances (for testing deferred delete)
 extern std::atomic<uint64_t> gResourceCount;
-// Number of entries in the device's shader object layout cache. Exposed so tests
-// can assert that createShaderObjectFromTypeLayout does not retain the caller's
-// TypeLayoutReflection pointer (shader-slang/slang#10893).
+// Returns the number of entries in the device's shader object layout cache.
+// Accepts either a device or its debug-layer wrapper.
 size_t getShaderObjectLayoutCacheSize(IDevice* device);
 } // namespace testing
 
@@ -381,16 +380,16 @@ public:
         slang::IBlob** outDiagnostics = nullptr
     );
 
+    /// Returns the cached shader object layout for `type` in `session`, creating it
+    /// on first use.
+    ///
+    /// Takes a type rather than a type layout deliberately: the cache key must be a
+    /// session-owned layout, so this derives it internally instead of accepting one
+    /// from the caller. See the invariant on m_shaderObjectLayoutCache.
     Result getShaderObjectLayout(
         slang::ISession* session,
         slang::TypeReflection* type,
         ShaderObjectContainerType container,
-        ShaderObjectLayout** outLayout
-    );
-
-    Result getShaderObjectLayout(
-        slang::ISession* session,
-        slang::TypeLayoutReflection* typeLayout,
         ShaderObjectLayout** outLayout
     );
 
@@ -474,6 +473,25 @@ public:
     ComPtr<IPersistentCache> m_persistentShaderCache;
     ComPtr<IPersistentCache> m_persistentPipelineCache;
 
+    /// Shader object layouts, keyed by the type layout they were built from.
+    ///
+    /// The key is a raw pointer this cache does not own, and entries live as long as
+    /// the device, so an entry is only sound while the object owning its key is still
+    /// alive. What guarantees that is the strong `ISession` reference each entry holds
+    /// via ShaderObjectLayout::m_slangSession: a layout obtained from
+    /// `ISession::getTypeLayout` belongs to the `Linkage` and so lives at least as long
+    /// as that reference.
+    ///
+    /// The invariant is therefore that every key is a session-owned layout, and it is
+    /// enforced structurally: getShaderObjectLayout is the only path that inserts here,
+    /// and it derives the key from the session itself rather than accepting one.
+    ///
+    /// A layout reached through `IComponentType::getLayout()` belongs to the
+    /// `TargetProgram`, not the session, and must never become a key: releasing the
+    /// program would leave the entry dangling, and a later allocation reusing that
+    /// address turns the next lookup into a use-after-free. That is
+    /// shader-slang/slang#10893, which is why createShaderObjectFromTypeLayout builds
+    /// its layout directly instead of caching one.
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
 
     // List of heaps managed by this device. DeviceImpl is expected
