@@ -420,6 +420,13 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
                 &copyInfo
             );
             m_deviceQueue.flush();
+
+            // Hand the initialized shared buffer off to an external (e.g. CUDA) consumer. Submits
+            // after the copy on the same queue and waits, so the copy is complete on return.
+            if (is_set(desc.usage, BufferUsage::Shared))
+            {
+                _releaseSharedBufferToExternalQueue(buffer->m_buffer.m_buffer);
+            }
         }
         else
         {

@@ -128,8 +128,9 @@ GPU_TEST_CASE("texture-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
             dstDevice
                 ->createTextureFromSharedHandle(sharedHandle, srcTexture->getDesc(), sizeInBytes, dstTexture.writeRef())
         );
-        // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
-        // dstDevice
+        // createTexture performed the producer-side handoff after the init upload, so no source-side
+        // readback is needed here -- and none would be valid, as the texture is now owned by the
+        // external consumer.
         compareComputeResult(dstDevice, dstTexture, 0, 0, std::span(texData, texData + 16));
 
         setUpAndRunShader(dstDevice, dstTexture, floatResults, "copyTexFloat4");

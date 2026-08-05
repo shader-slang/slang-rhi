@@ -35,10 +35,9 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     REQUIRE_CALL(srcBuffer->getSharedHandle(&sharedHandle));
     ComPtr<IBuffer> dstBuffer;
     REQUIRE_CALL(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
-    // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
-    // dstDevice
-    // TODO: Implement actual synchronization (and not this hacky solution)
-    compareComputeResult(srcDevice, srcBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
+    // createBuffer performed the producer-side handoff after the init upload, so no source-side
+    // readback is needed here -- and none would be valid, as the buffer is now owned by the external
+    // consumer.
 
     const BufferDesc& testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc.elementSize, sizeof(float));

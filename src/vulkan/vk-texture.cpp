@@ -452,6 +452,13 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+
+        // Hand the initialized shared image off to an external (e.g. CUDA) consumer. This submits
+        // after the upload on the same queue and waits, so the upload is complete on return.
+        if (is_set(desc.usage, TextureUsage::Shared))
+        {
+            _releaseSharedImageToExternalQueue(texture->m_image, format, desc);
+        }
     }
 
     returnComPtr(outTexture, texture);
