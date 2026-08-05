@@ -431,6 +431,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         else
         {
             // Copy into mapped buffer directly
+            // TODO: a host-visible BufferUsage::Shared buffer gets no ownership release here. The
+            // write is a host write to coherent memory rather than a queue operation, so there is no
+            // queue-family transfer to make; whether an external consumer still needs one is untested
+            // (no in-tree test creates such a buffer).
             void* mappedData = nullptr;
             SLANG_VK_RETURN_ON_FAIL_REPORT(
                 m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),

@@ -35,9 +35,10 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     REQUIRE_CALL(srcBuffer->getSharedHandle(&sharedHandle));
     ComPtr<IBuffer> dstBuffer;
     REQUIRE_CALL(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
-    // createBuffer performed the producer-side handoff after the init upload, so no source-side
-    // readback is needed here -- and none would be valid, as the buffer is now owned by the external
-    // consumer.
+    // The initial contents are visible to the import without a source-side readback: Vulkan released
+    // the buffer to the external queue family after the init copy, and a device-local D3D12 buffer is
+    // created in (and decays back to) COMMON. On Vulkan such a readback would additionally be invalid,
+    // as the buffer is now owned by the external consumer.
 
     const BufferDesc& testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc.elementSize, sizeof(float));

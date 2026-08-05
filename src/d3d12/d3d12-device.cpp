@@ -1502,6 +1502,9 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         // Hand the initialized shared texture off to an external (e.g. CUDA) consumer. COMMON is the
         // state a shared resource must be in for another device/API to access it. The upload encoder
         // restored the resource to its default state, so that is the real StateBefore here.
+        // Producer-side reuse after this hand-off is unsupported: the texture is left in COMMON while
+        // m_desc.defaultState still reads as the default, which is what a later encoder's state
+        // tracking would assume.
         if (is_set(desc.usage, TextureUsage::Shared) && texture->m_defaultState != D3D12_RESOURCE_STATE_COMMON)
         {
             ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
