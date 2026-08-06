@@ -54,6 +54,7 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     // repeated calls, not just an insert on the first one.
     ComPtr<IShaderObject> secondShaderObject;
     REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, secondShaderObject.writeRef()));
+    REQUIRE(secondShaderObject != nullptr);
 
     // The device must not have retained the caller's type layout.
     CHECK_EQ(getShaderObjectLayoutCacheSize(device), cacheSizeBefore);
