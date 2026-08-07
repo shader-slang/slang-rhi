@@ -440,7 +440,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, fixupBufferDesc(desc)));
 
     if (handle.type == NativeHandleType::VkBuffer)
     {
