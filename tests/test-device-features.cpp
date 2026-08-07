@@ -32,9 +32,6 @@ GPU_TEST_CASE("cuda-device-features", CUDA)
 {
     REQUIRE(device);
 
-    const DeviceInfo& info = device->getInfo();
-    CHECK(info.cudaComputeCapability > 0);
-
     CHECK(device->hasFeature(Feature::Pointer));
 
     const bool has_sm2_0 = device->hasCapability(Capability::_cuda_sm_2_0);

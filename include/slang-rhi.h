@@ -3180,10 +3180,6 @@ struct DeviceInfo
     /// The version of OptiX used by the device (0 if OptiX is not supported).
     /// The format matches the OPTIX_VERSION macro, e.g. 90000 for version 9.0.0.
     uint32_t optixVersion = 0;
-
-    /// The compute capability of the selected CUDA device, encoded as major * 10 + minor
-    /// (for example, 75 for compute capability 7.5). Zero for non-CUDA devices.
-    uint32_t cudaComputeCapability = 0;
 };
 
 enum class DebugMessageType
