@@ -29,10 +29,7 @@ struct ComputeCapabilityInfo
 // List of compute capabilities. This is in order from lowest to highest.
 // Note: This currently only contains versions exposed as a Slang capability.
 static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
-#define COMPUTE_CAPABILITY(major, minor)                                                                               \
-    {                                                                                                                  \
-        major, minor, Capability::_cuda_sm_##major##_##minor                                                           \
-    }
+#define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
     COMPUTE_CAPABILITY(1, 0),
     COMPUTE_CAPABILITY(2, 0),
     COMPUTE_CAPABILITY(3, 0),

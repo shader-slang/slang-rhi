@@ -1129,7 +1129,8 @@ public:
         DescriptorHandleAccess access,
         DescriptorHandle* outHandle
     ) = 0;
-    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(DescriptorHandle* outHandle
+    virtual SLANG_NO_THROW Result SLANG_MCALL getCombinedTextureSamplerDescriptorHandle(
+        DescriptorHandle* outHandle
     ) = 0;
 };
 
