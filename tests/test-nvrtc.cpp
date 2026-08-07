@@ -16,15 +16,6 @@ TEST_CASE("nvrtc")
         SKIP("nvrtc not found");
     }
 
-    SUBCASE("supported-architectures")
-    {
-        std::vector<int> architectures;
-        REQUIRE(nvrtc.getSupportedArchitectures(architectures) == SLANG_OK);
-        CHECK(!architectures.empty());
-        CHECK(std::is_sorted(architectures.begin(), architectures.end()));
-        CHECK(architectures.front() > 0);
-    }
-
     SUBCASE("compile")
     {
         const char* source = R"(

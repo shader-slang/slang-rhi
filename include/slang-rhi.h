@@ -3184,12 +3184,6 @@ struct DeviceInfo
     /// The compute capability of the selected CUDA device, encoded as major * 10 + minor
     /// (for example, 75 for compute capability 7.5). Zero for non-CUDA devices.
     uint32_t cudaComputeCapability = 0;
-
-    /// The highest virtual CUDA architecture supported by the loaded NVRTC that does not
-    /// exceed cudaComputeCapability. The value uses NVRTC's integer encoding (for example,
-    /// 120 means compute_120). Zero for non-CUDA devices or when the NVRTC architecture
-    /// list is unavailable.
-    uint32_t cudaHighestSupportedArchitecture = 0;
 };
 
 enum class DebugMessageType

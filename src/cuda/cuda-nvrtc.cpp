@@ -241,8 +241,6 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
     // clang-format off
     nvrtcGetErrorString = (nvrtcGetErrorStringFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcGetErrorString");
     nvrtcVersion = (nvrtcVersionFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcVersion");
-    nvrtcGetNumSupportedArchs = (nvrtcGetNumSupportedArchsFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcGetNumSupportedArchs");
-    nvrtcGetSupportedArchs = (nvrtcGetSupportedArchsFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcGetSupportedArchs");
     nvrtcCreateProgram = (nvrtcCreateProgramFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcCreateProgram");
     nvrtcDestroyProgram = (nvrtcDestroyProgramFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcDestroyProgram");
     nvrtcCompileProgram = (nvrtcCompileProgramFunc*)findSymbolAddressByName(m_impl->nvrtcLibrary, "nvrtcCompileProgram");
@@ -288,29 +286,6 @@ Result NVRTC::initialize(IDebugCallback* debugCallback)
         return SLANG_FAIL;
     }
 
-    return SLANG_OK;
-}
-
-Result NVRTC::getSupportedArchitectures(std::vector<int>& outArchitectures) const
-{
-    outArchitectures.clear();
-    if (!nvrtcGetNumSupportedArchs || !nvrtcGetSupportedArchs)
-    {
-        return SLANG_E_NOT_AVAILABLE;
-    }
-
-    int count = 0;
-    if (nvrtcGetNumSupportedArchs(&count) != NVRTC_SUCCESS || count <= 0)
-    {
-        return SLANG_FAIL;
-    }
-
-    outArchitectures.resize(size_t(count));
-    if (nvrtcGetSupportedArchs(outArchitectures.data()) != NVRTC_SUCCESS)
-    {
-        outArchitectures.clear();
-        return SLANG_FAIL;
-    }
     return SLANG_OK;
 }
 

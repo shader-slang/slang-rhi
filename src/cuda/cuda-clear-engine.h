@@ -4,8 +4,6 @@
 
 namespace rhi::cuda {
 
-class NVRTC;
-
 /// CUDA doesn't have API for clearing textures.
 /// This class provides a set of kernels to clear CUDA surfaces.
 /// It is used by the CommandExecutor to implement the clear texture commands.
@@ -40,7 +38,7 @@ public:
         Count,
     };
 
-    Result initialize(DeviceImpl* device, NVRTC& nvrtc);
+    Result initialize(DeviceImpl* device);
     void release();
 
     void clearTextureUint(

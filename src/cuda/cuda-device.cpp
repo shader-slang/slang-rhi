@@ -13,7 +13,6 @@
 #include "cuda-shader-table.h"
 #include "cuda-utils.h"
 #include "cuda-heap.h"
-#include "cuda-nvrtc.h"
 
 #include "core/platform.h"
 
@@ -363,24 +362,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     m_globalHeaps.push_back(m_hostMemHeap);
     m_globalHeaps.push_back(m_deviceMemHeap);
 
-    NVRTC nvrtc;
-    SLANG_RETURN_ON_FAIL(nvrtc.initialize(m_debugCallback));
-
-    std::vector<int> supportedArchitectures;
-    if (SLANG_SUCCEEDED(nvrtc.getSupportedArchitectures(supportedArchitectures)))
-    {
-        auto it = std::upper_bound(
-            supportedArchitectures.begin(),
-            supportedArchitectures.end(),
-            int(m_info.cudaComputeCapability)
-        );
-        if (it != supportedArchitectures.begin())
-        {
-            m_info.cudaHighestSupportedArchitecture = uint32_t(*std::prev(it));
-        }
-    }
-
-    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(this, nvrtc));
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(this));
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 

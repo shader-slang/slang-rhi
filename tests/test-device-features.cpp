@@ -34,8 +34,6 @@ GPU_TEST_CASE("cuda-device-features", CUDA)
 
     const DeviceInfo& info = device->getInfo();
     CHECK(info.cudaComputeCapability > 0);
-    CHECK(info.cudaHighestSupportedArchitecture > 0);
-    CHECK(info.cudaHighestSupportedArchitecture <= info.cudaComputeCapability);
 
     CHECK(device->hasFeature(Feature::Pointer));
 
