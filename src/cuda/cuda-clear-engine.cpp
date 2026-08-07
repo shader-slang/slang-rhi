@@ -11,7 +11,7 @@ CMRC_DECLARE(resources);
 
 namespace rhi::cuda {
 
-Result ClearEngine::initialize(DeviceImpl* device)
+Result ClearEngine::initialize(DeviceImpl* device, NVRTC& nvrtc)
 {
     // Load CUDA kernel source
     auto fs = cmrc::resources::get_filesystem();
@@ -19,11 +19,7 @@ Result ClearEngine::initialize(DeviceImpl* device)
 
     // Compile CUDA kernel to PTX
     NVRTC::CompileResult compileResult;
-    {
-        NVRTC nvrtc;
-        SLANG_RETURN_ON_FAIL(nvrtc.initialize(device->m_debugCallback));
-        SLANG_RETURN_ON_FAIL(nvrtc.compilePTX(source.begin(), compileResult));
-    }
+    SLANG_RETURN_ON_FAIL(nvrtc.compilePTX(source.begin(), compileResult));
 
     // Load PTX module
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuModuleLoadData(&m_module, compileResult.ptx.data()), device);
@@ -208,8 +204,7 @@ void ClearEngine::launch(
     uint32_t gridDim[3] = {
         (sizeAndLayer[0] + blockDim[0] - 1) / blockDim[0],
         (sizeAndLayer[1] + blockDim[1] - 1) / blockDim[1],
-        (sizeAndLayer[2] + blockDim[2] - 1) / blockDim[2]
-    };
+        (sizeAndLayer[2] + blockDim[2] - 1) / blockDim[2]};
 
     struct Arguments
     {

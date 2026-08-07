@@ -13,6 +13,7 @@
 #include "cuda-shader-table.h"
 #include "cuda-utils.h"
 #include "cuda-heap.h"
+#include "cuda-nvrtc.h"
 
 #include "core/platform.h"
 
@@ -28,7 +29,10 @@ struct ComputeCapabilityInfo
 // List of compute capabilities. This is in order from lowest to highest.
 // Note: This currently only contains versions exposed as a Slang capability.
 static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
-#define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
+#define COMPUTE_CAPABILITY(major, minor)                                                                               \
+    {                                                                                                                  \
+        major, minor, Capability::_cuda_sm_##major##_##minor                                                           \
+    }
     COMPUTE_CAPABILITY(1, 0),
     COMPUTE_CAPABILITY(2, 0),
     COMPUTE_CAPABILITY(3, 0),
@@ -225,6 +229,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         cuDeviceGetAttribute(&computeCapabilityMinor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
         this
     );
+    m_info.cudaComputeCapability = uint32_t(computeCapabilityMajor * 10 + computeCapabilityMinor);
 
     auto hasComputeCapability = [&](int major, int minor = 0) -> bool
     {
@@ -361,7 +366,24 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     m_globalHeaps.push_back(m_hostMemHeap);
     m_globalHeaps.push_back(m_deviceMemHeap);
 
-    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(this));
+    NVRTC nvrtc;
+    SLANG_RETURN_ON_FAIL(nvrtc.initialize(m_debugCallback));
+
+    std::vector<int> supportedArchitectures;
+    if (SLANG_SUCCEEDED(nvrtc.getSupportedArchitectures(supportedArchitectures)))
+    {
+        auto it = std::upper_bound(
+            supportedArchitectures.begin(),
+            supportedArchitectures.end(),
+            int(m_info.cudaComputeCapability)
+        );
+        if (it != supportedArchitectures.begin())
+        {
+            m_info.cudaHighestSupportedArchitecture = uint32_t(*std::prev(it));
+        }
+    }
+
+    SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(this, nvrtc));
 
     SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 

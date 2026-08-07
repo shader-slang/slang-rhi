@@ -25,6 +25,8 @@ typedef void* nvrtcProgram;
 
 typedef const char*(nvrtcGetErrorStringFunc)(nvrtcResult result);
 typedef nvrtcResult(nvrtcVersionFunc)(int* major, int* minor);
+typedef nvrtcResult(nvrtcGetNumSupportedArchsFunc)(int* numArchs);
+typedef nvrtcResult(nvrtcGetSupportedArchsFunc)(int* supportedArchs);
 typedef nvrtcResult(nvrtcCreateProgramFunc)(
     nvrtcProgram* prog,
     const char* src,
@@ -49,6 +51,10 @@ public:
 
     Result initialize(IDebugCallback* debugCallback = nullptr);
 
+    /// Returns the virtual CUDA architectures supported by the loaded NVRTC, in ascending order.
+    /// Values use NVRTC's integer encoding (for example, 75 means compute_75).
+    Result getSupportedArchitectures(std::vector<int>& outArchitectures) const;
+
     struct CompileResult
     {
         nvrtcResult result;
@@ -61,6 +67,8 @@ public:
     // Raw NVRTC API
     nvrtcGetErrorStringFunc* nvrtcGetErrorString = nullptr;
     nvrtcVersionFunc* nvrtcVersion = nullptr;
+    nvrtcGetNumSupportedArchsFunc* nvrtcGetNumSupportedArchs = nullptr;
+    nvrtcGetSupportedArchsFunc* nvrtcGetSupportedArchs = nullptr;
     nvrtcCreateProgramFunc* nvrtcCreateProgram = nullptr;
     nvrtcDestroyProgramFunc* nvrtcDestroyProgram = nullptr;
     nvrtcCompileProgramFunc* nvrtcCompileProgram = nullptr;
