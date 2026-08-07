@@ -53,6 +53,12 @@ public:
         IBuffer** outBuffer
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
+        IBuffer** outBuffer
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
         NativeHandle handle,
         const BufferDesc& desc,

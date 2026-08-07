@@ -3,7 +3,7 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan | Metal | CUDA | WGPU)
 {
     ComPtr<IShaderProgram> shaderProgram;
     REQUIRE_CALL(loadProgram(device, "test-compute-trivial", "computeMain", shaderProgram.writeRef()));

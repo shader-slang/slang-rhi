@@ -97,6 +97,23 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     return SLANG_OK;
 }
 
+Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
+{
+    if (handle.type != NativeHandleType::CUdeviceptr || handle.value == 0)
+    {
+        *outBuffer = nullptr;
+        return SLANG_E_INVALID_HANDLE;
+    }
+
+    // The buffer does not own the memory the device pointer refers to. We leave both the heap
+    // allocation and the external memory object unset so the destructor doesn't free anything.
+    RefPtr<BufferImpl> buffer = new BufferImpl(this, fixupBufferDesc(desc));
+    buffer->m_cudaMemory = reinterpret_cast<void*>(handle.value);
+
+    returnComPtr(outBuffer, buffer);
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createBufferFromSharedHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
     if (!handle)
