@@ -412,8 +412,7 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
             m_device->printError("Surface format does not support unordered access usage.");
             return SLANG_E_INVALID_ARG;
         }
-        if (!is_set(formatSupport, FormatSupport::ShaderLoad) &&
-            is_set(m_config.usage, TextureUsage::ShaderResource))
+        if (!is_set(formatSupport, FormatSupport::ShaderLoad) && is_set(m_config.usage, TextureUsage::ShaderResource))
         {
             m_device->printError("Surface format does not support shader resource usage.");
             return SLANG_E_INVALID_ARG;
