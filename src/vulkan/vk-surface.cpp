@@ -390,7 +390,8 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         // format (e.g. *_SRGB), tripping VUID-VkSwapchainCreateInfoKHR-imageFormat-01778. Apps
         // that need storage on the swapchain must request it explicitly; configure() then
         // validates it against the format below.
-        m_config.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
+        m_config.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
+                         m_info.supportedUsage;
     }
     else
     {
@@ -409,6 +410,17 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
             is_set(m_config.usage, TextureUsage::UnorderedAccess))
         {
             m_device->printError("Surface format does not support unordered access usage.");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (!is_set(formatSupport, FormatSupport::ShaderLoad) &&
+            is_set(m_config.usage, TextureUsage::ShaderResource))
+        {
+            m_device->printError("Surface format does not support shader resource usage.");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (!is_set(formatSupport, FormatSupport::CopySource) && is_set(m_config.usage, TextureUsage::CopySource))
+        {
+            m_device->printError("Surface format does not support copy source usage.");
             return SLANG_E_INVALID_ARG;
         }
     }
