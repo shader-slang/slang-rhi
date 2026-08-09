@@ -392,6 +392,11 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         // validates it against the format below.
         m_config.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
                          m_info.supportedUsage;
+        // The default degrades to what the selected format supports; explicit requests error below.
+        if (!is_set(formatSupport, FormatSupport::RenderTarget))
+            m_config.usage &= ~TextureUsage::RenderTarget;
+        if (!is_set(formatSupport, FormatSupport::CopyDestination))
+            m_config.usage &= ~TextureUsage::CopyDestination;
     }
     else
     {
