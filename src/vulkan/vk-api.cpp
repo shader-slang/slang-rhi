@@ -143,6 +143,16 @@ Result VulkanApi::initInstanceProcs(VkInstance instance)
         vkGetPhysicalDeviceProperties2 =
             (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
     }
+    if (!vkGetPhysicalDeviceFormatProperties2)
+    {
+        vkGetPhysicalDeviceFormatProperties2 = (PFN_vkGetPhysicalDeviceFormatProperties2)
+            vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFormatProperties2KHR");
+    }
+    if (!vkGetPhysicalDeviceImageFormatProperties2)
+    {
+        vkGetPhysicalDeviceImageFormatProperties2 = (PFN_vkGetPhysicalDeviceImageFormatProperties2)
+            vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceImageFormatProperties2KHR");
+    }
     if (!vkGetPhysicalDeviceCalibrateableTimeDomainsKHR && vkGetPhysicalDeviceCalibrateableTimeDomainsEXT)
         vkGetPhysicalDeviceCalibrateableTimeDomainsKHR = vkGetPhysicalDeviceCalibrateableTimeDomainsEXT;
     if (!vkGetPhysicalDeviceCalibrateableTimeDomainsEXT && vkGetPhysicalDeviceCalibrateableTimeDomainsKHR)

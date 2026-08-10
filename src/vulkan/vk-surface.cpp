@@ -29,10 +29,16 @@ static VkImageUsageFlags getSwapchainImageUsage(TextureUsage usage)
     return result;
 }
 
-static bool isSwapchainImageUsageSupported(DeviceImpl* device, Format format, VkImageUsageFlags imageUsage)
+static Result querySwapchainImageUsageSupport(
+    DeviceImpl* device,
+    Format format,
+    VkImageUsageFlags imageUsage,
+    bool* outSupported
+)
 {
+    *outSupported = false;
     if (imageUsage == 0)
-        return false;
+        return SLANG_OK;
 
     VkPhysicalDeviceImageFormatInfo2 imageInfo = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2};
     imageInfo.format = getVkFormat(format);
@@ -41,11 +47,17 @@ static bool isSwapchainImageUsageSupported(DeviceImpl* device, Format format, Vk
     imageInfo.usage = imageUsage;
 
     VkImageFormatProperties2 imageProperties = {VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2};
-    return device->m_api.vkGetPhysicalDeviceImageFormatProperties2(
-               device->m_api.m_physicalDevice,
-               &imageInfo,
-               &imageProperties
-           ) == VK_SUCCESS;
+    VkResult result = device->m_api.vkGetPhysicalDeviceImageFormatProperties2(
+        device->m_api.m_physicalDevice,
+        &imageInfo,
+        &imageProperties
+    );
+    if (result == VK_ERROR_FORMAT_NOT_SUPPORTED)
+        return SLANG_OK;
+    SLANG_VK_RETURN_ON_FAIL_REPORT(result, device);
+
+    *outSupported = true;
+    return SLANG_OK;
 }
 
 SurfaceImpl::~SurfaceImpl()
@@ -424,11 +436,14 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         // CopyDestination is useful for the compute fallback, but it is not required for a
         // presentable surface. Drop it when the selected format does not support the complete
         // optimal-tiling usage combination.
-        if (!isSwapchainImageUsageSupported(
-                m_device,
-                resolvedConfig.format,
-                getSwapchainImageUsage(resolvedConfig.usage)
-            ))
+        bool usageSupported = false;
+        SLANG_RETURN_ON_FAIL(querySwapchainImageUsageSupport(
+            m_device,
+            resolvedConfig.format,
+            getSwapchainImageUsage(resolvedConfig.usage),
+            &usageSupported
+        ));
+        if (!usageSupported)
         {
             resolvedConfig.usage &= ~TextureUsage::CopyDestination;
         }
@@ -442,7 +457,14 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         }
     }
 
-    if (!isSwapchainImageUsageSupported(m_device, resolvedConfig.format, getSwapchainImageUsage(resolvedConfig.usage)))
+    bool usageSupported = false;
+    SLANG_RETURN_ON_FAIL(querySwapchainImageUsageSupport(
+        m_device,
+        resolvedConfig.format,
+        getSwapchainImageUsage(resolvedConfig.usage),
+        &usageSupported
+    ));
+    if (!usageSupported)
     {
         m_device->printError("Surface format does not support the requested usage.");
         return SLANG_E_INVALID_ARG;

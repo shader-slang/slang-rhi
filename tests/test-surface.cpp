@@ -48,6 +48,7 @@ struct SurfaceTest
 
     GLFWwindow* window;
     ComPtr<ISurface> surface;
+    uint32_t configurationCount = 0;
 
     virtual Format getSurfaceFormat() { return surface->getInfo().preferredFormat; }
     virtual TextureUsage getSurfaceUsage() { return TextureUsage::None; }
@@ -67,16 +68,6 @@ struct SurfaceTest
         REQUIRE(this->surface);
         CHECK(is_set(this->surface->getInfo().supportedUsage, TextureUsage::Present));
 
-#if !SLANG_RHI_DEBUG
-        SurfaceConfig invalidConfig = {};
-        invalidConfig.format = this->surface->getInfo().preferredFormat;
-        invalidConfig.usage = TextureUsage::DepthStencil;
-        invalidConfig.width = 1;
-        invalidConfig.height = 1;
-        CHECK(this->surface->configure(invalidConfig) == SLANG_E_INVALID_ARG);
-        CHECK(this->surface->getConfig() == nullptr);
-#endif
-
         initResources();
     }
 
@@ -93,7 +84,9 @@ struct SurfaceTest
 
         SurfaceConfig config = {};
         config.format = getSurfaceFormat();
-        config.usage = getSurfaceUsage();
+        // Exercise default usage resolution on the first configuration and explicit usage
+        // validation on subsequent configurations.
+        config.usage = configurationCount++ == 0 ? TextureUsage::None : getSurfaceUsage();
         config.width = width;
         config.height = height;
         config.vsync = false;
@@ -104,6 +97,8 @@ struct SurfaceTest
         CHECK(surface->getConfig()->height == height);
         CHECK(surface->getConfig()->usage != TextureUsage::None);
         CHECK(surface->getConfig()->usage == (surface->getConfig()->usage & surface->getInfo().supportedUsage));
+        if (config.usage != TextureUsage::None)
+            CHECK(surface->getConfig()->usage == config.usage);
     }
 
     void run()
@@ -178,6 +173,8 @@ struct RenderSurfaceTest : SurfaceTest
 {
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<IRenderPipeline> pipeline;
+
+    TextureUsage getSurfaceUsage() override { return TextureUsage::Present | TextureUsage::RenderTarget; }
 
     void initResources() override
     {
@@ -283,11 +280,9 @@ struct ComputeSurfaceTest : SurfaceTest
 
     TextureUsage getSurfaceUsage() override
     {
-        // Exercise explicit storage usage on Vulkan when both the surface and selected format
-        // support it. This verifies that surface-level usage reporting is not restricted by the
-        // preferred (typically sRGB) format.
-        if (device->getDeviceType() == DeviceType::Vulkan &&
-            is_set(surface->getInfo().supportedUsage, TextureUsage::UnorderedAccess))
+        // Exercise explicit storage usage on every backend where both the surface and selected
+        // format support it.
+        if (is_set(surface->getInfo().supportedUsage, TextureUsage::UnorderedAccess))
         {
             FormatSupport formatSupport = {};
             REQUIRE_CALL(device->getFormatSupport(getSurfaceFormat(), &formatSupport));

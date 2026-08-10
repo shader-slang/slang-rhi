@@ -179,13 +179,17 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
                                m_info.supportedUsage;
     }
 
-    // sRGB formats cannot be used as storage textures.
-    if (getFormatInfo(resolvedConfig.format).isSrgb && is_set(resolvedConfig.usage, TextureUsage::UnorderedAccess))
+    if (is_set(resolvedConfig.usage, TextureUsage::UnorderedAccess))
     {
-        return SLANG_E_INVALID_ARG;
+        FormatSupport formatSupport = FormatSupport::None;
+        SLANG_RETURN_ON_FAIL(m_device->getFormatSupport(resolvedConfig.format, &formatSupport));
+        if (!is_set(formatSupport, FormatSupport::ShaderUavStore))
+            return SLANG_E_INVALID_ARG;
     }
 
     WGPUTextureUsage usage = translateTextureUsage(resolvedConfig.usage);
+    // Present is an RHI surface semantic, while WebGPU requires a concrete native usage.
+    // Keep RenderAttachment as an internal implementation detail for Present-only configs.
     if (usage == WGPUTextureUsage_None)
         usage = WGPUTextureUsage_RenderAttachment;
 
@@ -200,8 +204,14 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     wgpuConfig.width = resolvedConfig.width;
     wgpuConfig.height = resolvedConfig.height;
     wgpuConfig.presentMode = resolvedConfig.vsync ? m_vsyncOnMode : m_vsyncOffMode;
-    setConfig(resolvedConfig);
+    if (m_device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
+        m_device->printWarning("WebGPU device had reported an error before surface configuration.");
+
     m_device->m_ctx.api.wgpuSurfaceConfigure(m_surface, &wgpuConfig);
+    if (m_device->getAndClearLastUncapturedError() != WGPUErrorType_NoError)
+        return SLANG_FAIL;
+
+    setConfig(resolvedConfig);
     m_configured = true;
 
     return SLANG_OK;
