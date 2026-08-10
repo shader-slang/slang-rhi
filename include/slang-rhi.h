@@ -3829,39 +3829,28 @@ private:
 /// Deprecated alias for SLANG_RHI_DEVICE_SCOPE
 #define SLANG_DEVICE_SCOPE(device) SLANG_RHI_DEVICE_SCOPE(device)
 
-/// \brief Interface for a task pool that supports dependency-based scheduling.
+/// \brief Interface for asynchronous task execution.
 ///
 /// Tasks are submitted with `submitTask()`, which returns an opaque `TaskHandle`.
 /// Each task executes a user-provided function with an associated payload.
-/// Tasks may declare dependencies on other tasks, forming a directed acyclic graph (DAG).
-/// A task will not execute until all of its dependencies have completed.
 ///
 /// **Ownership model:**
 /// `submitTask()` returns a `TaskHandle` that the caller owns. The caller must eventually
-/// call `releaseTask()` to release this handle. The task pool also holds an internal
-/// reference while the task is pending or executing, so the task remains alive until
-/// both the pool and the caller have released their references.
+/// release it by calling either `releaseTask()` or `waitAndReleaseTask()`. Releasing a
+/// handle does not cancel or otherwise affect task execution.
 ///
 /// **Payload lifetime:**
-/// If a `payloadDeleter` is provided, it is called when the last reference to the task
-/// is released (i.e. after both the pool and the caller have released). The payload
-/// remains valid and accessible via `getTaskPayload()` until that point.
-///
-/// **Dependency rules:**
-/// - Dependencies must not form cycles, doing so might result in a deadlock.
-/// - Dependencies must have been created by the same task pool.
-/// - A dependency task handle must still be valid (not yet released) when passed to `submitTask()`.
-/// - Once a task is submitted, its dependencies may be released immediately by the caller.
+/// If a `payloadDeleter` is provided, it is called after the task function returns and
+/// before the task is considered complete. The payload must remain valid until then.
 ///
 /// **Thread safety:**
 /// - Methods may be called concurrently unless documented otherwise.
 /// - Task and task-group handles are specific to the pool that created them.
 /// - A handle must remain valid while any thread is using it. The caller must synchronize
-///   `releaseTask()` and `releaseTaskGroup()` with other operations on the same handle.
+///   operations that consume the same handle.
 /// - The task pool must remain alive until all task and task-group handles it created are released.
 /// - Task functions may run on a pool worker, a thread waiting on the pool, or the submitting
-///   thread. Payload deleters may additionally run on any thread that releases the final task
-///   handle. Task functions and payload deleters must be thread-safe and must not throw exceptions.
+///   thread. Task functions and payload deleters must be thread-safe and must not throw exceptions.
 ///
 class ITaskPool : public ISlangUnknown
 {
@@ -3873,74 +3862,39 @@ public:
 
     /// \brief Submit a new task for execution.
     ///
-    /// Submits a task that will call `func(payload)` once all dependencies in `deps` have
-    /// completed. The returned `TaskHandle` must eventually be released with `releaseTask()`.
-    ///
-    /// If `depsCount` is 0, the task is immediately eligible for execution.
-    /// If any dependency is already complete at the time of submission, it is handled correctly.
+    /// Submits a task that will call `func(payload)`. The returned `TaskHandle` must eventually
+    /// be released with either `releaseTask()` or `waitAndReleaseTask()`.
     ///
     /// \param func Function to execute. Must not be null.
     /// \param payload Opaque data passed to `func`. May be null.
-    /// \param payloadDeleter Optional deleter called with `payload` when the task is destroyed. May be null if no cleanup is needed.
-    /// \param deps Array of `TaskHandle`s that must complete before this task runs. May be null if `depsCount` is 0.
-    /// \param depsCount Number of entries in `deps`.
+    /// \param payloadDeleter Optional deleter called with `payload` after `func` returns. May be null if no cleanup is needed.
     /// \param group Optional task group handle. If non-null, the task is associated with the group.
-    /// \return A handle to the submitted task. The caller must release this with `releaseTask()`.
+    /// \return A handle to the submitted task.
     virtual SLANG_NO_THROW TaskHandle SLANG_MCALL submitTask(
         void (*func)(void*),
         void* payload,
         void (*payloadDeleter)(void*),
-        TaskHandle* deps,
-        size_t depsCount,
         TaskGroupHandle group = nullptr
     ) = 0;
 
-    /// \brief Get the payload associated with a task.
-    ///
-    /// Returns the `payload` pointer that was passed to `submitTask()`. The payload remains
-    /// valid until the task is fully released (i.e. after the caller calls `releaseTask()`
-    /// and the pool has finished executing the task).
-    ///
-    /// \param task Task handle. Must not be null.
-    /// \return The payload pointer.
-    virtual SLANG_NO_THROW void* SLANG_MCALL getTaskPayload(TaskHandle task) = 0;
-
     /// \brief Release the caller's reference to a task.
     ///
-    /// Releases the caller's ownership of the task handle. If this is the last reference
-    /// (i.e. the task has already completed and the pool has released its internal reference),
-    /// the task is destroyed.
-    ///
-    /// A task may be released before it has finished executing, the pool's internal reference
-    /// keeps it alive until completion.
+    /// Releases the caller's ownership of the task handle without waiting. The task may still
+    /// be pending or executing and will continue to completion.
     ///
     /// \param task Task handle to release. Must not be null. Must not be used after this call.
     virtual SLANG_NO_THROW void SLANG_MCALL releaseTask(TaskHandle task) = 0;
 
-    /// \brief Block the calling thread until a task has finished executing.
+    /// \brief Wait for a task to finish and release its handle.
     ///
     /// When called outside a task callback, the calling thread may execute pending tasks
     /// (work-stealing). Calling this method from a task callback is only safe when the waited-on
     /// task can make progress without the calling thread executing additional work.
     ///
-    /// \param task Task handle to wait on. Must not be null.
-    virtual SLANG_NO_THROW void SLANG_MCALL waitTask(TaskHandle task) = 0;
-
-    /// \brief Check whether a task has finished executing (non-blocking).
+    /// This call consumes `task`; the handle must not be used afterward.
     ///
-    /// \param task Task handle to check. Must not be null.
-    /// \return True if the task has completed, false if it is still pending or executing.
-    virtual SLANG_NO_THROW bool SLANG_MCALL isTaskDone(TaskHandle task) = 0;
-
-    /// \brief Block the calling thread until all submitted tasks have finished.
-    ///
-    /// Waits for every task that has been submitted to this pool (and not yet completed)
-    /// to finish executing. Does not release any task handles.
-    /// While waiting, the calling thread may execute pending tasks (work-stealing).
-    /// Must not be called from a task callback executing on this pool because the current task
-    /// is included in the wait. Must not race with task submissions from outside task callbacks.
-    /// Tasks that were already pending may submit additional tasks while the wait is in progress.
-    virtual SLANG_NO_THROW void SLANG_MCALL waitAll() = 0;
+    /// \param task Task handle to wait on and release. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAndReleaseTask(TaskHandle task) = 0;
 
     /// \brief Create a new task group for tracking a set of tasks.
     ///
@@ -3951,7 +3905,7 @@ public:
     /// \return An opaque handle to the task group.
     virtual SLANG_NO_THROW TaskGroupHandle SLANG_MCALL createTaskGroup() = 0;
 
-    /// \brief Block the calling thread until all tasks in the group have completed.
+    /// \brief Wait for all tasks in a group to complete and release the group.
     ///
     /// While waiting, the calling thread may execute pending tasks from the group (work-stealing).
     /// Subject to the restrictions below, this makes it safe to call from a task callback.
@@ -3960,20 +3914,11 @@ public:
     /// the group that cannot otherwise make progress.
     /// Must not be called while other threads are still submitting tasks to the group
     /// outside of task callbacks.
-    /// A group must not be reused after `waitTaskGroup` returns.
-    /// Multiple threads may wait on the same group concurrently, but the group must remain valid
-    /// until every waiter has returned.
+    /// This call consumes `group`; the handle must not be used afterward. Only one thread may
+    /// wait on a group.
     ///
-    /// \param group Task group handle. Must not be null.
-    virtual SLANG_NO_THROW void SLANG_MCALL waitTaskGroup(TaskGroupHandle group) = 0;
-
-    /// \brief Release a task group.
-    ///
-    /// Must be called exactly once after `waitTaskGroup` returns, or after every concurrent
-    /// `waitTaskGroup` call has returned. Calling with tasks still pending is undefined behavior.
-    ///
-    /// \param group Task group handle. Must not be null.
-    virtual SLANG_NO_THROW void SLANG_MCALL releaseTaskGroup(TaskGroupHandle group) = 0;
+    /// \param group Task group handle to wait on and release. Must not be null.
+    virtual SLANG_NO_THROW void SLANG_MCALL waitAndReleaseTaskGroup(TaskGroupHandle group) = 0;
 };
 
 class IPersistentCache : public ISlangUnknown

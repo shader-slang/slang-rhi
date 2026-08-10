@@ -25,7 +25,7 @@ public:
 
     Result submit(void (*func)(void*), void* payload, void (*payloadDeleter)(void*))
     {
-        auto handle = m_taskPool->submitTask(func, payload, payloadDeleter, nullptr, 0);
+        auto handle = m_taskPool->submitTask(func, payload, payloadDeleter);
         SLANG_RHI_ASSERT(handle);
         if (!handle)
         {
@@ -40,10 +40,7 @@ public:
     void wait()
     {
         for (auto handle : m_handles)
-        {
-            m_taskPool->waitTask(handle);
-            m_taskPool->releaseTask(handle);
-        }
+            m_taskPool->waitAndReleaseTask(handle);
         m_handles.clear();
     }
 

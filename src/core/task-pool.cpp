@@ -4,7 +4,6 @@
 #include <condition_variable>
 #include <deque>
 #include <exception>
-#include <memory>
 #include <mutex>
 #include <thread>
 
@@ -34,8 +33,6 @@ struct TaskGroup
 struct BlockingTaskPool::Task
 {
     const BlockingTaskPool* owner;
-    void* payload;
-    void (*payloadDeleter)(void*);
 };
 
 ITaskPool* BlockingTaskPool::getInterface(const Guid& guid)
@@ -49,39 +46,21 @@ ITaskPool::TaskHandle BlockingTaskPool::submitTask(
     void (*func)(void*),
     void* payload,
     void (*payloadDeleter)(void*),
-    TaskHandle* deps,
-    size_t depsCount,
     TaskGroupHandle group
 )
 {
     SLANG_RHI_ASSERT(func);
-    SLANG_RHI_ASSERT(depsCount == 0 || deps);
     SLANG_RHI_ASSERT(!group || static_cast<TaskGroup*>(group)->owner == this);
-    for (size_t i = 0; i < depsCount; i++)
-    {
-        SLANG_RHI_ASSERT(deps[i]);
-        SLANG_RHI_ASSERT(static_cast<Task*>(deps[i])->owner == this);
-    }
 
-    // Create task just to defer the payload deletion.
+    // Create a completion token for the caller.
     Task* task = new Task();
     task->owner = this;
-    task->payload = payload;
-    task->payloadDeleter = payloadDeleter;
 
-    // Execute the task function.
     func(payload);
+    if (payloadDeleter)
+        payloadDeleter(payload);
 
     return task;
-}
-
-void* BlockingTaskPool::getTaskPayload(TaskHandle task)
-{
-    SLANG_RHI_ASSERT(task);
-
-    Task* taskImpl = static_cast<Task*>(task);
-    SLANG_RHI_ASSERT(taskImpl->owner == this);
-    return taskImpl->payload;
 }
 
 void BlockingTaskPool::releaseTask(TaskHandle task)
@@ -90,40 +69,20 @@ void BlockingTaskPool::releaseTask(TaskHandle task)
 
     Task* taskImpl = static_cast<Task*>(task);
     SLANG_RHI_ASSERT(taskImpl->owner == this);
-    if (taskImpl->payloadDeleter)
-    {
-        taskImpl->payloadDeleter(taskImpl->payload);
-    }
     delete taskImpl;
 }
 
-void BlockingTaskPool::waitTask(TaskHandle task)
+void BlockingTaskPool::waitAndReleaseTask(TaskHandle task)
 {
-    SLANG_RHI_ASSERT(task);
-    SLANG_RHI_ASSERT(static_cast<Task*>(task)->owner == this);
+    releaseTask(task);
 }
-
-bool BlockingTaskPool::isTaskDone(TaskHandle task)
-{
-    SLANG_RHI_ASSERT(task);
-    SLANG_RHI_ASSERT(static_cast<Task*>(task)->owner == this);
-    return true;
-}
-
-void BlockingTaskPool::waitAll() {}
 
 ITaskPool::TaskGroupHandle BlockingTaskPool::createTaskGroup()
 {
     return new TaskGroup(this);
 }
 
-void BlockingTaskPool::waitTaskGroup(TaskGroupHandle group)
-{
-    SLANG_RHI_ASSERT(group);
-    SLANG_RHI_ASSERT(static_cast<TaskGroup*>(group)->owner == this);
-}
-
-void BlockingTaskPool::releaseTaskGroup(TaskGroupHandle group)
+void BlockingTaskPool::waitAndReleaseTaskGroup(TaskGroupHandle group)
 {
     SLANG_RHI_ASSERT(group);
     TaskGroup* g = static_cast<TaskGroup*>(group);
@@ -150,15 +109,8 @@ struct ThreadedTaskPool::Task
     // Reference counter.
     std::atomic<size_t> refCount{0};
 
-    // Number of dependencies that are not yet finished.
-    std::atomic<size_t> depsRemaining{0};
-
     // Flag indicating the task has finished.
     std::atomic<bool> done{false};
-
-    // List of tasks that depend on this task.
-    std::vector<Task*> children;
-    std::mutex childrenMutex;
 
     // Optional task group this task belongs to.
     struct TaskGroup* group = nullptr;
@@ -206,12 +158,12 @@ struct ThreadedTaskPool::Pool
         );
     }
 
-    // Execute a task and perform all completion bookkeeping (done flag, children,
-    // group counter, tasksRemaining counter, reference release). Used by both
+    // Execute a task and perform all completion bookkeeping (payload cleanup,
+    // done flag, group counter, tasksRemaining counter, reference release). Used by both
     // workerThread() and work-stealing wait loops.
     void executeTask(Task* task);
 
-    void waitTaskGroup(TaskGroup* group);
+    void waitGroup(TaskGroup* group);
 
     Pool(int workerCount)
     {
@@ -271,13 +223,7 @@ struct ThreadedTaskPool::Pool
         SLANG_RHI_ASSERT(task->pool == this);
 
         if (task->refCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
-        {
-            if (task->payloadDeleter)
-            {
-                task->payloadDeleter(task->payload);
-            }
             delete task;
-        }
     }
 
     void enqueue(Task* task)
@@ -295,17 +241,9 @@ struct ThreadedTaskPool::Pool
         }
     }
 
-    Task* submitTask(
-        void (*func)(void*),
-        void* payload,
-        void (*payloadDeleter)(void*),
-        Task** deps,
-        size_t depsCount,
-        TaskGroup* group
-    )
+    Task* submitTask(void (*func)(void*), void* payload, void (*payloadDeleter)(void*), TaskGroup* group)
     {
         SLANG_RHI_ASSERT(func);
-        SLANG_RHI_ASSERT(depsCount == 0 || deps);
         SLANG_RHI_ASSERT(!m_stop.load(std::memory_order_relaxed));
         SLANG_RHI_ASSERT(!group || group->owner == this);
 
@@ -315,7 +253,6 @@ struct ThreadedTaskPool::Pool
         task->payload = payload;
         task->payloadDeleter = payloadDeleter;
         task->pool = this;
-        task->depsRemaining = depsCount;
         task->group = group;
 
         // Increment the group counter before enqueuing (critical for correctness).
@@ -333,64 +270,8 @@ struct ThreadedTaskPool::Pool
 
         m_tasksRemaining.fetch_add(1, std::memory_order_release);
 
-        if (depsCount == 0)
-        {
-            // If there are no dependencies, enqueue the task immediately.
-            enqueue(task);
-        }
-        else
-        {
-            // Process dependencies.
-            bool readyToEnqueue = false;
-            for (size_t i = 0; i < depsCount; i++)
-            {
-                Task* dep = deps[i];
-                SLANG_RHI_ASSERT(dep);
-                SLANG_RHI_ASSERT(dep->refCount.load(std::memory_order_acquire) > 0);
-                SLANG_RHI_ASSERT(dep->pool == this);
-
-                // Keep the dependency object alive while we touch its mutex.
-                // The child task can run before submitTask() returns and may
-                // release dependency handles from its callback.
-                retainTask(dep);
-                {
-                    std::lock_guard<std::mutex> lock(dep->childrenMutex);
-                    if (!dep->done.load(std::memory_order_acquire))
-                    {
-                        // Add an extra reference that will be released when the dependency finishes.
-                        retainTask(task);
-                        dep->children.push_back(task);
-                    }
-                    else
-                    {
-                        // Dependency is already done, decrement the counter.
-                        // Each decrement publishes the dependency's results. The final decrement
-                        // acquires all preceding decrements before the task is enqueued.
-                        if (task->depsRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
-                        {
-                            readyToEnqueue = true;
-                        }
-                    }
-                }
-                releaseTask(dep);
-            }
-            // Enqueue outside the dep lock scope to avoid use-after-free.
-            // Enqueueing while holding dep->childrenMutex could allow a worker to
-            // execute the task and release the dep before we unlock.
-            if (readyToEnqueue)
-            {
-                enqueue(task);
-            }
-        }
+        enqueue(task);
         return task;
-    }
-
-    bool isTaskDone(Task* task)
-    {
-        SLANG_RHI_ASSERT(task);
-        SLANG_RHI_ASSERT(task->pool == this);
-
-        return task->done.load(std::memory_order_acquire);
     }
 
     // Work-stealing wait loop. Outermost waits may steal any task. Nested waits
@@ -466,12 +347,9 @@ ThreadedTaskPool::Task* ThreadedTaskPool::Pool::tryDequeue(TaskGroup* group)
 
 void ThreadedTaskPool::Pool::executeTask(Task* task)
 {
-    // Execute the task function.
-    // Wrap in try/catch to ensure the worker thread survives and the
-    // task-completion bookkeeping (done flag, children, group, counters)
-    // always runs. Without this, an exception would deadlock waiters.
-    // NOTE: If a task throws, it is still marked as done and its children
-    // will execute. There is currently no failure propagation mechanism.
+    // Wrap callbacks in try/catch to ensure the worker thread survives and the
+    // task-completion bookkeeping always runs. Without this, an exception would
+    // deadlock waiters. There is currently no failure propagation mechanism.
     // Increment steal depth so nested waits do not steal unrelated tasks. A
     // nested task-group wait may still execute work from its own group.
     tls_stealDepth++;
@@ -485,39 +363,33 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     {
         SLANG_RHI_ASSERT_FAILURE("Task threw an unknown exception");
     }
+    try
+    {
+        if (task->payloadDeleter)
+            task->payloadDeleter(task->payload);
+    } catch (const std::exception& e)
+    {
+        SLANG_RHI_ASSERT_FAILURE(e.what());
+    } catch (...)
+    {
+        SLANG_RHI_ASSERT_FAILURE("Task payload deleter threw an unknown exception");
+    }
     tls_stealDepth--;
+
     // Capture the group pointer before we potentially release the task.
     TaskGroup* group = task->group;
-    // Mark the task as done and notify child tasks.
-    // We hold childrenMutex to safely process the children list and to
-    // synchronize with submitTask() which checks done under the same lock.
-    {
-        std::lock_guard<std::mutex> childLock(task->childrenMutex);
-        task->done.store(true, std::memory_order_release);
-        for (Task* child : task->children)
-        {
-            // Decrement the child's dependency counter.
-            // Each decrement publishes the dependency's results. The final decrement
-            // acquires all preceding decrements before the task is enqueued.
-            if (child->depsRemaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
-            {
-                // All dependencies satisfied; enqueue the child.
-                enqueue(child);
-            }
-            // Release the extra reference taken when adding as a dependency.
-            releaseTask(child);
-        }
-        task->children.clear();
-    }
-    // Release the pool's reference before decrementing m_tasksRemaining. If the
-    // caller has already released its reference, this also runs the payload deleter
-    // before waitAll() returns.
+
+    // Payload cleanup is part of task completion, so publish done only after the
+    // task function and payload deleter have both returned.
+    task->done.store(true, std::memory_order_release);
+
+    // Release the pool's reference before decrementing the completion counters.
     releaseTask(task);
     // Decrement the group pending counter.
-    // Safety: group is user-managed, but this is safe because waitTaskGroup()
+    // Safety: group is user-managed, but this is safe because waitGroup()
     // only returns when pending==0, which requires ALL tasks in the group to
     // have completed this fetch_sub. Therefore no task can still be accessing
-    // the group when the user calls releaseTaskGroup() after waitTaskGroup().
+    // the group when waitAndReleaseTaskGroup() deletes it.
     if (group)
     {
         group->pending.fetch_sub(1, std::memory_order_acq_rel);
@@ -557,7 +429,7 @@ void ThreadedTaskPool::Pool::workerThread()
     }
 }
 
-void ThreadedTaskPool::Pool::waitTaskGroup(TaskGroup* group)
+void ThreadedTaskPool::Pool::waitGroup(TaskGroup* group)
 {
     SLANG_RHI_ASSERT(group);
     SLANG_RHI_ASSERT(group->owner == this);
@@ -592,19 +464,10 @@ ITaskPool::TaskHandle ThreadedTaskPool::submitTask(
     void (*func)(void*),
     void* payload,
     void (*payloadDeleter)(void*),
-    TaskHandle* deps,
-    size_t depsCount,
     TaskGroupHandle group
 )
 {
-    return m_pool->submitTask(func, payload, payloadDeleter, (Task**)deps, depsCount, static_cast<TaskGroup*>(group));
-}
-
-void* ThreadedTaskPool::getTaskPayload(TaskHandle task)
-{
-    SLANG_RHI_ASSERT(task);
-
-    return static_cast<Task*>(task)->payload;
+    return m_pool->submitTask(func, payload, payloadDeleter, static_cast<TaskGroup*>(group));
 }
 
 void ThreadedTaskPool::releaseTask(TaskHandle task)
@@ -612,19 +475,11 @@ void ThreadedTaskPool::releaseTask(TaskHandle task)
     m_pool->releaseTask(static_cast<Task*>(task));
 }
 
-void ThreadedTaskPool::waitTask(TaskHandle task)
+void ThreadedTaskPool::waitAndReleaseTask(TaskHandle task)
 {
-    m_pool->waitTask(static_cast<Task*>(task));
-}
-
-bool ThreadedTaskPool::isTaskDone(TaskHandle task)
-{
-    return m_pool->isTaskDone(static_cast<Task*>(task));
-}
-
-void ThreadedTaskPool::waitAll()
-{
-    m_pool->waitAll();
+    Task* taskImpl = static_cast<Task*>(task);
+    m_pool->waitTask(taskImpl);
+    m_pool->releaseTask(taskImpl);
 }
 
 ITaskPool::TaskGroupHandle ThreadedTaskPool::createTaskGroup()
@@ -632,20 +487,13 @@ ITaskPool::TaskGroupHandle ThreadedTaskPool::createTaskGroup()
     return new TaskGroup(m_pool);
 }
 
-void ThreadedTaskPool::waitTaskGroup(TaskGroupHandle group)
+void ThreadedTaskPool::waitAndReleaseTaskGroup(TaskGroupHandle group)
 {
     SLANG_RHI_ASSERT(group);
     SLANG_RHI_ASSERT(static_cast<TaskGroup*>(group)->owner == m_pool);
 
-    m_pool->waitTaskGroup(static_cast<TaskGroup*>(group));
-}
-
-void ThreadedTaskPool::releaseTaskGroup(TaskGroupHandle group)
-{
-    SLANG_RHI_ASSERT(group);
-
     TaskGroup* g = static_cast<TaskGroup*>(group);
-    SLANG_RHI_ASSERT(g->owner == m_pool);
+    m_pool->waitGroup(g);
     SLANG_RHI_ASSERT(g->pending.load(std::memory_order_acquire) == 0);
     delete g;
 }
