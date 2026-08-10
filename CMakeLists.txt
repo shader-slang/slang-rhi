@@ -747,6 +747,7 @@ target_sources(slang-rhi PRIVATE
     src/format-conversion.cpp
     src/heap.cpp
     src/pipeline.cpp
+    src/pipeline-resolver.cpp
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
     src/rhi.cpp
