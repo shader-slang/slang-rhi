@@ -9,12 +9,22 @@
 #include "core/stable_vector.h"
 #include "core/string.h"
 #include "core/sha1.h"
+#include "core/deferred.h"
 
 #include <climits>
 
 #include <string>
 
 namespace rhi::d3d12 {
+
+#if SLANG_RHI_ENABLE_NVAPI
+// NvAPI_D3D12_SetCreatePipelineStateOptions affects subsequent pipeline creations for
+// a native device. Use a process-wide lock because multiple RHI devices can wrap the
+// same ID3D12Device5.
+SLANG_RHI_STATIC_MUTEX_BEGIN
+static std::mutex s_nvapiRayTracingPipelineCreationMutex;
+SLANG_RHI_STATIC_MUTEX_END
+#endif
 
 void hashShader(SHA1& sha1, const D3D12_SHADER_BYTECODE& shaderBytecode)
 {
@@ -674,59 +684,71 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     globalSignatureSubobject.pDesc = &globalSignatureDesc;
     subObjects.push_back(globalSignatureSubobject);
 
-#if SLANG_RHI_ENABLE_NVAPI
-    bool nvapiResetPipelineStateOptions = false;
-    if (m_nvapiShaderExtension)
-    {
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(
-            m_device,
-            m_nvapiShaderExtension.uavSlot,
-            m_nvapiShaderExtension.registerSpace
-        ));
-
-        if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres) ||
-            is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres) ||
-            is_set(desc.flags, RayTracingPipelineFlags::EnableClusters))
-        {
-            NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
-            params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
-
-            if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
-                params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_LSS_SUPPORT;
-            if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
-                params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_SPHERE_SUPPORT;
-            if (is_set(desc.flags, RayTracingPipelineFlags::EnableClusters))
-                params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT;
-
-            // TODO: This sets global state!
-            // Need to revisit if createRayTracingPipeline2 can get called from multiple threads.
-            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
-            nvapiResetPipelineStateOptions = true;
-        }
-    }
-#endif // SLANG_RHI_ENABLE_NVAPI
-
     D3D12_STATE_OBJECT_DESC rtpsoDesc = {};
     rtpsoDesc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
     rtpsoDesc.NumSubobjects = (UINT)subObjects.size();
     rtpsoDesc.pSubobjects = subObjects.data();
-    SLANG_D3D_RETURN_ON_FAIL_REPORT(
-        m_device5->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(stateObject.writeRef())),
-        this
-    );
+
+    auto createStateObject = [&]() -> Result
+    {
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device5->CreateStateObject(&rtpsoDesc, IID_PPV_ARGS(stateObject.writeRef())),
+            this
+        );
+        return SLANG_OK;
+    };
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (m_nvapiShaderExtension)
     {
-        SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(m_device, 0xffffffff, 0));
+        std::lock_guard<std::mutex> lock(s_nvapiRayTracingPipelineCreationMutex);
+        bool resetShaderExtensionSlot = false;
+        bool resetPipelineStateOptions = false;
+        SLANG_RHI_DEFERRED({
+            if (resetPipelineStateOptions)
+            {
+                NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
+                params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
+                SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
+            }
+            if (resetShaderExtensionSlot)
+            {
+                SLANG_RHI_NVAPI_CHECK(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(m_device, 0xffffffff, 0));
+            }
+        });
 
-        if (nvapiResetPipelineStateOptions)
+        if (m_nvapiShaderExtension)
         {
-            NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
-            params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
+            resetShaderExtensionSlot = true;
+            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetNvShaderExtnSlotSpaceLocalThread(
+                m_device,
+                m_nvapiShaderExtension.uavSlot,
+                m_nvapiShaderExtension.registerSpace
+            ));
 
-            SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
+            if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres) ||
+                is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres) ||
+                is_set(desc.flags, RayTracingPipelineFlags::EnableClusters))
+            {
+                NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS params = {};
+                params.version = NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER;
+
+                if (is_set(desc.flags, RayTracingPipelineFlags::EnableLinearSweptSpheres))
+                    params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_LSS_SUPPORT;
+                if (is_set(desc.flags, RayTracingPipelineFlags::EnableSpheres))
+                    params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_SPHERE_SUPPORT;
+                if (is_set(desc.flags, RayTracingPipelineFlags::EnableClusters))
+                    params.flags = NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT;
+
+                resetPipelineStateOptions = true;
+                SLANG_RHI_NVAPI_RETURN_ON_FAIL(NvAPI_D3D12_SetCreatePipelineStateOptions(m_device5, &params));
+            }
         }
+
+        SLANG_RETURN_ON_FAIL(createStateObject());
+    }
+#else
+    {
+        SLANG_RETURN_ON_FAIL(createStateObject());
     }
 #endif // SLANG_RHI_ENABLE_NVAPI
 

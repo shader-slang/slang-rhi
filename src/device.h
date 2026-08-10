@@ -433,6 +433,14 @@ public:
 
     Result createConcretePipeline(Pipeline* pipeline, ShaderProgram* program, RefPtr<Pipeline>& outPipeline);
 
+    /// Backends opt individual pipelines into creation on the global task pool.
+    /// Pipelines that perform nested work on that pool must return false.
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const
+    {
+        SLANG_UNUSED(pipeline);
+        return false;
+    }
+
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
         slang::TypeLayoutReflection* typeLayout,

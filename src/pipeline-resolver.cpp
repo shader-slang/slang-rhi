@@ -66,6 +66,7 @@ struct PipelineRequest
 
     RefPtr<ShaderProgram> program;
     RefPtr<Pipeline> concretePipeline;
+    Result result = SLANG_OK;
     bool created = false;
 };
 
@@ -358,7 +359,7 @@ private:
         }
         SLANG_RETURN_ON_FAIL(firstFailure);
 
-        // Backend module containers are populated serially. Pipeline creation only reads them afterwards.
+        // Backend module containers are populated serially. Pipeline workers only read them afterwards.
         for (auto& program : m_programs)
         {
             if (!program.entryPoints.empty())
@@ -368,18 +369,77 @@ private:
         return SLANG_OK;
     }
 
+    static void createPipelineTask(void* data)
+    {
+        auto* payload = static_cast<std::pair<Device*, PipelineRequest*>*>(data);
+        Device* device = payload->first;
+        PipelineRequest* request = payload->second;
+
+        request->result = device->pushCudaContext();
+        if (SLANG_FAILED(request->result))
+            return;
+
+        request->result =
+            device->createConcretePipeline(request->pipeline, request->program, request->concretePipeline);
+        Result popResult = device->popCudaContext();
+        if (SLANG_SUCCEEDED(request->result))
+            request->result = popResult;
+    }
+
     Result createPipelines()
     {
+        std::vector<PipelineRequest*> workerRequests;
+        std::vector<PipelineRequest*> callerRequests;
         for (auto& request : m_requests)
         {
-            if (request.concretePipeline)
-                continue;
-
-            request.created = true;
-            SLANG_RETURN_ON_FAIL(
-                m_device->createConcretePipeline(request.pipeline, request.program, request.concretePipeline)
-            );
+            if (!request.concretePipeline)
+            {
+                if (m_device->canCreatePipelineOnTaskPool(request.pipeline))
+                    workerRequests.push_back(&request);
+                else
+                    callerRequests.push_back(&request);
+            }
         }
+
+        if (workerRequests.size() > 1)
+        {
+            TaskBatch batch(globalTaskPool());
+            for (PipelineRequest* request : workerRequests)
+            {
+                request->created = true;
+                auto* payload = new std::pair<Device*, PipelineRequest*>(m_device, request);
+                SLANG_RETURN_ON_FAIL(batch.submit(
+                    createPipelineTask,
+                    payload,
+                    [](void* data)
+                    {
+                        delete static_cast<std::pair<Device*, PipelineRequest*>*>(data);
+                    }
+                ));
+            }
+            batch.wait();
+        }
+        else
+        {
+            for (PipelineRequest* request : workerRequests)
+            {
+                request->created = true;
+                std::pair<Device*, PipelineRequest*> payload(m_device, request);
+                createPipelineTask(&payload);
+            }
+        }
+
+        // Caller-only requests run after task-pool work completes. In particular, this
+        // prevents CUDA ray-tracing pipeline workers from blocking the same pool used by OptiX.
+        for (PipelineRequest* request : callerRequests)
+        {
+            request->created = true;
+            std::pair<Device*, PipelineRequest*> payload(m_device, request);
+            createPipelineTask(&payload);
+        }
+
+        for (const auto& request : m_requests)
+            SLANG_RETURN_ON_FAIL(request.result);
         return SLANG_OK;
     }
 

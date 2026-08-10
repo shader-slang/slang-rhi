@@ -9,8 +9,8 @@ class Device;
 
 /// Resolves virtual pipelines referenced by a command list.
 ///
-/// Slang front-end work, backend module installation, pipeline creation, and cache publication are
-/// serialized. Fully prepared entry-point code generation may run concurrently.
+/// Front-end Slang work and cache publication are performed serially. Fully prepared
+/// entry-point code generation and supported backend pipeline creation may run concurrently.
 Result resolvePipelines(Device* device, CommandList* commandList);
 
 } // namespace rhi
