@@ -26,20 +26,15 @@ struct ComputeCapabilityInfo
 };
 
 // List of compute capabilities. This is in order from lowest to highest.
-// Note: This currently only contains versions exposed as a Slang capability.
+// These are driver-reported hardware tiers and do not imply downstream compiler support.
 static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
 #define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
-    COMPUTE_CAPABILITY(1, 0),
-    COMPUTE_CAPABILITY(2, 0),
-    COMPUTE_CAPABILITY(3, 0),
-    COMPUTE_CAPABILITY(3, 5),
-    COMPUTE_CAPABILITY(4, 0),
-    COMPUTE_CAPABILITY(5, 0),
-    COMPUTE_CAPABILITY(6, 0),
-    COMPUTE_CAPABILITY(7, 0),
-    COMPUTE_CAPABILITY(8, 0),
-    COMPUTE_CAPABILITY(8, 9),
-    COMPUTE_CAPABILITY(9, 0),
+    COMPUTE_CAPABILITY(1, 0),  COMPUTE_CAPABILITY(2, 0),  COMPUTE_CAPABILITY(3, 0),  COMPUTE_CAPABILITY(3, 5),
+    COMPUTE_CAPABILITY(4, 0),  COMPUTE_CAPABILITY(5, 0),  COMPUTE_CAPABILITY(6, 0),  COMPUTE_CAPABILITY(7, 0),
+    COMPUTE_CAPABILITY(7, 2),  COMPUTE_CAPABILITY(7, 5),  COMPUTE_CAPABILITY(8, 0),  COMPUTE_CAPABILITY(8, 6),
+    COMPUTE_CAPABILITY(8, 7),  COMPUTE_CAPABILITY(8, 8),  COMPUTE_CAPABILITY(8, 9),  COMPUTE_CAPABILITY(9, 0),
+    COMPUTE_CAPABILITY(10, 0), COMPUTE_CAPABILITY(10, 3), COMPUTE_CAPABILITY(11, 0), COMPUTE_CAPABILITY(12, 0),
+    COMPUTE_CAPABILITY(12, 1),
 #undef COMPUTE_CAPABILITY
 };
 

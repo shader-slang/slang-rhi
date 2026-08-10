@@ -3,6 +3,7 @@
 #include "core/platform.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <ctime>
 #include <cstdlib>
 #include <filesystem>
@@ -34,6 +35,40 @@ static ShaderCache gShaderCache;
 
 // Temp directory to create files for teting in.
 static std::filesystem::path gTestTempDirectory;
+
+static Feature getShaderModelFeature(uint32_t shaderModel)
+{
+    switch (shaderModel)
+    {
+    case 0x51:
+        return Feature::SM_5_1;
+    case 0x60:
+        return Feature::SM_6_0;
+    case 0x61:
+        return Feature::SM_6_1;
+    case 0x62:
+        return Feature::SM_6_2;
+    case 0x63:
+        return Feature::SM_6_3;
+    case 0x64:
+        return Feature::SM_6_4;
+    case 0x65:
+        return Feature::SM_6_5;
+    case 0x66:
+        return Feature::SM_6_6;
+    case 0x67:
+        return Feature::SM_6_7;
+    case 0x68:
+        return Feature::SM_6_8;
+    case 0x69:
+        return Feature::SM_6_9;
+    case 0x6a:
+        return Feature::SM_6_10;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unhandled D3D12 shader model");
+        return Feature::_Count;
+    }
+}
 
 // Calculates a files sytem compatible date string formatted YYYY-MM-DD-hh-mm-ss.
 static std::string buildCurrentDateString()
@@ -625,7 +660,7 @@ ComPtr<IDevice> createTestingDevice(
         compilerOptions.push_back(nvapiSearchPath);
     }
 #endif
-    if (deviceType == DeviceType::D3D12)
+    if (deviceType == DeviceType::D3D12 && !options().d3d12DisableNVAPI)
     {
         deviceDesc.nvapiExtUavSlot = 999;
         preprocessorMacros.push_back({"NV_SHADER_EXTN_SLOT", "u999"});
@@ -637,6 +672,17 @@ ComPtr<IDevice> createTestingDevice(
         compilerOptions.push_back(nvapiSearchPath);
     }
 #endif
+
+    // Set SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT if NVAPI is disabled explicitly or unavailable in this build.
+#if SLANG_RHI_ENABLE_NVAPI
+    const bool useNativeD3D12HitObject = options().d3d12DisableNVAPI;
+#else
+    const bool useNativeD3D12HitObject = true;
+#endif
+    if (deviceType == DeviceType::D3D12 && useNativeD3D12HitObject)
+    {
+        preprocessorMacros.push_back({"SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT", "1"});
+    }
 
 #if SLANG_RHI_ENABLE_OPTIX
     // Setup OptiX headers
@@ -693,6 +739,20 @@ ComPtr<IDevice> createTestingDevice(
     }
 #endif
 
+    auto disableWarning = [](const char* warningCode) -> slang::CompilerOptionEntry
+    {
+        slang::CompilerOptionEntry entry;
+        entry.name = slang::CompilerOptionName::DisableWarning;
+        entry.value.kind = slang::CompilerOptionValueKind::String;
+        entry.value.stringValue0 = warningCode;
+        return entry;
+    };
+
+    // Disable noisy warnings 31106 and 31107 until slang fixes them.
+    // https://github.com/shader-slang/slang/issues/11825
+    compilerOptions.push_back(disableWarning("31106"));
+    compilerOptions.push_back(disableWarning("31107"));
+
     deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
     deviceDesc.slang.searchPaths = searchPaths.data();
     deviceDesc.slang.searchPathCount = searchPaths.size();
@@ -702,12 +762,27 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.slang.compilerOptionEntryCount = compilerOptions.size();
 
     D3D12DeviceExtendedDesc extDesc = {};
+    bool requireSpecificD3D12ShaderModel = false;
     if (deviceType == DeviceType::D3D12)
     {
         extDesc.rootParameterShaderAttributeName = "root";
         if (extraOptions && extraOptions->d3d12HighestShaderModel != 0)
         {
             extDesc.highestShaderModel = extraOptions->d3d12HighestShaderModel;
+        }
+        else if (options().d3d12ShaderModel != 0)
+        {
+            extDesc.highestShaderModel = options().d3d12ShaderModel;
+            requireSpecificD3D12ShaderModel = true;
+        }
+        else
+        {
+            // TODO: Slang current emits invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled.
+            // https://github.com/shader-slang/slang/issues/11903
+            // We currently default testing to cap at SM 6.8 to avoid this issue,
+            // but ideally we should be able to test SM 6.9 with NVAPI enabled.
+            // We can test SM 6.9 with/without NVAPI using -d3d12-shader-model and -d3d12-disable-nvapi cli options.
+            extDesc.highestShaderModel = 0x68;
         }
         deviceDesc.next = &extDesc;
     }
@@ -720,6 +795,12 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
+
+    if (requireSpecificD3D12ShaderModel)
+    {
+        Feature feature = getShaderModelFeature(extDesc.highestShaderModel);
+        REQUIRE(device->hasFeature(feature));
+    }
 
     if (useCachedDevice)
     {
@@ -829,8 +910,14 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
+    D3D12DeviceExtendedDesc d3d12ExtDesc = {};
+    if (deviceType == DeviceType::D3D12 && options().d3d12ShaderModel != 0)
+    {
+        d3d12ExtDesc.highestShaderModel = options().d3d12ShaderModel;
+        desc.next = &d3d12ExtDesc;
+    }
 #if SLANG_RHI_ENABLE_NVAPI
-    if (deviceType == DeviceType::D3D12)
+    if (deviceType == DeviceType::D3D12 && !options().d3d12DisableNVAPI)
     {
         desc.nvapiExtUavSlot = 999;
     }

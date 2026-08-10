@@ -17,7 +17,7 @@
 | `createTextureFromNativeHandle`    | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |
 | `createTextureFromSharedHandle`    | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
 | `createBuffer`                     | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
-| `createBufferFromNativeHandle`     | :x:     | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
+| `createBufferFromNativeHandle`     | :x:     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `createBufferFromSharedHandle`     | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
 | `mapBuffer`                        | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `unmapBuffer`                      | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
@@ -224,7 +224,7 @@
 |---------------------------|-----|------|-------|-------|--------|-------|------|
 | `bindPipeline`            | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `dispatchCompute`         | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `dispatchComputeIndirect` | :x: | yes  | yes   | yes   | yes    | :x:   | yes  |
+| `dispatchComputeIndirect` | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
 
 ## `IRayTracingPassEncoder` interface
 

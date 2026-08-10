@@ -44,6 +44,8 @@
     x(metallib_2_4) \
     x(metallib_3_0) \
     x(metallib_3_1) \
+    x(metallib_3_2) \
+    x(metallib_4_0) \
     x(_sm_4_0) \
     x(_sm_4_1) \
     x(_sm_5_0) \
@@ -58,6 +60,7 @@
     x(_sm_6_7) \
     x(_sm_6_8) \
     x(_sm_6_9) \
+    x(_sm_6_10) \
     x(hlsl_nvapi) \
     x(hlsl_2018) \
     x(_cuda_sm_1_0) \
@@ -68,9 +71,19 @@
     x(_cuda_sm_5_0) \
     x(_cuda_sm_6_0) \
     x(_cuda_sm_7_0) \
+    x(_cuda_sm_7_2) \
+    x(_cuda_sm_7_5) \
     x(_cuda_sm_8_0) \
+    x(_cuda_sm_8_6) \
+    x(_cuda_sm_8_7) \
+    x(_cuda_sm_8_8) \
     x(_cuda_sm_8_9) \
     x(_cuda_sm_9_0) \
+    x(_cuda_sm_10_0) \
+    x(_cuda_sm_10_3) \
+    x(_cuda_sm_11_0) \
+    x(_cuda_sm_12_0) \
+    x(_cuda_sm_12_1) \
     x(optix_coopvec) \
     x(vertex) \
     x(fragment) \

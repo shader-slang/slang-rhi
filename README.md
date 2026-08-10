@@ -16,7 +16,7 @@ This library is under active refactoring and development, and is not yet ready f
 
 ## License
 
-`slang-rhi` is released under the MIT license. See the file  [LICENSE](LICENSE) for more information.
+`slang-rhi` is released under the Apache 2.0 with LLVM Exception license. See the file  [LICENSE](LICENSE) for more information.
 
 `slang-rhi` depends on the following third-party libraries, which have their own license:
 

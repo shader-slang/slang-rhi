@@ -211,6 +211,11 @@ public:
         void* pUserData
     );
 
+    /// If a shader called abort() (OpAbortKHR) the device is lost; retrieve the abort message via
+    /// VK_KHR_device_fault and report it through the debug message callback. No-op when
+    /// Feature::ShaderAbort is unavailable. Safe to call after VK_ERROR_DEVICE_LOST.
+    void reportShaderAbortMessage();
+
     void _labelObject(uint64_t object, VkObjectType objectType, const char* label);
 
     void _transitionImageLayout(

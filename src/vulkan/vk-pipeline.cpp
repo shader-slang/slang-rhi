@@ -47,9 +47,119 @@ struct PipelineCacheBinaryHeader
     uint32_t dataOffset;
 };
 
+// Both structs are written to and read from disk directly, so the layout documented above is part of
+// the cache format that kVersion identifies.
+static_assert(sizeof(PipelineCacheHeader) == 12);
+static_assert(sizeof(PipelineCacheBinaryHeader) == 44);
+
+// Generate a stable ray tracing pipeline key from the inputs owned by slang-rhi. This is used only when
+// vkGetPipelineKeyKHR returns an unusable all-zero key. Keep the version and hashed fields in sync with
+// RayTracingPipelineDesc and the Vulkan ray tracing pipeline creation code.
+static Result getRayTracingPipelineFallbackKey(
+    ShaderProgramImpl* program,
+    const RayTracingPipelineDesc& desc,
+    SHA1::Digest& outDigest
+)
+{
+    // Unknown extension structures cannot be hashed safely.
+    if (desc.next)
+        return SLANG_E_NOT_AVAILABLE;
+
+    SHA1 sha1;
+    static constexpr char kKeyTag[] = "slang-rhi-vulkan-ray-tracing-pipeline";
+    static constexpr uint32_t kKeyVersion = 1;
+    sha1.update(kKeyTag, sizeof(kKeyTag));
+    sha1.update(kKeyVersion);
+
+    auto updateNullableString = [&](const char* value)
+    {
+        const uint64_t size = value ? strlen(value) : UINT64_MAX;
+        sha1.update(size);
+        if (value)
+        {
+            sha1.update(value, size);
+        }
+    };
+
+    const uint32_t moduleCount = (uint32_t)program->m_modules.size();
+    if (moduleCount != program->m_stageCreateInfos.size())
+        return SLANG_FAIL;
+    sha1.update(moduleCount);
+    for (uint32_t i = 0; i < moduleCount; ++i)
+    {
+        const ShaderProgramImpl::Module& module = program->m_modules[i];
+        const VkPipelineShaderStageCreateInfo& stage = program->m_stageCreateInfos[i];
+        if (!module.code || stage.pNext)
+            return SLANG_E_NOT_AVAILABLE;
+
+        sha1.update(stage.flags);
+        sha1.update(stage.stage);
+        updateNullableString(module.entryPointName.c_str());
+
+        const uint64_t codeSize = module.code->getBufferSize();
+        sha1.update(codeSize);
+        sha1.update(module.code->getBufferPointer(), codeSize);
+
+        const VkSpecializationInfo* specialization = stage.pSpecializationInfo;
+        const uint8_t hasSpecialization = specialization != nullptr;
+        sha1.update(hasSpecialization);
+        if (specialization)
+        {
+            sha1.update(specialization->mapEntryCount);
+            for (uint32_t j = 0; j < specialization->mapEntryCount; ++j)
+            {
+                const VkSpecializationMapEntry& entry = specialization->pMapEntries[j];
+                sha1.update(entry.constantID);
+                const uint64_t offset = entry.offset;
+                const uint64_t size = entry.size;
+                sha1.update(offset);
+                sha1.update(size);
+            }
+            const uint64_t dataSize = specialization->dataSize;
+            sha1.update(dataSize);
+            sha1.update(specialization->pData, dataSize);
+        }
+    }
+
+    sha1.update(desc.hitGroupCount);
+    for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
+    {
+        const HitGroupDesc& hitGroup = desc.hitGroups[i];
+        updateNullableString(hitGroup.hitGroupName);
+        updateNullableString(hitGroup.closestHitEntryPoint);
+        updateNullableString(hitGroup.anyHitEntryPoint);
+        updateNullableString(hitGroup.intersectionEntryPoint);
+    }
+    sha1.update(desc.maxRecursion);
+    sha1.update(desc.maxRayPayloadSize);
+    sha1.update(desc.maxAttributeSizeInBytes);
+    sha1.update(desc.flags);
+
+    outDigest = sha1.getDigest();
+    return SLANG_OK;
+}
+
+static bool isAllZeroPipelineKey(const VkPipelineBinaryKeyKHR& key)
+{
+    if (key.keySize == 0)
+        return true;
+    for (uint32_t i = 0; i < key.keySize; ++i)
+    {
+        if (key.key[i] != 0)
+            return false;
+    }
+    return true;
+}
+
 // Create a pipeline cache key based on the device and pipeline create info.
 // The key is a SHA1 hash that includes the adapter LUID, global pipeline key, and the pipeline create info key.
-Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** outBlob)
+template<typename GetFallbackPipelineKey>
+Result getPipelineCacheKey(
+    DeviceImpl* device,
+    void* createInfo,
+    GetFallbackPipelineKey getFallbackPipelineKey,
+    ISlangBlob** outBlob
+)
 {
     auto& api = device->m_api;
 
@@ -74,7 +184,23 @@ Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** ou
             api.vkGetPipelineKeyKHR(device->m_device, &pipelineCreateInfo, &pipelineKey),
             device
         );
-        sha1.update(pipelineKey.key, pipelineKey.keySize);
+        if (isAllZeroPipelineKey(pipelineKey))
+        {
+            SHA1::Digest fallbackPipelineKey;
+            if (SLANG_FAILED(getFallbackPipelineKey(fallbackPipelineKey)))
+            {
+                device->printWarning(
+                    "vkGetPipelineKeyKHR returned an all-zero pipeline key and no usable application fallback key is "
+                    "available, disabling caching for this pipeline."
+                );
+                return SLANG_E_NOT_AVAILABLE;
+            }
+            sha1.update(fallbackPipelineKey.data(), fallbackPipelineKey.size());
+        }
+        else
+        {
+            sha1.update(pipelineKey.key, pipelineKey.keySize);
+        }
     }
     SHA1::Digest digest = sha1.getDigest();
     ComPtr<ISlangBlob> blob = OwnedBlob::create(digest.data(), digest.size());
@@ -174,52 +300,101 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
     return SLANG_OK;
 }
 
+// Parse the pipeline binary keys and data ranges out of a serialized cache blob.
+//
+// The blob comes from an IPersistentCache implementation, so a truncated, stale or tampered entry
+// must be rejected rather than trusted: every length and offset is validated before it is used to
+// index, to size a copy, or to form a pointer. Fields are copied out of the blob rather than read
+// through a struct pointer, as getBufferPointer() carries no alignment guarantee.
+//
+// Returns SLANG_FAIL for a malformed blob, which the caller handles by creating the pipeline without
+// the cache. Kept independent of the device so it can be validated without one, since reaching it
+// through the cache requires VK_KHR_pipeline_binary.
+Result parsePipelineCacheBlob(
+    const void* blobData,
+    size_t blobSize,
+    short_vector<VkPipelineBinaryKeyKHR>& outKeys,
+    short_vector<VkPipelineBinaryDataKHR>& outData
+)
+{
+    const uint8_t* data = (const uint8_t*)blobData;
+    const uint8_t* dataPtr = data;
+    if (blobSize < sizeof(PipelineCacheHeader))
+    {
+        return SLANG_FAIL;
+    }
+
+    PipelineCacheHeader header;
+    std::memcpy(&header, dataPtr, sizeof(header));
+    if (header.magic != PipelineCacheHeader::kMagic || header.version != PipelineCacheHeader::kVersion ||
+        header.binaryCount == 0)
+    {
+        return SLANG_FAIL;
+    }
+    dataPtr += sizeof(PipelineCacheHeader);
+
+    // Expressed as a division so the bound itself cannot overflow.
+    if (header.binaryCount > (blobSize - sizeof(PipelineCacheHeader)) / sizeof(PipelineCacheBinaryHeader))
+    {
+        return SLANG_FAIL;
+    }
+
+    // Binary data must start past the record table, or a record could point back into the header or
+    // table and that metadata would be handed to the driver as pipeline binary data.
+    const size_t tableEnd = sizeof(PipelineCacheHeader) + header.binaryCount * sizeof(PipelineCacheBinaryHeader);
+
+    short_vector<VkPipelineBinaryKeyKHR> binaryKeys(header.binaryCount, {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR});
+    short_vector<VkPipelineBinaryDataKHR> pipelineData(header.binaryCount, {});
+
+    for (uint32_t i = 0; i < header.binaryCount; ++i)
+    {
+        PipelineCacheBinaryHeader binaryHeader;
+        std::memcpy(&binaryHeader, dataPtr, sizeof(binaryHeader));
+        dataPtr += sizeof(PipelineCacheBinaryHeader);
+
+        if (binaryHeader.keySize > VK_MAX_PIPELINE_BINARY_KEY_SIZE_KHR)
+        {
+            return SLANG_FAIL;
+        }
+        if (binaryHeader.dataOffset < tableEnd || binaryHeader.dataOffset > blobSize ||
+            binaryHeader.dataSize > blobSize - binaryHeader.dataOffset)
+        {
+            return SLANG_FAIL;
+        }
+
+        binaryKeys[i].keySize = binaryHeader.keySize;
+        std::memcpy(binaryKeys[i].key, binaryHeader.key, binaryHeader.keySize);
+
+        pipelineData[i].dataSize = binaryHeader.dataSize;
+        pipelineData[i].pData = (void*)(data + binaryHeader.dataOffset);
+    }
+
+    outKeys = binaryKeys;
+    outData = pipelineData;
+    return SLANG_OK;
+}
+
 // Deserialize a blob containing pipeline binaries into a vector of VkPipelineBinaryKHR handles.
 // The caller is responsible for destroying the VkPipelineBinaryKHR handles after use.
 Result deserializePipelineBinaries(DeviceImpl* device, ISlangBlob* blob, short_vector<VkPipelineBinaryKHR>& outBinaries)
 {
     auto& api = device->m_api;
 
-    size_t dataSize = blob->getBufferSize();
-    const uint8_t* data = (const uint8_t*)blob->getBufferPointer();
-    const uint8_t* dataPtr = data;
-    if (dataSize < sizeof(PipelineCacheHeader))
-    {
-        return SLANG_FAIL;
-    }
-
-    const PipelineCacheHeader* header = (const PipelineCacheHeader*)dataPtr;
-    if (header->magic != PipelineCacheHeader::kMagic || header->version != PipelineCacheHeader::kVersion ||
-        header->binaryCount == 0)
-    {
-        return SLANG_FAIL;
-    }
-    dataPtr += sizeof(PipelineCacheHeader);
-
-    short_vector<VkPipelineBinaryKeyKHR> binaryKeys(header->binaryCount, {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR});
-    short_vector<VkPipelineBinaryDataKHR> pipelineData(header->binaryCount, {});
-
-    for (uint32_t i = 0; i < header->binaryCount; ++i)
-    {
-        const PipelineCacheBinaryHeader* binaryHeader = (const PipelineCacheBinaryHeader*)dataPtr;
-        dataPtr += sizeof(PipelineCacheBinaryHeader);
-
-        binaryKeys[i].keySize = binaryHeader->keySize;
-        std::memcpy(binaryKeys[i].key, binaryHeader->key, binaryHeader->keySize);
-
-        pipelineData[i].dataSize = binaryHeader->dataSize;
-        pipelineData[i].pData = (void*)(data + binaryHeader->dataOffset);
-    }
+    short_vector<VkPipelineBinaryKeyKHR> binaryKeys;
+    short_vector<VkPipelineBinaryDataKHR> pipelineData;
+    SLANG_RETURN_ON_FAIL(
+        parsePipelineCacheBlob(blob->getBufferPointer(), blob->getBufferSize(), binaryKeys, pipelineData)
+    );
 
     VkPipelineBinaryKeysAndDataKHR binaryKeysAndData;
-    binaryKeysAndData.binaryCount = header->binaryCount;
+    binaryKeysAndData.binaryCount = (uint32_t)binaryKeys.size();
     binaryKeysAndData.pPipelineBinaryKeys = binaryKeys.data();
     binaryKeysAndData.pPipelineBinaryData = pipelineData.data();
 
     VkPipelineBinaryCreateInfoKHR createInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_CREATE_INFO_KHR};
     createInfo.pKeysAndDataInfo = &binaryKeysAndData;
 
-    short_vector<VkPipelineBinaryKHR> binaries(header->binaryCount, VK_NULL_HANDLE);
+    short_vector<VkPipelineBinaryKHR> binaries(binaryKeys.size(), VK_NULL_HANDLE);
 
     VkPipelineBinaryHandlesInfoKHR handlesInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_HANDLES_INFO_KHR};
     handlesInfo.pipelineBinaryCount = binaries.size();
@@ -234,14 +409,20 @@ Result deserializePipelineBinaries(DeviceImpl* device, ISlangBlob* blob, short_v
     return SLANG_OK;
 }
 
-template<typename VkPipelineCreateInfo>
+struct NoFallbackPipelineKey
+{
+    Result operator()(SHA1::Digest&) const { return SLANG_E_NOT_AVAILABLE; }
+};
+
+template<typename VkPipelineCreateInfo, typename GetFallbackPipelineKey = NoFallbackPipelineKey>
 Result createPipelineWithCache(
     DeviceImpl* device,
     VkPipelineCreateInfo* createInfo,
     VkResult (*createPipelineFunc)(DeviceImpl* device, VkPipelineCreateInfo* createInfo, VkPipeline* outPipeline),
     VkPipeline* outPipeline,
     bool& outCached,
-    size_t& outCacheSize
+    size_t& outCacheSize,
+    GetFallbackPipelineKey getFallbackPipelineKey = {}
 )
 {
     auto& api = device->m_api;
@@ -261,7 +442,7 @@ Result createPipelineWithCache(
     VkPipeline pipeline = VK_NULL_HANDLE;
 
     // Create pipeline cache key.
-    if (SLANG_FAILED(getPipelineCacheKey(device, createInfo, pipelineCacheKey.writeRef())))
+    if (SLANG_FAILED(getPipelineCacheKey(device, createInfo, getFallbackPipelineKey, pipelineCacheKey.writeRef())))
     {
         device->printWarning("Failed to get pipeline cache key, disabling pipeline cache.");
         return createPipelineFunc(device, createInfo, outPipeline);
@@ -294,6 +475,7 @@ Result createPipelineWithCache(
             {
                 createInfo->pNext = binaryInfo.pNext;
                 pipeline = VK_NULL_HANDLE;
+                device->printWarning("Failed to create pipeline from cache, creating new pipeline.");
             }
             for (auto& binary : pipelineBinaries)
             {
@@ -865,7 +1047,11 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             },
             &vkPipeline,
             cached,
-            cacheSize
+            cacheSize,
+            [program, &desc](SHA1::Digest& outDigest)
+            {
+                return getRayTracingPipelineFallbackKey(program, desc, outDigest);
+            }
         )
     );
 

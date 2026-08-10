@@ -186,15 +186,11 @@ static void testPrecompiledModuleImpl(IDevice* device, bool mixed, bool precompi
     compareComputeResult(device, buffer, makeArray<float>(3.0f, 3.0f, 3.0f, 3.0f));
 }
 
-// CUDA: currently fails due to a slang regression
-// https://github.com/shader-slang/slang/issues/7315
 GPU_TEST_CASE("precompiled-module", ALL)
 {
     testPrecompiledModuleImpl(device, false, false);
 }
 
-// CUDA: currently fails due to a slang regression
-// https://github.com/shader-slang/slang/issues/7315
 GPU_TEST_CASE("precompiled-module-mixed", ALL)
 {
     testPrecompiledModuleImpl(device, true, false);
