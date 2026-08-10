@@ -131,15 +131,21 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     }
 
     m_info.preferredFormat = preferredFormat;
-    m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
-    // Only advertise UnorderedAccess when the preferred format genuinely supports storage,
-    // rather than claiming it unconditionally regardless of the chosen format.
-    FormatSupport preferredFormatSupport = {};
-    m_device->getFormatSupport(preferredFormat, &preferredFormatSupport);
-    if (is_set(preferredFormatSupport, FormatSupport::ShaderUavStore))
-    {
+    // Derive the supported usage from the surface capabilities.
+    VkSurfaceCapabilitiesKHR surfaceCaps = {};
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(api.m_physicalDevice, m_surface, &surfaceCaps),
+        m_device
+    );
+    m_info.supportedUsage = TextureUsage::Present | TextureUsage::RenderTarget;
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_STORAGE_BIT)
         m_info.supportedUsage |= TextureUsage::UnorderedAccess;
-    }
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_SAMPLED_BIT)
+        m_info.supportedUsage |= TextureUsage::ShaderResource;
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+        m_info.supportedUsage |= TextureUsage::CopySource;
+    if (surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+        m_info.supportedUsage |= TextureUsage::CopyDestination;
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();
 
@@ -384,7 +390,13 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
         // format (e.g. *_SRGB), tripping VUID-VkSwapchainCreateInfoKHR-imageFormat-01778. Apps
         // that need storage on the swapchain must request it explicitly; configure() then
         // validates it against the format below.
-        m_config.usage = TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination;
+        m_config.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
+                         m_info.supportedUsage;
+        // The default degrades to what the selected format supports; explicit requests error below.
+        if (!is_set(formatSupport, FormatSupport::RenderTarget))
+            m_config.usage &= ~TextureUsage::RenderTarget;
+        if (!is_set(formatSupport, FormatSupport::CopyDestination))
+            m_config.usage &= ~TextureUsage::CopyDestination;
     }
     else
     {
@@ -403,6 +415,16 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
             is_set(m_config.usage, TextureUsage::UnorderedAccess))
         {
             m_device->printError("Surface format does not support unordered access usage.");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (!is_set(formatSupport, FormatSupport::ShaderLoad) && is_set(m_config.usage, TextureUsage::ShaderResource))
+        {
+            m_device->printError("Surface format does not support shader resource usage.");
+            return SLANG_E_INVALID_ARG;
+        }
+        if (!is_set(formatSupport, FormatSupport::CopySource) && is_set(m_config.usage, TextureUsage::CopySource))
+        {
+            m_device->printError("Surface format does not support copy source usage.");
             return SLANG_E_INVALID_ARG;
         }
     }
