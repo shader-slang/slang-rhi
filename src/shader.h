@@ -10,6 +10,7 @@
 #include "device-child.h"
 
 #include <unordered_map>
+#include <mutex>
 
 namespace rhi {
 
@@ -60,6 +61,7 @@ public:
 
     bool m_compiledShaders = false;
 
+    std::mutex m_specializedProgramsMutex;
     std::unordered_map<SpecializationKey, RefPtr<ShaderProgram>, SpecializationKey::Hasher> m_specializedPrograms;
 
     ShaderProgram(Device* device, const ShaderProgramDesc& desc);

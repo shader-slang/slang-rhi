@@ -82,6 +82,7 @@ ShaderComponentID ShaderCache::getComponentId(std::string_view name)
 
 ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     auto it = componentIds.find(key);
     if (it != componentIds.end())
         return it->second;
@@ -92,6 +93,7 @@ ShaderComponentID ShaderCache::getComponentId(ComponentKey key)
 
 RefPtr<Pipeline> ShaderCache::getSpecializedPipeline(PipelineKey programKey)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     auto it = specializedPipelines.find(programKey);
     if (it != specializedPipelines.end())
         return it->second;
@@ -100,11 +102,13 @@ RefPtr<Pipeline> ShaderCache::getSpecializedPipeline(PipelineKey programKey)
 
 void ShaderCache::addSpecializedPipeline(PipelineKey key, RefPtr<Pipeline> specializedPipeline)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     specializedPipelines[key] = specializedPipeline;
 }
 
 void ShaderCache::free()
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     componentIds = decltype(componentIds)();
     specializedPipelines = decltype(specializedPipelines)();
 }
@@ -169,7 +173,7 @@ Result Device::getSpecializedProgram(
     ShaderProgram** outSpecializedProgram
 )
 {
-    // TODO make thread-safe
+    std::lock_guard<std::mutex> lock(program->m_specializedProgramsMutex);
     SpecializationKey key(specializationArgs);
     auto it = program->m_specializedPrograms.find(key);
     if (it != program->m_specializedPrograms.end())
@@ -297,7 +301,7 @@ Result Device::getConcretePipeline(
     if (isSpecializable)
     {
         RefPtr<ShaderProgram> specializedProgram;
-        SLANG_RETURN_ON_FAIL(specializeProgram(program, *specializationArgs, specializedProgram.writeRef()));
+        SLANG_RETURN_ON_FAIL(getSpecializedProgram(program, *specializationArgs, specializedProgram.writeRef()));
         program = specializedProgram;
     }
 

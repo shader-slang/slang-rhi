@@ -6,6 +6,7 @@
 
 #include <execution>
 #include <limits>
+#include <mutex>
 #include <vector>
 
 // ---------------------------------------------------------------------------------------
@@ -61,6 +62,7 @@ public:
         const char* message
     ) override
     {
+        std::lock_guard<std::mutex> lock(m_mutex);
         printf("[%s] (%s) %s\n", enumToString(type), enumToString(source), message);
         fflush(stdout);
     }
@@ -70,6 +72,9 @@ public:
         static DebugPrinter instance;
         return &instance;
     }
+
+private:
+    std::mutex m_mutex;
 };
 
 // ---------------------------------------------------------------------------------------

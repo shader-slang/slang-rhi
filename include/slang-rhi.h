@@ -3198,6 +3198,8 @@ enum class DebugMessageSource
 class IDebugCallback
 {
 public:
+    /// May be called concurrently from multiple threads. Implementations must provide any required synchronization.
+    /// `message` is valid only for the duration of the call.
     virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
         DebugMessageType type,
         DebugMessageSource source,
@@ -3946,7 +3948,15 @@ class IPersistentCache : public ISlangUnknown
     SLANG_COM_INTERFACE(0x68981742, 0x7fd6, 0x4700, {0x8a, 0x71, 0xe8, 0xea, 0x42, 0x91, 0x3b, 0x28});
 
 public:
+    /// Writes an entry to the cache.
+    /// Implementations must support concurrent calls to writeCache() and queryCache(), including when the cache is
+    /// shared by multiple devices or used for both shaders and pipelines.
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key, ISlangBlob* data) = 0;
+
+    /// Queries an entry from the cache.
+    /// Implementations must support concurrent calls to writeCache() and queryCache(), including when the cache is
+    /// shared by multiple devices or used for both shaders and pipelines.
+    /// A returned blob must remain valid independently of subsequent cache calls.
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key, ISlangBlob** outData) = 0;
 };
 
