@@ -2896,8 +2896,8 @@ struct SurfaceInfo
 {
     /// The preferred format for the surface.
     Format preferredFormat;
-    /// The supported texture usage for the surface.
-    /// The actual support may be more limited depending on the format.
+    /// The surface-level upper bound for supported texture usage.
+    /// The actual support may be more limited depending on the selected format.
     TextureUsage supportedUsage;
     /// The list of supported formats for the surface.
     const Format* formats;
@@ -2909,7 +2909,8 @@ struct SurfaceConfig
 {
     /// Surface format. If left undefined, the preferred format is used.
     Format format = Format::Undefined;
-    /// Usage of the surface. If left undefined, the supported usage is used.
+    /// Usage of the surface. If left undefined, the backend selects a safe,
+    /// format-compatible subset of the supported usage.
     TextureUsage usage = TextureUsage::None;
     // size_t viewFormatCount;
     // const Format* viewFormats;
