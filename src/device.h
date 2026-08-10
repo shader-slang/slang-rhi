@@ -21,6 +21,7 @@ namespace rhi {
 
 // Forward declarations
 class Heap;
+struct EntryPointCompilationStats;
 
 namespace testing {
 // Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
@@ -378,6 +379,9 @@ public:
         const char* entryPointName,
         uint32_t entryPointIndex,
         uint32_t targetIndex,
+        slang::IBlob* cacheKey,
+        bool measureCompilerTime,
+        EntryPointCompilationStats* outStats,
         slang::IBlob** outCode,
         slang::IBlob** outDiagnostics = nullptr
     );
@@ -426,6 +430,8 @@ public:
         ExtendedShaderObjectTypeList* specializationArgs,
         Pipeline*& outPipeline
     );
+
+    Result createConcretePipeline(Pipeline* pipeline, ShaderProgram* program, RefPtr<Pipeline>& outPipeline);
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,

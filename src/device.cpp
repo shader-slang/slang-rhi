@@ -310,6 +310,30 @@ Result Device::getConcretePipeline(
 
     // Create a new concrete pipeline.
     RefPtr<Pipeline> concretePipeline;
+    SLANG_RETURN_ON_FAIL(createConcretePipeline(pipeline, program, concretePipeline));
+
+    if (isSpecializable)
+    {
+        // Cache the specialized pipeline for later use.
+        m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
+        // Pipeline is owned by the cache.
+        concretePipeline->breakStrongReferenceToDevice();
+        // Program is owned by the specialized pipeline (which is owned by the cache).
+        concretePipeline->m_program->breakStrongReferenceToDevice();
+    }
+    else
+    {
+        // Store the concrete pipeline in the virtual one.
+        pipeline->setConcretePipeline(concretePipeline);
+    }
+
+    outPipeline = concretePipeline;
+    return SLANG_OK;
+}
+
+Result Device::createConcretePipeline(Pipeline* pipeline, ShaderProgram* program, RefPtr<Pipeline>& outPipeline)
+{
+    RefPtr<Pipeline> concretePipeline;
     switch (pipeline->getType())
     {
     case PipelineType::Render:
@@ -339,21 +363,6 @@ Result Device::getConcretePipeline(
         concretePipeline = checked_cast<RayTracingPipeline*>(rayTracingPipeline.get());
         break;
     }
-    }
-
-    if (isSpecializable)
-    {
-        // Cache the specialized pipeline for later use.
-        m_shaderCache.addSpecializedPipeline(pipelineKey, concretePipeline);
-        // Pipeline is owned by the cache.
-        concretePipeline->breakStrongReferenceToDevice();
-        // Program is owned by the specialized pipeline (which is owned by the cache).
-        concretePipeline->m_program->breakStrongReferenceToDevice();
-    }
-    else
-    {
-        // Store the concrete pipeline in the virtual one.
-        pipeline->setConcretePipeline(concretePipeline);
     }
 
     outPipeline = concretePipeline;
@@ -387,35 +396,41 @@ Result Device::getEntryPointCodeFromShaderCache(
     const char* entryPointName,
     uint32_t entryPointIndex,
     uint32_t targetIndex,
+    slang::IBlob* cacheKey,
+    bool measureCompilerTime,
+    EntryPointCompilationStats* outStats,
     slang::IBlob** outCode,
     slang::IBlob** outDiagnostics
 )
 {
     TimePoint startTime = Timer::now();
     ComPtr<ISlangBlob> codeBlob;
-    ComPtr<ISlangBlob> hashBlob;
+    ComPtr<ISlangBlob> hashBlob(cacheKey);
+    SLANG_UNUSED(program);
+    SLANG_UNUSED(entryPointName);
+
+    if (outStats)
+    {
+        *outStats = {};
+        outStats->startTime = startTime;
+    }
 
     if (m_persistentShaderCache)
     {
         // Hash all relevant state for generating the entry point shader code to use as a key
         // for the shader cache.
-        componentType->getEntryPointHash(entryPointIndex, targetIndex, hashBlob.writeRef());
+        if (!hashBlob)
+            componentType->getEntryPointHash(entryPointIndex, targetIndex, hashBlob.writeRef());
 
         // Query the shader cache.
-        if (m_persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef()) == SLANG_OK)
+        Result cacheResult = m_persistentShaderCache->queryCache(hashBlob, codeBlob.writeRef());
+        if (cacheResult == SLANG_OK)
         {
-            if (m_shaderCompilationReporter)
+            if (outStats)
             {
-                m_shaderCompilationReporter->reportCompileEntryPoint(
-                    program,
-                    entryPointName,
-                    startTime,
-                    Timer::now(),
-                    0.0,
-                    0.0,
-                    true,
-                    codeBlob->getBufferSize()
-                );
+                outStats->endTime = Timer::now();
+                outStats->isCached = true;
+                outStats->cacheSize = codeBlob->getBufferSize();
             }
 
             returnComPtr(outCode, codeBlob);
@@ -424,13 +439,15 @@ Result Device::getEntryPointCodeFromShaderCache(
     }
 
     // Cached entry not found, generate the code and measure compilation time.
-    double startTotalTime, endTotalTime;
-    double startDownstreamTime, endDownstreamTime;
-    componentType->getSession()->getGlobalSession()->getCompilerElapsedTime(&startTotalTime, &startDownstreamTime);
+    double startTotalTime = 0.0, endTotalTime = 0.0;
+    double startDownstreamTime = 0.0, endDownstreamTime = 0.0;
+    if (measureCompilerTime)
+        componentType->getSession()->getGlobalSession()->getCompilerElapsedTime(&startTotalTime, &startDownstreamTime);
     SLANG_RETURN_ON_FAIL(
         componentType->getEntryPointCode(entryPointIndex, targetIndex, codeBlob.writeRef(), outDiagnostics)
     );
-    componentType->getSession()->getGlobalSession()->getCompilerElapsedTime(&endTotalTime, &endDownstreamTime);
+    if (measureCompilerTime)
+        componentType->getSession()->getGlobalSession()->getCompilerElapsedTime(&endTotalTime, &endDownstreamTime);
 
     // Write the generated code to the shader cache if available.
     if (m_persistentShaderCache)
@@ -438,19 +455,13 @@ Result Device::getEntryPointCodeFromShaderCache(
         m_persistentShaderCache->writeCache(hashBlob, codeBlob);
     }
 
-    // Report compilation time.
-    if (m_shaderCompilationReporter)
+    if (outStats)
     {
-        m_shaderCompilationReporter->reportCompileEntryPoint(
-            program,
-            entryPointName,
-            startTime,
-            Timer::now(),
-            endTotalTime - startTotalTime,
-            endDownstreamTime - startDownstreamTime,
-            false,
-            codeBlob->getBufferSize()
-        );
+        outStats->endTime = Timer::now();
+        outStats->totalTime = measureCompilerTime ? endTotalTime - startTotalTime : 0.0;
+        outStats->downstreamTime = measureCompilerTime ? endDownstreamTime - startDownstreamTime : 0.0;
+        outStats->isCached = false;
+        outStats->cacheSize = codeBlob->getBufferSize();
     }
 
     returnComPtr(outCode, codeBlob);

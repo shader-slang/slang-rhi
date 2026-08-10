@@ -616,7 +616,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         library.DXILLibrary.pShaderBytecode = shader.code.data();
         library.NumExports = 1;
         D3D12_EXPORT_DESC exportDesc = {};
-        exportDesc.Name = getWStr(shader.entryPointInfo->getNameOverride());
+        exportDesc.Name = getWStr(shader.entryPointName.c_str());
         exportDesc.ExportToRename = nullptr;
         exportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
         exports.push_back(exportDesc);
@@ -748,7 +748,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
                 if (shader.stage != SLANG_STAGE_RAY_GENERATION && shader.stage != SLANG_STAGE_MISS &&
                     shader.stage != SLANG_STAGE_CALLABLE)
                     continue;
-                std::string name = shader.entryPointInfo->getNameOverride();
+                std::string name = shader.entryPointName;
                 void* id = stateObjectProperties->GetShaderIdentifier(string::to_wstring(name).data());
                 if (id)
                 {
