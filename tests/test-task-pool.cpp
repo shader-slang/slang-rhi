@@ -3,8 +3,6 @@
 #include "core/task-pool.h"
 
 #include <thread>
-#include <string>
-#include <functional>
 
 using namespace rhi;
 
@@ -36,246 +34,17 @@ void testSimple(ITaskPool* pool)
                 size_t j = *static_cast<size_t*>(payload);
                 deleted[j] = true;
                 delete static_cast<size_t*>(payload);
-            },
-            nullptr,
-            0
+            }
         );
     }
 
     for (size_t i = 0; i < N; ++i)
     {
         CAPTURE(i);
-        CHECK(!deleted[i]);
-        pool->waitTask(tasks[i]);
-        pool->releaseTask(tasks[i]);
-        CHECK(result[i] == (size_t)i);
-    }
-
-    pool->waitAll();
-
-    for (size_t i = 0; i < N; ++i)
-    {
-        CAPTURE(i);
-        CHECK(deleted[i]);
-    }
-}
-
-// Create a number of tasks and wait for all of them at once.
-void testWaitAll(ITaskPool* pool)
-{
-    REQUIRE(pool != nullptr);
-
-    static constexpr size_t N = 1000;
-    static size_t result[N];
-    static bool deleted[N];
-
-    ::memset(result, 0, sizeof(result));
-    ::memset(deleted, 0, sizeof(deleted));
-
-    for (size_t i = 0; i < N; ++i)
-    {
-        size_t* payload = new size_t{i};
-        ITaskPool::TaskHandle task = pool->submitTask(
-            [](void* payload)
-            {
-                size_t j = *static_cast<size_t*>(payload);
-                result[j] = j;
-            },
-            payload,
-            [](void* payload)
-            {
-                size_t j = *static_cast<size_t*>(payload);
-                deleted[j] = true;
-                delete static_cast<size_t*>(payload);
-            },
-            nullptr,
-            0
-        );
-        CHECK(!deleted[i]);
-        pool->releaseTask(task);
-    }
-
-    pool->waitAll();
-
-    for (size_t i = 0; i < N; ++i)
-    {
-        CAPTURE(i);
+        pool->waitAndReleaseTask(tasks[i]);
         CHECK(result[i] == (size_t)i);
         CHECK(deleted[i]);
     }
-}
-
-// Create a number of tasks and wait for all of them at once.
-void testSimpleDependency(ITaskPool* pool)
-{
-    REQUIRE(pool != nullptr);
-
-    static constexpr size_t N = 1000;
-    static size_t result[N];
-    static ITaskPool::TaskHandle tasks[N];
-    static std::atomic<size_t> finished;
-
-    finished = 0;
-
-    for (size_t i = 0; i < N; ++i)
-    {
-        tasks[i] = pool->submitTask(
-            [](void* payload)
-            {
-                size_t j = (size_t)(uintptr_t)payload;
-                result[j] = j;
-                finished++;
-            },
-            (void*)i,
-            nullptr,
-            nullptr,
-            0
-        );
-    }
-
-    ITaskPool::TaskHandle waitTask = pool->submitTask(
-        [](void*)
-        {
-            CHECK(finished == N);
-        },
-        nullptr,
-        nullptr,
-        tasks,
-        N
-    );
-
-    for (size_t i = 0; i < N; ++i)
-    {
-        pool->releaseTask(tasks[i]);
-    }
-
-    pool->waitTask(waitTask);
-    pool->releaseTask(waitTask);
-
-    for (size_t i = 0; i < N; ++i)
-    {
-        CAPTURE(i);
-        CHECK(result[i] == (size_t)i);
-    }
-}
-
-inline ITaskPool::TaskHandle spawn(ITaskPool* pool, int depth)
-{
-    if (depth > 0)
-    {
-        ITaskPool::TaskHandle a = spawn(pool, depth - 1);
-        ITaskPool::TaskHandle b = spawn(pool, depth - 1);
-        ITaskPool::TaskHandle tasks[] = {a, b};
-        ITaskPool::TaskHandle c = pool->submitTask(
-            [](void*)
-            {
-            },
-            nullptr,
-            nullptr,
-            tasks,
-            2
-        );
-        pool->releaseTask(a);
-        pool->releaseTask(b);
-        return c;
-    }
-    else
-    {
-        return pool->submitTask(
-            [](void*)
-            {
-            },
-            nullptr,
-            nullptr,
-            nullptr,
-            0
-        );
-    }
-}
-
-void testRecursiveDependency(ITaskPool* pool)
-{
-    REQUIRE(pool != nullptr);
-
-    ITaskPool::TaskHandle task = spawn(pool, 10);
-    pool->waitTask(task);
-    pool->releaseTask(task);
-}
-
-struct FibonacciPayload
-{
-    int result;
-    ITaskPool::TaskHandle a;
-    ITaskPool::TaskHandle b;
-};
-
-static ITaskPool* fibonacciPool;
-
-inline ITaskPool::TaskHandle fibonacciTask(int n)
-{
-    FibonacciPayload* payload = new FibonacciPayload{};
-
-    if (n <= 1)
-    {
-        payload->result = n;
-        payload->a = nullptr;
-        payload->b = nullptr;
-        return fibonacciPool->submitTask(
-            [](void* payload)
-            {
-            },
-            payload,
-            [](void* p)
-            {
-                delete static_cast<FibonacciPayload*>(p);
-            },
-            nullptr,
-            0
-        );
-    }
-    else
-    {
-        payload->a = fibonacciTask(n - 1);
-        payload->b = fibonacciTask(n - 2);
-        ITaskPool::TaskHandle tasks[] = {payload->a, payload->b};
-        return fibonacciPool->submitTask(
-            [](void* payload)
-            {
-                FibonacciPayload* p = static_cast<FibonacciPayload*>(payload);
-                FibonacciPayload* pa = static_cast<FibonacciPayload*>(fibonacciPool->getTaskPayload(p->a));
-                FibonacciPayload* pb = static_cast<FibonacciPayload*>(fibonacciPool->getTaskPayload(p->b));
-                p->result = pa->result + pb->result;
-                fibonacciPool->releaseTask(p->a);
-                fibonacciPool->releaseTask(p->b);
-            },
-            payload,
-            [](void* p)
-            {
-                delete static_cast<FibonacciPayload*>(p);
-            },
-            tasks,
-            2
-        );
-    }
-}
-
-inline int fibonacci(int n)
-{
-    return n <= 1 ? n : fibonacci(n - 1) + fibonacci(n - 2);
-}
-
-void testFibonacci(ITaskPool* pool)
-{
-    REQUIRE(pool != nullptr);
-
-    fibonacciPool = pool;
-    int N = 25;
-    int expected = fibonacci(N);
-    ITaskPool::TaskHandle task = fibonacciTask(N);
-    pool->waitTask(task);
-    int result = static_cast<FibonacciPayload*>(pool->getTaskPayload(task))->result;
-    CHECK(result == expected);
-    pool->releaseTask(task);
 }
 
 // Basic group lifecycle: create, submit tasks, wait, release.
@@ -285,7 +54,9 @@ void testGroupBasic(ITaskPool* pool)
 
     static constexpr size_t N = 100;
     static std::atomic<size_t> counter;
+    static std::atomic<size_t> deleted;
     counter = 0;
+    deleted = 0;
 
     auto group = pool->createTaskGroup();
 
@@ -297,17 +68,18 @@ void testGroupBasic(ITaskPool* pool)
                 counter.fetch_add(1, std::memory_order_relaxed);
             },
             nullptr,
-            nullptr,
-            nullptr,
-            0,
+            [](void*)
+            {
+                deleted.fetch_add(1, std::memory_order_relaxed);
+            },
             group
         );
         pool->releaseTask(task);
     }
 
-    pool->waitTaskGroup(group);
+    pool->waitAndReleaseTaskGroup(group);
     CHECK(counter.load() == N);
-    pool->releaseTaskGroup(group);
+    CHECK(deleted.load() == N);
 }
 
 // Sub-tasks spawned from callbacks are tracked by the group.
@@ -359,8 +131,6 @@ void testGroupSubTasks(ITaskPool* pool)
                                     {
                                         delete static_cast<SubTaskPayload*>(p3);
                                     },
-                                    nullptr,
-                                    0,
                                     sp->group
                                 );
                                 sp->pool->releaseTask(t);
@@ -372,8 +142,6 @@ void testGroupSubTasks(ITaskPool* pool)
                     {
                         delete static_cast<SubTaskPayload*>(p2);
                     },
-                    nullptr,
-                    0,
                     payload->group
                 );
                 payload->pool->releaseTask(task);
@@ -389,16 +157,13 @@ void testGroupSubTasks(ITaskPool* pool)
         {
             delete static_cast<SubTaskPayload*>(p);
         },
-        nullptr,
-        0,
         group
     );
     pool->releaseTask(task);
 
-    pool->waitTaskGroup(group);
+    pool->waitAndReleaseTaskGroup(group);
     // 1 root (depth 2) + 2 children (depth 1) + 4 leaves (depth 0) = 7
     CHECK(counter.load() == 7);
-    pool->releaseTaskGroup(group);
 }
 
 // Empty group: wait immediately after create.
@@ -407,55 +172,7 @@ void testGroupEmpty(ITaskPool* pool)
     REQUIRE(pool != nullptr);
 
     auto group = pool->createTaskGroup();
-    pool->waitTaskGroup(group);
-    pool->releaseTaskGroup(group);
-}
-
-// Group with dependencies: tasks have both a group and dependency handles.
-void testGroupWithDependencies(ITaskPool* pool)
-{
-    REQUIRE(pool != nullptr);
-
-    static std::atomic<size_t> order;
-    order = 0;
-
-    auto group = pool->createTaskGroup();
-
-    // First task in the group.
-    static size_t firstOrder;
-    ITaskPool::TaskHandle first = pool->submitTask(
-        [](void*)
-        {
-            firstOrder = order.fetch_add(1, std::memory_order_relaxed);
-        },
-        nullptr,
-        nullptr,
-        nullptr,
-        0,
-        group
-    );
-
-    // Second task depends on first, also in the group.
-    static size_t secondOrder;
-    ITaskPool::TaskHandle second = pool->submitTask(
-        [](void*)
-        {
-            secondOrder = order.fetch_add(1, std::memory_order_relaxed);
-        },
-        nullptr,
-        nullptr,
-        &first,
-        1,
-        group
-    );
-
-    pool->releaseTask(first);
-    pool->releaseTask(second);
-
-    pool->waitTaskGroup(group);
-    CHECK(firstOrder < secondOrder);
-    CHECK(order.load() == 2);
-    pool->releaseTaskGroup(group);
+    pool->waitAndReleaseTaskGroup(group);
 }
 
 void testTaskPool(ITaskPool* pool, int iterations)
@@ -466,31 +183,6 @@ void testTaskPool(ITaskPool* pool, int iterations)
         {
             testSimple(pool);
         }
-    }
-    SUBCASE("wait-all")
-    {
-        for (int i = 0; i < iterations; ++i)
-        {
-            testWaitAll(pool);
-        }
-    }
-    SUBCASE("simple-dependency")
-    {
-        for (int i = 0; i < iterations; ++i)
-        {
-            testSimpleDependency(pool);
-        }
-    }
-    SUBCASE("recursive-dependency")
-    {
-        for (int i = 0; i < iterations; ++i)
-        {
-            testRecursiveDependency(pool);
-        }
-    }
-    SUBCASE("fibonacci")
-    {
-        testFibonacci(pool);
     }
     SUBCASE("group-basic")
     {
@@ -513,13 +205,6 @@ void testTaskPool(ITaskPool* pool, int iterations)
             testGroupEmpty(pool);
         }
     }
-    SUBCASE("group-with-dependencies")
-    {
-        for (int i = 0; i < iterations; ++i)
-        {
-            testGroupWithDependencies(pool);
-        }
-    }
 }
 
 TEST_CASE("task-pool-blocking")
@@ -540,11 +225,56 @@ TEST_CASE("task-pool-threaded-single-worker")
     testTaskPool(pool, 1);
 }
 
-// Work-stealing tests: use a single worker thread to force scenarios that
-// would deadlock without work-stealing in wait functions.
+// Work-stealing tests use a single worker thread so the waiting caller also
+// participates in task execution.
 
-// A task callback calls waitTask on another task. With 1 worker thread and
-// no work-stealing, the worker blocks and the waited-on task never runs.
+void testExternalWaitStealsReadyTask(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    std::atomic<bool> blockerStarted{false};
+    std::atomic<bool> releaseBlocker{false};
+    std::atomic<bool> targetExecuted{false};
+    struct BlockerState
+    {
+        std::atomic<bool>* started;
+        std::atomic<bool>* release;
+    } blockerState{&blockerStarted, &releaseBlocker};
+
+    auto blocker = pool->submitTask(
+        [](void* data)
+        {
+            auto* state = static_cast<BlockerState*>(data);
+            state->started->store(true, std::memory_order_release);
+            while (!state->release->load(std::memory_order_acquire))
+                std::this_thread::yield();
+        },
+        &blockerState,
+        nullptr
+    );
+
+    while (!blockerStarted.load(std::memory_order_acquire))
+        std::this_thread::yield();
+
+    auto target = pool->submitTask(
+        [](void* data)
+        {
+            static_cast<std::atomic<bool>*>(data)->store(true, std::memory_order_relaxed);
+        },
+        &targetExecuted,
+        nullptr
+    );
+
+    // The only worker is blocked, so the waiting thread must execute the target here.
+    pool->waitAndReleaseTask(target);
+    CHECK(targetExecuted.load(std::memory_order_relaxed));
+
+    releaseBlocker.store(true, std::memory_order_release);
+    pool->waitAndReleaseTask(blocker);
+}
+
+// A task callback waits on another task that was submitted first.
+// The earlier task can therefore make progress on another executor.
 void testWorkStealingWaitTaskFromCallback(ITaskPool* pool)
 {
     REQUIRE(pool != nullptr);
@@ -558,9 +288,7 @@ void testWorkStealingWaitTaskFromCallback(ITaskPool* pool)
             static_cast<std::atomic<int>*>(p)->store(1, std::memory_order_relaxed);
         },
         &result,
-        nullptr,
-        nullptr,
-        0
+        nullptr
     );
 
     // Task B: waits on A from inside its callback, then sets result to 2.
@@ -576,25 +304,20 @@ void testWorkStealingWaitTaskFromCallback(ITaskPool* pool)
         [](void* p)
         {
             auto* ctx = static_cast<Payload*>(p);
-            ctx->pool->waitTask(ctx->taskA);
+            ctx->pool->waitAndReleaseTask(ctx->taskA);
             CHECK(ctx->result->load(std::memory_order_relaxed) == 1);
             ctx->result->store(2, std::memory_order_relaxed);
         },
         &payload,
-        nullptr,
-        nullptr,
-        0
+        nullptr
     );
 
-    pool->waitTask(taskB);
+    pool->waitAndReleaseTask(taskB);
     CHECK(result.load() == 2);
-
-    pool->releaseTask(taskA);
-    pool->releaseTask(taskB);
 }
 
-// Nested wait chain: task C waits on B, B waits on A. With 1 worker thread,
-// this requires two levels of work-stealing to avoid deadlock.
+// Nested wait chain: task C waits on B, B waits on A. Each waited-on task was
+// submitted first and can therefore make progress on another executor.
 void testWorkStealingNestedWait(ITaskPool* pool)
 {
     REQUIRE(pool != nullptr);
@@ -607,9 +330,7 @@ void testWorkStealingNestedWait(ITaskPool* pool)
             static_cast<std::atomic<int>*>(p)->fetch_add(1, std::memory_order_relaxed);
         },
         &order,
-        nullptr,
-        nullptr,
-        0
+        nullptr
     );
 
     struct WaitPayload
@@ -624,13 +345,11 @@ void testWorkStealingNestedWait(ITaskPool* pool)
         [](void* p)
         {
             auto* ctx = static_cast<WaitPayload*>(p);
-            ctx->pool->waitTask(ctx->dep);
+            ctx->pool->waitAndReleaseTask(ctx->dep);
             ctx->order->fetch_add(1, std::memory_order_relaxed);
         },
         &payloadB,
-        nullptr,
-        nullptr,
-        0
+        nullptr
     );
 
     WaitPayload payloadC{pool, taskB, &order};
@@ -639,24 +358,18 @@ void testWorkStealingNestedWait(ITaskPool* pool)
         [](void* p)
         {
             auto* ctx = static_cast<WaitPayload*>(p);
-            ctx->pool->waitTask(ctx->dep);
+            ctx->pool->waitAndReleaseTask(ctx->dep);
             ctx->order->fetch_add(1, std::memory_order_relaxed);
         },
         &payloadC,
-        nullptr,
-        nullptr,
-        0
+        nullptr
     );
 
-    pool->waitTask(taskC);
+    pool->waitAndReleaseTask(taskC);
     CHECK(order.load() == 3);
-
-    pool->releaseTask(taskA);
-    pool->releaseTask(taskB);
-    pool->releaseTask(taskC);
 }
 
-// A task callback uses waitTaskGroup to wait on sub-tasks it spawns.
+// A task callback waits on a group of sub-tasks it spawns.
 // With 1 worker, the callback's thread must steal sub-tasks to make progress.
 void testWorkStealingWaitGroupFromCallback(ITaskPool* pool)
 {
@@ -688,34 +401,168 @@ void testWorkStealingWaitGroupFromCallback(ITaskPool* pool)
                     },
                     ctx->sum,
                     nullptr,
-                    nullptr,
-                    0,
                     group
                 );
             }
 
-            ctx->pool->waitTaskGroup(group);
-            ctx->pool->releaseTaskGroup(group);
+            ctx->pool->waitAndReleaseTaskGroup(group);
 
             for (int i = 0; i < N; ++i)
                 ctx->pool->releaseTask(subtasks[i]);
         },
         &payload,
-        nullptr,
-        nullptr,
-        0
+        nullptr
     );
 
-    pool->waitTask(task);
+    pool->waitAndReleaseTask(task);
     CHECK(sum.load() == 10);
-    pool->releaseTask(task);
+}
+
+struct NestedGroupState
+{
+    std::atomic<int> executed{0};
+};
+
+static thread_local NestedGroupState* tls_expectedNestedGroupState = nullptr;
+
+struct NestedGroupTaskPayload
+{
+    ITaskPool* pool;
+    ITaskPool::TaskGroupHandle group;
+    NestedGroupState* state;
+    std::atomic<int>* crossGroupExecutions;
+    int depth;
+};
+
+void runNestedGroupTask(void* data)
+{
+    auto* payload = static_cast<NestedGroupTaskPayload*>(data);
+    payload->state->executed.fetch_add(1, std::memory_order_relaxed);
+    if (tls_expectedNestedGroupState && tls_expectedNestedGroupState != payload->state)
+        payload->crossGroupExecutions->fetch_add(1, std::memory_order_relaxed);
+
+    if (payload->depth == 0)
+        return;
+
+    for (int i = 0; i < 2; ++i)
+    {
+        auto* child = new NestedGroupTaskPayload{
+            payload->pool,
+            payload->group,
+            payload->state,
+            payload->crossGroupExecutions,
+            payload->depth - 1,
+        };
+        auto task = payload->pool->submitTask(
+            runNestedGroupTask,
+            child,
+            [](void* childData)
+            {
+                delete static_cast<NestedGroupTaskPayload*>(childData);
+            },
+            payload->group
+        );
+        payload->pool->releaseTask(task);
+    }
+}
+
+// Saturate a single-worker pool with two callbacks that each wait on a
+// dynamically growing task group. The thread waiting on a task becomes the
+// second executor, so both executors are inside callbacks when the group work
+// is queued. Nested group-specific stealing is required to make progress.
+void testNestedGroupWaitWithSaturatedWorkers()
+{
+    ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
+    std::atomic<int> parentsStarted{0};
+    std::atomic<int> submissionTurn{1};
+    std::atomic<int> crossGroupExecutions{0};
+    NestedGroupState groupStates[2];
+
+    struct ParentPayload
+    {
+        ITaskPool* pool;
+        std::atomic<int>* parentsStarted;
+        std::atomic<int>* submissionTurn;
+        int index;
+        NestedGroupState* groupState;
+        NestedGroupState* firstGroupState;
+        std::atomic<int>* crossGroupExecutions;
+    };
+    ParentPayload payloads[] = {
+        {pool, &parentsStarted, &submissionTurn, 0, &groupStates[0], &groupStates[0], &crossGroupExecutions},
+        {pool, &parentsStarted, &submissionTurn, 1, &groupStates[1], &groupStates[0], &crossGroupExecutions},
+    };
+
+    ITaskPool::TaskHandle parents[2];
+    for (size_t i = 0; i < std::size(parents); ++i)
+    {
+        parents[i] = pool->submitTask(
+            [](void* data)
+            {
+                auto* payload = static_cast<ParentPayload*>(data);
+                payload->parentsStarted->fetch_add(1, std::memory_order_release);
+                while (payload->parentsStarted->load(std::memory_order_acquire) != 2)
+                    std::this_thread::yield();
+
+                NestedGroupState* previousExpectedState = tls_expectedNestedGroupState;
+                tls_expectedNestedGroupState = payload->groupState;
+
+                auto group = payload->pool->createTaskGroup();
+                // Queue group 1 first, then let group 0 enter its nested wait first. An
+                // unfiltered nested wait will deterministically execute the wrong root task.
+                while (payload->submissionTurn->load(std::memory_order_acquire) != payload->index)
+                    std::this_thread::yield();
+                auto* root = new NestedGroupTaskPayload{
+                    payload->pool,
+                    group,
+                    payload->groupState,
+                    payload->crossGroupExecutions,
+                    4,
+                };
+                auto rootTask = payload->pool->submitTask(
+                    runNestedGroupTask,
+                    root,
+                    [](void* rootData)
+                    {
+                        delete static_cast<NestedGroupTaskPayload*>(rootData);
+                    },
+                    group
+                );
+                payload->pool->releaseTask(rootTask);
+
+                if (payload->index == 1)
+                {
+                    payload->submissionTurn->store(0, std::memory_order_release);
+                    while (payload->firstGroupState->executed.load(std::memory_order_acquire) == 0)
+                        std::this_thread::yield();
+                }
+
+                payload->pool->waitAndReleaseTaskGroup(group);
+                tls_expectedNestedGroupState = previousExpectedState;
+            },
+            &payloads[i],
+            nullptr
+        );
+    }
+
+    for (auto parent : parents)
+        pool->waitAndReleaseTask(parent);
+
+    // Each group contains a complete binary tree with depth 4: 2^5 - 1 tasks.
+    CHECK(groupStates[0].executed.load(std::memory_order_relaxed) == 31);
+    CHECK(groupStates[1].executed.load(std::memory_order_relaxed) == 31);
+    CHECK(crossGroupExecutions.load(std::memory_order_relaxed) == 0);
 }
 
 TEST_CASE("task-pool-work-stealing")
 {
-    // Use a single worker thread to force work-stealing in wait functions.
-    // Without work-stealing, these tests would deadlock.
+    // Use a single worker thread so the waiting caller participates in execution.
     ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
+
+    SUBCASE("external-wait-steals-ready-task")
+    {
+        testExternalWaitStealsReadyTask(pool);
+    }
 
     SUBCASE("wait-task-from-callback")
     {
@@ -738,4 +585,9 @@ TEST_CASE("task-pool-work-stealing")
             testWorkStealingWaitGroupFromCallback(pool);
         }
     }
+}
+
+TEST_CASE("task-pool-nested-group-wait-saturated-workers")
+{
+    testNestedGroupWaitWithSaturatedWorkers();
 }
