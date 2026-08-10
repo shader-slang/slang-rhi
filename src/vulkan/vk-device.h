@@ -14,14 +14,28 @@ public:
     uint8_t m_deviceUUID[VK_UUID_SIZE];
 };
 
+struct CalibratedTimestampSupport
+{
+    bool available = false;
+    const char* deviceExtensionName = nullptr;
+    VkTimeDomainKHR hostTimeDomain = VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR;
+    CpuTimestampDomain cpuTimestampDomain = CpuTimestampDomain::Unknown;
+    uint64_t cpuTimestampFrequency = 0;
+};
+
 class DeviceImpl : public Device
 {
 public:
     using Device::readBuffer;
 
-    Result initVulkanInstance(const DeviceDesc& desc, const DebugLayerOptions& debugLayerOptions);
+    Result initVulkanInstance(
+        const DeviceDesc& desc,
+        const VulkanDeviceExtendedDesc* extendedDesc,
+        const DebugLayerOptions& debugLayerOptions
+    );
     Result initVulkanDevice(
         const DeviceDesc& desc,
+        const VulkanDeviceExtendedDesc* extendedDesc,
         BackendImpl* backend,
         std::vector<Feature>& availableFeatures,
         std::vector<Capability>& availableCapabilities
@@ -33,6 +47,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createTexture(
         const TextureDesc& desc,
         const SubresourceData* initData,
+        ITexture** outTexture
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL createTextureFromNativeHandle(
+        NativeHandle handle,
+        const TextureDesc& desc,
         ITexture** outTexture
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL createBuffer(
@@ -192,6 +211,11 @@ public:
         void* pUserData
     );
 
+    /// If a shader called abort() (OpAbortKHR) the device is lost; retrieve the abort message via
+    /// VK_KHR_device_fault and report it through the debug message callback. No-op when
+    /// Feature::ShaderAbort is unavailable. Safe to call after VK_ERROR_DEVICE_LOST.
+    void reportShaderAbortMessage();
+
     void _labelObject(uint64_t object, VkObjectType objectType, const char* label);
 
     void _transitionImageLayout(
@@ -215,13 +239,14 @@ public:
 
 public:
     DeviceNativeHandles m_existingDeviceHandles;
-    VulkanDeviceExtendedDesc m_extendedDesc;
 
     std::string m_adapterName;
 
     VkDebugUtilsMessengerEXT m_debugReportCallback = VK_NULL_HANDLE;
 
     VkDevice m_device = VK_NULL_HANDLE;
+    bool m_hasSubgroupSizeControl = false;
+    CalibratedTimestampSupport m_calibratedTimestampSupport;
 
     VulkanModule m_module;
     VulkanApi m_api;

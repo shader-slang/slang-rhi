@@ -261,16 +261,6 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) override;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL serializeAccelerationStructure(
-        BufferOffsetPair dst,
-        IAccelerationStructure* src
-    ) override;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
-        IAccelerationStructure* dst,
-        BufferOffsetPair src
-    ) override;
-
     virtual SLANG_NO_THROW void SLANG_MCALL executeClusterOperation(const ClusterOperationDesc& desc) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
@@ -301,6 +291,8 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) override;
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) override;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL executeCallback(const ExecuteCallbackDesc& desc) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(
         const CommandBufferDesc& desc,

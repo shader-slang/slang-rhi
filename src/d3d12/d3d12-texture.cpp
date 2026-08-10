@@ -76,8 +76,9 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
     if (!m_sharedHandle)
     {
         HANDLE handle = NULL;
-        SLANG_RETURN_ON_FAIL(
-            device->m_device->CreateSharedHandle(m_resource.getResource(), NULL, GENERIC_ALL, nullptr, &handle)
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            device->m_device->CreateSharedHandle(m_resource.getResource(), NULL, GENERIC_ALL, nullptr, &handle),
+            device
         );
         m_sharedHandle = NativeHandle{NativeHandleType::Win32, (uint64_t)handle};
     }

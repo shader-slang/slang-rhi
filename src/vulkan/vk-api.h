@@ -61,12 +61,15 @@ protected:
 #define VK_API_INSTANCE_PROCS_OPT(x) \
     x(vkGetPhysicalDeviceFeatures2) \
     x(vkGetPhysicalDeviceProperties2) \
+    VK_API_INSTANCE_KHR_PROCS(x) \
     x(vkCreateDebugUtilsMessengerEXT) \
     x(vkDestroyDebugUtilsMessengerEXT) \
     x(vkGetPhysicalDeviceCooperativeMatrixPropertiesNV) \
     x(vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV) \
     x(vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR) \
     x(vkGetPhysicalDeviceCooperativeVectorPropertiesNV) \
+    x(vkGetPhysicalDeviceCalibrateableTimeDomainsKHR) \
+    x(vkGetPhysicalDeviceCalibrateableTimeDomainsEXT) \
     /* */
 
 #define VK_API_INSTANCE_PROCS(x) \
@@ -287,6 +290,8 @@ protected:
     x(vkGetPipelineKeyKHR) \
     x(vkReleaseCapturedPipelineDataKHR) \
     x(vkCmdSetCheckpointNV) \
+    x(vkGetCalibratedTimestampsKHR) \
+    x(vkGetCalibratedTimestampsEXT) \
     /* */
 
 #define VK_API_ALL_GLOBAL_PROCS(x) \
@@ -294,7 +299,7 @@ protected:
 
 #define VK_API_ALL_INSTANCE_PROCS(x) \
     VK_API_INSTANCE_PROCS(x) \
-    VK_API_INSTANCE_KHR_PROCS(x)
+    /* */
 
 #define VK_API_ALL_DEVICE_PROCS(x) \
     VK_API_DEVICE_PROCS(x) \
@@ -537,6 +542,16 @@ struct VulkanExtendedFeatures
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV cooperativeMatrix2Features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
     };
+
+    // Shader abort feature chain: VK_KHR_shader_abort hard-depends on VK_KHR_device_fault and
+    // VK_KHR_shader_constant_data, so all three are queried and enabled together.
+    VkPhysicalDeviceShaderAbortFeaturesKHR shaderAbortFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ABORT_FEATURES_KHR
+    };
+    VkPhysicalDeviceFaultFeaturesKHR faultFeatures = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_KHR};
+    VkPhysicalDeviceShaderConstantDataFeaturesKHR shaderConstantDataFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CONSTANT_DATA_FEATURES_KHR
+    };
 };
 
 struct VulkanApi
@@ -564,6 +579,9 @@ struct VulkanApi
     /// Initialize the device functions
     Result initDeviceProcs(VkDevice device);
 
+    /// Initialize cached properties derived from the enabled device features.
+    void initDerivedDeviceProperties();
+
     /// Type bits control which indices are tested against bit 0 for testing at index 0
     /// properties - a memory type must have all the bits set as passed in
     /// Returns -1 if couldn't find an appropriate memory type index
@@ -583,6 +601,9 @@ struct VulkanApi
     VkPhysicalDeviceFeatures m_deviceFeatures;
     VkPhysicalDeviceMemoryProperties m_deviceMemoryProperties;
     VulkanExtendedFeatures m_extendedFeatures;
+    VkPipelineStageFlags m_supportedShaderStageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                                                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                                                       VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 };
 
 } // namespace rhi::vk

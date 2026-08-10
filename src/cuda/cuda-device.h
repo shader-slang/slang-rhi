@@ -53,6 +53,12 @@ public:
         IBuffer** outBuffer
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
+        NativeHandle handle,
+        const BufferDesc& desc,
+        IBuffer** outBuffer
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromSharedHandle(
         NativeHandle handle,
         const BufferDesc& desc,
@@ -69,6 +75,14 @@ public:
         const size_t size,
         ITexture** outTexture
     ) override;
+
+    Result createTextureFromSharedHandle(
+        NativeHandle handle,
+        const TextureDesc& desc,
+        const size_t size,
+        bool isDedicated,
+        ITexture** outTexture
+    );
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createTextureView(
         ITexture* texture,

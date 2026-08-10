@@ -107,17 +107,10 @@ inline Result createDevice(
     deviceDesc.slang.preprocessorMacros = preprocessorMacrosDescs.data();
     deviceDesc.slang.preprocessorMacroCount = preprocessorMacrosDescs.size();
 
-    SLANG_RETURN_ON_FAIL(getRHI()->createDevice(deviceDesc, outDevice));
+    deviceDesc.requiredFeatureCount = static_cast<uint32_t>(requiredFeatures.size());
+    deviceDesc.requiredFeatures = requiredFeatures.data();
 
-    for (const auto& feature : requiredFeatures)
-    {
-        if (!(*outDevice)->hasFeature(feature))
-        {
-            return SLANG_E_NOT_AVAILABLE;
-        }
-    }
-
-    return SLANG_OK;
+    return getRHI()->createDevice(deviceDesc, outDevice);
 }
 
 // ---------------------------------------------------------------------------------------

@@ -31,9 +31,10 @@ public:
     VkImage m_image = VK_NULL_HANDLE;
     VkFormat m_vkformat = VK_FORMAT_UNDEFINED;
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
+    // False for swap chain or externally-owned native images.
+    bool m_shouldDestroyImage = true;
     // True if this texture is created from a swap chain buffer.
     // Swap chain textures are deleted immediately when deleteThis() is called.
-    // Swap chain textures do not own the underlying image memory.
     bool m_isSwapchainTexture = false;
     bool m_isSwapchainInitialState = false;
 

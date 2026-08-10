@@ -106,8 +106,6 @@ public:
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
-    void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
-    void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
@@ -150,7 +148,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo), m_device);
 
     CommandList& commandList = commandBuffer->m_commandList;
 
@@ -195,7 +193,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     commitBarriers();
     m_stateTracking.clear();
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkEndCommandBuffer(m_cmdBuffer));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkEndCommandBuffer(m_cmdBuffer), m_device);
 
     return SLANG_OK;
 }
@@ -1396,42 +1394,6 @@ void CommandRecorder::cmdQueryAccelerationStructureProperties(const commands::Qu
     );
 }
 
-void CommandRecorder::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
-{
-    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(cmd.dst.buffer);
-    AccelerationStructureImpl* src = checked_cast<AccelerationStructureImpl*>(cmd.src);
-
-    requireBufferState(dstBuffer, ResourceState::UnorderedAccess);
-    requireBufferState(src->m_buffer, ResourceState::AccelerationStructureRead);
-    commitBarriers();
-
-    VkCopyAccelerationStructureToMemoryInfoKHR copyInfo = {
-        VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_TO_MEMORY_INFO_KHR
-    };
-    copyInfo.src = src->m_vkHandle;
-    copyInfo.dst.deviceAddress = cmd.dst.getDeviceAddress();
-    copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_SERIALIZE_KHR;
-    m_api.vkCmdCopyAccelerationStructureToMemoryKHR(m_cmdBuffer, &copyInfo);
-}
-
-void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
-{
-    AccelerationStructureImpl* dst = checked_cast<AccelerationStructureImpl*>(cmd.dst);
-    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(cmd.src.buffer);
-
-    requireBufferState(dst->m_buffer, ResourceState::AccelerationStructureWrite);
-    requireBufferState(srcBuffer, ResourceState::ShaderResource);
-    commitBarriers();
-
-    VkCopyMemoryToAccelerationStructureInfoKHR copyInfo = {
-        VK_STRUCTURE_TYPE_COPY_MEMORY_TO_ACCELERATION_STRUCTURE_INFO_KHR
-    };
-    copyInfo.src.deviceAddress = cmd.src.getDeviceAddress();
-    copyInfo.dst = dst->m_vkHandle;
-    copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
-    m_api.vkCmdCopyMemoryToAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
-}
-
 void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     if (!m_api.vkCmdBuildClusterAccelerationStructureIndirectNV)
@@ -1628,7 +1590,19 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandRecorder::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    cmd.callback(cmd.userData);
+    commitBarriers();
+
+    NativeHandle nativeHandle{
+        NativeHandleType::VkCommandBuffer,
+        reinterpret_cast<uint64_t>(m_cmdBuffer),
+    };
+    invokeExecuteCallback(cmd, nativeHandle);
+
+    m_renderStateValid = false;
+    m_preparedRenderStateValid = false;
+    m_computeStateValid = false;
+    m_rayTracingStateValid = false;
+    m_bindingData = nullptr;
 }
 
 void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPoint bindPoint)
@@ -1739,8 +1713,10 @@ void CommandRecorder::commitBarriers()
     {
         BufferImpl* buffer = checked_cast<BufferImpl*>(bufferBarrier.buffer);
 
-        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(bufferBarrier.stateBefore, true);
-        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(bufferBarrier.stateAfter, false);
+        VkPipelineStageFlags beforeStageFlags =
+            calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, bufferBarrier.stateBefore, true);
+        VkPipelineStageFlags afterStageFlags =
+            calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, bufferBarrier.stateAfter, false);
 
         if ((beforeStageFlags != activeBeforeStageFlags || afterStageFlags != activeAfterStageFlags) &&
             !bufferBarriers.empty())
@@ -1774,8 +1750,10 @@ void CommandRecorder::commitBarriers()
     {
         TextureImpl* texture = checked_cast<TextureImpl*>(textureBarrier.texture);
 
-        VkPipelineStageFlags beforeStageFlags = calcPipelineStageFlags(textureBarrier.stateBefore, true);
-        VkPipelineStageFlags afterStageFlags = calcPipelineStageFlags(textureBarrier.stateAfter, false);
+        VkPipelineStageFlags beforeStageFlags =
+            calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, textureBarrier.stateBefore, true);
+        VkPipelineStageFlags afterStageFlags =
+            calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, textureBarrier.stateAfter, false);
 
         if ((beforeStageFlags != activeBeforeStageFlags || afterStageFlags != activeAfterStageFlags) &&
             !imageBarriers.empty())
@@ -1845,9 +1823,6 @@ void CommandRecorder::queryAccelerationStructureProperties(
         case QueryType::AccelerationStructureCompactedSize:
             queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
             break;
-        case QueryType::AccelerationStructureSerializedSize:
-            queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR;
-            break;
         case QueryType::AccelerationStructureCurrentSize:
             continue;
         default:
@@ -1858,15 +1833,17 @@ void CommandRecorder::queryAccelerationStructureProperties(
             );
             return;
         }
-        auto queryPool = checked_cast<QueryPoolImpl*>(queryDescs[i].queryPool)->m_pool;
-        m_device->m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool, (uint32_t)queryDescs[i].firstQueryIndex, 1);
+        auto queryPoolImpl = checked_cast<QueryPoolImpl*>(queryDescs[i].queryPool);
+        auto queryPool = queryPoolImpl->m_pool;
+        uint32_t queryIndex = (uint32_t)queryDescs[i].firstQueryIndex;
+        m_device->m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool, queryIndex, accelerationStructureCount);
         m_device->m_api.vkCmdWriteAccelerationStructuresPropertiesKHR(
             m_cmdBuffer,
             accelerationStructureCount,
             vkHandles.data(),
             queryType,
             queryPool,
-            queryDescs[i].firstQueryIndex
+            queryIndex
         );
     }
 }
@@ -2013,6 +1990,11 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
     {
         CommandBufferImpl* commandBuffer = checked_cast<CommandBufferImpl*>(desc.commandBuffers[i]);
         commandBuffer->m_submissionID = m_lastSubmittedID;
+        for (const auto& queryWrite : commandBuffer->m_commandList.getQueryWrites())
+        {
+            checked_cast<QueryPool*>(queryWrite.queryPool)
+                ->markQueryRangeSubmitted(queryWrite.index, queryWrite.count, m_lastSubmittedID);
+        }
         m_commandBuffersInFlight.push_back(commandBuffer);
         vkCommandBuffers.push_back(commandBuffer->m_commandBuffer);
     }
@@ -2091,7 +2073,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
     }
 
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence), m_device);
     m_surfaceSync.fence = VK_NULL_HANDLE;
 
     retireCommandBuffers();
@@ -2103,7 +2085,7 @@ Result CommandQueueImpl::waitOnHost()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     auto& api = device->m_api;
-    api.vkQueueWaitIdle(m_queue);
+    SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkQueueWaitIdle(m_queue), device);
     retireCommandBuffers();
     return SLANG_OK;
 }
@@ -2112,6 +2094,43 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     outHandle->type = NativeHandleType::VkQueue;
     outHandle->value = (uint64_t)m_queue;
+    return SLANG_OK;
+}
+
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const CalibratedTimestampSupport& timestampSupport = device->m_calibratedTimestampSupport;
+    if (!timestampSupport.available || !m_api.vkGetCalibratedTimestampsKHR)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
+    VkCalibratedTimestampInfoKHR timestampInfos[2] = {};
+    timestampInfos[0].sType = VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_KHR;
+    timestampInfos[0].timeDomain = VK_TIME_DOMAIN_DEVICE_KHR;
+    timestampInfos[1].sType = VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_KHR;
+    timestampInfos[1].timeDomain = timestampSupport.hostTimeDomain;
+
+    uint64_t timestamps[2] = {};
+    uint64_t maxDeviation = 0;
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkGetCalibratedTimestampsKHR(m_api.m_device, 2, timestampInfos, timestamps, &maxDeviation),
+        m_device
+    );
+
+    outCalibration->cpuDomain = timestampSupport.cpuTimestampDomain;
+    outCalibration->cpuTimestamp = timestamps[1];
+    outCalibration->cpuFrequency = timestampSupport.cpuTimestampFrequency;
+    outCalibration->gpuTimestamp = timestamps[0];
+    outCalibration->gpuFrequency = device->getInfo().timestampFrequency;
+    outCalibration->maxDeviationNs = maxDeviation;
+
     return SLANG_OK;
 }
 
@@ -2224,16 +2243,18 @@ Result CommandBufferImpl::init()
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     createInfo.queueFamilyIndex = m_queue->m_queueFamilyIndex;
-    SLANG_VK_RETURN_ON_FAIL(
-        device->m_api.vkCreateCommandPool(device->m_api.m_device, &createInfo, nullptr, &m_commandPool)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkCreateCommandPool(device->m_api.m_device, &createInfo, nullptr, &m_commandPool),
+        device
     );
 
     VkCommandBufferAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
     allocInfo.commandPool = m_commandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
-    SLANG_VK_RETURN_ON_FAIL(
-        device->m_api.vkAllocateCommandBuffers(device->m_api.m_device, &allocInfo, &m_commandBuffer)
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        device->m_api.vkAllocateCommandBuffers(device->m_api.m_device, &allocInfo, &m_commandBuffer),
+        device
     );
 
     return SLANG_OK;
@@ -2243,7 +2264,7 @@ Result CommandBufferImpl::reset()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_commandList.reset();
-    SLANG_VK_RETURN_ON_FAIL(device->m_api.vkResetCommandPool(device->m_device, m_commandPool, 0));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(device->m_api.vkResetCommandPool(device->m_device, m_commandPool, 0), device);
     m_constantBufferPool.reset();
     m_descriptorSetAllocator.reset();
     m_bindingCache.reset();

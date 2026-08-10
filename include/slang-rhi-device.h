@@ -187,6 +187,17 @@ struct AccelerationStructureInstanceDescMetal
     uint32_t userID;
 };
 
+/// Axis-aligned bounding box structure matching D3D12_RAYTRACING_AABB, VkAabbPositionsNV and OptixAabb.
+struct AABB
+{
+    float minX;
+    float minY;
+    float minZ;
+    float maxX;
+    float maxY;
+    float maxZ;
+};
+
 // ----------------------------------------------------------------------------
 // Cluster operations
 // ----------------------------------------------------------------------------

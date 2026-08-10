@@ -52,49 +52,7 @@ void _unpackUInt16Texel(const void* texelData, void* outData, size_t outSize);
 template<int N>
 void _unpackUInt32Texel(const void* texelData, void* outData, size_t outSize);
 
-struct CPUFormatInfoMap
-{
-    CPUFormatInfoMap()
-    {
-        memset(m_infos, 0, sizeof(m_infos));
-
-        set(Format::RGBA32Uint, &_unpackUInt32Texel<4>);
-
-        set(Format::RGBA32Float, &_unpackFloatTexel<4>);
-        set(Format::RGB32Float, &_unpackFloatTexel<3>);
-
-        set(Format::RG32Float, &_unpackFloatTexel<2>);
-        set(Format::R32Float, &_unpackFloatTexel<1>);
-
-        set(Format::RGBA16Float, &_unpackFloat16Texel<4>);
-        set(Format::RG16Float, &_unpackFloat16Texel<2>);
-        set(Format::R16Float, &_unpackFloat16Texel<1>);
-
-        set(Format::RGBA8Unorm, &_unpackUnorm8Texel<4>);
-        set(Format::BGRA8Unorm, &_unpackUnormBGRA8Texel);
-        set(Format::R16Uint, &_unpackUInt16Texel<1>);
-        set(Format::R32Uint, &_unpackUInt32Texel<1>);
-        set(Format::D32Float, &_unpackFloatTexel<1>);
-    }
-
-    void set(Format format, CPUTextureUnpackFunc func)
-    {
-        auto& info = m_infos[size_t(format)];
-        info.unpackFunc = func;
-    }
-
-    SLANG_FORCE_INLINE const CPUTextureFormatInfo& get(Format format) const { return m_infos[size_t(format)]; }
-
-    CPUTextureFormatInfo m_infos[size_t(Format::_Count)];
-};
-
-static const CPUFormatInfoMap g_formatInfoMap;
-
-inline const CPUTextureFormatInfo* _getFormatInfo(Format format)
-{
-    const CPUTextureFormatInfo& info = g_formatInfoMap.get(format);
-    return info.unpackFunc ? &info : nullptr;
-}
+const CPUTextureFormatInfo* _getFormatInfo(Format format);
 
 class TextureImpl : public Texture
 {

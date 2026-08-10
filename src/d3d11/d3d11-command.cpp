@@ -12,6 +12,11 @@
 #include "../strings.h"
 #include "../format-conversion.h"
 
+#include "core/platform.h"
+
+#include <chrono>
+#include <thread>
+
 namespace rhi::d3d11 {
 
 template<typename T>
@@ -25,6 +30,7 @@ class CommandExecutor
 public:
     DeviceImpl* m_device;
     ID3D11DeviceContext1* m_immediateContext;
+    uint64_t m_submissionID;
 
     short_vector<RefPtr<TextureViewImpl>> m_renderTargetViews;
     short_vector<RefPtr<TextureViewImpl>> m_resolveTargetViews;
@@ -41,11 +47,12 @@ public:
 
     BindingDataImpl* m_bindingData = nullptr;
 
-    bool m_usedDisjointQuery = false;
+    ID3D11Query* m_disjointQuery = nullptr;
 
-    CommandExecutor(DeviceImpl* device)
+    CommandExecutor(DeviceImpl* device, uint64_t submissionID)
         : m_device(device)
         , m_immediateContext(device->m_immediateContext1.get())
+        , m_submissionID(submissionID)
     {
     }
 
@@ -80,8 +87,6 @@ public:
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
-    void cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd);
-    void cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
     void cmdConvertCooperativeVectorMatrix(const commands::ConvertCooperativeVectorMatrix& cmd);
     void cmdSetBufferState(const commands::SetBufferState& cmd);
@@ -93,12 +98,23 @@ public:
     void cmdWriteTimestamp(const commands::WriteTimestamp& cmd);
     void cmdExecuteCallback(const commands::ExecuteCallback& cmd);
 
+    void invalidateState();
     void clearState();
 };
 
 Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
 {
     const CommandList& commandList = commandBuffer->m_commandList;
+    if (commandList.writesTimestamp())
+    {
+        m_disjointQuery = commandBuffer->m_disjointQuery;
+        if (!m_disjointQuery)
+        {
+            return SLANG_FAIL;
+        }
+        m_immediateContext->Begin(m_disjointQuery);
+    }
+
     auto command = commandList.getCommands();
     while (command)
     {
@@ -117,9 +133,9 @@ Result CommandExecutor::execute(CommandBufferImpl* commandBuffer)
         command = command->next;
     }
 
-    if (m_usedDisjointQuery)
+    if (m_disjointQuery)
     {
-        m_immediateContext->End(m_device->m_disjointQuery);
+        m_immediateContext->End(m_disjointQuery);
     }
 
     return SLANG_OK;
@@ -829,18 +845,6 @@ void CommandExecutor::cmdQueryAccelerationStructureProperties(const commands::Qu
     NOT_SUPPORTED(ICommandEncoder, queryAccelerationStructureProperties);
 }
 
-void CommandExecutor::cmdSerializeAccelerationStructure(const commands::SerializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, serializeAccelerationStructure);
-}
-
-void CommandExecutor::cmdDeserializeAccelerationStructure(const commands::DeserializeAccelerationStructure& cmd)
-{
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(ICommandEncoder, deserializeAccelerationStructure);
-}
-
 void CommandExecutor::cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd)
 {
     SLANG_UNUSED(cmd);
@@ -886,28 +890,35 @@ void CommandExecutor::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
 void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
-    if (!m_usedDisjointQuery)
-    {
-        m_immediateContext->Begin(m_device->m_disjointQuery);
-        m_usedDisjointQuery = true;
-    }
     m_immediateContext->End(queryPool->getQuery(cmd.queryIndex));
+    queryPool->setDisjointQuery(cmd.queryIndex, m_disjointQuery);
+    queryPool->markQueryRangeSubmitted(cmd.queryIndex, 1, m_submissionID);
 }
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
-    cmd.callback(cmd.userData);
+    NativeHandle nativeHandle{
+        NativeHandleType::D3D11DeviceContext,
+        reinterpret_cast<uint64_t>(m_immediateContext),
+    };
+    invokeExecuteCallback(cmd, nativeHandle);
+    clearState();
 }
 
-void CommandExecutor::clearState()
+void CommandExecutor::invalidateState()
 {
-    m_immediateContext->ClearState();
     m_renderStateValid = false;
     m_renderState = {};
     m_renderPipeline = nullptr;
     m_computeStateValid = false;
     m_computePipeline = nullptr;
     m_bindingData = nullptr;
+}
+
+void CommandExecutor::clearState()
+{
+    m_immediateContext->ClearState();
+    invalidateState();
 }
 
 // CommandQueueImpl
@@ -927,9 +938,10 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    ++m_lastSubmittedID;
     for (uint32_t i = 0; i < desc.commandBufferCount; i++)
     {
-        CommandExecutor executor(getDevice<DeviceImpl>());
+        CommandExecutor executor(getDevice<DeviceImpl>(), m_lastSubmittedID);
         SLANG_RETURN_ON_FAIL(executor.execute(checked_cast<CommandBufferImpl*>(desc.commandBuffers[i])));
     }
     return SLANG_OK;
@@ -937,6 +949,27 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 
 Result CommandQueueImpl::waitOnHost()
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    if (!m_waitQuery)
+    {
+        D3D11_QUERY_DESC queryDesc = {};
+        queryDesc.Query = D3D11_QUERY_EVENT;
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(device->m_device->CreateQuery(&queryDesc, m_waitQuery.writeRef()), device);
+    }
+
+    device->m_immediateContext->End(m_waitQuery);
+    device->m_immediateContext->Flush();
+
+    HRESULT hr = S_FALSE;
+    // Let GetData flush/progress the runtime; DONOTFLUSH can leave event queries pending
+    // for seconds on some D3D11 drivers even after an explicit Flush above.
+    while ((hr = device->m_immediateContext->GetData(m_waitQuery, nullptr, 0, 0)) == S_FALSE)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
+
     return SLANG_OK;
 }
 
@@ -944,6 +977,78 @@ Result CommandQueueImpl::getNativeHandle(NativeHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result CommandQueueImpl::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    if (!outCalibration)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    D3D11_QUERY_DESC timestampQueryDesc = {};
+    timestampQueryDesc.Query = D3D11_QUERY_TIMESTAMP;
+    ComPtr<ID3D11Query> timestampQuery;
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateQuery(&timestampQueryDesc, timestampQuery.writeRef()),
+        device
+    );
+
+    D3D11_QUERY_DESC disjointQueryDesc = {};
+    disjointQueryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+    ComPtr<ID3D11Query> disjointQuery;
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateQuery(&disjointQueryDesc, disjointQuery.writeRef()),
+        device
+    );
+
+    device->m_immediateContext->Begin(disjointQuery);
+    const uint64_t before = getCpuTimestamp();
+    device->m_immediateContext->End(timestampQuery);
+    device->m_immediateContext->End(disjointQuery);
+    device->m_immediateContext->Flush();
+
+    D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjointData = {};
+    HRESULT hr = S_FALSE;
+    while ((hr = device->m_immediateContext->GetData(disjointQuery, &disjointData, sizeof(disjointData), 0)) == S_FALSE)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
+    const uint64_t after = getCpuTimestamp();
+
+    if (disjointData.Disjoint || disjointData.Frequency == 0)
+    {
+        return SLANG_FAIL;
+    }
+
+    uint64_t gpuTimestamp = 0;
+    hr = S_FALSE;
+    while ((hr = device->m_immediateContext->GetData(timestampQuery, &gpuTimestamp, sizeof(gpuTimestamp), 0)) ==
+           S_FALSE)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(hr, device);
+
+    if (after < before)
+    {
+        return SLANG_FAIL;
+    }
+
+    const uint64_t cpuFrequency = getCpuTimestampFrequency();
+    const uint64_t cpuDelta = after - before;
+
+    outCalibration->cpuDomain = getCpuTimestampDomain();
+    outCalibration->cpuTimestamp = before + cpuDelta / 2;
+    outCalibration->cpuFrequency = cpuFrequency;
+    outCalibration->gpuTimestamp = gpuTimestamp;
+    outCalibration->gpuFrequency = disjointData.Frequency;
+    outCalibration->maxDeviationNs = ticksToNanoseconds(cpuDelta, cpuFrequency) / 2 + 1;
+
+    return SLANG_OK;
 }
 
 // CommandEncoderImpl
@@ -984,6 +1089,16 @@ Result CommandEncoderImpl::finish(const CommandBufferDesc& desc, ICommandBuffer*
     m_commandBuffer->setDesc(desc);
     SLANG_RETURN_ON_FAIL(resolvePipelines(m_device));
     m_commandBuffer->m_constantBufferPool.finish();
+    if (m_commandBuffer->m_commandList.writesTimestamp() && !m_commandBuffer->m_disjointQuery)
+    {
+        D3D11_QUERY_DESC queryDesc = {};
+        queryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+        DeviceImpl* device = getDevice<DeviceImpl>();
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            device->m_device->CreateQuery(&queryDesc, m_commandBuffer->m_disjointQuery.writeRef()),
+            device
+        );
+    }
     returnComPtr(outCommandBuffer, m_commandBuffer);
     m_commandBuffer = nullptr;
     m_commandList = nullptr;
@@ -1006,6 +1121,7 @@ CommandBufferImpl::CommandBufferImpl(Device* device)
 Result CommandBufferImpl::reset()
 {
     m_bindingCache.reset();
+    m_disjointQuery.setNull();
     return CommandBuffer::reset();
 }
 

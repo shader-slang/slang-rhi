@@ -115,8 +115,17 @@ public:
     BindingOffset m_resourceCount;
     BindingOffset m_totalResourceCount;
 
+    struct PointerFieldInfo
+    {
+        uint32_t uniformOffset;
+    };
+
+    const std::vector<PointerFieldInfo>& getPointerFields() const { return m_pointerFields; }
+    bool hasPointerFields() const { return !m_pointerFields.empty(); }
+
     std::vector<BindingRangeInfo> m_bindingRanges;
     std::vector<SubObjectRangeInfo> m_subObjectRanges;
+    std::vector<PointerFieldInfo> m_pointerFields;
 
     // The type layout to use when the shader object is bind as a parameter block.
     slang::TypeLayoutReflection* m_parameterBlockTypeLayout = nullptr;

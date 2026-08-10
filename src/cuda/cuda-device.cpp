@@ -14,6 +14,8 @@
 #include "cuda-utils.h"
 #include "cuda-heap.h"
 
+#include "core/platform.h"
+
 namespace rhi::cuda {
 
 struct ComputeCapabilityInfo
@@ -24,19 +26,15 @@ struct ComputeCapabilityInfo
 };
 
 // List of compute capabilities. This is in order from lowest to highest.
-// Note: This currently only contains versions exposed as a Slang capability.
+// These are driver-reported hardware tiers and do not imply downstream compiler support.
 static ComputeCapabilityInfo kKnownComputeCapabilities[] = {
 #define COMPUTE_CAPABILITY(major, minor) {major, minor, Capability::_cuda_sm_##major##_##minor}
-    COMPUTE_CAPABILITY(1, 0),
-    COMPUTE_CAPABILITY(2, 0),
-    COMPUTE_CAPABILITY(3, 0),
-    COMPUTE_CAPABILITY(3, 5),
-    COMPUTE_CAPABILITY(4, 0),
-    COMPUTE_CAPABILITY(5, 0),
-    COMPUTE_CAPABILITY(6, 0),
-    COMPUTE_CAPABILITY(7, 0),
-    COMPUTE_CAPABILITY(8, 0),
-    COMPUTE_CAPABILITY(9, 0),
+    COMPUTE_CAPABILITY(1, 0),  COMPUTE_CAPABILITY(2, 0),  COMPUTE_CAPABILITY(3, 0),  COMPUTE_CAPABILITY(3, 5),
+    COMPUTE_CAPABILITY(4, 0),  COMPUTE_CAPABILITY(5, 0),  COMPUTE_CAPABILITY(6, 0),  COMPUTE_CAPABILITY(7, 0),
+    COMPUTE_CAPABILITY(7, 2),  COMPUTE_CAPABILITY(7, 5),  COMPUTE_CAPABILITY(8, 0),  COMPUTE_CAPABILITY(8, 6),
+    COMPUTE_CAPABILITY(8, 7),  COMPUTE_CAPABILITY(8, 8),  COMPUTE_CAPABILITY(8, 9),  COMPUTE_CAPABILITY(9, 0),
+    COMPUTE_CAPABILITY(10, 0), COMPUTE_CAPABILITY(10, 3), COMPUTE_CAPABILITY(11, 0), COMPUTE_CAPABILITY(12, 0),
+    COMPUTE_CAPABILITY(12, 1),
 #undef COMPUTE_CAPABILITY
 };
 
@@ -188,6 +186,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         limits.maxComputeDispatchThreadGroups[1] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y);
         limits.maxComputeDispatchThreadGroups[2] = getAttribute(CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z);
 
+        int warpSize = getAttribute(CU_DEVICE_ATTRIBUTE_WARP_SIZE);
+        if (warpSize > 0)
+        {
+            limits.minWaveSize = uint32_t(warpSize);
+            limits.maxWaveSize = uint32_t(warpSize);
+        }
+
         m_info.limits = limits;
     }
 
@@ -202,36 +207,68 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
-    addFeature(Feature::RealtimeClock);
-    // Not clear how to detect half support on CUDA. For now we'll assume we have it
-    addFeature(Feature::Half);
+    addFeature(Feature::TimestampCalibration);
     addFeature(Feature::Pointer);
+
+    int computeCapabilityMajor = 0;
+    int computeCapabilityMinor = 0;
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuDeviceGetAttribute(&computeCapabilityMajor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, m_ctx.device),
+        this
+    );
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+        cuDeviceGetAttribute(&computeCapabilityMinor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
+        this
+    );
+
+    auto hasComputeCapability = [&](int major, int minor = 0) -> bool
+    {
+        return (computeCapabilityMajor > major) || (computeCapabilityMajor == major && computeCapabilityMinor >= minor);
+    };
+
+    // Conservative thresholds to avoid false positive feature advertisement.
+    if (hasComputeCapability(2, 0))
+    {
+        addFeature(Feature::Double);
+        addFeature(Feature::Int16);
+        addFeature(Feature::Int64);
+        addFeature(Feature::AtomicFloat);
+        addFeature(Feature::AtomicInt64);
+        addFeature(Feature::RealtimeClock);
+    }
+    if (hasComputeCapability(3, 0))
+    {
+        addFeature(Feature::WaveOps);
+    }
+    if (hasComputeCapability(6, 0))
+    {
+        addFeature(Feature::Half);
+    }
+    if (hasComputeCapability(7, 0))
+    {
+        addFeature(Feature::AtomicHalf);
+    }
+    if (hasComputeCapability(8, 0))
+    {
+        addFeature(Feature::Bfloat16);
+    }
+    if (hasComputeCapability(8, 9))
+    {
+        addFeature(Feature::Float8);
+    }
+    if (hasComputeCapability(9, 0))
+    {
+        addFeature(Feature::AtomicBfloat16);
+    }
 
     addCapability(Capability::cuda);
 
     // Detect supported compute capabilities
+    for (const auto& cc : kKnownComputeCapabilities)
     {
-        int major = 0, minor = 0;
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, m_ctx.device),
-            this
-        );
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
-            cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, m_ctx.device),
-            this
-        );
-        for (const auto& cc : kKnownComputeCapabilities)
+        if (hasComputeCapability(cc.major, cc.minor))
         {
-            if ((major == cc.major && minor >= cc.minor) || major > cc.major)
-            {
-                addCapability(cc.capability);
-            }
-        }
-
-        // BFloat16 atomic operations require SM 9.0 (Hopper) or higher
-        if (major >= 9)
-        {
-            addFeature(Feature::AtomicBfloat16);
+            addCapability(cc.capability);
         }
     }
 
@@ -320,6 +357,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     m_globalHeaps.push_back(m_deviceMemHeap);
 
     SLANG_RETURN_ON_FAIL(m_clearEngine.initialize(this));
+
+    SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 
     return SLANG_OK;
 }

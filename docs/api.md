@@ -14,10 +14,10 @@
 | `getSlangSession`                  | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getQueue`                         | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createTexture`                    | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
-| `createTextureFromNativeHandle`    | :x:     | :x:  | :x:   | yes   | :x:    | :x:     | :x:  |
+| `createTextureFromNativeHandle`    | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |
 | `createTextureFromSharedHandle`    | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
 | `createBuffer`                     | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
-| `createBufferFromNativeHandle`     | :x:     | :x:  | :x:   | yes   | yes    | :x:     | :x:  |
+| `createBufferFromNativeHandle`     | :x:     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `createBufferFromSharedHandle`     | :x:     | yes  | :x:   | :x:   | :x:    | :x:     | :x:  |
 | `mapBuffer`                        | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `unmapBuffer`                      | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
@@ -153,11 +153,13 @@
 
 ## `IQueryPool` interface
 
-| API         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-------------|-----|------|-------|-------|--------|-------|------|
-| `getDesc`   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getResult` | yes | yes  | yes   | yes   | yes    | yes   | :x:  |
-| `reset`     | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| API                         | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|-----------------------------|-----|------|-------|-------|--------|-------|------|
+| `getDesc`                   | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getResultState`            | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
+| `getResult`                 | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
+| `reset`                     | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
+| `reset(queryIndex, count)`  | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 
 ## `ICommandEncoder` interface
 
@@ -182,8 +184,6 @@
 | `buildAccelerationStructure`           | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `copyAccelerationStructure`            | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `queryAccelerationStructureProperties` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
-| `serializeAccelerationStructure`       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
-| `deserializeAccelerationStructure`     | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `executeClusterOperation`              | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `convertCooperativeVectorMatrix`       | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `setBufferState`                       | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
@@ -224,7 +224,7 @@
 |---------------------------|-----|------|-------|-------|--------|-------|------|
 | `bindPipeline`            | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `dispatchCompute`         | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `dispatchComputeIndirect` | :x: | yes  | yes   | yes   | yes    | :x:   | yes  |
+| `dispatchComputeIndirect` | :x: | yes  | yes   | yes   | yes    | yes   | yes  |
 
 ## `IRayTracingPassEncoder` interface
 
@@ -242,13 +242,14 @@
 
 ## `ICommandQueue` interface
 
-| API                     | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
-|-------------------------|-----|------|-------|-------|--------|-------|------|
-| `getType`               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `createCommandEncoder`  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `submit`                | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getNativeHandle`       | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
-| `waitOnHost`            | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| API                       | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
+|---------------------------|-----|------|-------|-------|--------|-------|------|
+| `getType`                 | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `createCommandEncoder`    | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `submit`                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getNativeHandle`         | :x: | yes  | :x:   | yes   | yes    | yes   | yes  |
+| `waitOnHost`              | yes | yes  | yes   | yes   | yes    | yes   | yes  |
+| `getTimestampCalibration` | yes | yes  | yes   | yes   | yes    | :x:   | :x:  |
 
 ## `ISurface` interface
 

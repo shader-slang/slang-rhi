@@ -399,8 +399,6 @@ const char* enumToString(QueryType value)
         return S_QueryType_Timestamp;
     case QueryType::AccelerationStructureCompactedSize:
         return S_QueryType_AccelerationStructureCompactedSize;
-    case QueryType::AccelerationStructureSerializedSize:
-        return S_QueryType_AccelerationStructureSerializedSize;
     case QueryType::AccelerationStructureCurrentSize:
         return S_QueryType_AccelerationStructureCurrentSize;
     }

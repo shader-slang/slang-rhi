@@ -62,7 +62,10 @@ Result BindlessDescriptorSet::initialize()
         createInfo.flags =
             VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
-        SLANG_VK_RETURN_ON_FAIL(api.vkCreateDescriptorPool(api.m_device, &createInfo, nullptr, &m_descriptorPool));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateDescriptorPool(api.m_device, &createInfo, nullptr, &m_descriptorPool),
+            m_device
+        );
     }
 
     // Create descriptor set layout
@@ -128,8 +131,9 @@ Result BindlessDescriptorSet::initialize()
         createInfo.bindingCount = 3;
         createInfo.pBindings = bindings;
 
-        SLANG_VK_RETURN_ON_FAIL(
-            api.vkCreateDescriptorSetLayout(api.m_device, &createInfo, nullptr, &m_descriptorSetLayout)
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkCreateDescriptorSetLayout(api.m_device, &createInfo, nullptr, &m_descriptorSetLayout),
+            m_device
         );
     }
 
@@ -139,7 +143,10 @@ Result BindlessDescriptorSet::initialize()
         allocInfo.descriptorPool = m_descriptorPool;
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &m_descriptorSetLayout;
-        SLANG_VK_RETURN_ON_FAIL(api.vkAllocateDescriptorSets(api.m_device, &allocInfo, &m_descriptorSet));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            api.vkAllocateDescriptorSets(api.m_device, &allocInfo, &m_descriptorSet),
+            m_device
+        );
     }
 
     m_bufferAllocator.capacity = m_desc.bufferCount;

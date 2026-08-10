@@ -95,7 +95,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
 
         bool isRootParameter = isBindingRangeRootParameter(
             m_device->m_slangContext.globalSession,
-            checked_cast<DeviceImpl*>(m_device)->m_extendedDesc.rootParameterShaderAttributeName,
+            checked_cast<DeviceImpl*>(m_device)->m_rootParameterShaderAttributeName,
             typeLayout,
             r
         );
@@ -586,7 +586,7 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addBindingRange(
     uint32_t descriptorRangeCount = typeLayout->getBindingRangeDescriptorRangeCount(bindingRangeIndex);
     bool isRootParameter = isBindingRangeRootParameter(
         m_device->m_slangContext.globalSession,
-        m_device->m_extendedDesc.rootParameterShaderAttributeName,
+        m_device->m_rootParameterShaderAttributeName,
         typeLayout,
         bindingRangeIndex
     );
@@ -944,12 +944,15 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
         return SLANG_FAIL;
     }
 
-    SLANG_RETURN_ON_FAIL(device->m_device->CreateRootSignature(
-        0,
-        signature->GetBufferPointer(),
-        signature->GetBufferSize(),
-        IID_PPV_ARGS(outRootSignature)
-    ));
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateRootSignature(
+            0,
+            signature->GetBufferPointer(),
+            signature->GetBufferSize(),
+            IID_PPV_ARGS(outRootSignature)
+        ),
+        device
+    );
     return SLANG_OK;
 }
 

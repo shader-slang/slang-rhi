@@ -57,7 +57,7 @@ typedef SlangResult Result;
 typedef size_t Size;
 typedef size_t Offset;
 
-const uint64_t kTimeoutInfinite = 0xFFFFFFFFFFFFFFFF;
+constexpr uint64_t kTimeoutInfinite{0xFFFFFFFFFFFFFFFFU};
 
 
 enum class StructType
@@ -130,6 +130,7 @@ enum class DeviceType
     x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
+    x(TimestampCalibration,                     "timestamp-calibration"                         ) \
     x(RealtimeClock,                            "realtime-clock"                                ) \
     x(CooperativeVector,                        "cooperative-vector"                            ) \
     x(CooperativeMatrix,                        "cooperative-matrix"                            ) \
@@ -145,6 +146,7 @@ enum class DeviceType
     x(SM_6_7,                                   "sm_6_7"                                        ) \
     x(SM_6_8,                                   "sm_6_8"                                        ) \
     x(SM_6_9,                                   "sm_6_9"                                        ) \
+    x(SM_6_10,                                  "sm_6_10"                                       ) \
     x(Half,                                     "half"                                          ) \
     x(Double,                                   "double"                                        ) \
     x(Int16,                                    "int16"                                         ) \
@@ -165,8 +167,10 @@ enum class DeviceType
     x(ProgrammableSamplePositions2,             "programmable-sample-positions-2"               ) \
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
+    x(ShaderAbort,                              "shader-abort"                                  ) \
     /* Metal specific features */                                                                 \
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
+    x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
     x(AtomicBfloat16,                           "atomic-bfloat16"                               )
 // clang-format on
@@ -547,6 +551,8 @@ enum class NativeHandleType
 
     Win32 = 0x00000001,
     FileDescriptor = 0x00000002,
+
+    D3D11DeviceContext = 0x00010001,
 
     D3D12Device = 0x00020001,
     D3D12CommandQueue = 0x00020002,
@@ -2026,19 +2032,19 @@ struct ShaderTableDesc
     const void* next = nullptr;
 
     uint32_t rayGenShaderCount = 0;
-    const char** rayGenShaderEntryPointNames = nullptr;
+    const char* const* rayGenShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* rayGenShaderRecordOverwrites = nullptr;
 
     uint32_t missShaderCount = 0;
-    const char** missShaderEntryPointNames = nullptr;
+    const char* const* missShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* missShaderRecordOverwrites = nullptr;
 
     uint32_t hitGroupCount = 0;
-    const char** hitGroupNames = nullptr;
+    const char* const* hitGroupNames = nullptr;
     const ShaderRecordOverwrite* hitGroupRecordOverwrites = nullptr;
 
     uint32_t callableShaderCount = 0;
-    const char** callableShaderEntryPointNames = nullptr;
+    const char* const* callableShaderEntryPointNames = nullptr;
     const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -2119,17 +2125,26 @@ struct Viewport
 enum class WindowHandleType
 {
     Undefined,
+#if !SLANG_WASM
     HWND,
     NSWindow,
     XlibWindow,
     AndroidWindow,
+#else
+    WGPUCanvas,
+#endif
 };
 
 struct WindowHandle
 {
     WindowHandleType type = WindowHandleType::Undefined;
+#if !SLANG_WASM
     uint64_t handleValues[2];
+#else
+    char canvasSelector[128];
+#endif
 
+#if !SLANG_WASM
     static WindowHandle fromHwnd(void* hwnd)
     {
         WindowHandle handle = {};
@@ -2159,6 +2174,21 @@ struct WindowHandle
         handle.handleValues[0] = (uint64_t)(window);
         return handle;
     }
+#else
+    static WindowHandle fromWGPUCanvas(const char* canvasSelector)
+    {
+        WindowHandle handle = {};
+        handle.type = WindowHandleType::WGPUCanvas;
+        if (canvasSelector)
+        {
+            size_t i = 0;
+            for (; i < sizeof(handle.canvasSelector) - 1 && canvasSelector[i]; ++i)
+                handle.canvasSelector[i] = canvasSelector[i];
+            handle.canvasSelector[i] = 0;
+        }
+        return handle;
+    }
+#endif
 };
 
 enum class LoadOp
@@ -2207,8 +2237,14 @@ enum class QueryType
 {
     Timestamp,
     AccelerationStructureCompactedSize,
-    AccelerationStructureSerializedSize,
     AccelerationStructureCurrentSize,
+};
+
+enum class QueryResultState
+{
+    Reset,
+    Pending,
+    Resolved,
 };
 
 struct QueryPoolDesc
@@ -2228,8 +2264,39 @@ class IQueryPool : public ISlangUnknown
 
 public:
     virtual SLANG_NO_THROW const QueryPoolDesc& SLANG_MCALL getDesc() = 0;
+
+    /// Non-blocking host-state check for query results.
+    ///
+    /// Sets outState to Reset when any query in the range has no valid submitted result,
+    /// including newly-created, reset, or never-submitted queries. Sets outState to Pending
+    /// when every query in the range has valid submitted work, but at least one result is not
+    /// host-readable yet. Sets outState to Resolved when every result in the range is
+    /// host-readable. A valid zero-count state check succeeds and returns Resolved.
+    ///
+    /// This call may poll or otherwise progress backend readiness, but it does not wait for
+    /// GPU work. Returns SLANG_E_INVALID_ARG for invalid ranges or a null outState pointer.
+    virtual SLANG_NO_THROW Result SLANG_MCALL getResultState(
+        uint32_t queryIndex,
+        uint32_t count,
+        QueryResultState* outState
+    ) = 0;
+
+    /// Read query results on the host.
+    ///
+    /// Blocks until the latest submitted work required by the requested range is complete.
+    /// Returns SLANG_FAIL if any query in the range has no valid submitted result, and
+    /// SLANG_E_INVALID_ARG for invalid ranges or a null outData pointer.
+    /// Reusing a query slot without reset is allowed; host reads return the most recent
+    /// submitted result tracked for that slot.
     virtual SLANG_NO_THROW Result SLANG_MCALL getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData) = 0;
+
+    /// Reset all queries, invalidating any host-readable results.
     virtual SLANG_NO_THROW Result SLANG_MCALL reset() = 0;
+
+    /// Reset a range of queries, invalidating any host-readable results for that range.
+    ///
+    /// A valid zero-count reset succeeds and has no effect.
+    virtual SLANG_NO_THROW Result SLANG_MCALL reset(uint32_t queryIndex, uint32_t count) = 0;
 };
 
 struct DrawArguments
@@ -2483,6 +2550,39 @@ struct CommandEncoderDesc
     const char* label = nullptr;
 };
 
+struct ExecuteCallbackContext
+{
+    /// Native handle for the active backend command context.
+    /// D3D11 supplies D3D11DeviceContext, D3D12 supplies D3D12GraphicsCommandList,
+    /// Vulkan supplies VkCommandBuffer, Metal supplies MTLCommandBuffer, CUDA
+    /// supplies CUstream, and WGPU supplies WGPUCommandEncoder. Backends without
+    /// an active native command context pass Undefined.
+    NativeHandle nativeHandle;
+};
+
+typedef void(SLANG_MCALL* ExecuteCallbackFunc)(
+    const ExecuteCallbackContext* context,
+    void* userObject,
+    const void* userData,
+    Size userDataSize
+);
+typedef void(SLANG_MCALL* ExecuteCallbackObjectFunc)(void* userObject);
+
+struct ExecuteCallbackDesc
+{
+    /// Function to call when the callback command is recorded/executed.
+    ExecuteCallbackFunc callback = nullptr;
+
+    /// Optional object retained until the command buffer is reset or destroyed.
+    void* userObject = nullptr;
+    ExecuteCallbackObjectFunc retainUserObject = nullptr;
+    ExecuteCallbackObjectFunc releaseUserObject = nullptr;
+
+    /// Optional small user-data block copied into the command buffer.
+    const void* userData = nullptr;
+    Size userDataSize = 0;
+};
+
 class ICommandEncoder : public ISlangUnknown
 {
     SLANG_COM_INTERFACE(0x8ee39d55, 0x2b07, 0x4e61, {0x8f, 0x13, 0x1d, 0x6c, 0x01, 0xa9, 0x15, 0x43});
@@ -2619,16 +2719,6 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) = 0;
 
-    virtual SLANG_NO_THROW void SLANG_MCALL serializeAccelerationStructure(
-        BufferOffsetPair dst,
-        IAccelerationStructure* src
-    ) = 0;
-
-    virtual SLANG_NO_THROW void SLANG_MCALL deserializeAccelerationStructure(
-        IAccelerationStructure* dst,
-        BufferOffsetPair src
-    ) = 0;
-
     virtual SLANG_NO_THROW void SLANG_MCALL executeClusterOperation(const ClusterOperationDesc& desc) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL convertCooperativeVectorMatrix(
@@ -2659,6 +2749,8 @@ public:
     virtual SLANG_NO_THROW void SLANG_MCALL insertDebugMarker(const char* name, const MarkerColor& color) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL writeTimestamp(IQueryPool* queryPool, uint32_t queryIndex) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL executeCallback(const ExecuteCallbackDesc& desc) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL finish(
         const CommandBufferDesc& desc,
@@ -2698,6 +2790,31 @@ public:
 enum class QueueType
 {
     Graphics,
+};
+
+enum class CpuTimestampDomain
+{
+    Unknown,
+    QueryPerformanceCounter,
+    ClockMonotonic,
+    ClockMonotonicRaw,
+    MachAbsoluteTime,
+};
+
+struct TimestampCalibration
+{
+    /// The domain of the CPU timestamp.
+    CpuTimestampDomain cpuDomain = CpuTimestampDomain::Unknown;
+    /// The current CPU timestamp.
+    uint64_t cpuTimestamp = 0;
+    /// The frequency of the CPU timestamp in ticks per second.
+    uint64_t cpuFrequency = 0;
+    /// The current GPU timestamp.
+    uint64_t gpuTimestamp = 0;
+    /// The frequency of the GPU timestamp in ticks per second.
+    uint64_t gpuFrequency = 0;
+    /// The maximum deviation between the CPU and GPU timestamps in nanoseconds.
+    uint64_t maxDeviationNs = 0;
 };
 
 // The NULL CUDA stream is valid (it refers to the default stream), so we
@@ -2771,6 +2888,8 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL waitOnHost() = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTimestampCalibration(TimestampCalibration* outCalibration) = 0;
 };
 
 struct SurfaceInfo
@@ -3018,6 +3137,13 @@ struct DeviceLimits
     /// Maximum number of thread groups per dimension in a single dispatch.
     uint32_t maxComputeDispatchThreadGroups[3];
 
+    /// Minimum number of lanes in a wave/subgroup/warp.
+    /// 0 if the size is unknown or not applicable.
+    uint32_t minWaveSize;
+    /// Maximum number of lanes in a wave/subgroup/warp.
+    /// 0 if the size is unknown or not applicable.
+    uint32_t maxWaveSize;
+
     /// Maximum number of viewports per pipeline.
     uint32_t maxViewports;
     /// Maximum viewport dimensions.
@@ -3045,6 +3171,10 @@ struct DeviceInfo
     AdapterLUID adapterLUID;
 
     /// The clock frequency used in timestamp queries.
+    /// This is a legacy/static convenience value for converting differences
+    /// between QueryType::Timestamp results. New code that needs to correlate
+    /// GPU timestamps with a CPU clock should use
+    /// ICommandQueue::getTimestampCalibration().
     uint64_t timestampFrequency = 0;
 
     /// The version of OptiX used by the device (0 if OptiX is not supported).
@@ -3152,8 +3282,8 @@ struct DeviceDesc
     const AdapterLUID* adapterLUID = nullptr;
     // Number of required features.
     uint32_t requiredFeatureCount = 0;
-    // Array of required feature names, whose size is `requiredFeatureCount`.
-    const char** requiredFeatures = nullptr;
+    // Array of required features, whose size is `requiredFeatureCount`.
+    const Feature* requiredFeatures = nullptr;
     // Configurations for Slang compiler.
     SlangDesc slang = {};
 
@@ -3187,6 +3317,21 @@ struct DeviceDesc
 
     /// Enable reporting of shader compilation timings.
     bool enableCompilationReports = false;
+
+    /// Enable launching CUDA kernels from inside graphics command buffers
+    /// (Vulkan only, via VK_NVX_binary_import). On by default. Set to
+    /// false if the application doesn't need vkCmdCuLaunchKernelNVX;
+    /// enabling this extension has been observed to interfere with
+    /// concurrent cuDNN usage on some driver/GPU pairs.
+    bool enableCUDALaunchFromGfx = true;
+
+    /// Enable Vulkan ray tracing extensions (acceleration_structure,
+    /// ray_tracing_pipeline, ray_query, ray_tracing_position_fetch, plus
+    /// NV variants). On by default. Set to false if the application
+    /// doesn't use ray tracing; enabling these extensions has been
+    /// observed to interfere with concurrent cuDNN usage on some
+    /// driver/GPU pairs.
+    bool enableRayTracing = true;
 
     /// Size of a page in staging heap.
     Size stagingHeapPageSize = 16 * 1024 * 1024;
@@ -3646,7 +3791,6 @@ public:
 
 /// RAII helper that pushes a device's CUDA context on construction and pops it on destruction.
 /// For non-CUDA devices, this is a no-op.
-/// Usage: SLANG_DEVICE_SCOPE(device);
 class DeviceScope
 {
 public:
@@ -3664,7 +3808,11 @@ private:
     IDevice* m_device;
 };
 
-#define SLANG_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
+/// Helper macro for creating a DeviceScope with a unique name. Usage: SLANG_RHI_DEVICE_SCOPE(device);
+#define SLANG_RHI_DEVICE_SCOPE(device) ::rhi::DeviceScope SLANG_CONCAT(_deviceScope, __LINE__)(device)
+
+/// Deprecated alias for SLANG_RHI_DEVICE_SCOPE
+#define SLANG_DEVICE_SCOPE(device) SLANG_RHI_DEVICE_SCOPE(device)
 
 /// \brief Interface for a task pool that supports dependency-based scheduling.
 ///
@@ -3922,6 +4070,8 @@ struct D3D12DeviceExtendedDesc
 
     const char* rootParameterShaderAttributeName = nullptr;
     bool debugBreakOnD3D12Error = false;
+    /// Limits the maximum shader model using D3D_SHADER_MODEL encoding (for example, 0x6a for SM 6.10).
+    /// A value of 0 uses automatic detection.
     uint32_t highestShaderModel = 0;
 };
 
@@ -3931,6 +4081,11 @@ struct VulkanDeviceExtendedDesc
     const void* next = nullptr;
 
     bool enableDebugPrintf = false;
+
+    uint32_t instanceExtensionCount = 0;
+    const char* const* instanceExtensions = nullptr;
+    uint32_t deviceExtensionCount = 0;
+    const char* const* deviceExtensions = nullptr;
 };
 
 } // namespace rhi

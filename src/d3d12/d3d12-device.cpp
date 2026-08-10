@@ -21,6 +21,8 @@
 #include "core/string.h"
 
 #include <algorithm>
+#include <cstdarg>
+#include <cstdio>
 
 namespace rhi::d3d12 {
 
@@ -50,7 +52,7 @@ static ShaderModelInfo kKnownShaderModels[] = {
     SHADER_MODEL_INFO_DXBC(5, 1),
 #undef SHADER_MODEL_INFO_DXBC
 #define SHADER_MODEL_INFO_DXIL(major, minor)                                                                           \
-    {(D3D_SHADER_MODEL)0x##major##minor,                                                                               \
+    {(D3D_SHADER_MODEL)((major << 4) | minor),                                                                         \
      SLANG_DXIL,                                                                                                       \
      "sm_" #major "_" #minor,                                                                                          \
      Feature::SM_##major##_##minor,                                                                                    \
@@ -64,9 +66,155 @@ static ShaderModelInfo kKnownShaderModels[] = {
     SHADER_MODEL_INFO_DXIL(6, 6),
     SHADER_MODEL_INFO_DXIL(6, 7),
     SHADER_MODEL_INFO_DXIL(6, 8),
-    SHADER_MODEL_INFO_DXIL(6, 9)
+    SHADER_MODEL_INFO_DXIL(6, 9),
+    SHADER_MODEL_INFO_DXIL(6, 10)
 #undef SHADER_MODEL_INFO_DXIL
 };
+
+struct D3D12CreateDeviceAttempt
+{
+    D3D_FEATURE_LEVEL featureLevel;
+    HRESULT result;
+};
+
+struct D3D12ShaderModelAttempt
+{
+    D3D_SHADER_MODEL requested;
+    D3D_SHADER_MODEL detected;
+    HRESULT result;
+};
+
+static const char* getAdapterTypeName(AdapterType adapterType)
+{
+    switch (adapterType)
+    {
+    case AdapterType::Discrete:
+        return "discrete";
+    case AdapterType::Integrated:
+        return "integrated";
+    case AdapterType::Software:
+        return "software";
+    case AdapterType::Unknown:
+        return "unknown";
+    }
+    return "unknown";
+}
+
+static const char* getFeatureLevelName(D3D_FEATURE_LEVEL featureLevel)
+{
+    switch (featureLevel)
+    {
+    case D3D_FEATURE_LEVEL_12_2:
+        return "D3D_FEATURE_LEVEL_12_2";
+    case D3D_FEATURE_LEVEL_12_1:
+        return "D3D_FEATURE_LEVEL_12_1";
+    case D3D_FEATURE_LEVEL_12_0:
+        return "D3D_FEATURE_LEVEL_12_0";
+    case D3D_FEATURE_LEVEL_11_1:
+        return "D3D_FEATURE_LEVEL_11_1";
+    case D3D_FEATURE_LEVEL_11_0:
+        return "D3D_FEATURE_LEVEL_11_0";
+    default:
+        return "D3D_FEATURE_LEVEL_UNKNOWN";
+    }
+}
+
+static const char* getShaderModelName(D3D_SHADER_MODEL shaderModel)
+{
+    for (const ShaderModelInfo& info : kKnownShaderModels)
+    {
+        if (info.shaderModel == shaderModel)
+            return info.profileName;
+    }
+    return "unknown";
+}
+
+static std::string formatAdapterLUID(const AdapterLUID& luid)
+{
+    char buffer[sizeof(AdapterLUID::luid) * 2 + 1];
+    for (size_t i = 0; i < sizeof(AdapterLUID::luid); ++i)
+    {
+        snprintf(buffer + i * 2, 3, "%02x", uint32_t(luid.luid[i]));
+    }
+    return std::string(buffer);
+}
+
+static void appendFormatLine(std::string& message, const char* format, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    message += buffer;
+}
+
+static void appendShaderModelAttempts(
+    std::string& message,
+    const D3D12ShaderModelAttempt* attempts,
+    size_t attemptCount
+)
+{
+    for (size_t i = 0; i < attemptCount; ++i)
+    {
+        const D3D12ShaderModelAttempt& attempt = attempts[i];
+        appendFormatLine(
+            message,
+            "  - requested %s (0x%04x): %s (0x%08x), detected %s (0x%04x)\n",
+            getShaderModelName(attempt.requested),
+            uint32_t(attempt.requested),
+            getHRESULTName(attempt.result),
+            uint32_t(attempt.result),
+            getShaderModelName(attempt.detected),
+            uint32_t(attempt.detected)
+        );
+    }
+}
+
+static void reportD3D12DeviceCreationFailure(
+    DeviceImpl* device,
+    const AdapterImpl* adapter,
+    int64_t adapterIndex,
+    const D3D12CreateDeviceAttempt* attempts,
+    size_t attemptCount
+)
+{
+    std::string message = "D3D12CreateDevice failed.\n";
+    if (adapter)
+    {
+        const AdapterInfo& info = adapter->m_info;
+        appendFormatLine(
+            message,
+            "Selected adapter: index=%lld, name=\"%s\", type=%s, vendorID=0x%04x, deviceID=0x%04x, LUID=%s\n",
+            static_cast<long long>(adapterIndex),
+            info.name,
+            getAdapterTypeName(info.adapterType),
+            info.vendorID,
+            info.deviceID,
+            formatAdapterLUID(info.luid).c_str()
+        );
+    }
+    else
+    {
+        message += "Selected adapter: <none>\n";
+    }
+
+    message += "Feature-level attempts:\n";
+    for (size_t i = 0; i < attemptCount; ++i)
+    {
+        const D3D12CreateDeviceAttempt& attempt = attempts[i];
+        appendFormatLine(
+            message,
+            "  - %s (0x%04x): %s (0x%08x)\n",
+            getFeatureLevelName(attempt.featureLevel),
+            uint32_t(attempt.featureLevel),
+            getHRESULTName(attempt.result),
+            uint32_t(attempt.result)
+        );
+    }
+    message += "Shader model probing: unavailable because no D3D12 device was created.\n";
+    device->handleMessage(DebugMessageType::Error, DebugMessageSource::Driver, message.c_str());
+}
 
 inline int getShaderModelFromProfileName(const char* name)
 {
@@ -79,7 +227,7 @@ inline int getShaderModelFromProfileName(const char* name)
 
     for (int i = 0; i < SLANG_COUNT_OF(kKnownShaderModels); ++i)
     {
-        std::string_view versionStr(kKnownShaderModels[i].profileName + 3, 3);
+        std::string_view versionStr(kKnownShaderModels[i].profileName + 3);
         if (string::ends_with(nameStr, versionStr))
         {
             return kKnownShaderModels[i].shaderModel;
@@ -267,20 +415,28 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     }
 
     // Process chained descs
+    const D3D12DeviceExtendedDesc* extendedDesc = nullptr;
     for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
          header = header->next)
     {
         switch (header->type)
         {
         case StructType::D3D12DeviceExtendedDesc:
-            memcpy(static_cast<void*>(&m_extendedDesc), header, sizeof(m_extendedDesc));
+            extendedDesc = reinterpret_cast<const D3D12DeviceExtendedDesc*>(header);
             break;
         case StructType::D3D12ExperimentalFeaturesDesc:
-            processExperimentalFeaturesDesc(d3dModule, header);
+            processExperimentalFeaturesDesc(d3dModule, reinterpret_cast<const D3D12ExperimentalFeaturesDesc*>(header));
             break;
         default:
             break;
         }
+    }
+
+    // Copy the root parameter shader attribute name for later use.
+    if (extendedDesc && extendedDesc->rootParameterShaderAttributeName)
+    {
+        m_rootParameterShaderAttributeNameBuffer = extendedDesc->rootParameterShaderAttributeName;
+        m_rootParameterShaderAttributeName = m_rootParameterShaderAttributeNameBuffer.c_str();
     }
 
     if (!SLANG_SUCCEEDED(setupDebugLayer(d3dModule)))
@@ -339,15 +495,30 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
         const D3D_FEATURE_LEVEL featureLevels[] =
             {D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
+        D3D12CreateDeviceAttempt createDeviceAttempts[SLANG_COUNT_OF(featureLevels)] = {};
+        size_t createDeviceAttemptCount = 0;
         for (auto featureLevel : featureLevels)
         {
-            if (SUCCEEDED(m_D3D12CreateDevice(m_dxgiAdapter, featureLevel, IID_PPV_ARGS(m_device.writeRef()))))
+            HRESULT result = m_D3D12CreateDevice(m_dxgiAdapter, featureLevel, IID_PPV_ARGS(m_device.writeRef()));
+            createDeviceAttempts[createDeviceAttemptCount++] = {featureLevel, result};
+            if (SUCCEEDED(result))
             {
                 break;
             }
         }
         if (!m_device)
         {
+            auto adapters = backend->getAdapters();
+            int64_t adapterIndex = -1;
+            if (adapter && adapters.data())
+                adapterIndex = adapter - adapters.data();
+            reportD3D12DeviceCreationFailure(
+                this,
+                adapter,
+                adapterIndex,
+                createDeviceAttempts,
+                createDeviceAttemptCount
+            );
             return SLANG_FAIL;
         }
     }
@@ -385,7 +556,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         {
             // Make break
             infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-            if (m_extendedDesc.debugBreakOnD3D12Error)
+            if (extendedDesc && extendedDesc->debugBreakOnD3D12Error)
             {
                 infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
             }
@@ -487,6 +658,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         printWarning("Aftermath requested but not enabled in build.\n");
     }
 #endif
+    // Initialize D3D12 Memory Allocator.
+    {
+        D3D12MA::ALLOCATOR_DESC allocatorDesc = {};
+        allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAGS(D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS);
+        allocatorDesc.pDevice = m_device.get();
+        allocatorDesc.pAdapter = m_dxgiAdapter.get();
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(D3D12MA::CreateAllocator(&allocatorDesc, m_allocator.writeRef()), this);
+    }
 
     // Initialize descriptor heaps.
     {
@@ -545,8 +724,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         signatureDesc.pArgumentDescs = &args;
         signatureDesc.NodeMask = 0;
 
-        SLANG_RETURN_ON_FAIL(
-            m_device->CreateCommandSignature(&signatureDesc, nullptr, IID_PPV_ARGS(drawIndirectCmdSignature.writeRef()))
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device
+                ->CreateCommandSignature(&signatureDesc, nullptr, IID_PPV_ARGS(drawIndirectCmdSignature.writeRef())),
+            this
         );
     }
 
@@ -562,11 +743,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         signatureDesc.pArgumentDescs = &args;
         signatureDesc.NodeMask = 0;
 
-        SLANG_RETURN_ON_FAIL(m_device->CreateCommandSignature(
-            &signatureDesc,
-            nullptr,
-            IID_PPV_ARGS(drawIndexedIndirectCmdSignature.writeRef())
-        ));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateCommandSignature(
+                &signatureDesc,
+                nullptr,
+                IID_PPV_ARGS(drawIndexedIndirectCmdSignature.writeRef())
+            ),
+            this
+        );
     }
 
     // Allocate a D3D12 "command signature" object that matches the behavior
@@ -581,11 +765,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         signatureDesc.pArgumentDescs = &args;
         signatureDesc.NodeMask = 0;
 
-        SLANG_RETURN_ON_FAIL(m_device->CreateCommandSignature(
-            &signatureDesc,
-            nullptr,
-            IID_PPV_ARGS(dispatchIndirectCmdSignature.writeRef())
-        ));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateCommandSignature(
+                &signatureDesc,
+                nullptr,
+                IID_PPV_ARGS(dispatchIndirectCmdSignature.writeRef())
+            ),
+            this
+        );
     }
 
     // Initialize device info.
@@ -647,27 +834,36 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Rasterization);
     addFeature(Feature::CustomBorderColor);
     addFeature(Feature::TimestampQuery);
+    addFeature(Feature::TimestampCalibration);
 
     addCapability(Capability::hlsl);
 
     D3D12_FEATURE_DATA_SHADER_MODEL shaderModelData = {};
+    D3D12ShaderModelAttempt shaderModelAttempts[SLANG_COUNT_OF(kKnownShaderModels) + 1] = {};
+    size_t shaderModelAttemptCount = 0;
+    bool shaderModelDetected = false;
 
     {
         // CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL) can fail if the runtime/driver does not yet know the
         // specified highest shader model. Therefore we assemble a list of shader models to check and
         // walk it from highest to lowest to find the supported shader model.
         short_vector<D3D_SHADER_MODEL> shaderModels;
-        if (m_extendedDesc.highestShaderModel != 0)
-            shaderModels.push_back((D3D_SHADER_MODEL)m_extendedDesc.highestShaderModel);
+        if (extendedDesc && extendedDesc->highestShaderModel != 0)
+            shaderModels.push_back((D3D_SHADER_MODEL)extendedDesc->highestShaderModel);
         for (int i = SLANG_COUNT_OF(kKnownShaderModels) - 1; i >= 0; --i)
             shaderModels.push_back(kKnownShaderModels[i].shaderModel);
         for (D3D_SHADER_MODEL shaderModel : shaderModels)
         {
             shaderModelData.HighestShaderModel = shaderModel;
-            if (SLANG_SUCCEEDED(
-                    m_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModelData, sizeof(shaderModelData))
-                ))
+            HRESULT result =
+                m_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModelData, sizeof(shaderModelData));
+            shaderModelAttempts[shaderModelAttemptCount++] =
+                D3D12ShaderModelAttempt{shaderModel, shaderModelData.HighestShaderModel, result};
+            if (SLANG_SUCCEEDED(result))
+            {
+                shaderModelDetected = true;
                 break;
+            }
         }
     }
     {
@@ -714,13 +910,15 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         }
     }
     {
-        D3D12_FEATURE_DATA_D3D12_OPTIONS1 options;
+        D3D12_FEATURE_DATA_D3D12_OPTIONS1 options = {};
         if (SLANG_SUCCEEDED(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &options, sizeof(options))))
         {
             // Check wave operations support
             if (options.WaveOps)
             {
                 addFeature(Feature::WaveOps);
+                m_info.limits.minWaveSize = options.WaveLaneCountMin;
+                m_info.limits.maxWaveSize = options.WaveLaneCountMax;
             }
             if (options.Int64ShaderOps)
             {
@@ -987,11 +1185,22 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     int userSpecifiedShaderModel = getShaderModelFromProfileName(desc.slang.targetProfile);
     if (userSpecifiedShaderModel > shaderModelData.HighestShaderModel)
     {
-        handleMessage(
-            DebugMessageType::Error,
-            DebugMessageSource::Layer,
-            "The requested shader model is not supported by the system."
+        std::string message;
+        appendFormatLine(
+            message,
+            "The requested shader model is not supported by the system.\n"
+            "Requested shader model: %s (0x%04x)\n"
+            "Highest detected shader model: %s (0x%04x)\n"
+            "Shader model detected successfully: %s\n"
+            "Shader model probing attempts:\n",
+            getShaderModelName(D3D_SHADER_MODEL(userSpecifiedShaderModel)),
+            uint32_t(userSpecifiedShaderModel),
+            getShaderModelName(shaderModelData.HighestShaderModel),
+            uint32_t(shaderModelData.HighestShaderModel),
+            shaderModelDetected ? "yes" : "no"
         );
+        appendShaderModelAttempts(message, shaderModelAttempts, shaderModelAttemptCount);
+        handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, message.c_str());
         return SLANG_E_NOT_AVAILABLE;
     }
 
@@ -1011,6 +1220,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         {
             break;
         }
+    }
+
+    // Shader model 6.9 requires HitObject and MaybeReorderThread support on ray tracing devices.
+    // MaybeReorderThread is allowed to be a no-op, so this feature indicates API availability rather than
+    // guaranteeing that the implementation actually reorders threads.
+    if (hasFeature(Feature::SM_6_9) && hasFeature(Feature::RayTracing))
+    {
+        addFeature(Feature::ShaderExecutionReordering);
     }
 
     // Initialize slang context.
@@ -1036,6 +1253,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_bindlessDescriptorSet = new BindlessDescriptorSet(this, desc.bindless);
         SLANG_RETURN_ON_FAIL(m_bindlessDescriptorSet->initialize());
     }
+
+    SLANG_RETURN_ON_FAIL(checkRequiredFeatures(desc));
 
     return SLANG_OK;
 }
@@ -1079,11 +1298,7 @@ Result DeviceImpl::createBuffer(
 {
     const Size bufferSize = Size(resourceDesc.Width);
 
-    D3D12_HEAP_PROPERTIES heapProps;
-    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProps.CreationNodeMask = 1;
-    heapProps.VisibleNodeMask = 1;
+    D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
 
     D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
     if (isShared)
@@ -1118,7 +1333,9 @@ Result DeviceImpl::createBuffer(
     }
 
     // Create the resource.
-    SLANG_RETURN_ON_FAIL(resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr));
+    SLANG_RETURN_ON_FAIL(
+        resourceOut.initCommitted(m_device, heapProps, flags, desc, initialState, nullptr, m_allocator)
+    );
 
     if (srcData)
     {
@@ -1137,7 +1354,8 @@ Result DeviceImpl::createBuffer(
                 D3D12_HEAP_FLAG_NONE,
                 uploadDesc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr
+                nullptr,
+                m_allocator
             ));
         }
 
@@ -1151,7 +1369,7 @@ Result DeviceImpl::createBuffer(
 
         ID3D12Resource* dxUploadResource = uploadResourceRef.getResource();
 
-        SLANG_RETURN_ON_FAIL(dxUploadResource->Map(0, &readRange, reinterpret_cast<void**>(&dstData)));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(dxUploadResource->Map(0, &readRange, reinterpret_cast<void**>(&dstData)), this);
         ::memcpy(dstData, srcData, srcDataSize);
         dxUploadResource->Unmap(0, nullptr);
 
@@ -1208,13 +1426,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     // Create the target resource
     {
-        D3D12_HEAP_PROPERTIES heapProps;
-
-        heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProps.CreationNodeMask = 1;
-        heapProps.VisibleNodeMask = 1;
+        D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_DEFAULT);
 
         D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE;
         if (is_set(desc.usage, TextureUsage::Shared))
@@ -1239,10 +1451,16 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         {
             clearValuePtr = nullptr;
         }
-        SLANG_RETURN_ON_FAIL(
-            texture->m_resource
-                .initCommitted(m_device, heapProps, flags, resourceDesc, texture->m_defaultState, clearValuePtr)
-        );
+
+        SLANG_RETURN_ON_FAIL(texture->m_resource.initCommitted(
+            m_device,
+            heapProps,
+            flags,
+            resourceDesc,
+            texture->m_defaultState,
+            clearValuePtr,
+            m_allocator
+        ));
 
         if (desc.label)
         {
@@ -1286,18 +1504,17 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     return SLANG_OK;
 }
 
-Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc, ITexture** outTexture)
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc_, ITexture** outTexture)
 {
-    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
+    if (handle.type != NativeHandleType::D3D12Resource || handle.value == 0)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
 
-    if (handle.type == NativeHandleType::D3D12Resource)
-    {
-        texture->m_resource.setResource((ID3D12Resource*)handle.value);
-    }
-    else
-    {
-        return SLANG_FAIL;
-    }
+    TextureDesc desc = fixupTextureDesc(desc_);
+
+    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
+    ID3D12Resource* nativeResource = (ID3D12Resource*)handle.value;
 
     bool isTypeless = is_set(desc.usage, TextureUsage::Typeless);
     if (isDepthFormat(desc.format) &&
@@ -1306,8 +1523,25 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
         isTypeless = true;
     }
 
-    texture->m_format =
-        isTypeless ? getFormatMapping(desc.format).typelessFormat : getFormatMapping(desc.format).rtvFormat;
+    D3D12_RESOURCE_DESC expectedDesc = {};
+    if (SLANG_FAILED(initTextureDesc(expectedDesc, desc, isTypeless)))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    D3D12_RESOURCE_DESC nativeDesc = nativeResource->GetDesc();
+    if (nativeDesc.Dimension != expectedDesc.Dimension || nativeDesc.Format != expectedDesc.Format ||
+        nativeDesc.Width != expectedDesc.Width || nativeDesc.Height != expectedDesc.Height ||
+        nativeDesc.DepthOrArraySize != expectedDesc.DepthOrArraySize ||
+        nativeDesc.MipLevels != expectedDesc.MipLevels ||
+        nativeDesc.SampleDesc.Count != expectedDesc.SampleDesc.Count ||
+        nativeDesc.SampleDesc.Quality != expectedDesc.SampleDesc.Quality)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    texture->m_resource.setResource(nativeResource);
+    texture->m_format = expectedDesc.Format;
     texture->m_isTypeless = isTypeless;
     texture->m_defaultState = translateResourceState(desc.defaultState);
 
@@ -1353,7 +1587,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, fixupBufferDesc(desc)));
 
     if (handle.type == NativeHandleType::D3D12Resource)
     {
@@ -1501,12 +1735,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
 
         // Readback heap
-        D3D12_HEAP_PROPERTIES heapProps;
-        heapProps.Type = D3D12_HEAP_TYPE_READBACK;
-        heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        heapProps.CreationNodeMask = 1;
-        heapProps.VisibleNodeMask = 1;
+        D3D12_HEAP_PROPERTIES heapProps = makeHeapProperties(D3D12_HEAP_TYPE_READBACK);
 
         // Resource to readback to
         D3D12_RESOURCE_DESC stagingDesc;
@@ -1518,7 +1747,8 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
             D3D12_HEAP_FLAG_NONE,
             stagingDesc,
             D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr
+            nullptr,
+            m_allocator
         ));
 
         // Do the copy
@@ -1535,7 +1765,10 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         UINT8* data;
         D3D12_RANGE readRange = {0, size};
 
-        SLANG_RETURN_ON_FAIL(stageBufRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&data)));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            stageBufRef.getResource()->Map(0, &readRange, reinterpret_cast<void**>(&data)),
+            this
+        );
 
         // Copy to memory buffer
         std::memcpy(outData, data, size);
@@ -1692,7 +1925,10 @@ D3D12_CPU_DESCRIPTOR_HANDLE DeviceImpl::getNullSamplerDescriptor()
     return m_nullSamplerDescriptor.cpuHandle;
 }
 
-void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, const void* inDesc)
+void DeviceImpl::processExperimentalFeaturesDesc(
+    SharedLibraryHandle d3dModule,
+    const D3D12ExperimentalFeaturesDesc* desc
+)
 {
     typedef HRESULT(WINAPI * PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)(
         UINT NumFeatures,
@@ -1701,8 +1937,6 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         UINT* pConfigurationStructSizes
     );
 
-    D3D12ExperimentalFeaturesDesc desc = {};
-    memcpy(&desc, inDesc, sizeof(desc));
     auto enableExperimentalFeaturesFunc =
         (PFN_D3D12_ENABLE_EXPERIMENTAL_FEATURES)loadProc(d3dModule, "D3D12EnableExperimentalFeatures");
     if (!enableExperimentalFeaturesFunc)
@@ -1716,10 +1950,10 @@ void DeviceImpl::processExperimentalFeaturesDesc(SharedLibraryHandle d3dModule, 
         return;
     }
     if (SLANG_FAILED(enableExperimentalFeaturesFunc(
-            (UINT)desc.featureCount,
-            (const IID*)desc.featureIIDs,
-            (void*)desc.configurationStructs,
-            (UINT*)desc.configurationStructSizes
+            (UINT)desc->featureCount,
+            (const IID*)desc->featureIIDs,
+            (void*)desc->configurationStructs,
+            (UINT*)desc->configurationStructSizes
         )))
     {
         handleMessage(
@@ -1737,14 +1971,10 @@ Result DeviceImpl::createQueryPool(const QueryPoolDesc& desc, IQueryPool** outSt
     switch (desc.type)
     {
     case QueryType::AccelerationStructureCompactedSize:
-    case QueryType::AccelerationStructureSerializedSize:
     case QueryType::AccelerationStructureCurrentSize:
     {
         RefPtr<PlainBufferProxyQueryPoolImpl> queryPoolImpl = new PlainBufferProxyQueryPoolImpl(this, desc);
-        uint32_t stride = 8;
-        if (desc.type == QueryType::AccelerationStructureSerializedSize)
-            stride = 16;
-        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(stride));
+        SLANG_RETURN_ON_FAIL(queryPoolImpl->init(8));
         returnComPtr(outState, queryPoolImpl);
         return SLANG_OK;
     }
@@ -1779,7 +2009,10 @@ Result DeviceImpl::waitForFences(
     {
         auto fenceImpl = checked_cast<FenceImpl*>(fences[i]);
         waitHandles.push_back(fenceImpl->getWaitEvent());
-        SLANG_RETURN_ON_FAIL(fenceImpl->m_fence->SetEventOnCompletion(fenceValues[i], fenceImpl->getWaitEvent()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            fenceImpl->m_fence->SetEventOnCompletion(fenceValues[i], fenceImpl->getWaitEvent()),
+            this
+        );
     }
     auto result = WaitForMultipleObjects(
         fenceCount,

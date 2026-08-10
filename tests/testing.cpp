@@ -3,6 +3,7 @@
 #include "core/platform.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <ctime>
 #include <cstdlib>
 #include <filesystem>
@@ -34,6 +35,40 @@ static ShaderCache gShaderCache;
 
 // Temp directory to create files for teting in.
 static std::filesystem::path gTestTempDirectory;
+
+static Feature getShaderModelFeature(uint32_t shaderModel)
+{
+    switch (shaderModel)
+    {
+    case 0x51:
+        return Feature::SM_5_1;
+    case 0x60:
+        return Feature::SM_6_0;
+    case 0x61:
+        return Feature::SM_6_1;
+    case 0x62:
+        return Feature::SM_6_2;
+    case 0x63:
+        return Feature::SM_6_3;
+    case 0x64:
+        return Feature::SM_6_4;
+    case 0x65:
+        return Feature::SM_6_5;
+    case 0x66:
+        return Feature::SM_6_6;
+    case 0x67:
+        return Feature::SM_6_7;
+    case 0x68:
+        return Feature::SM_6_8;
+    case 0x69:
+        return Feature::SM_6_9;
+    case 0x6a:
+        return Feature::SM_6_10;
+    default:
+        SLANG_RHI_ASSERT_FAILURE("Unhandled D3D12 shader model");
+        return Feature::_Count;
+    }
+}
 
 // Calculates a files sytem compatible date string formatted YYYY-MM-DD-hh-mm-ss.
 static std::string buildCurrentDateString()
@@ -205,6 +240,24 @@ void diagnoseIfNeeded(slang::IBlob* diagnosticsBlob)
     }
 }
 
+static Result loadModuleFromSource(slang::ISession* slangSession, std::string_view source, slang::IModule** outModule)
+{
+    static uint64_t counter = 0;
+    size_t hash = std::hash<std::string_view>()(source);
+    // TODO: If loading the same module name twice, we sometimes get crashes in Slang.
+    // For now we work around this by generating a unique module name for each load,
+    // but ideally Slang should fail to reuse a module name if the source is different, instead of crashing.
+    // Details in https://github.com/shader-slang/slang/issues/10957.
+    std::string moduleName = "source_module_" + std::to_string(hash) + "_" + std::to_string(counter++);
+    auto srcBlob = UnownedBlob::create(source.data(), source.size());
+    ComPtr<slang::IBlob> diagnosticsBlob;
+    *outModule =
+        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
+    diagnoseIfNeeded(diagnosticsBlob);
+    if (!*outModule)
+        return SLANG_FAIL;
+    return SLANG_OK;
+}
 
 static Result loadProgram(
     IDevice* device,
@@ -229,45 +282,53 @@ static Result loadProgram(
     if (!module)
         return SLANG_FAIL;
 
-    std::vector<slang::IComponentType*> componentTypes;
-    componentTypes.push_back(module);
-
-    // Find all entry points
+    std::vector<ComPtr<slang::IEntryPoint>> entryPoints;
+    std::vector<slang::IComponentType*> entryPointComponents;
     for (const char* entryPointName : entryPointNames)
     {
         ComPtr<slang::IEntryPoint> entryPoint;
         SLANG_RETURN_ON_FAIL(module->findEntryPointByName(entryPointName, entryPoint.writeRef()));
-        componentTypes.push_back(entryPoint);
+        entryPointComponents.push_back(entryPoint.get());
+        entryPoints.push_back(entryPoint);
     }
 
-    // Create composite component type
-    ComPtr<slang::IComponentType> composedProgram;
-    Result result = slangSession->createCompositeComponentType(
-        componentTypes.data(),
-        componentTypes.size(),
-        composedProgram.writeRef(),
-        diagnosticsBlob.writeRef()
-    );
-    diagnoseIfNeeded(diagnosticsBlob);
-    SLANG_RETURN_ON_FAIL(result);
-
-    slang::IComponentType* programToUse = composedProgram.get();
+    ShaderProgramDesc shaderProgramDesc = {};
     ComPtr<slang::IComponentType> linkedProgram;
 
     if (performLinking)
     {
+        std::vector<slang::IComponentType*> componentTypes;
+        componentTypes.push_back(module);
+        for (auto* ep : entryPointComponents)
+            componentTypes.push_back(ep);
+
+        ComPtr<slang::IComponentType> composedProgram;
+        Result result = slangSession->createCompositeComponentType(
+            componentTypes.data(),
+            componentTypes.size(),
+            composedProgram.writeRef(),
+            diagnosticsBlob.writeRef()
+        );
+        diagnoseIfNeeded(diagnosticsBlob);
+        SLANG_RETURN_ON_FAIL(result);
+
         result = composedProgram->link(linkedProgram.writeRef(), diagnosticsBlob.writeRef());
         diagnoseIfNeeded(diagnosticsBlob);
         SLANG_RETURN_ON_FAIL(result);
 
-        programToUse = linkedProgram.get();
         if (outSlangReflection)
             *outSlangReflection = linkedProgram->getLayout();
+
+        shaderProgramDesc.slangGlobalScope = linkedProgram.get();
+    }
+    else
+    {
+        shaderProgramDesc.slangGlobalScope = module;
+        shaderProgramDesc.slangEntryPoints = entryPointComponents.data();
+        shaderProgramDesc.slangEntryPointCount = (uint32_t)entryPointComponents.size();
     }
 
-    ShaderProgramDesc shaderProgramDesc = {};
-    shaderProgramDesc.slangGlobalScope = programToUse;
-    result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
+    Result result = device->createShaderProgram(shaderProgramDesc, outShaderProgram, diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);
     return result;
 }
@@ -391,15 +452,7 @@ Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IS
 {
     auto slangSession = device->getSlangSession();
     slang::IModule* module = nullptr;
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    size_t hash = std::hash<std::string_view>()(source);
-    std::string moduleName = "source_module_" + std::to_string(hash);
-    auto srcBlob = UnownedBlob::create(source.data(), source.size());
-    module =
-        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
+    SLANG_RETURN_ON_FAIL(loadModuleFromSource(slangSession, source, &module));
 
     std::vector<ComPtr<slang::IComponentType>> componentTypes;
     componentTypes.push_back(ComPtr<slang::IComponentType>(module));
@@ -416,6 +469,7 @@ Result loadComputeProgramFromSource(IDevice* device, std::string_view source, IS
         rawComponentTypes.push_back(compType.get());
 
     ComPtr<slang::IComponentType> linkedProgram;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     Result result = slangSession->createCompositeComponentType(
         rawComponentTypes.data(),
         rawComponentTypes.size(),
@@ -442,15 +496,7 @@ Result loadRenderProgramFromSource(
 {
     auto slangSession = device->getSlangSession();
     slang::IModule* module = nullptr;
-    ComPtr<slang::IBlob> diagnosticsBlob;
-    size_t hash = std::hash<std::string_view>()(source);
-    std::string moduleName = "source_module_" + std::to_string(hash);
-    auto srcBlob = UnownedBlob::create(source.data(), source.size());
-    module =
-        slangSession->loadModuleFromSource(moduleName.data(), moduleName.data(), srcBlob, diagnosticsBlob.writeRef());
-    diagnoseIfNeeded(diagnosticsBlob);
-    if (!module)
-        return SLANG_FAIL;
+    SLANG_RETURN_ON_FAIL(loadModuleFromSource(slangSession, source, &module));
 
     std::vector<ComPtr<slang::IComponentType>> componentTypes;
     componentTypes.push_back(ComPtr<slang::IComponentType>(module));
@@ -468,6 +514,7 @@ Result loadRenderProgramFromSource(
         rawComponentTypes.push_back(compType.get());
 
     ComPtr<slang::IComponentType> linkedProgram;
+    ComPtr<slang::IBlob> diagnosticsBlob;
     Result result = slangSession->createCompositeComponentType(
         rawComponentTypes.data(),
         rawComponentTypes.size(),
@@ -613,7 +660,7 @@ ComPtr<IDevice> createTestingDevice(
         compilerOptions.push_back(nvapiSearchPath);
     }
 #endif
-    if (deviceType == DeviceType::D3D12)
+    if (deviceType == DeviceType::D3D12 && !options().d3d12DisableNVAPI)
     {
         deviceDesc.nvapiExtUavSlot = 999;
         preprocessorMacros.push_back({"NV_SHADER_EXTN_SLOT", "u999"});
@@ -625,6 +672,17 @@ ComPtr<IDevice> createTestingDevice(
         compilerOptions.push_back(nvapiSearchPath);
     }
 #endif
+
+    // Set SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT if NVAPI is disabled explicitly or unavailable in this build.
+#if SLANG_RHI_ENABLE_NVAPI
+    const bool useNativeD3D12HitObject = options().d3d12DisableNVAPI;
+#else
+    const bool useNativeD3D12HitObject = true;
+#endif
+    if (deviceType == DeviceType::D3D12 && useNativeD3D12HitObject)
+    {
+        preprocessorMacros.push_back({"SLANG_RHI_TEST_D3D12_NATIVE_HIT_OBJECT", "1"});
+    }
 
 #if SLANG_RHI_ENABLE_OPTIX
     // Setup OptiX headers
@@ -681,6 +739,20 @@ ComPtr<IDevice> createTestingDevice(
     }
 #endif
 
+    auto disableWarning = [](const char* warningCode) -> slang::CompilerOptionEntry
+    {
+        slang::CompilerOptionEntry entry;
+        entry.name = slang::CompilerOptionName::DisableWarning;
+        entry.value.kind = slang::CompilerOptionValueKind::String;
+        entry.value.stringValue0 = warningCode;
+        return entry;
+    };
+
+    // Disable noisy warnings 31106 and 31107 until slang fixes them.
+    // https://github.com/shader-slang/slang/issues/11825
+    compilerOptions.push_back(disableWarning("31106"));
+    compilerOptions.push_back(disableWarning("31107"));
+
     deviceDesc.slang.slangGlobalSession = ctx->slangGlobalSession;
     deviceDesc.slang.searchPaths = searchPaths.data();
     deviceDesc.slang.searchPathCount = searchPaths.size();
@@ -690,12 +762,27 @@ ComPtr<IDevice> createTestingDevice(
     deviceDesc.slang.compilerOptionEntryCount = compilerOptions.size();
 
     D3D12DeviceExtendedDesc extDesc = {};
+    bool requireSpecificD3D12ShaderModel = false;
     if (deviceType == DeviceType::D3D12)
     {
         extDesc.rootParameterShaderAttributeName = "root";
         if (extraOptions && extraOptions->d3d12HighestShaderModel != 0)
         {
             extDesc.highestShaderModel = extraOptions->d3d12HighestShaderModel;
+        }
+        else if (options().d3d12ShaderModel != 0)
+        {
+            extDesc.highestShaderModel = options().d3d12ShaderModel;
+            requireSpecificD3D12ShaderModel = true;
+        }
+        else
+        {
+            // TODO: Slang current emits invalid HitObject code when D3D12 SM 6.9 and NVAPI are enabled.
+            // https://github.com/shader-slang/slang/issues/11903
+            // We currently default testing to cap at SM 6.8 to avoid this issue,
+            // but ideally we should be able to test SM 6.9 with NVAPI enabled.
+            // We can test SM 6.9 with/without NVAPI using -d3d12-shader-model and -d3d12-disable-nvapi cli options.
+            extDesc.highestShaderModel = 0x68;
         }
         deviceDesc.next = &extDesc;
     }
@@ -708,6 +795,12 @@ ComPtr<IDevice> createTestingDevice(
 #endif
 
     REQUIRE_CALL(getRHI()->createDevice(deviceDesc, device.writeRef()));
+
+    if (requireSpecificD3D12ShaderModel)
+    {
+        Feature feature = getShaderModelFeature(extDesc.highestShaderModel);
+        REQUIRE(device->hasFeature(feature));
+    }
 
     if (useCachedDevice)
     {
@@ -817,8 +910,14 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
 #if SLANG_RHI_DEBUG
     desc.debugCallback = &sCaptureDebugCallback;
 #endif
+    D3D12DeviceExtendedDesc d3d12ExtDesc = {};
+    if (deviceType == DeviceType::D3D12 && options().d3d12ShaderModel != 0)
+    {
+        d3d12ExtDesc.highestShaderModel = options().d3d12ShaderModel;
+        desc.next = &d3d12ExtDesc;
+    }
 #if SLANG_RHI_ENABLE_NVAPI
-    if (deviceType == DeviceType::D3D12)
+    if (deviceType == DeviceType::D3D12 && !options().d3d12DisableNVAPI)
     {
         desc.nvapiExtUavSlot = 999;
     }
@@ -944,6 +1043,9 @@ slang::IGlobalSession* getSlangGlobalSession()
     return slangGlobalSession;
 }
 
+static std::map<DeviceType, int> sGpuTestsEncountered;
+static std::map<DeviceType, int> sGpuTestsExecuted;
+
 // Trampoline test function registered in doctest for each GPU test instance.
 // Uses GpuTestInfo for additional information about the specific test instance.
 static void gpuTestTrampoline()
@@ -955,6 +1057,8 @@ static void gpuTestTrampoline()
     DeviceType deviceType = info->deviceType;
     bool createDevice = (info->flags & GpuTestFlags::DontCreateDevice) == 0;
     bool cacheDevice = (info->flags & GpuTestFlags::DontCacheDevice) == 0;
+
+    sGpuTestsEncountered[deviceType]++;
 
     if (!isDeviceTypeSelected(deviceType))
     {
@@ -1004,6 +1108,7 @@ static void gpuTestTrampoline()
             device->setCudaContextCurrent();
         }
         info->func(&ctx, device);
+        reportGpuTestExecuted(deviceType);
         if (device)
         {
             device->getQueue(QueueType::Graphics)->waitOnHost();
@@ -1114,6 +1219,40 @@ const char* getSkipMessage(const doctest::TestCaseData* tc)
 {
     auto it = sSkipMessages.find(tc);
     return it != sSkipMessages.end() ? it->second : nullptr;
+}
+
+void reportGpuTestExecuted(DeviceType deviceType)
+{
+    sGpuTestsExecuted[deviceType]++;
+}
+
+bool checkNoSilentGpuSkips()
+{
+    bool ok = true;
+    for (DeviceType deviceType : kPlatformDeviceTypes)
+    {
+        if (!isDeviceTypeSelected(deviceType))
+            continue;
+        if (sGpuTestsEncountered.find(deviceType) == sGpuTestsEncountered.end())
+            continue;
+        auto availIt = sDeviceTypeAvailable.find(deviceType);
+        if (availIt == sDeviceTypeAvailable.end() || !availIt->second)
+            continue;
+        auto execIt = sGpuTestsExecuted.find(deviceType);
+        int count = (execIt != sGpuTestsExecuted.end()) ? execIt->second : 0;
+        if (count == 0)
+        {
+            std::fprintf(
+                stderr,
+                "ERROR: Device type '%s' was available but zero tests executed "
+                "(all silently skipped). This likely indicates a device "
+                "initialization regression.\n",
+                deviceTypeToString(deviceType)
+            );
+            ok = false;
+        }
+    }
+    return ok;
 }
 
 } // namespace rhi::testing

@@ -43,12 +43,15 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         auto module = program->findModule(SLANG_STAGE_VERTEX);
         if (!module)
             return SLANG_FAIL;
-        SLANG_RETURN_ON_FAIL(m_device->CreateVertexShader(
-            module->code->getBufferPointer(),
-            module->code->getBufferSize(),
-            nullptr,
-            vertexShader.writeRef()
-        ));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateVertexShader(
+                module->code->getBufferPointer(),
+                module->code->getBufferSize(),
+                nullptr,
+                vertexShader.writeRef()
+            ),
+            this
+        );
     }
 
     ComPtr<ID3D11PixelShader> pixelShader;
@@ -56,12 +59,15 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         auto module = program->findModule(SLANG_STAGE_FRAGMENT);
         if (!module)
             return SLANG_FAIL;
-        SLANG_RETURN_ON_FAIL(m_device->CreatePixelShader(
-            module->code->getBufferPointer(),
-            module->code->getBufferSize(),
-            nullptr,
-            pixelShader.writeRef()
-        ));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreatePixelShader(
+                module->code->getBufferPointer(),
+                module->code->getBufferSize(),
+                nullptr,
+                pixelShader.writeRef()
+            ),
+            this
+        );
     }
 
     ComPtr<ID3D11DepthStencilState> depthStencilState;
@@ -85,7 +91,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         FACE(FrontFace, frontFace);
         FACE(BackFace, backFace);
 
-        SLANG_RETURN_ON_FAIL(m_device->CreateDepthStencilState(&dsDesc, depthStencilState.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_device->CreateDepthStencilState(&dsDesc, depthStencilState.writeRef()), this);
     }
 
     ComPtr<ID3D11RasterizerState> rasterizerState;
@@ -102,7 +108,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         rsDesc.MultisampleEnable = desc.rasterizer.multisampleEnable;
         rsDesc.AntialiasedLineEnable = desc.rasterizer.antialiasedLineEnable;
 
-        SLANG_RETURN_ON_FAIL(m_device->CreateRasterizerState(&rsDesc, rasterizerState.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_device->CreateRasterizerState(&rsDesc, rasterizerState.writeRef()), this);
     }
 
     ComPtr<ID3D11BlendState> blendState;
@@ -162,7 +168,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
         dstDesc.IndependentBlendEnable = targetCount > 1;
         dstDesc.AlphaToCoverageEnable = desc.multisample.alphaToCoverageEnable;
 
-        SLANG_RETURN_ON_FAIL(m_device->CreateBlendState(&dstDesc, blendState.writeRef()));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(m_device->CreateBlendState(&dstDesc, blendState.writeRef()), this);
     }
 
     // Report the pipeline creation time.
@@ -232,12 +238,15 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         auto module = program->findModule(SLANG_STAGE_COMPUTE);
         if (!module)
             return SLANG_FAIL;
-        SLANG_RETURN_ON_FAIL(m_device->CreateComputeShader(
-            module->code->getBufferPointer(),
-            module->code->getBufferSize(),
-            nullptr,
-            computeShader.writeRef()
-        ));
+        SLANG_D3D_RETURN_ON_FAIL_REPORT(
+            m_device->CreateComputeShader(
+                module->code->getBufferPointer(),
+                module->code->getBufferSize(),
+                nullptr,
+                computeShader.writeRef()
+            ),
+            this
+        );
     }
 
     // Report the pipeline creation time.

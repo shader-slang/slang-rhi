@@ -21,7 +21,8 @@ public:
 
 public:
     NS::SharedPtr<MTL::Buffer> m_buffer;
-    CpuAccessMode m_lastCpuAccessMode;
+    DeviceAddress m_deviceAddress = 0;
+    BufferImpl* m_nextAtSameAddr = nullptr;
 };
 
 } // namespace rhi::metal

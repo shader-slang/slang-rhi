@@ -3,8 +3,6 @@
 #include "d3d12-buffer.h"
 #include "d3d12-query.h"
 
-#include "core/string.h"
-
 namespace rhi::d3d12 {
 
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op)
@@ -570,13 +568,6 @@ void translatePostBuildInfoDescs(
             postBuildInfoDescs[i].DestBuffer =
                 checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
                 sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC) *
-                    queryDescs[i].firstQueryIndex;
-            break;
-        case QueryType::AccelerationStructureSerializedSize:
-            postBuildInfoDescs[i].InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION;
-            postBuildInfoDescs[i].DestBuffer =
-                checked_cast<PlainBufferProxyQueryPoolImpl*>(queryDescs[i].queryPool)->m_buffer->getDeviceAddress() +
-                sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC) *
                     queryDescs[i].firstQueryIndex;
             break;
         default:

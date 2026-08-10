@@ -1,6 +1,38 @@
 #include "metal-shader-object-layout.h"
+#include "metal-device.h"
 
 namespace rhi::metal {
+
+static void collectPointerFields(
+    slang::TypeLayoutReflection* typeLayout,
+    uint32_t baseOffset,
+    std::vector<ShaderObjectLayoutImpl::PointerFieldInfo>& outFields
+)
+{
+    auto kind = typeLayout->getKind();
+    if (kind == slang::TypeReflection::Kind::Pointer)
+    {
+        outFields.push_back({baseOffset});
+        return;
+    }
+    if (kind == slang::TypeReflection::Kind::Array)
+    {
+        auto elemLayout = typeLayout->getElementTypeLayout();
+        auto stride = typeLayout->getElementStride(SLANG_PARAMETER_CATEGORY_MIXED);
+        auto count = typeLayout->getElementCount();
+        if (count == 0)
+            return;
+        for (size_t i = 0; i < count; i++)
+            collectPointerFields(elemLayout, baseOffset + (uint32_t)(i * stride), outFields);
+        return;
+    }
+    for (unsigned i = 0; i < typeLayout->getFieldCount(); i++)
+    {
+        auto field = typeLayout->getFieldByIndex(i);
+        uint32_t fieldOffset = baseOffset + (uint32_t)field->getOffset();
+        collectPointerFields(field->getTypeLayout(), fieldOffset, outFields);
+    }
+}
 
 static slang::TypeLayoutReflection* _getParameterBlockTypeLayout(
     slang::ISession* slangSession,
@@ -30,8 +62,13 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
     {
         m_parameterBlockTypeLayout = _getParameterBlockTypeLayout(m_session, m_elementTypeLayout);
 
-        // If we have a parameter-block, we should be working on the `ParameterBlockTypeLayout`
-        // since this layout will format data for an arg-buffer-tier2 if available.
+        // For ParameterBlock on Metal, use the Tier 2 argument buffer layout as the
+        // element type layout. This ensures ShaderCursor, m_data sizing, pointer field
+        // collection, and the argument buffer all use the same non-overlapping offsets.
+        // Under default layout rules, fields of different parameter categories (e.g.
+        // scalars vs pointers) can have overlapping Uniform offsets, which corrupts
+        // m_data when ShaderCursor writes interleaved value/pointer fields.
+        m_elementTypeLayout = m_parameterBlockTypeLayout;
         typeLayout = m_parameterBlockTypeLayout;
     }
     m_totalOrdinaryDataSize = (uint32_t)typeLayout->getSize();
@@ -241,7 +278,8 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
     auto device = builder->m_device;
 
     initBase(device, builder->m_session, builder->m_elementTypeLayout);
-
+    if (!static_cast<DeviceImpl*>(device)->m_hasResidencySet)
+        collectPointerFields(m_elementTypeLayout, 0, m_pointerFields);
     m_parameterBlockTypeLayout = builder->m_parameterBlockTypeLayout;
     m_slotCount = builder->m_slotCount;
     m_subObjectCount = builder->m_subObjectCount;

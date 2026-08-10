@@ -132,7 +132,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     samplerInfo.pNext = &reductionInfo;
 
     VkSampler sampler;
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &sampler));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &sampler), this);
 
     _labelObject((uint64_t)sampler, VK_OBJECT_TYPE_SAMPLER, desc.label);
 

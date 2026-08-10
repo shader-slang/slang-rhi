@@ -11,7 +11,7 @@ This library is under active refactoring and development, and is not yet ready f
 
 ## License
 
-`slang-rhi` is released under the MIT license. See the file  [LICENSE](LICENSE) for more information.
+`slang-rhi` is released under the Apache 2.0 with LLVM Exception license. See the file  [LICENSE](LICENSE) for more information.
 
 `slang-rhi` depends on the following third-party libraries, which have their own license:
 
@@ -22,3 +22,5 @@ This library is under active refactoring and development, and is not yet ready f
 - [Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) (MIT)
 - [OffsetAllocator](https://github.com/sebbbi/OffsetAllocator) (MIT)
 - [WinPixEventRuntime](https://www.nuget.org/packages/WinPixEventRuntime) (MIT)
+- [D3D12 Memory Allocator](https://gpuopen.com/d3d12-memory-allocator) (MIT)
+- [Vulkan Memory Allocator](https://gpuopen.com/vulkan-memory-allocator) (MIT)

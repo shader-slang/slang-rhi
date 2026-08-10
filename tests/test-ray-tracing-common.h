@@ -1119,11 +1119,11 @@ struct RayTracingTestPipeline
         shaderTableDesc.hitGroupNames = hitgroupNamesCstr.data();
         shaderTableDesc.hitGroupRecordOverwrites = hitGroupSbtData;
         shaderTableDesc.rayGenShaderCount = raygenNames.size();
-        shaderTableDesc.rayGenShaderEntryPointNames = const_cast<const char**>(raygenNames.data());
+        shaderTableDesc.rayGenShaderEntryPointNames = raygenNames.data();
         shaderTableDesc.missShaderCount = missNames.size();
-        shaderTableDesc.missShaderEntryPointNames = const_cast<const char**>(missNames.data());
+        shaderTableDesc.missShaderEntryPointNames = missNames.data();
         shaderTableDesc.callableShaderCount = callableNames.size();
-        shaderTableDesc.callableShaderEntryPointNames = const_cast<const char**>(callableNames.data());
+        shaderTableDesc.callableShaderEntryPointNames = callableNames.data();
         REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
     }
 };

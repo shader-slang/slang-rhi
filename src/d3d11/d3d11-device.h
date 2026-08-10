@@ -107,7 +107,6 @@ public:
     ComPtr<ID3D11Device> m_device;
     ComPtr<ID3D11DeviceContext> m_immediateContext;
     ComPtr<ID3D11DeviceContext1> m_immediateContext1;
-    ComPtr<ID3D11Query> m_disjointQuery;
 
 #if SLANG_RHI_ENABLE_NVAPI
     NVAPIShaderExtension m_nvapiShaderExtension;

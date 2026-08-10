@@ -11,8 +11,9 @@ namespace rhi {
 
 // Track work-stealing nesting depth per thread.
 // Only the outermost wait call (depth 0) is allowed to steal and execute tasks.
-// This prevents circular steal chains where a stolen task's callback waits on
-// a task that is already in-flight higher up the same thread's call stack.
+// At depth > 0 (inside a stolen task's callback), stealing is forbidden to
+// prevent same-thread circular dependencies: a stolen task's callback might
+// wait on a task that is already mid-execution higher up the same call stack.
 static thread_local int tls_stealDepth = 0;
 
 // ----------------------------------------------------------------------------
@@ -297,7 +298,7 @@ struct ThreadedTaskPool::Pool
         // One reference is for the pool, the other is for the caller.
         retainTask(task, 2);
 
-        m_tasksRemaining.fetch_add(1, std::memory_order_relaxed);
+        m_tasksRemaining.fetch_add(1, std::memory_order_release);
 
         if (depsCount == 0)
         {
@@ -314,6 +315,11 @@ struct ThreadedTaskPool::Pool
                 SLANG_RHI_ASSERT(dep);
                 SLANG_RHI_ASSERT(dep->refCount.load(std::memory_order_acquire) > 0);
                 SLANG_RHI_ASSERT(dep->pool == this);
+
+                // Keep the dependency object alive while we touch its mutex.
+                // The child task can run before submitTask() returns and may
+                // release dependency handles from its callback.
+                retainTask(dep);
                 {
                     std::lock_guard<std::mutex> lock(dep->childrenMutex);
                     if (!dep->done.load(std::memory_order_acquire))
@@ -333,6 +339,7 @@ struct ThreadedTaskPool::Pool
                         }
                     }
                 }
+                releaseTask(dep);
             }
             // Enqueue outside the dep lock scope to avoid use-after-free.
             // Enqueueing while holding dep->childrenMutex could allow a worker to
@@ -432,16 +439,19 @@ void ThreadedTaskPool::Pool::executeTask(Task* task)
     // NOTE: If a task throws, it is still marked as done and its children
     // will execute. There is currently no failure propagation mechanism.
     // Increment steal depth so that any waitTask/waitAll/waitTaskGroup called
-    // from the task callback cannot steal tasks. This prevents circular steal
-    // chains where a stolen task's callback waits on a task already in-flight
-    // on the same thread's call stack.
+    // from the task callback cannot steal tasks. This prevents same-thread
+    // circular dependencies where a stolen task's callback waits on a task
+    // already mid-execution higher up the same call stack.
     tls_stealDepth++;
     try
     {
         task->func(task->payload);
+    } catch (const std::exception& e)
+    {
+        SLANG_RHI_ASSERT_FAILURE(e.what());
     } catch (...)
     {
-        SLANG_RHI_ASSERT_FAILURE("Task threw an exception");
+        SLANG_RHI_ASSERT_FAILURE("Task threw an unknown exception");
     }
     tls_stealDepth--;
     // Capture the group pointer before we potentially release the task.
@@ -606,9 +616,10 @@ void ThreadedTaskPool::releaseTaskGroup(TaskGroupHandle group)
 // Global task pool
 // ----------------------------------------------------------------------------
 
+SLANG_RHI_STATIC_MUTEX_BEGIN
 static std::mutex s_globalTaskPoolMutex;
-static ComPtr<ITaskPool> s_globalTaskPool;
-static std::atomic<ITaskPool*> s_cachedGlobalTaskPool{nullptr};
+SLANG_RHI_STATIC_MUTEX_END
+static ITaskPool* s_globalTaskPool;
 
 // WARNING: setGlobalTaskPool must only be called when no devices are alive
 // and no other threads are using the global task pool. Calling it concurrently
@@ -616,8 +627,11 @@ static std::atomic<ITaskPool*> s_cachedGlobalTaskPool{nullptr};
 Result setGlobalTaskPool(ITaskPool* taskPool)
 {
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
+    if (s_globalTaskPool)
+        s_globalTaskPool->release();
     s_globalTaskPool = taskPool;
-    s_cachedGlobalTaskPool.store(taskPool, std::memory_order_release);
+    if (s_globalTaskPool)
+        s_globalTaskPool->addRef();
     return SLANG_OK;
 }
 
@@ -637,18 +651,13 @@ Result initGlobalTaskPool(int workerCount)
 
 ITaskPool* globalTaskPool()
 {
-    ITaskPool* cached = s_cachedGlobalTaskPool.load(std::memory_order_acquire);
-    if (cached)
-    {
-        return cached;
-    }
     std::lock_guard<std::mutex> lock(s_globalTaskPoolMutex);
     if (!s_globalTaskPool)
     {
         s_globalTaskPool = new ThreadedTaskPool(-1);
+        s_globalTaskPool->addRef();
     }
-    s_cachedGlobalTaskPool.store(s_globalTaskPool.get(), std::memory_order_release);
-    return s_globalTaskPool.get();
+    return s_globalTaskPool;
 }
 
 } // namespace rhi

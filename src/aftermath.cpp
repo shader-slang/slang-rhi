@@ -266,7 +266,9 @@ const std::string* AftermathCrashDumper::findMarker(uint64_t hash)
     return nullptr;
 }
 
+SLANG_RHI_STATIC_MUTEX_BEGIN
 static std::mutex s_aftermathCrashDumperMutex;
+SLANG_RHI_STATIC_MUTEX_END
 static RefPtr<AftermathCrashDumper> s_aftermathCrashDumper;
 
 AftermathCrashDumper* AftermathCrashDumper::getOrCreate()

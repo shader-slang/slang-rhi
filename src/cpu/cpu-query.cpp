@@ -10,6 +10,16 @@ QueryPoolImpl::QueryPoolImpl(Device* device, const QueryPoolDesc& desc)
 
 Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* outData)
 {
+    if (!outData || !isValidQueryRange(queryIndex, count))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    if (getQueryRangeInfo(queryIndex, count).state != QueryResultState::Resolved)
+    {
+        return SLANG_FAIL;
+    }
+
     for (uint32_t i = 0; i < count; i++)
     {
         outData[i] = m_queries[queryIndex + i];

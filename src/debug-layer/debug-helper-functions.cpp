@@ -6,7 +6,7 @@
 
 namespace rhi::debug {
 
-thread_local const char* _currentFunctionName = nullptr;
+thread_local const char* tls_currentFunctionName = nullptr;
 
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Device)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(CommandQueue)

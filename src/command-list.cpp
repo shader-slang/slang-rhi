@@ -3,9 +3,14 @@
 
 namespace rhi {
 
-CommandList::CommandList(ArenaAllocator& allocator, std::set<RefPtr<RefObject>>& trackedObjects)
+CommandList::CommandList(
+    ArenaAllocator& allocator,
+    std::set<RefPtr<RefObject>>& trackedObjects,
+    std::vector<ExecuteCallbackObjectRetainer>& trackedExecuteCallbackObjects
+)
     : m_allocator(allocator)
     , m_trackedObjects(trackedObjects)
+    , m_trackedExecuteCallbackObjects(trackedExecuteCallbackObjects)
 {
 }
 
@@ -13,6 +18,8 @@ void CommandList::reset()
 {
     m_commandSlots = nullptr;
     m_lastCommandSlot = nullptr;
+    m_queryWrites.clear();
+    m_writesTimestamp = false;
 }
 
 void CommandList::write(commands::CopyBuffer&& cmd)
@@ -254,7 +261,10 @@ void CommandList::write(commands::BuildAccelerationStructure&& cmd)
         cmd.queryDescs = (AccelerationStructureQueryDesc*)
             writeData(cmd.queryDescs, cmd.propertyQueryCount * sizeof(AccelerationStructureQueryDesc));
         for (uint32_t i = 0; i < cmd.propertyQueryCount; ++i)
+        {
             retainResource<QueryPool>(cmd.queryDescs[i].queryPool);
+            trackQueryWrite(cmd.queryDescs[i].queryPool, uint32_t(cmd.queryDescs[i].firstQueryIndex), 1);
+        }
     }
     writeCommand(std::move(cmd));
 }
@@ -280,22 +290,15 @@ void CommandList::write(commands::QueryAccelerationStructureProperties&& cmd)
         cmd.queryDescs = (AccelerationStructureQueryDesc*)
             writeData(cmd.queryDescs, cmd.queryCount * sizeof(AccelerationStructureQueryDesc));
         for (uint32_t i = 0; i < cmd.queryCount; ++i)
+        {
             retainResource<QueryPool>(cmd.queryDescs[i].queryPool);
+            trackQueryWrite(
+                cmd.queryDescs[i].queryPool,
+                uint32_t(cmd.queryDescs[i].firstQueryIndex),
+                cmd.accelerationStructureCount
+            );
+        }
     }
-    writeCommand(std::move(cmd));
-}
-
-void CommandList::write(commands::SerializeAccelerationStructure&& cmd)
-{
-    retainResource<Buffer>(cmd.dst.buffer);
-    retainResource<AccelerationStructure>(cmd.src);
-    writeCommand(std::move(cmd));
-}
-
-void CommandList::write(commands::DeserializeAccelerationStructure&& cmd)
-{
-    retainResource<AccelerationStructure>(cmd.dst);
-    retainResource<Buffer>(cmd.src.buffer);
     writeCommand(std::move(cmd));
 }
 
@@ -367,13 +370,42 @@ void CommandList::write(commands::WriteTimestamp&& cmd)
 {
     retainResource<QueryPool>(cmd.queryPool);
     writeCommand(std::move(cmd));
+    trackQueryWrite(cmd.queryPool, cmd.queryIndex, 1);
+    m_writesTimestamp = true;
 }
 
 void CommandList::write(commands::ExecuteCallback&& cmd)
 {
-    if (cmd.userData && cmd.userDataSize > 0)
-        cmd.userData = writeData(cmd.userData, cmd.userDataSize);
+    if (cmd.desc.userData && cmd.desc.userDataSize > 0)
+        cmd.desc.userData = writeData(cmd.desc.userData, cmd.desc.userDataSize);
+
+    if (cmd.desc.userObject && cmd.desc.retainUserObject && cmd.desc.releaseUserObject)
+    {
+        cmd.desc.retainUserObject(cmd.desc.userObject);
+        m_trackedExecuteCallbackObjects.push_back({cmd.desc.userObject, cmd.desc.releaseUserObject});
+    }
+
     writeCommand(std::move(cmd));
+}
+
+void CommandList::trackQueryWrite(IQueryPool* queryPool, uint32_t index, uint32_t count)
+{
+    if (!queryPool || count == 0)
+    {
+        return;
+    }
+
+    if (!m_queryWrites.empty())
+    {
+        QueryWriteRange& last = m_queryWrites.back();
+        if (last.queryPool == queryPool && last.index + last.count == index)
+        {
+            last.count += count;
+            return;
+        }
+    }
+
+    m_queryWrites.push_back({queryPool, index, count});
 }
 
 } // namespace rhi

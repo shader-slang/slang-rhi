@@ -80,7 +80,6 @@ private:
         uintptr_t begin() const { return reinterpret_cast<uintptr_t>(this) + sizeof(Page); }
         uintptr_t end() const { return begin() + size; }
     };
-    static_assert(sizeof(Page) == 16);
 
     size_t m_pageSize;
     Page* m_pages = nullptr;

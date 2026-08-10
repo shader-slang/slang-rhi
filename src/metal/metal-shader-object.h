@@ -71,6 +71,8 @@ struct BindingDataBuilder
         uint8_t* argumentBuffer,
         uint8_t* srcData
     );
+
+    Result resolvePointerFieldResidency(ShaderObject* shaderObject, ShaderObjectLayoutImpl* specializedLayout);
 };
 
 struct BindingDataImpl : BindingData
@@ -93,6 +95,12 @@ struct BindingDataImpl : BindingData
     MTL::Resource** usedRWResources;
     uint32_t usedRWResourceCount;
     uint32_t usedRWResourceCapacity;
+
+    // Root-level acceleration structures bound via setAccelerationStructure:atBufferIndex:
+    MTL::AccelerationStructure** rootAccelerationStructures;
+    NS::UInteger* rootAccelerationStructureSlots;
+    uint32_t rootAccelerationStructureCount;
+    uint32_t rootAccelerationStructureCapacity;
 };
 
 struct BindingCache

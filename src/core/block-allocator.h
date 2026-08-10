@@ -9,22 +9,29 @@ namespace rhi {
 /// Allocates fixed-size blocks of sizeof(T) out of larger pages.
 /// Thread-safe for concurrent allocations and deallocations using a mutex.
 ///
-/// This allocator never frees pages, which means it can only
-/// grow in size and never shrink.
-template<typename T>
+/// Designed to be safe for use as a static/global variable without relying
+/// on static constructors or destructors (avoiding DSO/shared library
+/// initialization order hazards). The constructor is constexpr, so static
+/// instances are constant-initialized by the compiler. The destructor is
+/// intentionally trivial and does NOT free pages. Call releasePages()
+/// manually before the allocator goes out of scope to avoid memory leaks.
+template<typename T, size_t BlocksPerPage = 256>
 class BlockAllocator
 {
 public:
-    /// Constructor
-    /// @param blocksPerPage Number of blocks to allocate per page (default: 256).
-    BlockAllocator(size_t blocksPerPage = 256)
-        : m_blocksPerPage(blocksPerPage)
-    {
-        SLANG_RHI_ASSERT(blocksPerPage > 0);
-    }
+    constexpr BlockAllocator() = default;
+    ~BlockAllocator() = default;
 
-    /// Destructor - frees all pages (NOT thread safe).
-    ~BlockAllocator()
+    // Non-copyable, non-movable
+    BlockAllocator(const BlockAllocator&) = delete;
+    BlockAllocator& operator=(const BlockAllocator&) = delete;
+    BlockAllocator(BlockAllocator&&) = delete;
+    BlockAllocator& operator=(BlockAllocator&&) = delete;
+
+    /// Release all pages and reset the allocator (NOT thread safe).
+    /// Must be called manually to free memory, as the destructor is trivial.
+    /// After calling this, the allocator is empty and can be reused.
+    void releasePages()
     {
         Page* page = m_pageListHead;
         while (page)
@@ -33,16 +40,13 @@ public:
             std::free(page);
             page = next;
         }
+        m_pageListHead = nullptr;
+        m_freeList = nullptr;
+        m_numPages = 0;
     }
 
-    // Non-copyable, non-movable
-    BlockAllocator(const BlockAllocator&) = delete;
-    BlockAllocator& operator=(const BlockAllocator&) = delete;
-    BlockAllocator(BlockAllocator&&) = delete;
-    BlockAllocator& operator=(BlockAllocator&&) = delete;
-
     /// Allocate a block (thread safe).
-    /// @return Pointer to allocated block, or nullptr if allocation fails
+    /// @return Pointer to an uninitialized block, or nullptr if allocation fails.
     T* allocate()
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -55,8 +59,9 @@ public:
         return allocateFromNewPageLocked();
     }
 
-    /// Free a block (thread safe).
-    /// @param ptr Pointer to block to free
+    /// Return a block to the free list (thread safe).
+    /// The caller is responsible for destroying the object before calling this.
+    /// @param ptr Pointer to block to free. No-op if nullptr.
     void free(T* ptr)
     {
         if (!ptr)
@@ -80,7 +85,7 @@ public:
         while (page)
         {
             uintptr_t pageStart = reinterpret_cast<uintptr_t>(page->blocks);
-            uintptr_t pageEnd = pageStart + m_blocksPerPage * sizeof(Block);
+            uintptr_t pageEnd = pageStart + BlocksPerPage * sizeof(Block);
             if (addr >= pageStart && addr < pageEnd)
             {
                 return true;
@@ -90,14 +95,15 @@ public:
         return false;
     }
 
-    /// Reset the allocator, rebuilding the free list from all pages (NOT thread safe).
+    /// Reset the free list to contain all blocks from all pages (NOT thread safe).
+    /// Does not free any pages. Useful for bulk-recycling all blocks without releasing memory.
     void reset()
     {
         FreeBlock* head = nullptr;
         Page* page = m_pageListHead;
         while (page)
         {
-            for (size_t i = 0; i < m_blocksPerPage; ++i)
+            for (size_t i = 0; i < BlocksPerPage; ++i)
             {
                 FreeBlock* block = reinterpret_cast<FreeBlock*>(&page->blocks[i]);
                 block->next = head;
@@ -121,18 +127,18 @@ private:
         FreeBlock* next;
     };
 
-    /// A block must be large enough to hold either T or a FreeBlock.
+    /// A block is a union large enough to hold either T or a FreeBlock pointer.
     union Block
     {
         alignas(T) uint8_t data[sizeof(T)];
-        FreeBlock freeBlock; // Used when block is free
+        FreeBlock freeBlock;
     };
 
     static_assert(sizeof(Block) >= sizeof(FreeBlock*), "Block must be large enough to hold a pointer");
     static_assert(alignof(Block) >= alignof(T), "Block alignment must be sufficient for T");
 
-    /// A page contains multiple blocks and a link to the next page.
-    /// Note: blocks[1] is a flexible array member pattern - actual size is m_blocksPerPage.
+    /// A page holds BlocksPerPage blocks and links to the next page.
+    /// blocks[1] is a C-style flexible array; actual allocation is BlocksPerPage blocks.
     struct Page
     {
         Page* next;
@@ -144,7 +150,7 @@ private:
     T* allocateFromNewPageLocked()
     {
         // Allocate a new page
-        size_t pageSize = sizeof(Page) + (m_blocksPerPage - 1) * sizeof(Block);
+        size_t pageSize = sizeof(Page) + (BlocksPerPage - 1) * sizeof(Block);
         Page* page = reinterpret_cast<Page*>(std::malloc(pageSize));
         if (!page)
         {
@@ -157,7 +163,7 @@ private:
         m_numPages++;
 
         // Generate free list from all except first block.
-        for (size_t i = 1; i < m_blocksPerPage; ++i)
+        for (size_t i = 1; i < BlocksPerPage; ++i)
         {
             FreeBlock* block = reinterpret_cast<FreeBlock*>(&page->blocks[i]);
             block->next = m_freeList;
@@ -168,7 +174,6 @@ private:
         return reinterpret_cast<T*>(&page->blocks[0]);
     }
 
-    size_t m_blocksPerPage;
     FreeBlock* m_freeList{nullptr};
     mutable std::mutex m_mutex; // Protects all operations
     Page* m_pageListHead{nullptr};
@@ -176,20 +181,29 @@ private:
 };
 
 /// Macro to declare block allocator support for a class.
-/// The block size is automatically determined from sizeof(ClassName).
-#define SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ClassName)                                                                   \
+/// Overrides operator new/delete to use a static BlockAllocator instance.
+#define SLANG_RHI_DECLARE_BLOCK_ALLOCATED(ClassName, BlocksPerPage)                                                    \
 public:                                                                                                                \
+    using BlockAllocatorType = ::rhi::BlockAllocator<ClassName, BlocksPerPage>;                                        \
     void* operator new(size_t count);                                                                                  \
     void operator delete(void* ptr);                                                                                   \
+    static BlockAllocatorType& getAllocator();                                                                         \
                                                                                                                        \
 private:                                                                                                               \
-    static ::rhi::BlockAllocator<ClassName> s_allocator;
+    static BlockAllocatorType s_allocator;
 
-/// Macro to implement block allocator operators in .cpp file.
-/// @param ClassName The class name to implement block allocation for.
-/// @param BlocksPerPage Number of blocks to allocate per page.
-#define SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(ClassName, BlocksPerPage)                                                  \
-    ::rhi::BlockAllocator<ClassName> ClassName::s_allocator(BlocksPerPage);                                            \
+/// Macro to implement block allocator operators in a .cpp file.
+/// The allocator is constexpr-constructed, requiring no static constructor.
+/// releasePages() must be called at shutdown to free memory.
+#define SLANG_RHI_IMPLEMENT_BLOCK_ALLOCATED(ClassName)                                                                 \
+    SLANG_RHI_STATIC_MUTEX_BEGIN                                                                                       \
+    ClassName::BlockAllocatorType ClassName::s_allocator;                                                              \
+    SLANG_RHI_STATIC_MUTEX_END                                                                                         \
+                                                                                                                       \
+    ClassName::BlockAllocatorType& ClassName::getAllocator()                                                           \
+    {                                                                                                                  \
+        return s_allocator;                                                                                            \
+    }                                                                                                                  \
                                                                                                                        \
     void* ClassName::operator new(size_t count)                                                                        \
     {                                                                                                                  \

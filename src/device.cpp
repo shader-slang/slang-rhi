@@ -565,6 +565,27 @@ bool Device::hasFeature(const char* feature)
     return false;
 }
 
+Result Device::checkRequiredFeatures(const DeviceDesc& desc)
+{
+#define SLANG_RHI_FEATURES_X(id, name) name,
+    static constexpr const char* kFeatureNames[] = {SLANG_RHI_FEATURES(SLANG_RHI_FEATURES_X)};
+#undef SLANG_RHI_FEATURES_X
+
+    Result result = SLANG_OK;
+    for (uint32_t i = 0; i < desc.requiredFeatureCount; i++)
+    {
+        Feature feature = desc.requiredFeatures[i];
+        if (!hasFeature(feature))
+        {
+            const char* featureName =
+                size_t(feature) < size_t(Feature::_Count) ? kFeatureNames[size_t(feature)] : "unknown";
+            printError("Required feature '%s' is not available\n", featureName);
+            result = SLANG_E_NOT_AVAILABLE;
+        }
+    }
+    return result;
+}
+
 Result Device::getCapabilities(uint32_t* outCapabilityCount, Capability* outCapabilities)
 {
     if (!outCapabilityCount)

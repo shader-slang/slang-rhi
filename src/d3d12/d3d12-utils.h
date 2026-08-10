@@ -11,6 +11,18 @@
 
 namespace rhi::d3d12 {
 
+/// Create standard D3D12 heap properties for a given heap type.
+inline D3D12_HEAP_PROPERTIES makeHeapProperties(D3D12_HEAP_TYPE type)
+{
+    D3D12_HEAP_PROPERTIES heapProps = {};
+    heapProps.Type = type;
+    heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProps.CreationNodeMask = 1;
+    heapProps.VisibleNodeMask = 1;
+    return heapProps;
+}
+
 bool isSupportedNVAPIOp(ID3D12Device* dev, uint32_t op);
 
 D3D12_RESOURCE_FLAGS calcResourceFlags(BufferUsage usage);

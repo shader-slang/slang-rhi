@@ -27,7 +27,7 @@ TextureImpl::~TextureImpl()
     {
         api.vkDestroyImageView(api.m_device, view.second.imageView, nullptr);
     }
-    if (!m_isSwapchainTexture)
+    if (m_shouldDestroyImage)
     {
         api.vkFreeMemory(api.m_device, m_imageMemory, nullptr);
         api.vkDestroyImage(api.m_device, m_image, nullptr);
@@ -86,7 +86,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
             return SLANG_FAIL;
         }
         HANDLE handle = NULL;
-        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryWin32HandleKHR(device->m_device, &info, &handle));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetMemoryWin32HandleKHR(device->m_device, &info, &handle), device);
         m_sharedHandle = NativeHandle{NativeHandleType::Win32, (uint64_t)handle};
 #else
         VkMemoryGetFdInfoKHR info = {};
@@ -100,7 +100,7 @@ Result TextureImpl::getSharedHandle(NativeHandle* outHandle)
             return SLANG_FAIL;
         }
         int handle = 0;
-        SLANG_VK_RETURN_ON_FAIL(api.vkGetMemoryFdKHR(device->m_device, &info, &handle));
+        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkGetMemoryFdKHR(device->m_device, &info, &handle), device);
         m_sharedHandle = NativeHandle{NativeHandleType::FileDescriptor, (uint64_t)handle};
 #endif
     }
@@ -212,7 +212,10 @@ TextureViewImpl::~TextureViewImpl()
 
 Result TextureViewImpl::getNativeHandle(NativeHandle* outHandle)
 {
-    return SLANG_E_NOT_AVAILABLE;
+    TextureImpl::View view = getView();
+    outHandle->type = NativeHandleType::VkImageView;
+    outHandle->value = (uint64_t)view.imageView;
+    return SLANG_OK;
 }
 
 Result TextureViewImpl::getDescriptorHandle(DescriptorHandleAccess access, DescriptorHandle* outHandle)
@@ -372,7 +375,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         externalMemoryImageCreateInfo.handleTypes = extMemoryHandleType;
         imageInfo.pNext = &externalMemoryImageCreateInfo;
     }
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &texture->m_image));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &texture->m_image), this);
 
     VkMemoryRequirements memRequirements;
     m_api.vkGetImageMemoryRequirements(m_device, texture->m_image, &memRequirements);
@@ -406,7 +409,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         exportMemoryAllocateInfo.handleTypes = extMemoryHandleType;
         allocInfo.pNext = &exportMemoryAllocateInfo;
     }
-    SLANG_VK_RETURN_ON_FAIL(m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &texture->m_imageMemory));
+    SLANG_VK_RETURN_ON_FAIL_REPORT(
+        m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &texture->m_imageMemory),
+        this
+    );
 
     // Bind the memory to the image
     m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
@@ -447,6 +453,33 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
     }
+
+    returnComPtr(outTexture, texture);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc_, ITexture** outTexture)
+{
+    if (handle.type != NativeHandleType::VkImage || handle.value == 0)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    TextureDesc desc = fixupTextureDesc(desc_);
+
+    const VkFormat format = getVkFormat(desc.format);
+    if (format == VK_FORMAT_UNDEFINED)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
+    VkImage nativeImage = (VkImage)handle.value;
+    RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
+    texture->m_image = nativeImage;
+    texture->m_vkformat = format;
+    texture->m_shouldDestroyImage = false;
+
+    _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
     returnComPtr(outTexture, texture);
     return SLANG_OK;

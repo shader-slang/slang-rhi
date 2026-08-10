@@ -4,9 +4,8 @@
 
 #if SLANG_RHI_ENABLE_OPTIX
 
-#define IMPORT_OPTIX_API(tag)                                                                                          \
+#define IMPORT_OPTIX_API(tag, version)                                                                                 \
     namespace rhi::cuda::optix::tag {                                                                                  \
-    extern uint32_t optixVersion;                                                                                      \
     bool initialize(IDebugCallback* debugCallback);                                                                    \
     Result createContext(const ContextDesc& desc, Context** outContext);                                               \
     }                                                                                                                  \
@@ -29,15 +28,15 @@ struct OptixAPI
     rhi::Result (*createOptixDenoiserAPI)(rhi::optix_denoiser::IOptixDenoiserAPI** /*outAPI*/);
 };
 
-#define DEFINE_OPTIX_API(tag)                                                                                          \
+#define DEFINE_OPTIX_API(tag, version)                                                                                 \
     {                                                                                                                  \
-        rhi::cuda::optix::tag::optixVersion,                                                                           \
+        version,                                                                                                       \
         rhi::cuda::optix::tag::initialize,                                                                             \
         rhi::cuda::optix::tag::createContext,                                                                          \
         rhi::optix_denoiser::tag::createOptixDenoiserAPI,                                                              \
     },
 
-static OptixAPI s_optixAPIs[] = {SLANG_RHI_OPTIX_VERSIONS_X(DEFINE_OPTIX_API)};
+static constexpr OptixAPI s_optixAPIs[] = {SLANG_RHI_OPTIX_VERSIONS_X(DEFINE_OPTIX_API)};
 
 #endif // SLANG_RHI_ENABLE_OPTIX
 

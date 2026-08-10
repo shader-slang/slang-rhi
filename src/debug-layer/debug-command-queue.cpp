@@ -122,4 +122,17 @@ Result DebugCommandQueue::getNativeHandle(NativeHandle* outHandle)
     return baseObject->getNativeHandle(outHandle);
 }
 
+Result DebugCommandQueue::getTimestampCalibration(TimestampCalibration* outCalibration)
+{
+    SLANG_RHI_DEBUG_API(ICommandQueue, getTimestampCalibration);
+
+    if (!outCalibration)
+    {
+        RHI_VALIDATION_ERROR("'outCalibration' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->getTimestampCalibration(outCalibration);
+}
+
 } // namespace rhi::debug
