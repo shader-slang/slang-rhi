@@ -3266,6 +3266,15 @@ enum class AftermathFlags
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AftermathFlags);
 
+enum class PipelineCompilationMode
+{
+    /// Use sequential pipeline resolution.
+    Serial,
+
+    /// Experimental: allow deferred pipeline resolution to use available task parallelism.
+    Parallel,
+};
+
 struct DeviceDesc
 {
     StructType structType = StructType::DeviceDesc;
@@ -3320,6 +3329,9 @@ struct DeviceDesc
 
     /// Enable reporting of shader compilation timings.
     bool enableCompilationReports = false;
+
+    /// Controls resolution of deferred pipelines encountered while finishing a command encoder.
+    PipelineCompilationMode pipelineCompilationMode = PipelineCompilationMode::Serial;
 
     /// Enable launching CUDA kernels from inside graphics command buffers
     /// (Vulkan only, via VK_NVX_binary_import). On by default. Set to

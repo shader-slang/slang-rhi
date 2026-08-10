@@ -497,6 +497,8 @@ Result Device::initialize(const DeviceDesc& desc)
         m_shaderCompilationReporter = new ShaderCompilationReporter(this);
     }
 
+    m_pipelineCompilationMode = desc.pipelineCompilationMode;
+
     m_persistentShaderCache = desc.persistentShaderCache;
     m_persistentPipelineCache = desc.persistentPipelineCache;
 

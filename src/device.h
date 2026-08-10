@@ -508,6 +508,11 @@ public:
 
     IDebugCallback* m_debugCallback = nullptr;
 
+    PipelineCompilationMode m_pipelineCompilationMode = PipelineCompilationMode::Serial;
+
+    /// Serializes resolution/publication across command encoders. Work within one resolver may still run concurrently.
+    std::mutex m_pipelineResolutionMutex;
+
     LiveDeviceTracker m_liveDeviceTracker;
 };
 
