@@ -147,6 +147,70 @@ void runDeferredPipelineBatch(IDevice* device)
     }
 }
 
+void runDeferredCudaRayTracingPipelineBatch(IDevice* device)
+{
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(device, "test-ray-tracing-raygen-entrypoint", {"rayGenA", "rayGenB"}, program.writeRef()));
+
+    ComPtr<IRayTracingPipeline> pipelines[2];
+    for (auto& pipeline : pipelines)
+    {
+        RayTracingPipelineDesc pipelineDesc = {};
+        pipelineDesc.program = program;
+        pipelineDesc.deferTargetCompilation = true;
+        REQUIRE_CALL(device->createRayTracingPipeline(pipelineDesc, pipeline.writeRef()));
+    }
+
+    ComPtr<IShaderTable> shaderTable;
+    ShaderTableDesc shaderTableDesc = {};
+    shaderTableDesc.program = program;
+    const char* rayGenNames[] = {"rayGenA", "rayGenB"};
+    shaderTableDesc.rayGenShaderCount = SLANG_COUNT_OF(rayGenNames);
+    shaderTableDesc.rayGenShaderEntryPointNames = rayGenNames;
+    REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
+
+    ComPtr<IBuffer> outputBuffers[2];
+    for (auto& outputBuffer : outputBuffers)
+    {
+        BufferDesc bufferDesc = {};
+        bufferDesc.size = 4 * sizeof(uint32_t);
+        bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopySource;
+        REQUIRE_CALL(device->createBuffer(bufferDesc, nullptr, outputBuffer.writeRef()));
+    }
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    for (uint32_t i = 0; i < std::size(pipelines); ++i)
+    {
+        auto pass = encoder->beginRayTracingPass();
+        auto rootObject = pass->bindPipeline(pipelines[i], shaderTable);
+        auto entryPoint = ShaderCursor(rootObject->getEntryPoint(i));
+        entryPoint["output"].setBinding(outputBuffers[i]);
+        entryPoint["value"].setData<uint32_t>(i == 0 ? 1 : 10);
+        pass->dispatchRays(i, 2, 2, 1);
+        pass->end();
+    }
+
+    ComPtr<ICommandBuffer> commandBuffer;
+    REQUIRE_CALL(encoder->finish(commandBuffer.writeRef()));
+    REQUIRE_CALL(queue->submit(commandBuffer));
+    REQUIRE_CALL(queue->waitOnHost());
+
+    compareComputeResult(device, outputBuffers[0], std::array<uint32_t, 4>{1, 2, 3, 4});
+    compareComputeResult(device, outputBuffers[1], std::array<uint32_t, 4>{10, 12, 14, 16});
+}
+
+struct TaskPoolReset
+{
+    ComPtr<IDevice>& device;
+
+    ~TaskPoolReset()
+    {
+        device.setNull();
+        CHECK(SLANG_SUCCEEDED(getRHI()->initTaskPool(-1)));
+    }
+};
+
 } // namespace
 
 GPU_TEST_CASE("parallel-pipeline-creation", ALL | DontCreateDevice)
@@ -181,4 +245,22 @@ GPU_TEST_CASE("serial-pipeline-creation", ALL | DontCreateDevice)
     device = createTestingDevice(ctx, ctx->deviceType, false, &options);
     REQUIRE(device);
     runDeferredPipelineBatch(device);
+}
+
+GPU_TEST_CASE("parallel-pipeline-creation-cuda-ray-tracing", CUDA | DontCreateDevice)
+{
+    // Two pipeline tasks saturate the single worker plus the waiting caller.
+    // Both then wait on dynamically spawned OptiX task-group work.
+    releaseCachedDevices();
+    REQUIRE_CALL(getRHI()->initTaskPool(1));
+    TaskPoolReset taskPoolReset{device};
+
+    DeviceExtraOptions options;
+    options.pipelineCompilationMode = PipelineCompilationMode::Parallel;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    runDeferredCudaRayTracingPipelineBatch(device);
 }

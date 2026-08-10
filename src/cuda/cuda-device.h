@@ -23,12 +23,8 @@ class DeviceImpl : public Device
 public:
     virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
     {
-        // OptiX ray-tracing pipeline creation submits nested work to the global task pool.
-        // Run it on the caller thread until that work can be integrated without blocking workers.
-        // TODO: Flatten this work by staging CUDA ray-tracing pipeline creation: enqueue the
-        // OptiX module tasks directly into the resolver's task group, then enqueue pipeline
-        // finalization after all dynamically spawned OptiX tasks have completed.
-        return pipeline->getType() != PipelineType::RayTracing;
+        SLANG_UNUSED(pipeline);
+        return true;
     }
 
     Context m_ctx;
