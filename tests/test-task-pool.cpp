@@ -540,11 +540,62 @@ TEST_CASE("task-pool-threaded-single-worker")
     testTaskPool(pool, 1);
 }
 
-// Work-stealing tests: use a single worker thread to force scenarios that
-// would deadlock without work-stealing in wait functions.
+// Work-stealing tests use a single worker thread so the waiting caller also
+// participates in task execution.
 
-// A task callback calls waitTask on another task. With 1 worker thread and
-// no work-stealing, the worker blocks and the waited-on task never runs.
+void testExternalWaitStealsReadyTask(ITaskPool* pool)
+{
+    REQUIRE(pool != nullptr);
+
+    std::atomic<bool> blockerStarted{false};
+    std::atomic<bool> releaseBlocker{false};
+    std::atomic<bool> targetExecuted{false};
+    struct BlockerState
+    {
+        std::atomic<bool>* started;
+        std::atomic<bool>* release;
+    } blockerState{&blockerStarted, &releaseBlocker};
+
+    auto blocker = pool->submitTask(
+        [](void* data)
+        {
+            auto* state = static_cast<BlockerState*>(data);
+            state->started->store(true, std::memory_order_release);
+            while (!state->release->load(std::memory_order_acquire))
+                std::this_thread::yield();
+        },
+        &blockerState,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    while (!blockerStarted.load(std::memory_order_acquire))
+        std::this_thread::yield();
+
+    auto target = pool->submitTask(
+        [](void* data)
+        {
+            static_cast<std::atomic<bool>*>(data)->store(true, std::memory_order_relaxed);
+        },
+        &targetExecuted,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    // The only worker is blocked, so waitTask() must execute the target here.
+    pool->waitTask(target);
+    CHECK(targetExecuted.load(std::memory_order_relaxed));
+
+    releaseBlocker.store(true, std::memory_order_release);
+    pool->waitTask(blocker);
+    pool->releaseTask(target);
+    pool->releaseTask(blocker);
+}
+
+// A task callback calls waitTask on another task that was submitted first.
+// The earlier task can therefore make progress on another executor.
 void testWorkStealingWaitTaskFromCallback(ITaskPool* pool)
 {
     REQUIRE(pool != nullptr);
@@ -593,8 +644,8 @@ void testWorkStealingWaitTaskFromCallback(ITaskPool* pool)
     pool->releaseTask(taskB);
 }
 
-// Nested wait chain: task C waits on B, B waits on A. With 1 worker thread,
-// this requires two levels of work-stealing to avoid deadlock.
+// Nested wait chain: task C waits on B, B waits on A. Each waited-on task was
+// submitted first and can therefore make progress on another executor.
 void testWorkStealingNestedWait(ITaskPool* pool)
 {
     REQUIRE(pool != nullptr);
@@ -711,11 +762,121 @@ void testWorkStealingWaitGroupFromCallback(ITaskPool* pool)
     pool->releaseTask(task);
 }
 
+struct NestedGroupTaskPayload
+{
+    ITaskPool* pool;
+    ITaskPool::TaskGroupHandle group;
+    std::atomic<int>* sum;
+    int depth;
+};
+
+void runNestedGroupTask(void* data)
+{
+    auto* payload = static_cast<NestedGroupTaskPayload*>(data);
+    payload->sum->fetch_add(1, std::memory_order_relaxed);
+
+    if (payload->depth == 0)
+        return;
+
+    for (int i = 0; i < 2; ++i)
+    {
+        auto* child = new NestedGroupTaskPayload{
+            payload->pool,
+            payload->group,
+            payload->sum,
+            payload->depth - 1,
+        };
+        auto task = payload->pool->submitTask(
+            runNestedGroupTask,
+            child,
+            [](void* childData)
+            {
+                delete static_cast<NestedGroupTaskPayload*>(childData);
+            },
+            nullptr,
+            0,
+            payload->group
+        );
+        payload->pool->releaseTask(task);
+    }
+}
+
+// Saturate a single-worker pool with two callbacks that each wait on a
+// dynamically growing task group. The thread calling waitTask() becomes the
+// second executor, so both executors are inside callbacks when the group work
+// is queued. Nested group-specific stealing is required to make progress.
+void testNestedGroupWaitWithSaturatedWorkers()
+{
+    ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
+    std::atomic<int> parentsStarted{0};
+    std::atomic<int> sum{0};
+
+    struct ParentPayload
+    {
+        ITaskPool* pool;
+        std::atomic<int>* parentsStarted;
+        std::atomic<int>* sum;
+    };
+    ParentPayload payloads[] = {
+        {pool, &parentsStarted, &sum},
+        {pool, &parentsStarted, &sum},
+    };
+
+    ITaskPool::TaskHandle parents[2];
+    for (size_t i = 0; i < std::size(parents); ++i)
+    {
+        parents[i] = pool->submitTask(
+            [](void* data)
+            {
+                auto* payload = static_cast<ParentPayload*>(data);
+                payload->parentsStarted->fetch_add(1, std::memory_order_release);
+                while (payload->parentsStarted->load(std::memory_order_acquire) != 2)
+                    std::this_thread::yield();
+
+                auto group = payload->pool->createTaskGroup();
+                auto* root = new NestedGroupTaskPayload{payload->pool, group, payload->sum, 4};
+                auto rootTask = payload->pool->submitTask(
+                    runNestedGroupTask,
+                    root,
+                    [](void* rootData)
+                    {
+                        delete static_cast<NestedGroupTaskPayload*>(rootData);
+                    },
+                    nullptr,
+                    0,
+                    group
+                );
+                payload->pool->releaseTask(rootTask);
+
+                payload->pool->waitTaskGroup(group);
+                payload->pool->releaseTaskGroup(group);
+            },
+            &payloads[i],
+            nullptr,
+            nullptr,
+            0
+        );
+    }
+
+    for (auto parent : parents)
+    {
+        pool->waitTask(parent);
+        pool->releaseTask(parent);
+    }
+
+    // Two complete binary trees with depth 4: 2 * (2^5 - 1).
+    CHECK(sum.load(std::memory_order_relaxed) == 62);
+}
+
 TEST_CASE("task-pool-work-stealing")
 {
-    // Use a single worker thread to force work-stealing in wait functions.
-    // Without work-stealing, these tests would deadlock.
+    // Use a single worker thread so the waiting caller participates in execution.
     ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
+
+    SUBCASE("external-wait-steals-ready-task")
+    {
+        testExternalWaitStealsReadyTask(pool);
+    }
 
     SUBCASE("wait-task-from-callback")
     {
@@ -738,4 +899,9 @@ TEST_CASE("task-pool-work-stealing")
             testWorkStealingWaitGroupFromCallback(pool);
         }
     }
+}
+
+TEST_CASE("task-pool-nested-group-wait-saturated-workers")
+{
+    testNestedGroupWaitWithSaturatedWorkers();
 }
