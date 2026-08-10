@@ -129,7 +129,8 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 
     if (handle.type != NativeHandleType::MTLBuffer || handle.value == 0)
     {
-        return SLANG_E_INVALID_ARG;
+        *outBuffer = nullptr;
+        return SLANG_E_INVALID_HANDLE;
     }
 
     MTL::Buffer* nativeBuffer = reinterpret_cast<MTL::Buffer*>(handle.value);
