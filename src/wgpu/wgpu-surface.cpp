@@ -168,38 +168,39 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
     SLANG_RETURN_ON_FAIL(validateConfig(config));
-    setConfig(config);
-    if (m_config.format == Format::Undefined)
+    SurfaceConfig resolvedConfig = config;
+    if (resolvedConfig.format == Format::Undefined)
     {
-        m_config.format = m_info.preferredFormat;
+        resolvedConfig.format = m_info.preferredFormat;
     }
-    if (m_config.usage == TextureUsage::None)
+    if (resolvedConfig.usage == TextureUsage::None)
     {
-        m_config.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
-                         m_info.supportedUsage;
+        resolvedConfig.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
+                               m_info.supportedUsage;
     }
 
     // sRGB formats cannot be used as storage textures.
-    if (getFormatInfo(m_config.format).isSrgb && is_set(m_config.usage, TextureUsage::UnorderedAccess))
+    if (getFormatInfo(resolvedConfig.format).isSrgb && is_set(resolvedConfig.usage, TextureUsage::UnorderedAccess))
     {
         return SLANG_E_INVALID_ARG;
     }
 
-    WGPUTextureUsage usage = translateTextureUsage(m_config.usage);
+    WGPUTextureUsage usage = translateTextureUsage(resolvedConfig.usage);
     if (usage == WGPUTextureUsage_None)
         usage = WGPUTextureUsage_RenderAttachment;
 
     WGPUSurfaceConfiguration wgpuConfig = {};
     wgpuConfig.device = m_device->m_ctx.device;
-    wgpuConfig.format = translateTextureFormat(m_config.format);
+    wgpuConfig.format = translateTextureFormat(resolvedConfig.format);
     wgpuConfig.usage = usage;
     // TODO: support more view formats
     wgpuConfig.viewFormatCount = 1;
     wgpuConfig.viewFormats = &wgpuConfig.format;
     wgpuConfig.alphaMode = WGPUCompositeAlphaMode_Opaque;
-    wgpuConfig.width = m_config.width;
-    wgpuConfig.height = m_config.height;
-    wgpuConfig.presentMode = m_config.vsync ? m_vsyncOnMode : m_vsyncOffMode;
+    wgpuConfig.width = resolvedConfig.width;
+    wgpuConfig.height = resolvedConfig.height;
+    wgpuConfig.presentMode = resolvedConfig.vsync ? m_vsyncOnMode : m_vsyncOffMode;
+    setConfig(resolvedConfig);
     m_device->m_ctx.api.wgpuSurfaceConfigure(m_surface, &wgpuConfig);
     m_configured = true;
 

@@ -406,44 +406,49 @@ void SurfaceImpl::destroySwapchain()
 Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
     SLANG_RETURN_ON_FAIL(validateConfig(config));
-    setConfig(config);
-    if (m_config.format == Format::Undefined)
+    SurfaceConfig resolvedConfig = config;
+    if (resolvedConfig.format == Format::Undefined)
     {
-        m_config.format = m_info.preferredFormat;
+        resolvedConfig.format = m_info.preferredFormat;
     }
-    if (m_config.usage == TextureUsage::None)
+    if (resolvedConfig.usage == TextureUsage::None)
     {
         // Do not auto-add UnorderedAccess here: a format's optimal-tiling features may report
         // storage support while the swapchain still rejects VK_IMAGE_USAGE_STORAGE_BIT for that
         // format (e.g. *_SRGB), tripping VUID-VkSwapchainCreateInfoKHR-imageFormat-01778. Apps
         // that need storage on the swapchain must request it explicitly; configure() then
         // validates it against the format below.
-        m_config.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
-                         m_info.supportedUsage;
+        resolvedConfig.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
+                               m_info.supportedUsage;
 
         // CopyDestination is useful for the compute fallback, but it is not required for a
         // presentable surface. Drop it when the selected format does not support the complete
         // optimal-tiling usage combination.
-        if (!isSwapchainImageUsageSupported(m_device, m_config.format, getSwapchainImageUsage(m_config.usage)))
+        if (!isSwapchainImageUsageSupported(
+                m_device,
+                resolvedConfig.format,
+                getSwapchainImageUsage(resolvedConfig.usage)
+            ))
         {
-            m_config.usage &= ~TextureUsage::CopyDestination;
+            resolvedConfig.usage &= ~TextureUsage::CopyDestination;
         }
     }
     else
     {
-        if (m_config.usage != (m_config.usage & m_info.supportedUsage))
+        if (resolvedConfig.usage != (resolvedConfig.usage & m_info.supportedUsage))
         {
             m_device->printError("Surface does not support the requested usage.");
             return SLANG_E_INVALID_ARG;
         }
     }
 
-    if (!isSwapchainImageUsageSupported(m_device, m_config.format, getSwapchainImageUsage(m_config.usage)))
+    if (!isSwapchainImageUsageSupported(m_device, resolvedConfig.format, getSwapchainImageUsage(resolvedConfig.usage)))
     {
         m_device->printError("Surface format does not support the requested usage.");
         return SLANG_E_INVALID_ARG;
     }
 
+    setConfig(resolvedConfig);
     m_configured = false;
     destroySwapchain();
     SLANG_RETURN_ON_FAIL(createSwapchain());

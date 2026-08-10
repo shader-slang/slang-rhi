@@ -180,6 +180,14 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 
     SLANG_RETURN_ON_FAIL(createVulkanDevice());
 
+    VkSurfaceCapabilitiesKHR surfaceCaps = {};
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps));
+    if (!(surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+    {
+        m_deviceImpl->printError("CUDA surface requires transfer-destination swapchain images.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
+
     uint32_t formatCount = 0;
     m_api.vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &formatCount, nullptr);
     std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);

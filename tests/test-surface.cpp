@@ -12,6 +12,11 @@
 #include <GLFW/glfw3native.h>
 #include <slang-rhi/glfw.h>
 
+// X11 defines None as a macro after slang-rhi.h has already removed it.
+#ifdef None
+#undef None
+#endif
+
 using namespace rhi;
 using namespace rhi::testing;
 
