@@ -45,6 +45,7 @@ struct SurfaceTest
     ComPtr<ISurface> surface;
 
     virtual Format getSurfaceFormat() { return surface->getInfo().preferredFormat; }
+    virtual TextureUsage getSurfaceUsage() { return TextureUsage::None; }
     virtual void initResources() = 0;
     virtual void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) = 0;
 
@@ -59,6 +60,17 @@ struct SurfaceTest
         REQUIRE(this->queue);
         this->surface = device->createSurface(getWindowHandleFromGLFW(window));
         REQUIRE(this->surface);
+        CHECK(is_set(this->surface->getInfo().supportedUsage, TextureUsage::Present));
+
+#if !SLANG_RHI_DEBUG
+        SurfaceConfig invalidConfig = {};
+        invalidConfig.format = this->surface->getInfo().preferredFormat;
+        invalidConfig.usage = TextureUsage::DepthStencil;
+        invalidConfig.width = 1;
+        invalidConfig.height = 1;
+        CHECK(this->surface->configure(invalidConfig) == SLANG_E_INVALID_ARG);
+        CHECK(this->surface->getConfig() == nullptr);
+#endif
 
         initResources();
     }
@@ -76,6 +88,7 @@ struct SurfaceTest
 
         SurfaceConfig config = {};
         config.format = getSurfaceFormat();
+        config.usage = getSurfaceUsage();
         config.width = width;
         config.height = height;
         config.vsync = false;
@@ -84,6 +97,8 @@ struct SurfaceTest
         CHECK(surface->getConfig());
         CHECK(surface->getConfig()->width == width);
         CHECK(surface->getConfig()->height == height);
+        CHECK(surface->getConfig()->usage != TextureUsage::None);
+        CHECK(surface->getConfig()->usage == (surface->getConfig()->usage & surface->getInfo().supportedUsage));
     }
 
     void run()
@@ -102,6 +117,7 @@ struct SurfaceTest
             ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
+            CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
             surface->present();
         }
@@ -118,6 +134,7 @@ struct SurfaceTest
             ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
+            CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
             surface->present();
         }
@@ -143,6 +160,7 @@ struct SurfaceTest
             ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
+            CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
             surface->present();
         }
@@ -256,6 +274,22 @@ struct ComputeSurfaceTest : SurfaceTest
             }
         }
         return info.preferredFormat;
+    }
+
+    TextureUsage getSurfaceUsage() override
+    {
+        // Exercise explicit storage usage on Vulkan when both the surface and selected format
+        // support it. This verifies that surface-level usage reporting is not restricted by the
+        // preferred (typically sRGB) format.
+        if (device->getDeviceType() == DeviceType::Vulkan &&
+            is_set(surface->getInfo().supportedUsage, TextureUsage::UnorderedAccess))
+        {
+            FormatSupport formatSupport = {};
+            REQUIRE_CALL(device->getFormatSupport(getSurfaceFormat(), &formatSupport));
+            if (is_set(formatSupport, FormatSupport::ShaderUavStore))
+                return TextureUsage::Present | TextureUsage::UnorderedAccess;
+        }
+        return TextureUsage::None;
     }
 
     void initResources() override

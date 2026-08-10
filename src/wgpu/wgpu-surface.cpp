@@ -130,7 +130,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     m_info.preferredFormat = preferredFormat;
     m_info.formats = m_supportedFormats.data();
     m_info.formatCount = (uint32_t)m_supportedFormats.size();
-    m_info.supportedUsage = usage;
+    m_info.supportedUsage = TextureUsage::Present | usage;
 
     auto findPresentMode = [&](const WGPUPresentMode* modes, size_t modeCount) -> WGPUPresentMode
     {
@@ -167,32 +167,32 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
 
 Result SurfaceImpl::configure(const SurfaceConfig& config)
 {
+    SLANG_RETURN_ON_FAIL(validateConfig(config));
     setConfig(config);
-
-    if (m_config.width == 0 || m_config.height == 0)
-    {
-        return SLANG_FAIL;
-    }
     if (m_config.format == Format::Undefined)
     {
         m_config.format = m_info.preferredFormat;
     }
     if (m_config.usage == TextureUsage::None)
     {
-        m_config.usage = m_info.supportedUsage;
+        m_config.usage = (TextureUsage::Present | TextureUsage::RenderTarget | TextureUsage::CopyDestination) &
+                         m_info.supportedUsage;
     }
 
     // sRGB formats cannot be used as storage textures.
-    TextureUsage usage = m_config.usage;
-    if (getFormatInfo(m_config.format).isSrgb)
+    if (getFormatInfo(m_config.format).isSrgb && is_set(m_config.usage, TextureUsage::UnorderedAccess))
     {
-        usage &= ~TextureUsage::UnorderedAccess;
+        return SLANG_E_INVALID_ARG;
     }
+
+    WGPUTextureUsage usage = translateTextureUsage(m_config.usage);
+    if (usage == WGPUTextureUsage_None)
+        usage = WGPUTextureUsage_RenderAttachment;
 
     WGPUSurfaceConfiguration wgpuConfig = {};
     wgpuConfig.device = m_device->m_ctx.device;
     wgpuConfig.format = translateTextureFormat(m_config.format);
-    wgpuConfig.usage = translateTextureUsage(usage);
+    wgpuConfig.usage = usage;
     // TODO: support more view formats
     wgpuConfig.viewFormatCount = 1;
     wgpuConfig.viewFormats = &wgpuConfig.format;

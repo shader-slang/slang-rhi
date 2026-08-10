@@ -400,6 +400,11 @@ Result SurfaceImpl::createSwapchain()
     // issue an error
     VkSurfaceCapabilitiesKHR surfaceCaps = {};
     SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &surfaceCaps));
+    if (!(surfaceCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+    {
+        m_deviceImpl->printError("CUDA surface requires transfer-destination swapchain images.");
+        return SLANG_E_NOT_AVAILABLE;
+    }
 
     VkExtent2D imageExtent = {};
     if (surfaceCaps.currentExtent.width != UINT32_MAX)
@@ -497,7 +502,8 @@ Result SurfaceImpl::createSwapchain()
     swapchainDesc.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     swapchainDesc.imageExtent = imageExtent;
     swapchainDesc.imageArrayLayers = 1;
-    swapchainDesc.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    // CUDA presents by copying its shared image into the Vulkan swapchain image.
+    swapchainDesc.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     swapchainDesc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     swapchainDesc.preTransform = preTransform;
     swapchainDesc.compositeAlpha = compositeAlpha;
@@ -878,12 +884,8 @@ Result SurfaceImpl::configure(const SurfaceConfig& config)
     // Push/pop CUDA context to restore caller's context (e.g., PyTorch) after configuration.
     SLANG_CUDA_CTX_SCOPE(m_deviceImpl);
 
+    SLANG_RETURN_ON_FAIL(validateConfig(config));
     setConfig(config);
-
-    if (m_config.width == 0 || m_config.height == 0)
-    {
-        return SLANG_FAIL;
-    }
     if (m_config.format == Format::Undefined)
     {
         m_config.format = m_info.preferredFormat;
