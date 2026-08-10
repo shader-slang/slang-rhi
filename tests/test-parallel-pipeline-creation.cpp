@@ -1,4 +1,5 @@
 #include "testing.h"
+#include "shader-cache.h"
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -148,13 +149,29 @@ void runDeferredPipelineBatch(IDevice* device)
 
 } // namespace
 
-GPU_TEST_CASE("parallel-pipeline-compilation", ALL | DontCreateDevice)
+GPU_TEST_CASE("parallel-pipeline-creation", ALL | DontCreateDevice)
 {
     DeviceExtraOptions options;
     options.pipelineCompilationMode = PipelineCompilationMode::Parallel;
     device = createTestingDevice(ctx, ctx->deviceType, false, &options);
     REQUIRE(device);
     runDeferredPipelineBatch(device);
+}
+
+GPU_TEST_CASE("parallel-pipeline-creation-shared-cache", D3D12 | Vulkan | DontCreateDevice)
+{
+    rhi::testing::ShaderCache sharedCache;
+    DeviceExtraOptions options;
+    options.persistentShaderCache = &sharedCache;
+    options.persistentPipelineCache = &sharedCache;
+    options.pipelineCompilationMode = PipelineCompilationMode::Parallel;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+
+    runDeferredPipelineBatch(device);
+
+    // The cache is test-owned, so release the device's cache reference before the cache goes out of scope.
+    device.setNull();
 }
 
 GPU_TEST_CASE("serial-pipeline-creation", ALL | DontCreateDevice)
