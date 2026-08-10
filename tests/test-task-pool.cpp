@@ -418,18 +418,28 @@ void testWorkStealingWaitGroupFromCallback(ITaskPool* pool)
     CHECK(sum.load() == 10);
 }
 
+struct NestedGroupState
+{
+    std::atomic<int> executed{0};
+};
+
+static thread_local NestedGroupState* tls_expectedNestedGroupState = nullptr;
+
 struct NestedGroupTaskPayload
 {
     ITaskPool* pool;
     ITaskPool::TaskGroupHandle group;
-    std::atomic<int>* sum;
+    NestedGroupState* state;
+    std::atomic<int>* crossGroupExecutions;
     int depth;
 };
 
 void runNestedGroupTask(void* data)
 {
     auto* payload = static_cast<NestedGroupTaskPayload*>(data);
-    payload->sum->fetch_add(1, std::memory_order_relaxed);
+    payload->state->executed.fetch_add(1, std::memory_order_relaxed);
+    if (tls_expectedNestedGroupState && tls_expectedNestedGroupState != payload->state)
+        payload->crossGroupExecutions->fetch_add(1, std::memory_order_relaxed);
 
     if (payload->depth == 0)
         return;
@@ -439,7 +449,8 @@ void runNestedGroupTask(void* data)
         auto* child = new NestedGroupTaskPayload{
             payload->pool,
             payload->group,
-            payload->sum,
+            payload->state,
+            payload->crossGroupExecutions,
             payload->depth - 1,
         };
         auto task = payload->pool->submitTask(
@@ -463,17 +474,23 @@ void testNestedGroupWaitWithSaturatedWorkers()
 {
     ComPtr<ITaskPool> pool(new ThreadedTaskPool(1));
     std::atomic<int> parentsStarted{0};
-    std::atomic<int> sum{0};
+    std::atomic<int> submissionTurn{1};
+    std::atomic<int> crossGroupExecutions{0};
+    NestedGroupState groupStates[2];
 
     struct ParentPayload
     {
         ITaskPool* pool;
         std::atomic<int>* parentsStarted;
-        std::atomic<int>* sum;
+        std::atomic<int>* submissionTurn;
+        int index;
+        NestedGroupState* groupState;
+        NestedGroupState* firstGroupState;
+        std::atomic<int>* crossGroupExecutions;
     };
     ParentPayload payloads[] = {
-        {pool, &parentsStarted, &sum},
-        {pool, &parentsStarted, &sum},
+        {pool, &parentsStarted, &submissionTurn, 0, &groupStates[0], &groupStates[0], &crossGroupExecutions},
+        {pool, &parentsStarted, &submissionTurn, 1, &groupStates[1], &groupStates[0], &crossGroupExecutions},
     };
 
     ITaskPool::TaskHandle parents[2];
@@ -487,8 +504,21 @@ void testNestedGroupWaitWithSaturatedWorkers()
                 while (payload->parentsStarted->load(std::memory_order_acquire) != 2)
                     std::this_thread::yield();
 
+                NestedGroupState* previousExpectedState = tls_expectedNestedGroupState;
+                tls_expectedNestedGroupState = payload->groupState;
+
                 auto group = payload->pool->createTaskGroup();
-                auto* root = new NestedGroupTaskPayload{payload->pool, group, payload->sum, 4};
+                // Queue group 1 first, then let group 0 enter its nested wait first. An
+                // unfiltered nested wait will deterministically execute the wrong root task.
+                while (payload->submissionTurn->load(std::memory_order_acquire) != payload->index)
+                    std::this_thread::yield();
+                auto* root = new NestedGroupTaskPayload{
+                    payload->pool,
+                    group,
+                    payload->groupState,
+                    payload->crossGroupExecutions,
+                    4,
+                };
                 auto rootTask = payload->pool->submitTask(
                     runNestedGroupTask,
                     root,
@@ -500,7 +530,15 @@ void testNestedGroupWaitWithSaturatedWorkers()
                 );
                 payload->pool->releaseTask(rootTask);
 
+                if (payload->index == 1)
+                {
+                    payload->submissionTurn->store(0, std::memory_order_release);
+                    while (payload->firstGroupState->executed.load(std::memory_order_acquire) == 0)
+                        std::this_thread::yield();
+                }
+
                 payload->pool->waitAndReleaseTaskGroup(group);
+                tls_expectedNestedGroupState = previousExpectedState;
             },
             &payloads[i],
             nullptr
@@ -510,8 +548,10 @@ void testNestedGroupWaitWithSaturatedWorkers()
     for (auto parent : parents)
         pool->waitAndReleaseTask(parent);
 
-    // Two complete binary trees with depth 4: 2 * (2^5 - 1).
-    CHECK(sum.load(std::memory_order_relaxed) == 62);
+    // Each group contains a complete binary tree with depth 4: 2^5 - 1 tasks.
+    CHECK(groupStates[0].executed.load(std::memory_order_relaxed) == 31);
+    CHECK(groupStates[1].executed.load(std::memory_order_relaxed) == 31);
+    CHECK(crossGroupExecutions.load(std::memory_order_relaxed) == 0);
 }
 
 TEST_CASE("task-pool-work-stealing")

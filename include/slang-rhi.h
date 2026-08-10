@@ -3907,7 +3907,9 @@ public:
 
     /// \brief Wait for all tasks in a group to complete and release the group.
     ///
-    /// While waiting, the calling thread may execute pending tasks from the group (work-stealing).
+    /// While waiting, the calling thread may execute pending tasks (work-stealing).
+    /// When called outside a task callback, the calling thread may execute any ready task in
+    /// the pool. When called from a task callback, it executes only ready tasks from `group`.
     /// Subject to the restrictions below, this makes it safe to call from a task callback.
     /// A task must not wait on a group that contains the task itself. When called
     /// from a task callback, tasks in the group must not depend on work outside
