@@ -8,6 +8,8 @@ namespace rhi::vk {
 class BackendImpl : public Backend
 {
 public:
+    ~BackendImpl() override;
+
     std::span<const AdapterImpl> getAdapters();
 
     // Backend implementation
@@ -19,7 +21,12 @@ protected:
     Result enumerateAdapters() override;
 
 private:
+    void releaseAdapterEnumerationContext();
+
     std::vector<AdapterImpl> m_adapters;
+    VulkanModule m_adapterEnumerationModule;
+    VulkanApi m_adapterEnumerationApi;
+    VkInstance m_adapterEnumerationInstance = VK_NULL_HANDLE;
 };
 
 } // namespace rhi::vk
