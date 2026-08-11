@@ -6,7 +6,10 @@ using namespace rhi::testing;
 
 namespace {
 
-void runDeferredPipelineBatch(IDevice* device)
+void runDeferredPipelineBatch(
+    IDevice* device,
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default
+)
 {
     const char* entryPointNames[] = {"computeAdd", "computeMul", "computeSub", "computeNeg"};
     ComPtr<IShaderProgram> programs[4];
@@ -20,14 +23,17 @@ void runDeferredPipelineBatch(IDevice* device)
 
         ComputePipelineDesc desc = {};
         desc.program = programs[i];
-        desc.deferTargetCompilation = true;
+        desc.compilationPolicy = compilationPolicy;
         REQUIRE_CALL(device->createComputePipeline(desc, pipelines[i].writeRef()));
+
+        NativeHandle nativeHandle = {};
+        CHECK(pipelines[i]->getNativeHandle(&nativeHandle) == SLANG_E_NOT_AVAILABLE);
     }
 
     // A second virtual pipeline sharing the add program exercises program-level deduplication.
     ComputePipelineDesc secondAddDesc = {};
     secondAddDesc.program = programs[0];
-    secondAddDesc.deferTargetCompilation = true;
+    secondAddDesc.compilationPolicy = compilationPolicy;
     REQUIRE_CALL(device->createComputePipeline(secondAddDesc, pipelines[4].writeRef()));
 
     // A two-entry-point graphics program exercises concurrent getEntryPointCode calls on one linked component.
@@ -49,7 +55,7 @@ void runDeferredPipelineBatch(IDevice* device)
         renderPipelineDesc.program = renderProgram;
         renderPipelineDesc.targets = &colorTarget;
         renderPipelineDesc.targetCount = 1;
-        renderPipelineDesc.deferTargetCompilation = true;
+        renderPipelineDesc.compilationPolicy = compilationPolicy;
 
         // WGPU currently requires an input layout even when the vertex shader has no vertex inputs.
         ComPtr<IInputLayout> inputLayout;
@@ -157,7 +163,6 @@ void runDeferredCudaRayTracingPipelineBatch(IDevice* device)
     {
         RayTracingPipelineDesc pipelineDesc = {};
         pipelineDesc.program = program;
-        pipelineDesc.deferTargetCompilation = true;
         REQUIRE_CALL(device->createRayTracingPipeline(pipelineDesc, pipeline.writeRef()));
     }
 
@@ -198,6 +203,21 @@ void runDeferredCudaRayTracingPipelineBatch(IDevice* device)
 
     compareComputeResult(device, outputBuffers[0], std::array<uint32_t, 4>{1, 2, 3, 4});
     compareComputeResult(device, outputBuffers[1], std::array<uint32_t, 4>{10, 12, 14, 16});
+}
+
+void checkImmediateComputePipeline(IDevice* device, PipelineCompilationPolicy compilationPolicy)
+{
+    ComPtr<IShaderProgram> program;
+    REQUIRE_CALL(loadProgram(device, "test-parallel-pipeline-creation", "computeAdd", program.writeRef()));
+
+    ComputePipelineDesc desc = {};
+    desc.program = program;
+    desc.compilationPolicy = compilationPolicy;
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(desc, pipeline.writeRef()));
+
+    NativeHandle nativeHandle = {};
+    REQUIRE_CALL(pipeline->getNativeHandle(&nativeHandle));
 }
 
 struct TaskPoolReset
@@ -244,7 +264,27 @@ GPU_TEST_CASE("serial-pipeline-creation", ALL | DontCreateDevice)
     options.pipelineCompilationMode = PipelineCompilationMode::Serial;
     device = createTestingDevice(ctx, ctx->deviceType, false, &options);
     REQUIRE(device);
-    runDeferredPipelineBatch(device);
+    runDeferredPipelineBatch(device, PipelineCompilationPolicy::Deferred);
+}
+
+GPU_TEST_CASE("parallel-pipeline-creation-immediate", D3D12 | Vulkan | DontCreateDevice)
+{
+    DeviceExtraOptions options;
+    options.pipelineCompilationMode = PipelineCompilationMode::Parallel;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+
+    checkImmediateComputePipeline(device, PipelineCompilationPolicy::Immediate);
+}
+
+GPU_TEST_CASE("serial-pipeline-creation-default", D3D12 | Vulkan | DontCreateDevice)
+{
+    DeviceExtraOptions options;
+    options.pipelineCompilationMode = PipelineCompilationMode::Serial;
+    device = createTestingDevice(ctx, ctx->deviceType, false, &options);
+    REQUIRE(device);
+
+    checkImmediateComputePipeline(device, PipelineCompilationPolicy::Default);
 }
 
 GPU_TEST_CASE("parallel-pipeline-creation-cuda-ray-tracing", CUDA | DontCreateDevice)
