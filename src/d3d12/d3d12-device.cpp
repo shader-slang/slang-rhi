@@ -1505,6 +1505,25 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+
+        // Hand the initialized shared texture off to an external (e.g. CUDA) consumer. COMMON is the
+        // state a shared resource must be in for another device/API to access it. The upload encoder
+        // restored the resource to its default state, so that is the real StateBefore here.
+        // Producer-side reuse after this hand-off is unsupported: the texture is left in COMMON while
+        // m_desc.defaultState still reads as the default, which is what a later encoder's state
+        // tracking would assume.
+        if (is_set(desc.usage, TextureUsage::Shared) && texture->m_defaultState != D3D12_RESOURCE_STATE_COMMON)
+        {
+            ID3D12GraphicsCommandList* commandList = beginImmediateCommandList();
+            D3D12_RESOURCE_BARRIER barrier = {};
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Transition.pResource = texture->m_resource;
+            barrier.Transition.StateBefore = texture->m_defaultState;
+            barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            commandList->ResourceBarrier(1, &barrier);
+            endImmediateCommandList();
+        }
     }
 
     returnComPtr(outTexture, texture);

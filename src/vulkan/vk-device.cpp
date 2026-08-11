@@ -2041,6 +2041,70 @@ void DeviceImpl::_transitionImageLayout(
     _transitionImageLayout(commandBuffer, image, format, desc, oldLayout, newLayout);
 }
 
+void DeviceImpl::_releaseSharedImageToExternalQueue(VkImage image, VkFormat format, const TextureDesc& desc)
+{
+    // Ownership-only release: keep the layout unchanged so the producer's contents are preserved
+    // (an UNDEFINED old layout would discard them). The consumer imports the memory, not a VkImage,
+    // so no layout change is needed on this side.
+    VkImageLayout layout = getImageLayoutFromState(desc.defaultState);
+
+    VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    barrier.dstAccessMask = 0;
+    barrier.oldLayout = layout;
+    barrier.newLayout = layout;
+    barrier.srcQueueFamilyIndex = m_queueFamilyIndex;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(format);
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = desc.mipCount;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0,
+        0,
+        nullptr,
+        0,
+        nullptr,
+        1,
+        &barrier
+    );
+    m_deviceQueue.flushAndWait();
+}
+
+void DeviceImpl::_releaseSharedBufferToExternalQueue(VkBuffer buffer)
+{
+    VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    barrier.dstAccessMask = 0;
+    barrier.srcQueueFamilyIndex = m_queueFamilyIndex;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+    barrier.buffer = buffer;
+    barrier.offset = 0;
+    barrier.size = VK_WHOLE_SIZE;
+
+    VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0,
+        0,
+        nullptr,
+        1,
+        &barrier,
+        0,
+        nullptr
+    );
+    m_deviceQueue.flushAndWait();
+}
+
 void DeviceImpl::_labelObject(uint64_t object, VkObjectType objectType, const char* label)
 {
     if (label && m_api.vkSetDebugUtilsObjectNameEXT)

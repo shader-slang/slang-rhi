@@ -420,10 +420,21 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
                 &copyInfo
             );
             m_deviceQueue.flush();
+
+            // Hand the initialized shared buffer off to an external (e.g. CUDA) consumer. Submits
+            // after the copy on the same queue and waits, so the copy is complete on return.
+            if (is_set(desc.usage, BufferUsage::Shared))
+            {
+                _releaseSharedBufferToExternalQueue(buffer->m_buffer.m_buffer);
+            }
         }
         else
         {
             // Copy into mapped buffer directly
+            // TODO: a host-visible BufferUsage::Shared buffer gets no ownership release here. The
+            // write is a host write to coherent memory rather than a queue operation, so there is no
+            // queue-family transfer to make; whether an external consumer still needs one is untested
+            // (no in-tree test creates such a buffer).
             void* mappedData = nullptr;
             SLANG_VK_RETURN_ON_FAIL_REPORT(
                 m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),

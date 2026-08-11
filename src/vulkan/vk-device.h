@@ -244,6 +244,14 @@ public:
 
     uint32_t getQueueFamilyIndex(QueueType queueType);
 
+    // Release ownership of a shared image/buffer to VK_QUEUE_FAMILY_EXTERNAL after the producer's
+    // initial upload, so a CUDA (or other external) consumer that imports the underlying memory
+    // observes the writes. Required for VK_SHARING_MODE_EXCLUSIVE resources handed across the API
+    // boundary; the host wait alone does not perform the queue-family ownership transfer. Submits
+    // on the internal device queue and waits, so the caller's texture/buffer is ready on return.
+    void _releaseSharedImageToExternalQueue(VkImage image, VkFormat format, const TextureDesc& desc);
+    void _releaseSharedBufferToExternalQueue(VkBuffer buffer);
+
 public:
     DeviceNativeHandles m_existingDeviceHandles;
 
