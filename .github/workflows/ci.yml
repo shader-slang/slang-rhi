@@ -97,7 +97,7 @@ jobs:
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
-        run: ./slang-rhi-tests -check-devices -require-devices=${{ matrix.required_devices }}
+        run: ./slang-rhi-tests -check-devices "-require-devices=${{ matrix.required_devices }}"
         working-directory: build/${{matrix.config}}
 
       - name: Unit Tests (OptiX 8.0)
