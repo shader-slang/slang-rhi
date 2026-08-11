@@ -1937,6 +1937,10 @@ void CommandQueueImpl::retireCommandBuffers()
         }
     }
 
+    // The internal device queue shares this VkQueue. Polling it here releases
+    // initialization staging allocations even if no further internal work occurs.
+    getDevice<DeviceImpl>()->m_deviceQueue.retireCompletedResources();
+
     // Delete deferred resources that are no longer in use by the GPU.
     executeDeferredDeletes();
 

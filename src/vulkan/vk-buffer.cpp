@@ -335,6 +335,58 @@ VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
     return view;
 }
 
+Result DeviceImpl::uploadBufferInitData(IBuffer* buffer, Offset offset, Size size, const void* data)
+{
+    if (!buffer || !data || size == 0)
+        return SLANG_E_INVALID_ARG;
+
+    BufferImpl* dstBuffer = checked_cast<BufferImpl*>(buffer);
+    if (offset > dstBuffer->m_desc.size || size > dstBuffer->m_desc.size - offset)
+        return SLANG_E_INVALID_ARG;
+
+    RefPtr<StagingHeap::Handle> stagingHandle;
+    // Vulkan buffer copy offsets must be aligned to four bytes.
+    SLANG_RETURN_ON_FAIL(m_uploadHeap.stageHandle(data, size, 4, {}, stagingHandle.writeRef()));
+    BufferImpl* srcBuffer = checked_cast<BufferImpl*>(stagingHandle->getBuffer());
+
+    VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
+
+    VkBufferCopy copy = {};
+    copy.srcOffset = stagingHandle->getOffset();
+    copy.dstOffset = offset;
+    copy.size = size;
+    m_api.vkCmdCopyBuffer(commandBuffer, srcBuffer->m_buffer.m_buffer, dstBuffer->m_buffer.m_buffer, 1, &copy);
+
+    VkBufferMemoryBarrier dstBarrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+    dstBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    dstBarrier.dstAccessMask = calcAccessFlags(dstBuffer->m_desc.defaultState);
+    dstBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    dstBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    dstBarrier.buffer = dstBuffer->m_buffer.m_buffer;
+    dstBarrier.offset = offset;
+    dstBarrier.size = size;
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, dstBuffer->m_desc.defaultState, false),
+        0,
+        0,
+        nullptr,
+        1,
+        &dstBarrier,
+        0,
+        nullptr
+    );
+
+    // Both buffers must outlive the asynchronous copy. The staging handle also
+    // returns its allocation to the shared heap when this fence slot retires.
+    m_deviceQueue.retainResource(stagingHandle);
+    m_deviceQueue.retainResource(dstBuffer);
+    m_deviceQueue.flush();
+
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, IBuffer** outBuffer)
 {
     BufferDesc desc = fixupBufferDesc(desc_);
@@ -392,34 +444,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
-            SLANG_RETURN_ON_FAIL(buffer->m_uploadBuffer.init(
-                m_api,
-                bufferSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            ));
-            // Copy into staging buffer
-            void* mappedData = nullptr;
-            SLANG_VK_RETURN_ON_FAIL_REPORT(
-                m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData),
-                this
-            );
-            ::memcpy(mappedData, initData, bufferSize);
-            m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
-
-            // Copy from staging buffer to real buffer
-            VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
-
-            VkBufferCopy copyInfo = {};
-            copyInfo.size = bufferSize;
-            m_api.vkCmdCopyBuffer(
-                commandBuffer,
-                buffer->m_uploadBuffer.m_buffer,
-                buffer->m_buffer.m_buffer,
-                1,
-                &copyInfo
-            );
-            m_deviceQueue.flush();
+            SLANG_RETURN_ON_FAIL(uploadBufferInitData(buffer, 0, bufferSize, initData));
         }
         else
         {
