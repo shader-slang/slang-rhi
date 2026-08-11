@@ -19,7 +19,7 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
     StagingHeap heap;
     heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
 
-    Size allocSize = heap.alignUp(16);
+    Size allocSize = heap.alignAllocationSize(16);
 
     CHECK_EQ(heap.getUsed(), 0);
     CHECK_EQ(heap.getNumPages(), 0);
@@ -80,7 +80,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     StagingHeap::Allocation allocation2;
     heap.alloc(16, {2}, &allocation2);
     heap.checkConsistency();
-    CHECK_EQ(allocation2.getOffset(), heap.getAlignment());
+    CHECK_EQ(allocation2.getOffset(), heap.getDefaultAlignment());
     CHECK_EQ(allocation2.getPageId(), 1);
 
     StagingHeap::Allocation bigAllocation2;
@@ -92,7 +92,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     StagingHeap::Allocation allocation3;
     heap.alloc(16, {2}, &allocation3);
     heap.checkConsistency();
-    CHECK_EQ(allocation3.getOffset(), heap.getAlignment() * 2);
+    CHECK_EQ(allocation3.getOffset(), heap.getDefaultAlignment() * 2);
     CHECK_EQ(allocation3.getPageId(), 1);
 
     heap.free(allocation);
@@ -162,12 +162,38 @@ GPU_TEST_CASE("staging-heap-handles", ALL)
         heap.checkConsistency();
         CHECK_EQ(handle->getOffset(), 0);
         CHECK_EQ(handle->getPageId(), 1);
-        CHECK_EQ(heap.getUsed(), heap.getAlignment());
+        CHECK_EQ(heap.getUsed(), heap.getAllocationGranularity());
     }
 
     // Allocation should be freed when handle goes out of scope.
     CHECK_EQ(heap.getUsed(), 0);
 
+    heap.release();
+}
+
+GPU_TEST_CASE("staging-heap-allocation-alignment", ALL)
+{
+    StagingHeap heap;
+    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+
+    StagingHeap::Allocation first;
+    REQUIRE_CALL(heap.alloc(16, {}, &first));
+
+    StagingHeap::Allocation aligned;
+    REQUIRE_CALL(heap.alloc(16, 12, {}, &aligned));
+    CHECK_EQ(aligned.getOffset() % 12, 0);
+    CHECK_EQ(aligned.getOffset(), 1032);
+    CHECK_EQ(aligned.getSize(), heap.getAllocationGranularity());
+
+    StagingHeap::Allocation defaultAligned;
+    REQUIRE_CALL(heap.alloc(16, {}, &defaultAligned));
+    CHECK_EQ(defaultAligned.getOffset() % heap.getDefaultAlignment(), 0);
+    CHECK_EQ(defaultAligned.getOffset(), 3072);
+
+    heap.free(first);
+    heap.free(aligned);
+    heap.free(defaultAligned);
+    heap.checkConsistency();
     heap.release();
 }
 

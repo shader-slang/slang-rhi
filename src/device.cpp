@@ -917,7 +917,9 @@ Result Device::readTexture(
     SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
     StagingHeap::Allocation stagingAllocation;
-    SLANG_RETURN_ON_FAIL(m_readbackHeap.alloc(layout.sizeInBytes, {}, &stagingAllocation));
+    Size offsetAlignment;
+    SLANG_RETURN_ON_FAIL(getTextureBufferOffsetAlignment(texture->getDesc().format, &offsetAlignment));
+    SLANG_RETURN_ON_FAIL(m_readbackHeap.alloc(layout.sizeInBytes, offsetAlignment, {}, &stagingAllocation));
 
     commandEncoder->copyTextureToBuffer(
         stagingAllocation.getBuffer(),
@@ -988,6 +990,15 @@ Result Device::getTextureRowAlignment(Format format, Size* outAlignment)
 {
     *outAlignment = 0;
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::getTextureBufferOffsetAlignment(Format format, Size* outAlignment)
+{
+    const Size blockSize = getFormatInfo(format).blockSizeInBytes;
+    if (blockSize == 0)
+        return SLANG_E_INVALID_ARG;
+    *outAlignment = blockSize;
+    return SLANG_OK;
 }
 
 Result Device::createSurface(WindowHandle windowHandle, ISurface** outSurface)

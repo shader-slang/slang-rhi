@@ -591,6 +591,10 @@ Result CommandEncoder::uploadTextureData(
     // Get texture
     Texture* textureImpl = checked_cast<Texture*>(dst);
 
+    // Get the buffer offset alignment required for every staged subresource.
+    Size offsetAlignment;
+    SLANG_RETURN_ON_FAIL(getDevice()->getTextureBufferOffsetAlignment(textureImpl->m_desc.format, &offsetAlignment));
+
     // Gather subresource layout for each layer/mip and sum up total required staging buffer size.
     Size totalSize = 0;
     {
@@ -602,6 +606,7 @@ Result CommandEncoder::uploadTextureData(
                 uint32_t mip = subresourceRange.mip + mipOffset;
 
                 textureImpl->getSubresourceRegionLayout(mip, offset, extent, kDefaultAlignment, srLayout);
+                srLayout->sizeInBytes = math::calcAligned(srLayout->sizeInBytes, offsetAlignment);
                 totalSize += srLayout->sizeInBytes;
                 srLayout++;
             }
@@ -610,7 +615,7 @@ Result CommandEncoder::uploadTextureData(
 
     // Allocate and retain a staging buffer for the upload.
     RefPtr<StagingHeap::Handle> handle;
-    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.allocHandle(totalSize, {}, handle.writeRef()));
+    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.allocHandle(totalSize, offsetAlignment, {}, handle.writeRef()));
     m_commandList->retainResource(handle);
 
     // Copy subresources a row at a time into the staging buffer.
@@ -680,7 +685,8 @@ Result CommandEncoder::uploadTextureData(
 Result CommandEncoder::uploadBufferData(IBuffer* dst, Offset offset, Size size, const void* data)
 {
     RefPtr<StagingHeap::Handle> handle;
-    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.stageHandle(data, size, {}, handle.writeRef()));
+    // Buffer copy offsets must be aligned to four bytes.
+    SLANG_RETURN_ON_FAIL(getDevice()->m_uploadHeap.stageHandle(data, size, 4, {}, handle.writeRef()));
 
     m_commandList->retainResource(handle);
 
