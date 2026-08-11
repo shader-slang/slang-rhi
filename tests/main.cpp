@@ -28,6 +28,33 @@ std::string getCurrentTestCaseName()
     return doctest::detail::g_cs->currentTest->m_name;
 }
 
+bool checkRequiredDevices()
+{
+    bool allAvailable = true;
+    for (DeviceType deviceType : kDeviceTypes)
+    {
+        if (!options().deviceRequired[size_t(deviceType)])
+            continue;
+
+        DeviceAvailabilityResult result = checkDeviceTypeAvailable(deviceType);
+        if (result.available)
+            continue;
+
+        allAvailable = false;
+        std::fprintf(
+            stderr,
+            "Required device '%s' is not available: %s\n",
+            deviceTypeToString(deviceType),
+            result.error.c_str()
+        );
+        if (!result.debugCallbackOutput.empty())
+            std::fprintf(stderr, "Debug callback output: %s\n", result.debugCallbackOutput.c_str());
+        if (!result.diagnostics.empty())
+            std::fprintf(stderr, "Slang diagnostics: %s\n", result.diagnostics.c_str());
+    }
+    return allAvailable;
+}
+
 } // namespace rhi::testing
 
 int main(int argc, const char** argv)
@@ -86,6 +113,29 @@ int main(int argc, const char** argv)
                         }
                         break;
                     }
+                }
+            }
+        }
+
+        strings.clear();
+        if (doctest::parseCommaSepArgs(argc, argv, "require-devices=", strings))
+        {
+            for (const auto& str : strings)
+            {
+                bool matched = false;
+                for (rhi::DeviceType deviceType : rhi::testing::kDeviceTypes)
+                {
+                    if (str == rhi::testing::deviceTypeToString(deviceType))
+                    {
+                        options.deviceRequired[size_t(deviceType)] = true;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched)
+                {
+                    std::fprintf(stderr, "Invalid required device type '%s'.\n", str.c_str());
+                    return 1;
                 }
             }
         }
@@ -151,7 +201,8 @@ int main(int argc, const char** argv)
         // Report successful tests
         // context.setOption("success", true);
 
-        result = context.run();
+        if (context.shouldExit() || rhi::testing::options().listDevices || rhi::testing::checkRequiredDevices())
+            result = context.run();
 
         bool noSilentSkips = rhi::testing::checkNoSilentGpuSkips();
         if (result == 0 && !noSilentSkips)
