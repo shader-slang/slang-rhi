@@ -31,6 +31,12 @@ public:
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     std::string m_rootParameterShaderAttributeNameBuffer;
     const char* m_rootParameterShaderAttributeName = nullptr;
 

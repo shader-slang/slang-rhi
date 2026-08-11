@@ -345,6 +345,7 @@ public:
 public:
     void setInfo(const SurfaceInfo& info);
     void setConfig(const SurfaceConfig& config);
+    Result validateConfig(const SurfaceConfig& config) const;
 
     SurfaceInfo m_info;
     StructHolder m_infoHolder;

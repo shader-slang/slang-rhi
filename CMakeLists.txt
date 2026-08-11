@@ -747,6 +747,7 @@ target_sources(slang-rhi PRIVATE
     src/format-conversion.cpp
     src/heap.cpp
     src/pipeline.cpp
+    src/pipeline-resolver.cpp
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
     src/rhi.cpp
@@ -1046,6 +1047,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-nvrtc.cpp
         tests/test-nvapi.cpp
         tests/test-offset-allocator.cpp
+        tests/test-parallel-pipeline-creation.cpp
         tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp
@@ -1067,6 +1069,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-sampler.cpp
         tests/test-sha1.cpp
         tests/test-shader-cache.cpp
+        tests/test-shader-object-from-type-layout.cpp
         tests/test-shader-object-large.cpp
         tests/test-shader-object-resource-tracking.cpp
         tests/test-ring-queue.cpp

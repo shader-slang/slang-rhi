@@ -560,6 +560,19 @@ void Surface::setConfig(const SurfaceConfig& config)
     m_config = config;
 }
 
+Result Surface::validateConfig(const SurfaceConfig& config) const
+{
+    if (config.format != Format::Undefined && !contains(m_info.formats, m_info.formatCount, config.format))
+        return SLANG_E_INVALID_ARG;
+    if (config.usage != (config.usage & m_info.supportedUsage))
+        return SLANG_E_INVALID_ARG;
+    if (config.width == 0 || config.height == 0)
+        return SLANG_E_INVALID_ARG;
+    if (config.desiredImageCount == 0)
+        return SLANG_E_INVALID_ARG;
+    return SLANG_OK;
+}
+
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------

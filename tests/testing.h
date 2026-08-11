@@ -328,6 +328,7 @@ struct DeviceExtraOptions
     IPersistentCache* persistentShaderCache = nullptr;
     IPersistentCache* persistentPipelineCache = nullptr;
     bool enableCompilationReports = false;
+    PipelineCompilationMode pipelineCompilationMode = PipelineCompilationMode::Serial;
     DeviceNativeHandles existingDeviceHandles;
 
     // D3D12-specific (no effect for other devices): Limit the maximum shader model. When set to 0
