@@ -2140,6 +2140,15 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
+Result DeviceImpl::getTextureBufferOffsetAlignment(Format format, Size* outAlignment)
+{
+    const FormatInfo& formatInfo = getFormatInfo(format);
+    if (formatInfo.blockSizeInBytes == 0)
+        return SLANG_E_INVALID_ARG;
+    *outAlignment = formatInfo.kind == FormatKind::DepthStencil ? 4 : formatInfo.blockSizeInBytes;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::isCooperativeMatrixSupported(const CooperativeMatrixDesc& desc, bool* outSupported)
 {
     if (!outSupported)

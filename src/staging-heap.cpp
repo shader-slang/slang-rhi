@@ -44,31 +44,49 @@ void StagingHeap::release()
 
 Result StagingHeap::allocHandle(size_t size, MetaData metadata, StagingHeap::Handle** outHandle)
 {
+    return allocHandle(size, m_defaultAlignment, metadata, outHandle);
+}
+
+Result StagingHeap::allocHandle(size_t size, Size alignment, MetaData metadata, StagingHeap::Handle** outHandle)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
-    return allocHandleInternal(size, metadata, outHandle);
+    return allocHandleInternal(size, alignment, metadata, outHandle);
 }
 
 Result StagingHeap::alloc(size_t size, MetaData metadata, StagingHeap::Allocation* outAllocation)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return allocInternal(size, metadata, outAllocation);
+    return alloc(size, m_defaultAlignment, metadata, outAllocation);
 }
 
-Result StagingHeap::allocHandleInternal(size_t size, MetaData metadata, StagingHeap::Handle** outHandle)
+Result StagingHeap::alloc(size_t size, Size alignment, MetaData metadata, StagingHeap::Allocation* outAllocation)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return allocInternal(size, alignment, metadata, outAllocation);
+}
+
+Result StagingHeap::allocHandleInternal(size_t size, Size alignment, MetaData metadata, StagingHeap::Handle** outHandle)
 {
     *outHandle = nullptr;
     Allocation allocation;
-    SLANG_RETURN_ON_FAIL(allocInternal(size, metadata, &allocation));
+    SLANG_RETURN_ON_FAIL(allocInternal(size, alignment, metadata, &allocation));
 
     RefPtr<Handle> res = new Handle(this, allocation);
     returnRefPtr(outHandle, res);
     return SLANG_OK;
 }
 
-Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::Allocation* outAllocation)
+Result StagingHeap::allocInternal(
+    size_t size,
+    Size alignment,
+    MetaData metadata,
+    StagingHeap::Allocation* outAllocation
+)
 {
+    if (alignment == 0)
+        return SLANG_E_INVALID_ARG;
+
     // Get aligned size.
-    size_t alignedSize = alignUp(size);
+    size_t alignedSize = alignAllocationSize(size);
 
     // If pages are kept mapped, then can't have multiple threads allocating from the same page,
     // so record the thread id to lock pages to.
@@ -83,7 +101,7 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
             if (page->getLockedToThread() == std::thread::id() || page->getLockedToThread() == thread_id)
             {
                 std::list<Node>::iterator node;
-                if (page->allocNode(alignedSize, metadata, thread_id, node))
+                if (page->allocNode(alignedSize, alignment, metadata, thread_id, node))
                 {
                     Allocation res;
                     res.page = page;
@@ -101,7 +119,7 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
     Page* page;
     SLANG_RETURN_ON_FAIL(allocPage(pageSize, &page));
     std::list<Node>::iterator node;
-    page->allocNode(alignedSize, metadata, thread_id, node);
+    page->allocNode(alignedSize, alignment, metadata, thread_id, node);
 
     Allocation res;
     res.page = page;
@@ -114,10 +132,15 @@ Result StagingHeap::allocInternal(size_t size, MetaData metadata, StagingHeap::A
 
 Result StagingHeap::stageHandle(const void* data, size_t size, MetaData metadata, Handle** outHandle)
 {
+    return stageHandle(data, size, m_defaultAlignment, metadata, outHandle);
+}
+
+Result StagingHeap::stageHandle(const void* data, size_t size, Size alignment, MetaData metadata, Handle** outHandle)
+{
     // Perform thread safe allocation.
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        SLANG_RETURN_ON_FAIL(allocHandleInternal(size, metadata, outHandle));
+        SLANG_RETURN_ON_FAIL(allocHandleInternal(size, alignment, metadata, outHandle));
     }
 
     // Copy data to page.
@@ -130,10 +153,15 @@ Result StagingHeap::stageHandle(const void* data, size_t size, MetaData metadata
 
 Result StagingHeap::stage(const void* data, size_t size, MetaData metadata, Allocation* outAllocation)
 {
+    return stage(data, size, m_defaultAlignment, metadata, outAllocation);
+}
+
+Result StagingHeap::stage(const void* data, size_t size, Size alignment, MetaData metadata, Allocation* outAllocation)
+{
     // Perform thread safe allocation.
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        SLANG_RETURN_ON_FAIL(allocInternal(size, metadata, outAllocation));
+        SLANG_RETURN_ON_FAIL(allocInternal(size, alignment, metadata, outAllocation));
     }
 
     // Copy data to page.
@@ -257,6 +285,7 @@ StagingHeap::Page::Page(int id, RefPtr<Buffer> buffer)
 
 bool StagingHeap::Page::allocNode(
     Size size,
+    Size alignment,
     StagingHeap::MetaData metadta,
     std::thread::id lock_to_thread,
     std::list<Node>::iterator& res
@@ -265,33 +294,47 @@ bool StagingHeap::Page::allocNode(
     // Check if page is locked to a thread, and if so, that it is the same thread.
     SLANG_RHI_ASSERT(m_locked_to_thread == lock_to_thread || m_locked_to_thread == std::thread::id());
 
-    // Scan nodes for a free slot greater than or equal to size requested
+    // Scan nodes for a free slot that can hold the requested aligned range.
     for (auto node = m_nodes.begin(); node != m_nodes.end(); ++node)
     {
-        if (node->free && node->size >= size)
+        if (!node->free)
+            continue;
+
+        const Size alignedOffset = math::calcAligned(node->offset, alignment);
+        const Size padding = alignedOffset - node->offset;
+        if (padding > node->size || node->size - padding < size)
+            continue;
+
+        // Preserve any free prefix needed to align the allocation.
+        if (padding > 0)
         {
-            // Got one. Increment total used in page.
-            m_totalUsed += size;
-
-            // If node is bigger than necessary, split it.
-            if (node->size > size)
-            {
-                auto next = std::next(node);
-                m_nodes.insert(next, {node->offset + size, node->size - size, true, {}});
-                node->size = size;
-            }
-
-            // Mark node as not free, and store meta data.
-            node->free = false;
-            node->metadata = metadta;
-
-            // Lock to the thread (if specified)
-            m_locked_to_thread = lock_to_thread;
-
-            // Return iterator to node.
-            res = node;
-            return true;
+            const Size remainingSize = node->size - padding;
+            auto next = std::next(node);
+            node = m_nodes.insert(next, {alignedOffset, remainingSize, true, {}});
+            std::prev(node)->size = padding;
         }
+
+        // Got one. Increment total used in page.
+        m_totalUsed += size;
+
+        // If node is bigger than necessary, split it.
+        if (node->size > size)
+        {
+            auto next = std::next(node);
+            m_nodes.insert(next, {node->offset + size, node->size - size, true, {}});
+            node->size = size;
+        }
+
+        // Mark node as not free, and store meta data.
+        node->free = false;
+        node->metadata = metadta;
+
+        // Lock to the thread (if specified)
+        m_locked_to_thread = lock_to_thread;
+
+        // Return iterator to node.
+        res = node;
+        return true;
     }
 
     // No free node found.
