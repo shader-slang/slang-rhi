@@ -79,7 +79,7 @@ void testUploadToBuffer(IDevice* device, Size size, Offset offset, int tests, bo
             auto encoder = queue->createCommandEncoder();
             for (int i = 0; i < tests; i++)
                 encoder->uploadBufferData(uploads[i].dst, uploads[i].offset, uploads[i].size, uploads[i].data.data());
-            CHECK_EQ(heap.getUsed(), heap.alignUp(uploads[0].size) * tests);
+            CHECK_EQ(heap.getUsed(), heap.alignAllocationSize(uploads[0].size) * tests);
             queue->submit(encoder->finish());
         }
         else
@@ -88,7 +88,7 @@ void testUploadToBuffer(IDevice* device, Size size, Offset offset, int tests, bo
             {
                 auto encoder = queue->createCommandEncoder();
                 encoder->uploadBufferData(uploads[i].dst, uploads[i].offset, uploads[i].size, uploads[i].data.data());
-                CHECK_EQ(heap.getUsed(), heap.alignUp(uploads[0].size) * tests);
+                CHECK_EQ(heap.getUsed(), heap.alignAllocationSize(uploads[0].size) * tests);
                 queue->submit(encoder->finish());
             }
         }

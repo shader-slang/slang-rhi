@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <map>
+#include <mutex>
 #include <string>
 #include <fstream>
 
@@ -149,9 +150,17 @@ void writeFile(std::string_view path, const void* data, size_t size)
 class CaptureDebugCallback : public IDebugCallback
 {
 public:
-    std::string output;
+    void clear()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_output.clear();
+    }
 
-    void clear() { output.clear(); }
+    std::string getOutput() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_output;
+    }
 
     virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
         DebugMessageType type,
@@ -159,11 +168,16 @@ public:
         const char* message
     ) override
     {
-        output += "[" + std::string(rhi::enumToString(type)) + "] ";
-        output += "[" + std::string(rhi::enumToString(source)) + "] ";
-        output += message;
-        output += "\n";
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_output += "[" + std::string(rhi::enumToString(type)) + "] ";
+        m_output += "[" + std::string(rhi::enumToString(source)) + "] ";
+        m_output += message;
+        m_output += "\n";
     }
+
+private:
+    mutable std::mutex m_mutex;
+    std::string m_output;
 };
 
 static CaptureDebugCallback sCaptureDebugCallback;
@@ -202,6 +216,8 @@ public:
         if (shouldIgnoreMessage(type, source, message))
             return;
 
+        std::lock_guard<std::mutex> lock(m_mutex);
+
         doctest::String msg = "[" + doctest::String(enumToString(type)) + "] ";
         msg += "[" + doctest::String(enumToString(source)) + "] ";
         msg += message;
@@ -228,6 +244,9 @@ public:
             FAIL(msg);
         }
     }
+
+private:
+    std::mutex m_mutex;
 };
 
 static DebugCallback sDebugCallback;
@@ -607,6 +626,7 @@ ComPtr<IDevice> createTestingDevice(
         if (extraOptions->persistentPipelineCache)
             deviceDesc.persistentPipelineCache = extraOptions->persistentPipelineCache;
         deviceDesc.enableCompilationReports = extraOptions->enableCompilationReports;
+        deviceDesc.pipelineCompilationMode = extraOptions->pipelineCompilationMode;
         deviceDesc.existingDeviceHandles = extraOptions->existingDeviceHandles;
         deviceDesc.enableAftermath = extraOptions->enableAftermath;
         deviceDesc.enableRayTracingValidation = extraOptions->enableRayTracingValidation;
@@ -881,7 +901,7 @@ DeviceAvailabilityResult checkDeviceTypeAvailable(DeviceType deviceType)
     {                                                                                                                  \
         result.available = false;                                                                                      \
         result.error = msg;                                                                                            \
-        result.debugCallbackOutput = sCaptureDebugCallback.output;                                                     \
+        result.debugCallbackOutput = sCaptureDebugCallback.getOutput();                                                \
         result.diagnostics = diagnostics ? (const char*)diagnostics->getBufferPointer() : "";                          \
         return result;                                                                                                 \
     }

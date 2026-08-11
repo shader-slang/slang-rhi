@@ -469,7 +469,8 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
 {
     if (handle.type != NativeHandleType::VkImage || handle.value == 0)
     {
-        return SLANG_E_INVALID_ARG;
+        *outTexture = nullptr;
+        return SLANG_E_INVALID_HANDLE;
     }
 
     TextureDesc desc = fixupTextureDesc(desc_);

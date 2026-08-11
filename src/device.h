@@ -14,18 +14,23 @@
 
 #include <atomic>
 #include <map>
+#include <mutex>
 #include <unordered_map>
 
 namespace rhi {
 
 // Forward declarations
 class Heap;
+struct EntryPointCompilationStats;
 
 namespace testing {
 // Debug option for tests to turn off state tracking (so we can effectively test explicit barriers)
 extern bool gDebugDisableStateTracking;
 // Counter for tracking active Resource instances (for testing deferred delete)
 extern std::atomic<uint64_t> gResourceCount;
+// Returns the number of entries in the device's shader object layout cache.
+// Accepts either a device or its debug-layer wrapper.
+size_t getShaderObjectLayoutCacheSize(IDevice* device);
 } // namespace testing
 
 // Base class for adapters.
@@ -123,6 +128,7 @@ protected:
         std::size_t operator()(const PipelineKey& k) const { return k.hash; }
     };
 
+    std::mutex m_mutex;
     std::unordered_map<ComponentKey, ShaderComponentID, ComponentKeyHasher> componentIds;
     std::unordered_map<PipelineKey, RefPtr<Pipeline>, PipelineKeyHasher> specializedPipelines;
 };
@@ -320,6 +326,9 @@ public:
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, size_t* outAlignment) override;
 
+    // Get the required buffer offset alignment for buffer-texture copies.
+    virtual SLANG_NO_THROW Result getTextureBufferOffsetAlignment(Format format, Size* outAlignment);
+
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE.
     virtual SLANG_NO_THROW Result SLANG_MCALL createSurface(WindowHandle windowHandle, ISurface** outSurface) override;
 
@@ -373,20 +382,23 @@ public:
         const char* entryPointName,
         uint32_t entryPointIndex,
         uint32_t targetIndex,
+        slang::IBlob* cacheKey,
+        bool measureCompilerTime,
+        EntryPointCompilationStats* outStats,
         slang::IBlob** outCode,
         slang::IBlob** outDiagnostics = nullptr
     );
 
+    /// Returns the cached shader object layout for `type` in `session`, creating it
+    /// on first use.
+    ///
+    /// Takes a type rather than a type layout deliberately: the cache key must be a
+    /// session-owned layout, so this derives it internally instead of accepting one
+    /// from the caller. See the invariant on m_shaderObjectLayoutCache.
     Result getShaderObjectLayout(
         slang::ISession* session,
         slang::TypeReflection* type,
         ShaderObjectContainerType container,
-        ShaderObjectLayout** outLayout
-    );
-
-    Result getShaderObjectLayout(
-        slang::ISession* session,
-        slang::TypeLayoutReflection* typeLayout,
         ShaderObjectLayout** outLayout
     );
 
@@ -421,6 +433,16 @@ public:
         ExtendedShaderObjectTypeList* specializationArgs,
         Pipeline*& outPipeline
     );
+
+    Result createConcretePipeline(Pipeline* pipeline, ShaderProgram* program, RefPtr<Pipeline>& outPipeline);
+
+    /// Backends opt individual pipelines into creation on the global task pool.
+    /// Pipelines that perform nested work on that pool must return false.
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const
+    {
+        SLANG_UNUSED(pipeline);
+        return false;
+    }
 
     virtual Result createShaderObjectLayout(
         slang::ISession* session,
@@ -470,6 +492,25 @@ public:
     ComPtr<IPersistentCache> m_persistentShaderCache;
     ComPtr<IPersistentCache> m_persistentPipelineCache;
 
+    /// Shader object layouts, keyed by the type layout they were built from.
+    ///
+    /// The key is a raw pointer this cache does not own, and entries live as long as
+    /// the device, so an entry is only sound while the object owning its key is still
+    /// alive. What guarantees that is the strong `ISession` reference each entry holds
+    /// via ShaderObjectLayout::m_slangSession: a layout obtained from
+    /// `ISession::getTypeLayout` belongs to the `Linkage` and so lives at least as long
+    /// as that reference.
+    ///
+    /// The invariant is therefore that every key is a session-owned layout, and it is
+    /// enforced structurally: getShaderObjectLayout is the only path that inserts here,
+    /// and it derives the key from the session itself rather than accepting one.
+    ///
+    /// A layout reached through `IComponentType::getLayout()` belongs to the
+    /// `TargetProgram`, not the session, and must never become a key: releasing the
+    /// program would leave the entry dangling, and a later allocation reusing that
+    /// address turns the next lookup into a use-after-free. That is
+    /// shader-slang/slang#10893, which is why createShaderObjectFromTypeLayout builds
+    /// its layout directly instead of caching one.
     std::map<slang::TypeLayoutReflection*, RefPtr<ShaderObjectLayout>> m_shaderObjectLayoutCache;
 
     // List of heaps managed by this device. DeviceImpl is expected
@@ -477,6 +518,27 @@ public:
     std::vector<Heap*> m_globalHeaps;
 
     IDebugCallback* m_debugCallback = nullptr;
+
+    PipelineCompilationMode m_pipelineCompilationMode = PipelineCompilationMode::Serial;
+
+    bool shouldDeferPipelineCompilation(PipelineCompilationPolicy policy) const
+    {
+        switch (policy)
+        {
+        case PipelineCompilationPolicy::Default:
+            return m_pipelineCompilationMode == PipelineCompilationMode::Parallel;
+        case PipelineCompilationPolicy::Immediate:
+            return false;
+        case PipelineCompilationPolicy::Deferred:
+            return true;
+        default:
+            SLANG_RHI_ASSERT_FAILURE("Unhandled pipeline compilation policy");
+            return false;
+        }
+    }
+
+    /// Serializes resolution/publication across command encoders. Work within one resolver may still run concurrently.
+    std::mutex m_pipelineResolutionMutex;
 
     LiveDeviceTracker m_liveDeviceTracker;
 };

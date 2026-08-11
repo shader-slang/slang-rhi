@@ -451,16 +451,14 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
+    if (handle.type != NativeHandleType::VkBuffer || handle.value == 0)
+    {
+        *outBuffer = nullptr;
+        return SLANG_E_INVALID_HANDLE;
+    }
 
-    if (handle.type == NativeHandleType::VkBuffer)
-    {
-        buffer->m_buffer.m_buffer = (VkBuffer)handle.value;
-    }
-    else
-    {
-        return SLANG_FAIL;
-    }
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, fixupBufferDesc(desc)));
+    buffer->m_buffer.m_buffer = (VkBuffer)handle.value;
 
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;

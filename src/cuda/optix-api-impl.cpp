@@ -608,8 +608,6 @@ Result executeOptixTasks(ITaskPool* taskPool, std::span<OptixTask> initialTasks)
                 {
                     delete static_cast<OptixTaskPayload*>(p);
                 },
-                nullptr,
-                0,
                 payload->group
             );
             payload->taskPool->releaseTask(handle);
@@ -627,16 +625,13 @@ Result executeOptixTasks(ITaskPool* taskPool, std::span<OptixTask> initialTasks)
             {
                 delete static_cast<OptixTaskPayload*>(p);
             },
-            nullptr,
-            0,
             group
         );
         taskPool->releaseTask(handle);
     }
 
     // Wait for all tasks (including recursively spawned sub-tasks) to complete.
-    taskPool->waitTaskGroup(group);
-    taskPool->releaseTaskGroup(group);
+    taskPool->waitAndReleaseTaskGroup(group);
 
     if (failed.load(std::memory_order_relaxed))
         return SLANG_FAIL;

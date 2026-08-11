@@ -1402,6 +1402,13 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
+Result DeviceImpl::getTextureBufferOffsetAlignment(Format format, Size* outAlignment)
+{
+    SLANG_UNUSED(format);
+    *outAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
     // Description of uploading on Dx12
@@ -1527,7 +1534,8 @@ Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const Text
 {
     if (handle.type != NativeHandleType::D3D12Resource || handle.value == 0)
     {
-        return SLANG_E_INVALID_ARG;
+        *outTexture = nullptr;
+        return SLANG_E_INVALID_HANDLE;
     }
 
     TextureDesc desc = fixupTextureDesc(desc_);
@@ -1606,16 +1614,14 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
 Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const BufferDesc& desc, IBuffer** outBuffer)
 {
-    RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
+    if (handle.type != NativeHandleType::D3D12Resource || handle.value == 0)
+    {
+        *outBuffer = nullptr;
+        return SLANG_E_INVALID_HANDLE;
+    }
 
-    if (handle.type == NativeHandleType::D3D12Resource)
-    {
-        buffer->m_resource.setResource((ID3D12Resource*)handle.value);
-    }
-    else
-    {
-        return SLANG_FAIL;
-    }
+    RefPtr<BufferImpl> buffer(new BufferImpl(this, fixupBufferDesc(desc)));
+    buffer->m_resource.setResource((ID3D12Resource*)handle.value);
 
     returnComPtr(outBuffer, buffer);
     return SLANG_OK;

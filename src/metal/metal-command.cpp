@@ -858,10 +858,13 @@ void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
 
 void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchComputeIndirect& cmd)
 {
-    // TODO: When implemented, must set m_computeEncoderHasDispatched = true
-    // so that cmdSetComputeState emits a memoryBarrier after indirect dispatches.
-    SLANG_UNUSED(cmd);
-    NOT_SUPPORTED(IComputePassEncoder, dispatchComputeIndirect);
+    if (!m_computeStateValid)
+        return;
+
+    BufferImpl* argBuffer = checked_cast<BufferImpl*>(cmd.argBuffer.buffer);
+    m_computeCommandEncoder
+        ->dispatchThreadgroups(argBuffer->m_buffer.get(), cmd.argBuffer.offset, m_computePipeline->m_threadGroupSize);
+    m_computeEncoderHasDispatched = true;
 }
 
 void CommandRecorder::cmdBeginRayTracingPass(const commands::BeginRayTracingPass& cmd)
