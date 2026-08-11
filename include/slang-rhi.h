@@ -1942,6 +1942,20 @@ struct MultisampleDesc
     bool alphaToOneEnable = false;
 };
 
+enum class PipelineCompilationPolicy
+{
+    /// Inherit the device's pipeline compilation behavior. Pipelines are compiled immediately on devices using
+    /// serial pipeline compilation and deferred on devices using parallel pipeline compilation.
+    Default,
+
+    /// Compile target code and create the backend pipeline during pipeline creation. Programs that require
+    /// specialization are always deferred.
+    Immediate,
+
+    /// Defer target code compilation and backend pipeline creation until the pipeline is used by a command encoder.
+    Deferred,
+};
+
 struct RenderPipelineDesc
 {
     StructType structType = StructType::RenderPipelineDesc;
@@ -1956,8 +1970,8 @@ struct RenderPipelineDesc
     RasterizerDesc rasterizer;
     MultisampleDesc multisample;
 
-    // Defer target code compilation of program to dispatch time.
-    bool deferTargetCompilation = false;
+    /// Controls when target code and the backend pipeline are compiled.
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
 
     const char* label = nullptr;
 };
@@ -1970,8 +1984,8 @@ struct ComputePipelineDesc
     IShaderProgram* program = nullptr;
     void* d3d12RootSignatureOverride = nullptr;
 
-    // Defer target code compilation of program to dispatch time.
-    bool deferTargetCompilation = false;
+    /// Controls when target code and the backend pipeline are compiled.
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
 
     const char* label = nullptr;
 };
@@ -2009,8 +2023,8 @@ struct RayTracingPipelineDesc
     uint32_t maxAttributeSizeInBytes = 8;
     RayTracingPipelineFlags flags = RayTracingPipelineFlags::None;
 
-    // Defer target code compilation of program to dispatch time.
-    bool deferTargetCompilation = false;
+    /// Controls when target code and the backend pipeline are compiled.
+    PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
 
     const char* label = nullptr;
 };
@@ -3268,10 +3282,11 @@ SLANG_RHI_ENUM_CLASS_OPERATORS(AftermathFlags);
 
 enum class PipelineCompilationMode
 {
-    /// Use sequential pipeline resolution.
+    /// Compile pipelines using the default policy immediately and resolve explicitly deferred pipelines sequentially.
     Serial,
 
-    /// Experimental: allow deferred pipeline resolution to use available task parallelism.
+    /// Experimental: defer pipelines using the default policy and resolve deferred pipelines using available task
+    /// parallelism.
     Parallel,
 };
 
@@ -3330,7 +3345,8 @@ struct DeviceDesc
     /// Enable reporting of shader compilation timings.
     bool enableCompilationReports = false;
 
-    /// Controls resolution of deferred pipelines encountered while finishing a command encoder.
+    /// Controls the default pipeline compilation policy and resolution of deferred pipelines encountered while
+    /// finishing a command encoder.
     PipelineCompilationMode pipelineCompilationMode = PipelineCompilationMode::Serial;
 
     /// Enable launching CUDA kernels from inside graphics command buffers

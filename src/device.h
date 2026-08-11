@@ -518,6 +518,22 @@ public:
 
     PipelineCompilationMode m_pipelineCompilationMode = PipelineCompilationMode::Serial;
 
+    bool shouldDeferPipelineCompilation(PipelineCompilationPolicy policy) const
+    {
+        switch (policy)
+        {
+        case PipelineCompilationPolicy::Default:
+            return m_pipelineCompilationMode == PipelineCompilationMode::Parallel;
+        case PipelineCompilationPolicy::Immediate:
+            return false;
+        case PipelineCompilationPolicy::Deferred:
+            return true;
+        default:
+            SLANG_RHI_ASSERT_FAILURE("Unhandled pipeline compilation policy");
+            return false;
+        }
+    }
+
     /// Serializes resolution/publication across command encoders. Work within one resolver may still run concurrently.
     std::mutex m_pipelineResolutionMutex;
 

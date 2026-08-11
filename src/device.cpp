@@ -738,7 +738,7 @@ Result Device::createInputLayout(const InputLayoutDesc& desc, IInputLayout** out
 Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = desc.deferTargetCompilation | program->isSpecializable();
+    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy) || program->isSpecializable();
     if (createVirtual)
     {
         RefPtr<VirtualRenderPipeline> pipeline = new VirtualRenderPipeline(this, desc);
@@ -755,7 +755,7 @@ Result Device::createRenderPipeline(const RenderPipelineDesc& desc, IRenderPipel
 Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = desc.deferTargetCompilation | program->isSpecializable();
+    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy) || program->isSpecializable();
     if (createVirtual)
     {
         RefPtr<VirtualComputePipeline> pipeline = new VirtualComputePipeline(this, desc);
@@ -772,7 +772,7 @@ Result Device::createComputePipeline(const ComputePipelineDesc& desc, IComputePi
 Result Device::createRayTracingPipeline(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     ShaderProgram* program = checked_cast<ShaderProgram*>(desc.program);
-    bool createVirtual = desc.deferTargetCompilation | program->isSpecializable();
+    bool createVirtual = shouldDeferPipelineCompilation(desc.compilationPolicy) || program->isSpecializable();
     if (createVirtual)
     {
         RefPtr<VirtualRayTracingPipeline> pipeline = new VirtualRayTracingPipeline(this, desc);
