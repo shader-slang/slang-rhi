@@ -1,0 +1,4 @@
+# metal-cpp implements Objective-C nil messaging through C++ member calls.
+# Limit the exception to its object messaging shim; slang-rhi remains checked.
+[null]
+src:*/metal_cpp-src/Foundation/NSObject.hpp

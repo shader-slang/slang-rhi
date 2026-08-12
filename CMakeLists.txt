@@ -82,7 +82,10 @@ if(SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN)
         # Make undefined behavior fail the test process instead of recovering and
         # potentially allowing a successful exit.
         if(SLANG_RHI_ENABLE_UBSAN)
-            add_compile_options(-fno-sanitize-recover=undefined)
+            add_compile_options(
+                -fno-sanitize-recover=undefined
+                -fsanitize-ignorelist=${CMAKE_CURRENT_SOURCE_DIR}/tools/ubsan-ignorelist.txt
+            )
         endif()
 
         # On Windows, the debug CRT conflicts with ASAN. Force the static release CRT.

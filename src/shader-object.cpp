@@ -24,7 +24,10 @@ void ShaderObjectLayout::initBase(
     m_device = device;
     m_slangSession = session;
     m_elementTypeLayout = elementTypeLayout;
-    m_componentID = m_device->m_shaderCache.getComponentId(m_elementTypeLayout->getType());
+    if (auto type = m_elementTypeLayout->getType())
+        m_componentID = m_device->m_shaderCache.getComponentId(type);
+    else
+        m_componentID = kInvalidComponentID;
 }
 
 // ----------------------------------------------------------------------------
