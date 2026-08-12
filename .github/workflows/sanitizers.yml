@@ -72,7 +72,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: linux, preset: clang, config: "Debug", required_devices: "vulkan,cuda,wgpu", cmake_flags: "", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
+          # Vulkan and WebGPU currently crash Linux TSAN during device probing, before tests start.
+          - { os: linux, preset: clang, config: "Debug", required_devices: "cuda", cmake_flags: "", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
           - { os: macos, preset: default, config: "Debug", required_devices: "metal,cpu,wgpu", cmake_flags: "-DSLANG_RHI_ENABLE_VULKAN=OFF", runs-on: macos-latest }
 
     runs-on: ${{ matrix.runs-on }}
@@ -97,37 +98,10 @@ jobs:
           ${{ matrix.cmake_flags }}
 
       - name: Build
-        id: build
         run: cmake --build build-tsan --config ${{ matrix.config }}
 
       - name: Unit Tests
-        if: matrix.os == 'macos'
         working-directory: build-tsan/${{ matrix.config }}
         env:
           TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
-        run: ./slang-rhi-tests -check-devices "-require-devices=${{ matrix.required_devices }}"
-
-      # TEMPORARY: Isolate the Linux TSAN crash to a specific uninstrumented GPU runtime.
-      # Keep these as separate always-run steps so one crashing backend does not hide the others.
-      - name: Unit Tests (Vulkan smoke)
-        if: ${{ always() && matrix.os == 'linux' && steps.build.outcome == 'success' }}
-        working-directory: build-tsan/${{ matrix.config }}
-        env:
-          # TEMPORARY: Test compatibility with the uninstrumented Linux Vulkan driver.
-          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1:ignore_noninstrumented_modules=1
-        run: ./slang-rhi-tests -check-devices "-select-devices=vulkan" "-require-devices=vulkan" "-tc=compute-smoke.vulkan"
-
-      - name: Unit Tests (CUDA smoke)
-        if: ${{ always() && matrix.os == 'linux' && steps.build.outcome == 'success' }}
-        working-directory: build-tsan/${{ matrix.config }}
-        env:
-          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
-        run: ./slang-rhi-tests -check-devices "-select-devices=cuda" "-require-devices=cuda" "-tc=compute-smoke.cuda"
-
-      - name: Unit Tests (WebGPU smoke)
-        if: ${{ always() && matrix.os == 'linux' && steps.build.outcome == 'success' }}
-        working-directory: build-tsan/${{ matrix.config }}
-        env:
-          # TEMPORARY: Linux WebGPU appears to reach an uninstrumented Vulkan driver path.
-          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1:ignore_noninstrumented_modules=1
-        run: ./slang-rhi-tests -check-devices "-select-devices=wgpu" "-require-devices=wgpu" "-tc=compute-smoke.wgpu"
+        run: ./slang-rhi-tests -check-devices "-select-devices=${{ matrix.required_devices }}" "-require-devices=${{ matrix.required_devices }}"
