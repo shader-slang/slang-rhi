@@ -2,3 +2,8 @@
 # Limit the exception to its object messaging shim; slang-rhi remains checked.
 [null]
 src:*/metal_cpp-src/Foundation/NSObject.hpp
+
+# Objective-C tagged pointers are valid message receivers but are not
+# necessarily aligned like the C++ wrapper type.
+[alignment]
+src:*/metal_cpp-src/Foundation/NSObject.hpp

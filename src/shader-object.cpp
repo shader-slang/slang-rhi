@@ -650,7 +650,8 @@ Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& arg
 Result ShaderObject::writeOrdinaryData(void* destData, Size destSize, ShaderObjectLayout* specializedLayout)
 {
     SLANG_RHI_ASSERT(m_data.size() <= destSize);
-    std::memcpy(destData, m_data.data(), m_data.size());
+    if (!m_data.empty())
+        std::memcpy(destData, m_data.data(), m_data.size());
     return SLANG_OK;
 }
 

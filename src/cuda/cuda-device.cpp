@@ -298,7 +298,9 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
-                addCapability(Capability::optix_coopvec);
+                // Do not advertise optix_coopvec to Slang yet. It currently
+                // raises the target of all generated PTX to sm_90, including
+                // ordinary CUDA shaders running on older supported GPUs.
             }
         }
     }
