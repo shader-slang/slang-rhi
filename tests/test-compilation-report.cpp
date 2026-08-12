@@ -10,16 +10,18 @@ inline bool isEqual(const CompilationReport* a, const CompilationReport* b)
 {
     return std::memcmp(a, b, offsetof(CompilationReport, entryPointReports)) == 0 &&
            a->entryPointReportCount == b->entryPointReportCount && a->pipelineReportCount == b->pipelineReportCount &&
-           std::memcmp(
-               a->entryPointReports,
-               b->entryPointReports,
-               a->entryPointReportCount * sizeof(CompilationReport::EntryPointReport)
-           ) == 0 &&
-           std::memcmp(
-               a->pipelineReports,
-               b->pipelineReports,
-               a->pipelineReportCount * sizeof(CompilationReport::PipelineReport)
-           ) == 0;
+           (a->entryPointReportCount == 0 ||
+            std::memcmp(
+                a->entryPointReports,
+                b->entryPointReports,
+                a->entryPointReportCount * sizeof(CompilationReport::EntryPointReport)
+            ) == 0) &&
+           (a->pipelineReportCount == 0 ||
+            std::memcmp(
+                a->pipelineReports,
+                b->pipelineReports,
+                a->pipelineReportCount * sizeof(CompilationReport::PipelineReport)
+            ) == 0);
 }
 
 inline ComPtr<IShaderProgram> createShaderProgram(IDevice* device)
