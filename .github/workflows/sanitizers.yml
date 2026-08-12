@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  asan-ubsan:
     strategy:
       fail-fast: false
       matrix:
@@ -66,3 +66,41 @@ jobs:
       - name: Check LeakSanitizer Reports
         if: ${{ always() && matrix.os == 'linux' && steps.sanitizer_options.outcome == 'success' }}
         run: python tools/filter-lsan-reports.py
+
+  tsan:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux, preset: clang, config: "Debug", required_devices: "vulkan,cuda,wgpu,cpu", cmake_flags: "", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
+          - { os: macos, preset: default, config: "Debug", required_devices: "metal,cpu,wgpu", cmake_flags: "-DSLANG_RHI_ENABLE_VULKAN=OFF", runs-on: macos-latest }
+
+    runs-on: ${{ matrix.runs-on }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - name: Setup CMake/Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Configure
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # TSAN checks slang-rhi host code; vendor GPU runtimes remain uninstrumented.
+        run: >
+          cmake --preset ${{ matrix.preset }} -B build-tsan
+          -DSLANG_RHI_ENABLE_TSAN=ON
+          -DSLANG_RHI_BUILD_TESTS_WITH_GLFW=OFF
+          -DSLANG_RHI_BUILD_EXAMPLES=OFF
+          ${{ matrix.cmake_flags }}
+
+      - name: Build
+        run: cmake --build build-tsan --config ${{ matrix.config }}
+
+      - name: Unit Tests
+        working-directory: build-tsan/${{ matrix.config }}
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: ./slang-rhi-tests -check-devices "-require-devices=${{ matrix.required_devices }}"
