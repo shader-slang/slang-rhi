@@ -46,6 +46,8 @@ option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_TESTS_WITH_GLFW "Build tests that require GLFW" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
+option(SLANG_RHI_ENABLE_ASAN "Enable AddressSanitizer (clang only)" OFF)
+option(SLANG_RHI_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (clang only)" OFF)
 option(SLANG_RHI_INSTALL "Install library" ON)
 
 # Configure coverage flags
@@ -59,6 +61,43 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         add_link_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN})
     else()
         message(FATAL_ERROR "Code coverage is only supported with Clang")
+    endif()
+endif()
+
+# Configure sanitizer flags
+if(SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        set(SLANG_RHI_SANITIZERS)
+        if(SLANG_RHI_ENABLE_ASAN)
+            list(APPEND SLANG_RHI_SANITIZERS address)
+        endif()
+        if(SLANG_RHI_ENABLE_UBSAN)
+            list(APPEND SLANG_RHI_SANITIZERS undefined)
+        endif()
+        list(JOIN SLANG_RHI_SANITIZERS "," SLANG_RHI_SANITIZER_FLAGS)
+
+        add_compile_options(-fsanitize=${SLANG_RHI_SANITIZER_FLAGS} -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=${SLANG_RHI_SANITIZER_FLAGS})
+
+        # Make undefined behavior fail the test process instead of recovering and
+        # potentially allowing a successful exit.
+        if(SLANG_RHI_ENABLE_UBSAN)
+            add_compile_options(-fno-sanitize-recover=undefined)
+        endif()
+
+        # On Windows, the debug CRT conflicts with ASAN. Force the static release CRT.
+        if(SLANG_RHI_ENABLE_ASAN AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+            add_compile_options(-fno-sanitize-link-runtime)
+            # The MSVC STL uses __has_feature(address_sanitizer) under Clang to
+            # activate ASAN container annotations and emits /INFERASANLIBS via a
+            # pragma in that path. Some lld-link versions reject that directive
+            # in .drectve sections. Defining __SANITIZE_ADDRESS__ selects the
+            # equivalent STL annotation path without emitting the directive.
+            add_compile_definitions(__SANITIZE_ADDRESS__)
+        endif()
+    else()
+        message(FATAL_ERROR "Sanitizers are only supported with Clang")
     endif()
 endif()
 

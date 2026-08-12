@@ -22,6 +22,9 @@ concurrency:
 
 jobs:
   build:
+    # TEMPORARY (dev/skallweit/asan): Skip the regular PR pipeline while the
+    # sanitizer workflow is being validated. Remove this condition before merge.
+    if: ${{ github.event_name != 'pull_request' || github.head_ref != 'dev/skallweit/asan' }}
     strategy:
       fail-fast: false
       matrix:
@@ -127,7 +130,9 @@ jobs:
 
   finish:
     needs: build
-    if: ${{ always() }}
+    # TEMPORARY (dev/skallweit/asan): Match the build-job suppression above.
+    # Restore this to `if: ${{ always() }}` before merge.
+    if: ${{ always() && (github.event_name != 'pull_request' || github.head_ref != 'dev/skallweit/asan') }}
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
