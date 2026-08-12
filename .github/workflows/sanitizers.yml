@@ -113,7 +113,8 @@ jobs:
         if: ${{ always() && matrix.os == 'linux' && steps.build.outcome == 'success' }}
         working-directory: build-tsan/${{ matrix.config }}
         env:
-          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+          # TEMPORARY: Test compatibility with the uninstrumented Linux Vulkan driver.
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1:ignore_noninstrumented_modules=1
         run: ./slang-rhi-tests -check-devices "-select-devices=vulkan" "-require-devices=vulkan" "-tc=compute-smoke.vulkan"
 
       - name: Unit Tests (CUDA smoke)
@@ -127,5 +128,6 @@ jobs:
         if: ${{ always() && matrix.os == 'linux' && steps.build.outcome == 'success' }}
         working-directory: build-tsan/${{ matrix.config }}
         env:
-          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+          # TEMPORARY: Linux WebGPU appears to reach an uninstrumented Vulkan driver path.
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1:ignore_noninstrumented_modules=1
         run: ./slang-rhi-tests -check-devices "-select-devices=wgpu" "-require-devices=wgpu" "-tc=compute-smoke.wgpu"
