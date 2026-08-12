@@ -480,6 +480,11 @@ if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma/D3D12MemAlloc.cpp)
     target_include_directories(slang-rhi-d3d12ma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma)
     target_compile_features(slang-rhi-d3d12ma PRIVATE cxx_std_20)
+    if(SLANG_RHI_ENABLE_UBSAN AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # Windows SDK bitmask operators form out-of-range intermediate enum values.
+        # Limit the exception to the vendored allocator; slang-rhi remains fully checked.
+        target_compile_options(slang-rhi-d3d12ma PRIVATE -fno-sanitize=enum)
+    endif()
     # Force-include D3D12MA configuration header to route assertions through slang-rhi.
     target_include_directories(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     if(MSVC)

@@ -409,8 +409,9 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         {
         default:
         {
-            auto varLayout = slangLeafTypeLayout->getElementVarLayout();
-            auto subTypeLayout = varLayout->getTypeLayout();
+            // Rebuild a standalone layout so parameter-block bindings are relative to the element type.
+            auto subType = slangLeafTypeLayout->getType()->getElementType();
+            auto subTypeLayout = m_session->getTypeLayout(subType);
             ShaderObjectLayoutImpl::createForElementType(
                 m_device,
                 m_session,
