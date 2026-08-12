@@ -8,16 +8,28 @@
 #include <thread>
 
 #include "rhi-shared.h"
+#include "debug-layer/debug-device.h"
 
 using namespace rhi;
 using namespace rhi::testing;
 
 static const Size kPageSize = 16 * 1024 * 1024;
 
+namespace {
+
+Device* getSharedDevice(IDevice* device)
+{
+    if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
+        return (Device*)debugDevice->baseObject.get();
+    return (Device*)device;
+}
+
+} // namespace
+
 GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getSharedDevice(device.get()), kPageSize, MemoryType::Upload);
 
     Size allocSize = heap.alignAllocationSize(16);
 
@@ -63,7 +75,7 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 GPU_TEST_CASE("staging-heap-large-page", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getSharedDevice(device.get()), kPageSize, MemoryType::Upload);
 
     StagingHeap::Allocation allocation;
     heap.alloc(16, {2}, &allocation);
@@ -108,7 +120,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
 GPU_TEST_CASE("staging-heap-realloc", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getSharedDevice(device.get()), kPageSize, MemoryType::Upload);
 
     Size allocSize = heap.getPageSize() / 16;
 
@@ -153,7 +165,7 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
 GPU_TEST_CASE("staging-heap-handles", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getSharedDevice(device.get()), kPageSize, MemoryType::Upload);
 
     // Make an allocation using ref counted handle within a scope.
     {
@@ -174,7 +186,7 @@ GPU_TEST_CASE("staging-heap-handles", ALL)
 GPU_TEST_CASE("staging-heap-allocation-alignment", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getSharedDevice(device.get()), kPageSize, MemoryType::Upload);
 
     StagingHeap::Allocation first;
     REQUIRE_CALL(heap.alloc(16, {}, &first));
@@ -216,7 +228,7 @@ void thrashHeap(Device* device, StagingHeap* heap, int idx)
 
 GPU_TEST_CASE("staging-heap-mutithreading", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getSharedDevice(device.get());
 
     StagingHeap heap;
     heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
@@ -260,7 +272,7 @@ void freeAllocations(StagingHeap& heap, std::vector<StagingHeap::Allocation>& al
 
 GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getSharedDevice(device.get());
 
     // When pages AREN'T being kept mapped, heap should allocate a new
     // page for each thread. As a result, after 3 threads have done 10
@@ -296,7 +308,7 @@ GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
 
 GPU_TEST_CASE("staging-heap-shared-pages", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getSharedDevice(device.get());
 
     // When pages ARE being kept mapped, heap should share pages
     // between threads, so 10 small allocations from 3 threads should
@@ -332,7 +344,7 @@ GPU_TEST_CASE("staging-heap-shared-pages", ALL)
 
 GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getSharedDevice(device.get());
 
     // Verify that in none sharing mode, when this thread and another
     // one attempt to allocate, we end up with 2 pages (effectively
@@ -363,7 +375,7 @@ GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
 
 GPU_TEST_CASE("staging-heap-unlockpage-2", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getSharedDevice(device.get());
 
     // Verify that if staging-heap-unlockpage-1 is repeated, but
     // the current thread frees its allocation, the 2nd thread
