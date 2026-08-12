@@ -21,6 +21,12 @@ public:
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCompileEntryPointsOnTaskPool() const override
+    {
+        // Slang's NVRTC downstream compiler mutates shared include-path caches without synchronization.
+        return false;
+    }
+
     virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
     {
         SLANG_UNUSED(pipeline);

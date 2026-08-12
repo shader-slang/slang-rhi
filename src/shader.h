@@ -110,7 +110,8 @@ public:
     /// Must be called while holding m_compileMutex. Performs only front-end/reflection work.
     Result prepareEntryPointCompilation(Device* device, std::vector<CompiledEntryPoint>& outEntryPoints);
 
-    /// Performs the concurrency-safe backend code generation operation for one prepared entry point.
+    /// Performs backend code generation for one prepared entry point. Callers must respect the downstream
+    /// compiler's concurrency constraints.
     Result compileEntryPoint(Device* device, CompiledEntryPoint& entryPoint, bool measureCompilerTime);
 
     /// Reports diagnostics and timing on the caller thread.

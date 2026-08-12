@@ -436,6 +436,9 @@ public:
 
     Result createConcretePipeline(Pipeline* pipeline, ShaderProgram* program, RefPtr<Pipeline>& outPipeline);
 
+    /// Backends may opt out when their downstream compiler does not support concurrent code generation.
+    virtual bool canCompileEntryPointsOnTaskPool() const { return true; }
+
     /// Backends opt individual pipelines into creation on the global task pool.
     /// Pipelines that perform nested work on that pool must return false.
     virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const

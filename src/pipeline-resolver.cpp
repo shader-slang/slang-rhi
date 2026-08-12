@@ -298,7 +298,7 @@ private:
         for (const auto& program : m_programs)
             entryPointCount += program.entryPoints.size();
 
-        if (entryPointCount > 1)
+        if (entryPointCount > 1 && m_device->canCompileEntryPointsOnTaskPool())
         {
             struct Payload
             {
