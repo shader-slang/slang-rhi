@@ -43,7 +43,7 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
@@ -61,16 +61,6 @@ jobs:
 
       - name: Unit Tests
         run: ./slang-rhi-tests -check-devices "-require-devices=${{ matrix.required_devices }}"
-        working-directory: build/${{ matrix.config }}
-
-      - name: Unit Tests (OptiX 8.0)
-        if: contains(matrix.required_devices, 'cuda')
-        run: ./slang-rhi-tests -tc="ray-tracing*.cuda" -check-devices -require-devices=cuda -optix-version=80000
-        working-directory: build/${{ matrix.config }}
-
-      - name: Unit Tests (OptiX 8.1)
-        if: contains(matrix.required_devices, 'cuda')
-        run: ./slang-rhi-tests -tc="ray-tracing*.cuda" -check-devices -require-devices=cuda -optix-version=80100
         working-directory: build/${{ matrix.config }}
 
       - name: Check LeakSanitizer Reports

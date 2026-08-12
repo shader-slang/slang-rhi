@@ -33,6 +33,9 @@ Result BackendImpl::enumerateAdapters()
 
     auto addAdapter = [&](MTL::Device* device)
     {
+        if (!device)
+            return;
+
         AdapterInfo info = {};
         info.deviceType = DeviceType::Metal;
         info.adapterType = device->hasUnifiedMemory() ? AdapterType::Integrated : AdapterType::Discrete;

@@ -80,8 +80,12 @@ def main() -> int:
         "halt_on_error=1",
         "symbolize=1",
         "fast_unwind_on_malloc=0",
-        f"suppressions={sanitizer_path(pathlib.Path(asan_suppressions))}",
     ]
+
+    # The Windows ASAN runtime rejects interceptor_via_lib suppressions. The
+    # suppression file only contains Unix library names, so do not pass it there.
+    if args.os != "windows":
+        asan_options.append(f"suppressions={sanitizer_path(pathlib.Path(asan_suppressions))}")
 
     if args.os == "linux":
         sanitizer_log_dir = test_working_dir / "sanitizer-logs"
@@ -94,6 +98,10 @@ def main() -> int:
         asan_options = [
             "detect_leaks=1",
             "protect_shadow_gap=0",
+            # exitcode is a sanitizer-common flag even when supplied through
+            # LSAN_OPTIONS. Keep leak-only reports non-fatal for the filter
+            # below, but make ASAN/UBSAN failures terminate with SIGABRT.
+            "abort_on_error=1",
             *asan_options,
         ]
         append_github_env(

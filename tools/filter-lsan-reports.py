@@ -116,7 +116,9 @@ def read_log(path: pathlib.Path) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Fail for LeakSanitizer reports attributed to slang-rhi.")
+    parser = argparse.ArgumentParser(
+        description="Classify LeakSanitizer reports and surface other sanitizer failures."
+    )
     parser.add_argument("--log-dir", type=pathlib.Path)
     parser.add_argument("--repo-root", type=pathlib.Path)
     args = parser.parse_args()
@@ -136,33 +138,49 @@ def main() -> int:
 
     leak_blocks: List[Tuple[pathlib.Path, List[str]]] = []
     project_blocks: List[Tuple[pathlib.Path, List[str]]] = []
+    unexpected_reports: List[Tuple[pathlib.Path, str]] = []
 
     for log_path in sorted(path for path in log_dir.iterdir() if path.is_file()):
         text = read_log(log_path)
+        if not text.strip():
+            continue
         if "LeakSanitizer" not in text:
+            # LSAN_OPTIONS.log_path is a sanitizer-common setting, so ASAN and
+            # UBSAN diagnostics can land here too. Never silently discard them.
+            unexpected_reports.append((log_path, text))
             continue
         for block in extract_leak_blocks(text):
             leak_blocks.append((log_path, block))
             if is_slang_rhi_leak(block, repo_root):
                 project_blocks.append((log_path, block))
 
+    failed = False
+
+    if unexpected_reports:
+        failed = True
+        print(f"::error::Found {len(unexpected_reports)} non-LSan sanitizer report(s).")
+        for log_path, text in unexpected_reports:
+            print(f"\n{log_path}:")
+            print(text.rstrip())
+
     if project_blocks:
+        failed = True
         print(
             f"::error::LeakSanitizer found {len(project_blocks)} leak block(s) attributed to slang-rhi."
         )
         for log_path, block in project_blocks:
             print(f"\n{log_path}:")
             print("\n".join(block))
-        return 1
 
-    if leak_blocks:
+    external_leak_count = len(leak_blocks) - len(project_blocks)
+    if external_leak_count:
         print(
-            f"Ignored {len(leak_blocks)} LeakSanitizer leak block(s) attributed to external code."
+            f"Ignored {external_leak_count} LeakSanitizer leak block(s) attributed to external code."
         )
-    else:
+    elif not leak_blocks:
         print("No LeakSanitizer leak reports found.")
 
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
