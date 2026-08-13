@@ -48,6 +48,7 @@ option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
 option(SLANG_RHI_ENABLE_ASAN "Enable AddressSanitizer (clang only)" OFF)
 option(SLANG_RHI_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (clang only)" OFF)
+option(SLANG_RHI_ENABLE_TSAN "Enable ThreadSanitizer (clang only)" OFF)
 option(SLANG_RHI_INSTALL "Install library" ON)
 
 # Configure coverage flags
@@ -65,7 +66,11 @@ if(SLANG_RHI_ENABLE_COVERAGE)
 endif()
 
 # Configure sanitizer flags
-if(SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN)
+if(SLANG_RHI_ENABLE_TSAN AND (SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN))
+    message(FATAL_ERROR "ThreadSanitizer must run separately from AddressSanitizer and UndefinedBehaviorSanitizer")
+endif()
+
+if(SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN OR SLANG_RHI_ENABLE_TSAN)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         set(SLANG_RHI_SANITIZERS)
         if(SLANG_RHI_ENABLE_ASAN)
@@ -73,6 +78,9 @@ if(SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN)
         endif()
         if(SLANG_RHI_ENABLE_UBSAN)
             list(APPEND SLANG_RHI_SANITIZERS undefined)
+        endif()
+        if(SLANG_RHI_ENABLE_TSAN)
+            list(APPEND SLANG_RHI_SANITIZERS thread)
         endif()
         list(JOIN SLANG_RHI_SANITIZERS "," SLANG_RHI_SANITIZER_FLAGS)
 

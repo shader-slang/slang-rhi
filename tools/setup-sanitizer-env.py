@@ -66,10 +66,25 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Configure sanitizer environment variables for CI.")
     parser.add_argument("--config", required=True)
     parser.add_argument("--os", required=True)
+    parser.add_argument("--sanitizer", choices=("asan-ubsan", "tsan"), default="asan-ubsan")
+    parser.add_argument("--build-dir", default="build")
     args = parser.parse_args()
 
     workspace = pathlib.Path(os.environ.get("GITHUB_WORKSPACE", os.getcwd())).resolve()
-    test_working_dir = workspace / "build" / args.config
+    test_working_dir = workspace / args.build_dir / args.config
+
+    if args.sanitizer == "tsan":
+        tsan_options = [
+            "halt_on_error=1",
+            "second_deadlock_stack=1",
+        ]
+        if args.os == "linux":
+            # Vendor GPU runtimes are not TSAN-instrumented, so their internal
+            # synchronization is invisible to the runtime and can produce false positives.
+            tsan_options.append("ignore_noninstrumented_modules=1")
+        append_github_env("TSAN_OPTIONS", ":".join(tsan_options))
+        return 0
+
     asan_suppressions = os.path.relpath(workspace / "tools" / "asan-suppressions.txt", test_working_dir)
 
     symbolizer = find_symbolizer()
