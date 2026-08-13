@@ -6,20 +6,19 @@ using namespace rhi::testing;
 // List of retained blobs to prevent them from being released too early.
 static std::vector<ComPtr<ISlangBlob>> s_blobs;
 
+template<typename T>
+inline bool areArraysEqual(const T* a, size_t aCount, const T* b, size_t bCount)
+{
+    return aCount == bCount && (aCount == 0 || std::memcmp(a, b, aCount * sizeof(T)) == 0);
+}
+
 inline bool isEqual(const CompilationReport* a, const CompilationReport* b)
 {
-    return std::memcmp(a, b, offsetof(CompilationReport, entryPointReports)) == 0 &&
-           a->entryPointReportCount == b->entryPointReportCount && a->pipelineReportCount == b->pipelineReportCount &&
-           std::memcmp(
-               a->entryPointReports,
-               b->entryPointReports,
-               a->entryPointReportCount * sizeof(CompilationReport::EntryPointReport)
-           ) == 0 &&
-           std::memcmp(
-               a->pipelineReports,
-               b->pipelineReports,
-               a->pipelineReportCount * sizeof(CompilationReport::PipelineReport)
-           ) == 0;
+    if (std::memcmp(a, b, offsetof(CompilationReport, entryPointReports)) != 0)
+        return false;
+    if (!areArraysEqual(a->entryPointReports, a->entryPointReportCount, b->entryPointReports, b->entryPointReportCount))
+        return false;
+    return areArraysEqual(a->pipelineReports, a->pipelineReportCount, b->pipelineReports, b->pipelineReportCount);
 }
 
 inline ComPtr<IShaderProgram> createShaderProgram(IDevice* device)

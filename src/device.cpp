@@ -14,16 +14,16 @@ namespace testing {
 bool gDebugDisableStateTracking = false;
 std::atomic<uint64_t> gResourceCount{0};
 
-size_t getShaderObjectLayoutCacheSize(IDevice* device)
+Device* getUnderlyingDevice(IDevice* device)
 {
-    // Unwrap the debug layer here rather than requiring callers to do it. Tests hold
-    // whatever createDevice returned, which is the wrapper whenever validation is
-    // enabled, and the cost of forgetting is uneven: checked_cast only verifies the
-    // downcast under SLANG_RHI_DEBUG, so a wrapper reaching it aborts in debug builds
-    // but silently reads a bogus pointer in release ones.
     if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
         device = debugDevice->baseObject.get();
-    return checked_cast<Device*>(device)->m_shaderObjectLayoutCache.size();
+    return checked_cast<Device*>(device);
+}
+
+size_t getShaderObjectLayoutCacheSize(IDevice* device)
+{
+    return getUnderlyingDevice(device)->m_shaderObjectLayoutCache.size();
 }
 } // namespace testing
 

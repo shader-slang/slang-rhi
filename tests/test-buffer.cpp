@@ -1,6 +1,5 @@
 #include "testing.h"
 
-#include "debug-layer/debug-device.h"
 #include "rhi-shared.h"
 
 #include <cstring>
@@ -9,23 +8,12 @@
 using namespace rhi;
 using namespace rhi::testing;
 
-namespace {
-
-Device* getSharedDevice(IDevice* device)
-{
-    if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
-        return (Device*)debugDevice->baseObject.get();
-    return (Device*)device;
-}
-
-} // namespace
-
 GPU_TEST_CASE("buffer-init-data-staging-lifetime", Vulkan)
 {
     auto queue = device->getQueue(QueueType::Graphics);
     REQUIRE_CALL(queue->waitOnHost());
 
-    StagingHeap& heap = getSharedDevice(device)->m_uploadHeap;
+    StagingHeap& heap = getUnderlyingDevice(device)->m_uploadHeap;
     CHECK_EQ(heap.getUsed(), 0);
 
     std::vector<uint32_t> data(1024);
