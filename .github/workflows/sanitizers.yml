@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  asan-ubsan:
     strategy:
       fail-fast: false
       matrix:
@@ -53,7 +53,7 @@ jobs:
 
       - name: Setup Sanitizer Options
         id: sanitizer_options
-        run: python tools/setup-sanitizer-env.py --config ${{ matrix.config }} --os ${{ matrix.os }}
+        run: python tools/setup-sanitizer-env.py --config ${{ matrix.config }} --os ${{ matrix.os }} --sanitizer asan-ubsan
 
       - name: Unit Tests
         run: ./slang-rhi-tests -check-devices "-require-devices=${{ matrix.required_devices }}"
@@ -62,3 +62,61 @@ jobs:
       - name: Check LeakSanitizer Reports
         if: ${{ always() && matrix.os == 'linux' && steps.sanitizer_options.outcome == 'success' }}
         run: python tools/filter-lsan-reports.py
+
+  tsan:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CUDA uses the GPU runner; Vulkan and WebGPU share one lavapipe process.
+          - { os: linux, preset: clang, config: "Debug", required_devices: "cuda", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
+          - { os: linux, preset: clang, config: "Debug", required_devices: "vulkan,wgpu", use_lavapipe: true, runs-on: ubuntu-latest }
+          - { os: macos, preset: default, config: "Debug", required_devices: "metal,cpu,wgpu", runs-on: macos-latest }
+
+    name: tsan (${{ matrix.os }}, ${{ matrix.required_devices }})
+    runs-on: ${{ matrix.runs-on }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - name: Setup CMake/Ninja
+        uses: lukka/get-cmake@latest
+
+      # NVIDIA's uninstrumented Vulkan driver crashes inside TSAN's allocator.
+      # Lavapipe preserves instrumented Vulkan and WebGPU host-side coverage.
+      - name: Setup lavapipe
+        if: matrix.use_lavapipe
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y mesa-vulkan-drivers xorg-dev
+          icd_file=$(find /usr/share/vulkan/icd.d -maxdepth 1 -name 'lvp_icd*.json' -print -quit)
+          test -n "$icd_file"
+          echo "Using lavapipe ICD: $icd_file"
+          echo "VK_DRIVER_FILES=$icd_file" >> "$GITHUB_ENV"
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Configure
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # TSAN checks slang-rhi host code; vendor GPU runtimes remain uninstrumented.
+        run: >
+          cmake --preset ${{ matrix.preset }} -B build-tsan
+          -DSLANG_RHI_ENABLE_TSAN=ON
+
+      - name: Build
+        run: cmake --build build-tsan --config ${{ matrix.config }}
+
+      - name: Setup Sanitizer Options
+        run: python tools/setup-sanitizer-env.py --config ${{ matrix.config }} --os ${{ matrix.os }} --sanitizer tsan --build-dir build-tsan
+
+      - name: Unit Tests
+        working-directory: build-tsan/${{ matrix.config }}
+        run: ./slang-rhi-tests -check-devices "-select-devices=${{ matrix.required_devices }}" "-require-devices=${{ matrix.required_devices }}"
