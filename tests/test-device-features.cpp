@@ -63,6 +63,14 @@ GPU_TEST_CASE("cuda-device-features", CUDA)
 
     // Compute capability 9.0 features
     CHECK(device->hasFeature(Feature::AtomicBfloat16) == has_sm9_0);
+
+    // Slang's optix_coopvec capability implies _cuda_sm_9_0. OptiX can expose
+    // cooperative-vector API support on devices below that compute capability,
+    // where Slang must continue to use its generic CUDA lowering.
+    CHECK(
+        device->hasCapability(Capability::optix_coopvec) ==
+        (device->hasFeature(Feature::CooperativeVector) && has_sm9_0)
+    );
 }
 
 #if SLANG_RHI_ENABLE_METAL
