@@ -50,12 +50,28 @@ IShaderProgram* ShaderProgram::getInterface(const Guid& guid)
 Result ShaderProgram::init()
 {
     slangGlobalScope = m_desc.slangGlobalScope;
+    auto session = slangGlobalScope ? slangGlobalScope->getSession() : nullptr;
+    if (slangGlobalScope && !session)
+        return SLANG_E_INVALID_ARG;
+
+    if (m_desc.slangEntryPointCount > 0 && !m_desc.slangEntryPoints)
+        return SLANG_E_INVALID_ARG;
     for (uint32_t i = 0; i < m_desc.slangEntryPointCount; i++)
     {
-        slangEntryPoints.push_back(ComPtr<slang::IComponentType>(m_desc.slangEntryPoints[i]));
+        slang::IComponentType* entryPoint = m_desc.slangEntryPoints[i];
+        if (!entryPoint)
+            return SLANG_E_INVALID_ARG;
+        slang::ISession* entryPointSession = entryPoint->getSession();
+        if (!entryPointSession)
+            return SLANG_E_INVALID_ARG;
+        if (session && session != entryPointSession)
+            return SLANG_E_INVALID_ARG;
+        session = entryPointSession;
+        slangEntryPoints.push_back(ComPtr<slang::IComponentType>(entryPoint));
     }
+    if (!session)
+        return SLANG_E_INVALID_ARG;
 
-    auto session = m_desc.slangGlobalScope ? m_desc.slangGlobalScope->getSession() : nullptr;
     if (m_desc.linkingStyle == LinkingStyle::SingleProgram && m_desc.slangEntryPointCount == 0)
     {
         linkedProgram = m_desc.slangGlobalScope;
@@ -69,10 +85,6 @@ Result ShaderProgram::init()
         }
         for (uint32_t i = 0; i < m_desc.slangEntryPointCount; i++)
         {
-            if (!session)
-            {
-                session = m_desc.slangEntryPoints[i]->getSession();
-            }
             components.push_back(m_desc.slangEntryPoints[i]);
         }
         ComPtr<slang::IComponentType> composedProgram;

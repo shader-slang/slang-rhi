@@ -59,3 +59,63 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     // The device must not have retained the caller's type layout.
     CHECK_EQ(getShaderObjectLayoutCacheSize(device), cacheSizeBefore);
 }
+
+GPU_TEST_CASE("shader-object-from-type-layout-retains-owner", ALL)
+{
+    // Use a second device so the reflected layout comes from a sibling Slang session,
+    // rather than the destination device's internal session.
+    ComPtr<IDevice> sourceDevice = createTestingDevice(ctx, ctx->deviceType, false);
+    REQUIRE(sourceDevice != nullptr);
+
+    ComPtr<IShaderProgram> sourceProgram;
+    REQUIRE_CALL(
+        loadProgram(sourceDevice, "test-shader-object-from-type-layout", "computeMain", sourceProgram.writeRef())
+    );
+
+    slang::IComponentType* owner = sourceProgram->getDesc().slangGlobalScope;
+    REQUIRE(owner != nullptr);
+    slang::ProgramLayout* programLayout = owner->getLayout(0);
+    REQUIRE(programLayout != nullptr);
+    slang::VariableLayoutReflection* paramsVar = programLayout->getParameterByIndex(0);
+    REQUIRE(paramsVar != nullptr);
+    slang::TypeLayoutReflection* typeLayout = paramsVar->getTypeLayout();
+    REQUIRE(typeLayout != nullptr);
+    if (typeLayout->getKind() == slang::TypeReflection::Kind::ConstantBuffer ||
+        typeLayout->getKind() == slang::TypeReflection::Kind::ParameterBlock)
+    {
+        typeLayout = typeLayout->getElementTypeLayout();
+    }
+    REQUIRE(typeLayout != nullptr);
+
+    ComPtr<IShaderObject> shaderObject;
+    REQUIRE_CALL(device->createShaderObjectFromTypeLayout(owner, typeLayout, shaderObject.writeRef()));
+    REQUIRE(shaderObject != nullptr);
+
+    ComPtr<IShaderProgram> destinationProgram;
+    REQUIRE_CALL(
+        loadProgram(device, "test-shader-object-from-type-layout", "computeMain", destinationProgram.writeRef())
+    );
+
+    ShaderProgramDesc mixedProgramDesc = destinationProgram->getDesc();
+    mixedProgramDesc.slangEntryPoints = sourceProgram->getDesc().slangEntryPoints;
+    mixedProgramDesc.slangEntryPointCount = sourceProgram->getDesc().slangEntryPointCount;
+    ComPtr<IShaderProgram> mixedProgram;
+    CHECK_EQ(device->createShaderProgram(mixedProgramDesc, mixedProgram.writeRef()), SLANG_E_INVALID_ARG);
+
+    // The shader object layout must keep the component and its TargetProgram-owned
+    // reflection data alive independently of the source RHI objects.
+    sourceProgram.setNull();
+    sourceDevice.setNull();
+
+    ShaderCursor cursor(shaderObject);
+    REQUIRE_CALL(cursor["a"].setData(1.0f));
+    REQUIRE_CALL(cursor["b"].setData(2.0f));
+    CHECK_EQ(std::strcmp(shaderObject->getElementTypeLayout()->getType()->getName(), "Params"), 0);
+
+    // Combining objects from sibling sessions would feed foreign types into Slang
+    // specialization and witness APIs, so reject it at the object boundary.
+    ComPtr<IShaderObject> rootObject = device->createRootShaderObject(destinationProgram);
+    REQUIRE(rootObject != nullptr);
+    ShaderCursor rootCursor(rootObject);
+    CHECK_EQ(rootCursor["gParams"].setObject(shaderObject), SLANG_E_INVALID_ARG);
+}

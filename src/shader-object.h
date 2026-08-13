@@ -126,6 +126,7 @@ protected:
 
 public:
     ComPtr<slang::ISession> m_slangSession;
+    ComPtr<slang::IComponentType> m_slangOwner;
 
     ShaderObjectContainerType getContainerType() { return m_containerType; }
 
@@ -195,6 +196,7 @@ public:
     virtual slang::TypeLayoutReflection* getParameterBlockTypeLayout() { return m_elementTypeLayout; }
 
     void initBase(Device* device, slang::ISession* session, slang::TypeLayoutReflection* elementTypeLayout);
+    void setSlangOwner(slang::IComponentType* owner);
 };
 
 

@@ -926,6 +926,43 @@ Result DebugDevice::createShaderObjectFromTypeLayout(
     return SLANG_OK;
 }
 
+Result DebugDevice::createShaderObjectFromTypeLayout(
+    slang::IComponentType* slangOwner,
+    slang::TypeLayoutReflection* typeLayout,
+    IShaderObject** outShaderObject
+)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createShaderObjectFromTypeLayout);
+
+    if (!slangOwner)
+    {
+        RHI_VALIDATION_ERROR("'slangOwner' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!typeLayout)
+    {
+        RHI_VALIDATION_ERROR("'typeLayout' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!outShaderObject)
+    {
+        RHI_VALIDATION_ERROR("'outShaderObject' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
+    SLANG_RETURN_ON_FAIL(
+        baseObject->createShaderObjectFromTypeLayout(slangOwner, typeLayout, outObject->baseObject.writeRef())
+    );
+    auto type = typeLayout->getType();
+    outObject->m_typeName = string::from_cstr(type->getName());
+    outObject->m_device = this;
+    outObject->m_slangType = type;
+
+    returnComPtr(outShaderObject, outObject);
+    return SLANG_OK;
+}
+
 Result DebugDevice::createRootShaderObject(IShaderProgram* program, IShaderObject** outObject)
 {
     SLANG_RHI_DEBUG_API(IDevice, createRootShaderObject);

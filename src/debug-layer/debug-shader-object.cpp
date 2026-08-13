@@ -137,12 +137,13 @@ Result DebugShaderObject::setObject(const ShaderOffset& offset, IShaderObject* o
     }
 
     auto objectImpl = getDebugObj(object);
+    SLANG_RETURN_ON_FAIL(baseObject->setObject(offset, getInnerObj(object)));
     m_objects[ShaderOffsetKey{offset}] = objectImpl;
     // TODO(shaderobject): Implement better validation for bindings but make that optional as it's expensive.
     // m_initializedBindingRanges.emplace(offset.bindingRangeIndex);
     // objectImpl->checkCompleteness();
 
-    return baseObject->setObject(offset, getInnerObj(object));
+    return SLANG_OK;
 }
 
 Result DebugShaderObject::setBinding(const ShaderOffset& offset, const Binding& binding)

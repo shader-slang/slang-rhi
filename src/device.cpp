@@ -814,15 +814,36 @@ Result Device::createShaderObject(
 
 Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
 {
-    // Build the layout directly rather than caching it.
-    //
-    // m_shaderObjectLayoutCache requires session-owned keys (see the invariant on its
-    // declaration). `typeLayout` comes from the caller instead, and in practice belongs
-    // to a `TargetProgram` that slang-rhi holds no reference to, so it does not qualify.
-    // More generally, slang-rhi cannot vouch for the lifetime of a pointer it was handed
-    // and so must not retain one past this call.
+    return createShaderObjectFromTypeLayoutImpl(nullptr, m_slangContext.session.get(), typeLayout, outObject);
+}
+
+Result Device::createShaderObjectFromTypeLayout(
+    slang::IComponentType* slangOwner,
+    slang::TypeLayoutReflection* typeLayout,
+    IShaderObject** outObject
+)
+{
+    if (!slangOwner)
+        return SLANG_E_INVALID_ARG;
+    return createShaderObjectFromTypeLayoutImpl(slangOwner, slangOwner->getSession(), typeLayout, outObject);
+}
+
+Result Device::createShaderObjectFromTypeLayoutImpl(
+    slang::IComponentType* slangOwner,
+    slang::ISession* slangSession,
+    slang::TypeLayoutReflection* typeLayout,
+    IShaderObject** outObject
+)
+{
+    if (!slangSession || !typeLayout || !outObject)
+        return SLANG_E_INVALID_ARG;
+
+    // Caller-supplied layouts cannot be cached because they are generally owned by a
+    // TargetProgram instead of its session. When an owner is supplied, retain it on the
+    // complete layout tree and use its session for any derived Slang operations.
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
-    SLANG_RETURN_ON_FAIL(createShaderObjectLayout(m_slangContext.session, typeLayout, shaderObjectLayout.writeRef()));
+    SLANG_RETURN_ON_FAIL(createShaderObjectLayout(slangSession, typeLayout, shaderObjectLayout.writeRef()));
+    shaderObjectLayout->setSlangOwner(slangOwner);
     RefPtr<ShaderObject> shaderObject;
     SLANG_RETURN_ON_FAIL(createShaderObject(shaderObjectLayout, shaderObject.writeRef()));
     returnComPtr(outObject, shaderObject);

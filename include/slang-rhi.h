@@ -1763,7 +1763,8 @@ public:
 
     /// Manually overrides the specialization argument for the sub-object binding at `offset`.
     /// Specialization arguments are passed to the shader compiler to specialize the type
-    /// of interface-typed shader parameters.
+    /// of interface-typed shader parameters. Type arguments must belong to the same Slang
+    /// session as this shader object's layout.
     virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(
         const ShaderOffset& offset,
         const slang::SpecializationArg* args,
@@ -3560,6 +3561,7 @@ public:
         return queue;
     }
 
+    /// `type` must belong to `slangSession`.
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(
         slang::ISession* slangSession,
         slang::TypeReflection* type,
@@ -3586,7 +3588,24 @@ public:
         return object;
     }
 
+    /// Creates a shader object without retaining the owner of `typeLayout`.
+    ///
+    /// This overload is only valid for layouts associated with the device's Slang
+    /// session, and the caller must keep the layout's owner alive for the lifetime of
+    /// the shader object. Prefer the owner-aware overload for layouts obtained from a
+    /// component program.
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::TypeLayoutReflection* typeLayout,
+        IShaderObject** outObject
+    ) = 0;
+
+    /// Creates a shader object from a program-derived type layout.
+    ///
+    /// `slangOwner` must be the component from which `typeLayout` was obtained. The
+    /// resulting shader object retains the component so the layout remains valid and
+    /// uses the component's session for any derived Slang operations.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
+        slang::IComponentType* slangOwner,
         slang::TypeLayoutReflection* typeLayout,
         IShaderObject** outObject
     ) = 0;

@@ -131,7 +131,7 @@ public:
 private:
     bool _isSpecializable()
     {
-        if (slangGlobalScope->getSpecializationParamCount() != 0)
+        if (slangGlobalScope && slangGlobalScope->getSpecializationParamCount() != 0)
         {
             return true;
         }

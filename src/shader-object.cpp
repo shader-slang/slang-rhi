@@ -32,6 +32,25 @@ void ShaderObjectLayout::initBase(
         m_componentID = kInvalidComponentID;
 }
 
+void ShaderObjectLayout::setSlangOwner(slang::IComponentType* owner)
+{
+    std::vector<ShaderObjectLayout*> pending = {this};
+    std::set<ShaderObjectLayout*> visited;
+    while (!pending.empty())
+    {
+        ShaderObjectLayout* layout = pending.back();
+        pending.pop_back();
+        if (!layout || !visited.insert(layout).second)
+            continue;
+
+        layout->m_slangOwner = owner;
+        for (uint32_t i = 0; i < layout->getSubObjectRangeCount(); ++i)
+            pending.push_back(layout->getSubObjectRangeLayout(i));
+        for (uint32_t i = 0; i < layout->getEntryPointCount(); ++i)
+            pending.push_back(layout->getEntryPointLayout(i));
+    }
+}
+
 // ----------------------------------------------------------------------------
 // ShaderObject
 // ----------------------------------------------------------------------------
@@ -135,9 +154,11 @@ Result ShaderObject::setObject(const ShaderOffset& offset, IShaderObject* object
     if (m_finalized)
         return SLANG_FAIL;
 
-    incrementVersion();
-
     ShaderObject* subObject = checked_cast<ShaderObject*>(object);
+    if (subObject && m_layout->m_slangSession.get() != subObject->m_layout->m_slangSession.get())
+        return SLANG_E_INVALID_ARG;
+
+    incrementVersion();
     // There are three different cases in `setObject`.
     // 1. `this` object represents a StructuredBuffer, and `object` is an
     //    element to be written into the StructuredBuffer.
@@ -638,7 +659,7 @@ Result ShaderObject::collectSpecializationArgs(ExtendedShaderObjectTypeList& arg
                 {
                     if (args[i + oldArgsCount].componentID != typeArgs[i].componentID)
                     {
-                        auto dynamicType = m_device->m_slangContext.session->getDynamicType();
+                        auto dynamicType = m_layout->m_slangSession->getDynamicType();
                         args.componentIDs[i + oldArgsCount] = m_device->m_shaderCache.getComponentId(dynamicType);
                         args.components[i + oldArgsCount] = slang::SpecializationArg::fromType(dynamicType);
                     }
@@ -701,7 +722,7 @@ Result ShaderObject::getSpecializedShaderObjectType(ExtendedShaderObjectType* ou
     }
     else
     {
-        m_shaderObjectType.slangType = m_device->m_slangContext.session->specializeType(
+        m_shaderObjectType.slangType = m_layout->m_slangSession->specializeType(
             _getElementTypeLayout()->getType(),
             specializationArgs.components.data(),
             specializationArgs.getCount()
@@ -756,7 +777,7 @@ void ShaderObject::setSpecializationArgsForContainerElement(ExtendedShaderObject
         {
             if (m_structuredBufferSpecializationArgs[i].componentID != specializationArgs[i].componentID)
             {
-                auto dynamicType = m_device->m_slangContext.session->getDynamicType();
+                auto dynamicType = m_layout->m_slangSession->getDynamicType();
                 m_structuredBufferSpecializationArgs.componentIDs[i] =
                     m_device->m_shaderCache.getComponentId(dynamicType);
                 m_structuredBufferSpecializationArgs.components[i] = slang::SpecializationArg::fromType(dynamicType);
