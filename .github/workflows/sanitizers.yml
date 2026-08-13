@@ -88,15 +88,7 @@ jobs:
       # Lavapipe preserves instrumented Vulkan and WebGPU host-side coverage.
       - name: Setup lavapipe
         if: matrix.use_lavapipe
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y mesa-vulkan-drivers xorg-dev
-          icd_file=$(find /usr/share/vulkan/icd.d -maxdepth 1 -name 'lvp_icd*.json' -print -quit)
-          test -n "$icd_file"
-          echo "Using lavapipe ICD: $icd_file"
-          echo "VK_DRIVER_FILES=$icd_file" >> "$GITHUB_ENV"
+        uses: ./.github/actions/setup-lavapipe
 
       - name: Setup Python
         uses: actions/setup-python@v6
