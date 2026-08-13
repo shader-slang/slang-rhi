@@ -1144,14 +1144,12 @@ Result DeviceImpl::initVulkanDevice(
             {}
         );
 
+        // Feature::PipelineCache is reported later, once the entry points are known to be present.
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.pipelineBinaryFeatures,
             pipelineBinaries,
             VK_KHR_PIPELINE_BINARY_EXTENSION_NAME,
-            {
-                deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
-                availableFeatures.push_back(Feature::PipelineCache);
-            }
+            { deviceExtensions.push_back(VK_KHR_MAINTENANCE_5_EXTENSION_NAME); }
         );
 
         SIMPLE_EXTENSION_FEATURE(
@@ -1444,6 +1442,22 @@ Result DeviceImpl::initVulkanDevice(
     else
     {
         m_calibratedTimestampSupport = {};
+    }
+
+    // pipelineBinaries so far only reflects what the physical device advertised, since
+    // addFeatureExtension leaves it set even when it rejects the extension. The entry points are
+    // optional device procs, so they are null unless the extension really was enabled. Clear the flag
+    // when any of them is missing, so that everything reading it later - the pipeline cache path
+    // included - sees whether the extension is usable rather than whether it was advertised.
+    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries &&
+        !(m_api.vkGetPipelineKeyKHR && m_api.vkCreatePipelineBinariesKHR && m_api.vkGetPipelineBinaryDataKHR &&
+          m_api.vkDestroyPipelineBinaryKHR && m_api.vkReleaseCapturedPipelineDataKHR))
+    {
+        m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries = VK_FALSE;
+    }
+    if (m_api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries)
+    {
+        availableFeatures.push_back(Feature::PipelineCache);
     }
 
     return SLANG_OK;
