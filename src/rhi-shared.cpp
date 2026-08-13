@@ -128,7 +128,7 @@ Result calcSubresourceRegionLayout(
 
     size_t rowSize = math::divideRoundedUp(extent.width, formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
     size_t rowCount = math::divideRoundedUp(extent.height, formatInfo.blockHeight);
-    size_t rowPitch = math::calcAligned2(rowSize, rowAlignment);
+    size_t rowPitch = math::calcAligned(rowSize, rowAlignment);
     size_t layerPitch = rowPitch * rowCount;
 
     outLayout->size = extent;

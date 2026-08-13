@@ -2126,15 +2126,21 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
+    Size blockSize = getFormatInfo(format).blockSizeInBytes;
+    if (blockSize == 0)
+        blockSize = 1;
+
     switch (format)
     {
     case Format::D16Unorm:
     case Format::D32Float:
     case Format::D32FloatS8Uint:
-        *outAlignment = 4;
+        *outAlignment = math::calcAligned(4, blockSize);
         break;
     default:
-        *outAlignment = 1;
+        // VkBufferImageCopy expresses bufferRowLength in texels, so the byte
+        // row pitch must represent a whole number of format blocks.
+        *outAlignment = blockSize;
         break;
     }
     return SLANG_OK;
