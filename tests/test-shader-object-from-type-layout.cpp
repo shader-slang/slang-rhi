@@ -26,7 +26,7 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     // Reach the layout through the program's own component, which is what makes
     // the resulting TypeLayoutReflection owned by the TargetProgram rather than
     // by the session.
-    slang::IComponentType* globalScope = shaderProgram->getDesc().slangGlobalScope;
+    slang::IComponentType* globalScope = shaderProgram->getSlangProgram();
     REQUIRE(globalScope != nullptr);
     slang::ProgramLayout* programLayout = globalScope->getLayout(0);
     REQUIRE(programLayout != nullptr);
@@ -47,13 +47,13 @@ GPU_TEST_CASE("shader-object-from-type-layout-not-cached", ALL)
     const size_t cacheSizeBefore = getShaderObjectLayoutCacheSize(device);
 
     ComPtr<IShaderObject> shaderObject;
-    REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, shaderObject.writeRef()));
+    REQUIRE_CALL(device->createShaderObjectFromTypeLayout(globalScope, typeLayout, shaderObject.writeRef()));
     REQUIRE(shaderObject != nullptr);
 
     // Called twice so that the check below also rules out entries accumulating across
     // repeated calls, not just an insert on the first one.
     ComPtr<IShaderObject> secondShaderObject;
-    REQUIRE_CALL(device->createShaderObjectFromTypeLayout(typeLayout, secondShaderObject.writeRef()));
+    REQUIRE_CALL(device->createShaderObjectFromTypeLayout(globalScope, typeLayout, secondShaderObject.writeRef()));
     REQUIRE(secondShaderObject != nullptr);
 
     // The device must not have retained the caller's type layout.
@@ -72,7 +72,7 @@ GPU_TEST_CASE("shader-object-from-type-layout-retains-owner", ALL)
         loadProgram(sourceDevice, "test-shader-object-from-type-layout", "computeMain", sourceProgram.writeRef())
     );
 
-    slang::IComponentType* owner = sourceProgram->getDesc().slangGlobalScope;
+    slang::IComponentType* owner = sourceProgram->getSlangProgram();
     REQUIRE(owner != nullptr);
     slang::ProgramLayout* programLayout = owner->getLayout(0);
     REQUIRE(programLayout != nullptr);
@@ -118,4 +118,57 @@ GPU_TEST_CASE("shader-object-from-type-layout-retains-owner", ALL)
     REQUIRE(rootObject != nullptr);
     ShaderCursor rootCursor(rootObject);
     CHECK_EQ(rootCursor["gParams"].setObject(shaderObject), SLANG_E_INVALID_ARG);
+}
+
+GPU_TEST_CASE("shader-object-from-type-retains-owner", ALL)
+{
+    ComPtr<IDevice> sourceDevice = createTestingDevice(ctx, ctx->deviceType, false);
+    REQUIRE(sourceDevice != nullptr);
+
+    ComPtr<IShaderProgram> sourceProgram;
+    REQUIRE_CALL(
+        loadProgram(sourceDevice, "test-shader-object-from-type-layout", "computeMain", sourceProgram.writeRef())
+    );
+
+    slang::IComponentType* owner = sourceProgram->getSlangProgram();
+    REQUIRE(owner != nullptr);
+    slang::TypeReflection* type = sourceProgram->findTypeByName("Params");
+    REQUIRE(type != nullptr);
+
+    ComPtr<IShaderObject> shaderObject;
+    REQUIRE_CALL(
+        device->createShaderObjectFromType(owner, type, ShaderObjectContainerType::None, shaderObject.writeRef())
+    );
+    REQUIRE(shaderObject != nullptr);
+
+    sourceProgram.setNull();
+    sourceDevice.setNull();
+
+    ShaderCursor cursor(shaderObject);
+    REQUIRE_CALL(cursor["a"].setData(1.0f));
+    REQUIRE_CALL(cursor["b"].setData(2.0f));
+    CHECK_EQ(std::strcmp(shaderObject->getElementTypeLayout()->getType()->getName(), "Params"), 0);
+}
+
+GPU_TEST_CASE("root-shader-object-child-retains-owner", ALL)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-shader-object-from-type-layout", "computeMain", shaderProgram.writeRef()));
+
+    ComPtr<IShaderObject> rootObject = device->createRootShaderObject(shaderProgram);
+    REQUIRE(rootObject != nullptr);
+
+    ShaderCursor paramsCursor = ShaderCursor(rootObject)["gParams"];
+    REQUIRE(paramsCursor.isValid());
+    ComPtr<IShaderObject> paramsObject;
+    REQUIRE_CALL(rootObject->getObject(paramsCursor.m_offset, paramsObject.writeRef()));
+    REQUIRE(paramsObject != nullptr);
+
+    rootObject.setNull();
+    shaderProgram.setNull();
+
+    ShaderCursor cursor(paramsObject);
+    REQUIRE_CALL(cursor["a"].setData(1.0f));
+    REQUIRE_CALL(cursor["b"].setData(2.0f));
+    CHECK_EQ(std::strcmp(paramsObject->getElementTypeLayout()->getType()->getName(), "Params"), 0);
 }

@@ -531,6 +531,7 @@ struct ShaderCacheTestImportInclude : ShaderCacheTest
 struct ShaderCacheTestSpecialization : ShaderCacheTest
 {
     slang::ProgramLayout* slangReflection = nullptr;
+    ComPtr<slang::IComponentType> slangOwner;
 
     void createComputePipeline()
     {
@@ -543,6 +544,7 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
             shaderProgram.writeRef(),
             &slangReflection
         ));
+        slangOwner = shaderProgram->getSlangProgram();
 
         ComputePipelineDesc pipelineDesc = {};
         pipelineDesc.program = shaderProgram.get();
@@ -558,10 +560,12 @@ struct ShaderCacheTestSpecialization : ShaderCacheTest
 
         ComPtr<IShaderObject> transformer;
         slang::TypeReflection* transformerType = slangReflection->findTypeByName(transformerTypeName);
-        REQUIRE_CALL(
-            device
-                ->createShaderObject(nullptr, transformerType, ShaderObjectContainerType::None, transformer.writeRef())
-        );
+        REQUIRE_CALL(device->createShaderObjectFromType(
+            slangOwner,
+            transformerType,
+            ShaderObjectContainerType::None,
+            transformer.writeRef()
+        ));
 
         float c = 5.f;
         ShaderCursor(transformer)["c"].setData(&c, sizeof(float));

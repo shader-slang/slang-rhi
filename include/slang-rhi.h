@@ -22,6 +22,12 @@
 #define SLANG_RHI_API
 #endif // SLANG_RHI_SHARED
 
+#if defined(SLANG_RHI_SUPPRESS_DEPRECATED_WARNINGS)
+#define SLANG_RHI_DEPRECATED(message)
+#else
+#define SLANG_RHI_DEPRECATED(message) [[deprecated(message)]]
+#endif
+
 // Needed for building on cygwin with gcc
 #undef Always
 #undef None
@@ -302,6 +308,14 @@ class IShaderProgram : public ISlangUnknown
 public:
     virtual SLANG_NO_THROW const ShaderProgramDesc& SLANG_MCALL getDesc() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getCompilationReport(ISlangBlob** outReportBlob) = 0;
+
+    /// Returns the linked Slang component used for program reflection.
+    ///
+    /// The returned pointer is borrowed and remains valid while this shader program is alive.
+    /// It can be passed as the owner to `IDevice::createShaderObjectFromType()` or
+    /// `IDevice::createShaderObjectFromTypeLayout()`.
+    virtual SLANG_NO_THROW slang::IComponentType* SLANG_MCALL getSlangProgram() = 0;
+
     virtual SLANG_NO_THROW slang::TypeReflection* SLANG_MCALL findTypeByName(const char* name) = 0;
 };
 
@@ -3561,7 +3575,11 @@ public:
         return queue;
     }
 
-    /// `type` must belong to `slangSession`.
+    /// Creates a shader object from a type owned by `slangSession`.
+    ///
+    /// `slangSession` must not be null and `type` must belong to that exact session.
+    /// Passing null for `slangSession` is deprecated; it temporarily falls back to
+    /// `getSlangSession()` for compatibility.
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObject(
         slang::ISession* slangSession,
         slang::TypeReflection* type,
@@ -3569,6 +3587,14 @@ public:
         IShaderObject** outObject
     ) = 0;
 
+    /// Deprecated: assumes `type` belongs to the device's internal Slang session.
+    /// Passing a program-derived type can invoke Slang with objects from different
+    /// sessions and cause undefined behavior. Use `createShaderObjectFromType()` or
+    /// pass the exact originating session to `createShaderObject()`.
+    SLANG_RHI_DEPRECATED(
+        "Assumes type belongs to IDevice::getSlangSession(); use createShaderObjectFromType(owner, ...) or pass "
+        "the originating ISession explicitly."
+    )
     inline Result createShaderObject(
         slang::TypeReflection* type,
         ShaderObjectContainerType container,
@@ -3578,22 +3604,41 @@ public:
         return createShaderObject(getSlangSession(), type, container, outObject);
     }
 
+    /// Deprecated: assumes `type` belongs to the device's internal Slang session.
+    SLANG_RHI_DEPRECATED(
+        "Assumes type belongs to IDevice::getSlangSession(); use createShaderObjectFromType(owner, ...)."
+    )
     inline ComPtr<IShaderObject> createShaderObject(
         slang::TypeReflection* type,
         ShaderObjectContainerType container = ShaderObjectContainerType::None
     )
     {
         ComPtr<IShaderObject> object;
-        SLANG_RETURN_NULL_ON_FAIL(createShaderObject(nullptr, type, container, object.writeRef()));
+        SLANG_RETURN_NULL_ON_FAIL(createShaderObject(getSlangSession(), type, container, object.writeRef()));
         return object;
     }
 
-    /// Creates a shader object without retaining the owner of `typeLayout`.
+    /// Creates a shader object from a program-derived type.
+    ///
+    /// `slangOwner` must be the component from which `type` was obtained. The
+    /// resulting shader object retains the component and uses its session for layout,
+    /// specialization, and conformance operations.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromType(
+        slang::IComponentType* slangOwner,
+        slang::TypeReflection* type,
+        ShaderObjectContainerType container,
+        IShaderObject** outObject
+    ) = 0;
+
+    /// Deprecated: creates a shader object without retaining the owner of `typeLayout`.
     ///
     /// This overload is only valid for layouts associated with the device's Slang
     /// session, and the caller must keep the layout's owner alive for the lifetime of
-    /// the shader object. Prefer the owner-aware overload for layouts obtained from a
-    /// component program.
+    /// the shader object. Passing a program-derived layout can cause use-after-free or
+    /// cross-session compiler access. Use the owner-aware overload instead.
+    SLANG_RHI_DEPRECATED(
+        "Cannot determine or retain the owner of typeLayout; use createShaderObjectFromTypeLayout(owner, ...)."
+    )
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
         slang::TypeLayoutReflection* typeLayout,
         IShaderObject** outObject

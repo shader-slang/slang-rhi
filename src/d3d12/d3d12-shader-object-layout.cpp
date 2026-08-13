@@ -4,7 +4,7 @@
 namespace rhi::d3d12 {
 
 inline bool isBindingRangeRootParameter(
-    SlangSession* globalSession,
+    slang::IGlobalSession* globalSession,
     const char* rootParameterAttributeName,
     slang::TypeLayoutReflection* typeLayout,
     uint32_t bindingRangeIndex
@@ -94,7 +94,7 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         slang::TypeLayoutReflection* slangLeafTypeLayout = typeLayout->getBindingRangeLeafTypeLayout(r);
 
         bool isRootParameter = isBindingRangeRootParameter(
-            m_device->m_slangContext.globalSession,
+            m_session->getGlobalSession(),
             checked_cast<DeviceImpl*>(m_device)->m_rootParameterShaderAttributeName,
             typeLayout,
             r
@@ -588,7 +588,7 @@ void RootShaderObjectLayoutImpl::RootSignatureDescBuilder::addBindingRange(
     auto firstDescriptorRangeIndex = typeLayout->getBindingRangeFirstDescriptorRangeIndex(bindingRangeIndex);
     uint32_t descriptorRangeCount = typeLayout->getBindingRangeDescriptorRangeCount(bindingRangeIndex);
     bool isRootParameter = isBindingRangeRootParameter(
-        m_device->m_slangContext.globalSession,
+        m_globalSession,
         m_device->m_rootParameterShaderAttributeName,
         typeLayout,
         bindingRangeIndex
@@ -841,7 +841,7 @@ Result RootShaderObjectLayoutImpl::createRootSignatureFromSlang(
     // binding/descritpor ranges and nested parameter blocks
     // based on the computed layout information for `program`.
     //
-    RootSignatureDescBuilder builder(device);
+    RootSignatureDescBuilder builder(device, program->getSession()->getGlobalSession());
     auto layout = program->getLayout();
 
     // The layout information computed by Slang breaks up shader

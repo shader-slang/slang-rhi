@@ -279,9 +279,11 @@ public:
     struct RootSignatureDescBuilder
     {
         DeviceImpl* m_device;
+        slang::IGlobalSession* m_globalSession;
 
-        RootSignatureDescBuilder(DeviceImpl* device)
+        RootSignatureDescBuilder(DeviceImpl* device, slang::IGlobalSession* globalSession)
             : m_device(device)
+            , m_globalSession(globalSession)
         {
         }
 

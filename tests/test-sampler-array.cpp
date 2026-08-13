@@ -69,8 +69,13 @@ GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
         samplers.push_back(sampler);
     }
 
-    ComPtr<IShaderObject> s1 =
-        device->createShaderObject(slangReflection->findTypeByName("S1"), ShaderObjectContainerType::None);
+    ComPtr<IShaderObject> s1;
+    REQUIRE_CALL(device->createShaderObjectFromType(
+        shaderProgram->getSlangProgram(),
+        slangReflection->findTypeByName("S1"),
+        ShaderObjectContainerType::None,
+        s1.writeRef()
+    ));
     {
         auto cursor = ShaderCursor(s1);
         for (uint32_t i = 0; i < 32; i++)
@@ -82,8 +87,13 @@ GPU_TEST_CASE("sampler-array", D3D12 | Vulkan | Metal)
     }
     s1->finalize();
 
-    ComPtr<IShaderObject> g =
-        device->createShaderObject(slangReflection->findTypeByName("S0"), ShaderObjectContainerType::None);
+    ComPtr<IShaderObject> g;
+    REQUIRE_CALL(device->createShaderObjectFromType(
+        shaderProgram->getSlangProgram(),
+        slangReflection->findTypeByName("S0"),
+        ShaderObjectContainerType::None,
+        g.writeRef()
+    ));
     {
         auto cursor = ShaderCursor(g);
         cursor["s"].setObject(s1);

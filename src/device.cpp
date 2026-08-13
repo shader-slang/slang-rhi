@@ -802,6 +802,8 @@ Result Device::createShaderObject(
     IShaderObject** outObject
 )
 {
+    if (!type || !outObject)
+        return SLANG_E_INVALID_ARG;
     if (slangSession == nullptr)
         slangSession = m_slangContext.session.get();
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
@@ -810,6 +812,40 @@ Result Device::createShaderObject(
     SLANG_RETURN_ON_FAIL(createShaderObject(shaderObjectLayout, shaderObject.writeRef()));
     returnComPtr(outObject, shaderObject);
     return SLANG_OK;
+}
+
+Result Device::createShaderObjectFromType(
+    slang::IComponentType* slangOwner,
+    slang::TypeReflection* type,
+    ShaderObjectContainerType container,
+    IShaderObject** outObject
+)
+{
+    if (!slangOwner || !type || !outObject)
+        return SLANG_E_INVALID_ARG;
+
+    slang::ISession* slangSession = slangOwner->getSession();
+    if (!slangSession)
+        return SLANG_E_INVALID_ARG;
+
+    switch (container)
+    {
+    case ShaderObjectContainerType::StructuredBuffer:
+        type = slangSession->getContainerType(type, slang::ContainerType::StructuredBuffer);
+        break;
+    case ShaderObjectContainerType::Array:
+        type = slangSession->getContainerType(type, slang::ContainerType::UnsizedArray);
+        break;
+    default:
+        break;
+    }
+    if (!type)
+        return SLANG_FAIL;
+
+    slang::TypeLayoutReflection* typeLayout = slangSession->getTypeLayout(type);
+    if (!typeLayout)
+        return SLANG_FAIL;
+    return createShaderObjectFromTypeLayoutImpl(slangOwner, slangSession, typeLayout, outObject);
 }
 
 Result Device::createShaderObjectFromTypeLayout(slang::TypeLayoutReflection* typeLayout, IShaderObject** outObject)
@@ -1164,6 +1200,8 @@ Result Device::getShaderObjectLayout(
     // records a strong reference to that same session below, so the key cannot
     // outlive the entry. See the invariant on m_shaderObjectLayoutCache.
     auto typeLayout = session->getTypeLayout(type);
+    if (!typeLayout)
+        return SLANG_FAIL;
 
     RefPtr<ShaderObjectLayout> shaderObjectLayout;
     auto it = m_shaderObjectLayoutCache.find(typeLayout);

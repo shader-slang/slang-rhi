@@ -884,6 +884,17 @@ Result DebugDevice::createShaderObject(
 {
     SLANG_RHI_DEBUG_API(IDevice, createShaderObject);
 
+    if (!session)
+    {
+        RHI_VALIDATION_WARNING(
+            "Passing a null 'session' is deprecated; pass the originating Slang session explicitly."
+        );
+    }
+    if (!type)
+    {
+        RHI_VALIDATION_ERROR("'type' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
     if (!outShaderObject)
     {
         RHI_VALIDATION_ERROR("'outShaderObject' must not be null.");
@@ -893,6 +904,43 @@ Result DebugDevice::createShaderObject(
     RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
     SLANG_RETURN_ON_FAIL(
         baseObject->createShaderObject(session, type, containerType, outObject->baseObject.writeRef())
+    );
+    outObject->m_typeName = string::from_cstr(type->getName());
+    outObject->m_device = this;
+    outObject->m_slangType = type;
+
+    returnComPtr(outShaderObject, outObject);
+    return SLANG_OK;
+}
+
+Result DebugDevice::createShaderObjectFromType(
+    slang::IComponentType* slangOwner,
+    slang::TypeReflection* type,
+    ShaderObjectContainerType containerType,
+    IShaderObject** outShaderObject
+)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createShaderObjectFromType);
+
+    if (!slangOwner)
+    {
+        RHI_VALIDATION_ERROR("'slangOwner' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!type)
+    {
+        RHI_VALIDATION_ERROR("'type' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!outShaderObject)
+    {
+        RHI_VALIDATION_ERROR("'outShaderObject' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    RefPtr<DebugShaderObject> outObject = new DebugShaderObject(ctx);
+    SLANG_RETURN_ON_FAIL(
+        baseObject->createShaderObjectFromType(slangOwner, type, containerType, outObject->baseObject.writeRef())
     );
     outObject->m_typeName = string::from_cstr(type->getName());
     outObject->m_device = this;

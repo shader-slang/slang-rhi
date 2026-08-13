@@ -52,15 +52,20 @@ GPU_TEST_CASE("root-shader-parameter", ALL)
     REQUIRE_CALL(device->createRootShaderObject(shaderProgram, rootObject.writeRef()));
 
     ComPtr<IShaderObject> g, s1, s2;
-    REQUIRE_CALL(
-        device->createShaderObject(slangReflection->findTypeByName("S0"), ShaderObjectContainerType::None, g.writeRef())
-    );
-    REQUIRE_CALL(device->createShaderObject(
+    REQUIRE_CALL(device->createShaderObjectFromType(
+        shaderProgram->getSlangProgram(),
+        slangReflection->findTypeByName("S0"),
+        ShaderObjectContainerType::None,
+        g.writeRef()
+    ));
+    REQUIRE_CALL(device->createShaderObjectFromType(
+        shaderProgram->getSlangProgram(),
         slangReflection->findTypeByName("S1"),
         ShaderObjectContainerType::None,
         s1.writeRef()
     ));
-    REQUIRE_CALL(device->createShaderObject(
+    REQUIRE_CALL(device->createShaderObjectFromType(
+        shaderProgram->getSlangProgram(),
         slangReflection->findTypeByName("S1"),
         ShaderObjectContainerType::None,
         s2.writeRef()

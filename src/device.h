@@ -242,6 +242,13 @@ public:
         IShaderObject** outObject
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromType(
+        slang::IComponentType* slangOwner,
+        slang::TypeReflection* type,
+        ShaderObjectContainerType containerType,
+        IShaderObject** outObject
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createShaderObjectFromTypeLayout(
         slang::TypeLayoutReflection* typeLayout,
         IShaderObject** outObject

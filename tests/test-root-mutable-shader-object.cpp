@@ -38,9 +38,12 @@ GPU_TEST_CASE("root-mutable-shader-object", WGPU)
 
     slang::TypeReflection* addTransformerType = slangReflection->findTypeByName("AddTransformer");
     ComPtr<IShaderObject> transformer;
-    REQUIRE_CALL(
-        device->createShaderObject(addTransformerType, ShaderObjectContainerType::None, transformer.writeRef())
-    );
+    REQUIRE_CALL(device->createShaderObjectFromType(
+        shaderProgram->getSlangProgram(),
+        addTransformerType,
+        ShaderObjectContainerType::None,
+        transformer.writeRef()
+    ));
     entryPointCursor["transformer"].setObject(transformer);
 
     // Set the `c` field of the `AddTransformer`.

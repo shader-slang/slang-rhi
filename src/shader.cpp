@@ -291,6 +291,11 @@ Result ShaderProgram::getCompilationReport(ISlangBlob** outReportBlob)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+slang::IComponentType* ShaderProgram::getSlangProgram()
+{
+    return linkedProgram;
+}
+
 slang::TypeReflection* ShaderProgram::findTypeByName(const char* name)
 {
     return linkedProgram->getLayout()->findTypeByName(name);

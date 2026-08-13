@@ -55,8 +55,8 @@ GPU_TEST_CASE("nested-parameter-block", ALL)
 
     ComPtr<IShaderObject> materialObject;
     {
-        REQUIRE_CALL(device->createShaderObject(
-            nullptr,
+        REQUIRE_CALL(device->createShaderObjectFromType(
+            shaderProgram->getSlangProgram(),
             slangReflection->findTypeByName("MaterialSystem"),
             ShaderObjectContainerType::None,
             materialObject.writeRef()
@@ -69,8 +69,8 @@ GPU_TEST_CASE("nested-parameter-block", ALL)
 
     ComPtr<IShaderObject> sceneObject;
     {
-        REQUIRE_CALL(device->createShaderObject(
-            nullptr,
+        REQUIRE_CALL(device->createShaderObjectFromType(
+            shaderProgram->getSlangProgram(),
             slangReflection->findTypeByName("Scene"),
             ShaderObjectContainerType::None,
             sceneObject.writeRef()
@@ -84,8 +84,8 @@ GPU_TEST_CASE("nested-parameter-block", ALL)
 
     ComPtr<IShaderObject> cbObject;
     {
-        REQUIRE_CALL(device->createShaderObject(
-            nullptr,
+        REQUIRE_CALL(device->createShaderObjectFromType(
+            shaderProgram->getSlangProgram(),
             slangReflection->findTypeByName("PerView"),
             ShaderObjectContainerType::None,
             cbObject.writeRef()

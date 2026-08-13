@@ -1022,6 +1022,7 @@ target_compile_definitions(slang-rhi
     SLANG_USER_CONFIG="slang-user-config.h"
     PRIVATE
     SLANG_RHI_DEBUG=$<BOOL:$<CONFIG:Debug>>
+    SLANG_RHI_SUPPRESS_DEPRECATED_WARNINGS
     $<$<CXX_COMPILER_ID:MSVC>:_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR>
     $<$<PLATFORM_ID:Windows>:NOMINMAX> # do not define min/max macros
     $<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN> # reduce windows.h footprint

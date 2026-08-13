@@ -853,6 +853,11 @@ Result RootShaderObject::create(Device* device, ShaderProgram* program, RootShad
 Result RootShaderObject::init(Device* device, ShaderProgram* program)
 {
     ShaderObjectLayout* layout = program->getRootShaderObjectLayout();
+    if (program->linkedProgram)
+        layout->setSlangOwner(program->linkedProgram);
+    for (uint32_t i = 0; i < layout->getEntryPointCount() && i < program->linkedEntryPoints.size(); ++i)
+        layout->getEntryPointLayout(i)->setSlangOwner(program->linkedEntryPoints[i]);
+
     SLANG_RETURN_ON_FAIL(ShaderObject::init(device, layout));
     m_shaderProgram = program;
     for (uint32_t entryPointIndex = 0; entryPointIndex < layout->getEntryPointCount(); entryPointIndex++)

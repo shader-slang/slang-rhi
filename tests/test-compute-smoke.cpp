@@ -38,8 +38,8 @@ GPU_TEST_CASE("compute-smoke", ALL)
 
         // Now we can use this type to create a shader object that can be bound to the root object.
         ComPtr<IShaderObject> transformer;
-        REQUIRE_CALL(device->createShaderObject(
-            nullptr,
+        REQUIRE_CALL(device->createShaderObjectFromType(
+            shaderProgram->getSlangProgram(),
             slangReflection->findTypeByName("AddTransformer"),
             ShaderObjectContainerType::None,
             transformer.writeRef()
