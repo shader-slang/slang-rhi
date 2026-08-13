@@ -20,6 +20,7 @@
 namespace rhi {
 
 // Forward declarations
+class Device;
 class Heap;
 struct EntryPointCompilationStats;
 
@@ -28,6 +29,8 @@ namespace testing {
 extern bool gDebugDisableStateTracking;
 // Counter for tracking active Resource instances (for testing deferred delete)
 extern std::atomic<uint64_t> gResourceCount;
+// Returns the underlying device implementation, unwrapping the debug layer when enabled.
+Device* getUnderlyingDevice(IDevice* device);
 // Returns the number of entries in the device's shader object layout cache.
 // Accepts either a device or its debug-layer wrapper.
 size_t getShaderObjectLayoutCacheSize(IDevice* device);
