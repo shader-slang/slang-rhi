@@ -1,0 +1,64 @@
+name: sanitizers
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows, platform: "x86_64", preset: clang, config: "Debug", required_devices: "d3d11,d3d12,vulkan,cpu,cuda,wgpu", runs-on: { labels: [Windows, X64, nvrgfx-kernelvm-bridge] } }
+          - { os: linux, platform: "x86_64", preset: clang, config: "Debug", required_devices: "vulkan,cuda,wgpu", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
+          - { os: macos, platform: "aarch64", preset: default, config: "Debug", required_devices: "metal,cpu,wgpu", runs-on: macos-latest }
+
+    runs-on: ${{ matrix.runs-on }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - name: Setup MSVC
+        if: runner.os == 'Windows'
+        uses: step-security/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Setup CMake/Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Configure
+        env:
+          SLANG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cmake --preset ${{ matrix.preset }} -DSLANG_RHI_ENABLE_ASAN=ON -DSLANG_RHI_ENABLE_UBSAN=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.config }}
+
+      - name: Setup Sanitizer Options
+        id: sanitizer_options
+        run: python tools/setup-sanitizer-env.py --config ${{ matrix.config }} --os ${{ matrix.os }}
+
+      - name: Unit Tests
+        run: ./slang-rhi-tests -check-devices "-require-devices=${{ matrix.required_devices }}"
+        working-directory: build/${{ matrix.config }}
+
+      - name: Check LeakSanitizer Reports
+        if: ${{ always() && matrix.os == 'linux' && steps.sanitizer_options.outcome == 'success' }}
+        run: python tools/filter-lsan-reports.py
