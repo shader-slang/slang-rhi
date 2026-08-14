@@ -821,9 +821,13 @@ Result DeviceImpl::initVulkanDevice(
 
         // The extension enable stays gated on the base atomics bit so devices that support base
         // float atomics (load/store/exchange) but not add still get the extension chained in. Each
-        // operation-specific SPIR-V capability, however, is advertised only when its matching device
-        // feature bit is set; otherwise Slang emits e.g. OpAtomicFAddEXT for a device that cannot
-        // execute it.
+        // operation-specific SPIR-V capability is advertised only when its matching device feature
+        // bit is set; otherwise Slang emits e.g. OpAtomicFAddEXT for a device that cannot execute it.
+        // The bits checked are the *buffer* feature bits only, while the SPIR-V atoms are broader
+        // (shared/image and f64 add; f16/f64 min-max), and min-max is gated on the fp32 bit inside a
+        // block whose extension gate is the fp16 base bit. This is a deliberate partial gate covering
+        // the reported buffer-atomic cases, not full coverage of every storage class, width, and
+        // operation; a finer-grained capability split is left as follow-up.
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.atomicFloatFeatures,
             shaderBufferFloat32Atomics,
