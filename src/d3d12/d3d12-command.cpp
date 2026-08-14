@@ -130,6 +130,8 @@ public:
     void requireTextureState(TextureImpl* texture, SubresourceRange subresourceRange, ResourceState state);
     void commitBarriers();
 
+    void resolveTimestampQueryResults(const CommandList::QueryWriteRangeList& queryWrites);
+
     void requireAccelerationStructureQueryResultBuffers(
         uint32_t queryCount,
         const AccelerationStructureQueryDesc* queryDescs
@@ -174,6 +176,11 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
         }
 
 #undef SLANG_RHI_COMMAND_EXECUTE_X
+    }
+
+    if (commandList.writesTimestamp())
+    {
+        resolveTimestampQueryResults(commandList.getQueryWrites());
     }
 
     // Transition all resources back to their default states.
@@ -1807,6 +1814,25 @@ void CommandRecorder::commitBarriers()
     }
 
     m_stateTracking.clearBarriers();
+}
+
+void CommandRecorder::resolveTimestampQueryResults(const CommandList::QueryWriteRangeList& queryWrites)
+{
+    for (const auto& queryWrite : queryWrites)
+    {
+        if (queryWrite.queryPool->getDesc().type != QueryType::Timestamp)
+            continue;
+
+        auto queryPool = checked_cast<QueryPoolImpl*>(queryWrite.queryPool);
+        m_cmdList->ResolveQueryData(
+            queryPool->m_queryHeap,
+            queryPool->m_queryType,
+            queryWrite.index,
+            queryWrite.count,
+            queryPool->m_readBackBuffer,
+            uint64_t(queryWrite.index) * sizeof(uint64_t)
+        );
+    }
 }
 
 void CommandRecorder::requireAccelerationStructureQueryResultBuffers(
