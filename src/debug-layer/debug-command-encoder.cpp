@@ -1853,8 +1853,16 @@ void DebugCommandEncoder::aliasResources(IResource* before, IResource* after)
 {
     SLANG_RHI_DEBUG_API(ICommandEncoder, aliasResources);
 
-    requireOpen();
-    requireNoPass();
+    if (m_state != EncoderState::Open)
+    {
+        requireOpen();
+        return;
+    }
+    if (m_passState != PassState::NoPass)
+    {
+        requireNoPass();
+        return;
+    }
 
     if (!after)
     {

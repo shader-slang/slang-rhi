@@ -195,6 +195,7 @@ public:
     std::span<MTL::Resource* const> getAccelerationStructureResources();
 
     bool m_hasArgumentBufferTier2 = false;
+    bool m_supportsPlacementHeaps = false;
 
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
     bool m_hasResidencySet = false;
