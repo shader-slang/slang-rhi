@@ -37,6 +37,9 @@ public:
 
 const ResourcePlacementDesc* findResourcePlacementDesc(const void* next);
 
-Result validateResourcePlacement(const ResourcePlacementDesc& placement, const ResourceMemoryRequirements& requirements);
+Result validateResourcePlacement(
+    const ResourcePlacementDesc& placement,
+    const ResourceMemoryRequirements& requirements
+);
 
 } // namespace rhi
