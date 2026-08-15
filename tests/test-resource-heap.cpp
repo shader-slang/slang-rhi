@@ -455,6 +455,48 @@ GPU_TEST_CASE("resource-heap-place-upload", D3D12 | Vulkan | Metal | CUDA)
     compareComputeResult(device, buffer, makeArray<uint32_t>(0xC0FFEEu, 0xF00Du, 0xBEEFu, 0xA5A5A5A5u));
 }
 
+GPU_TEST_CASE("resource-heap-place-upload-state", D3D12)
+{
+    BufferDesc desc = {};
+    desc.size = 256;
+    desc.usage = BufferUsage::CopySource;
+    desc.defaultState = ResourceState::CopySource;
+    desc.memoryType = MemoryType::Upload;
+
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size, ResourceHeapKind::Buffers, MemoryType::Upload);
+    CHECK_EQ(tryCreatePlacedBuffer(device, desc, heap, 0), SLANG_OK);
+}
+
+GPU_TEST_CASE("resource-heap-place-readback-state", D3D12)
+{
+    BufferDesc desc = makeCopyBufferDesc(256, MemoryType::ReadBack);
+    REQUIRE_EQ(desc.defaultState, ResourceState::Undefined);
+
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size, ResourceHeapKind::Buffers, MemoryType::ReadBack);
+    CHECK_EQ(tryCreatePlacedBuffer(device, desc, heap, 0), SLANG_OK);
+}
+
+GPU_TEST_CASE("resource-heap-map-placed-upload", Vulkan)
+{
+    const uint32_t expected[] = {0x10203040u, 0x50607080u, 0x90A0B0C0u, 0xD0E0F000u};
+    BufferDesc desc = makeCopyBufferDesc(sizeof(expected), MemoryType::Upload);
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    const Offset offset = requirements.alignment;
+    ComPtr<IResourceHeap> heap =
+        createHeap(device, offset + requirements.size, ResourceHeapKind::Buffers, MemoryType::Upload);
+    ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, offset);
+
+    void* mappedData = nullptr;
+    REQUIRE_CALL(device->mapBuffer(buffer, CpuAccessMode::Write, &mappedData));
+    REQUIRE(mappedData != nullptr);
+    std::memcpy(mappedData, expected, sizeof(expected));
+    REQUIRE_CALL(device->unmapBuffer(buffer));
+
+    compareComputeResult(device, buffer, makeArray<uint32_t>(0x10203040u, 0x50607080u, 0x90A0B0C0u, 0xD0E0F000u));
+}
+
 GPU_TEST_CASE("resource-heap-compute", D3D12 | Vulkan | Metal | CUDA)
 {
     ComPtr<IShaderProgram> shaderProgram;
