@@ -21,6 +21,7 @@ public:
 
 public:
     D3D12Resource m_resource;
+    RefPtr<ResourceHeapImpl> m_resourceHeap;
     DXGI_FORMAT m_format = DXGI_FORMAT_UNKNOWN;
     bool m_isTypeless = false;
     D3D12_RESOURCE_STATES m_defaultState = D3D12_RESOURCE_STATE_COMMON;

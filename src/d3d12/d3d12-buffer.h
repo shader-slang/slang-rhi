@@ -37,6 +37,7 @@ public:
     /// The resource in gpu memory, allocated on the correct heap relative to the cpu access flag
     D3D12Resource m_resource;
     D3D12_RESOURCE_STATES m_defaultState;
+    RefPtr<ResourceHeapImpl> m_resourceHeap;
 
     struct ViewKey
     {

@@ -897,6 +897,7 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-posix-synchapi.cpp
         src/d3d12/d3d12-query.cpp
         src/d3d12/d3d12-resource.cpp
+        src/d3d12/d3d12-resource-heap.cpp
         src/d3d12/d3d12-sampler.cpp
         src/d3d12/d3d12-shader-object-layout.cpp
         src/d3d12/d3d12-shader-object.cpp

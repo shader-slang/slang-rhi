@@ -144,4 +144,28 @@ Result D3D12Resource::initCommitted(
     return SLANG_OK;
 }
 
+Result D3D12Resource::initPlaced(
+    ID3D12Device* device,
+    ID3D12Heap* heap,
+    UINT64 heapOffset,
+    const D3D12_RESOURCE_DESC& resourceDesc,
+    D3D12_RESOURCE_STATES initState,
+    const D3D12_CLEAR_VALUE* clearValue
+)
+{
+    setResourceNull();
+
+    ComPtr<ID3D12Resource> resource;
+    SLANG_D3D_RETURN_ON_FAIL(device->CreatePlacedResource(
+        heap,
+        heapOffset,
+        &resourceDesc,
+        initState,
+        clearValue,
+        IID_PPV_ARGS(resource.writeRef())
+    ));
+    setResource(resource);
+    return SLANG_OK;
+}
+
 } // namespace rhi
