@@ -951,6 +951,7 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-input-layout.cpp
         src/metal/metal-pipeline.cpp
         src/metal/metal-query.cpp
+        src/metal/metal-resource-heap.cpp
         src/metal/metal-sampler.cpp
         src/metal/metal-shader-object-layout.cpp
         src/metal/metal-shader-object.cpp

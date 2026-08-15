@@ -1,4 +1,5 @@
 #include "metal-texture.h"
+#include "metal-resource-heap.h"
 #include "metal-buffer.h"
 #include "metal-command.h"
 #include "metal-device.h"
@@ -151,7 +152,22 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     SLANG_RHI_ASSERT(textureDesc->storageMode() != MTL::StorageModeManaged);
     textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
 
-    textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
+    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
+    if (placement)
+    {
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+        textureImpl->m_texture =
+            NS::TransferPtr(heap->m_heap->newTexture(textureDesc.get(), placement->offset));
+        textureImpl->m_resourceHeap = heap;
+    }
+    else
+    {
+        textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
+    }
     if (!textureImpl->m_texture)
     {
         return SLANG_FAIL;
