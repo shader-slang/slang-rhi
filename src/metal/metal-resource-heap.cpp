@@ -16,6 +16,19 @@ static MTL::StorageMode translateStorageMode(MemoryType memoryType)
     }
 }
 
+// Must match the CPU cache mode used by createBuffer() for the same MemoryType.
+// Metal rejects placed allocations whose cache mode differs from the heap.
+static MTL::CPUCacheMode translateCpuCacheMode(MemoryType memoryType)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+        return MTL::CPUCacheModeWriteCombined;
+    default:
+        return MTL::CPUCacheModeDefaultCache;
+    }
+}
+
 ResourceHeapImpl::ResourceHeapImpl(Device* device, const ResourceHeapDesc& desc)
     : ResourceHeap(device, desc)
 {
@@ -32,6 +45,7 @@ Result ResourceHeapImpl::init()
     heapDesc->setType(MTL::HeapTypePlacement);
     heapDesc->setSize(m_desc.size);
     heapDesc->setStorageMode(translateStorageMode(m_desc.memoryType));
+    heapDesc->setCpuCacheMode(translateCpuCacheMode(m_desc.memoryType));
     heapDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
 
     m_heap = NS::TransferPtr(device->m_device->newHeap(heapDesc.get()));
