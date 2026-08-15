@@ -1573,6 +1573,14 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 
 void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
 {
+    // Aliased resources retain their D3D12 transition state while inactive. Restore the resource
+    // being deactivated to its default state so it can be safely forgotten until reactivation.
+    if (Buffer* buffer = asBuffer(cmd.before))
+        m_stateTracking.setBufferState(buffer, buffer->m_desc.defaultState);
+    if (Texture* texture = asTexture(cmd.before))
+        m_stateTracking.setTextureState(texture, kEntireTexture, texture->m_desc.defaultState);
+    commitBarriers();
+
     auto getResource = [](IResource* resource) -> ID3D12Resource*
     {
         if (Buffer* buffer = asBuffer(resource))
@@ -1589,13 +1597,9 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
     m_cmdList->ResourceBarrier(1, &barrier);
 
     if (Buffer* buffer = asBuffer(cmd.before))
-        m_stateTracking.resetBufferState(buffer);
+        m_stateTracking.forgetBufferState(buffer);
     if (Texture* texture = asTexture(cmd.before))
-        m_stateTracking.resetTextureState(texture);
-    if (Buffer* buffer = asBuffer(cmd.after))
-        m_stateTracking.resetBufferState(buffer);
-    if (Texture* texture = asTexture(cmd.after))
-        m_stateTracking.resetTextureState(texture);
+        m_stateTracking.forgetTextureState(texture);
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
