@@ -27,9 +27,16 @@ const ResourcePlacementDesc* findResourcePlacementDesc(const void* next)
     return nullptr;
 }
 
-Result validateResourcePlacement(const ResourcePlacementDesc& placement, const ResourceMemoryRequirements& requirements)
+Result validateResourcePlacement(
+    Device* device,
+    const ResourcePlacementDesc& placement,
+    const ResourceMemoryRequirements& requirements
+)
 {
     if (!placement.heap)
+        return SLANG_E_INVALID_ARG;
+    ResourceHeap* heap = checked_cast<ResourceHeap*>(placement.heap);
+    if (heap->getDevice() != device)
         return SLANG_E_INVALID_ARG;
     if (requirements.requiresDedicatedAllocation)
         return SLANG_E_INVALID_ARG;
@@ -38,7 +45,7 @@ Result validateResourcePlacement(const ResourcePlacementDesc& placement, const R
     if ((placement.offset % requirements.alignment) != 0)
         return SLANG_E_INVALID_ARG;
 
-    const ResourceHeapDesc& heapDesc = placement.heap->getDesc();
+    const ResourceHeapDesc& heapDesc = heap->getDesc();
     if (heapDesc.memoryType != requirements.memoryType)
         return SLANG_E_INVALID_ARG;
     if (!isResourceHeapKindCompatible(heapDesc.kind, requirements.heapKind))

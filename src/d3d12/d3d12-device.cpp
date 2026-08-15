@@ -1400,6 +1400,19 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     return SLANG_OK;
 }
 
+static D3D12_RESOURCE_STATES getPlacedResourceInitialState(MemoryType memoryType, D3D12_RESOURCE_STATES defaultState)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+        return D3D12_RESOURCE_STATE_GENERIC_READ;
+    case MemoryType::ReadBack:
+        return D3D12_RESOURCE_STATE_COPY_DEST;
+    default:
+        return defaultState;
+    }
+}
+
 Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
 {
     RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
@@ -1508,7 +1521,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         {
             ResourceMemoryRequirements requirements = {};
             SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
-            SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
+            SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
 
             ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
             SLANG_RETURN_ON_FAIL(texture->m_resource.initPlaced(
@@ -1516,7 +1529,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 heap->m_heap,
                 placement->offset,
                 resourceDesc,
-                texture->m_defaultState,
+                getPlacedResourceInitialState(desc.memoryType, texture->m_defaultState),
                 clearValuePtr
             ));
             texture->m_resourceHeap = heap;
@@ -1639,12 +1652,17 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         ResourceMemoryRequirements requirements = {};
         SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
-        SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
-        SLANG_RETURN_ON_FAIL(
-            buffer->m_resource.initPlaced(m_device, heap->m_heap, placement->offset, bufferDesc, initialState, nullptr)
-        );
+        SLANG_RETURN_ON_FAIL(buffer->m_resource.initPlaced(
+            m_device,
+            heap->m_heap,
+            placement->offset,
+            bufferDesc,
+            getPlacedResourceInitialState(desc.memoryType, initialState),
+            nullptr
+        ));
         buffer->m_resourceHeap = heap;
 
         if (initData)

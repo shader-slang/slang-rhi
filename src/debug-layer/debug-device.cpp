@@ -1642,6 +1642,7 @@ Result DebugDevice::popCudaContext()
 Result DebugDevice::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
 {
     SLANG_RHI_DEBUG_API(IDevice, createResourceHeap);
+    validateCudaContext();
 
     if (!outHeap)
     {

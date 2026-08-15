@@ -386,8 +386,12 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     if (placement)
     {
         ResourceMemoryRequirements requirements = {};
-        SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
-        SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
+        requirements.size = (Size)memRequirements.size;
+        requirements.alignment = (Size)memRequirements.alignment;
+        requirements.memoryType = desc.memoryType;
+        requirements.heapKind = getResourceHeapKind(desc);
+        requirements.requiresDedicatedAllocation = is_set(desc.usage, TextureUsage::Shared);
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
         if ((memRequirements.memoryTypeBits & (1u << heap->m_memoryTypeIndex)) == 0)
@@ -438,7 +442,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         );
 
         // Bind the memory to the image
-        m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0),
+            this
+        );
     }
 
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);

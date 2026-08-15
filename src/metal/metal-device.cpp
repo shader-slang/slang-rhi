@@ -234,7 +234,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::HardwareDevice);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
-    addFeature(Feature::MemoryAliasing);
+    m_supportsPlacementHeaps =
+        m_device->supportsFamily(MTL::GPUFamilyApple2) || m_device->supportsFamily(MTL::GPUFamilyMac2);
+    if (m_supportsPlacementHeaps)
+        addFeature(Feature::MemoryAliasing);
 
     if (m_device->supportsRaytracing())
     {
@@ -494,6 +497,9 @@ std::span<MTL::Resource* const> DeviceImpl::getAccelerationStructureResources()
 
 Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
 {
+    if (!m_supportsPlacementHeaps)
+        return SLANG_E_NOT_AVAILABLE;
+
     RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
     SLANG_RETURN_ON_FAIL(heap->init());
     returnComPtr(outHeap, heap);
@@ -533,29 +539,7 @@ Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, Resour
     AUTORELEASEPOOL
 
     TextureDesc desc = fixupTextureDesc(desc_);
-    NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
-    switch (desc.memoryType)
-    {
-    case MemoryType::DeviceLocal:
-        textureDesc->setStorageMode(MTL::StorageModePrivate);
-        break;
-    case MemoryType::Upload:
-        textureDesc->setStorageMode(MTL::StorageModeShared);
-        textureDesc->setCpuCacheMode(MTL::CPUCacheModeWriteCombined);
-        break;
-    case MemoryType::ReadBack:
-        textureDesc->setStorageMode(MTL::StorageModeShared);
-        break;
-    }
-    textureDesc->setTextureType(translateTextureType(desc.type));
-    textureDesc->setWidth(desc.size.width);
-    textureDesc->setHeight(desc.size.height);
-    textureDesc->setDepth(desc.size.depth);
-    textureDesc->setMipmapLevelCount(desc.mipCount);
-    textureDesc->setArrayLength(desc.arrayLength);
-    textureDesc->setPixelFormat(translatePixelFormat(desc.format));
-    textureDesc->setSampleCount(desc.sampleCount);
-    textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
+    NS::SharedPtr<MTL::TextureDescriptor> textureDesc = createTextureDescriptor(desc);
 
     MTL::SizeAndAlign sizeAndAlign = m_device->heapTextureSizeAndAlign(textureDesc.get());
     outRequirements->size = sizeAndAlign.size;

@@ -1508,6 +1508,8 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 
 void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
 {
+    commitBarriers();
+
     VkMemoryBarrier memoryBarrier = {};
     memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;

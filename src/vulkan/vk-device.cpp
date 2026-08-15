@@ -2120,25 +2120,10 @@ Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHea
     return SLANG_OK;
 }
 
-static VkBufferUsageFlags getPlacedBufferUsage(const DeviceImpl* device, const BufferDesc& desc, bool hasInitData)
-{
-    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage);
-    if (device->m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
-        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
-        device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-    {
-        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    }
-    if (hasInitData)
-        usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    return usage;
-}
-
 Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
 {
     BufferDesc desc = fixupBufferDesc(desc_);
-    VkBufferUsageFlags usage = getPlacedBufferUsage(this, desc, false);
+    VkBufferUsageFlags usage = getBufferUsageFlags(this, desc);
     VkBuffer buffer = VK_NULL_HANDLE;
     SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, 0, &buffer));
     VkMemoryRequirements reqs = {};

@@ -14,6 +14,19 @@
 
 namespace rhi::vk {
 
+VkBufferUsageFlags getBufferUsageFlags(const DeviceImpl* device, const BufferDesc& desc)
+{
+    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage) | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (device->m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
+        device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
+    {
+        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    }
+    return usage;
+}
+
 // Helper function to create a VkBuffer with optional external memory support
 Result createVkBuffer(
     const VulkanApi& api,
@@ -153,6 +166,7 @@ Result VKBufferHandleRAII::initPlaced(
     const VulkanApi& api,
     Size bufferSize,
     VkBufferUsageFlags usage,
+    uint32_t memoryTypeIndex,
     VkDeviceMemory memory,
     Offset offset
 )
@@ -165,6 +179,10 @@ Result VKBufferHandleRAII::initPlaced(
     m_ownsMemory = false;
 
     SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, 0, &m_buffer));
+    VkMemoryRequirements requirements = {};
+    api.vkGetBufferMemoryRequirements(api.m_device, m_buffer, &requirements);
+    if ((requirements.memoryTypeBits & (1u << memoryTypeIndex)) == 0)
+        return SLANG_E_INVALID_ARG;
     SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, memory, offset));
     return SLANG_OK;
 }
@@ -417,20 +435,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
     VkMemoryPropertyFlags reqMemoryProperties = 0;
 
-    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage);
-    if (m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
-    {
-        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    }
-    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
-        m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
-    {
-        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    }
-    if (initData)
-    {
-        usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    }
+    VkBufferUsageFlags usage = getBufferUsageFlags(this, desc);
 
     if (is_set(desc.usage, BufferUsage::ConstantBuffer) || desc.memoryType == MemoryType::Upload ||
         desc.memoryType == MemoryType::ReadBack)
@@ -448,10 +453,13 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     {
         ResourceMemoryRequirements requirements = {};
         SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
-        SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
-        SLANG_RETURN_ON_FAIL(buffer->m_buffer.initPlaced(m_api, desc.size, usage, heap->m_memory, placement->offset));
+        SLANG_RETURN_ON_FAIL(
+            buffer->m_buffer
+                .initPlaced(m_api, desc.size, usage, heap->m_memoryTypeIndex, heap->m_memory, placement->offset)
+        );
         buffer->m_resourceHeap = heap;
         buffer->m_resourceHeapOffset = placement->offset;
     }
