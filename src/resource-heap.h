@@ -38,6 +38,7 @@ public:
 const ResourcePlacementDesc* findResourcePlacementDesc(const void* next);
 
 Result validateResourcePlacement(
+    Device* device,
     const ResourcePlacementDesc& placement,
     const ResourceMemoryRequirements& requirements
 );

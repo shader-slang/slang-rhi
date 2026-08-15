@@ -33,6 +33,14 @@ Result ResourceHeapImpl::init()
     m_isHostMemory = m_desc.memoryType != MemoryType::DeviceLocal;
     if (m_isHostMemory)
     {
+        int unifiedAddressing = 0;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(
+            cuDeviceGetAttribute(&unifiedAddressing, CU_DEVICE_ATTRIBUTE_UNIFIED_ADDRESSING, device->m_ctx.device),
+            device
+        );
+        if (!unifiedAddressing)
+            return SLANG_E_NOT_AVAILABLE;
+
         void* hostPtr = nullptr;
         SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost(&hostPtr, m_desc.size), device);
         m_memory = (CUdeviceptr)hostPtr;

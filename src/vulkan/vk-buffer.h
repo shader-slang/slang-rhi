@@ -12,6 +12,8 @@ Result createVkBuffer(
     VkBuffer* outBuffer
 );
 
+VkBufferUsageFlags getBufferUsageFlags(const DeviceImpl* device, const BufferDesc& desc);
+
 // Combined buffer and memory class
 class VKBufferHandleRAII
 {
@@ -30,6 +32,7 @@ public:
         const VulkanApi& api,
         Size bufferSize,
         VkBufferUsageFlags usage,
+        uint32_t memoryTypeIndex,
         VkDeviceMemory memory,
         Offset offset
     );

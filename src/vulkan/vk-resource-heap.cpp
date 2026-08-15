@@ -73,6 +73,25 @@ Result ResourceHeapImpl::init()
         api.vkDestroyImage(api.m_device, image, nullptr);
         memoryTypeBits &= reqs.memoryTypeBits;
     }
+    if (m_desc.kind == ResourceHeapKind::RtDsTextures || m_desc.kind == ResourceHeapKind::All)
+    {
+        VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.format = VK_FORMAT_D32_SFLOAT;
+        imageInfo.extent = {4, 4, 1};
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        VkImage image = VK_NULL_HANDLE;
+        SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkCreateImage(api.m_device, &imageInfo, nullptr, &image), device);
+        VkMemoryRequirements reqs = {};
+        api.vkGetImageMemoryRequirements(api.m_device, image, &reqs);
+        api.vkDestroyImage(api.m_device, image, nullptr);
+        memoryTypeBits &= reqs.memoryTypeBits;
+    }
 
     const VkMemoryPropertyFlags properties = getMemoryProperties(m_desc.memoryType);
     int memoryTypeIndex = api.findMemoryTypeIndex(memoryTypeBits, properties);

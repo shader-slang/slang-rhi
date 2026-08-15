@@ -404,6 +404,7 @@ GPU_TEST_CASE("resource-heap-place-and-alias-buffers", D3D12 | Vulkan | Metal | 
     }
     {
         auto encoder = queue->createCommandEncoder();
+        encoder->setBufferState(bufferA, ResourceState::CopySource);
         encoder->aliasResources(bufferA, bufferB);
         REQUIRE_CALL(encoder->uploadBufferData(bufferB, 0, bufferSize, dataB.data()));
         REQUIRE_CALL(queue->submit(encoder->finish()));
@@ -432,12 +433,12 @@ GPU_TEST_CASE("resource-heap-place-sequential-buffers", D3D12 | Vulkan | Metal |
 
 GPU_TEST_CASE("resource-heap-place-offset", D3D12 | Vulkan | Metal | CUDA)
 {
-    BufferDesc desc = makeCopyBufferDesc(256);
+    const uint32_t expected[] = {7, 8, 9, 10};
+    BufferDesc desc = makeCopyBufferDesc(sizeof(expected));
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
     const Offset offset = requirements.alignment;
     ComPtr<IResourceHeap> heap = createHeap(device, offset + requirements.size);
 
-    const uint32_t expected[] = {7, 8, 9, 10};
     ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, offset, expected);
     compareComputeResult(device, buffer, makeArray<uint32_t>(7, 8, 9, 10));
 }
@@ -455,7 +456,7 @@ GPU_TEST_CASE("resource-heap-place-upload", D3D12 | Vulkan | Metal | CUDA)
     compareComputeResult(device, buffer, makeArray<uint32_t>(0xC0FFEEu, 0xF00Du, 0xBEEFu, 0xA5A5A5A5u));
 }
 
-GPU_TEST_CASE("resource-heap-map-placed-upload", Vulkan)
+GPU_TEST_CASE("resource-heap-map-placed-upload", D3D12 | Vulkan | Metal | CUDA)
 {
     const uint32_t expected[] = {0x10203040u, 0x50607080u, 0x90A0B0C0u, 0xD0E0F000u};
     BufferDesc desc = makeCopyBufferDesc(sizeof(expected), MemoryType::Upload);
