@@ -16,9 +16,13 @@ ResourceHeapImpl::~ResourceHeapImpl()
 
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     if (m_isHostMemory)
+    {
         SLANG_CUDA_ASSERT_ON_FAIL(cuMemFreeHost((void*)m_memory));
+    }
     else
+    {
         SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_memory));
+    }
 }
 
 Result ResourceHeapImpl::init()
