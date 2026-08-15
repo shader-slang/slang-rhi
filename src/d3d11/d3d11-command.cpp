@@ -92,6 +92,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -863,6 +864,11 @@ void CommandExecutor::cmdSetBufferState(const commands::SetBufferState& cmd)
 }
 
 void CommandExecutor::cmdSetTextureState(const commands::SetTextureState& cmd)
+{
+    SLANG_UNUSED(cmd);
+}
+
+void CommandExecutor::cmdAliasResources(const commands::AliasResources& cmd)
 {
     SLANG_UNUSED(cmd);
 }
