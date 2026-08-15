@@ -39,6 +39,26 @@ Fence::Fence(Device* device, const FenceDesc& desc)
 }
 
 
+Buffer* asBuffer(IResource* resource)
+{
+    if (!resource)
+        return nullptr;
+    ComPtr<IBuffer> buffer;
+    if (SLANG_SUCCEEDED(resource->queryInterface(IBuffer::getTypeGuid(), (void**)buffer.writeRef())))
+        return checked_cast<Buffer*>(buffer.get());
+    return nullptr;
+}
+
+Texture* asTexture(IResource* resource)
+{
+    if (!resource)
+        return nullptr;
+    ComPtr<ITexture> texture;
+    if (SLANG_SUCCEEDED(resource->queryInterface(ITexture::getTypeGuid(), (void**)texture.writeRef())))
+        return checked_cast<Texture*>(texture.get());
+    return nullptr;
+}
+
 // ----------------------------------------------------------------------------
 // Buffer
 // ----------------------------------------------------------------------------

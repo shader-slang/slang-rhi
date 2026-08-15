@@ -124,6 +124,19 @@ public:
         }
     }
 
+    void resetBufferState(Buffer* buffer)
+    {
+        BufferState* bufferState = getBufferState(buffer);
+        bufferState->state = ResourceState::Undefined;
+    }
+
+    void resetTextureState(Texture* texture)
+    {
+        TextureState* textureState = getTextureState(texture);
+        textureState->state = ResourceState::Undefined;
+        textureState->subresourceStates.clear();
+    }
+
     void requireDefaultStates()
     {
         for (auto& bufferState : m_bufferStates)
