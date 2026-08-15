@@ -20,6 +20,7 @@ SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Surface)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(QueryPool)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(Heap)
+SLANG_RHI_DEBUG_GET_INTERFACE_IMPL(ResourceHeap)
 
 std::string subresourceRangeToString(const SubresourceRange& range)
 {
@@ -175,6 +176,16 @@ std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc)
 std::string createHeapLabel(const HeapDesc& desc)
 {
     return string::format("Unnamed heap (memoryType=%s)", enumToString(desc.memoryType));
+}
+
+std::string createResourceHeapLabel(const ResourceHeapDesc& desc)
+{
+    return string::format(
+        "Unnamed resource heap (memoryType=%s, kind=%s, size=%zu)",
+        enumToString(desc.memoryType),
+        enumToString(desc.kind),
+        desc.size
+    );
 }
 
 Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc)

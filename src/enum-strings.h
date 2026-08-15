@@ -10,6 +10,7 @@ const char* enumToString(DeviceType value);
 const char* enumToString(Format value);
 const char* enumToString(FormatSupport value);
 const char* enumToString(MemoryType value);
+const char* enumToString(ResourceHeapKind value);
 const char* enumToString(BufferUsage value);
 std::string flagsToString(BufferUsage value);
 const char* enumToString(TextureType value);

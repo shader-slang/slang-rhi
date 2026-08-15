@@ -801,6 +801,7 @@ target_sources(slang-rhi PRIVATE
     src/enum-strings.cpp
     src/format-conversion.cpp
     src/heap.cpp
+    src/resource-heap.cpp
     src/pipeline.cpp
     src/pipeline-resolver.cpp
     src/resource-desc-utils.cpp
@@ -825,6 +826,7 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-device.cpp
     src/debug-layer/debug-fence.cpp
     src/debug-layer/debug-heap.cpp
+    src/debug-layer/debug-resource-heap.cpp
     src/debug-layer/debug-helper-functions.cpp
     src/debug-layer/debug-query.cpp
     src/debug-layer/debug-shader-object.cpp
