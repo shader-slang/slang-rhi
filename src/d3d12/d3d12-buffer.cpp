@@ -1,5 +1,6 @@
 #include "d3d12-buffer.h"
 #include "d3d12-device.h"
+#include "d3d12-resource-heap.h"
 #include "d3d12-utils.h"
 
 namespace rhi::d3d12 {
