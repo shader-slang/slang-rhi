@@ -978,6 +978,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-nvrtc.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
+        src/cuda/cuda-resource-heap.cpp
         src/cuda/cuda-sampler.cpp
         src/cuda/cuda-shader-object-layout.cpp
         src/cuda/cuda-shader-object.cpp

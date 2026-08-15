@@ -29,6 +29,7 @@ public:
     void* m_cudaExternalMemory = nullptr;
     void* m_cudaMemory = nullptr;
     HeapAlloc m_alloc;
+    RefPtr<ResourceHeapImpl> m_resourceHeap;
 };
 
 } // namespace rhi::cuda
