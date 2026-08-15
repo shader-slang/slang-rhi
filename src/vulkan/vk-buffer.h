@@ -83,6 +83,7 @@ public:
     VKBufferHandleRAII m_buffer;
     DeviceAddress m_deviceAddress = 0;
     RefPtr<ResourceHeapImpl> m_resourceHeap;
+    Offset m_resourceHeapOffset = 0;
 
     struct ViewKey
     {
