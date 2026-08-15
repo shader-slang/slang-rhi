@@ -1,5 +1,6 @@
 #include "vk-buffer.h"
 #include "vk-device.h"
+#include "vk-resource-heap.h"
 #include "vk-utils.h"
 
 #if SLANG_WINDOWS_FAMILY
@@ -143,7 +144,28 @@ Result VKBufferHandleRAII::init(
 
     // Bind buffer to memory
     SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
+    m_ownsMemory = true;
 
+    return SLANG_OK;
+}
+
+Result VKBufferHandleRAII::initPlaced(
+    const VulkanApi& api,
+    Size bufferSize,
+    VkBufferUsageFlags usage,
+    VkDeviceMemory memory,
+    Offset offset
+)
+{
+    SLANG_RHI_ASSERT(!isInitialized());
+
+    m_api = &api;
+    m_memory = memory;
+    m_buffer = VK_NULL_HANDLE;
+    m_ownsMemory = false;
+
+    SLANG_RETURN_ON_FAIL(createVkBuffer(api, bufferSize, usage, 0, &m_buffer));
+    SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, memory, offset));
     return SLANG_OK;
 }
 
@@ -421,7 +443,18 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
     }
 
     RefPtr<BufferImpl> buffer(new BufferImpl(this, desc));
-    if (is_set(desc.usage, BufferUsage::Shared))
+    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
+    if (placement)
+    {
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+        SLANG_RETURN_ON_FAIL(buffer->m_buffer.initPlaced(m_api, desc.size, usage, heap->m_memory, placement->offset));
+        buffer->m_resourceHeap = heap;
+    }
+    else if (is_set(desc.usage, BufferUsage::Shared))
     {
         VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags
 #if SLANG_WINDOWS_FAMILY
@@ -448,14 +481,24 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         }
         else
         {
-            // Copy into mapped buffer directly
             void* mappedData = nullptr;
-            SLANG_VK_RETURN_ON_FAIL_REPORT(
-                m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),
-                this
-            );
-            ::memcpy(mappedData, initData, bufferSize);
-            m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
+            if (placement)
+            {
+                ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+                if (!heap->m_mapped)
+                    return SLANG_FAIL;
+                mappedData = static_cast<uint8_t*>(heap->m_mapped) + placement->offset;
+                ::memcpy(mappedData, initData, bufferSize);
+            }
+            else
+            {
+                SLANG_VK_RETURN_ON_FAIL_REPORT(
+                    m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),
+                    this
+                );
+                ::memcpy(mappedData, initData, bufferSize);
+                m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
+            }
         }
     }
 

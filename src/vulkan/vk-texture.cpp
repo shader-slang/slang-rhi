@@ -1,6 +1,7 @@
 #include "vk-texture.h"
 #include "vk-device.h"
 #include "vk-buffer.h"
+#include "vk-resource-heap.h"
 #include "vk-utils.h"
 
 #if SLANG_WINDOWS_FAMILY
@@ -29,7 +30,8 @@ TextureImpl::~TextureImpl()
     }
     if (m_shouldDestroyImage)
     {
-        api.vkFreeMemory(api.m_device, m_imageMemory, nullptr);
+        if (m_ownsMemory)
+            api.vkFreeMemory(api.m_device, m_imageMemory, nullptr);
         api.vkDestroyImage(api.m_device, m_image, nullptr);
     }
     if (m_sharedHandle)
@@ -380,6 +382,27 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     VkMemoryRequirements memRequirements;
     m_api.vkGetImageMemoryRequirements(m_device, texture->m_image, &memRequirements);
 
+    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
+    if (placement)
+    {
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+        if ((memRequirements.memoryTypeBits & (1u << heap->m_memoryTypeIndex)) == 0)
+            return SLANG_E_INVALID_ARG;
+
+        SLANG_VK_RETURN_ON_FAIL_REPORT(
+            m_api.vkBindImageMemory(m_device, texture->m_image, heap->m_memory, placement->offset),
+            this
+        );
+        texture->m_imageMemory = heap->m_memory;
+        texture->m_ownsMemory = false;
+        texture->m_resourceHeap = heap;
+    }
+    else
+    {
     // Allocate the memory
     VkMemoryPropertyFlags reqMemoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     int memoryTypeIndex = m_api.findMemoryTypeIndex(memRequirements.memoryTypeBits, reqMemoryProperties);
@@ -416,6 +439,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     // Bind the memory to the image
     m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
+    }
 
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
