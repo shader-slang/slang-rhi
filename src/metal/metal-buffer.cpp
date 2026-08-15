@@ -82,8 +82,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
-        buffer->m_buffer =
-            NS::TransferPtr(heap->m_heap->newBuffer(bufferSize, resourceOptions, placement->offset));
+        buffer->m_buffer = NS::TransferPtr(heap->m_heap->newBuffer(bufferSize, resourceOptions, placement->offset));
         buffer->m_resourceHeap = heap;
     }
     else

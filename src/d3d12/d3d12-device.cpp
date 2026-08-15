@@ -1642,14 +1642,9 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
-        SLANG_RETURN_ON_FAIL(buffer->m_resource.initPlaced(
-            m_device,
-            heap->m_heap,
-            placement->offset,
-            bufferDesc,
-            initialState,
-            nullptr
-        ));
+        SLANG_RETURN_ON_FAIL(
+            buffer->m_resource.initPlaced(m_device, heap->m_heap, placement->offset, bufferDesc, initialState, nullptr)
+        );
         buffer->m_resourceHeap = heap;
 
         if (initData)

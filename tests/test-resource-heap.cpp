@@ -281,8 +281,13 @@ GPU_TEST_CASE("resource-heap-create", D3D12 | Vulkan | Metal | CUDA)
     BufferDesc desc = makeCopyBufferDesc(64 * 1024);
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
 
-    ComPtr<IResourceHeap> heap =
-        createHeap(device, requirements.size, ResourceHeapKind::Buffers, MemoryType::DeviceLocal, "named-resource-heap");
+    ComPtr<IResourceHeap> heap = createHeap(
+        device,
+        requirements.size,
+        ResourceHeapKind::Buffers,
+        MemoryType::DeviceLocal,
+        "named-resource-heap"
+    );
     CHECK(heap->getDesc().label != nullptr);
     CHECK_EQ(std::strcmp(heap->getDesc().label, "named-resource-heap"), 0);
 
@@ -541,7 +546,8 @@ GPU_TEST_CASE("resource-heap-memory-type-mismatch", D3D12 | Vulkan | Metal | CUD
 {
     BufferDesc desc = makeCopyBufferDesc(256, MemoryType::Upload);
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size, ResourceHeapKind::Buffers, MemoryType::DeviceLocal);
+    ComPtr<IResourceHeap> heap =
+        createHeap(device, requirements.size, ResourceHeapKind::Buffers, MemoryType::DeviceLocal);
     CHECK_EQ(tryCreatePlacedBuffer(device, desc, heap, 0), SLANG_E_INVALID_ARG);
 }
 
@@ -549,8 +555,7 @@ GPU_TEST_CASE("resource-heap-kind-mismatch", D3D12 | Vulkan | Metal)
 {
     BufferDesc bufferDesc = makeCopyBufferDesc(256);
     ResourceMemoryRequirements bufferRequirements = requireBufferMemoryRequirements(device, bufferDesc);
-    ComPtr<IResourceHeap> textureHeap =
-        createHeap(device, bufferRequirements.size, ResourceHeapKind::NonRtDsTextures);
+    ComPtr<IResourceHeap> textureHeap = createHeap(device, bufferRequirements.size, ResourceHeapKind::NonRtDsTextures);
     CHECK_EQ(tryCreatePlacedBuffer(device, bufferDesc, textureHeap, 0), SLANG_E_INVALID_ARG);
 
     TextureDesc textureDesc = makeSampleTextureDesc();
