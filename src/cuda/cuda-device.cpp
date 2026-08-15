@@ -1,4 +1,5 @@
 #include "cuda-device.h"
+#include "cuda-resource-heap.h"
 #include "cuda-backend.h"
 #include "cuda-command.h"
 #include "cuda-buffer.h"
@@ -198,6 +199,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize features & capabilities
     addFeature(Feature::HardwareDevice);
+    addFeature(Feature::MemoryAliasing);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Bindless);
 #if SLANG_RHI_ENABLE_VULKAN
@@ -655,6 +657,42 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 {
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
+}
+
+Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    if (desc.kind != ResourceHeapKind::Buffers && desc.kind != ResourceHeapKind::All)
+        return SLANG_E_NOT_AVAILABLE;
+
+    RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(heap->init());
+    returnComPtr(outHeap, heap);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    BufferDesc desc = fixupBufferDesc(desc_);
+    outRequirements->size = desc.size;
+    outRequirements->alignment = 256;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->heapKind = ResourceHeapKind::Buffers;
+    outRequirements->requiresDedicatedAllocation = is_set(desc.usage, BufferUsage::Shared);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    TextureDesc desc = fixupTextureDesc(desc_);
+    Size size = 0;
+    Size alignment = 0;
+    SLANG_RETURN_ON_FAIL(getTextureAllocationInfo(desc, &size, &alignment));
+    outRequirements->size = size;
+    outRequirements->alignment = alignment;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->heapKind = getResourceHeapKind(desc);
+    outRequirements->requiresDedicatedAllocation = true;
+    return SLANG_OK;
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
