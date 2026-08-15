@@ -137,6 +137,10 @@ public:
         textureState->subresourceStates.clear();
     }
 
+    void forgetBufferState(Buffer* buffer) { m_bufferStates.erase(buffer); }
+
+    void forgetTextureState(Texture* texture) { m_textureStates.erase(texture); }
+
     void requireDefaultStates()
     {
         for (auto& bufferState : m_bufferStates)
