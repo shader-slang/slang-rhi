@@ -1,4 +1,5 @@
 #include "vk-device.h"
+#include "vk-resource-heap.h"
 #include "vk-backend.h"
 #include "vk-command.h"
 #include "vk-buffer.h"
@@ -1650,6 +1651,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::Rasterization);
     addFeature(Feature::CombinedTextureSampler);
     addFeature(Feature::TimestampQuery);
+    addFeature(Feature::MemoryAliasing);
     for (auto feature : availableFeatures)
     {
         addFeature(feature);
@@ -2108,6 +2110,61 @@ void DeviceImpl::_labelObject(uint64_t object, VkObjectType objectType, const ch
         nameInfo.pObjectName = label;
         m_api.vkSetDebugUtilsObjectNameEXT(m_api.m_device, &nameInfo);
     }
+}
+
+Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(heap->init());
+    returnComPtr(outHeap, heap);
+    return SLANG_OK;
+}
+
+static VkBufferUsageFlags getPlacedBufferUsage(const DeviceImpl* device, const BufferDesc& desc, bool hasInitData)
+{
+    VkBufferUsageFlags usage = _calcBufferUsageFlags(desc.usage);
+    if (device->m_api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
+        usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    if (is_set(desc.usage, BufferUsage::ShaderResource) &&
+        device->m_api.m_extendedFeatures.accelerationStructureFeatures.accelerationStructure)
+    {
+        usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    }
+    if (hasInitData)
+        usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    return usage;
+}
+
+Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    BufferDesc desc = fixupBufferDesc(desc_);
+    VkBufferUsageFlags usage = getPlacedBufferUsage(this, desc, false);
+    VkBuffer buffer = VK_NULL_HANDLE;
+    SLANG_RETURN_ON_FAIL(createVkBuffer(m_api, desc.size, usage, 0, &buffer));
+    VkMemoryRequirements reqs = {};
+    m_api.vkGetBufferMemoryRequirements(m_device, buffer, &reqs);
+    m_api.vkDestroyBuffer(m_device, buffer, nullptr);
+
+    outRequirements->size = (Size)reqs.size;
+    outRequirements->alignment = (Size)reqs.alignment;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->heapKind = getResourceHeapKind(desc);
+    outRequirements->requiresDedicatedAllocation = is_set(desc.usage, BufferUsage::Shared);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    Size size = 0;
+    Size alignment = 0;
+    SLANG_RETURN_ON_FAIL(getTextureAllocationInfo(desc_, &size, &alignment));
+    TextureDesc desc = fixupTextureDesc(desc_);
+    outRequirements->size = size;
+    outRequirements->alignment = alignment;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->heapKind = getResourceHeapKind(desc);
+    outRequirements->requiresDedicatedAllocation = is_set(desc.usage, TextureUsage::Shared);
+    return SLANG_OK;
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
