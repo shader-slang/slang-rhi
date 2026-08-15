@@ -902,6 +902,29 @@ Result Device::createHeap(const HeapDesc& desc, IHeap** outHeap)
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outHeap);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::getBufferMemoryRequirements(const BufferDesc& desc, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_UNUSED(desc);
+    if (outRequirements)
+        *outRequirements = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::getTextureMemoryRequirements(const TextureDesc& desc, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_UNUSED(desc);
+    if (outRequirements)
+        *outRequirements = {};
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Device::readTexture(
     ITexture* texture,
     uint32_t layer,
