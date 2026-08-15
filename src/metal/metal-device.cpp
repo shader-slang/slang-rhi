@@ -1,4 +1,5 @@
 #include "metal-device.h"
+#include "metal-resource-heap.h"
 #include "metal-backend.h"
 #include "../resource-desc-utils.h"
 #include "metal-command.h"
@@ -233,6 +234,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     addFeature(Feature::HardwareDevice);
     addFeature(Feature::Surface);
     addFeature(Feature::Rasterization);
+    addFeature(Feature::MemoryAliasing);
 
     if (m_device->supportsRaytracing())
     {
@@ -488,6 +490,80 @@ std::span<MTL::Resource* const> DeviceImpl::getAccelerationStructureResources()
         m_accelerationStructures.resources.data(),
         m_accelerationStructures.resources.size()
     );
+}
+
+Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(heap->init());
+    returnComPtr(outHeap, heap);
+    return SLANG_OK;
+}
+
+static MTL::ResourceOptions getMetalResourceOptions(MemoryType memoryType)
+{
+    switch (memoryType)
+    {
+    case MemoryType::Upload:
+        return makeResourceOptions(MTL::ResourceStorageModeShared, MTL::ResourceCPUCacheModeWriteCombined);
+    case MemoryType::ReadBack:
+        return makeResourceOptions(MTL::ResourceStorageModeShared);
+    default:
+        return makeResourceOptions(MTL::ResourceStorageModePrivate);
+    }
+}
+
+Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    AUTORELEASEPOOL
+
+    BufferDesc desc = fixupBufferDesc(desc_);
+    MTL::SizeAndAlign sizeAndAlign =
+        m_device->heapBufferSizeAndAlign(desc.size, getMetalResourceOptions(desc.memoryType));
+    outRequirements->size = sizeAndAlign.size;
+    outRequirements->alignment = sizeAndAlign.align;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->heapKind = getResourceHeapKind(desc);
+    outRequirements->requiresDedicatedAllocation = is_set(desc.usage, BufferUsage::Shared);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    AUTORELEASEPOOL
+
+    TextureDesc desc = fixupTextureDesc(desc_);
+    NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
+    switch (desc.memoryType)
+    {
+    case MemoryType::DeviceLocal:
+        textureDesc->setStorageMode(MTL::StorageModePrivate);
+        break;
+    case MemoryType::Upload:
+        textureDesc->setStorageMode(MTL::StorageModeShared);
+        textureDesc->setCpuCacheMode(MTL::CPUCacheModeWriteCombined);
+        break;
+    case MemoryType::ReadBack:
+        textureDesc->setStorageMode(MTL::StorageModeShared);
+        break;
+    }
+    textureDesc->setTextureType(translateTextureType(desc.type));
+    textureDesc->setWidth(desc.size.width);
+    textureDesc->setHeight(desc.size.height);
+    textureDesc->setDepth(desc.size.depth);
+    textureDesc->setMipmapLevelCount(desc.mipCount);
+    textureDesc->setArrayLength(desc.arrayLength);
+    textureDesc->setPixelFormat(translatePixelFormat(desc.format));
+    textureDesc->setSampleCount(desc.sampleCount);
+    textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
+
+    MTL::SizeAndAlign sizeAndAlign = m_device->heapTextureSizeAndAlign(textureDesc.get());
+    outRequirements->size = sizeAndAlign.size;
+    outRequirements->alignment = sizeAndAlign.align;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->heapKind = getResourceHeapKind(desc);
+    outRequirements->requiresDedicatedAllocation = is_set(desc.usage, TextureUsage::Shared);
+    return SLANG_OK;
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)
