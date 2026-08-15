@@ -41,8 +41,8 @@ Result ResourceHeapImpl::init()
     uint32_t memoryTypeBits = ~0u;
     if (m_desc.kind == ResourceHeapKind::Buffers || m_desc.kind == ResourceHeapKind::All)
     {
-        VkBufferUsageFlags usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        VkBufferUsageFlags usage =
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         if (api.m_extendedFeatures.vulkan12Features.bufferDeviceAddress)
             usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
         VkBuffer buffer = VK_NULL_HANDLE;

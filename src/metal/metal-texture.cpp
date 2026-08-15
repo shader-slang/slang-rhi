@@ -160,8 +160,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         SLANG_RETURN_ON_FAIL(validateResourcePlacement(*placement, requirements));
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
-        textureImpl->m_texture =
-            NS::TransferPtr(heap->m_heap->newTexture(textureDesc.get(), placement->offset));
+        textureImpl->m_texture = NS::TransferPtr(heap->m_heap->newTexture(textureDesc.get(), placement->offset));
         textureImpl->m_resourceHeap = heap;
     }
     else
