@@ -6,6 +6,7 @@
 #include "debug-device.h"
 #include "debug-fence.h"
 #include "debug-heap.h"
+#include "debug-resource-heap.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
 #include "debug-surface.h"
@@ -126,6 +127,7 @@ SLANG_RHI_DEBUG_GET_OBJ_IMPL(Surface)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(QueryPool)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Fence)
 SLANG_RHI_DEBUG_GET_OBJ_IMPL(Heap)
+SLANG_RHI_DEBUG_GET_OBJ_IMPL(ResourceHeap)
 
 std::string subresourceRangeToString(const SubresourceRange& range);
 
@@ -141,6 +143,20 @@ std::string createRenderPipelineLabel(const RenderPipelineDesc& desc);
 std::string createComputePipelineLabel(const ComputePipelineDesc& desc);
 std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc);
 std::string createHeapLabel(const HeapDesc& desc);
+std::string createResourceHeapLabel(const ResourceHeapDesc& desc);
+
+inline bool isValidResourceHeapKind(ResourceHeapKind value)
+{
+    switch (value)
+    {
+    case ResourceHeapKind::Buffers:
+    case ResourceHeapKind::NonRtDsTextures:
+    case ResourceHeapKind::RtDsTextures:
+    case ResourceHeapKind::All:
+        return true;
+    }
+    return false;
+}
 
 Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);
 Result validateClusterOperationParams(DebugContext* ctx, const ClusterOperationParams& params);

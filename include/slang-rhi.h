@@ -85,6 +85,9 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 
     VulkanDeviceExtendedDesc,
+
+    ResourceHeapDesc,
+    ResourcePlacementDesc,
 };
 
 // TODO: Implementation or backend or something else?
@@ -172,7 +175,8 @@ enum class DeviceType
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
-    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
+    x(MemoryAliasing,                           "memory-aliasing"                               )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
@@ -581,6 +585,7 @@ enum class NativeHandleType
     D3D12CpuDescriptorHandle = 0x00020007,
     D3D12Fence = 0x00020008,
     D3D12DeviceAddress = 0x00020009,
+    D3D12Heap = 0x0002000a,
 
     VkDevice = 0x00030001,
     VkPhysicalDevice = 0x00030002,
@@ -594,6 +599,7 @@ enum class NativeHandleType
     VkSampler = 0x0003000a,
     VkPipeline = 0x0003000b,
     VkSemaphore = 0x0003000c,
+    VkDeviceMemory = 0x0003000d,
 
     MTLDevice = 0x00040001,
     MTLCommandQueue = 0x00040002,
@@ -605,6 +611,7 @@ enum class NativeHandleType
     MTLSharedEvent = 0x00040008,
     MTLSamplerState = 0x00040009,
     MTLAccelerationStructure = 0x0004000a,
+    MTLHeap = 0x0004000b,
 
     CUdevice = 0x00050001,
     CUdeviceptr = 0x00050002,
@@ -3069,6 +3076,74 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() = 0;
 };
 
+/// Compatibility class of a resource heap. Resources can only be placed in a heap of a matching kind.
+/// `All` requires a backend that allows mixed buffer/texture heaps (D3D12 resource heap tier 2, Vulkan, Metal).
+enum class ResourceHeapKind
+{
+    Buffers,
+    NonRtDsTextures,
+    RtDsTextures,
+    All,
+};
+
+/// Memory requirements for placing a resource in a resource heap.
+struct ResourceMemoryRequirements
+{
+    Size size = 0;
+    Size alignment = 0;
+    MemoryType memoryType = MemoryType::DeviceLocal;
+    ResourceHeapKind heapKind = ResourceHeapKind::All;
+    /// When true, the resource must be created with dedicated memory and cannot be placed.
+    bool requiresDedicatedAllocation = false;
+};
+
+struct ResourceHeapDesc
+{
+    StructType structType = StructType::ResourceHeapDesc;
+    const void* next = nullptr;
+
+    MemoryType memoryType = MemoryType::DeviceLocal;
+    ResourceHeapKind kind = ResourceHeapKind::All;
+    Size size = 0;
+    const char* label = nullptr;
+};
+
+class IResourceHeap : public ISlangUnknown
+{
+    SLANG_COM_INTERFACE(0xcd98d956, 0x6c48, 0x4e75, {0xb4, 0xeb, 0xe2, 0x72, 0x14, 0x93, 0x6b, 0xa0});
+
+public:
+    virtual SLANG_NO_THROW const ResourceHeapDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+};
+
+/// Chain onto BufferDesc::next or TextureDesc::next to place a resource in a heap.
+struct ResourcePlacementDesc
+{
+    StructType structType = StructType::ResourcePlacementDesc;
+    const void* next = nullptr;
+
+    IResourceHeap* heap = nullptr;
+    Offset offset = 0;
+};
+
+inline ResourceHeapKind getResourceHeapKind(const BufferDesc&)
+{
+    return ResourceHeapKind::Buffers;
+}
+
+inline ResourceHeapKind getResourceHeapKind(const TextureDesc& desc)
+{
+    if (is_set(desc.usage, TextureUsage::RenderTarget) || is_set(desc.usage, TextureUsage::DepthStencil))
+        return ResourceHeapKind::RtDsTextures;
+    return ResourceHeapKind::NonRtDsTextures;
+}
+
+inline bool isResourceHeapKindCompatible(ResourceHeapKind heapKind, ResourceHeapKind resourceKind)
+{
+    return heapKind == ResourceHeapKind::All || heapKind == resourceKind;
+}
+
 struct AdapterLUID
 {
     uint8_t luid[16];
@@ -3836,6 +3911,29 @@ public:
     /// Pop the CUDA context from the current thread's context stack.
     /// For non-CUDA devices, this is a no-op.
     virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() = 0;
+
+    /// Create a heap that resources can be placed into for memory aliasing.
+    virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
+        const ResourceHeapDesc& desc,
+        IResourceHeap** outHeap
+    ) = 0;
+
+    inline ComPtr<IResourceHeap> createResourceHeap(const ResourceHeapDesc& desc)
+    {
+        ComPtr<IResourceHeap> heap;
+        SLANG_RETURN_NULL_ON_FAIL(createResourceHeap(desc, heap.writeRef()));
+        return heap;
+    }
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
+        const BufferDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
+        const TextureDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) = 0;
 };
 
 /// RAII helper that pushes a device's CUDA context on construction and pops it on destruction.
