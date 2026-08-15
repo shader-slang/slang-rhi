@@ -300,6 +300,8 @@ public:
     ) override;
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(IResource* before, IResource* after) override;
+
 public:
     void requireOpen();
     void requireNoPass();

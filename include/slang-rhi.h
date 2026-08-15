@@ -2813,6 +2813,11 @@ public:
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
+
+    /// Insert an aliasing barrier between two resources that share the same heap memory.
+    /// `before` may be null when first activating `after`.
+    /// After this call, the contents of `after` are undefined.
+    virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(IResource* before, IResource* after) = 0;
 };
 
 #if 0

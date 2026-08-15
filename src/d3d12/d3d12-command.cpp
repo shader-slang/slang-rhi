@@ -11,6 +11,7 @@
 #include "d3d12-query.h"
 #include "d3d12-input-layout.h"
 #include "d3d12-utils.h"
+#include "../rhi-shared.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 #include "../format-conversion.h"
@@ -111,6 +112,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -1567,6 +1569,33 @@ void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
 void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 {
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
+}
+
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    auto getResource = [](IResource* resource) -> ID3D12Resource*
+    {
+        if (Buffer* buffer = asBuffer(resource))
+            return checked_cast<BufferImpl*>(buffer)->m_resource.getResource();
+        if (Texture* texture = asTexture(resource))
+            return checked_cast<TextureImpl*>(texture)->m_resource.getResource();
+        return nullptr;
+    };
+
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+    barrier.Aliasing.pResourceBefore = getResource(cmd.before);
+    barrier.Aliasing.pResourceAfter = getResource(cmd.after);
+    m_cmdList->ResourceBarrier(1, &barrier);
+
+    if (Buffer* buffer = asBuffer(cmd.before))
+        m_stateTracking.resetBufferState(buffer);
+    if (Texture* texture = asTexture(cmd.before))
+        m_stateTracking.resetTextureState(texture);
+    if (Buffer* buffer = asBuffer(cmd.after))
+        m_stateTracking.resetBufferState(buffer);
+    if (Texture* texture = asTexture(cmd.after))
+        m_stateTracking.resetTextureState(texture);
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)

@@ -1849,6 +1849,22 @@ void DebugCommandEncoder::globalBarrier()
     baseObject->globalBarrier();
 }
 
+void DebugCommandEncoder::aliasResources(IResource* before, IResource* after)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, aliasResources);
+
+    requireOpen();
+    requireNoPass();
+
+    if (!after)
+    {
+        RHI_VALIDATION_ERROR("'after' must not be null.");
+        return;
+    }
+
+    baseObject->aliasResources(before, after);
+}
+
 void DebugCommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {
     SLANG_RHI_DEBUG_API(ICommandEncoder, pushDebugGroup);
