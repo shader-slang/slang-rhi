@@ -939,6 +939,7 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-acceleration-structure.cpp
         src/metal/metal-api.cpp
         src/metal/metal-backend.cpp
+        src/metal/metal-bindless-descriptor-set.cpp
         src/metal/metal-buffer.cpp
         src/metal/metal-clear-engine.cpp
         src/metal/metal-command.cpp

@@ -61,7 +61,7 @@
 | `getDesc`             | yes     | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getSharedHandle`     | :x:     | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `getDeviceAddress`    | yes (1) | yes  | :x:   | yes   | yes    | yes   | :x:  |
-| `getDescriptorHandle` | :x:     | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `getDescriptorHandle` | :x:     | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 
 (1) returns host address
 
@@ -81,7 +81,7 @@
 |--------------------------------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`                                  | yes | yes  | yes   | yes   | yes    | yes   | yes  |
 | `getTexture`                               | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getDescriptorHandle`                      | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
+| `getDescriptorHandle`                      | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `getCombinedTextureSamplerDescriptorHandle`| :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 
 ## `ISampler` interface
@@ -89,7 +89,7 @@
 | API                   | CPU | CUDA | D3D11 | D3D12 | Vulkan | Metal | WGPU |
 |-----------------------|-----|------|-------|-------|--------|-------|------|
 | `getDesc`             | yes | yes  | yes   | yes   | yes    | yes   | yes  |
-| `getDescriptorHandle` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `getDescriptorHandle` | :x: | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 
 ## `IFence` interface
 
@@ -270,7 +270,7 @@ Note: CUDA's surface is implemented using a Vulkan swapchain.
 |-----------------------|-----|------|-------|-------|--------|-------|------|
 | `getHandle`           | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `getDeviceAddress`    | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
-| `getDescriptorHandle` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
+| `getDescriptorHandle` | :x: | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 
 ## `IHeap` interface
 

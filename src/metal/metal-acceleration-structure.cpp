@@ -1,6 +1,7 @@
 #include "metal-acceleration-structure.h"
 #include "metal-device.h"
 #include "metal-buffer.h"
+#include "metal-bindless-descriptor-set.h"
 #include "metal-utils.h"
 
 namespace rhi::metal {
@@ -40,6 +41,16 @@ AccelerationStructureHandle AccelerationStructureImpl::getHandle()
 DeviceAddress AccelerationStructureImpl::getDeviceAddress()
 {
     return 0;
+}
+
+Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandle)
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (!device->m_bindlessDescriptorSet)
+    {
+        return SLANG_E_NOT_AVAILABLE;
+    }
+    return device->m_bindlessDescriptorSet->allocAccelerationStructureHandle(this, outHandle);
 }
 
 Result DeviceImpl::createAccelerationStructure(
