@@ -3,6 +3,8 @@
 #include "debug-fence.h"
 #include "debug-heap.h"
 #include "debug-helper-functions.h"
+#include "debug-resource-heap.h"
+#include "../resource-heap.h"
 #include "debug-query.h"
 #include "debug-shader-object.h"
 
@@ -16,6 +18,29 @@
 #include <vector>
 
 namespace rhi::debug {
+
+void unwrapResourcePlacement(const void*& next, ResourcePlacementDesc& storage)
+{
+    const ResourcePlacementDesc* placement = findResourcePlacementDesc(next);
+    if (!placement)
+        return;
+    storage = *placement;
+    storage.heap = getInnerObj(placement->heap);
+    storage.next = next;
+    next = &storage;
+}
+
+Result validateResourcePlacementDesc(DebugContext* ctx, const ResourcePlacementDesc* placement)
+{
+    if (!placement)
+        return SLANG_OK;
+    if (!placement->heap)
+    {
+        RHI_VALIDATION_ERROR("ResourcePlacementDesc::heap must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    return SLANG_OK;
+}
 
 Result DebugDevice::queryInterface(const SlangUUID& uuid, void** outObject) noexcept
 {
@@ -336,6 +361,10 @@ Result DebugDevice::createTexture(const TextureDesc& desc, const SubresourceData
         patchedDesc.label = label.c_str();
     }
 
+    ResourcePlacementDesc unwrappedPlacement;
+    SLANG_RETURN_ON_FAIL(validateResourcePlacementDesc(ctx, findResourcePlacementDesc(patchedDesc.next)));
+    unwrapResourcePlacement(patchedDesc.next, unwrappedPlacement);
+
     return baseObject->createTexture(patchedDesc, initData, outTexture);
 }
 
@@ -413,6 +442,10 @@ Result DebugDevice::createBuffer(const BufferDesc& desc, const void* initData, I
         label = createBufferLabel(patchedDesc);
         patchedDesc.label = label.c_str();
     }
+
+    ResourcePlacementDesc unwrappedPlacement;
+    SLANG_RETURN_ON_FAIL(validateResourcePlacementDesc(ctx, findResourcePlacementDesc(patchedDesc.next)));
+    unwrapResourcePlacement(patchedDesc.next, unwrappedPlacement);
 
     return baseObject->createBuffer(patchedDesc, initData, outBuffer);
 }
@@ -1604,6 +1637,72 @@ Result DebugDevice::popCudaContext()
     SLANG_RHI_DEBUG_API(IDevice, popCudaContext);
 
     return baseObject->popCudaContext();
+}
+
+Result DebugDevice::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_RHI_DEBUG_API(IDevice, createResourceHeap);
+    validateCudaContext();
+
+    if (!outHeap)
+    {
+        RHI_VALIDATION_ERROR("'outHeap' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (desc.size == 0)
+    {
+        RHI_VALIDATION_ERROR("Resource heap size must be greater than 0.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!isValidMemoryType(desc.memoryType))
+    {
+        RHI_VALIDATION_ERROR("Invalid memory type.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!isValidResourceHeapKind(desc.kind))
+    {
+        RHI_VALIDATION_ERROR("Invalid resource heap kind.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    ResourceHeapDesc patchedDesc = desc;
+    std::string label;
+    if (!patchedDesc.label)
+    {
+        label = createResourceHeapLabel(patchedDesc);
+        patchedDesc.label = label.c_str();
+    }
+
+    RefPtr<DebugResourceHeap> result = new DebugResourceHeap(ctx);
+    SLANG_RETURN_ON_FAIL(baseObject->createResourceHeap(patchedDesc, result->baseObject.writeRef()));
+    returnComPtr(outHeap, result);
+    return SLANG_OK;
+}
+
+Result DebugDevice::getBufferMemoryRequirements(const BufferDesc& desc, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_RHI_DEBUG_API(IDevice, getBufferMemoryRequirements);
+
+    if (!outRequirements)
+    {
+        RHI_VALIDATION_ERROR("'outRequirements' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->getBufferMemoryRequirements(desc, outRequirements);
+}
+
+Result DebugDevice::getTextureMemoryRequirements(const TextureDesc& desc, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_RHI_DEBUG_API(IDevice, getTextureMemoryRequirements);
+
+    if (!outRequirements)
+    {
+        RHI_VALIDATION_ERROR("'outRequirements' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->getTextureMemoryRequirements(desc, outRequirements);
 }
 
 void DebugDevice::validateCudaContext()

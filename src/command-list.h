@@ -46,6 +46,7 @@
     x(SetBufferState) \
     x(SetTextureState) \
     x(GlobalBarrier) \
+    x(AliasResources) \
     x(PushDebugGroup) \
     x(PopDebugGroup) \
     x(InsertDebugMarker) \
@@ -305,6 +306,12 @@ struct SetTextureState
 struct GlobalBarrier
 {};
 
+struct AliasResources
+{
+    IResource* before;
+    IResource* after;
+};
+
 struct PushDebugGroup
 {
     const char* name;
@@ -448,6 +455,7 @@ public:
     void write(commands::SetBufferState&& cmd);
     void write(commands::SetTextureState&& cmd);
     void write(commands::GlobalBarrier&& cmd);
+    void write(commands::AliasResources&& cmd);
     void write(commands::PushDebugGroup&& cmd);
     void write(commands::PopDebugGroup&& cmd);
     void write(commands::InsertDebugMarker&& cmd);

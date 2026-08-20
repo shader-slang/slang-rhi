@@ -11,6 +11,7 @@
 #include "vk-shader-object.h"
 #include "vk-shader-object-layout.h"
 #include "../command-list.h"
+#include "../rhi-shared.h"
 #include "../state-tracking.h"
 #include "../strings.h"
 
@@ -111,6 +112,7 @@ public:
     void cmdSetBufferState(const commands::SetBufferState& cmd);
     void cmdSetTextureState(const commands::SetTextureState& cmd);
     void cmdGlobalBarrier(const commands::GlobalBarrier& cmd);
+    void cmdAliasResources(const commands::AliasResources& cmd);
     void cmdPushDebugGroup(const commands::PushDebugGroup& cmd);
     void cmdPopDebugGroup(const commands::PopDebugGroup& cmd);
     void cmdInsertDebugMarker(const commands::InsertDebugMarker& cmd);
@@ -1502,6 +1504,38 @@ void CommandRecorder::cmdSetBufferState(const commands::SetBufferState& cmd)
 void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 {
     m_stateTracking.setTextureState(checked_cast<TextureImpl*>(cmd.texture), cmd.subresourceRange, cmd.state);
+}
+
+void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
+{
+    commitBarriers();
+
+    VkMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+
+    m_api.vkCmdPipelineBarrier(
+        m_cmdBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VkDependencyFlags(0),
+        1,
+        &memoryBarrier,
+        0,
+        nullptr,
+        0,
+        nullptr
+    );
+
+    if (Buffer* buffer = asBuffer(cmd.before))
+        m_stateTracking.resetBufferState(buffer);
+    if (Texture* texture = asTexture(cmd.before))
+        m_stateTracking.resetTextureState(texture);
+    if (Buffer* buffer = asBuffer(cmd.after))
+        m_stateTracking.resetBufferState(buffer);
+    if (Texture* texture = asTexture(cmd.after))
+        m_stateTracking.resetTextureState(texture);
 }
 
 void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)

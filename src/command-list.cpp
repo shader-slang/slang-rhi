@@ -347,6 +347,15 @@ void CommandList::write(commands::GlobalBarrier&& cmd)
     writeCommand(std::move(cmd));
 }
 
+void CommandList::write(commands::AliasResources&& cmd)
+{
+    retainResource(asBuffer(cmd.before));
+    retainResource(asTexture(cmd.before));
+    retainResource(asBuffer(cmd.after));
+    retainResource(asTexture(cmd.after));
+    writeCommand(std::move(cmd));
+}
+
 void CommandList::write(commands::PushDebugGroup&& cmd)
 {
     if (cmd.name)

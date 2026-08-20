@@ -33,6 +33,9 @@ class Device;
 class CommandEncoder;
 class CommandList;
 
+Buffer* asBuffer(IResource* resource);
+Texture* asTexture(IResource* resource);
+
 /// Common header for Desc struct types.
 struct DescStructHeader
 {
