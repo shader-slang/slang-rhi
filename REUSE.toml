@@ -7,11 +7,10 @@ SPDX-PackageDownloadLocation = "https://github.com/shader-slang/slang-rhi"
 path = [
   ".claude/**",
   ".github/**",
-  ".gitignore/**",
   ".clang-format",
   ".coderabbit.yaml",
   ".editorconfig",
-  ".gitignore",
+  "**/.gitignore",
   ".pre-commit-config.yaml",
   "CHANGELOG",
   "cmake/**",
