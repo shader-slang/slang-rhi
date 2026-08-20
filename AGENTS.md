@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: The Khronos Group, Inc.
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # AGENTS.md
 
 This file provides guidance to agents when working with code in this repository.
