@@ -298,7 +298,13 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             if (m_ctx.optixContext->getCooperativeVectorSupport())
             {
                 addFeature(Feature::CooperativeVector);
-                // addCapability(Capability::optix_coopvec);
+                // Slang's optix_coopvec capability implies _cuda_sm_9_0. Keep exposing the
+                // API feature on every device supported by OptiX, but only enable the native
+                // OptiX shader path when the device also supports the implied architecture.
+                if (hasComputeCapability(9, 0))
+                {
+                    addCapability(Capability::optix_coopvec);
+                }
             }
         }
     }

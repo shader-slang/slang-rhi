@@ -1402,6 +1402,13 @@ Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
     return SLANG_OK;
 }
 
+Result DeviceImpl::getTextureBufferOffsetAlignment(Format format, Size* outAlignment)
+{
+    SLANG_UNUSED(format);
+    *outAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
     // Description of uploading on Dx12

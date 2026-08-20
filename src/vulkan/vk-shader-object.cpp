@@ -9,6 +9,8 @@
 
 #include "../state-tracking.h"
 
+#include <string>
+
 namespace rhi::vk {
 
 inline void writeDescriptor(DeviceImpl* device, const VkWriteDescriptorSet& write)
@@ -572,9 +574,11 @@ Result BindingDataBuilder::bindAsValue(
             break;
 
         default:
-            SLANG_RHI_ASSERT_FAILURE("Unsupported binding type");
+        {
+            std::string message = "Unsupported binding type: " + std::to_string((int)bindingRangeInfo.bindingType);
+            SLANG_RHI_ASSERT_FAILURE(message.c_str());
             return SLANG_FAIL;
-            break;
+        }
         }
     }
 

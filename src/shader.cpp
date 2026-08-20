@@ -109,6 +109,8 @@ Result ShaderProgram::init()
 
 Result ShaderProgram::compileShaders(Device* device)
 {
+    std::lock_guard<std::mutex> lock(m_compileMutex);
+
     if (m_compiledShaders)
         return SLANG_OK;
 
@@ -119,62 +121,126 @@ Result ShaderProgram::compileShaders(Device* device)
         return SLANG_OK;
     }
 
-    // For a fully specialized program, read and store its kernel code in `shaderProgram`.
-    auto compileShader = [&](slang::EntryPointReflection* entryPointInfo,
-                             slang::IComponentType* entryPointComponent,
-                             uint32_t entryPointIndex)
+    std::vector<CompiledEntryPoint> entryPoints;
+    SLANG_RETURN_ON_FAIL(prepareEntryPointCompilation(device, entryPoints));
+    for (auto& entryPoint : entryPoints)
     {
-        ComPtr<ISlangBlob> kernelCode;
-        ComPtr<ISlangBlob> diagnostics;
-        auto compileResult = device->getEntryPointCodeFromShaderCache(
-            this,
-            entryPointComponent,
-            entryPointInfo->getNameOverride(),
-            entryPointIndex,
-            0,
-            kernelCode.writeRef(),
-            diagnostics.writeRef()
-        );
-        if (diagnostics)
+        entryPoint.result = compileEntryPoint(device, entryPoint, true);
+        reportEntryPointCompilation(device, entryPoint);
+        SLANG_RETURN_ON_FAIL(entryPoint.result);
+    }
+
+    SLANG_RETURN_ON_FAIL(installCompiledEntryPoints(entryPoints));
+    return SLANG_OK;
+}
+
+Result ShaderProgram::prepareEntryPointCompilation(Device* device, std::vector<CompiledEntryPoint>& outEntryPoints)
+{
+    outEntryPoints.clear();
+
+    auto appendEntryPoint = [&](slang::IComponentType* componentType, uint32_t entryPointIndex) -> Result
+    {
+        slang::ProgramLayout* layout = componentType->getLayout();
+        if (!layout)
+            return SLANG_FAIL;
+        slang::EntryPointReflection* reflection = layout->getEntryPointByIndex(entryPointIndex);
+        if (!reflection)
+            return SLANG_FAIL;
+
+        CompiledEntryPoint entryPoint;
+        entryPoint.componentType = componentType;
+        entryPoint.entryPointIndex = entryPointIndex;
+        entryPoint.targetIndex = 0;
+        entryPoint.stage = reflection->getStage();
+        entryPoint.name = string::from_cstr(reflection->getNameOverride());
+        if (device->m_persistentShaderCache)
         {
-            DebugMessageType msgType = DebugMessageType::Warning;
-            if (compileResult != SLANG_OK)
-                msgType = DebugMessageType::Error;
-            device->handleMessage(msgType, DebugMessageSource::Slang, (char*)diagnostics->getBufferPointer());
+            componentType->getEntryPointHash(entryPointIndex, 0, entryPoint.cacheKey.writeRef());
         }
-        SLANG_RETURN_ON_FAIL(compileResult);
-        SLANG_RETURN_ON_FAIL(createShaderModule(entryPointInfo, kernelCode));
+        outEntryPoints.push_back(std::move(entryPoint));
         return SLANG_OK;
     };
 
     if (linkedEntryPoints.size() == 0)
     {
-        // If the user does not explicitly specify entry point components, find them from
-        // `linkedEntryPoints`.
         auto programReflection = linkedProgram->getLayout();
+        if (!programReflection)
+            return SLANG_FAIL;
         for (uint32_t i = 0; i < programReflection->getEntryPointCount(); i++)
         {
-            SLANG_RETURN_ON_FAIL(compileShader(programReflection->getEntryPointByIndex(i), linkedProgram, i));
+            SLANG_RETURN_ON_FAIL(appendEntryPoint(linkedProgram, i));
         }
     }
     else
     {
-        // If the user specifies entry point components via the separated entry point array,
-        // compile code from there.
         for (auto& entryPoint : linkedEntryPoints)
         {
-            SLANG_RETURN_ON_FAIL(compileShader(entryPoint->getLayout()->getEntryPointByIndex(0), entryPoint, 0));
+            SLANG_RETURN_ON_FAIL(appendEntryPoint(entryPoint, 0));
         }
     }
-
-    m_compiledShaders = true;
 
     return SLANG_OK;
 }
 
-Result ShaderProgram::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+Result ShaderProgram::compileEntryPoint(Device* device, CompiledEntryPoint& entryPoint, bool measureCompilerTime)
 {
-    SLANG_UNUSED(entryPointInfo);
+    return device->getEntryPointCodeFromShaderCache(
+        this,
+        entryPoint.componentType,
+        entryPoint.name.c_str(),
+        entryPoint.entryPointIndex,
+        entryPoint.targetIndex,
+        entryPoint.cacheKey,
+        measureCompilerTime,
+        &entryPoint.stats,
+        entryPoint.code.writeRef(),
+        entryPoint.diagnostics.writeRef()
+    );
+}
+
+void ShaderProgram::reportEntryPointCompilation(Device* device, const CompiledEntryPoint& entryPoint)
+{
+    if (entryPoint.diagnostics)
+    {
+        device->handleMessage(
+            SLANG_SUCCEEDED(entryPoint.result) ? DebugMessageType::Warning : DebugMessageType::Error,
+            DebugMessageSource::Slang,
+            static_cast<const char*>(entryPoint.diagnostics->getBufferPointer())
+        );
+    }
+
+    if (device->m_shaderCompilationReporter && entryPoint.code)
+    {
+        device->m_shaderCompilationReporter->reportCompileEntryPoint(
+            this,
+            entryPoint.name.c_str(),
+            entryPoint.stats.startTime,
+            entryPoint.stats.endTime,
+            entryPoint.stats.totalTime,
+            entryPoint.stats.downstreamTime,
+            entryPoint.stats.isCached,
+            entryPoint.stats.cacheSize
+        );
+    }
+}
+
+Result ShaderProgram::installCompiledEntryPoints(std::span<const CompiledEntryPoint> entryPoints)
+{
+    for (const auto& entryPoint : entryPoints)
+    {
+        ShaderModuleDesc desc;
+        desc.stage = entryPoint.stage;
+        desc.entryPointName = entryPoint.name.c_str();
+        SLANG_RETURN_ON_FAIL(createShaderModule(desc, entryPoint.code));
+    }
+
+    m_compiledShaders = true;
+    return SLANG_OK;
+}
+
+Result ShaderProgram::createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode)
+{
+    SLANG_UNUSED(desc);
     SLANG_UNUSED(kernelCode);
     return SLANG_OK;
 }

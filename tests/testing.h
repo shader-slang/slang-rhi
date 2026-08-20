@@ -28,6 +28,7 @@ struct Options
     bool printMemoryReport = false;
     std::string memoryReportFile;
     std::array<bool, kDeviceTypeCount + 1> deviceSelected;
+    std::array<bool, kDeviceTypeCount + 1> deviceRequired;
     std::array<int, kDeviceTypeCount + 1> deviceAdapterIndex;
     uint32_t d3d12ShaderModel = 0;
     bool d3d12DisableNVAPI = false;
@@ -36,6 +37,7 @@ struct Options
     Options()
     {
         deviceSelected.fill(true);
+        deviceRequired.fill(false);
         deviceAdapterIndex.fill(-1);
     }
 };
@@ -328,6 +330,7 @@ struct DeviceExtraOptions
     IPersistentCache* persistentShaderCache = nullptr;
     IPersistentCache* persistentPipelineCache = nullptr;
     bool enableCompilationReports = false;
+    PipelineCompilationMode pipelineCompilationMode = PipelineCompilationMode::Serial;
     DeviceNativeHandles existingDeviceHandles;
 
     // D3D12-specific (no effect for other devices): Limit the maximum shader model. When set to 0
@@ -404,6 +407,16 @@ static constexpr DeviceType kPlatformDeviceTypes[] = {
     rhi::DeviceType::CUDA,
     rhi::DeviceType::WGPU,
 #endif
+};
+
+static constexpr DeviceType kDeviceTypes[] = {
+    rhi::DeviceType::D3D11,
+    rhi::DeviceType::D3D12,
+    rhi::DeviceType::Vulkan,
+    rhi::DeviceType::Metal,
+    rhi::DeviceType::CPU,
+    rhi::DeviceType::CUDA,
+    rhi::DeviceType::WGPU,
 };
 
 inline bool isPlatformDeviceType(DeviceType deviceType)

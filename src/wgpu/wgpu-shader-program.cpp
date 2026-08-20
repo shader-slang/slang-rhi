@@ -19,7 +19,7 @@ ShaderProgramImpl::~ShaderProgramImpl()
     }
 }
 
-Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryPointInfo, ComPtr<ISlangBlob> kernelCode)
+Result ShaderProgramImpl::createShaderModule(const ShaderModuleDesc& desc, ComPtr<ISlangBlob> kernelCode)
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
@@ -28,8 +28,8 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
         device->printWarning("Web GPU device had reported error before shader compilation.");
 
     Module module;
-    module.stage = entryPointInfo->getStage();
-    module.entryPointName = entryPointInfo->getNameOverride();
+    module.stage = desc.stage;
+    module.entryPointName = desc.entryPointName;
     module.code = std::string((char*)kernelCode->getBufferPointer(), kernelCode->getBufferSize());
 
 #if !SLANG_WASM
@@ -42,10 +42,10 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
     wgslDesc.code = WGPUStringView{module.code.c_str(), module.code.size()};
 #endif
-    WGPUShaderModuleDescriptor desc = {};
-    desc.nextInChain = (WGPUChainedStruct*)&wgslDesc;
+    WGPUShaderModuleDescriptor moduleDesc = {};
+    moduleDesc.nextInChain = (WGPUChainedStruct*)&wgslDesc;
 
-    module.module = device->m_ctx.api.wgpuDeviceCreateShaderModule(device->m_ctx.device, &desc);
+    module.module = device->m_ctx.api.wgpuDeviceCreateShaderModule(device->m_ctx.device, &moduleDesc);
     if (!module.module)
     {
         return SLANG_FAIL;

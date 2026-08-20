@@ -12,6 +12,11 @@
 #include <GLFW/glfw3native.h>
 #include <slang-rhi/glfw.h>
 
+// X11 defines None as a macro after slang-rhi.h has already removed it.
+#ifdef None
+#undef None
+#endif
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -43,8 +48,10 @@ struct SurfaceTest
 
     GLFWwindow* window;
     ComPtr<ISurface> surface;
+    uint32_t configurationCount = 0;
 
     virtual Format getSurfaceFormat() { return surface->getInfo().preferredFormat; }
+    virtual TextureUsage getSurfaceUsage() { return TextureUsage::None; }
     virtual void initResources() = 0;
     virtual void renderFrame(ITexture* texture, uint32_t width, uint32_t height, uint32_t frameIndex) = 0;
 
@@ -59,6 +66,7 @@ struct SurfaceTest
         REQUIRE(this->queue);
         this->surface = device->createSurface(getWindowHandleFromGLFW(window));
         REQUIRE(this->surface);
+        CHECK(is_set(this->surface->getInfo().supportedUsage, TextureUsage::Present));
 
         initResources();
     }
@@ -76,6 +84,9 @@ struct SurfaceTest
 
         SurfaceConfig config = {};
         config.format = getSurfaceFormat();
+        // Exercise default usage resolution on the first configuration and explicit usage
+        // validation on subsequent configurations.
+        config.usage = configurationCount++ == 0 ? TextureUsage::None : getSurfaceUsage();
         config.width = width;
         config.height = height;
         config.vsync = false;
@@ -84,6 +95,10 @@ struct SurfaceTest
         CHECK(surface->getConfig());
         CHECK(surface->getConfig()->width == width);
         CHECK(surface->getConfig()->height == height);
+        CHECK(surface->getConfig()->usage != TextureUsage::None);
+        CHECK(surface->getConfig()->usage == (surface->getConfig()->usage & surface->getInfo().supportedUsage));
+        if (config.usage != TextureUsage::None)
+            CHECK(surface->getConfig()->usage == config.usage);
     }
 
     void run()
@@ -102,6 +117,7 @@ struct SurfaceTest
             ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
+            CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
             surface->present();
         }
@@ -118,6 +134,7 @@ struct SurfaceTest
             ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
+            CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
             surface->present();
         }
@@ -143,6 +160,7 @@ struct SurfaceTest
             ComPtr<ITexture> texture = surface->acquireNextImage();
             CHECK(texture->getDesc().size.width == width);
             CHECK(texture->getDesc().size.height == height);
+            CHECK(texture->getDesc().usage == surface->getConfig()->usage);
             renderFrame(texture, width, height, i);
             surface->present();
         }
@@ -155,6 +173,8 @@ struct RenderSurfaceTest : SurfaceTest
 {
     ComPtr<IBuffer> vertexBuffer;
     ComPtr<IRenderPipeline> pipeline;
+
+    TextureUsage getSurfaceUsage() override { return TextureUsage::Present | TextureUsage::RenderTarget; }
 
     void initResources() override
     {
@@ -250,12 +270,27 @@ struct ComputeSurfaceTest : SurfaceTest
             {
             case Format::RGBA8Unorm:
             case Format::BGRA8Unorm:
+            case Format::BGRX8Unorm:
                 return info.formats[i];
             default:
                 break;
             }
         }
         return info.preferredFormat;
+    }
+
+    TextureUsage getSurfaceUsage() override
+    {
+        // Exercise explicit storage usage on every backend where both the surface and selected
+        // format support it.
+        if (is_set(surface->getInfo().supportedUsage, TextureUsage::UnorderedAccess))
+        {
+            FormatSupport formatSupport = {};
+            REQUIRE_CALL(device->getFormatSupport(getSurfaceFormat(), &formatSupport));
+            if (is_set(formatSupport, FormatSupport::ShaderUavStore))
+                return TextureUsage::Present | TextureUsage::UnorderedAccess;
+        }
+        return TextureUsage::None;
     }
 
     void initResources() override

@@ -6,6 +6,7 @@
 #include <fstream>
 #include <map>
 #include <algorithm>
+#include <mutex>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -25,18 +26,17 @@ public:
     using Key = std::vector<uint8_t>;
     using Data = std::vector<uint8_t>;
 
-    std::map<Key, Data> entries;
-    Stats stats;
-
     void clear()
     {
-        entries.clear();
-        stats = {};
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_entries.clear();
+        m_stats = {};
     }
 
     void corrupt()
     {
-        for (auto& entry : entries)
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (auto& entry : m_entries)
         {
             // Corrupt the data.
             if (!entry.second.empty())
@@ -49,9 +49,14 @@ public:
         }
     }
 
+    Stats getStats() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_stats;
+    }
+
     virtual SLANG_NO_THROW Result SLANG_MCALL writeCache(ISlangBlob* key_, ISlangBlob* data_) override
     {
-        stats.writeCount++;
         Key key(
             static_cast<const uint8_t*>(key_->getBufferPointer()),
             static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
@@ -60,27 +65,30 @@ public:
             static_cast<const uint8_t*>(data_->getBufferPointer()),
             static_cast<const uint8_t*>(data_->getBufferPointer()) + data_->getBufferSize()
         );
-        entries[key] = data;
-        stats.entryCount = entries.size();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_stats.writeCount++;
+        m_entries[key] = data;
+        m_stats.entryCount = m_entries.size();
         return SLANG_OK;
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL queryCache(ISlangBlob* key_, ISlangBlob** outData) override
     {
-        stats.queryCount++;
         Key key(
             static_cast<const uint8_t*>(key_->getBufferPointer()),
             static_cast<const uint8_t*>(key_->getBufferPointer()) + key_->getBufferSize()
         );
-        auto it = entries.find(key);
-        if (it == entries.end())
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_stats.queryCount++;
+        auto it = m_entries.find(key);
+        if (it == m_entries.end())
         {
-            stats.missCount++;
+            m_stats.missCount++;
             *outData = nullptr;
             return SLANG_E_NOT_FOUND;
         }
-        stats.hitCount++;
-        *outData = UnownedBlob::create(it->second.data(), it->second.size()).detach();
+        m_stats.hitCount++;
+        *outData = OwnedBlob::create(it->second.data(), it->second.size()).detach();
         return SLANG_OK;
     }
 
@@ -107,6 +115,11 @@ public:
         // if the ref count **was 1 before releasing** in order to free the object.
         return 2;
     }
+
+private:
+    mutable std::mutex m_mutex;
+    std::map<Key, Data> m_entries;
+    Stats m_stats;
 };
 
 
@@ -125,7 +138,7 @@ struct PipelineCacheTest
         device = createTestingDevice(ctx, ctx->deviceType, false, &extraOptions);
     }
 
-    VirtualCache::Stats getStats() { return pipelineCache.stats; }
+    VirtualCache::Stats getStats() { return pipelineCache.getStats(); }
 
     void run(GpuTestContext* ctx_, std::string tempDirectory_)
     {

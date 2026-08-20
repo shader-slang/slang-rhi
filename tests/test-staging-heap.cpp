@@ -17,9 +17,9 @@ static const Size kPageSize = 16 * 1024 * 1024;
 GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload);
 
-    Size allocSize = heap.alignUp(16);
+    Size allocSize = heap.alignAllocationSize(16);
 
     CHECK_EQ(heap.getUsed(), 0);
     CHECK_EQ(heap.getNumPages(), 0);
@@ -63,7 +63,7 @@ GPU_TEST_CASE("staging-heap-alloc-free", ALL)
 GPU_TEST_CASE("staging-heap-large-page", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload);
 
     StagingHeap::Allocation allocation;
     heap.alloc(16, {2}, &allocation);
@@ -80,7 +80,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     StagingHeap::Allocation allocation2;
     heap.alloc(16, {2}, &allocation2);
     heap.checkConsistency();
-    CHECK_EQ(allocation2.getOffset(), heap.getAlignment());
+    CHECK_EQ(allocation2.getOffset(), heap.getDefaultAlignment());
     CHECK_EQ(allocation2.getPageId(), 1);
 
     StagingHeap::Allocation bigAllocation2;
@@ -92,7 +92,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     StagingHeap::Allocation allocation3;
     heap.alloc(16, {2}, &allocation3);
     heap.checkConsistency();
-    CHECK_EQ(allocation3.getOffset(), heap.getAlignment() * 2);
+    CHECK_EQ(allocation3.getOffset(), heap.getDefaultAlignment() * 2);
     CHECK_EQ(allocation3.getPageId(), 1);
 
     heap.free(allocation);
@@ -108,7 +108,7 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
 GPU_TEST_CASE("staging-heap-realloc", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload);
 
     Size allocSize = heap.getPageSize() / 16;
 
@@ -153,7 +153,7 @@ GPU_TEST_CASE("staging-heap-realloc", ALL)
 GPU_TEST_CASE("staging-heap-handles", ALL)
 {
     StagingHeap heap;
-    heap.initialize((Device*)device.get(), kPageSize, MemoryType::Upload);
+    heap.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload);
 
     // Make an allocation using ref counted handle within a scope.
     {
@@ -162,12 +162,38 @@ GPU_TEST_CASE("staging-heap-handles", ALL)
         heap.checkConsistency();
         CHECK_EQ(handle->getOffset(), 0);
         CHECK_EQ(handle->getPageId(), 1);
-        CHECK_EQ(heap.getUsed(), heap.getAlignment());
+        CHECK_EQ(heap.getUsed(), heap.getAllocationGranularity());
     }
 
     // Allocation should be freed when handle goes out of scope.
     CHECK_EQ(heap.getUsed(), 0);
 
+    heap.release();
+}
+
+GPU_TEST_CASE("staging-heap-allocation-alignment", ALL)
+{
+    StagingHeap heap;
+    heap.initialize(getUnderlyingDevice(device.get()), kPageSize, MemoryType::Upload);
+
+    StagingHeap::Allocation first;
+    REQUIRE_CALL(heap.alloc(16, {}, &first));
+
+    StagingHeap::Allocation aligned;
+    REQUIRE_CALL(heap.alloc(16, 12, {}, &aligned));
+    CHECK_EQ(aligned.getOffset() % 12, 0);
+    CHECK_EQ(aligned.getOffset(), 1032);
+    CHECK_EQ(aligned.getSize(), heap.getAllocationGranularity());
+
+    StagingHeap::Allocation defaultAligned;
+    REQUIRE_CALL(heap.alloc(16, {}, &defaultAligned));
+    CHECK_EQ(defaultAligned.getOffset() % heap.getDefaultAlignment(), 0);
+    CHECK_EQ(defaultAligned.getOffset(), 3072);
+
+    heap.free(first);
+    heap.free(aligned);
+    heap.free(defaultAligned);
+    heap.checkConsistency();
     heap.release();
 }
 
@@ -190,7 +216,7 @@ void thrashHeap(Device* device, StagingHeap* heap, int idx)
 
 GPU_TEST_CASE("staging-heap-mutithreading", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getUnderlyingDevice(device.get());
 
     StagingHeap heap;
     heap.initialize(deviceImpl, kPageSize, MemoryType::Upload);
@@ -234,7 +260,7 @@ void freeAllocations(StagingHeap& heap, std::vector<StagingHeap::Allocation>& al
 
 GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getUnderlyingDevice(device.get());
 
     // When pages AREN'T being kept mapped, heap should allocate a new
     // page for each thread. As a result, after 3 threads have done 10
@@ -270,7 +296,7 @@ GPU_TEST_CASE("staging-heap-threadlock-pages", ALL)
 
 GPU_TEST_CASE("staging-heap-shared-pages", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getUnderlyingDevice(device.get());
 
     // When pages ARE being kept mapped, heap should share pages
     // between threads, so 10 small allocations from 3 threads should
@@ -306,7 +332,7 @@ GPU_TEST_CASE("staging-heap-shared-pages", ALL)
 
 GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getUnderlyingDevice(device.get());
 
     // Verify that in none sharing mode, when this thread and another
     // one attempt to allocate, we end up with 2 pages (effectively
@@ -337,7 +363,7 @@ GPU_TEST_CASE("staging-heap-unlockpage-1", ALL)
 
 GPU_TEST_CASE("staging-heap-unlockpage-2", ALL)
 {
-    Device* deviceImpl = (Device*)device.get();
+    Device* deviceImpl = getUnderlyingDevice(device.get());
 
     // Verify that if staging-heap-unlockpage-1 is repeated, but
     // the current thread frees its allocation, the 2nd thread

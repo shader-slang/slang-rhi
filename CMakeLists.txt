@@ -46,6 +46,9 @@ option(SLANG_RHI_BUILD_TESTS "Build tests" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_TESTS_WITH_GLFW "Build tests that require GLFW" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_BUILD_EXAMPLES "Build examples" ${SLANG_RHI_MASTER_PROJECT})
 option(SLANG_RHI_ENABLE_COVERAGE "Enable code coverage (clang only)" OFF)
+option(SLANG_RHI_ENABLE_ASAN "Enable AddressSanitizer (clang only)" OFF)
+option(SLANG_RHI_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (clang only)" OFF)
+option(SLANG_RHI_ENABLE_TSAN "Enable ThreadSanitizer (clang only)" OFF)
 option(SLANG_RHI_INSTALL "Install library" ON)
 
 # Configure coverage flags
@@ -59,6 +62,53 @@ if(SLANG_RHI_ENABLE_COVERAGE)
         add_link_options(-fprofile-instr-generate=${SLANG_RHI_COVERAGE_PATTERN})
     else()
         message(FATAL_ERROR "Code coverage is only supported with Clang")
+    endif()
+endif()
+
+# Configure sanitizer flags
+if(SLANG_RHI_ENABLE_TSAN AND (SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN))
+    message(FATAL_ERROR "ThreadSanitizer must run separately from AddressSanitizer and UndefinedBehaviorSanitizer")
+endif()
+
+if(SLANG_RHI_ENABLE_ASAN OR SLANG_RHI_ENABLE_UBSAN OR SLANG_RHI_ENABLE_TSAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        set(SLANG_RHI_SANITIZERS)
+        if(SLANG_RHI_ENABLE_ASAN)
+            list(APPEND SLANG_RHI_SANITIZERS address)
+        endif()
+        if(SLANG_RHI_ENABLE_UBSAN)
+            list(APPEND SLANG_RHI_SANITIZERS undefined)
+        endif()
+        if(SLANG_RHI_ENABLE_TSAN)
+            list(APPEND SLANG_RHI_SANITIZERS thread)
+        endif()
+        list(JOIN SLANG_RHI_SANITIZERS "," SLANG_RHI_SANITIZER_FLAGS)
+
+        add_compile_options(-fsanitize=${SLANG_RHI_SANITIZER_FLAGS} -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=${SLANG_RHI_SANITIZER_FLAGS})
+
+        # Make undefined behavior fail the test process instead of recovering and
+        # potentially allowing a successful exit.
+        if(SLANG_RHI_ENABLE_UBSAN)
+            add_compile_options(
+                -fno-sanitize-recover=undefined
+                -fsanitize-ignorelist=${CMAKE_CURRENT_SOURCE_DIR}/tools/ubsan-ignorelist.txt
+            )
+        endif()
+
+        # On Windows, the debug CRT conflicts with ASAN. Force the static release CRT.
+        if(SLANG_RHI_ENABLE_ASAN AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+            set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+            add_compile_options(-fno-sanitize-link-runtime)
+            # The MSVC STL uses __has_feature(address_sanitizer) under Clang to
+            # activate ASAN container annotations and emits /INFERASANLIBS via a
+            # pragma in that path. Some lld-link versions reject that directive
+            # in .drectve sections. Defining __SANITIZE_ADDRESS__ selects the
+            # equivalent STL annotation path without emitting the directive.
+            add_compile_definitions(__SANITIZE_ADDRESS__)
+        endif()
+    else()
+        message(FATAL_ERROR "Sanitizers are only supported with Clang")
     endif()
 endif()
 
@@ -438,6 +488,11 @@ if(SLANG_RHI_ENABLE_D3D12)
     target_sources(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma/D3D12MemAlloc.cpp)
     target_include_directories(slang-rhi-d3d12ma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/external/d3d12ma)
     target_compile_features(slang-rhi-d3d12ma PRIVATE cxx_std_20)
+    if(SLANG_RHI_ENABLE_UBSAN AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # Windows SDK bitmask operators form out-of-range intermediate enum values.
+        # Limit the exception to the vendored allocator; slang-rhi remains fully checked.
+        target_compile_options(slang-rhi-d3d12ma PRIVATE -fno-sanitize=enum)
+    endif()
     # Force-include D3D12MA configuration header to route assertions through slang-rhi.
     target_include_directories(slang-rhi-d3d12ma PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     if(MSVC)
@@ -747,6 +802,7 @@ target_sources(slang-rhi PRIVATE
     src/format-conversion.cpp
     src/heap.cpp
     src/pipeline.cpp
+    src/pipeline-resolver.cpp
     src/resource-desc-utils.cpp
     src/rhi-shared.cpp
     src/rhi.cpp
@@ -1004,6 +1060,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-bindless.cpp
         tests/test-bind-pointers.cpp
         tests/test-blob.cpp
+        tests/test-buffer.cpp
         tests/test-buffer-barrier.cpp
         tests/test-buffer-from-handle.cpp
         tests/test-buffer-shared.cpp
@@ -1046,6 +1103,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-nvrtc.cpp
         tests/test-nvapi.cpp
         tests/test-offset-allocator.cpp
+        tests/test-parallel-pipeline-creation.cpp
         tests/test-pipeline-cache.cpp
         # tests/test-precompiled-module-cache.cpp
         tests/test-precompiled-module.cpp

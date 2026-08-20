@@ -1100,7 +1100,8 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
             return;
         }
         requireBufferState(m_shaderTablePipelineData->buffer, ResourceState::ShaderResource);
-        DeviceAddress shaderTableAddr = m_shaderTablePipelineData->buffer->getDeviceAddress();
+        DeviceAddress shaderTableAddr =
+            m_shaderTablePipelineData->buffer->getDeviceAddress() + m_shaderTablePipelineData->tableOffset;
 
         // Raygen address, stride, and size are set at dispatch time since each raygen
         // shader can have a different record size.
@@ -1164,7 +1165,7 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 
             // Use vkCmdUpdateBuffer to copy entry point data to the SBT.
             // The data is written at the raygen's sbtOffset (after the shader group handle).
-            VkDeviceSize dstOffset = raygenInfo.sbtOffset;
+            VkDeviceSize dstOffset = m_shaderTablePipelineData->tableOffset + raygenInfo.sbtOffset;
             VkDeviceSize copySize = std::min(entryPointData.size, raygenInfo.paramsSize);
             m_api.vkCmdUpdateBuffer(
                 m_cmdBuffer,
@@ -1936,6 +1937,10 @@ void CommandQueueImpl::retireCommandBuffers()
             m_commandBuffersInFlight.push_back(commandBuffer);
         }
     }
+
+    // The internal device queue shares this VkQueue. Polling it here releases
+    // initialization staging allocations even if no further internal work occurs.
+    getDevice<DeviceImpl>()->m_deviceQueue.retireCompletedResources();
 
     // Delete deferred resources that are no longer in use by the GPU.
     executeDeferredDeletes();

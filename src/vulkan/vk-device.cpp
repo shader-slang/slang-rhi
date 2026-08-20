@@ -1446,6 +1446,63 @@ Result DeviceImpl::initVulkanDevice(
         m_calibratedTimestampSupport = {};
     }
 
+#if SLANG_PROCESSOR_ARM_64
+    // Ray tracing pipelines are currently broken on ARM64 lavapipe. Keep feature detection and device
+    // creation unchanged, but do not advertise the affected features or shader capabilities.
+    if (m_api.vkGetPhysicalDeviceProperties2 && (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2 ||
+                                                 extensionNames.count(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME)))
+    {
+        VkPhysicalDeviceDriverProperties driverProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+        VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        EXTEND_DESC_CHAIN(props, driverProps);
+        m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &props);
+        if (driverProps.driverID == VK_DRIVER_ID_MESA_LLVMPIPE)
+        {
+            auto remove = [](auto& values, auto value)
+            {
+                values.erase(std::remove(values.begin(), values.end(), value), values.end());
+            };
+
+            for (Feature feature : {
+                     Feature::AccelerationStructure,
+                     Feature::AccelerationStructureSpheres,
+                     Feature::AccelerationStructureLinearSweptSpheres,
+                     Feature::RayTracing,
+                     Feature::RayQuery,
+                     Feature::ShaderExecutionReordering,
+                     Feature::RayTracingMotionBlur,
+                     Feature::RayTracingValidation,
+                     Feature::ClusterAccelerationStructure,
+                 })
+            {
+                remove(availableFeatures, feature);
+            }
+
+            for (Capability capability : {
+                     Capability::SPV_KHR_ray_tracing,
+                     Capability::SPV_KHR_ray_query,
+                     Capability::SPV_KHR_ray_tracing_position_fetch,
+                     Capability::SPV_NV_ray_tracing_motion_blur,
+                     Capability::SPV_NV_shader_invocation_reorder,
+                     Capability::SPV_NV_cluster_acceleration_structure,
+                     Capability::SPV_NV_linear_swept_spheres,
+                     Capability::spvRayTracingMotionBlurNV,
+                     Capability::spvRayTracingKHR,
+                     Capability::spvRayTracingPositionFetchKHR,
+                     Capability::spvRayQueryKHR,
+                     Capability::spvRayQueryPositionFetchKHR,
+                     Capability::spvShaderInvocationReorderNV,
+                     Capability::spirv_nv,
+                     Capability::spvRayTracingClusterAccelerationStructureNV,
+                     Capability::spvRayTracingLinearSweptSpheresGeometryNV,
+                 })
+            {
+                remove(availableCapabilities, capability);
+            }
+        }
+    }
+#endif
+
     return SLANG_OK;
 }
 
@@ -2126,17 +2183,32 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
+    Size blockSize = getFormatInfo(format).blockSizeInBytes;
+    if (blockSize == 0)
+        blockSize = 1;
+
     switch (format)
     {
     case Format::D16Unorm:
     case Format::D32Float:
     case Format::D32FloatS8Uint:
-        *outAlignment = 4;
+        *outAlignment = math::calcAligned(4, blockSize);
         break;
     default:
-        *outAlignment = 1;
+        // VkBufferImageCopy expresses bufferRowLength in texels, so the byte
+        // row pitch must represent a whole number of format blocks.
+        *outAlignment = blockSize;
         break;
     }
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureBufferOffsetAlignment(Format format, Size* outAlignment)
+{
+    const FormatInfo& formatInfo = getFormatInfo(format);
+    if (formatInfo.blockSizeInBytes == 0)
+        return SLANG_E_INVALID_ARG;
+    *outAlignment = formatInfo.kind == FormatKind::DepthStencil ? 4 : formatInfo.blockSizeInBytes;
     return SLANG_OK;
 }
 

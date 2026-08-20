@@ -128,7 +128,7 @@ Result calcSubresourceRegionLayout(
 
     size_t rowSize = math::divideRoundedUp(extent.width, formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
     size_t rowCount = math::divideRoundedUp(extent.height, formatInfo.blockHeight);
-    size_t rowPitch = math::calcAligned2(rowSize, rowAlignment);
+    size_t rowPitch = math::calcAligned(rowSize, rowAlignment);
     size_t layerPitch = rowPitch * rowCount;
 
     outLayout->size = extent;
@@ -558,6 +558,19 @@ void Surface::setInfo(const SurfaceInfo& info)
 void Surface::setConfig(const SurfaceConfig& config)
 {
     m_config = config;
+}
+
+Result Surface::validateConfig(const SurfaceConfig& config) const
+{
+    if (config.format != Format::Undefined && !contains(m_info.formats, m_info.formatCount, config.format))
+        return SLANG_E_INVALID_ARG;
+    if (config.usage != (config.usage & m_info.supportedUsage))
+        return SLANG_E_INVALID_ARG;
+    if (config.width == 0 || config.height == 0)
+        return SLANG_E_INVALID_ARG;
+    if (config.desiredImageCount == 0)
+        return SLANG_E_INVALID_ARG;
+    return SLANG_OK;
 }
 
 // ----------------------------------------------------------------------------

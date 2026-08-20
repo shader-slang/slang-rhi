@@ -30,6 +30,9 @@ public:
         RefPtr<BufferImpl> buffer;
         short_vector<RaygenInfo> raygenInfos;
 
+        // Offset from the start of `buffer` to the aligned shader table base address.
+        uint32_t tableOffset = 0;
+
         uint32_t raygenTableSize;
         uint32_t missTableSize;
         uint32_t hitTableSize;

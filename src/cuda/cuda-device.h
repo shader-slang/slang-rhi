@@ -21,6 +21,12 @@ public:
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     Context m_ctx;
     std::string m_adapterName;
     RefPtr<CommandQueueImpl> m_queue;

@@ -26,6 +26,12 @@ struct CalibratedTimestampSupport
 class DeviceImpl : public Device
 {
 public:
+    virtual bool canCreatePipelineOnTaskPool(const Pipeline* pipeline) const override
+    {
+        SLANG_UNUSED(pipeline);
+        return true;
+    }
+
     using Device::readBuffer;
 
     Result initVulkanInstance(
@@ -59,6 +65,10 @@ public:
         const void* initData,
         IBuffer** outBuffer
     ) override;
+
+    /// Stage and submit initialization data for a newly created buffer.
+    Result uploadBufferInitData(IBuffer* buffer, Offset offset, Size size, const void* data);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
         NativeHandle handle,
         const BufferDesc& desc,
@@ -148,6 +158,7 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureRowAlignment(Format format, Size* outAlignment) override;
+    virtual SLANG_NO_THROW Result getTextureBufferOffsetAlignment(Format format, Size* outAlignment) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL isCooperativeMatrixSupported(
         const CooperativeMatrixDesc& desc,
