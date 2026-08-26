@@ -449,6 +449,7 @@ Result BindingDataBuilder::bindAsValue(
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
+        case slang::BindingType::PushConstant:
             break;
 
         case slang::BindingType::Texture:
@@ -656,7 +657,9 @@ Result BindingDataBuilder::bindAsValue(
             break;
         case slang::BindingType::RawBuffer:
         case slang::BindingType::MutableRawBuffer:
-            // No action needed for sub-objects bound though a `StructuredBuffer`.
+        case slang::BindingType::PushConstant:
+            // No action needed for sub-objects bound though a `StructuredBuffer`
+            // or a push constant.
             break;
         default:
             SLANG_RHI_ASSERT_FAILURE("Unsupported sub-object type");
