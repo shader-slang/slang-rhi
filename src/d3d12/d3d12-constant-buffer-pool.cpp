@@ -19,7 +19,7 @@ Result ConstantBufferPool::allocate(size_t size, Allocation& outAllocation)
 {
     outAllocation = {};
 
-    if (size > m_heap->getPageSize())
+    if (size > m_heap->getMaxPageSize())
     {
         return SLANG_FAIL;
     }

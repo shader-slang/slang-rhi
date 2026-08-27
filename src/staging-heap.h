@@ -19,7 +19,10 @@ class StagingHeap : public RefObject
 public:
     struct Config
     {
+        // Initial and minimum retained page size.
         Size pageSize = 16 * 1024 * 1024;
+        // Maximum geometrically grown page size. Zero disables growth.
+        Size maxPageSize = 0;
         MemoryType memoryType = MemoryType::Upload;
         BufferUsage usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
         ResourceState defaultState = ResourceState::General;
@@ -216,8 +219,11 @@ public:
     // Get the granularity used to round allocation sizes.
     Size getAllocationGranularity() const { return m_allocationGranularity; }
 
-    // Get default page size.
+    // Get initial and minimum retained page size.
     Size getPageSize() const { return m_pageSize; }
+
+    // Get maximum geometrically grown page size.
+    Size getMaxPageSize() const { return m_maxPageSize; }
 
     // Round a size up to the heap's allocation granularity.
     Size alignAllocationSize(Size value)
@@ -242,6 +248,8 @@ private:
     Size m_defaultAlignment = 1024;
     Size m_allocationGranularity = 1024;
     Size m_pageSize = 16 * 1024 * 1024;
+    Size m_maxPageSize = 16 * 1024 * 1024;
+    Size m_nextPageSize = 16 * 1024 * 1024;
     uint64_t m_pageAllocationCount = 0;
     bool m_keepPagesMapped = true;
     std::unordered_map<int, RefPtr<Page>> m_pages;
@@ -255,6 +263,12 @@ private:
     Result allocInternal(size_t size, Size alignment, MetaData metadata, Allocation* outAllocation);
 
     Result allocPage(size_t size, StagingHeap::Page** outPage);
+
+    Size growPageSize(Size size) const;
+
+    Size getNewPageSize(Size allocationSize) const;
+
+    void updateNextPageSize();
 
     void freePage(StagingHeap::Page* page);
 

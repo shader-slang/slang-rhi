@@ -17,10 +17,13 @@ void StagingHeap::initialize(Device* device, const Config& config)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     SLANG_RHI_ASSERT(config.pageSize > 0);
+    SLANG_RHI_ASSERT(config.maxPageSize == 0 || config.maxPageSize >= config.pageSize);
     SLANG_RHI_ASSERT(config.defaultAlignment > 0);
     SLANG_RHI_ASSERT(config.allocationGranularity > 0);
     m_device = device;
     m_pageSize = config.pageSize;
+    m_maxPageSize = config.maxPageSize == 0 ? config.pageSize : config.maxPageSize;
+    m_nextPageSize = m_pageSize;
     m_memoryType = config.memoryType;
     m_usage = config.usage;
     m_defaultState = config.defaultState;
@@ -109,32 +112,31 @@ Result StagingHeap::allocInternal(
     // so record the thread id to lock pages to.
     auto thread_id = m_keepPagesMapped ? std::thread::id() : std::this_thread::get_id();
 
-    // Attempt to allocate from page if size is less than page size.
-    if (alignedSize < m_pageSize)
+    // Attempt to allocate from an existing page.
+    for (auto& page_pair : m_pages)
     {
-        for (auto& page_pair : m_pages)
+        Page* page = page_pair.second;
+        if (page->getLockedToThread() == std::thread::id() || page->getLockedToThread() == thread_id)
         {
-            Page* page = page_pair.second;
-            if (page->getLockedToThread() == std::thread::id() || page->getLockedToThread() == thread_id)
+            std::list<Node>::iterator node;
+            if (page->allocNode(alignedSize, alignment, metadata, thread_id, node))
             {
-                std::list<Node>::iterator node;
-                if (page->allocNode(alignedSize, alignment, metadata, thread_id, node))
-                {
-                    Allocation res;
-                    res.page = page;
-                    res.node = node;
-                    m_totalUsed += alignedSize;
-                    *outAllocation = res;
-                    return SLANG_OK;
-                }
+                Allocation res;
+                res.page = page;
+                res.node = node;
+                m_totalUsed += alignedSize;
+                *outAllocation = res;
+                return SLANG_OK;
             }
         }
     }
 
-    // Can't fit in existing page, so allocate from new one
-    size_t pageSize = alignedSize < m_pageSize ? m_pageSize : alignedSize;
+    // Can't fit in an existing page, so allocate a geometrically grown page.
+    const Size pageSize = getNewPageSize(alignedSize);
     Page* page;
     SLANG_RETURN_ON_FAIL(allocPage(pageSize, &page));
+    if (pageSize <= m_maxPageSize)
+        m_nextPageSize = growPageSize(pageSize);
     std::list<Node>::iterator node;
     page->allocNode(alignedSize, alignment, metadata, thread_id, node);
 
@@ -233,6 +235,38 @@ void StagingHeap::free(Allocation allocation)
         else
         {
             freePage(page);
+        }
+    }
+
+    updateNextPageSize();
+}
+
+Size StagingHeap::growPageSize(Size size) const
+{
+    if (size >= m_maxPageSize)
+        return m_maxPageSize;
+    return size > m_maxPageSize / 2 ? m_maxPageSize : size * 2;
+}
+
+Size StagingHeap::getNewPageSize(Size allocationSize) const
+{
+    Size pageSize = m_nextPageSize;
+    while (pageSize < allocationSize && pageSize < m_maxPageSize)
+        pageSize = growPageSize(pageSize);
+    return pageSize < allocationSize ? allocationSize : pageSize;
+}
+
+void StagingHeap::updateNextPageSize()
+{
+    m_nextPageSize = m_pageSize;
+    for (const auto& [_, page] : m_pages)
+    {
+        const Size pageSize = page->getCapacity();
+        if (pageSize >= m_pageSize && pageSize <= m_maxPageSize)
+        {
+            const Size nextPageSize = growPageSize(pageSize);
+            if (nextPageSize > m_nextPageSize)
+                m_nextPageSize = nextPageSize;
         }
     }
 }

@@ -105,6 +105,72 @@ GPU_TEST_CASE("staging-heap-large-page", ALL)
     heap.release();
 }
 
+GPU_TEST_CASE("staging-heap-growing-pages", ALL)
+{
+    static constexpr Size kInitialPageSize = 64 * 1024;
+    static constexpr Size kMaxPageSize = 256 * 1024;
+
+    StagingHeap::Config config;
+    config.pageSize = kInitialPageSize;
+    config.maxPageSize = kMaxPageSize;
+
+    StagingHeap heap;
+    heap.initialize(getUnderlyingDevice(device.get()), config);
+
+    CHECK_EQ(heap.getPageSize(), kInitialPageSize);
+    CHECK_EQ(heap.getMaxPageSize(), kMaxPageSize);
+
+    StagingHeap::Allocation initialPageAllocation;
+    REQUIRE_CALL(heap.alloc(kInitialPageSize, {}, &initialPageAllocation));
+    CHECK_EQ(initialPageAllocation.getPage()->getCapacity(), kInitialPageSize);
+    const int initialPageId = initialPageAllocation.getPageId();
+
+    StagingHeap::Allocation grownPageAllocation;
+    REQUIRE_CALL(heap.alloc(kInitialPageSize * 2, {}, &grownPageAllocation));
+    CHECK_EQ(grownPageAllocation.getPage()->getCapacity(), kInitialPageSize * 2);
+
+    StagingHeap::Allocation maxPageAllocation;
+    REQUIRE_CALL(heap.alloc(kMaxPageSize, {}, &maxPageAllocation));
+    CHECK_EQ(maxPageAllocation.getPage()->getCapacity(), kMaxPageSize);
+    heap.checkConsistency();
+
+    CHECK_EQ(heap.getNumPages(), 3);
+    CHECK_EQ(heap.getCapacity(), kInitialPageSize + kInitialPageSize * 2 + kMaxPageSize);
+    CHECK_EQ(heap.getPageAllocationCount(), 3);
+
+    // Dropping the grown pages lowers the next growth tier immediately, even while
+    // the initial page is still in use.
+    heap.free(grownPageAllocation);
+    heap.free(maxPageAllocation);
+    heap.checkConsistency();
+
+    CHECK_EQ(heap.getUsed(), kInitialPageSize);
+    CHECK_EQ(heap.getNumPages(), 1);
+    CHECK_EQ(heap.getCapacity(), kInitialPageSize);
+
+    StagingHeap::Allocation regrownPageAllocation;
+    REQUIRE_CALL(heap.alloc(kInitialPageSize * 2, {}, &regrownPageAllocation));
+    CHECK_EQ(regrownPageAllocation.getPage()->getCapacity(), kInitialPageSize * 2);
+    CHECK_EQ(heap.getPageAllocationCount(), 4);
+    heap.checkConsistency();
+
+    heap.free(regrownPageAllocation);
+    heap.free(initialPageAllocation);
+    heap.checkConsistency();
+
+    // The heap returns to one initial-size page when idle.
+    CHECK_EQ(heap.getUsed(), 0);
+    CHECK_EQ(heap.getNumPages(), 1);
+    CHECK_EQ(heap.getCapacity(), kInitialPageSize);
+
+    StagingHeap::Allocation reusedInitialPageAllocation;
+    REQUIRE_CALL(heap.alloc(kInitialPageSize, {}, &reusedInitialPageAllocation));
+    CHECK_EQ(reusedInitialPageAllocation.getPage()->getId(), initialPageId);
+    CHECK_EQ(heap.getPageAllocationCount(), 4);
+    heap.free(reusedInitialPageAllocation);
+    heap.release();
+}
+
 GPU_TEST_CASE("staging-heap-realloc", ALL)
 {
     StagingHeap heap;

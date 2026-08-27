@@ -3,6 +3,7 @@
 #include "../src/command-buffer.h"
 #include "../src/device.h"
 
+#include <array>
 #include <vector>
 
 using namespace rhi;
@@ -21,12 +22,13 @@ GPU_TEST_CASE("constant-buffer-pool-shared-pages", D3D12 | Vulkan | DontCacheDev
             uniform RWStructuredBuffer<uint> output;
             uniform uint index;
             uniform uint value;
+            uniform uint4 padding[64];
 
             [shader("compute")]
             [numthreads(1, 1, 1)]
             void computeMain()
             {
-                output[index] = value;
+                output[index] = value + padding[0].x;
             }
         )",
         shaderProgram.writeRef()
@@ -41,8 +43,7 @@ GPU_TEST_CASE("constant-buffer-pool-shared-pages", D3D12 | Vulkan | DontCacheDev
     BufferDesc bufferDesc = {};
     bufferDesc.size = initialData.size() * sizeof(uint32_t);
     bufferDesc.elementSize = sizeof(uint32_t);
-    bufferDesc.usage =
-        BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
+    bufferDesc.usage = BufferUsage::UnorderedAccess | BufferUsage::CopyDestination | BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
     bufferDesc.memoryType = MemoryType::DeviceLocal;
 
@@ -66,8 +67,11 @@ GPU_TEST_CASE("constant-buffer-pool-shared-pages", D3D12 | Vulkan | DontCacheDev
     CHECK_EQ(heap.getCapacity(), 0);
     CHECK_EQ(heap.getUsed(), 0);
     CHECK_EQ(heap.getPageAllocationCount(), 0);
+    CHECK_EQ(heap.getPageSize(), 64 * 1024);
+    CHECK_EQ(heap.getMaxPageSize(), 4 * 1024 * 1024);
 
     uint64_t firstWavePageAllocationCount = 0;
+    const std::array<uint32_t, 256> padding = {};
 
     for (uint32_t wave = 0; wave < kWaveCount; ++wave)
     {
@@ -94,6 +98,7 @@ GPU_TEST_CASE("constant-buffer-pool-shared-pages", D3D12 | Vulkan | DontCacheDev
             REQUIRE_CALL(cursor["output"].setBinding(output));
             REQUIRE_CALL(cursor["index"].setData(index));
             REQUIRE_CALL(cursor["value"].setData(value));
+            REQUIRE_CALL(cursor["padding"].setData(padding.data(), padding.size() * sizeof(uint32_t)));
 
             passEncoder->dispatchCompute(1, 1, 1);
             passEncoder->end();
@@ -103,21 +108,21 @@ GPU_TEST_CASE("constant-buffer-pool-shared-pages", D3D12 | Vulkan | DontCacheDev
             commandBuffers.push_back(commandBuffer);
         }
 
-        // Tiny allocations from every command buffer should share one physical page.
-        CHECK_EQ(heap.getNumPages(), 1);
-        CHECK_EQ(heap.getCapacity(), heap.getPageSize());
-        CHECK_GT(heap.getUsed(), 0);
+        // The shared heap should grow from 64 KiB to 128 KiB for this wave.
+        CHECK_EQ(heap.getNumPages(), 2);
+        CHECK_EQ(heap.getCapacity(), heap.getPageSize() * 3);
+        CHECK_GT(heap.getUsed(), heap.getPageSize());
 
         const uint64_t pageAllocationCount = heap.getPageAllocationCount();
         if (wave == 0)
         {
-            CHECK_EQ(pageAllocationCount, 1);
+            CHECK_EQ(pageAllocationCount, 2);
             firstWavePageAllocationCount = pageAllocationCount;
         }
         else
         {
-            // The empty page retained after the first wave must be reused.
-            CHECK_EQ(pageAllocationCount, firstWavePageAllocationCount);
+            // The initial page is reused and one 128 KiB page is regrown for the new wave.
+            CHECK_EQ(pageAllocationCount, firstWavePageAllocationCount + 1);
         }
 
         // Hold the queue's tracking signal behind an unsignaled fence. This makes the
@@ -143,11 +148,11 @@ GPU_TEST_CASE("constant-buffer-pool-shared-pages", D3D12 | Vulkan | DontCacheDev
         REQUIRE_CALL(queue->waitOnHost());
         commandBuffers.clear();
 
-        // Retirement returns every range while keeping one warm physical page.
+        // Retirement trims the grown page and keeps one warm 64 KiB page.
         CHECK_EQ(heap.getUsed(), 0);
         CHECK_EQ(heap.getNumPages(), 1);
         CHECK_EQ(heap.getCapacity(), heap.getPageSize());
-        CHECK_EQ(heap.getPageAllocationCount(), firstWavePageAllocationCount);
+        CHECK_EQ(heap.getPageAllocationCount(), pageAllocationCount);
     }
 
     std::vector<uint32_t> expected(kValueCount);

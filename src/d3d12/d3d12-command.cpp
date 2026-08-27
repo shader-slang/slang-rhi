@@ -1919,7 +1919,8 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
 
     StagingHeap::Config constantBufferHeapConfig;
-    constantBufferHeapConfig.pageSize = 4 * 1024 * 1024;
+    constantBufferHeapConfig.pageSize = 64 * 1024;
+    constantBufferHeapConfig.maxPageSize = 4 * 1024 * 1024;
     constantBufferHeapConfig.memoryType = MemoryType::Upload;
     constantBufferHeapConfig.usage = BufferUsage::ConstantBuffer;
     constantBufferHeapConfig.defaultState = ResourceState::ConstantBuffer;

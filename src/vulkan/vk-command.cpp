@@ -1867,7 +1867,8 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
     DeviceImpl* device = getDevice<DeviceImpl>();
     const Size constantBufferAlignment = m_api.m_deviceProperties.limits.minUniformBufferOffsetAlignment;
     StagingHeap::Config constantBufferHeapConfig;
-    constantBufferHeapConfig.pageSize = 4 * 1024 * 1024;
+    constantBufferHeapConfig.pageSize = 64 * 1024;
+    constantBufferHeapConfig.maxPageSize = 4 * 1024 * 1024;
     constantBufferHeapConfig.memoryType = MemoryType::Upload;
     constantBufferHeapConfig.usage = BufferUsage::ConstantBuffer;
     constantBufferHeapConfig.defaultState = ResourceState::ConstantBuffer;
