@@ -1577,7 +1577,7 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
     // being deactivated to its default state so it can be safely forgotten until reactivation.
     if (Buffer* buffer = asBuffer(cmd.before))
         m_stateTracking.setBufferState(buffer, buffer->m_desc.defaultState);
-    if (Texture* texture = asTexture(cmd.before))
+    else if (Texture* texture = asTexture(cmd.before))
         m_stateTracking.setTextureState(texture, kEntireTexture, texture->m_desc.defaultState);
     commitBarriers();
 
@@ -1585,7 +1585,7 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
     {
         if (Buffer* buffer = asBuffer(resource))
             return checked_cast<BufferImpl*>(buffer)->m_resource.getResource();
-        if (Texture* texture = asTexture(resource))
+        else if (Texture* texture = asTexture(resource))
             return checked_cast<TextureImpl*>(texture)->m_resource.getResource();
         return nullptr;
     };
@@ -1598,7 +1598,7 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
 
     if (Buffer* buffer = asBuffer(cmd.before))
         m_stateTracking.forgetBufferState(buffer);
-    if (Texture* texture = asTexture(cmd.before))
+    else if (Texture* texture = asTexture(cmd.before))
         m_stateTracking.forgetTextureState(texture);
 }
 
