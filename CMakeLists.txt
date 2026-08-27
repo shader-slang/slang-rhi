@@ -1067,6 +1067,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-caching-allocator.cpp
         tests/test-command-encoder.cpp
         tests/test-compilation-report.cpp
+        tests/test-constant-buffer-pool.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp

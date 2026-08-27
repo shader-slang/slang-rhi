@@ -1917,14 +1917,28 @@ Result CommandQueueImpl::init(uint32_t queueIndex)
     );
     m_globalWaitHandle =
         CreateEventEx(nullptr, nullptr, CREATE_EVENT_INITIAL_SET | CREATE_EVENT_MANUAL_RESET, EVENT_ALL_ACCESS);
+
+    StagingHeap::Config constantBufferHeapConfig;
+    constantBufferHeapConfig.pageSize = 4 * 1024 * 1024;
+    constantBufferHeapConfig.memoryType = MemoryType::Upload;
+    constantBufferHeapConfig.usage = BufferUsage::ConstantBuffer;
+    constantBufferHeapConfig.defaultState = ResourceState::ConstantBuffer;
+    constantBufferHeapConfig.defaultAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    constantBufferHeapConfig.allocationGranularity = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    m_constantBufferHeap.initialize(device, constantBufferHeapConfig);
     return SLANG_OK;
 }
 
 void CommandQueueImpl::shutdown()
 {
     waitOnHost();
+    // A failed device wait may leave command buffers in the in-flight list. Destroy them before
+    // releasing the heap so their allocation handles cannot outlive its pages.
+    m_commandBuffersInFlight.clear();
     // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
+    // Release the shared constant-buffer pages while deferred deletion is still available.
+    m_constantBufferHeap.release();
     // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
@@ -2267,7 +2281,7 @@ Result CommandBufferImpl::init()
     };
     m_d3dCommandList->SetDescriptorHeaps(SLANG_COUNT_OF(heaps), heaps);
 
-    m_constantBufferPool.init(device);
+    m_constantBufferPool.init(&m_queue->m_constantBufferHeap);
 
     SLANG_RETURN_ON_FAIL(m_cbvSrvUavArena.init(device->m_gpuCbvSrvUavHeap, 128));
     SLANG_RETURN_ON_FAIL(m_samplerArena.init(device->m_gpuSamplerHeap, 4));

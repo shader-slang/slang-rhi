@@ -1864,6 +1864,17 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
     m_queue = queue;
     m_queueFamilyIndex = queueFamilyIndex;
 
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    const Size constantBufferAlignment = m_api.m_deviceProperties.limits.minUniformBufferOffsetAlignment;
+    StagingHeap::Config constantBufferHeapConfig;
+    constantBufferHeapConfig.pageSize = 4 * 1024 * 1024;
+    constantBufferHeapConfig.memoryType = MemoryType::Upload;
+    constantBufferHeapConfig.usage = BufferUsage::ConstantBuffer;
+    constantBufferHeapConfig.defaultState = ResourceState::ConstantBuffer;
+    constantBufferHeapConfig.defaultAlignment = constantBufferAlignment;
+    constantBufferHeapConfig.allocationGranularity = constantBufferAlignment;
+    m_constantBufferHeap.initialize(device, constantBufferHeapConfig);
+
     {
         VkSemaphoreTypeCreateInfo timelineCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
         timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
@@ -1876,8 +1887,13 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
 void CommandQueueImpl::shutdown()
 {
     waitOnHost();
+    // A failed device wait may leave command buffers in the in-flight list. Destroy them before
+    // releasing the heap so their allocation handles cannot outlive its pages.
+    m_commandBuffersInFlight.clear();
     // Release all command buffers in order to release all resources they may hold.
     m_commandBuffersPool.clear();
+    // Release the shared constant-buffer pages while deferred deletion is still available.
+    m_constantBufferHeap.release();
     // Execute remaining deferred deletes.
     executeDeferredDeletes();
     SLANG_RHI_ASSERT(m_deferredDeleteQueue.empty());
@@ -2242,7 +2258,7 @@ CommandBufferImpl::~CommandBufferImpl()
 Result CommandBufferImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
-    m_constantBufferPool.init(device);
+    m_constantBufferPool.init(&m_queue->m_constantBufferHeap);
     m_descriptorSetAllocator.init(&device->m_api);
 
     VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};

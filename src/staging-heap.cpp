@@ -7,10 +7,25 @@ namespace rhi {
 
 void StagingHeap::initialize(Device* device, Size pageSize, MemoryType memoryType)
 {
+    Config config;
+    config.pageSize = pageSize;
+    config.memoryType = memoryType;
+    initialize(device, config);
+}
+
+void StagingHeap::initialize(Device* device, const Config& config)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
+    SLANG_RHI_ASSERT(config.pageSize > 0);
+    SLANG_RHI_ASSERT(config.defaultAlignment > 0);
+    SLANG_RHI_ASSERT(config.allocationGranularity > 0);
     m_device = device;
-    m_pageSize = pageSize;
-    m_memoryType = memoryType;
+    m_pageSize = config.pageSize;
+    m_memoryType = config.memoryType;
+    m_usage = config.usage;
+    m_defaultState = config.defaultState;
+    m_defaultAlignment = config.defaultAlignment;
+    m_allocationGranularity = config.allocationGranularity;
 
     // Can safely keep pages mapped for all platforms other than WebGPU and Metal.
     // On WebGPU, mapped buffers cannot be used during dispatches.
@@ -36,10 +51,12 @@ void StagingHeap::releaseAllFreePages()
 void StagingHeap::release()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    releaseAllFreePages();
     SLANG_RHI_ASSERT(m_totalUsed == 0);
+    if (m_totalUsed != 0)
+        return;
+
+    releaseAllFreePages();
     SLANG_RHI_ASSERT(m_pages.size() == 0);
-    m_pages.clear();
 }
 
 Result StagingHeap::allocHandle(size_t size, MetaData metadata, StagingHeap::Handle** outHandle)
@@ -226,27 +243,31 @@ Result StagingHeap::allocPage(size_t size, StagingHeap::Page** outPage)
 
     ComPtr<IBuffer> bufferPtr;
     BufferDesc bufferDesc;
-    bufferDesc.usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
-    bufferDesc.defaultState = ResourceState::General;
+    bufferDesc.usage = m_usage;
+    bufferDesc.defaultState = m_defaultState;
     bufferDesc.memoryType = m_memoryType;
     bufferDesc.size = size;
 
     // Attempt to create buffer.
     SLANG_RETURN_ON_FAIL(m_device->createBuffer(bufferDesc, nullptr, bufferPtr.writeRef()));
 
-    // Create page and store buffer pointer.
-    StagingHeap::Page* page = new Page(m_nextPageId++, checked_cast<Buffer*>(bufferPtr.get()));
-    m_pages.insert({page->getId(), page});
-    m_totalCapacity += size;
-
-    // Break references to device as buffer is owned by heap, which is owned by device.
-    page->getBuffer()->breakStrongReferenceToDevice();
+    // Fully initialize the page before publishing it to the heap. If mapping fails, the local
+    // page and buffer are released without leaving an unusable entry in m_pages.
+    RefPtr<StagingHeap::Page> page = new Page(m_nextPageId, checked_cast<Buffer*>(bufferPtr.get()));
 
     // If always mapped, map page now
     if (m_keepPagesMapped)
         SLANG_RETURN_ON_FAIL(page->map(m_device));
 
-    *outPage = page;
+    // Break references to device as the buffer is now owned by the heap, which is device-owned
+    // either directly or through a command queue.
+    page->getBuffer()->breakStrongReferenceToDevice();
+
+    m_nextPageId++;
+    m_pageAllocationCount++;
+    m_totalCapacity += size;
+    m_pages.insert({page->getId(), page});
+    *outPage = page.get();
     return SLANG_OK;
 }
 

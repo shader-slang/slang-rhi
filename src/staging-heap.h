@@ -17,6 +17,16 @@ namespace rhi {
 class StagingHeap : public RefObject
 {
 public:
+    struct Config
+    {
+        Size pageSize = 16 * 1024 * 1024;
+        MemoryType memoryType = MemoryType::Upload;
+        BufferUsage usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
+        ResourceState defaultState = ResourceState::General;
+        Size defaultAlignment = 1024;
+        Size allocationGranularity = 1024;
+    };
+
     // Arbitrary meta data that sits within heap node to store extra info about allocation.
     struct MetaData
     {
@@ -132,6 +142,9 @@ public:
     // Initialize with device pointer.
     void initialize(Device* device, Size pageSize, MemoryType memoryType);
 
+    // Initialize with device pointer and explicit page buffer properties.
+    void initialize(Device* device, const Config& config);
+
     // Attempt to cleanup and check no allocations remain
     void release();
 
@@ -190,6 +203,13 @@ public:
         return m_totalUsed;
     }
 
+    // Get the total number of physical pages allocated over the heap's lifetime.
+    uint64_t getPageAllocationCount() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_pageAllocationCount;
+    }
+
     // Get the default offset alignment of heap allocations.
     Size getDefaultAlignment() const { return m_defaultAlignment; }
 
@@ -222,9 +242,12 @@ private:
     Size m_defaultAlignment = 1024;
     Size m_allocationGranularity = 1024;
     Size m_pageSize = 16 * 1024 * 1024;
+    uint64_t m_pageAllocationCount = 0;
     bool m_keepPagesMapped = true;
     std::unordered_map<int, RefPtr<Page>> m_pages;
-    MemoryType m_memoryType;
+    MemoryType m_memoryType = MemoryType::Upload;
+    BufferUsage m_usage = BufferUsage::CopyDestination | BufferUsage::CopySource;
+    ResourceState m_defaultState = ResourceState::General;
     mutable std::mutex m_mutex;
 
     Result allocHandleInternal(size_t size, Size alignment, MetaData metadata, Handle** outHandle);
