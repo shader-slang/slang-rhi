@@ -22,6 +22,10 @@ public:
 
     Result allocate(size_t size, Allocation& outAllocation);
 
+    // Number of pages currently retained by the pool. Used by tests to verify that reset()
+    // releases pages rather than retaining them for the command buffer's lifetime.
+    size_t getPageCount() const { return m_pages.size(); }
+
 private:
     static constexpr size_t kPageSize = 4 * 1024 * 1024;
 

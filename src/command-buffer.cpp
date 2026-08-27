@@ -29,10 +29,9 @@ void RenderPassEncoder::writeRenderState()
     cmd.state = m_renderState;
     cmd.pipeline = m_pipeline;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (Result result = m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData); SLANG_FAILED(result))
     {
-        m_commandEncoder->getDevice()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+        m_commandEncoder->getDevice()->printError("Failed to get binding data (result=0x%08X)", uint32_t(result));
         return;
     }
     m_commandList->write(std::move(cmd));
@@ -212,10 +211,9 @@ void ComputePassEncoder::writeComputeState()
     commands::SetComputeState cmd;
     cmd.pipeline = m_pipeline;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (Result result = m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData); SLANG_FAILED(result))
     {
-        m_commandEncoder->getDevice()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+        m_commandEncoder->getDevice()->printError("Failed to get binding data (result=0x%08X)", uint32_t(result));
         return;
     }
     m_commandList->write(std::move(cmd));
@@ -341,10 +339,9 @@ void RayTracingPassEncoder::writeRayTracingState()
     cmd.pipeline = m_pipeline;
     cmd.shaderTable = m_shaderTable;
     m_commandEncoder->getPipelineSpecializationArgs(m_pipeline, m_rootObject, cmd.specializationArgs);
-    if (SLANG_FAILED(m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData)))
+    if (Result result = m_commandEncoder->getBindingData(m_rootObject, cmd.bindingData); SLANG_FAILED(result))
     {
-        m_commandEncoder->getDevice()
-            ->handleMessage(DebugMessageType::Error, DebugMessageSource::Layer, "Failed to get binding data");
+        m_commandEncoder->getDevice()->printError("Failed to get binding data (result=0x%08X)", uint32_t(result));
         return;
     }
 

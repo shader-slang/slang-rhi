@@ -24,6 +24,16 @@ void ConstantBufferPool::finish()
 
 void ConstantBufferPool::reset()
 {
+    // Release the pages back to the device. Dropping each page's RefPtr routes through
+    // deferDelete, which holds the buffer until its submission fence has signaled, so this is
+    // safe even though retireCommandBuffers() runs reset() as soon as the fence passes. Without
+    // freeing here, the pool's 4 MiB pages would be held for the lifetime of every cached command
+    // buffer (m_commandBuffersPool is cleared only at shutdown), causing unbounded growth.
+    for (auto& page : m_pages)
+    {
+        unmapPage(page);
+    }
+    m_pages.clear();
     m_currentPage = -1;
     m_currentOffset = 0;
 }
