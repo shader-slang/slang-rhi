@@ -809,6 +809,7 @@ target_sources(slang-rhi PRIVATE
     src/shader-object.cpp
     src/shader.cpp
     src/staging-heap.cpp
+    src/transient-buffer-heap.cpp
     src/core/assert.cpp
     src/core/blob.cpp
     src/core/diagnostics.cpp
@@ -887,7 +888,6 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-bindless-descriptor-set.cpp
         src/d3d12/d3d12-buffer.cpp
         src/d3d12/d3d12-command.cpp
-        src/d3d12/d3d12-constant-buffer-pool.cpp
         src/d3d12/d3d12-descriptor-heap.cpp
         src/d3d12/d3d12-device.cpp
         src/d3d12/d3d12-fence.cpp
@@ -914,7 +914,6 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-bindless-descriptor-set.cpp
         src/vulkan/vk-buffer.cpp
         src/vulkan/vk-command.cpp
-        src/vulkan/vk-constant-buffer-pool.cpp
         src/vulkan/vk-descriptor-allocator.cpp
         src/vulkan/vk-device-queue.cpp
         src/vulkan/vk-device.cpp
@@ -1067,6 +1066,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-caching-allocator.cpp
         tests/test-command-encoder.cpp
         tests/test-compilation-report.cpp
+        tests/test-constant-buffer-arena.cpp
         tests/test-cmd-clear-buffer.cpp
         tests/test-cmd-clear-texture.cpp
         tests/test-cmd-copy-buffer.cpp
@@ -1132,6 +1132,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-ring-queue.cpp
         tests/test-short-vector.cpp
         tests/test-staging-heap.cpp
+        tests/test-transient-buffer-heap.cpp
         tests/test-static-vector.cpp
         tests/test-surface.cpp
         tests/test-texture-allocation-info.cpp
