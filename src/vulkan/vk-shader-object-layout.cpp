@@ -336,6 +336,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
         case slang::BindingType::ConstantBuffer:
         case slang::BindingType::ParameterBlock:
         case slang::BindingType::ExistentialValue:
+        case slang::BindingType::PushConstant:
             subObjectIndex = m_subObjectCount;
             m_subObjectCount += count;
             break;
@@ -374,7 +375,7 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             break;
         }
 
-        BindingRangeInfo bindingRangeInfo;
+        BindingRangeInfo bindingRangeInfo = {};
         bindingRangeInfo.bindingType = slangBindingType;
         bindingRangeInfo.count = count;
         bindingRangeInfo.slotIndex = slotIndex;
@@ -472,6 +473,11 @@ void ShaderObjectLayoutImpl::Builder::addBindingRanges(slang::TypeLayoutReflecti
             m_childDescriptorSetCount += subObjectLayout->getChildDescriptorSetCount();
             m_totalBindingCount += subObjectLayout->getTotalBindingCount();
             m_childPushConstantRangeCount += subObjectLayout->getTotalPushConstantRangeCount();
+            break;
+
+        case slang::BindingType::PushConstant:
+            m_childDescriptorSetCount += subObjectLayout->getChildDescriptorSetCount();
+            m_totalBindingCount += subObjectLayout->getTotalBindingCount();
             break;
 
         case slang::BindingType::ExistentialValue:
