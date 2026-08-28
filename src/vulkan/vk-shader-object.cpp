@@ -413,8 +413,8 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
         return SLANG_OK;
     }
 
-    ConstantBufferPool::Allocation allocation;
-    SLANG_RETURN_ON_FAIL(m_constantBufferPool->allocate(size, allocation));
+    TransientBufferArena::Allocation allocation;
+    SLANG_RETURN_ON_FAIL(m_constantBufferArena->allocate(size, &allocation));
     SLANG_RETURN_ON_FAIL(shaderObject->writeOrdinaryData(allocation.mappedData, size, specializedLayout));
 
     // If we did indeed need/create a buffer, then we must bind it into
@@ -427,7 +427,7 @@ Result BindingDataBuilder::bindOrdinaryDataBufferIfNeeded(
         ioOffset.binding,
         0,
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        allocation.buffer,
+        checked_cast<BufferImpl*>(allocation.buffer),
         {allocation.offset, size}
     );
     ioOffset.binding++;

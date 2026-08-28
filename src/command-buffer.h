@@ -11,6 +11,7 @@
 #include "reference.h"
 #include "command-list.h"
 #include "device-child.h"
+#include "transient-buffer-heap.h"
 
 #include "rhi-shared-fwd.h"
 
@@ -52,6 +53,7 @@ public:
 
 public:
     QueueType m_type;
+    TransientBufferHeap m_constantBufferHeap;
 };
 
 class RenderPassEncoder : public IRenderPassEncoder

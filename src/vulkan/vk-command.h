@@ -2,7 +2,7 @@
 
 #include "vk-base.h"
 #include "vk-shader-object.h"
-#include "vk-constant-buffer-pool.h"
+#include "../transient-buffer-heap.h"
 
 #include "core/ring-queue.h"
 
@@ -100,7 +100,7 @@ public:
     CommandQueueImpl* m_queue;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
-    ConstantBufferPool m_constantBufferPool;
+    TransientBufferArena m_constantBufferArena;
     DescriptorSetAllocator m_descriptorSetAllocator;
     BindingCache m_bindingCache;
     uint64_t m_submissionID = 0;

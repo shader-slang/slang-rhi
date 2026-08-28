@@ -2,7 +2,7 @@
 
 #include "vk-base.h"
 #include "vk-shader-object-layout.h"
-#include "vk-constant-buffer-pool.h"
+#include "../transient-buffer-heap.h"
 
 #include "core/short_vector.h"
 
@@ -16,7 +16,7 @@ struct BindingDataBuilder
     ArenaAllocator* m_allocator;
     BindingCache* m_bindingCache;
     BindingDataImpl* m_bindingData;
-    ConstantBufferPool* m_constantBufferPool;
+    TransientBufferArena* m_constantBufferArena;
     DescriptorSetAllocator* m_descriptorSetAllocator;
 
     // TODO remove
