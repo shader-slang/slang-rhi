@@ -987,7 +987,8 @@ public:
                 startTime,
                 Timer::now(),
                 false,
-                0
+                0,
+                nullptr
             );
         }
 

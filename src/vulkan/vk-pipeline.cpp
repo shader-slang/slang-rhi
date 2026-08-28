@@ -422,6 +422,7 @@ Result createPipelineWithCache(
     VkPipeline* outPipeline,
     bool& outCached,
     size_t& outCacheSize,
+    ComPtr<ISlangBlob>& outCacheKey,
     GetFallbackPipelineKey getFallbackPipelineKey = {}
 )
 {
@@ -429,6 +430,7 @@ Result createPipelineWithCache(
 
     outCached = false;
     outCacheSize = 0;
+    outCacheKey = nullptr;
 
     // Early out if cache is not enabled or the feature is not supported.
     if (!device->m_persistentPipelineCache || !api.m_extendedFeatures.pipelineBinaryFeatures.pipelineBinaries)
@@ -470,6 +472,7 @@ Result createPipelineWithCache(
                 writeCache = false;
                 outCached = true;
                 outCacheSize = pipelineCacheData->getBufferSize();
+                outCacheKey = pipelineCacheKey;
             }
             else
             {
@@ -529,6 +532,7 @@ Result createPipelineWithCache(
         {
             device->m_persistentPipelineCache->writeCache(pipelineCacheKey, pipelineCacheData);
             outCacheSize = pipelineCacheData->getBufferSize();
+            outCacheKey = pipelineCacheKey;
         }
         else
         {
@@ -766,6 +770,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     createInfo.pDynamicState = &dynamicStateInfo;
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
+    ComPtr<ISlangBlob> cacheKey;
     bool cached = false;
     size_t cacheSize = 0;
     SLANG_RETURN_ON_FAIL(
@@ -779,7 +784,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             },
             &vkPipeline,
             cached,
-            cacheSize
+            cacheSize,
+            cacheKey
         )
     );
 
@@ -794,7 +800,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             startTime,
             Timer::now(),
             cached,
-            cacheSize
+            cacheSize,
+            cacheKey
         );
     }
 
@@ -840,6 +847,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     createInfo.layout = program->m_rootShaderObjectLayout->m_pipelineLayout;
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
+    ComPtr<ISlangBlob> cacheKey;
     bool cached = false;
     size_t cacheSize = 0;
     SLANG_RETURN_ON_FAIL(
@@ -853,7 +861,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             },
             &vkPipeline,
             cached,
-            cacheSize
+            cacheSize,
+            cacheKey
         )
     );
 
@@ -868,7 +877,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             startTime,
             Timer::now(),
             cached,
-            cacheSize
+            cacheSize,
+            cacheKey
         );
     }
 
@@ -1027,6 +1037,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     createInfo.basePipelineIndex = 0;
 
     VkPipeline vkPipeline = VK_NULL_HANDLE;
+    ComPtr<ISlangBlob> cacheKey;
     bool cached = false;
     size_t cacheSize = 0;
     SLANG_RETURN_ON_FAIL(
@@ -1048,6 +1059,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             &vkPipeline,
             cached,
             cacheSize,
+            cacheKey,
             [program, &desc](SHA1::Digest& outDigest)
             {
                 return getRayTracingPipelineFallbackKey(program, desc, outDigest);
@@ -1066,7 +1078,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             startTime,
             Timer::now(),
             cached,
-            cacheSize
+            cacheSize,
+            cacheKey
         );
     }
 
