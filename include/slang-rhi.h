@@ -198,6 +198,20 @@ struct CompilationReport
     /// Time point in nanoseconds.
     typedef uint64_t TimePoint;
 
+    struct CacheKeyDigest
+    {
+        /// Digest type, or None if a cache key is unavailable.
+        enum class Type : uint8_t
+        {
+            None,
+            SHA1,
+        };
+
+        Type type;
+        /// SHA-1 digest bytes, or zeroes when type is None.
+        uint8_t bytes[20];
+    };
+
     struct EntryPointReport
     {
         char name[128];
@@ -209,6 +223,8 @@ struct CompilationReport
         double compileDownstreamTime;
         bool isCached;
         size_t cacheSize;
+        /// Stable digest of the opaque persistent shader-cache key.
+        CacheKeyDigest cacheKey;
     };
 
     enum class PipelineType
@@ -226,6 +242,8 @@ struct CompilationReport
         double createTime;
         bool isCached;
         size_t cacheSize;
+        /// Stable digest of the opaque persistent pipeline-cache key.
+        CacheKeyDigest cacheKey;
     };
 
     /// Shader program label.

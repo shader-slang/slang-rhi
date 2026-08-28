@@ -142,11 +142,13 @@ Result createPipelineWithCache(
     Result (*createPipelineFunc)(DeviceImpl* device, PipelineDesc* desc, PipelineState** outPipeline),
     PipelineState** outPipeline,
     bool& outCached,
-    size_t& outCacheSize
+    size_t& outCacheSize,
+    ComPtr<ISlangBlob>& outCacheKey
 )
 {
     outCached = false;
     outCacheSize = 0;
+    outCacheKey = nullptr;
 
     // Early out if cache is not enabled.
     if (!device->m_persistentPipelineCache)
@@ -178,6 +180,7 @@ Result createPipelineWithCache(
             writeCache = false;
             outCached = true;
             outCacheSize = pipelineCacheData->getBufferSize();
+            outCacheKey = pipelineCacheKey;
         }
         else
         {
@@ -202,6 +205,7 @@ Result createPipelineWithCache(
             pipelineCacheData = UnownedBlob::create(cachedBlob->GetBufferPointer(), cachedBlob->GetBufferSize());
             device->m_persistentPipelineCache->writeCache(pipelineCacheKey, pipelineCacheData);
             outCacheSize = pipelineCacheData->getBufferSize();
+            outCacheKey = pipelineCacheKey;
         }
     }
 
@@ -231,6 +235,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
     InputLayoutImpl* inputLayout = checked_cast<InputLayoutImpl*>(desc.inputLayout);
 
     ComPtr<ID3D12PipelineState> pipelineState;
+    ComPtr<ISlangBlob> cacheKey;
     bool cached = false;
     size_t cacheSize = 0;
 
@@ -441,7 +446,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             },
             pipelineState.writeRef(),
             cached,
-            cacheSize
+            cacheSize,
+            cacheKey
         );
         SLANG_RETURN_ON_FAIL(result);
     }
@@ -460,7 +466,8 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             startTime,
             Timer::now(),
             cached,
-            cacheSize
+            cacheSize,
+            cacheKey
         );
     }
 
@@ -501,6 +508,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
     computeDesc.CS = {program->m_shaders[0].code.data(), SIZE_T(program->m_shaders[0].code.size())};
 
     ComPtr<ID3D12PipelineState> pipelineState;
+    ComPtr<ISlangBlob> cacheKey;
     bool cached = false;
     size_t cacheSize = 0;
     Result result = createPipelineWithCache<D3D12_COMPUTE_PIPELINE_STATE_DESC, ID3D12PipelineState>(
@@ -538,7 +546,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
         },
         pipelineState.writeRef(),
         cached,
-        cacheSize
+        cacheSize,
+        cacheKey
     );
     SLANG_RETURN_ON_FAIL(result);
 
@@ -556,7 +565,8 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             startTime,
             Timer::now(),
             cached,
-            cacheSize
+            cacheSize,
+            cacheKey
         );
     }
 
@@ -801,7 +811,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             startTime,
             Timer::now(),
             false,
-            0
+            0,
+            nullptr
         );
     }
 

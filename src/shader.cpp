@@ -1,5 +1,6 @@
 #include "shader.h"
 
+#include "core/sha1.h"
 #include "rhi-shared.h"
 
 namespace rhi {
@@ -219,7 +220,8 @@ void ShaderProgram::reportEntryPointCompilation(Device* device, const CompiledEn
             entryPoint.stats.totalTime,
             entryPoint.stats.downstreamTime,
             entryPoint.stats.isCached,
-            entryPoint.stats.cacheSize
+            entryPoint.stats.cacheSize,
+            entryPoint.cacheKey
         );
     }
 }
@@ -334,6 +336,17 @@ void ShaderCompilationReporter::unregisterProgram(ShaderProgram* program)
     }
 }
 
+static void setCacheKeyDigest(CompilationReport::CacheKeyDigest& dst, ISlangBlob* cacheKey)
+{
+    dst = {};
+    if (cacheKey)
+    {
+        dst.type = CompilationReport::CacheKeyDigest::Type::SHA1;
+        SHA1::Digest digest = SHA1(cacheKey->getBufferPointer(), cacheKey->getBufferSize()).getDigest();
+        std::memcpy(dst.bytes, digest.data(), digest.size());
+    }
+}
+
 void ShaderCompilationReporter::reportCompileEntryPoint(
     ShaderProgram* program,
     const char* entryPointName,
@@ -342,7 +355,8 @@ void ShaderCompilationReporter::reportCompileEntryPoint(
     double totalTime,
     double downstreamTime,
     bool isCached,
-    size_t cacheSize
+    size_t cacheSize,
+    ISlangBlob* cacheKey
 )
 {
     SLANG_RHI_ASSERT(program);
@@ -378,6 +392,7 @@ void ShaderCompilationReporter::reportCompileEntryPoint(
         entryPointReport.compileDownstreamTime = downstreamTime;
         entryPointReport.isCached = isCached;
         entryPointReport.cacheSize = cacheSize;
+        setCacheKeyDigest(entryPointReport.cacheKey, cacheKey);
     }
 }
 
@@ -387,7 +402,8 @@ void ShaderCompilationReporter::reportCreatePipeline(
     TimePoint startTime,
     TimePoint endTime,
     bool isCached,
-    size_t cacheSize
+    size_t cacheSize,
+    ISlangBlob* cacheKey
 )
 {
     SLANG_RHI_ASSERT(program);
@@ -431,6 +447,7 @@ void ShaderCompilationReporter::reportCreatePipeline(
         pipelineReport.createTime = Timer::delta(startTime, endTime);
         pipelineReport.isCached = isCached;
         pipelineReport.cacheSize = cacheSize;
+        setCacheKeyDigest(pipelineReport.cacheKey, cacheKey);
     }
 }
 
