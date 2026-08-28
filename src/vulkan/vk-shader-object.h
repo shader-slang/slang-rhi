@@ -38,6 +38,13 @@ struct BindingDataBuilder
         uint32_t entryPointIndex
     );
 
+    /// Bind this object as a `PushConstantBuffer<X>`.
+    Result bindAsPushConstantBuffer(
+        ShaderObject* shaderObject,
+        const BindingOffset& inOffset,
+        ShaderObjectLayoutImpl* specializedLayout
+    );
+
     /// Bind the ordinary data buffer if needed.
     Result bindOrdinaryDataBufferIfNeeded(
         ShaderObject* shaderObject,
