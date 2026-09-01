@@ -35,6 +35,7 @@ class CommandQueueImpl;
 class AccelerationStructureImpl;
 class ShaderTableImpl;
 class HeapImpl;
+class ResourceHeapImpl;
 struct BindingDataImpl;
 struct BindingCache;
 

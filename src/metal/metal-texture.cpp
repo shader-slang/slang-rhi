@@ -1,4 +1,5 @@
 #include "metal-texture.h"
+#include "metal-resource-heap.h"
 #include "metal-buffer.h"
 #include "metal-command.h"
 #include "metal-device.h"
@@ -95,63 +96,23 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     RefPtr<TextureImpl> textureImpl(new TextureImpl(this, desc));
 
-    NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
-    switch (desc.memoryType)
+    NS::SharedPtr<MTL::TextureDescriptor> textureDesc = createTextureDescriptor(desc);
+
+    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
+    if (placement)
     {
-    case MemoryType::DeviceLocal:
-        textureDesc->setStorageMode(MTL::StorageModePrivate);
-        break;
-    case MemoryType::Upload:
-        textureDesc->setStorageMode(MTL::StorageModeShared);
-        textureDesc->setCpuCacheMode(MTL::CPUCacheModeWriteCombined);
-        break;
-    case MemoryType::ReadBack:
-        textureDesc->setStorageMode(MTL::StorageModeShared);
-        break;
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+        textureImpl->m_texture = NS::TransferPtr(heap->m_heap->newTexture(textureDesc.get(), placement->offset));
+        textureImpl->m_resourceHeap = heap;
     }
-
-    textureDesc->setTextureType(translateTextureType(desc.type));
-    textureDesc->setWidth(desc.size.width);
-    textureDesc->setHeight(desc.size.height);
-    textureDesc->setDepth(desc.size.depth);
-    textureDesc->setMipmapLevelCount(desc.mipCount);
-    textureDesc->setArrayLength(desc.arrayLength);
-    textureDesc->setPixelFormat(pixelFormat);
-    textureDesc->setSampleCount(desc.sampleCount);
-
-    MTL::TextureUsage textureUsage = MTL::TextureUsageUnknown;
-    if (is_set(desc.usage, TextureUsage::RenderTarget) || is_set(desc.usage, TextureUsage::DepthStencil))
+    else
     {
-        textureUsage |= MTL::TextureUsageRenderTarget;
+        textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
     }
-    if (is_set(desc.usage, TextureUsage::ShaderResource))
-    {
-        textureUsage |= MTL::TextureUsageShaderRead;
-    }
-    if (is_set(desc.usage, TextureUsage::UnorderedAccess))
-    {
-        textureUsage |= MTL::TextureUsageShaderRead;
-        textureUsage |= MTL::TextureUsageShaderWrite;
-
-        // TODO: We should check if atomics are supported.
-        // Request atomic access if the format allows it.
-        switch (desc.format)
-        {
-        case Format::R32Uint:
-        case Format::R32Sint:
-            textureUsage |= MTL::TextureUsageShaderAtomic;
-            break;
-        default:
-            break;
-        }
-    }
-
-    textureDesc->setUsage(textureUsage);
-    textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
-    SLANG_RHI_ASSERT(textureDesc->storageMode() != MTL::StorageModeManaged);
-    textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
-
-    textureImpl->m_texture = NS::TransferPtr(m_device->newTexture(textureDesc.get()));
     if (!textureImpl->m_texture)
     {
         return SLANG_FAIL;
@@ -219,6 +180,59 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     returnComPtr(outTexture, textureImpl);
     return SLANG_OK;
+}
+
+NS::SharedPtr<MTL::TextureDescriptor> createTextureDescriptor(const TextureDesc& desc)
+{
+    NS::SharedPtr<MTL::TextureDescriptor> textureDesc = NS::TransferPtr(MTL::TextureDescriptor::alloc()->init());
+    switch (desc.memoryType)
+    {
+    case MemoryType::DeviceLocal:
+        textureDesc->setStorageMode(MTL::StorageModePrivate);
+        break;
+    case MemoryType::Upload:
+        textureDesc->setStorageMode(MTL::StorageModeShared);
+        textureDesc->setCpuCacheMode(MTL::CPUCacheModeWriteCombined);
+        break;
+    case MemoryType::ReadBack:
+        textureDesc->setStorageMode(MTL::StorageModeShared);
+        break;
+    }
+
+    textureDesc->setTextureType(translateTextureType(desc.type));
+    textureDesc->setWidth(desc.size.width);
+    textureDesc->setHeight(desc.size.height);
+    textureDesc->setDepth(desc.size.depth);
+    textureDesc->setMipmapLevelCount(desc.mipCount);
+    textureDesc->setArrayLength(desc.arrayLength);
+    textureDesc->setPixelFormat(translatePixelFormat(desc.format));
+    textureDesc->setSampleCount(desc.sampleCount);
+
+    MTL::TextureUsage textureUsage = MTL::TextureUsageUnknown;
+    if (is_set(desc.usage, TextureUsage::RenderTarget) || is_set(desc.usage, TextureUsage::DepthStencil))
+        textureUsage |= MTL::TextureUsageRenderTarget;
+    if (is_set(desc.usage, TextureUsage::ShaderResource))
+        textureUsage |= MTL::TextureUsageShaderRead;
+    if (is_set(desc.usage, TextureUsage::UnorderedAccess))
+    {
+        textureUsage |= MTL::TextureUsageShaderRead;
+        textureUsage |= MTL::TextureUsageShaderWrite;
+        switch (desc.format)
+        {
+        case Format::R32Uint:
+        case Format::R32Sint:
+            textureUsage |= MTL::TextureUsageShaderAtomic;
+            break;
+        default:
+            break;
+        }
+    }
+
+    textureDesc->setUsage(textureUsage);
+    textureDesc->setAllowGPUOptimizedContents(desc.memoryType == MemoryType::DeviceLocal);
+    SLANG_RHI_ASSERT(textureDesc->storageMode() != MTL::StorageModeManaged);
+    textureDesc->setHazardTrackingMode(MTL::HazardTrackingModeUntracked);
+    return textureDesc;
 }
 
 Result DeviceImpl::createTextureFromNativeHandle(NativeHandle handle, const TextureDesc& desc_, ITexture** outTexture)

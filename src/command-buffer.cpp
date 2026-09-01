@@ -878,6 +878,14 @@ void CommandEncoder::globalBarrier()
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::aliasResources(IResource* before, IResource* after)
+{
+    commands::AliasResources cmd;
+    cmd.before = before;
+    cmd.after = after;
+    m_commandList->write(std::move(cmd));
+}
+
 
 void CommandEncoder::pushDebugGroup(const char* name, const MarkerColor& color)
 {

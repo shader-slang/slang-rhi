@@ -4,6 +4,16 @@
 
 namespace rhi::vk {
 
+Result createVkBuffer(
+    const VulkanApi& api,
+    Size bufferSize,
+    VkBufferUsageFlags usage,
+    VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags,
+    VkBuffer* outBuffer
+);
+
+VkBufferUsageFlags getBufferUsageFlags(const DeviceImpl* device, const BufferDesc& desc);
+
 // Combined buffer and memory class
 class VKBufferHandleRAII
 {
@@ -15,6 +25,16 @@ public:
         VkBufferUsageFlags usage,
         VkMemoryPropertyFlags reqMemoryProperties,
         VkExternalMemoryHandleTypeFlagsKHR externalMemoryHandleTypeFlags = 0
+    );
+
+    /// Create a buffer and bind it to existing memory.
+    Result initPlaced(
+        const VulkanApi& api,
+        Size bufferSize,
+        VkBufferUsageFlags usage,
+        uint32_t memoryTypeIndex,
+        VkDeviceMemory memory,
+        Offset offset
     );
 
     /// Returns true if has been initialized
@@ -30,13 +50,15 @@ public:
         if (m_api)
         {
             m_api->vkDestroyBuffer(m_api->m_device, m_buffer, nullptr);
-            m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
+            if (m_ownsMemory)
+                m_api->vkFreeMemory(m_api->m_device, m_memory, nullptr);
         }
     }
 
     VkBuffer m_buffer;
     VkDeviceMemory m_memory;
     const VulkanApi* m_api;
+    bool m_ownsMemory = true;
 };
 
 class BufferImpl : public Buffer
@@ -63,6 +85,8 @@ public:
 public:
     VKBufferHandleRAII m_buffer;
     DeviceAddress m_deviceAddress = 0;
+    RefPtr<ResourceHeapImpl> m_resourceHeap;
+    Offset m_resourceHeapOffset = 0;
 
     struct ViewKey
     {

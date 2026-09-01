@@ -4,6 +4,8 @@
 
 namespace rhi::metal {
 
+NS::SharedPtr<MTL::TextureDescriptor> createTextureDescriptor(const TextureDesc& desc);
+
 class TextureImpl : public Texture
 {
 public:
@@ -21,6 +23,7 @@ public:
 
 public:
     NS::SharedPtr<MTL::Texture> m_texture;
+    RefPtr<ResourceHeapImpl> m_resourceHeap;
     MTL::TextureType m_textureType;
     MTL::PixelFormat m_pixelFormat;
     // True if this texture is created from a swap chain buffer.

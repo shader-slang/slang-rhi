@@ -801,6 +801,7 @@ target_sources(slang-rhi PRIVATE
     src/enum-strings.cpp
     src/format-conversion.cpp
     src/heap.cpp
+    src/resource-heap.cpp
     src/pipeline.cpp
     src/pipeline-resolver.cpp
     src/resource-desc-utils.cpp
@@ -825,6 +826,7 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-device.cpp
     src/debug-layer/debug-fence.cpp
     src/debug-layer/debug-heap.cpp
+    src/debug-layer/debug-resource-heap.cpp
     src/debug-layer/debug-helper-functions.cpp
     src/debug-layer/debug-query.cpp
     src/debug-layer/debug-shader-object.cpp
@@ -895,6 +897,7 @@ if(SLANG_RHI_ENABLE_D3D12)
         src/d3d12/d3d12-posix-synchapi.cpp
         src/d3d12/d3d12-query.cpp
         src/d3d12/d3d12-resource.cpp
+        src/d3d12/d3d12-resource-heap.cpp
         src/d3d12/d3d12-sampler.cpp
         src/d3d12/d3d12-shader-object-layout.cpp
         src/d3d12/d3d12-shader-object.cpp
@@ -919,6 +922,7 @@ if(SLANG_RHI_ENABLE_VULKAN)
         src/vulkan/vk-device.cpp
         src/vulkan/vk-fence.cpp
         src/vulkan/vk-heap.cpp
+        src/vulkan/vk-resource-heap.cpp
         src/vulkan/vk-pipeline.cpp
         src/vulkan/vk-query.cpp
         src/vulkan/vk-sampler.cpp
@@ -946,6 +950,7 @@ if(SLANG_RHI_ENABLE_METAL)
         src/metal/metal-input-layout.cpp
         src/metal/metal-pipeline.cpp
         src/metal/metal-query.cpp
+        src/metal/metal-resource-heap.cpp
         src/metal/metal-sampler.cpp
         src/metal/metal-shader-object-layout.cpp
         src/metal/metal-shader-object.cpp
@@ -973,6 +978,7 @@ if(SLANG_RHI_ENABLE_CUDA)
         src/cuda/cuda-nvrtc.cpp
         src/cuda/cuda-pipeline.cpp
         src/cuda/cuda-query.cpp
+        src/cuda/cuda-resource-heap.cpp
         src/cuda/cuda-sampler.cpp
         src/cuda/cuda-shader-object-layout.cpp
         src/cuda/cuda-shader-object.cpp
@@ -1091,6 +1097,7 @@ if(SLANG_RHI_BUILD_TESTS AND NOT SLANG_RHI_BUILD_SHARED AND NOT EMSCRIPTEN)
         tests/test-fence.cpp
         tests/test-formats.cpp
         tests/test-heap.cpp
+        tests/test-resource-heap.cpp
         tests/test-imported-constant-buffer.cpp
         tests/test-link-time-constant.cpp
         tests/test-link-time-default.cpp

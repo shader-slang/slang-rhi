@@ -1,5 +1,6 @@
 #include "cuda-buffer.h"
 #include "cuda-device.h"
+#include "cuda-resource-heap.h"
 #include "cuda-utils.h"
 
 namespace rhi::cuda {
@@ -76,18 +77,32 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 {
     auto desc = fixupBufferDesc(desc_);
     RefPtr<BufferImpl> buffer = new BufferImpl(this, desc);
-    HeapAllocDesc allocDesc;
-    allocDesc.alignment = 128;
-    allocDesc.size = desc.size;
-    if (desc.memoryType == MemoryType::DeviceLocal)
+    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
+    if (placement)
     {
-        SLANG_RETURN_ON_FAIL(m_deviceMemHeap->allocate(allocDesc, &buffer->m_alloc));
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getBufferMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
+        buffer->m_cudaMemory = reinterpret_cast<void*>(heap->m_memory + placement->offset);
+        buffer->m_resourceHeap = heap;
     }
     else
     {
-        SLANG_RETURN_ON_FAIL(m_hostMemHeap->allocate(allocDesc, &buffer->m_alloc));
+        HeapAllocDesc allocDesc;
+        allocDesc.alignment = 128;
+        allocDesc.size = desc.size;
+        if (desc.memoryType == MemoryType::DeviceLocal)
+        {
+            SLANG_RETURN_ON_FAIL(m_deviceMemHeap->allocate(allocDesc, &buffer->m_alloc));
+        }
+        else
+        {
+            SLANG_RETURN_ON_FAIL(m_hostMemHeap->allocate(allocDesc, &buffer->m_alloc));
+        }
+        buffer->m_cudaMemory = buffer->m_alloc.getHostPtr();
     }
-    buffer->m_cudaMemory = buffer->m_alloc.getHostPtr();
 
     if (initData)
     {
