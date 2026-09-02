@@ -1126,17 +1126,17 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        // VK_NV_cooperative_matrix2 has independent feature bits: one does not imply another. Enable
-        // the extension when any is supported and report each rhi::Feature/capability on its own bit,
-        // so a partially-supported device is gated accurately. addFeatureExtension chains the struct
-        // exactly once here; splitting into per-bit SIMPLE_EXTENSION_FEATURE blocks would make its
-        // pNext point at itself (a cyclic chain).
+        // VK_NV_cooperative_matrix2 has independent feature bits — one does not imply another — so
+        // each is reported on its own bit and the extension is enabled whenever any is supported.
+        // The queried struct is inserted into the device pNext chain exactly once; a second
+        // insertion would self-link its pNext.
         {
             const auto& coopMat2 = extendedFeatures.cooperativeMatrix2Features;
             const bool anyCoopMat2Feature =
-                coopMat2.cooperativeMatrixWorkgroupScope || coopMat2.cooperativeMatrixReductions ||
-                coopMat2.cooperativeMatrixConversions || coopMat2.cooperativeMatrixPerElementOperations ||
-                coopMat2.cooperativeMatrixTensorAddressing || coopMat2.cooperativeMatrixBlockLoads;
+                coopMat2.cooperativeMatrixWorkgroupScope || coopMat2.cooperativeMatrixFlexibleDimensions ||
+                coopMat2.cooperativeMatrixReductions || coopMat2.cooperativeMatrixConversions ||
+                coopMat2.cooperativeMatrixPerElementOperations || coopMat2.cooperativeMatrixTensorAddressing ||
+                coopMat2.cooperativeMatrixBlockLoads;
             if (addFeatureExtension(
                     anyCoopMat2Feature,
                     extendedFeatures.cooperativeMatrix2Features,
@@ -1167,7 +1167,10 @@ Result DeviceImpl::initVulkanDevice(
                 if (coopMat2.cooperativeMatrixTensorAddressing)
                 {
                     availableFeatures.push_back(Feature::CooperativeMatrixTensorAddressing);
+                    // This bit enables both the CooperativeMatrixTensorAddressingNV and the standalone
+                    // TensorAddressingNV SPIR-V capability (TensorView/TensorLayout), so advertise both.
                     availableCapabilities.push_back(Capability::spvCooperativeMatrixTensorAddressingNV);
+                    availableCapabilities.push_back(Capability::spvTensorAddressingNV);
                 }
                 if (coopMat2.cooperativeMatrixBlockLoads)
                 {
