@@ -1126,7 +1126,7 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        // VK_NV_cooperative_matrix2 has independent feature bits — one does not imply another — so
+        // VK_NV_cooperative_matrix2 has independent feature bits - one does not imply another - so
         // each is reported on its own bit and the extension is enabled whenever any is supported.
         // The queried struct is inserted into the device pNext chain exactly once; a second
         // insertion would self-link its pNext.
