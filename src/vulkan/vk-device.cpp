@@ -1126,16 +1126,22 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.cooperativeMatrix2Features,
-            cooperativeMatrixWorkgroupScope,
-            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+        auto& cooperativeMatrix2Features = extendedFeatures.cooperativeMatrix2Features;
+        if (addFeatureExtension(
+                hasAnyCooperativeMatrix2Feature(cooperativeMatrix2Features),
+                cooperativeMatrix2Features,
+                VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME
+            ))
+        {
+            availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
+
+            if (cooperativeMatrix2Features.cooperativeMatrixWorkgroupScope)
             {
                 availableFeatures.push_back(Feature::CooperativeMatrix2);
-                availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
                 availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
             }
-        );
+            appendCooperativeMatrix2Subfeatures(cooperativeMatrix2Features, availableFeatures, availableCapabilities);
+        }
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.mutableDescriptorTypeFeatures,

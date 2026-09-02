@@ -1,6 +1,13 @@
 #include "testing.h"
 #include "core/common.h"
 
+#if SLANG_RHI_ENABLE_VULKAN
+#include "vulkan/vk-utils.h"
+#endif
+
+#include <algorithm>
+#include <iterator>
+
 using namespace rhi;
 using namespace rhi::testing;
 
@@ -17,6 +24,141 @@ static CooperativeMatrixDesc makeBasicCoopMatDesc()
     desc.scope = CooperativeMatrixScope::Subgroup;
     return desc;
 }
+
+TEST_CASE("cooperative-matrix-2-feature-names")
+{
+    struct TestCase
+    {
+        Feature feature;
+        const char* name;
+    };
+    const TestCase testCases[] = {
+        {Feature::CooperativeMatrixReductions, "cooperative-matrix-reductions"},
+        {Feature::CooperativeMatrixConversions, "cooperative-matrix-conversions"},
+        {Feature::CooperativeMatrixPerElementOperations, "cooperative-matrix-per-element-operations"},
+        {Feature::CooperativeMatrixTensorAddressing, "cooperative-matrix-tensor-addressing"},
+        {Feature::CooperativeMatrixBlockLoads, "cooperative-matrix-block-loads"},
+    };
+
+    for (const auto& testCase : testCases)
+    {
+        CHECK(std::string_view(getRHI()->getFeatureName(testCase.feature)) == testCase.name);
+    }
+}
+
+#if SLANG_RHI_ENABLE_VULKAN
+TEST_CASE("cooperative-matrix-2-subfeature-projection")
+{
+    const auto featureBits = {
+        &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixWorkgroupScope,
+        &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixFlexibleDimensions,
+        &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixReductions,
+        &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixConversions,
+        &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixPerElementOperations,
+        &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixTensorAddressing,
+        &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixBlockLoads,
+    };
+    for (const auto featureBit : featureBits)
+    {
+        VkPhysicalDeviceCooperativeMatrix2FeaturesNV vulkanFeatures = {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
+        };
+        vulkanFeatures.*featureBit = VK_TRUE;
+        CHECK(vk::hasAnyCooperativeMatrix2Feature(vulkanFeatures));
+    }
+
+    VkPhysicalDeviceCooperativeMatrix2FeaturesNV noFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
+    };
+    CHECK_FALSE(vk::hasAnyCooperativeMatrix2Feature(noFeatures));
+
+    struct TestCase
+    {
+        VkBool32 VkPhysicalDeviceCooperativeMatrix2FeaturesNV::*featureBit;
+        Feature feature;
+        Capability capabilities[2];
+        size_t capabilityCount;
+    };
+    const TestCase testCases[] = {
+        {
+            &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixReductions,
+            Feature::CooperativeMatrixReductions,
+            {Capability::spvCooperativeMatrixReductionsNV},
+            1,
+        },
+        {
+            &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixConversions,
+            Feature::CooperativeMatrixConversions,
+            {Capability::spvCooperativeMatrixConversionsNV},
+            1,
+        },
+        {
+            &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixPerElementOperations,
+            Feature::CooperativeMatrixPerElementOperations,
+            {Capability::spvCooperativeMatrixPerElementOperationsNV},
+            1,
+        },
+        {
+            &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixTensorAddressing,
+            Feature::CooperativeMatrixTensorAddressing,
+            {Capability::spvCooperativeMatrixTensorAddressingNV, Capability::spvTensorAddressingNV},
+            2,
+        },
+        {
+            &VkPhysicalDeviceCooperativeMatrix2FeaturesNV::cooperativeMatrixBlockLoads,
+            Feature::CooperativeMatrixBlockLoads,
+            {Capability::spvCooperativeMatrixBlockLoadsNV},
+            1,
+        },
+    };
+
+    for (const auto& testCase : testCases)
+    {
+        VkPhysicalDeviceCooperativeMatrix2FeaturesNV vulkanFeatures = {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
+        };
+        vulkanFeatures.*testCase.featureBit = VK_TRUE;
+        std::vector<Feature> features;
+        std::vector<Capability> capabilities;
+
+        vk::appendCooperativeMatrix2Subfeatures(vulkanFeatures, features, capabilities);
+
+        REQUIRE(features.size() == 1);
+        CHECK(features[0] == testCase.feature);
+        REQUIRE(capabilities.size() == testCase.capabilityCount);
+        for (size_t i = 0; i < testCase.capabilityCount; ++i)
+        {
+            CHECK(capabilities[i] == testCase.capabilities[i]);
+        }
+    }
+
+    std::vector<Feature> features;
+    std::vector<Capability> capabilities;
+    vk::appendCooperativeMatrix2Subfeatures(noFeatures, features, capabilities);
+    CHECK(features.empty());
+    CHECK(capabilities.empty());
+
+    VkPhysicalDeviceCooperativeMatrix2FeaturesNV allFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
+    };
+    for (const auto featureBit : featureBits)
+    {
+        allFeatures.*featureBit = VK_TRUE;
+    }
+    CHECK(vk::hasAnyCooperativeMatrix2Feature(allFeatures));
+    vk::appendCooperativeMatrix2Subfeatures(allFeatures, features, capabilities);
+    CHECK(features.size() == std::size(testCases));
+    CHECK(capabilities.size() == std::size(testCases) + 1);
+    for (const auto& testCase : testCases)
+    {
+        CHECK(std::find(features.begin(), features.end(), testCase.feature) != features.end());
+        for (size_t i = 0; i < testCase.capabilityCount; ++i)
+        {
+            CHECK(std::find(capabilities.begin(), capabilities.end(), testCase.capabilities[i]) != capabilities.end());
+        }
+    }
+}
+#endif
 
 GPU_TEST_CASE("cooperative-matrix-invalid-desc", ALL)
 {
@@ -102,4 +244,57 @@ GPU_TEST_CASE("cooperative-matrix-query", Vulkan)
     {
         CHECK(supportedWorkgroup);
     }
+}
+
+GPU_TEST_CASE("cooperative-matrix-2-feature-capabilities", Vulkan)
+{
+    struct TestCase
+    {
+        Feature feature;
+        const char* name;
+        Capability capability;
+    };
+    const TestCase testCases[] = {
+        {
+            Feature::CooperativeMatrixReductions,
+            "cooperative-matrix-reductions",
+            Capability::spvCooperativeMatrixReductionsNV,
+        },
+        {
+            Feature::CooperativeMatrixConversions,
+            "cooperative-matrix-conversions",
+            Capability::spvCooperativeMatrixConversionsNV,
+        },
+        {
+            Feature::CooperativeMatrixPerElementOperations,
+            "cooperative-matrix-per-element-operations",
+            Capability::spvCooperativeMatrixPerElementOperationsNV,
+        },
+        {
+            Feature::CooperativeMatrixTensorAddressing,
+            "cooperative-matrix-tensor-addressing",
+            Capability::spvCooperativeMatrixTensorAddressingNV,
+        },
+        {
+            Feature::CooperativeMatrixBlockLoads,
+            "cooperative-matrix-block-loads",
+            Capability::spvCooperativeMatrixBlockLoadsNV,
+        },
+    };
+
+    for (const auto& testCase : testCases)
+    {
+        const bool supported = device->hasFeature(testCase.feature);
+        CHECK(device->hasFeature(testCase.name) == supported);
+        CHECK(device->hasCapability(testCase.capability) == supported);
+        if (supported)
+        {
+            CHECK(device->hasCapability(Capability::SPV_NV_cooperative_matrix2));
+        }
+    }
+
+    CHECK(
+        device->hasCapability(Capability::spvTensorAddressingNV) ==
+        device->hasFeature(Feature::CooperativeMatrixTensorAddressing)
+    );
 }

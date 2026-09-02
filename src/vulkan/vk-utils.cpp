@@ -1175,6 +1175,48 @@ CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperati
     }
 }
 
+bool hasAnyCooperativeMatrix2Feature(const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features)
+{
+    return features.cooperativeMatrixWorkgroupScope || features.cooperativeMatrixFlexibleDimensions ||
+           features.cooperativeMatrixReductions || features.cooperativeMatrixConversions ||
+           features.cooperativeMatrixPerElementOperations || features.cooperativeMatrixTensorAddressing ||
+           features.cooperativeMatrixBlockLoads;
+}
+
+void appendCooperativeMatrix2Subfeatures(
+    const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features,
+    std::vector<Feature>& availableFeatures,
+    std::vector<Capability>& availableCapabilities
+)
+{
+    if (features.cooperativeMatrixReductions)
+    {
+        availableFeatures.push_back(Feature::CooperativeMatrixReductions);
+        availableCapabilities.push_back(Capability::spvCooperativeMatrixReductionsNV);
+    }
+    if (features.cooperativeMatrixConversions)
+    {
+        availableFeatures.push_back(Feature::CooperativeMatrixConversions);
+        availableCapabilities.push_back(Capability::spvCooperativeMatrixConversionsNV);
+    }
+    if (features.cooperativeMatrixPerElementOperations)
+    {
+        availableFeatures.push_back(Feature::CooperativeMatrixPerElementOperations);
+        availableCapabilities.push_back(Capability::spvCooperativeMatrixPerElementOperationsNV);
+    }
+    if (features.cooperativeMatrixTensorAddressing)
+    {
+        availableFeatures.push_back(Feature::CooperativeMatrixTensorAddressing);
+        availableCapabilities.push_back(Capability::spvCooperativeMatrixTensorAddressingNV);
+        availableCapabilities.push_back(Capability::spvTensorAddressingNV);
+    }
+    if (features.cooperativeMatrixBlockLoads)
+    {
+        availableFeatures.push_back(Feature::CooperativeMatrixBlockLoads);
+        availableCapabilities.push_back(Capability::spvCooperativeMatrixBlockLoadsNV);
+    }
+}
+
 bool translateCooperativeMatrixComponentType(VkComponentTypeKHR type, CooperativeMatrixComponentType& outType)
 {
     switch (type)
