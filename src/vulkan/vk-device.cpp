@@ -1127,16 +1127,17 @@ Result DeviceImpl::initVulkanDevice(
         );
 
         // VK_NV_cooperative_matrix2 has independent feature bits - one does not imply another - so
-        // each is reported on its own bit and the extension is enabled whenever any is supported.
+        // each is reported on its own bit and the extension is enabled whenever any exposed bit is
+        // supported. The gate lists exactly the bits mapped to a Feature/Capability below (flexible
+        // dimensions has no SPIR-V capability and is not exposed, so it is not part of the gate).
         // The queried struct is inserted into the device pNext chain exactly once; a second
         // insertion would self-link its pNext.
         {
             const auto& coopMat2 = extendedFeatures.cooperativeMatrix2Features;
             const bool anyCoopMat2Feature =
-                coopMat2.cooperativeMatrixWorkgroupScope || coopMat2.cooperativeMatrixFlexibleDimensions ||
-                coopMat2.cooperativeMatrixReductions || coopMat2.cooperativeMatrixConversions ||
-                coopMat2.cooperativeMatrixPerElementOperations || coopMat2.cooperativeMatrixTensorAddressing ||
-                coopMat2.cooperativeMatrixBlockLoads;
+                coopMat2.cooperativeMatrixWorkgroupScope || coopMat2.cooperativeMatrixReductions ||
+                coopMat2.cooperativeMatrixConversions || coopMat2.cooperativeMatrixPerElementOperations ||
+                coopMat2.cooperativeMatrixTensorAddressing || coopMat2.cooperativeMatrixBlockLoads;
             if (addFeatureExtension(
                     anyCoopMat2Feature,
                     extendedFeatures.cooperativeMatrix2Features,
