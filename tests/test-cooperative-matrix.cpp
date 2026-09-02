@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <ostream>
 
 using namespace rhi;
 using namespace rhi::testing;
@@ -65,16 +66,39 @@ TEST_CASE("cooperative-matrix-2-subfeature-projection")
         };
         vulkanFeatures.*featureBit = VK_TRUE;
         CHECK(vk::hasAnyCooperativeMatrix2Feature(vulkanFeatures));
+
+        auto extensionSelection = vk::selectCooperativeMatrix2Extensions(true, true, false, vulkanFeatures);
+        CHECK(extensionSelection.enableCooperativeMatrix2Extension);
+        CHECK(extensionSelection.appendCooperativeMatrixExtensionDependency);
+
+        extensionSelection = vk::selectCooperativeMatrix2Extensions(true, true, true, vulkanFeatures);
+        CHECK(extensionSelection.enableCooperativeMatrix2Extension);
+        CHECK_FALSE(extensionSelection.appendCooperativeMatrixExtensionDependency);
+
+        extensionSelection = vk::selectCooperativeMatrix2Extensions(false, true, false, vulkanFeatures);
+        CHECK_FALSE(extensionSelection.enableCooperativeMatrix2Extension);
+        CHECK_FALSE(extensionSelection.appendCooperativeMatrixExtensionDependency);
+
+        extensionSelection = vk::selectCooperativeMatrix2Extensions(false, true, true, vulkanFeatures);
+        CHECK_FALSE(extensionSelection.enableCooperativeMatrix2Extension);
+        CHECK_FALSE(extensionSelection.appendCooperativeMatrixExtensionDependency);
+
+        extensionSelection = vk::selectCooperativeMatrix2Extensions(true, false, false, vulkanFeatures);
+        CHECK_FALSE(extensionSelection.enableCooperativeMatrix2Extension);
+        CHECK_FALSE(extensionSelection.appendCooperativeMatrixExtensionDependency);
     }
 
     VkPhysicalDeviceCooperativeMatrix2FeaturesNV noFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV
     };
     CHECK_FALSE(vk::hasAnyCooperativeMatrix2Feature(noFeatures));
+    const auto extensionSelection = vk::selectCooperativeMatrix2Extensions(true, true, false, noFeatures);
+    CHECK_FALSE(extensionSelection.enableCooperativeMatrix2Extension);
+    CHECK_FALSE(extensionSelection.appendCooperativeMatrixExtensionDependency);
 
     struct TestCase
     {
-        VkBool32 VkPhysicalDeviceCooperativeMatrix2FeaturesNV::*featureBit;
+        VkBool32 VkPhysicalDeviceCooperativeMatrix2FeaturesNV::* featureBit;
         Feature feature;
         Capability capabilities[2];
         size_t capabilityCount;

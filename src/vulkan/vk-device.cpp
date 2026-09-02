@@ -1127,12 +1127,24 @@ Result DeviceImpl::initVulkanDevice(
         );
 
         auto& cooperativeMatrix2Features = extendedFeatures.cooperativeMatrix2Features;
+        const auto cooperativeMatrix2ExtensionSelection = selectCooperativeMatrix2Extensions(
+            extensionNames.count(VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME) != 0,
+            extensionNames.count(VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME) != 0,
+            extendedFeatures.cooperativeMatrix1Features.cooperativeMatrix,
+            cooperativeMatrix2Features
+        );
         if (addFeatureExtension(
-                hasAnyCooperativeMatrix2Feature(cooperativeMatrix2Features),
+                cooperativeMatrix2ExtensionSelection.enableCooperativeMatrix2Extension,
                 cooperativeMatrix2Features,
                 VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME
             ))
         {
+            // VK_NV_cooperative_matrix2 depends on VK_KHR_cooperative_matrix. The KHR
+            // extension was already added above when its feature bit was enabled.
+            if (cooperativeMatrix2ExtensionSelection.appendCooperativeMatrixExtensionDependency)
+            {
+                deviceExtensions.push_back(VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME);
+            }
             availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
 
             if (cooperativeMatrix2Features.cooperativeMatrixWorkgroupScope)

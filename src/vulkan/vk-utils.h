@@ -128,6 +128,17 @@ VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(Coopera
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout);
 
 bool hasAnyCooperativeMatrix2Feature(const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features);
+struct CooperativeMatrix2ExtensionSelection
+{
+    bool enableCooperativeMatrix2Extension;
+    bool appendCooperativeMatrixExtensionDependency;
+};
+CooperativeMatrix2ExtensionSelection selectCooperativeMatrix2Extensions(
+    bool cooperativeMatrixExtensionAvailable,
+    bool cooperativeMatrix2ExtensionAvailable,
+    bool cooperativeMatrixFeatureEnabled,
+    const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features
+);
 void appendCooperativeMatrix2Subfeatures(
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features,
     std::vector<Feature>& availableFeatures,

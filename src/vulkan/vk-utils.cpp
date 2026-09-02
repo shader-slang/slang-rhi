@@ -1183,6 +1183,22 @@ bool hasAnyCooperativeMatrix2Feature(const VkPhysicalDeviceCooperativeMatrix2Fea
            features.cooperativeMatrixBlockLoads;
 }
 
+CooperativeMatrix2ExtensionSelection selectCooperativeMatrix2Extensions(
+    bool cooperativeMatrixExtensionAvailable,
+    bool cooperativeMatrix2ExtensionAvailable,
+    bool cooperativeMatrixFeatureEnabled,
+    const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features
+)
+{
+    const bool enableCooperativeMatrix2Extension = cooperativeMatrixExtensionAvailable &&
+                                                   cooperativeMatrix2ExtensionAvailable &&
+                                                   hasAnyCooperativeMatrix2Feature(features);
+    return {
+        enableCooperativeMatrix2Extension,
+        enableCooperativeMatrix2Extension && !cooperativeMatrixFeatureEnabled,
+    };
+}
+
 void appendCooperativeMatrix2Subfeatures(
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features,
     std::vector<Feature>& availableFeatures,
