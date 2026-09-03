@@ -1423,6 +1423,7 @@ void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
     MicromapBuildDescConverter converter;
     if (SLANG_FAILED(converter.convert(cmd.desc)))
         return;
+    commitBarriers();
     D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
     buildDesc.DestAccelerationStructureData = dst->getDeviceAddress();
     buildDesc.ScratchAccelerationStructureData = cmd.scratchBuffer.getDeviceAddress();
@@ -1796,8 +1797,12 @@ void CommandRecorder::commitBarriers()
         }
         else if ((bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
                   bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
-                 (bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead &&
-                  bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite) ||
+                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureRead &&
+                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite) ||
+                 (bufferBarrier.stateBefore == ResourceState::MicromapWrite &&
+                  bufferBarrier.stateAfter == ResourceState::MicromapRead) ||
+                 (bufferBarrier.stateBefore == ResourceState::MicromapRead &&
+                  bufferBarrier.stateAfter == ResourceState::MicromapWrite) ||
                  ((stateAfter & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0))
         {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;

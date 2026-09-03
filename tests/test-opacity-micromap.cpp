@@ -65,10 +65,12 @@ GPU_TEST_CASE("opacity-micromap-build", D3D12 | Vulkan | CUDA)
     REQUIRE(scratchBuffer);
 
     auto queue = device->getQueue(QueueType::Graphics);
+    REQUIRE(queue);
     auto encoder = queue->createCommandEncoder();
+    REQUIRE(encoder);
     encoder->buildMicromap(buildDesc, micromap, scratchBuffer);
-    queue->submit(encoder->finish());
-    queue->waitOnHost();
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
 
     struct Vertex
     {
@@ -80,6 +82,7 @@ GPU_TEST_CASE("opacity-micromap-build", D3D12 | Vulkan | CUDA)
     vertexDesc.usage = BufferUsage::AccelerationStructureBuildInput;
     vertexDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
     ComPtr<IBuffer> vertexBuffer = device->createBuffer(vertexDesc, vertices);
+    REQUIRE(vertexBuffer);
 
     AccelerationStructureOpacityMicromapDesc ommAttachment = {};
     ommAttachment.link.micromap = micromap;
@@ -108,11 +111,13 @@ GPU_TEST_CASE("opacity-micromap-build", D3D12 | Vulkan | CUDA)
     REQUIRE_CALL(device->createAccelerationStructure(blasDesc, blas.writeRef()));
     scratchDesc.size = blasSizes.scratchSize;
     scratchBuffer = device->createBuffer(scratchDesc);
+    REQUIRE(scratchBuffer);
 
     encoder = queue->createCommandEncoder();
+    REQUIRE(encoder);
     encoder->buildAccelerationStructure(blasBuildDesc, blas, nullptr, scratchBuffer, 0, nullptr);
-    queue->submit(encoder->finish());
-    queue->waitOnHost();
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
 
     uint16_t micromapIndex = 0;
     BufferDesc indexDesc = {};
@@ -120,6 +125,7 @@ GPU_TEST_CASE("opacity-micromap-build", D3D12 | Vulkan | CUDA)
     indexDesc.usage = BufferUsage::AccelerationStructureBuildInput;
     indexDesc.defaultState = ResourceState::AccelerationStructureBuildInput;
     ComPtr<IBuffer> micromapIndexBuffer = device->createBuffer(indexDesc, &micromapIndex);
+    REQUIRE(micromapIndexBuffer);
     ommAttachment.link.indexingMode = MicromapIndexingMode::Indexed;
     ommAttachment.link.indexBuffer = micromapIndexBuffer;
     ommAttachment.link.indexFormat = MicromapIndexFormat::Uint16;
@@ -131,10 +137,12 @@ GPU_TEST_CASE("opacity-micromap-build", D3D12 | Vulkan | CUDA)
     REQUIRE_CALL(device->createAccelerationStructure(blasDesc, blas.writeRef()));
     scratchDesc.size = blasSizes.scratchSize;
     scratchBuffer = device->createBuffer(scratchDesc);
+    REQUIRE(scratchBuffer);
     encoder = queue->createCommandEncoder();
+    REQUIRE(encoder);
     encoder->buildAccelerationStructure(blasBuildDesc, blas, nullptr, scratchBuffer, 0, nullptr);
-    queue->submit(encoder->finish());
-    queue->waitOnHost();
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
 }
 
 GPU_TEST_CASE("opacity-micromap-trace", D3D12 | Vulkan | CUDA)
@@ -186,13 +194,8 @@ GPU_TEST_CASE("opacity-micromap-trace", D3D12 | Vulkan | CUDA)
     scratchDesc.size = micromapSizes.scratchSize;
     scratchDesc.usage = BufferUsage::UnorderedAccess;
     scratchDesc.defaultState = ResourceState::UnorderedAccess;
-    ComPtr<IBuffer> scratchBuffer = device->createBuffer(scratchDesc);
-    REQUIRE(scratchBuffer);
-
-    auto encoder = queue->createCommandEncoder();
-    encoder->buildMicromap(micromapBuildDesc, micromap, scratchBuffer);
-    REQUIRE_CALL(queue->submit(encoder->finish()));
-    REQUIRE_CALL(queue->waitOnHost());
+    ComPtr<IBuffer> micromapScratchBuffer = device->createBuffer(scratchDesc);
+    REQUIRE(micromapScratchBuffer);
 
     Vertex vertices[] = {
         {{-0.9f, -0.5f, 1.f}},
@@ -239,11 +242,21 @@ GPU_TEST_CASE("opacity-micromap-trace", D3D12 | Vulkan | CUDA)
     ComPtr<IAccelerationStructure> blas;
     REQUIRE_CALL(device->createAccelerationStructure(blasDesc, blas.writeRef()));
     scratchDesc.size = blasSizes.scratchSize;
-    scratchBuffer = device->createBuffer(scratchDesc);
-    REQUIRE(scratchBuffer);
+    ComPtr<IBuffer> blasScratchBuffer = device->createBuffer(scratchDesc);
+    REQUIRE(blasScratchBuffer);
 
-    encoder = queue->createCommandEncoder();
-    encoder->buildAccelerationStructure(blasBuildDesc, blas, nullptr, scratchBuffer, 0, nullptr);
+    auto encoder = queue->createCommandEncoder();
+    REQUIRE(encoder);
+    encoder->buildMicromap(micromapBuildDesc, micromap, micromapScratchBuffer);
+    // OptiX guarantees ordering through stream submission rather than explicit resource barriers.
+    if (device->getDeviceType() == DeviceType::CUDA)
+    {
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        encoder = queue->createCommandEncoder();
+        REQUIRE(encoder);
+    }
+    encoder->buildAccelerationStructure(blasBuildDesc, blas, nullptr, blasScratchBuffer, 0, nullptr);
     REQUIRE_CALL(queue->submit(encoder->finish()));
     REQUIRE_CALL(queue->waitOnHost());
 

@@ -1387,6 +1387,7 @@ void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
     MicromapBuildDescConverter converter;
     if (SLANG_FAILED(converter.convert(cmd.desc)))
         return;
+    commitBarriers();
     converter.buildInfo.dstMicromap = dst->m_vkHandle;
     converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
     m_device->m_api.vkCmdBuildMicromapsEXT(m_cmdBuffer, 1, &converter.buildInfo);

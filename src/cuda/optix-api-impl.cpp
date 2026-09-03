@@ -1348,7 +1348,8 @@ public:
         BufferOffsetPair scratchBuffer
     ) override
     {
-        if (desc.type != MicromapType::Opacity || !desc.histogram)
+        if (desc.type != MicromapType::Opacity || !desc.dataBuffer || !desc.descriptorBuffer || !desc.histogram ||
+            desc.histogramCount == 0 || is_set(desc.flags, MicromapBuildFlags::AllowCompaction))
             return;
         std::vector<OptixOpacityMicromapHistogramEntry> histogram(desc.histogramCount);
         for (uint32_t i = 0; i < desc.histogramCount; ++i)

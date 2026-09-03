@@ -309,6 +309,8 @@ VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags f
         vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR;
     if (is_set(flags, RayTracingPipelineFlags::SkipProcedurals))
         vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR;
+    if (is_set(flags, RayTracingPipelineFlags::EnableOpacityMicromaps))
+        vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT;
 
     return vkFlags;
 }
@@ -324,9 +326,6 @@ VkPipelineCreateFlags2 translateRayTracingPipelineFlags2(RayTracingPipelineFlags
         vkFlags |= VK_PIPELINE_CREATE_2_RAY_TRACING_ALLOW_SPHERES_AND_LINEAR_SWEPT_SPHERES_BIT_NV;
     if (is_set(flags, RayTracingPipelineFlags::EnableMotion))
         vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_ALLOW_MOTION_BIT_NV;
-    if (is_set(flags, RayTracingPipelineFlags::EnableOpacityMicromaps))
-        vkFlags |= VK_PIPELINE_CREATE_2_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT;
-
     return vkFlags;
 }
 

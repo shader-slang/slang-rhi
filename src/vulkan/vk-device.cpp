@@ -891,12 +891,21 @@ Result DeviceImpl::initVulkanDevice(
             deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
             availableFeatures.push_back(Feature::AccelerationStructure);
 
-            SIMPLE_EXTENSION_FEATURE(
-                extendedFeatures.opacityMicromapFeatures,
-                micromap,
-                VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
-                { availableFeatures.push_back(Feature::OpacityMicromap); }
-            );
+            const bool hasSynchronization2 = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
+                                             extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+            if (hasSynchronization2)
+            {
+                SIMPLE_EXTENSION_FEATURE(
+                    extendedFeatures.opacityMicromapFeatures,
+                    micromap,
+                    VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
+                    {
+                        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) < VK_API_VERSION_1_3)
+                            deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+                        availableFeatures.push_back(Feature::OpacityMicromap);
+                    }
+                );
+            }
 
             // These both depend on VK_KHR_acceleration_structure
 
