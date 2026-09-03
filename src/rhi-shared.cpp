@@ -315,6 +315,24 @@ Result AccelerationStructure::getDescriptorHandle(DescriptorHandle* outHandle)
 }
 
 // ----------------------------------------------------------------------------
+// Micromap
+// ----------------------------------------------------------------------------
+
+IMicromap* Micromap::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == IMicromap::getTypeGuid())
+        return static_cast<IMicromap*>(this);
+    return nullptr;
+}
+
+Micromap::Micromap(Device* device, const MicromapDesc& desc)
+    : Resource(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
+}
+
+// ----------------------------------------------------------------------------
 // InputLayout
 // ----------------------------------------------------------------------------
 

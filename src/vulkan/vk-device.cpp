@@ -642,6 +642,7 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingMotionBlurFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingInvocationReorderFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.accelerationStructureFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.opacityMicromapFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.variablePointersFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.computeShaderDerivativesFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.extendedDynamicStateFeatures);
@@ -889,6 +890,22 @@ Result DeviceImpl::initVulkanDevice(
             deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
             deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
             availableFeatures.push_back(Feature::AccelerationStructure);
+
+            const bool hasSynchronization2 = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
+                                             extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+            if (hasSynchronization2)
+            {
+                SIMPLE_EXTENSION_FEATURE(
+                    extendedFeatures.opacityMicromapFeatures,
+                    micromap,
+                    VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
+                    {
+                        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) < VK_API_VERSION_1_3)
+                            deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+                        availableFeatures.push_back(Feature::OpacityMicromap);
+                    }
+                );
+            }
 
             // These both depend on VK_KHR_acceleration_structure
 
@@ -1515,8 +1532,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Process chained descs
     const VulkanDeviceExtendedDesc* extendedDesc = nullptr;
-    for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
-         header = header->next)
+    for (const ChainedStructHeader* header = static_cast<const ChainedStructHeader*>(desc.next); header;
+         header = static_cast<const ChainedStructHeader*>(header->next))
     {
         switch (header->type)
         {
@@ -1971,6 +1988,24 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return SLANG_OK;
 }
 
+Result DeviceImpl::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    if (!m_api.vkGetMicromapBuildSizesEXT)
+        return SLANG_E_NOT_AVAILABLE;
+    MicromapBuildDescConverter converter;
+    SLANG_RETURN_ON_FAIL(converter.convert(desc));
+    VkMicromapBuildSizesInfoEXT info = {VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT};
+    m_api.vkGetMicromapBuildSizesEXT(
+        m_device,
+        VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+        &converter.buildInfo,
+        &info
+    );
+    outSizes->micromapSize = info.micromapSize;
+    outSizes->scratchSize = info.buildScratchSize;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     if (!m_api.vkGetClusterAccelerationStructureBuildSizesNV)
@@ -2038,6 +2073,26 @@ Result DeviceImpl::createAccelerationStructure(
         this
     );
     returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    if (!m_api.vkCreateMicromapEXT)
+        return SLANG_E_NOT_AVAILABLE;
+    RefPtr<MicromapImpl> result = new MicromapImpl(this, desc);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = desc.size;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    bufferDesc.usage = BufferUsage::MicromapStorage;
+    bufferDesc.defaultState = ResourceState::MicromapRead;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    VkMicromapCreateInfoEXT createInfo = {VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT};
+    createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
+    createInfo.size = desc.size;
+    createInfo.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateMicromapEXT(m_device, &createInfo, nullptr, &result->m_vkHandle));
+    returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
 

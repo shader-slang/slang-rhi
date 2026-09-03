@@ -848,6 +848,13 @@ Result Device::getAccelerationStructureSizes(
     return SLANG_E_NOT_AVAILABLE;
 }
 
+Result Device::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outSizes);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
 Result Device::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     SLANG_UNUSED(params);
@@ -862,6 +869,13 @@ Result Device::createAccelerationStructure(
 {
     SLANG_UNUSED(desc);
     SLANG_UNUSED(outAccelerationStructure);
+    return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    SLANG_UNUSED(desc);
+    SLANG_UNUSED(outMicromap);
     return SLANG_E_NOT_AVAILABLE;
 }
 

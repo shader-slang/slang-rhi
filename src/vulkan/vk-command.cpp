@@ -104,6 +104,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -1271,6 +1272,19 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
                     ResourceState::AccelerationStructureBuildInput
                 );
             }
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(input.triangles.next))
+            {
+                if (ommDesc->link.micromap)
+                    requireBufferState(
+                        checked_cast<MicromapImpl*>(ommDesc->link.micromap)->m_buffer,
+                        ResourceState::MicromapRead
+                    );
+                if (ommDesc->link.indexBuffer)
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(ommDesc->link.indexBuffer.buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+            }
             break;
         case AccelerationStructureBuildInputType::ProceduralPrimitives:
             for (uint32_t i = 0; i < input.proceduralPrimitives.aabbBufferCount; ++i)
@@ -1359,6 +1373,24 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     {
         queryAccelerationStructureProperties(1, &cmd.dst, cmd.propertyQueryCount, cmd.queryDescs);
     }
+}
+
+void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    if (!m_device->m_api.vkCmdBuildMicromapsEXT)
+        return;
+    MicromapImpl* dst = checked_cast<MicromapImpl*>(cmd.dst);
+    requireBufferState(dst->m_buffer, ResourceState::MicromapWrite);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer), ResourceState::UnorderedAccess);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.dataBuffer.buffer), ResourceState::MicromapBuildInput);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.descriptorBuffer.buffer), ResourceState::MicromapBuildInput);
+    MicromapBuildDescConverter converter;
+    if (SLANG_FAILED(converter.convert(cmd.desc)))
+        return;
+    commitBarriers();
+    converter.buildInfo.dstMicromap = dst->m_vkHandle;
+    converter.buildInfo.scratchData.deviceAddress = cmd.scratchBuffer.getDeviceAddress();
+    m_device->m_api.vkCmdBuildMicromapsEXT(m_cmdBuffer, 1, &converter.buildInfo);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)

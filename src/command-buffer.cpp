@@ -808,6 +808,15 @@ void CommandEncoder::buildAccelerationStructure(
     m_commandList->write(std::move(cmd));
 }
 
+void CommandEncoder::buildMicromap(const MicromapBuildDesc& desc, IMicromap* dst, BufferOffsetPair scratchBuffer)
+{
+    commands::BuildMicromap cmd;
+    cmd.desc = desc;
+    cmd.dst = dst;
+    cmd.scratchBuffer = scratchBuffer;
+    m_commandList->write(std::move(cmd));
+}
+
 void CommandEncoder::copyAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,

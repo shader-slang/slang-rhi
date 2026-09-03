@@ -309,6 +309,8 @@ VkPipelineCreateFlags translateRayTracingPipelineFlags(RayTracingPipelineFlags f
         vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR;
     if (is_set(flags, RayTracingPipelineFlags::SkipProcedurals))
         vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR;
+    if (is_set(flags, RayTracingPipelineFlags::EnableOpacityMicromaps))
+        vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT;
 
     return vkFlags;
 }
@@ -324,7 +326,6 @@ VkPipelineCreateFlags2 translateRayTracingPipelineFlags2(RayTracingPipelineFlags
         vkFlags |= VK_PIPELINE_CREATE_2_RAY_TRACING_ALLOW_SPHERES_AND_LINEAR_SWEPT_SPHERES_BIT_NV;
     if (is_set(flags, RayTracingPipelineFlags::EnableMotion))
         vkFlags |= VK_PIPELINE_CREATE_RAY_TRACING_ALLOW_MOTION_BIT_NV;
-
     return vkFlags;
 }
 
@@ -399,6 +400,11 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
         return VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:
         return VK_ACCESS_SHADER_READ_BIT;
+    case ResourceState::MicromapBuildInput:
+    case ResourceState::MicromapRead:
+        return VK_ACCESS_MEMORY_READ_BIT;
+    case ResourceState::MicromapWrite:
+        return VK_ACCESS_MEMORY_WRITE_BIT;
     case ResourceState::General:
         return VkAccessFlagBits(VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
     default:
@@ -451,6 +457,10 @@ VkPipelineStageFlags calcPipelineStageFlags(
         return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     case ResourceState::AccelerationStructureBuildInput:
         return VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+    case ResourceState::MicromapBuildInput:
+    case ResourceState::MicromapRead:
+    case ResourceState::MicromapWrite:
+        return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     default:
         SLANG_RHI_ASSERT_FAILURE("Unsupported");
         return VkPipelineStageFlagBits(0);
@@ -490,6 +500,10 @@ VkBufferUsageFlagBits _calcBufferUsageFlags(BufferUsage usage)
         flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
     if (is_set(usage, BufferUsage::AccelerationStructureBuildInput))
         flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    if (is_set(usage, BufferUsage::MicromapBuildInput))
+        flags |= VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT;
+    if (is_set(usage, BufferUsage::MicromapStorage))
+        flags |= VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT;
     if (is_set(usage, BufferUsage::ShaderTable))
         flags |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
     return VkBufferUsageFlagBits(flags);

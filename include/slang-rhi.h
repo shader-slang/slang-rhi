@@ -69,6 +69,8 @@ enum class StructType
     TextureViewDesc,
     SamplerDesc,
     AccelerationStructureDesc,
+    MicromapDesc,
+    AccelerationStructureOpacityMicromapDesc,
     FenceDesc,
     RenderPipelineDesc,
     ComputePipelineDesc,
@@ -127,6 +129,7 @@ enum class DeviceType
     x(ShaderExecutionReordering,                "shader-execution-reordering"                   ) \
     x(RayTracingMotionBlur,                     "ray-tracing-motion-blur"                       ) \
     x(RayTracingValidation,                     "ray-tracing-validation"                        ) \
+    x(OpacityMicromap,                          "opacity-micromap"                              ) \
     x(ClusterAccelerationStructure,             "cluster-acceleration-structure"                ) \
     /* Other features */                                                                          \
     x(TimestampQuery,                           "timestamp-query"                               ) \
@@ -291,7 +294,8 @@ enum class LinkingStyle
 
 struct ShaderProgramDesc
 {
-    StructType type = StructType::ShaderProgramDesc;
+    static constexpr StructType kStructType = StructType::ShaderProgramDesc;
+    StructType type = kStructType;
     const void* next = nullptr;
 
     // TODO: Tess doesn't like this but doesn't know what to do about it
@@ -553,6 +557,9 @@ enum class ResourceState
     AccelerationStructureRead,
     AccelerationStructureWrite,
     AccelerationStructureBuildInput,
+    MicromapBuildInput,
+    MicromapRead,
+    MicromapWrite,
 };
 
 /// Describes how memory for the resource should be allocated for CPU access.
@@ -594,6 +601,7 @@ enum class NativeHandleType
     VkSampler = 0x0003000a,
     VkPipeline = 0x0003000b,
     VkSemaphore = 0x0003000c,
+    VkMicromapEXT = 0x0003000d,
 
     MTLDevice = 0x00040001,
     MTLCommandQueue = 0x00040002,
@@ -694,7 +702,8 @@ struct VertexStreamDesc
 
 struct InputLayoutDesc
 {
-    StructType structType = StructType::InputLayoutDesc;
+    static constexpr StructType kStructType = StructType::InputLayoutDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     const InputElementDesc* inputElements = nullptr;
@@ -749,14 +758,17 @@ enum class BufferUsage
     CopyDestination = (1 << 7),
     AccelerationStructure = (1 << 8),
     AccelerationStructureBuildInput = (1 << 9),
-    ShaderTable = (1 << 10),
-    Shared = (1 << 11),
+    MicromapBuildInput = (1 << 10),
+    MicromapStorage = (1 << 11),
+    ShaderTable = (1 << 12),
+    Shared = (1 << 13),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
 
 struct BufferDesc
 {
-    StructType structType = StructType::BufferDesc;
+    static constexpr StructType kStructType = StructType::BufferDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     /// Total size in bytes.
@@ -1024,7 +1036,8 @@ static const SubresourceRange kAllSubresources = {0, kAllLayers, 0, kAllMips};
 
 struct TextureDesc
 {
-    StructType structType = StructType::TextureDesc;
+    static constexpr StructType kStructType = StructType::TextureDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     TextureType type = TextureType::Texture2D;
@@ -1073,7 +1086,8 @@ struct TextureDesc
 
 struct TextureViewDesc
 {
-    StructType structType = StructType::TextureViewDesc;
+    static constexpr StructType kStructType = StructType::TextureViewDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     Format format = Format::Undefined;
@@ -1189,7 +1203,8 @@ enum class TextureReductionOp
 
 struct SamplerDesc
 {
-    StructType structType = StructType::SamplerDesc;
+    static constexpr StructType kStructType = StructType::SamplerDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     TextureFilteringMode minFilter = TextureFilteringMode::Linear;
@@ -1265,7 +1280,9 @@ enum class AccelerationStructureInstanceFlags : uint32_t
     TriangleFacingCullDisable = (1 << 0),
     TriangleFrontCounterClockwise = (1 << 1),
     ForceOpaque = (1 << 2),
-    NoOpaque = (1 << 3)
+    NoOpaque = (1 << 3),
+    ForceOpacityMicromap2State = (1 << 4),
+    DisableOpacityMicromaps = (1 << 5),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureInstanceFlags);
 
@@ -1336,6 +1353,9 @@ struct AccelerationStructureBuildInputTriangles
     BufferOffsetPair preTransformBuffer;
 
     AccelerationStructureGeometryFlags flags;
+
+    /// Optional chain of typed geometry extensions.
+    const void* next = nullptr;
 };
 
 struct AccelerationStructureBuildInputProceduralPrimitives
@@ -1432,7 +1452,9 @@ enum class AccelerationStructureBuildFlags
     PreferFastTrace = (1 << 2),
     PreferFastBuild = (1 << 3),
     MinimizeMemory = (1 << 4),
-    CreateMotion = (1 << 5)
+    CreateMotion = (1 << 5),
+    AllowOpacityMicromapUpdate = (1 << 6),
+    AllowDisableOpacityMicromaps = (1 << 7),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(AccelerationStructureBuildFlags);
 
@@ -1479,7 +1501,8 @@ enum class AccelerationStructureKind
 
 struct AccelerationStructureDesc
 {
-    StructType structType = StructType::AccelerationStructureDesc;
+    static constexpr StructType kStructType = StructType::AccelerationStructureDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     AccelerationStructureKind kind = AccelerationStructureKind::Unknown;
@@ -1500,6 +1523,117 @@ public:
     virtual SLANG_NO_THROW AccelerationStructureHandle SLANG_MCALL getHandle() = 0;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
     virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) = 0;
+};
+
+// Micromaps
+
+enum class MicromapType
+{
+    Opacity,
+};
+
+enum class OpacityMicromapFormat : uint32_t
+{
+    TwoState = 1,
+    FourState = 2,
+};
+
+enum class OpacityMicromapSpecialIndex : int32_t
+{
+    FullyTransparent = -1,
+    FullyOpaque = -2,
+    FullyUnknownTransparent = -3,
+    FullyUnknownOpaque = -4,
+};
+
+/// Host-side count for one subdivision-level/format combination.
+struct MicromapUsageCount
+{
+    uint32_t count;
+    uint32_t subdivisionLevel;
+    uint32_t format;
+};
+
+enum class MicromapIndexingMode
+{
+    Linear,
+    Indexed,
+};
+
+enum class MicromapIndexFormat
+{
+    None,
+    Uint16,
+    Uint32,
+};
+
+struct AccelerationStructureMicromapLink
+{
+    /// The referenced micromap must remain alive while an acceleration structure built
+    /// with this link may be used.
+    class IMicromap* micromap = nullptr;
+    MicromapIndexingMode indexingMode = MicromapIndexingMode::Linear;
+    BufferOffsetPair indexBuffer;
+    MicromapIndexFormat indexFormat = MicromapIndexFormat::None;
+    uint32_t indexStride = 0;
+    uint32_t baseMicromapIndex = 0;
+
+    const MicromapUsageCount* usageCounts = nullptr;
+    uint32_t usageCount = 0;
+};
+
+struct AccelerationStructureOpacityMicromapDesc
+{
+    static constexpr StructType kStructType = StructType::AccelerationStructureOpacityMicromapDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+    AccelerationStructureMicromapLink link;
+};
+
+enum class MicromapBuildFlags : uint32_t
+{
+    None = 0,
+    PreferFastTrace = (1 << 0),
+    PreferFastBuild = (1 << 1),
+    AllowCompaction = (1 << 2),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(MicromapBuildFlags);
+
+struct MicromapBuildDesc
+{
+    MicromapType type = MicromapType::Opacity;
+    MicromapBuildFlags flags = MicromapBuildFlags::None;
+    BufferOffsetPair dataBuffer;
+    BufferOffsetPair descriptorBuffer;
+    uint32_t descriptorStride = sizeof(MicromapTriangleDesc);
+    const MicromapUsageCount* histogram = nullptr;
+    uint32_t histogramCount = 0;
+};
+
+struct MicromapSizes
+{
+    uint64_t micromapSize = 0;
+    uint64_t scratchSize = 0;
+};
+
+struct MicromapDesc
+{
+    static constexpr StructType kStructType = StructType::MicromapDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+    MicromapType type = MicromapType::Opacity;
+    uint64_t size = 0;
+    MicromapBuildFlags flags = MicromapBuildFlags::None;
+    const char* label = nullptr;
+};
+
+class IMicromap : public IResource
+{
+    SLANG_COM_INTERFACE(0xbda4e8ec, 0xf62c, 0x4ef6, {0xb0, 0x9f, 0x9e, 0x84, 0x5b, 0x1b, 0xf7, 0xe4});
+
+public:
+    virtual SLANG_NO_THROW const MicromapDesc& SLANG_MCALL getDesc() = 0;
+    virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() = 0;
 };
 
 // Cluster Acceleration Structure API
@@ -1646,7 +1780,8 @@ struct ClusterOperationSizes
 
 struct FenceDesc
 {
-    StructType structType = StructType::FenceDesc;
+    static constexpr StructType kStructType = StructType::FenceDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     uint64_t initialValue = 0;
@@ -1976,7 +2111,8 @@ enum class PipelineCompilationPolicy
 
 struct RenderPipelineDesc
 {
-    StructType structType = StructType::RenderPipelineDesc;
+    static constexpr StructType kStructType = StructType::RenderPipelineDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -1996,7 +2132,8 @@ struct RenderPipelineDesc
 
 struct ComputePipelineDesc
 {
-    StructType structType = StructType::ComputePipelineDesc;
+    static constexpr StructType kStructType = StructType::ComputePipelineDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -2017,6 +2154,7 @@ enum class RayTracingPipelineFlags
     EnableLinearSweptSpheres = (1 << 3),
     EnableClusters = (1 << 4),
     EnableMotion = (1 << 5),
+    EnableOpacityMicromaps = (1 << 6),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(RayTracingPipelineFlags);
 
@@ -2030,7 +2168,8 @@ struct HitGroupDesc
 
 struct RayTracingPipelineDesc
 {
-    StructType structType = StructType::RayTracingPipelineDesc;
+    static constexpr StructType kStructType = StructType::RayTracingPipelineDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     IShaderProgram* program = nullptr;
@@ -2060,7 +2199,8 @@ struct ShaderRecordOverwrite
 
 struct ShaderTableDesc
 {
-    StructType structType = StructType::ShaderTableDesc;
+    static constexpr StructType kStructType = StructType::ShaderTableDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     uint32_t rayGenShaderCount = 0;
@@ -2281,7 +2421,8 @@ enum class QueryResultState
 
 struct QueryPoolDesc
 {
-    StructType structType = StructType::QueryPoolDesc;
+    static constexpr StructType kStructType = StructType::QueryPoolDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     QueryType type = QueryType::Timestamp;
@@ -2483,7 +2624,8 @@ struct MarkerColor
 
 struct CommandBufferDesc
 {
-    StructType structType = StructType::CommandBufferDesc;
+    static constexpr StructType kStructType = StructType::CommandBufferDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     /// The name of the command buffer for debugging purposes.
@@ -2575,7 +2717,8 @@ public:
 
 struct CommandEncoderDesc
 {
-    StructType structType = StructType::CommandEncoderDesc;
+    static constexpr StructType kStructType = StructType::CommandEncoderDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     /// The name of the command encoder for debugging purposes.
@@ -2736,6 +2879,12 @@ public:
         BufferOffsetPair scratchBuffer,
         uint32_t propertyQueryCount,
         const AccelerationStructureQueryDesc* queryDescs
+    ) = 0;
+
+    virtual SLANG_NO_THROW void SLANG_MCALL buildMicromap(
+        const MicromapBuildDesc& desc,
+        IMicromap* dst,
+        BufferOffsetPair scratchBuffer
     ) = 0;
 
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
@@ -3010,7 +3159,8 @@ struct HeapCachingConfig
 
 struct HeapDesc
 {
-    StructType structType = StructType::HeapDesc;
+    static constexpr StructType kStructType = StructType::HeapDesc;
+    StructType structType = kStructType;
 
     /// Type of memory heap should reside in.
     MemoryType memoryType = MemoryType::DeviceLocal;
@@ -3310,7 +3460,8 @@ enum class PipelineCompilationMode
 
 struct DeviceDesc
 {
-    StructType structType = StructType::DeviceDesc;
+    static constexpr StructType kStructType = StructType::DeviceDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     // The underlying API/Platform of the device.
@@ -3735,6 +3886,11 @@ public:
         AccelerationStructureSizes* outSizes
     ) = 0;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMicromapSizes(
+        const MicromapBuildDesc& desc,
+        MicromapSizes* outSizes
+    ) = 0;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
         const ClusterOperationParams& params,
         ClusterOperationSizes* outSizes
@@ -3744,6 +3900,8 @@ public:
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
     ) = 0;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMicromap(const MicromapDesc& desc, IMicromap** outMicromap) = 0;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL createFence(const FenceDesc& desc, IFence** outFence) = 0;
 
@@ -4079,7 +4237,8 @@ public:
 // Extended descs.
 struct D3D12ExperimentalFeaturesDesc
 {
-    StructType structType = StructType::D3D12ExperimentalFeaturesDesc;
+    static constexpr StructType kStructType = StructType::D3D12ExperimentalFeaturesDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     uint32_t featureCount = 0;
@@ -4090,7 +4249,8 @@ struct D3D12ExperimentalFeaturesDesc
 
 struct D3D12DeviceExtendedDesc
 {
-    StructType structType = StructType::D3D12DeviceExtendedDesc;
+    static constexpr StructType kStructType = StructType::D3D12DeviceExtendedDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     const char* rootParameterShaderAttributeName = nullptr;
@@ -4102,7 +4262,8 @@ struct D3D12DeviceExtendedDesc
 
 struct VulkanDeviceExtendedDesc
 {
-    StructType structType = StructType::VulkanDeviceExtendedDesc;
+    static constexpr StructType kStructType = StructType::VulkanDeviceExtendedDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     bool enableDebugPrintf = false;
