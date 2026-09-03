@@ -168,17 +168,17 @@ enum class DeviceType
     /* Vulkan specific features */                                                                \
     x(ShaderResourceMinLod,                     "shader-resource-min-lod"                       ) \
     x(ShaderAbort,                              "shader-abort"                                  ) \
-    /* Metal specific features */                                                                 \
-    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
-    x(ResidencySet,                             "residency-set"                                 ) \
-    /* CUDA specific features */                                                                  \
-    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
     /* VK_NV_cooperative_matrix2 subfeatures (reported independently) */                         \
     x(CooperativeMatrixReductions,              "cooperative-matrix-reductions"                 ) \
     x(CooperativeMatrixConversions,             "cooperative-matrix-conversions"                ) \
     x(CooperativeMatrixPerElementOperations,    "cooperative-matrix-per-element-operations"     ) \
     x(CooperativeMatrixTensorAddressing,        "cooperative-matrix-tensor-addressing"          ) \
-    x(CooperativeMatrixBlockLoads,              "cooperative-matrix-block-loads"                )
+    x(CooperativeMatrixBlockLoads,              "cooperative-matrix-block-loads"                ) \
+    /* Metal specific features */                                                                 \
+    x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
+    x(ResidencySet,                             "residency-set"                                 ) \
+    /* CUDA specific features */                                                                  \
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
