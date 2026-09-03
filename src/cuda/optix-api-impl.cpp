@@ -354,7 +354,7 @@ Result AccelerationStructureBuildDescConverter::convert(
                     usageCounts[j].subdivisionLevel = ommDesc->link.usageCounts[j].subdivisionLevel;
                     usageCounts[j].format = (OptixOpacityMicromapFormat)ommDesc->link.usageCounts[j].format;
                 }
-                OptixOpacityMicromap& omm = buildInput.triangleArray.opacityMicromap;
+                OptixBuildInputOpacityMicromap& omm = buildInput.triangleArray.opacityMicromap;
                 omm.indexingMode = ommDesc->link.indexingMode == MicromapIndexingMode::Indexed
                                        ? OPTIX_OPACITY_MICROMAP_ARRAY_INDEXING_MODE_INDEXED
                                        : OPTIX_OPACITY_MICROMAP_ARRAY_INDEXING_MODE_LINEAR;
