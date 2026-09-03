@@ -7,6 +7,8 @@
 #include "core/common.h"
 #include "core/diagnostics.h"
 
+#include <vector>
+
 namespace rhi {
 class Device;
 }
@@ -124,6 +126,24 @@ VkComponentTypeKHR translateCooperativeVectorComponentType(CooperativeVectorComp
 CooperativeVectorComponentType translateCooperativeVectorComponentType(VkComponentTypeKHR type);
 VkCooperativeVectorMatrixLayoutNV translateCooperativeVectorMatrixLayout(CooperativeVectorMatrixLayout layout);
 CooperativeVectorMatrixLayout translateCooperativeVectorMatrixLayout(VkCooperativeVectorMatrixLayoutNV layout);
+
+bool hasAnyCooperativeMatrix2Feature(const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features);
+struct CooperativeMatrix2ExtensionSelection
+{
+    bool enableCooperativeMatrix2Extension;
+    bool appendCooperativeMatrixExtensionDependency;
+};
+CooperativeMatrix2ExtensionSelection selectCooperativeMatrix2Extensions(
+    bool cooperativeMatrixExtensionAvailable,
+    bool cooperativeMatrix2ExtensionAvailable,
+    bool cooperativeMatrixFeatureEnabled,
+    const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features
+);
+void appendCooperativeMatrix2Subfeatures(
+    const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features,
+    std::vector<Feature>& availableFeatures,
+    std::vector<Capability>& availableCapabilities
+);
 
 bool translateCooperativeMatrixComponentType(VkComponentTypeKHR type, CooperativeMatrixComponentType& outType);
 bool translateCooperativeMatrixScope(VkScopeKHR scope, CooperativeMatrixScope& outScope);

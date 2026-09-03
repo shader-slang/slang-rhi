@@ -175,7 +175,13 @@ enum class DeviceType
     x(ArgumentBufferTier2,                      "argument-buffer-tier-2"                        ) \
     x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
-    x(AtomicBfloat16,                           "atomic-bfloat16"                               )
+    x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
+    /* Cooperative matrix 2 sub-features (kept at the end to preserve existing feature ordinals) */ \
+    x(CooperativeMatrixReductions,              "cooperative-matrix-reductions"                 ) \
+    x(CooperativeMatrixConversions,             "cooperative-matrix-conversions"                ) \
+    x(CooperativeMatrixPerElementOperations,    "cooperative-matrix-per-element-operations"     ) \
+    x(CooperativeMatrixTensorAddressing,        "cooperative-matrix-tensor-addressing"          ) \
+    x(CooperativeMatrixBlockLoads,              "cooperative-matrix-block-loads"                )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
