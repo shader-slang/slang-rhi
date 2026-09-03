@@ -28,6 +28,19 @@ GPU_TEST_CASE("device-wave-size-limits", ALL)
     }
 }
 
+GPU_TEST_CASE("device-compute-dispatch-limits", CPU)
+{
+    REQUIRE(device);
+
+    const DeviceLimits& limits = device->getInfo().limits;
+
+    // A zero bound makes consumers that clamp dispatch sizes against it reject every
+    // dispatch; the CPU backend must report a nonzero limit.
+    CHECK(limits.maxComputeDispatchThreadGroups[0] > 0);
+    CHECK(limits.maxComputeDispatchThreadGroups[1] > 0);
+    CHECK(limits.maxComputeDispatchThreadGroups[2] > 0);
+}
+
 GPU_TEST_CASE("cuda-device-features", CUDA)
 {
     REQUIRE(device);

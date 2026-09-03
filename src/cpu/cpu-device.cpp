@@ -22,6 +22,14 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
         m_info.adapterName = "CPU";
         m_info.adapterLUID = {};
         m_info.timestampFrequency = getCpuTimestampFrequency();
+
+        // CPU has no hardware grid-dimension bound on dispatches; advertise an effectively
+        // unbounded limit (as the Metal backend does) so consumers that clamp dispatch sizes
+        // against it don't clamp to zero.
+        DeviceLimits& limits = m_info.limits;
+        limits.maxComputeDispatchThreadGroups[0] = 0xffffffff;
+        limits.maxComputeDispatchThreadGroups[1] = 0xffffffff;
+        limits.maxComputeDispatchThreadGroups[2] = 0xffffffff;
     }
 
     // Initialize features & capabilities
