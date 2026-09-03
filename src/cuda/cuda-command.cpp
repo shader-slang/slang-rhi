@@ -270,6 +270,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -778,6 +779,14 @@ void CommandExecutor::cmdBuildAccelerationStructure(const commands::BuildAcceler
         cmd.propertyQueryCount,
         cmd.queryDescs
     );
+}
+
+void CommandExecutor::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    if (!m_device->m_ctx.optixContext)
+        return;
+    m_device->m_ctx.optixContext
+        ->buildMicromap(m_stream, cmd.desc, checked_cast<MicromapImpl*>(cmd.dst), cmd.scratchBuffer);
 }
 
 void CommandExecutor::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)

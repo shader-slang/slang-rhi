@@ -73,6 +73,29 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
     return SLANG_OK;
 }
 
+MicromapImpl::MicromapImpl(Device* device, const MicromapDesc& desc)
+    : Micromap(device, desc)
+{
+}
+
+void MicromapImpl::deleteThis()
+{
+    m_buffer.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
+Result MicromapImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::D3D12DeviceAddress;
+    outHandle->value = getDeviceAddress();
+    return SLANG_OK;
+}
+
+DeviceAddress MicromapImpl::getDeviceAddress()
+{
+    return m_buffer->getDeviceAddress();
+}
+
 Result AccelerationStructureBuildDescConverter::convert(
     const AccelerationStructureBuildDesc& buildDesc,
     IDebugCallback* callback
@@ -129,6 +152,9 @@ Result AccelerationStructureBuildDescConverter::convert(
     case AccelerationStructureBuildInputType::Triangles:
     {
         geomDescs.resize(buildDesc.inputCount);
+        triangleDescs.resize(buildDesc.inputCount);
+        ommLinkages.resize(buildDesc.inputCount);
+        ommTriangleDescs.resize(buildDesc.inputCount);
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
@@ -139,24 +165,65 @@ Result AccelerationStructureBuildDescConverter::convert(
             D3D12_RAYTRACING_GEOMETRY_DESC& geomDesc = geomDescs[i];
             geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
             geomDesc.Flags = translateGeometryFlags(triangles.flags);
-            geomDesc.Triangles.VertexBuffer.StartAddress = triangles.vertexBuffers[0].getDeviceAddress();
-            geomDesc.Triangles.VertexBuffer.StrideInBytes = triangles.vertexStride;
-            geomDesc.Triangles.VertexCount = triangles.vertexCount;
-            geomDesc.Triangles.VertexFormat = getVertexFormat(triangles.vertexFormat);
+            D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC& triangleDesc = triangleDescs[i];
+            triangleDesc.VertexBuffer.StartAddress = triangles.vertexBuffers[0].getDeviceAddress();
+            triangleDesc.VertexBuffer.StrideInBytes = triangles.vertexStride;
+            triangleDesc.VertexCount = triangles.vertexCount;
+            triangleDesc.VertexFormat = getVertexFormat(triangles.vertexFormat);
             if (triangles.indexBuffer)
             {
-                geomDesc.Triangles.IndexBuffer = triangles.indexBuffer.getDeviceAddress();
-                geomDesc.Triangles.IndexCount = triangles.indexCount;
-                geomDesc.Triangles.IndexFormat = getIndexFormat(triangles.indexFormat);
+                triangleDesc.IndexBuffer = triangles.indexBuffer.getDeviceAddress();
+                triangleDesc.IndexCount = triangles.indexCount;
+                triangleDesc.IndexFormat = getIndexFormat(triangles.indexFormat);
             }
             else
             {
-                geomDesc.Triangles.IndexBuffer = 0;
-                geomDesc.Triangles.IndexCount = 0;
-                geomDesc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
+                triangleDesc.IndexBuffer = 0;
+                triangleDesc.IndexCount = 0;
+                triangleDesc.IndexFormat = DXGI_FORMAT_UNKNOWN;
             }
-            geomDesc.Triangles.Transform3x4 =
+            triangleDesc.Transform3x4 =
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
+
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(triangles.next))
+            {
+                if (!ommDesc->link.micromap)
+                    return SLANG_E_INVALID_ARG;
+                D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC& linkage = ommLinkages[i];
+                linkage.OpacityMicromapArray = ommDesc->link.micromap->getDeviceAddress();
+                linkage.OpacityMicromapBaseLocation = ommDesc->link.baseMicromapIndex;
+                if (ommDesc->link.indexingMode == MicromapIndexingMode::Indexed)
+                {
+                    if (!ommDesc->link.indexBuffer)
+                        return SLANG_E_INVALID_ARG;
+                    linkage.OpacityMicromapIndexBuffer.StartAddress = ommDesc->link.indexBuffer.getDeviceAddress();
+                    linkage.OpacityMicromapIndexBuffer.StrideInBytes = ommDesc->link.indexStride;
+                    switch (ommDesc->link.indexFormat)
+                    {
+                    case MicromapIndexFormat::Uint16:
+                        linkage.OpacityMicromapIndexFormat = DXGI_FORMAT_R16_UINT;
+                        break;
+                    case MicromapIndexFormat::Uint32:
+                        linkage.OpacityMicromapIndexFormat = DXGI_FORMAT_R32_UINT;
+                        break;
+                    default:
+                        return SLANG_E_INVALID_ARG;
+                    }
+                }
+                else
+                {
+                    linkage.OpacityMicromapIndexFormat = DXGI_FORMAT_UNKNOWN;
+                }
+                D3D12_RAYTRACING_GEOMETRY_OMM_TRIANGLES_DESC& ommTriangles = ommTriangleDescs[i];
+                ommTriangles.pTriangles = &triangleDesc;
+                ommTriangles.pOmmLinkage = &linkage;
+                geomDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES;
+                geomDesc.OmmTriangles = ommTriangles;
+            }
+            else
+            {
+                geomDesc.Triangles = triangleDesc;
+            }
         }
         desc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
         desc.NumDescs = geomDescs.size();
@@ -195,6 +262,38 @@ Result AccelerationStructureBuildDescConverter::convert(
         return SLANG_E_INVALID_ARG;
     }
 
+    return SLANG_OK;
+}
+
+Result MicromapBuildDescConverter::convert(const MicromapBuildDesc& buildDesc)
+{
+    if (buildDesc.type != MicromapType::Opacity || !buildDesc.dataBuffer || !buildDesc.descriptorBuffer ||
+        !buildDesc.histogram || buildDesc.histogramCount == 0)
+        return SLANG_E_INVALID_ARG;
+
+    histogram.resize(buildDesc.histogramCount);
+    for (uint32_t i = 0; i < buildDesc.histogramCount; ++i)
+    {
+        histogram[i].Count = buildDesc.histogram[i].count;
+        histogram[i].SubdivisionLevel = buildDesc.histogram[i].subdivisionLevel;
+        histogram[i].Format = (D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT)buildDesc.histogram[i].format;
+    }
+    arrayDesc.NumOmmHistogramEntries = buildDesc.histogramCount;
+    arrayDesc.pOmmHistogram = histogram.data();
+    arrayDesc.InputBuffer = buildDesc.dataBuffer.getDeviceAddress();
+    arrayDesc.PerOmmDescs.StartAddress = buildDesc.descriptorBuffer.getDeviceAddress();
+    arrayDesc.PerOmmDescs.StrideInBytes = buildDesc.descriptorStride;
+    desc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_OPACITY_MICROMAP_ARRAY;
+    desc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+    if (is_set(buildDesc.flags, MicromapBuildFlags::PreferFastTrace))
+        desc.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+    if (is_set(buildDesc.flags, MicromapBuildFlags::PreferFastBuild))
+        desc.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+    if (is_set(buildDesc.flags, MicromapBuildFlags::AllowCompaction))
+        desc.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION;
+    desc.NumDescs = 1;
+    desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+    desc.pOpacityMicromapArrayDesc = &arrayDesc;
     return SLANG_OK;
 }
 

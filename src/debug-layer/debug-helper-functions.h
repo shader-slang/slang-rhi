@@ -212,7 +212,7 @@ inline bool isValidTextureAspect(TextureAspect value)
 
 inline bool isValidResourceState(ResourceState value)
 {
-    return isValidEnum<ResourceState, ResourceState::AccelerationStructureBuildInput>(value);
+    return isValidEnum<ResourceState, ResourceState::MicromapWrite>(value);
 }
 
 inline bool isValidLoadOp(LoadOp value)
@@ -283,7 +283,8 @@ inline bool isValidBufferUsage(BufferUsage value)
         BufferUsage::VertexBuffer | BufferUsage::IndexBuffer | BufferUsage::ConstantBuffer |
         BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::IndirectArgument |
         BufferUsage::CopySource | BufferUsage::CopyDestination | BufferUsage::AccelerationStructure |
-        BufferUsage::AccelerationStructureBuildInput | BufferUsage::ShaderTable | BufferUsage::Shared;
+        BufferUsage::AccelerationStructureBuildInput | BufferUsage::MicromapBuildInput | BufferUsage::MicromapStorage |
+        BufferUsage::ShaderTable | BufferUsage::Shared;
     return isValidFlags(value, allValidBits);
 }
 
@@ -307,7 +308,9 @@ inline bool isValidAccelerationStructureBuildFlags(AccelerationStructureBuildFla
     const AccelerationStructureBuildFlags allValidBits =
         AccelerationStructureBuildFlags::AllowUpdate | AccelerationStructureBuildFlags::AllowCompaction |
         AccelerationStructureBuildFlags::PreferFastTrace | AccelerationStructureBuildFlags::PreferFastBuild |
-        AccelerationStructureBuildFlags::MinimizeMemory | AccelerationStructureBuildFlags::CreateMotion;
+        AccelerationStructureBuildFlags::MinimizeMemory | AccelerationStructureBuildFlags::CreateMotion |
+        AccelerationStructureBuildFlags::AllowOpacityMicromapUpdate |
+        AccelerationStructureBuildFlags::AllowDisableOpacityMicromaps;
     return isValidFlags(value, allValidBits);
 }
 

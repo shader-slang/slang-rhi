@@ -416,8 +416,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Process chained descs
     const D3D12DeviceExtendedDesc* extendedDesc = nullptr;
-    for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
-         header = header->next)
+    for (const ChainedStructHeader* header = static_cast<const ChainedStructHeader*>(desc.next); header;
+         header = static_cast<const ChainedStructHeader*>(header->next))
     {
         switch (header->type)
         {
@@ -986,6 +986,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
             if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1)
             {
                 addFeature(Feature::RayQuery);
+            }
+            if (options.RaytracingTier >= D3D12_RAYTRACING_TIER_1_2)
+            {
+                addFeature(Feature::OpacityMicromap);
             }
         }
     }
@@ -2042,7 +2046,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (m_nvapiEnabled)
+    if (m_nvapiEnabled && !usesOpacityMicromaps(desc))
     {
         AccelerationStructureBuildDescConverterNVAPI converter;
         SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
@@ -2068,6 +2072,19 @@ Result DeviceImpl::getAccelerationStructureSizes(
     outSizes->scratchSize = prebuildInfo.ScratchDataSizeInBytes;
     outSizes->updateScratchSize = prebuildInfo.UpdateScratchDataSizeInBytes;
 
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    if (!hasFeature(Feature::OpacityMicromap) || !m_device5)
+        return SLANG_E_NOT_AVAILABLE;
+    MicromapBuildDescConverter converter;
+    SLANG_RETURN_ON_FAIL(converter.convert(desc));
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info = {};
+    m_device5->GetRaytracingAccelerationStructurePrebuildInfo(&converter.desc, &info);
+    outSizes->micromapSize = info.ResultDataMaxSizeInBytes;
+    outSizes->scratchSize = info.ScratchDataSizeInBytes;
     return SLANG_OK;
 }
 
@@ -2120,6 +2137,21 @@ Result DeviceImpl::createAccelerationStructure(
     srvDesc.RaytracingAccelerationStructure.Location = result->m_buffer->getDeviceAddress();
     m_device->CreateShaderResourceView(nullptr, &srvDesc, result->m_descriptor.cpuHandle);
     returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    if (!hasFeature(Feature::OpacityMicromap))
+        return SLANG_E_NOT_AVAILABLE;
+    RefPtr<MicromapImpl> result = new MicromapImpl(this, desc);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = desc.size;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    bufferDesc.usage = BufferUsage::AccelerationStructure | BufferUsage::MicromapStorage;
+    bufferDesc.defaultState = ResourceState::MicromapRead;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
 

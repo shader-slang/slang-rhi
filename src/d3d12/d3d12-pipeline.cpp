@@ -623,6 +623,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         pipelineConfig.Flags |= D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_TRIANGLES;
     if (is_set(desc.flags, RayTracingPipelineFlags::SkipProcedurals))
         pipelineConfig.Flags |= D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
+    if (is_set(desc.flags, RayTracingPipelineFlags::EnableOpacityMicromaps))
+        pipelineConfig.Flags |= D3D12_RAYTRACING_PIPELINE_FLAG_ALLOW_OPACITY_MICROMAPS;
 
     D3D12_STATE_SUBOBJECT pipelineConfigSubobject = {};
     pipelineConfigSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1;

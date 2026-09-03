@@ -97,6 +97,36 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
     return SLANG_OK;
 }
 
+MicromapImpl::MicromapImpl(Device* device, const MicromapDesc& desc)
+    : Micromap(device, desc)
+{
+}
+
+MicromapImpl::~MicromapImpl()
+{
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    if (m_vkHandle)
+        device->m_api.vkDestroyMicromapEXT(device->m_device, m_vkHandle, nullptr);
+}
+
+void MicromapImpl::deleteThis()
+{
+    m_buffer.setNull();
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
+Result MicromapImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::VkMicromapEXT;
+    outHandle->value = (uint64_t)m_vkHandle;
+    return SLANG_OK;
+}
+
+DeviceAddress MicromapImpl::getDeviceAddress()
+{
+    return m_buffer ? m_buffer->getDeviceAddress() : 0;
+}
+
 Result AccelerationStructureBuildDescConverter::convert(
     const AccelerationStructureBuildDesc& buildDesc,
     IDebugCallback* debugCallback
@@ -168,6 +198,8 @@ Result AccelerationStructureBuildDescConverter::convert(
         {
             motionTrianglesDatas.resize(buildDesc.inputCount);
         }
+        opacityMicromapDatas.resize(buildDesc.inputCount);
+        opacityMicromapUsageCounts.resize(buildDesc.inputCount);
 
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
@@ -212,6 +244,45 @@ Result AccelerationStructureBuildDescConverter::convert(
                 motionData.vertexData.deviceAddress = triangles.vertexBuffers[1].getDeviceAddress();
 
                 geometry.geometry.triangles.pNext = &motionData;
+            }
+
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(triangles.next))
+            {
+                if (!ommDesc->link.micromap || (ommDesc->link.usageCount > 0 && !ommDesc->link.usageCounts))
+                    return SLANG_E_INVALID_ARG;
+                std::vector<VkMicromapUsageEXT>& usageCounts = opacityMicromapUsageCounts[i];
+                usageCounts.resize(ommDesc->link.usageCount);
+                for (uint32_t j = 0; j < ommDesc->link.usageCount; ++j)
+                {
+                    usageCounts[j].count = ommDesc->link.usageCounts[j].count;
+                    usageCounts[j].subdivisionLevel = ommDesc->link.usageCounts[j].subdivisionLevel;
+                    usageCounts[j].format = ommDesc->link.usageCounts[j].format;
+                }
+                VkAccelerationStructureTrianglesOpacityMicromapEXT& ommData = opacityMicromapDatas[i];
+                ommData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
+                ommData.pNext = const_cast<void*>(geometry.geometry.triangles.pNext);
+                if (ommDesc->link.indexingMode == MicromapIndexingMode::Indexed)
+                {
+                    if (!ommDesc->link.indexBuffer)
+                        return SLANG_E_INVALID_ARG;
+                    if (ommDesc->link.indexFormat == MicromapIndexFormat::Uint16)
+                        ommData.indexType = VK_INDEX_TYPE_UINT16;
+                    else if (ommDesc->link.indexFormat == MicromapIndexFormat::Uint32)
+                        ommData.indexType = VK_INDEX_TYPE_UINT32;
+                    else
+                        return SLANG_E_INVALID_ARG;
+                    ommData.indexBuffer.deviceAddress = ommDesc->link.indexBuffer.getDeviceAddress();
+                    ommData.indexStride = ommDesc->link.indexStride;
+                }
+                else
+                {
+                    ommData.indexType = VK_INDEX_TYPE_NONE_KHR;
+                }
+                ommData.baseTriangle = ommDesc->link.baseMicromapIndex;
+                ommData.usageCountsCount = (uint32_t)usageCounts.size();
+                ommData.pUsageCounts = usageCounts.data();
+                ommData.micromap = checked_cast<MicromapImpl*>(ommDesc->link.micromap)->m_vkHandle;
+                geometry.geometry.triangles.pNext = &ommData;
             }
 
             primitiveCounts[i] = max(triangles.vertexCount, triangles.indexCount) / 3;
@@ -364,6 +435,29 @@ Result AccelerationStructureBuildDescConverter::convert(
     return SLANG_OK;
 }
 
+Result MicromapBuildDescConverter::convert(const MicromapBuildDesc& desc)
+{
+    if (desc.type != MicromapType::Opacity || !desc.dataBuffer || !desc.descriptorBuffer || !desc.histogram ||
+        desc.histogramCount == 0)
+        return SLANG_E_INVALID_ARG;
+    usageCounts.resize(desc.histogramCount);
+    for (uint32_t i = 0; i < desc.histogramCount; ++i)
+    {
+        usageCounts[i].count = desc.histogram[i].count;
+        usageCounts[i].subdivisionLevel = desc.histogram[i].subdivisionLevel;
+        usageCounts[i].format = desc.histogram[i].format;
+    }
+    buildInfo.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
+    buildInfo.flags = (VkBuildMicromapFlagsEXT)desc.flags;
+    buildInfo.mode = VK_BUILD_MICROMAP_MODE_BUILD_EXT;
+    buildInfo.usageCountsCount = (uint32_t)usageCounts.size();
+    buildInfo.pUsageCounts = usageCounts.data();
+    buildInfo.data.deviceAddress = desc.dataBuffer.getDeviceAddress();
+    buildInfo.triangleArray.deviceAddress = desc.descriptorBuffer.getDeviceAddress();
+    buildInfo.triangleArrayStride = desc.descriptorStride;
+    return SLANG_OK;
+}
+
 VkBuildAccelerationStructureFlagsKHR AccelerationStructureBuildDescConverter::translateBuildFlags(
     AccelerationStructureBuildFlags flags
 )
@@ -392,6 +486,14 @@ VkBuildAccelerationStructureFlagsKHR AccelerationStructureBuildDescConverter::tr
     if (is_set(flags, AccelerationStructureBuildFlags::CreateMotion))
     {
         result |= VK_BUILD_ACCELERATION_STRUCTURE_MOTION_BIT_NV;
+    }
+    if (is_set(flags, AccelerationStructureBuildFlags::AllowOpacityMicromapUpdate))
+    {
+        result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_UPDATE_BIT_EXT;
+    }
+    if (is_set(flags, AccelerationStructureBuildFlags::AllowDisableOpacityMicromaps))
+    {
+        result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_BIT_EXT;
     }
     return result;
 }

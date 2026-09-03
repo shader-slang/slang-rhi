@@ -43,4 +43,32 @@ Result AccelerationStructureImpl::getDescriptorHandle(DescriptorHandle* outHandl
     return SLANG_OK;
 }
 
+MicromapImpl::MicromapImpl(Device* device, const MicromapDesc& desc)
+    : Micromap(device, desc)
+{
+}
+
+MicromapImpl::~MicromapImpl()
+{
+    if (m_buffer)
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_buffer));
+}
+
+void MicromapImpl::deleteThis()
+{
+    getDevice<DeviceImpl>()->deferDelete(this);
+}
+
+Result MicromapImpl::getNativeHandle(NativeHandle* outHandle)
+{
+    outHandle->type = NativeHandleType::CUdeviceptr;
+    outHandle->value = m_buffer;
+    return SLANG_OK;
+}
+
+DeviceAddress MicromapImpl::getDeviceAddress()
+{
+    return m_buffer;
+}
+
 } // namespace rhi::cuda

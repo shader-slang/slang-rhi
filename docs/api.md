@@ -37,8 +37,10 @@
 | `readBuffer`                       | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `createQueryPool`                  | yes     | yes  | yes   | yes   | yes    | yes     | yes  |
 | `getAccelerationStructureSizes`    | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getMicromapSizes`                 | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `getClusterOperationSizes`         | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createAccelerationStructure`      | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `createMicromap`                   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createFence`                      | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `waitForFences`                    | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `createHeap`                       | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
@@ -182,6 +184,7 @@
 | `clearTextureDepthStencil`             | :x: | :x:  | yes   | yes   | yes    | yes   | :x:  |
 | `resolveQuery`                         | yes | :x:  | :x:   | yes   | yes    | yes   | :x:  |
 | `buildAccelerationStructure`           | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
+| `buildMicromap`                        | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |
 | `copyAccelerationStructure`            | :x: | yes  | :x:   | yes   | yes    | yes   | :x:  |
 | `queryAccelerationStructureProperties` | :x: | :x:  | :x:   | yes   | yes    | :x:   | :x:  |
 | `executeClusterOperation`              | :x: | yes  | :x:   | yes   | yes    | :x:   | :x:  |

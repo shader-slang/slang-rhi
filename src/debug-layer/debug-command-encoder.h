@@ -248,6 +248,12 @@ public:
         const AccelerationStructureQueryDesc* queryDescs
     ) override;
 
+    virtual SLANG_NO_THROW void SLANG_MCALL buildMicromap(
+        const MicromapBuildDesc& desc,
+        IMicromap* dst,
+        BufferOffsetPair scratchBuffer
+    ) override;
+
     virtual SLANG_NO_THROW void SLANG_MCALL copyAccelerationStructure(
         IAccelerationStructure* dst,
         IAccelerationStructure* src,

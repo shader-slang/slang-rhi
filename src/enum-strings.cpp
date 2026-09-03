@@ -137,6 +137,10 @@ const char* enumToString(BufferUsage value)
         return S_BufferUsage_AccelerationStructure;
     case BufferUsage::AccelerationStructureBuildInput:
         return S_BufferUsage_AccelerationStructureBuildInput;
+    case BufferUsage::MicromapBuildInput:
+        return S_BufferUsage_MicromapBuildInput;
+    case BufferUsage::MicromapStorage:
+        return S_BufferUsage_MicromapStorage;
     case BufferUsage::ShaderTable:
         return S_BufferUsage_ShaderTable;
     case BufferUsage::Shared:
@@ -271,6 +275,12 @@ const char* enumToString(ResourceState value)
         return S_ResourceState_AccelerationStructureWrite;
     case ResourceState::AccelerationStructureBuildInput:
         return S_ResourceState_AccelerationStructureBuildInput;
+    case ResourceState::MicromapBuildInput:
+        return S_ResourceState_MicromapBuildInput;
+    case ResourceState::MicromapRead:
+        return S_ResourceState_MicromapRead;
+    case ResourceState::MicromapWrite:
+        return S_ResourceState_MicromapWrite;
     }
     return S_INVALID;
 }
