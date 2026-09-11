@@ -1611,6 +1611,10 @@ void CommandRecorder::cmdSetTextureState(const commands::SetTextureState& cmd)
 
 void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
 {
+    // Flush transitions already accumulated for either resource before requesting a final
+    // transition for `before`; otherwise D3D12 may see the same subresource twice in one batch.
+    commitBarriers();
+
     // Aliased resources retain their D3D12 transition state while inactive. Restore the resource
     // being deactivated to its default state so it can be safely forgotten until reactivation.
     if (Buffer* buffer = asBuffer(cmd.before))
@@ -1637,6 +1641,10 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
     if (Buffer* buffer = asBuffer(cmd.before))
         m_stateTracking.forgetBufferState(buffer);
     else if (Texture* texture = asTexture(cmd.before))
+        m_stateTracking.forgetTextureState(texture);
+    if (Buffer* buffer = asBuffer(cmd.after))
+        m_stateTracking.forgetBufferState(buffer);
+    else if (Texture* texture = asTexture(cmd.after))
         m_stateTracking.forgetTextureState(texture);
 }
 
@@ -1828,15 +1836,17 @@ void CommandRecorder::commitBarriers()
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
             barriers.push_back(barrier);
         }
-        else if ((bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
-                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
-                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureRead &&
-                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite) ||
-                 (bufferBarrier.stateBefore == ResourceState::MicromapWrite &&
-                  bufferBarrier.stateAfter == ResourceState::MicromapRead) ||
-                 (bufferBarrier.stateBefore == ResourceState::MicromapRead &&
-                  bufferBarrier.stateAfter == ResourceState::MicromapWrite) ||
-                 ((stateAfter & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0))
+        else if (
+            (bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
+             bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
+            (bufferBarrier.stateBefore == ResourceState::AccelerationStructureRead &&
+             bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite) ||
+            (bufferBarrier.stateBefore == ResourceState::MicromapWrite &&
+             bufferBarrier.stateAfter == ResourceState::MicromapRead) ||
+            (bufferBarrier.stateBefore == ResourceState::MicromapRead &&
+             bufferBarrier.stateAfter == ResourceState::MicromapWrite) ||
+            ((stateAfter & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0)
+        )
         {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
             barrier.UAV.pResource = buffer->m_resource;
