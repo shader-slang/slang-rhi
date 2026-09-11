@@ -14,6 +14,7 @@ public:
     Result init();
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
+    virtual bool isCompatible(const ResourceMemoryRequirements& requirements) const override;
 
     VkDeviceMemory m_memory = VK_NULL_HANDLE;
     uint32_t m_memoryTypeIndex = 0;

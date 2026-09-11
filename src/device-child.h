@@ -17,6 +17,12 @@ public:
         return static_cast<T*>(m_device.get());
     }
 
+    template<typename T = Device>
+    const T* getDevice() const
+    {
+        return static_cast<const T*>(m_device.get());
+    }
+
     void breakStrongReferenceToDevice();
     void establishStrongReferenceToDevice();
 

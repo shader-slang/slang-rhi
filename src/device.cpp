@@ -3,6 +3,7 @@
 #include "rhi-shared.h"
 #include "shader.h"
 #include "heap.h"
+#include "resource-heap.h"
 #include "debug-layer/debug-device.h"
 
 #include <algorithm>
@@ -927,7 +928,7 @@ Result Device::getBufferMemoryRequirements(const BufferDesc& desc, ResourceMemor
 {
     SLANG_UNUSED(desc);
     if (outRequirements)
-        *outRequirements = {};
+        resetResourceMemoryRequirements(outRequirements);
     return SLANG_E_NOT_AVAILABLE;
 }
 
@@ -935,8 +936,23 @@ Result Device::getTextureMemoryRequirements(const TextureDesc& desc, ResourceMem
 {
     SLANG_UNUSED(desc);
     if (outRequirements)
-        *outRequirements = {};
+        resetResourceMemoryRequirements(outRequirements);
     return SLANG_E_NOT_AVAILABLE;
+}
+
+Result Device::isResourceHeapCompatible(
+    IResourceHeap* heap,
+    const ResourceMemoryRequirements& requirements,
+    bool* outCompatible
+)
+{
+    if (!heap || !outCompatible)
+        return SLANG_E_INVALID_ARG;
+    ResourceHeap* resourceHeap = checked_cast<ResourceHeap*>(heap);
+    if (resourceHeap->getDevice() != this)
+        return SLANG_E_INVALID_ARG;
+    *outCompatible = resourceHeap->isCompatible(requirements);
+    return SLANG_OK;
 }
 
 Result Device::readTexture(

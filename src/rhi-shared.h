@@ -9,6 +9,7 @@
 #include "core/common.h"
 #include "core/short_vector.h"
 #include "reference.h"
+#include "resource-heap.h"
 
 #include "rhi-shared-fwd.h"
 
@@ -81,6 +82,20 @@ public:
     }
 
     virtual ~Resource() { --testing::gResourceCount; }
+
+    void setPlacement(ResourceHeap* heap, Offset offset, const ResourceMemoryRequirements& requirements)
+    {
+        m_placementHeap = heap;
+        m_placementOffset = offset;
+        m_placementRequirements = requirements;
+        m_placementRequirements.next = nullptr;
+    }
+
+    bool isPlaced() const { return m_placementHeap != nullptr; }
+
+    RefPtr<ResourceHeap> m_placementHeap;
+    Offset m_placementOffset = 0;
+    ResourceMemoryRequirements m_placementRequirements = {};
 };
 
 class Buffer : public IBuffer, public Resource

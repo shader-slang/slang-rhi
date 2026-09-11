@@ -237,7 +237,10 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     m_supportsPlacementHeaps =
         m_device->supportsFamily(MTL::GPUFamilyApple2) || m_device->supportsFamily(MTL::GPUFamilyMac2);
     if (m_supportsPlacementHeaps)
-        addFeature(Feature::MemoryAliasing);
+    {
+        addFeature(Feature::ResourceHeaps);
+        addFeature(Feature::ResourceAliasing);
+    }
 
     if (m_device->supportsRaytracing())
     {
@@ -499,6 +502,7 @@ Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHea
 {
     if (!m_supportsPlacementHeaps)
         return SLANG_E_NOT_AVAILABLE;
+    SLANG_RETURN_ON_FAIL(validateResourceHeapDesc(this, desc));
 
     RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
     SLANG_RETURN_ON_FAIL(heap->init());
@@ -523,14 +527,20 @@ Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, Resource
 {
     AUTORELEASEPOOL
 
+    resetResourceMemoryRequirements(outRequirements);
+
     BufferDesc desc = fixupBufferDesc(desc_);
     MTL::SizeAndAlign sizeAndAlign =
         m_device->heapBufferSizeAndAlign(desc.size, getMetalResourceOptions(desc.memoryType));
     outRequirements->size = sizeAndAlign.size;
     outRequirements->alignment = sizeAndAlign.align;
+    outRequirements->heapAlignment = 1;
     outRequirements->memoryType = desc.memoryType;
-    outRequirements->heapKind = getResourceHeapKind(desc);
-    outRequirements->requiresDedicatedAllocation = is_set(desc.usage, BufferUsage::Shared);
+    outRequirements->usage = getResourceHeapUsage(desc);
+    outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
+                                 ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
+                                 : ResourceMemoryRequirementFlags::None;
+    outRequirements->compatibility = makeResourceHeapCompatibility(this);
     return SLANG_OK;
 }
 
@@ -538,15 +548,21 @@ Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, Resour
 {
     AUTORELEASEPOOL
 
+    resetResourceMemoryRequirements(outRequirements);
+
     TextureDesc desc = fixupTextureDesc(desc_);
     NS::SharedPtr<MTL::TextureDescriptor> textureDesc = createTextureDescriptor(desc);
 
     MTL::SizeAndAlign sizeAndAlign = m_device->heapTextureSizeAndAlign(textureDesc.get());
     outRequirements->size = sizeAndAlign.size;
     outRequirements->alignment = sizeAndAlign.align;
+    outRequirements->heapAlignment = 1;
     outRequirements->memoryType = desc.memoryType;
-    outRequirements->heapKind = getResourceHeapKind(desc);
-    outRequirements->requiresDedicatedAllocation = is_set(desc.usage, TextureUsage::Shared);
+    outRequirements->usage = getResourceHeapUsage(desc);
+    outRequirements->flags = is_set(desc.usage, TextureUsage::Shared)
+                                 ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
+                                 : ResourceMemoryRequirementFlags::None;
+    outRequirements->compatibility = makeResourceHeapCompatibility(this);
     return SLANG_OK;
 }
 

@@ -18,17 +18,17 @@ static D3D12_HEAP_TYPE translateHeapType(MemoryType memoryType)
     }
 }
 
-static D3D12_HEAP_FLAGS translateHeapFlags(ResourceHeapKind kind)
+static D3D12_HEAP_FLAGS translateHeapFlags(ResourceHeapUsage usage)
 {
-    switch (kind)
+    switch (usage)
     {
-    case ResourceHeapKind::Buffers:
+    case ResourceHeapUsage::Buffers:
         return D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
-    case ResourceHeapKind::NonRtDsTextures:
+    case ResourceHeapUsage::NonRtDsTextures:
         return D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
-    case ResourceHeapKind::RtDsTextures:
+    case ResourceHeapUsage::RtDsTextures:
         return D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
-    case ResourceHeapKind::All:
+    case ResourceHeapUsage::All:
     default:
         return D3D12_HEAP_FLAG_NONE;
     }
@@ -45,17 +45,25 @@ Result ResourceHeapImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
-    if (m_desc.kind == ResourceHeapKind::All && device->m_resourceHeapTier < D3D12_RESOURCE_HEAP_TIER_2)
+    const bool hasMultipleUsageBits = m_desc.usage != ResourceHeapUsage::Buffers &&
+                                      m_desc.usage != ResourceHeapUsage::NonRtDsTextures &&
+                                      m_desc.usage != ResourceHeapUsage::RtDsTextures;
+    if (hasMultipleUsageBits && device->m_resourceHeapTier < D3D12_RESOURCE_HEAP_TIER_2)
         return SLANG_E_NOT_AVAILABLE;
 
-    const Size alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    const Size alignment = m_desc.alignment > D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT
+                               ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT
+                               : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    if (m_desc.alignment > alignment)
+        return SLANG_E_INVALID_ARG;
+    m_desc.alignment = alignment;
     m_desc.size = math::calcAligned(m_desc.size, alignment);
 
     D3D12_HEAP_DESC heapDesc = {};
     heapDesc.SizeInBytes = m_desc.size;
     heapDesc.Properties = makeHeapProperties(translateHeapType(m_desc.memoryType));
     heapDesc.Alignment = alignment;
-    heapDesc.Flags = translateHeapFlags(m_desc.kind);
+    heapDesc.Flags = translateHeapFlags(m_desc.usage);
 
     SLANG_D3D_RETURN_ON_FAIL_REPORT(device->m_device->CreateHeap(&heapDesc, IID_PPV_ARGS(m_heap.writeRef())), device);
 

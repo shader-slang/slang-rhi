@@ -74,6 +74,8 @@ Buffer::Buffer(Device* device, const BufferDesc& desc)
     : Resource(device)
     , m_desc(desc)
 {
+    // Descriptor extension chains are creation-only and remain owned by the caller.
+    m_desc.next = nullptr;
     m_descHolder.holdString(m_desc.label);
 }
 
@@ -178,6 +180,8 @@ Texture::Texture(Device* device, const TextureDesc& desc)
     : Resource(device)
     , m_desc(desc)
 {
+    // Descriptor extension chains are creation-only and remain owned by the caller.
+    m_desc.next = nullptr;
     m_descHolder.holdString(m_desc.label);
     m_sampler = checked_cast<Sampler*>(m_desc.sampler);
 }

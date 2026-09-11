@@ -224,6 +224,11 @@ public:
         const TextureDesc& desc,
         ResourceMemoryRequirements* outRequirements
     ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResourceHeapCompatible(
+        IResourceHeap* heap,
+        const ResourceMemoryRequirements& requirements,
+        bool* outCompatible
+    ) override;
 
 public:
     /// Validate that the correct CUDA context is current (CUDA devices only).

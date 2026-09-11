@@ -41,6 +41,7 @@ Result ResourceHeapImpl::init()
     AUTORELEASEPOOL
 
     DeviceImpl* device = getDevice<DeviceImpl>();
+    m_desc.alignment = max<Size>(m_desc.alignment, 1);
     NS::SharedPtr<MTL::HeapDescriptor> heapDesc = NS::TransferPtr(MTL::HeapDescriptor::alloc()->init());
     heapDesc->setType(MTL::HeapTypePlacement);
     heapDesc->setSize(m_desc.size);

@@ -199,7 +199,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize features & capabilities
     addFeature(Feature::HardwareDevice);
-    addFeature(Feature::MemoryAliasing);
+    addFeature(Feature::ResourceHeaps);
+    addFeature(Feature::ResourceAliasing);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Bindless);
 #if SLANG_RHI_ENABLE_VULKAN
@@ -679,7 +680,14 @@ void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 
 Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
 {
-    if (desc.kind != ResourceHeapKind::Buffers && desc.kind != ResourceHeapKind::All)
+    SLANG_RETURN_ON_FAIL(validateResourceHeapDesc(this, desc));
+    ResourceHeapUsage usage = desc.usage;
+    if (usage == ResourceHeapUsage::None)
+    {
+        for (uint32_t i = 0; i < desc.requirementCount; ++i)
+            usage |= desc.requirements[i].usage;
+    }
+    if (!isResourceHeapUsageCompatible(ResourceHeapUsage::Buffers, usage))
         return SLANG_E_NOT_AVAILABLE;
 
     RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
@@ -690,27 +698,25 @@ Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHea
 
 Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
 {
+    resetResourceMemoryRequirements(outRequirements);
     BufferDesc desc = fixupBufferDesc(desc_);
     outRequirements->size = desc.size;
     outRequirements->alignment = 256;
+    outRequirements->heapAlignment = 1;
     outRequirements->memoryType = desc.memoryType;
-    outRequirements->heapKind = ResourceHeapKind::Buffers;
-    outRequirements->requiresDedicatedAllocation = is_set(desc.usage, BufferUsage::Shared);
+    outRequirements->usage = ResourceHeapUsage::Buffers;
+    outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
+                                 ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
+                                 : ResourceMemoryRequirementFlags::None;
+    outRequirements->compatibility = makeResourceHeapCompatibility(this);
     return SLANG_OK;
 }
 
 Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
 {
-    TextureDesc desc = fixupTextureDesc(desc_);
-    Size size = 0;
-    Size alignment = 0;
-    SLANG_RETURN_ON_FAIL(getTextureAllocationInfo(desc, &size, &alignment));
-    outRequirements->size = size;
-    outRequirements->alignment = alignment;
-    outRequirements->memoryType = desc.memoryType;
-    outRequirements->heapKind = getResourceHeapKind(desc);
-    outRequirements->requiresDedicatedAllocation = true;
-    return SLANG_OK;
+    SLANG_UNUSED(desc_);
+    resetResourceMemoryRequirements(outRequirements);
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)

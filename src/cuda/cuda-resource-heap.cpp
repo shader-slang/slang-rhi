@@ -28,6 +28,7 @@ ResourceHeapImpl::~ResourceHeapImpl()
 Result ResourceHeapImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+    m_desc.alignment = max<Size>(m_desc.alignment, 1);
     SLANG_CUDA_CTX_SCOPE(device);
 
     m_isHostMemory = m_desc.memoryType != MemoryType::DeviceLocal;

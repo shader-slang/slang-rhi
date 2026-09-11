@@ -181,9 +181,9 @@ std::string createHeapLabel(const HeapDesc& desc)
 std::string createResourceHeapLabel(const ResourceHeapDesc& desc)
 {
     return string::format(
-        "Unnamed resource heap (memoryType=%s, kind=%s, size=%zu)",
+        "Unnamed resource heap (memoryType=%s, usage=%s, size=%zu)",
         enumToString(desc.memoryType),
-        enumToString(desc.kind),
+        flagsToString(desc.usage).c_str(),
         desc.size
     );
 }

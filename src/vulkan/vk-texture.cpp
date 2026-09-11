@@ -14,6 +14,58 @@
 
 namespace rhi::vk {
 
+Result getVkImageCreateInfo(const TextureDesc& desc, bool addCopyDestination, VkImageCreateInfo* outImageInfo)
+{
+    const VkFormat format = getVkFormat(desc.format);
+    if (format == VK_FORMAT_UNDEFINED)
+        return SLANG_FAIL;
+
+    VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    switch (desc.type)
+    {
+    case TextureType::Texture1D:
+    case TextureType::Texture1DArray:
+        imageInfo.imageType = VK_IMAGE_TYPE_1D;
+        imageInfo.extent = VkExtent3D{desc.size.width, 1, 1};
+        break;
+    case TextureType::Texture2D:
+    case TextureType::Texture2DArray:
+    case TextureType::Texture2DMS:
+    case TextureType::Texture2DMSArray:
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, 1};
+        break;
+    case TextureType::Texture3D:
+        imageInfo.imageType = VK_IMAGE_TYPE_3D;
+        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, desc.size.depth};
+        if (is_set(desc.usage, TextureUsage::RenderTarget))
+            imageInfo.flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
+        break;
+    case TextureType::TextureCube:
+    case TextureType::TextureCubeArray:
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, 1};
+        imageInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+        break;
+    }
+
+    if (is_set(desc.usage, TextureUsage::Typeless))
+        imageInfo.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+
+    imageInfo.mipLevels = desc.mipCount;
+    imageInfo.arrayLayers = desc.getLayerCount();
+    imageInfo.format = format;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage = _calcImageUsageFlags(desc.usage, desc.memoryType, nullptr);
+    if (addCopyDestination)
+        imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
+
+    *outImageInfo = imageInfo;
+    return SLANG_OK;
+}
+
 TextureImpl::TextureImpl(Device* device, const TextureDesc& desc)
     : Texture(device, desc)
 {
@@ -293,74 +345,14 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 {
     TextureDesc desc = fixupTextureDesc(desc_);
 
-    const VkFormat format = getVkFormat(desc.format);
-    if (format == VK_FORMAT_UNDEFINED)
-    {
-        SLANG_RHI_ASSERT_FAILURE("Unhandled image format");
-        return SLANG_FAIL;
-    }
+    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
+    VkImageCreateInfo imageInfo = {};
+    SLANG_RETURN_ON_FAIL(getVkImageCreateInfo(desc, initData != nullptr || placement != nullptr, &imageInfo));
+    const VkFormat format = imageInfo.format;
+    const uint32_t layerCount = desc.getLayerCount();
 
     RefPtr<TextureImpl> texture(new TextureImpl(this, desc));
     texture->m_vkformat = format;
-
-    // Create the image
-    VkImageCreateInfo imageInfo = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    switch (desc.type)
-    {
-    case TextureType::Texture1D:
-    case TextureType::Texture1DArray:
-    {
-        imageInfo.imageType = VK_IMAGE_TYPE_1D;
-        imageInfo.extent = VkExtent3D{desc.size.width, 1, 1};
-        break;
-    }
-    case TextureType::Texture2D:
-    case TextureType::Texture2DArray:
-    case TextureType::Texture2DMS:
-    case TextureType::Texture2DMSArray:
-    {
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, 1};
-        break;
-    }
-    case TextureType::Texture3D:
-    {
-        imageInfo.imageType = VK_IMAGE_TYPE_3D;
-        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, desc.size.depth};
-        // When using 3D textures as render targets, we need to be able to create 2d array views.
-        if (is_set(desc.usage, TextureUsage::RenderTarget))
-        {
-            imageInfo.flags = VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
-        }
-        break;
-    }
-    case TextureType::TextureCube:
-    case TextureType::TextureCubeArray:
-    {
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent = VkExtent3D{desc.size.width, desc.size.height, 1};
-        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-        break;
-    }
-    }
-
-    if (is_set(desc.usage, TextureUsage::Typeless))
-    {
-        imageInfo.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-    }
-
-    uint32_t layerCount = desc.getLayerCount();
-
-    imageInfo.mipLevels = desc.mipCount;
-    imageInfo.arrayLayers = layerCount;
-
-    imageInfo.format = format;
-
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.usage = _calcImageUsageFlags(desc.usage, desc.memoryType, initData);
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {
         VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO
@@ -382,15 +374,10 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
     VkMemoryRequirements memRequirements;
     m_api.vkGetImageMemoryRequirements(m_device, texture->m_image, &memRequirements);
 
-    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
     if (placement)
     {
         ResourceMemoryRequirements requirements = {};
-        requirements.size = (Size)memRequirements.size;
-        requirements.alignment = (Size)memRequirements.alignment;
-        requirements.memoryType = desc.memoryType;
-        requirements.heapKind = getResourceHeapKind(desc);
-        requirements.requiresDedicatedAllocation = is_set(desc.usage, TextureUsage::Shared);
+        SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
         SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
@@ -404,6 +391,7 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         texture->m_imageMemory = heap->m_memory;
         texture->m_ownsMemory = false;
         texture->m_resourceHeap = heap;
+        texture->setPlacement(heap, placement->offset, requirements);
     }
     else
     {

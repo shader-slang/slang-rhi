@@ -145,17 +145,9 @@ std::string createRayTracingPipelineLabel(const RayTracingPipelineDesc& desc);
 std::string createHeapLabel(const HeapDesc& desc);
 std::string createResourceHeapLabel(const ResourceHeapDesc& desc);
 
-inline bool isValidResourceHeapKind(ResourceHeapKind value)
+inline bool isValidResourceHeapUsage(ResourceHeapUsage value)
 {
-    switch (value)
-    {
-    case ResourceHeapKind::Buffers:
-    case ResourceHeapKind::NonRtDsTextures:
-    case ResourceHeapKind::RtDsTextures:
-    case ResourceHeapKind::All:
-        return true;
-    }
-    return false;
+    return (value & ~ResourceHeapUsage::All) == ResourceHeapUsage::None;
 }
 
 Result validateAccelerationStructureBuildDesc(DebugContext* ctx, const AccelerationStructureBuildDesc& buildDesc);

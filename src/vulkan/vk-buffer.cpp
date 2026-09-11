@@ -462,6 +462,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         );
         buffer->m_resourceHeap = heap;
         buffer->m_resourceHeapOffset = placement->offset;
+        buffer->setPlacement(heap, placement->offset, requirements);
     }
     else if (is_set(desc.usage, BufferUsage::Shared))
     {

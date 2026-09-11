@@ -4,6 +4,8 @@
 
 namespace rhi::vk {
 
+Result getVkImageCreateInfo(const TextureDesc& desc, bool addCopyDestination, VkImageCreateInfo* outImageInfo);
+
 class TextureImpl : public Texture
 {
 public:

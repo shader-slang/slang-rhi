@@ -404,6 +404,12 @@ public:
         ResourceMemoryRequirements* outRequirements
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResourceHeapCompatible(
+        IResourceHeap* heap,
+        const ResourceMemoryRequirements& requirements,
+        bool* outCompatible
+    ) override;
+
     // Flush all global heaps managed by this device
     Result flushHeaps();
 

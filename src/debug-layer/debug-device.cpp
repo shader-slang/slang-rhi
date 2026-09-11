@@ -1696,10 +1696,16 @@ Result DebugDevice::createResourceHeap(const ResourceHeapDesc& desc, IResourceHe
         RHI_VALIDATION_ERROR("Invalid memory type.");
         return SLANG_E_INVALID_ARG;
     }
-    if (!isValidResourceHeapKind(desc.kind))
+    if (!isValidResourceHeapUsage(desc.usage))
     {
-        RHI_VALIDATION_ERROR("Invalid resource heap kind.");
+        RHI_VALIDATION_ERROR("Invalid resource heap usage.");
         return SLANG_E_INVALID_ARG;
+    }
+    Result validationResult = validateResourceHeapDesc(checked_cast<Device*>(baseObject.get()), desc);
+    if (SLANG_FAILED(validationResult))
+    {
+        RHI_VALIDATION_ERROR("Invalid or incompatible resource heap requirements.");
+        return validationResult;
     }
 
     ResourceHeapDesc patchedDesc = desc;
@@ -1740,6 +1746,28 @@ Result DebugDevice::getTextureMemoryRequirements(const TextureDesc& desc, Resour
     }
 
     return baseObject->getTextureMemoryRequirements(desc, outRequirements);
+}
+
+Result DebugDevice::isResourceHeapCompatible(
+    IResourceHeap* heap,
+    const ResourceMemoryRequirements& requirements,
+    bool* outCompatible
+)
+{
+    SLANG_RHI_DEBUG_API(IDevice, isResourceHeapCompatible);
+
+    if (!heap)
+    {
+        RHI_VALIDATION_ERROR("'heap' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+    if (!outCompatible)
+    {
+        RHI_VALIDATION_ERROR("'outCompatible' must not be null.");
+        return SLANG_E_INVALID_ARG;
+    }
+
+    return baseObject->isResourceHeapCompatible(getInnerObj(heap), requirements, outCompatible);
 }
 
 void DebugDevice::validateCudaContext()

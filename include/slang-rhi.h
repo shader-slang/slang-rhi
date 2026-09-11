@@ -90,6 +90,7 @@ enum class StructType
 
     ResourceHeapDesc,
     ResourcePlacementDesc,
+    ResourceMemoryRequirements,
 };
 
 // TODO: Implementation or backend or something else?
@@ -185,7 +186,9 @@ enum class DeviceType
     x(ResidencySet,                             "residency-set"                                 ) \
     /* CUDA specific features */                                                                  \
     x(AtomicBfloat16,                           "atomic-bfloat16"                               ) \
-    x(MemoryAliasing,                           "memory-aliasing"                               )
+    /* Resource heap features (append-only for enum stability) */                                 \
+    x(ResourceHeaps,                            "resource-heaps"                                ) \
+    x(ResourceAliasing,                         "resource-aliasing"                             )
 // clang-format on
 
 #define SLANG_RHI_FEATURE_X(e, _) e,
@@ -2969,9 +2972,12 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 
-    /// Insert an aliasing barrier between two resources that share the same heap memory.
-    /// `before` may be null when first activating `after`.
-    /// After this call, the contents of `after` are undefined.
+    /// Activate `after` in heap memory previously used by `before`.
+    /// On this queue, prior accesses to `before` happen before later accesses to `after`.
+    /// `before` becomes inactive and loses its tracked state; `after` becomes active with undefined
+    /// contents and no tracked state. Cross-queue synchronization is the caller's responsibility.
+    /// `before` may be null for first activation. `after` must be a non-null placed resource; when
+    /// both are non-null, they must belong to the same device and heap and have overlapping ranges.
     virtual SLANG_NO_THROW void SLANG_MCALL aliasResources(IResource* before, IResource* after) = 0;
 };
 
@@ -3237,35 +3243,68 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL removeEmptyPages() = 0;
 };
 
-/// Compatibility class of a resource heap. Resources can only be placed in a heap of a matching kind.
-/// `All` requires a backend that allows mixed buffer/texture heaps (D3D12 resource heap tier 2, Vulkan, Metal).
-enum class ResourceHeapKind
+/// Resource categories permitted by a heap. Compatibility also depends on `ResourceMemoryRequirements`.
+enum class ResourceHeapUsage : uint32_t
 {
-    Buffers,
-    NonRtDsTextures,
-    RtDsTextures,
-    All,
+    None = 0,
+    Buffers = (1 << 0),
+    NonRtDsTextures = (1 << 1),
+    RtDsTextures = (1 << 2),
+    All = (1 << 0) | (1 << 1) | (1 << 2),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(ResourceHeapUsage);
+
+enum class ResourceMemoryRequirementFlags : uint32_t
+{
+    None = 0,
+    /// The resource cannot be placed in a resource heap.
+    RequiresDedicatedAllocation = (1 << 0),
+    /// A dedicated allocation is preferred but not required.
+    PrefersDedicatedAllocation = (1 << 1),
+};
+SLANG_RHI_ENUM_CLASS_OPERATORS(ResourceMemoryRequirementFlags);
+
+/// Opaque compatibility data for the originating device; applications must not interpret or persist it.
+struct ResourceHeapCompatibility
+{
+    uint64_t data[2] = {};
 };
 
-/// Memory requirements for placing a resource in a resource heap.
+/// Memory requirements for placing a resource, valid only with the originating device.
 struct ResourceMemoryRequirements
 {
+    static constexpr StructType kStructType = StructType::ResourceMemoryRequirements;
+    StructType structType = kStructType;
+    /// Output extension chain for future allocation constraints.
+    void* next = nullptr;
+
     Size size = 0;
+    /// Required alignment of the resource offset within the heap.
     Size alignment = 0;
+    /// Required alignment of the native heap allocation itself.
+    Size heapAlignment = 0;
     MemoryType memoryType = MemoryType::DeviceLocal;
-    ResourceHeapKind heapKind = ResourceHeapKind::All;
-    /// When true, the resource must be created with dedicated memory and cannot be placed.
-    bool requiresDedicatedAllocation = false;
+    ResourceHeapUsage usage = ResourceHeapUsage::None;
+    ResourceMemoryRequirementFlags flags = ResourceMemoryRequirementFlags::None;
+    ResourceHeapCompatibility compatibility = {};
 };
 
+/// Describes a heap compatible with every supplied resource requirement.
 struct ResourceHeapDesc
 {
-    StructType structType = StructType::ResourceHeapDesc;
+    static constexpr StructType kStructType = StructType::ResourceHeapDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     MemoryType memoryType = MemoryType::DeviceLocal;
-    ResourceHeapKind kind = ResourceHeapKind::All;
+    /// Allowed resource categories. When None, the value is derived from `requirements`.
+    ResourceHeapUsage usage = ResourceHeapUsage::None;
     Size size = 0;
+    /// Requested heap alignment. Zero lets the backend derive it from `requirements`.
+    Size alignment = 0;
+    /// Non-empty array of requirements the heap must support, copied during creation.
+    const ResourceMemoryRequirements* requirements = nullptr;
+    uint32_t requirementCount = 0;
     const char* label = nullptr;
 };
 
@@ -3278,31 +3317,34 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) = 0;
 };
 
-/// Chain onto BufferDesc::next or TextureDesc::next to place a resource in a heap.
+/// Creation-only extension chained onto BufferDesc::next or TextureDesc::next.
+/// The resource must fit at an aligned offset in a compatible heap and must not require a dedicated
+/// allocation. The resource retains `heap`, but not this extension chain.
 struct ResourcePlacementDesc
 {
-    StructType structType = StructType::ResourcePlacementDesc;
+    static constexpr StructType kStructType = StructType::ResourcePlacementDesc;
+    StructType structType = kStructType;
     const void* next = nullptr;
 
     IResourceHeap* heap = nullptr;
     Offset offset = 0;
 };
 
-inline ResourceHeapKind getResourceHeapKind(const BufferDesc&)
+inline ResourceHeapUsage getResourceHeapUsage(const BufferDesc&)
 {
-    return ResourceHeapKind::Buffers;
+    return ResourceHeapUsage::Buffers;
 }
 
-inline ResourceHeapKind getResourceHeapKind(const TextureDesc& desc)
+inline ResourceHeapUsage getResourceHeapUsage(const TextureDesc& desc)
 {
     if (is_set(desc.usage, TextureUsage::RenderTarget) || is_set(desc.usage, TextureUsage::DepthStencil))
-        return ResourceHeapKind::RtDsTextures;
-    return ResourceHeapKind::NonRtDsTextures;
+        return ResourceHeapUsage::RtDsTextures;
+    return ResourceHeapUsage::NonRtDsTextures;
 }
 
-inline bool isResourceHeapKindCompatible(ResourceHeapKind heapKind, ResourceHeapKind resourceKind)
+inline bool isResourceHeapUsageCompatible(ResourceHeapUsage heapUsage, ResourceHeapUsage resourceUsage)
 {
-    return heapKind == ResourceHeapKind::All || heapKind == resourceKind;
+    return (heapUsage & resourceUsage) == resourceUsage;
 }
 
 struct AdapterLUID
@@ -4081,7 +4123,8 @@ public:
     /// For non-CUDA devices, this is a no-op.
     virtual SLANG_NO_THROW Result SLANG_MCALL popCudaContext() = 0;
 
-    /// Create a heap that resources can be placed into for memory aliasing.
+    /// Create a heap compatible with `desc.requirements`.
+    /// Returns `SLANG_E_NOT_AVAILABLE` when the requested resource set is unsupported.
     virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
         const ResourceHeapDesc& desc,
         IResourceHeap** outHeap
@@ -4094,14 +4137,26 @@ public:
         return heap;
     }
 
+    /// Query the exact allocation requirements used when placing a buffer with `desc`.
+    /// Returns `SLANG_E_NOT_AVAILABLE` when that buffer cannot be placed.
     virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
         const BufferDesc& desc,
         ResourceMemoryRequirements* outRequirements
     ) = 0;
 
+    /// Query the exact allocation requirements used when placing a texture with `desc`.
+    /// Returns `SLANG_E_NOT_AVAILABLE` when that texture cannot be placed.
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
         const TextureDesc& desc,
         ResourceMemoryRequirements* outRequirements
+    ) = 0;
+
+    /// Test whether `heap` can hold a resource with `requirements`, for use by persistent heap pools.
+    /// Requirements from another device are incompatible; a heap from another device is invalid.
+    virtual SLANG_NO_THROW Result SLANG_MCALL isResourceHeapCompatible(
+        IResourceHeap* heap,
+        const ResourceMemoryRequirements& requirements,
+        bool* outCompatible
     ) = 0;
 };
 
