@@ -1,12 +1,37 @@
 #include "testing.h"
 #include "texture-test.h"
 
+#if SLANG_RHI_DEBUG
+#include "debug-layer/debug-device.h"
+#endif
+
 #include <algorithm>
 #include <cstring>
 #include <vector>
 
 using namespace rhi;
 using namespace rhi::testing;
+
+class CaptureValidationCallback : public IDebugCallback
+{
+public:
+    virtual SLANG_NO_THROW void SLANG_MCALL handleMessage(
+        DebugMessageType type,
+        DebugMessageSource source,
+        const char* message
+    ) override
+    {
+        SLANG_UNUSED(type);
+        SLANG_UNUSED(source);
+        output += message;
+        output += '\n';
+    }
+
+    void clear() { output.clear(); }
+    bool contains(const char* text) const { return output.find(text) != std::string::npos; }
+
+    std::string output;
+};
 
 static Size alignUp(Size value, Size alignment)
 {
@@ -63,22 +88,68 @@ static ResourceMemoryRequirements requireTextureMemoryRequirements(IDevice* devi
 static ComPtr<IResourceHeap> createHeap(
     IDevice* device,
     Size size,
-    ResourceHeapKind kind = ResourceHeapKind::Buffers,
+    ResourceHeapUsage usage = ResourceHeapUsage::Buffers,
     MemoryType memoryType = MemoryType::DeviceLocal,
     const char* label = "test-resource-heap"
 )
 {
+    ResourceMemoryRequirements requirements = {};
+    if (is_set(usage, ResourceHeapUsage::RtDsTextures))
+    {
+        TextureDesc resourceDesc = makeSampleTextureDesc(TextureUsage::RenderTarget);
+        requirements = requireTextureMemoryRequirements(device, resourceDesc);
+    }
+    else if (is_set(usage, ResourceHeapUsage::NonRtDsTextures))
+    {
+        TextureDesc resourceDesc = makeSampleTextureDesc();
+        requirements = requireTextureMemoryRequirements(device, resourceDesc);
+    }
+    else
+    {
+        BufferDesc resourceDesc = makeCopyBufferDesc(256, memoryType);
+        requirements = requireBufferMemoryRequirements(device, resourceDesc);
+    }
+
     ResourceHeapDesc desc = {};
     desc.memoryType = memoryType;
-    desc.kind = kind;
-    desc.size = size;
+    desc.usage = usage;
+    desc.size = std::max(size, requirements.size);
+    desc.requirements = &requirements;
+    desc.requirementCount = 1;
     desc.label = label;
     ComPtr<IResourceHeap> heap;
     REQUIRE_CALL(device->createResourceHeap(desc, heap.writeRef()));
     CHECK(heap);
     CHECK_EQ(heap->getDesc().memoryType, memoryType);
-    CHECK_EQ(heap->getDesc().kind, kind);
+    CHECK_EQ(heap->getDesc().usage, usage);
     CHECK_GE(heap->getDesc().size, size);
+    return heap;
+}
+
+static ComPtr<IResourceHeap> createHeapForRequirements(
+    IDevice* device,
+    const ResourceMemoryRequirements& requirements,
+    Size size = 0,
+    const char* label = "test-resource-heap"
+)
+{
+    ResourceHeapDesc desc = {};
+    desc.memoryType = requirements.memoryType;
+    desc.size = size ? size : requirements.size;
+    desc.requirements = &requirements;
+    desc.requirementCount = 1;
+    desc.label = label;
+    ComPtr<IResourceHeap> heap;
+    REQUIRE_CALL(device->createResourceHeap(desc, heap.writeRef()));
+    CHECK(heap);
+    CHECK_EQ(heap->getDesc().memoryType, requirements.memoryType);
+    CHECK(isResourceHeapUsageCompatible(heap->getDesc().usage, requirements.usage));
+    CHECK_GE(heap->getDesc().alignment, requirements.heapAlignment);
+    CHECK(heap->getDesc().next == nullptr);
+    REQUIRE_EQ(heap->getDesc().requirementCount, 1);
+    REQUIRE(heap->getDesc().requirements != nullptr);
+    CHECK(heap->getDesc().requirements != &requirements);
+    CHECK(heap->getDesc().requirements[0].next == nullptr);
     return heap;
 }
 
@@ -96,6 +167,7 @@ static ComPtr<IBuffer> createPlacedBuffer(
     desc.next = &placement;
     ComPtr<IBuffer> buffer;
     REQUIRE_CALL(device->createBuffer(desc, initData, buffer.writeRef()));
+    CHECK(buffer->getDesc().next == nullptr);
     return buffer;
 }
 
@@ -123,6 +195,7 @@ static ComPtr<ITexture> createPlacedTexture(
     desc.next = &placement;
     ComPtr<ITexture> texture;
     REQUIRE_CALL(device->createTexture(desc, initData, texture.writeRef()));
+    CHECK(texture->getDesc().next == nullptr);
     return texture;
 }
 
@@ -165,55 +238,51 @@ static void dispatchIncrement(IDevice* device, IComputePipeline* pipeline, IBuff
     REQUIRE_CALL(queue->waitOnHost());
 }
 
-TEST_CASE("resource-heap-kind-helpers")
+TEST_CASE("resource-heap-usage-helpers")
 {
     BufferDesc bufferDesc = {};
-    CHECK_EQ(getResourceHeapKind(bufferDesc), ResourceHeapKind::Buffers);
+    CHECK_EQ(getResourceHeapUsage(bufferDesc), ResourceHeapUsage::Buffers);
 
     TextureDesc textureDesc = {};
     textureDesc.usage = TextureUsage::ShaderResource;
-    CHECK_EQ(getResourceHeapKind(textureDesc), ResourceHeapKind::NonRtDsTextures);
+    CHECK_EQ(getResourceHeapUsage(textureDesc), ResourceHeapUsage::NonRtDsTextures);
 
     textureDesc.usage = TextureUsage::UnorderedAccess;
-    CHECK_EQ(getResourceHeapKind(textureDesc), ResourceHeapKind::NonRtDsTextures);
+    CHECK_EQ(getResourceHeapUsage(textureDesc), ResourceHeapUsage::NonRtDsTextures);
 
     textureDesc.usage = TextureUsage::RenderTarget;
-    CHECK_EQ(getResourceHeapKind(textureDesc), ResourceHeapKind::RtDsTextures);
+    CHECK_EQ(getResourceHeapUsage(textureDesc), ResourceHeapUsage::RtDsTextures);
 
     textureDesc.usage = TextureUsage::DepthStencil;
-    CHECK_EQ(getResourceHeapKind(textureDesc), ResourceHeapKind::RtDsTextures);
+    CHECK_EQ(getResourceHeapUsage(textureDesc), ResourceHeapUsage::RtDsTextures);
 
     textureDesc.usage = TextureUsage::ShaderResource | TextureUsage::RenderTarget;
-    CHECK_EQ(getResourceHeapKind(textureDesc), ResourceHeapKind::RtDsTextures);
+    CHECK_EQ(getResourceHeapUsage(textureDesc), ResourceHeapUsage::RtDsTextures);
 
-    CHECK(isResourceHeapKindCompatible(ResourceHeapKind::All, ResourceHeapKind::Buffers));
-    CHECK(isResourceHeapKindCompatible(ResourceHeapKind::All, ResourceHeapKind::NonRtDsTextures));
-    CHECK(isResourceHeapKindCompatible(ResourceHeapKind::All, ResourceHeapKind::RtDsTextures));
-    CHECK(isResourceHeapKindCompatible(ResourceHeapKind::Buffers, ResourceHeapKind::Buffers));
-    CHECK(isResourceHeapKindCompatible(ResourceHeapKind::NonRtDsTextures, ResourceHeapKind::NonRtDsTextures));
-    CHECK(isResourceHeapKindCompatible(ResourceHeapKind::RtDsTextures, ResourceHeapKind::RtDsTextures));
-    CHECK(!isResourceHeapKindCompatible(ResourceHeapKind::Buffers, ResourceHeapKind::NonRtDsTextures));
-    CHECK(!isResourceHeapKindCompatible(ResourceHeapKind::Buffers, ResourceHeapKind::RtDsTextures));
-    CHECK(!isResourceHeapKindCompatible(ResourceHeapKind::NonRtDsTextures, ResourceHeapKind::Buffers));
-    CHECK(!isResourceHeapKindCompatible(ResourceHeapKind::NonRtDsTextures, ResourceHeapKind::RtDsTextures));
-    CHECK(!isResourceHeapKindCompatible(ResourceHeapKind::RtDsTextures, ResourceHeapKind::Buffers));
-    CHECK(!isResourceHeapKindCompatible(ResourceHeapKind::RtDsTextures, ResourceHeapKind::NonRtDsTextures));
+    CHECK(isResourceHeapUsageCompatible(ResourceHeapUsage::All, ResourceHeapUsage::Buffers));
+    CHECK(isResourceHeapUsageCompatible(ResourceHeapUsage::All, ResourceHeapUsage::NonRtDsTextures));
+    CHECK(isResourceHeapUsageCompatible(ResourceHeapUsage::All, ResourceHeapUsage::RtDsTextures));
+    CHECK(isResourceHeapUsageCompatible(ResourceHeapUsage::Buffers, ResourceHeapUsage::Buffers));
+    CHECK(isResourceHeapUsageCompatible(ResourceHeapUsage::NonRtDsTextures, ResourceHeapUsage::NonRtDsTextures));
+    CHECK(isResourceHeapUsageCompatible(ResourceHeapUsage::RtDsTextures, ResourceHeapUsage::RtDsTextures));
+    CHECK(!isResourceHeapUsageCompatible(ResourceHeapUsage::Buffers, ResourceHeapUsage::NonRtDsTextures));
+    CHECK(!isResourceHeapUsageCompatible(ResourceHeapUsage::Buffers, ResourceHeapUsage::RtDsTextures));
+    CHECK(!isResourceHeapUsageCompatible(ResourceHeapUsage::NonRtDsTextures, ResourceHeapUsage::Buffers));
+    CHECK(!isResourceHeapUsageCompatible(ResourceHeapUsage::NonRtDsTextures, ResourceHeapUsage::RtDsTextures));
+    CHECK(!isResourceHeapUsageCompatible(ResourceHeapUsage::RtDsTextures, ResourceHeapUsage::Buffers));
+    CHECK(!isResourceHeapUsageCompatible(ResourceHeapUsage::RtDsTextures, ResourceHeapUsage::NonRtDsTextures));
 }
 
 GPU_TEST_CASE("resource-heap-feature", D3D12 | Vulkan | Metal | CUDA)
 {
-    CHECK(device->hasFeature(Feature::MemoryAliasing));
+    CHECK(device->hasFeature(Feature::ResourceHeaps));
+    CHECK(device->hasFeature(Feature::ResourceAliasing));
 }
 
 GPU_TEST_CASE("resource-heap-unsupported", D3D11 | CPU | WGPU)
 {
-    CHECK(!device->hasFeature(Feature::MemoryAliasing));
-
-    ResourceHeapDesc heapDesc = {};
-    heapDesc.size = 64 * 1024;
-    ComPtr<IResourceHeap> heap;
-    CHECK_EQ(device->createResourceHeap(heapDesc, heap.writeRef()), SLANG_E_NOT_AVAILABLE);
-    CHECK(heap == nullptr);
+    CHECK(!device->hasFeature(Feature::ResourceHeaps));
+    CHECK(!device->hasFeature(Feature::ResourceAliasing));
 
     BufferDesc bufferDesc = makeCopyBufferDesc(256);
     ResourceMemoryRequirements bufferRequirements = {};
@@ -228,26 +297,38 @@ GPU_TEST_CASE("resource-heap-buffer-requirements", D3D12 | Vulkan | Metal | CUDA
 {
     BufferDesc desc = makeComputeBufferDesc(64 * 1024, sizeof(uint32_t));
 
-    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    uint32_t outputExtensionSentinel = 0x12345678;
+    ResourceMemoryRequirements requirements = {};
+    requirements.next = &outputExtensionSentinel;
+    REQUIRE_CALL(device->getBufferMemoryRequirements(desc, &requirements));
+    CHECK_EQ(requirements.structType, ResourceMemoryRequirements::kStructType);
+    CHECK(requirements.next == &outputExtensionSentinel);
     CHECK_GE(requirements.size, desc.size);
     CHECK_GT(requirements.alignment, 0);
     CHECK_EQ(requirements.alignment & (requirements.alignment - 1), 0);
     CHECK_EQ(requirements.memoryType, desc.memoryType);
-    CHECK_EQ(requirements.heapKind, ResourceHeapKind::Buffers);
-    CHECK(!requirements.requiresDedicatedAllocation);
+    CHECK_EQ(requirements.usage, ResourceHeapUsage::Buffers);
+    CHECK_EQ(
+        requirements.flags & ResourceMemoryRequirementFlags::RequiresDedicatedAllocation,
+        ResourceMemoryRequirementFlags::None
+    );
+    CHECK_GT(requirements.heapAlignment, 0);
 
     BufferDesc uploadDesc = makeCopyBufferDesc(4096, MemoryType::Upload);
     ResourceMemoryRequirements uploadRequirements = requireBufferMemoryRequirements(device, uploadDesc);
     CHECK_EQ(uploadRequirements.memoryType, MemoryType::Upload);
-    CHECK_EQ(uploadRequirements.heapKind, ResourceHeapKind::Buffers);
+    CHECK_EQ(uploadRequirements.usage, ResourceHeapUsage::Buffers);
 
     BufferDesc sharedDesc = makeCopyBufferDesc(4096);
     sharedDesc.usage |= BufferUsage::Shared;
     ResourceMemoryRequirements sharedRequirements = requireBufferMemoryRequirements(device, sharedDesc);
-    CHECK(sharedRequirements.requiresDedicatedAllocation);
+    CHECK_NE(
+        sharedRequirements.flags & ResourceMemoryRequirementFlags::RequiresDedicatedAllocation,
+        ResourceMemoryRequirementFlags::None
+    );
 }
 
-GPU_TEST_CASE("resource-heap-texture-requirements", D3D12 | Vulkan | Metal | CUDA)
+GPU_TEST_CASE("resource-heap-texture-requirements", D3D12 | Vulkan | Metal)
 {
     TextureDesc sampledDesc = makeSampleTextureDesc();
     ResourceMemoryRequirements sampledRequirements = requireTextureMemoryRequirements(device, sampledDesc);
@@ -255,11 +336,11 @@ GPU_TEST_CASE("resource-heap-texture-requirements", D3D12 | Vulkan | Metal | CUD
     CHECK_GT(sampledRequirements.alignment, 0);
     CHECK_EQ(sampledRequirements.alignment & (sampledRequirements.alignment - 1), 0);
     CHECK_EQ(sampledRequirements.memoryType, MemoryType::DeviceLocal);
-    CHECK_EQ(sampledRequirements.heapKind, ResourceHeapKind::NonRtDsTextures);
+    CHECK_EQ(sampledRequirements.usage, ResourceHeapUsage::NonRtDsTextures);
 
     TextureDesc rtDesc = makeSampleTextureDesc(TextureUsage::RenderTarget);
     ResourceMemoryRequirements rtRequirements = requireTextureMemoryRequirements(device, rtDesc);
-    CHECK_EQ(rtRequirements.heapKind, ResourceHeapKind::RtDsTextures);
+    CHECK_EQ(rtRequirements.usage, ResourceHeapUsage::RtDsTextures);
 
     TextureDesc dsDesc = {};
     dsDesc.type = TextureType::Texture2D;
@@ -268,12 +349,13 @@ GPU_TEST_CASE("resource-heap-texture-requirements", D3D12 | Vulkan | Metal | CUD
     dsDesc.usage = TextureUsage::DepthStencil | TextureUsage::ShaderResource;
     dsDesc.memoryType = MemoryType::DeviceLocal;
     ResourceMemoryRequirements dsRequirements = requireTextureMemoryRequirements(device, dsDesc);
-    CHECK_EQ(dsRequirements.heapKind, ResourceHeapKind::RtDsTextures);
+    CHECK_EQ(dsRequirements.usage, ResourceHeapUsage::RtDsTextures);
 
-    if (device->getDeviceType() == DeviceType::CUDA)
-        CHECK(sampledRequirements.requiresDedicatedAllocation);
-    else
-        CHECK(!sampledRequirements.requiresDedicatedAllocation);
+    CHECK_GT(sampledRequirements.heapAlignment, 0);
+    CHECK_EQ(
+        sampledRequirements.flags & ResourceMemoryRequirementFlags::RequiresDedicatedAllocation,
+        ResourceMemoryRequirementFlags::None
+    );
 }
 
 GPU_TEST_CASE("resource-heap-create", D3D12 | Vulkan | Metal | CUDA)
@@ -281,13 +363,7 @@ GPU_TEST_CASE("resource-heap-create", D3D12 | Vulkan | Metal | CUDA)
     BufferDesc desc = makeCopyBufferDesc(64 * 1024);
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
 
-    ComPtr<IResourceHeap> heap = createHeap(
-        device,
-        requirements.size,
-        ResourceHeapKind::Buffers,
-        MemoryType::DeviceLocal,
-        "named-resource-heap"
-    );
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements, 0, "named-resource-heap");
     CHECK(heap->getDesc().label != nullptr);
     CHECK_EQ(std::strcmp(heap->getDesc().label, "named-resource-heap"), 0);
 
@@ -313,52 +389,66 @@ GPU_TEST_CASE("resource-heap-create", D3D12 | Vulkan | Metal | CUDA)
     }
 }
 
+GPU_TEST_CASE("resource-heap-compatibility-query", D3D12 | Vulkan | Metal | CUDA)
+{
+    BufferDesc desc = makeCopyBufferDesc(4096);
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+
+    bool compatible = false;
+    REQUIRE_CALL(device->isResourceHeapCompatible(heap, requirements, &compatible));
+    CHECK(compatible);
+
+    ResourceMemoryRequirements incompatible = requirements;
+    incompatible.memoryType = MemoryType::Upload;
+    REQUIRE_CALL(device->isResourceHeapCompatible(heap, incompatible, &compatible));
+    CHECK(!compatible);
+
+    incompatible = requirements;
+    incompatible.compatibility.data[1] ^= 1;
+    REQUIRE_CALL(device->isResourceHeapCompatible(heap, incompatible, &compatible));
+    CHECK(!compatible);
+}
+
 GPU_TEST_CASE("resource-heap-create-all", D3D12 | Vulkan | Metal | CUDA)
 {
+    BufferDesc bufferDesc = makeCopyBufferDesc(256);
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, bufferDesc);
+
     ResourceHeapDesc desc = {};
     desc.memoryType = MemoryType::DeviceLocal;
-    desc.kind = ResourceHeapKind::All;
+    desc.usage = ResourceHeapUsage::All;
     desc.size = 256 * 1024;
+    desc.requirements = &requirements;
+    desc.requirementCount = 1;
     ComPtr<IResourceHeap> heap;
     Result result = device->createResourceHeap(desc, heap.writeRef());
     if (SLANG_FAILED(result))
-        SKIP("ResourceHeapKind::All is not supported on this device");
+        SKIP("ResourceHeapUsage::All is not supported on this device");
 
-    CHECK_EQ(heap->getDesc().kind, ResourceHeapKind::All);
+    CHECK_EQ(heap->getDesc().usage, ResourceHeapUsage::All);
 
-    BufferDesc bufferDesc = makeCopyBufferDesc(256);
     ComPtr<IBuffer> buffer = createPlacedBuffer(device, bufferDesc, heap, 0);
     CHECK_EQ(buffer->getDesc().size, bufferDesc.size);
 }
 
 GPU_TEST_CASE("resource-heap-create-texture-kinds", D3D12 | Vulkan | Metal)
 {
-    ComPtr<IResourceHeap> nonRtHeap = createHeap(device, 256 * 1024, ResourceHeapKind::NonRtDsTextures);
-    CHECK_EQ(nonRtHeap->getDesc().kind, ResourceHeapKind::NonRtDsTextures);
+    ComPtr<IResourceHeap> nonRtHeap = createHeap(device, 256 * 1024, ResourceHeapUsage::NonRtDsTextures);
+    CHECK_EQ(nonRtHeap->getDesc().usage, ResourceHeapUsage::NonRtDsTextures);
 
-    ComPtr<IResourceHeap> rtHeap = createHeap(device, 256 * 1024, ResourceHeapKind::RtDsTextures);
-    CHECK_EQ(rtHeap->getDesc().kind, ResourceHeapKind::RtDsTextures);
+    ComPtr<IResourceHeap> rtHeap = createHeap(device, 256 * 1024, ResourceHeapUsage::RtDsTextures);
+    CHECK_EQ(rtHeap->getDesc().usage, ResourceHeapUsage::RtDsTextures);
 }
 
 GPU_TEST_CASE("resource-heap-cuda-texture-unsupported", CUDA)
 {
-    ResourceHeapDesc desc = {};
-    desc.size = 64 * 1024;
-
-    desc.kind = ResourceHeapKind::NonRtDsTextures;
-    ComPtr<IResourceHeap> nonRtHeap;
-    CHECK_EQ(device->createResourceHeap(desc, nonRtHeap.writeRef()), SLANG_E_NOT_AVAILABLE);
-
-    desc.kind = ResourceHeapKind::RtDsTextures;
-    ComPtr<IResourceHeap> rtHeap;
-    CHECK_EQ(device->createResourceHeap(desc, rtHeap.writeRef()), SLANG_E_NOT_AVAILABLE);
-
     TextureDesc textureDesc = makeSampleTextureDesc();
-    ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, textureDesc);
-    CHECK(requirements.requiresDedicatedAllocation);
+    ResourceMemoryRequirements requirements = {};
+    CHECK_EQ(device->getTextureMemoryRequirements(textureDesc, &requirements), SLANG_E_NOT_AVAILABLE);
 
-    ComPtr<IResourceHeap> bufferHeap = createHeap(device, requirements.size, ResourceHeapKind::All);
-    CHECK_EQ(tryCreatePlacedTexture(device, textureDesc, bufferHeap, 0), SLANG_E_INVALID_ARG);
+    ComPtr<IResourceHeap> bufferHeap = createHeap(device, 64 * 1024, ResourceHeapUsage::Buffers);
+    CHECK_EQ(tryCreatePlacedTexture(device, textureDesc, bufferHeap, 0), SLANG_E_NOT_AVAILABLE);
 }
 
 GPU_TEST_CASE("resource-heap-place-buffer-init-data", D3D12 | Vulkan | Metal | CUDA)
@@ -370,12 +460,72 @@ GPU_TEST_CASE("resource-heap-place-buffer-init-data", D3D12 | Vulkan | Metal | C
 
     BufferDesc desc = makeCopyBufferDesc(elementCount * sizeof(uint32_t));
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
     ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, 0, initData.data());
 
     CHECK_EQ(buffer->getDesc().size, desc.size);
     CHECK_EQ(buffer->getDesc().memoryType, MemoryType::DeviceLocal);
     compareComputeResult(device, buffer, std::span<uint32_t>(initData));
+}
+
+GPU_TEST_CASE("resource-heap-d3d12-placed-buffer-init-states", D3D12)
+{
+    const uint32_t expected[] = {11, 22, 33, 44};
+
+    BufferDesc copySourceDesc = makeCopyBufferDesc(sizeof(expected));
+    copySourceDesc.defaultState = ResourceState::CopySource;
+    ResourceMemoryRequirements copySourceRequirements = requireBufferMemoryRequirements(device, copySourceDesc);
+    ComPtr<IResourceHeap> copySourceHeap = createHeapForRequirements(device, copySourceRequirements);
+    ComPtr<IBuffer> copySourceBuffer = createPlacedBuffer(device, copySourceDesc, copySourceHeap, 0, expected);
+    compareComputeResult(device, copySourceBuffer, makeArray<uint32_t>(11, 22, 33, 44));
+
+    BufferDesc uavDesc = makeComputeBufferDesc(sizeof(expected), sizeof(uint32_t));
+    ResourceMemoryRequirements uavRequirements = requireBufferMemoryRequirements(device, uavDesc);
+    ComPtr<IResourceHeap> uavHeap = createHeapForRequirements(device, uavRequirements);
+    ComPtr<IBuffer> uavBuffer = createPlacedBuffer(device, uavDesc, uavHeap, 0, expected);
+    compareComputeResult(device, uavBuffer, makeArray<uint32_t>(11, 22, 33, 44));
+}
+
+GPU_TEST_CASE("resource-heap-d3d12-msaa-alignment", D3D12)
+{
+    TextureDesc sampledDesc = makeSampleTextureDesc();
+    ResourceMemoryRequirements sampledRequirements = requireTextureMemoryRequirements(device, sampledDesc);
+    CHECK_EQ(sampledRequirements.usage, ResourceHeapUsage::NonRtDsTextures);
+
+    ResourceHeapDesc sampledHeapDesc = {};
+    sampledHeapDesc.memoryType = sampledRequirements.memoryType;
+    sampledHeapDesc.usage = ResourceHeapUsage::NonRtDsTextures;
+    sampledHeapDesc.size = Size(4) * 1024 * 1024;
+    sampledHeapDesc.alignment = Size(4) * 1024 * 1024;
+    sampledHeapDesc.requirements = &sampledRequirements;
+    sampledHeapDesc.requirementCount = 1;
+    ComPtr<IResourceHeap> sampledHeap;
+    REQUIRE_CALL(device->createResourceHeap(sampledHeapDesc, sampledHeap.writeRef()));
+    CHECK_EQ(sampledHeap->getDesc().alignment, sampledHeapDesc.alignment);
+    CHECK(createPlacedTexture(device, sampledDesc, sampledHeap, 0));
+
+    TextureDesc rtDesc = makeSampleTextureDesc(TextureUsage::RenderTarget);
+    rtDesc.type = TextureType::Texture2DMS;
+    rtDesc.sampleCount = 4;
+
+    ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, rtDesc);
+    CHECK_EQ(requirements.usage, ResourceHeapUsage::RtDsTextures);
+    CHECK_EQ(requirements.heapAlignment, Size(4) * 1024 * 1024);
+
+    ComPtr<IResourceHeap> rtHeap = createHeapForRequirements(device, requirements);
+    CHECK_EQ(rtHeap->getDesc().alignment, requirements.heapAlignment);
+    CHECK(createPlacedTexture(device, rtDesc, rtHeap, 0));
+
+    ResourceHeapDesc allHeapDesc = {};
+    allHeapDesc.memoryType = requirements.memoryType;
+    allHeapDesc.usage = ResourceHeapUsage::All;
+    allHeapDesc.size = requirements.size;
+    allHeapDesc.requirements = &requirements;
+    allHeapDesc.requirementCount = 1;
+    ComPtr<IResourceHeap> allHeap;
+    REQUIRE_CALL(device->createResourceHeap(allHeapDesc, allHeap.writeRef()));
+    CHECK_EQ(allHeap->getDesc().alignment, requirements.heapAlignment);
+    CHECK(createPlacedTexture(device, rtDesc, allHeap, 0));
 }
 
 GPU_TEST_CASE("resource-heap-place-and-alias-buffers", D3D12 | Vulkan | Metal | CUDA)
@@ -385,7 +535,7 @@ GPU_TEST_CASE("resource-heap-place-and-alias-buffers", D3D12 | Vulkan | Metal | 
 
     BufferDesc desc = makeComputeBufferDesc(bufferSize, sizeof(uint32_t));
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
 
     ComPtr<IBuffer> bufferA = createPlacedBuffer(device, desc, heap, 0);
     ComPtr<IBuffer> bufferB = createPlacedBuffer(device, desc, heap, 0);
@@ -413,6 +563,122 @@ GPU_TEST_CASE("resource-heap-place-and-alias-buffers", D3D12 | Vulkan | Metal | 
     }
 }
 
+GPU_TEST_CASE("resource-heap-alias-synchronization", D3D12 | Vulkan | Metal | CUDA)
+{
+    const uint32_t dataA[] = {1, 2, 3, 4};
+    const uint32_t dataB[] = {5, 6, 7, 8};
+    BufferDesc desc = makeCopyBufferDesc(sizeof(dataA));
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+    ComPtr<IBuffer> bufferA = createPlacedBuffer(device, desc, heap, 0);
+    ComPtr<IBuffer> bufferB = createPlacedBuffer(device, desc, heap, 0);
+    auto queue = device->getQueue(QueueType::Graphics);
+
+    {
+        auto encoder = queue->createCommandEncoder();
+        encoder->aliasResources(nullptr, bufferA);
+        REQUIRE_CALL(encoder->uploadBufferData(bufferA, 0, sizeof(dataA), dataA));
+        encoder->aliasResources(bufferA, bufferB);
+        REQUIRE_CALL(encoder->uploadBufferData(bufferB, 0, sizeof(dataB), dataB));
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+        compareComputeResult(device, bufferB, makeArray<uint32_t>(5, 6, 7, 8));
+    }
+
+    {
+        auto firstEncoder = queue->createCommandEncoder();
+        firstEncoder->aliasResources(bufferB, bufferA);
+        REQUIRE_CALL(firstEncoder->uploadBufferData(bufferA, 0, sizeof(dataA), dataA));
+        REQUIRE_CALL(queue->submit(firstEncoder->finish()));
+
+        auto secondEncoder = queue->createCommandEncoder();
+        secondEncoder->aliasResources(bufferA, bufferB);
+        REQUIRE_CALL(secondEncoder->uploadBufferData(bufferB, 0, sizeof(dataB), dataB));
+        REQUIRE_CALL(queue->submit(secondEncoder->finish()));
+
+        REQUIRE_CALL(queue->waitOnHost());
+        compareComputeResult(device, bufferB, makeArray<uint32_t>(5, 6, 7, 8));
+    }
+}
+
+GPU_TEST_CASE("resource-heap-invalid-alias-validation", D3D12 | Vulkan)
+{
+#if SLANG_RHI_DEBUG
+    static CaptureValidationCallback callback;
+    callback.clear();
+    ComPtr<IDevice> firstDevice = device;
+    ComPtr<IDevice> secondDevice = createTestingDevice(ctx, ctx->deviceType, false);
+
+    BufferDesc desc = makeCopyBufferDesc(4096);
+    ResourceMemoryRequirements firstRequirements = requireBufferMemoryRequirements(firstDevice, desc);
+    ResourceMemoryRequirements secondRequirements = requireBufferMemoryRequirements(secondDevice, desc);
+    const Offset secondOffset = alignUp(firstRequirements.size, firstRequirements.alignment);
+
+    ComPtr<IResourceHeap> firstHeap =
+        createHeapForRequirements(firstDevice, firstRequirements, secondOffset + firstRequirements.size);
+    ComPtr<IResourceHeap> otherHeap = createHeapForRequirements(firstDevice, firstRequirements);
+    ComPtr<IResourceHeap> secondDeviceHeap = createHeapForRequirements(secondDevice, secondRequirements);
+
+    ComPtr<IBuffer> first = createPlacedBuffer(firstDevice, desc, firstHeap, 0);
+    ComPtr<IBuffer> differentHeap = createPlacedBuffer(firstDevice, desc, otherHeap, 0);
+    ComPtr<IBuffer> nonOverlapping = createPlacedBuffer(firstDevice, desc, firstHeap, secondOffset);
+    ComPtr<IBuffer> differentDevice = createPlacedBuffer(secondDevice, desc, secondDeviceHeap, 0);
+    ComPtr<IBuffer> committed;
+    REQUIRE_CALL(firstDevice->createBuffer(desc, nullptr, committed.writeRef()));
+
+    auto firstQueue = firstDevice->getQueue(QueueType::Graphics);
+    auto secondQueue = secondDevice->getQueue(QueueType::Graphics);
+    auto encoder = firstQueue->createCommandEncoder();
+    auto debugDevice = checked_cast<debug::DebugDevice*>(firstDevice.get());
+    IDebugCallback* previousCallback = debugDevice->ctx->debugCallback;
+    debugDevice->ctx->debugCallback = &callback;
+
+    callback.clear();
+    encoder->aliasResources(differentDevice, first);
+    CHECK(callback.contains("same device"));
+
+    callback.clear();
+    encoder->aliasResources(differentHeap, first);
+    CHECK(callback.contains("same resource heap"));
+
+    callback.clear();
+    encoder->aliasResources(committed, first);
+    CHECK(callback.contains("must be a placed buffer or texture"));
+
+    callback.clear();
+    encoder->aliasResources(nonOverlapping, first);
+    CHECK(callback.contains("placement ranges must overlap"));
+
+    ComPtr<ICommandBuffer> commandBuffer = encoder->finish();
+
+    debugDevice->ctx->debugCallback = previousCallback;
+
+    encoder = nullptr;
+    committed = nullptr;
+    differentDevice = nullptr;
+    nonOverlapping = nullptr;
+    differentHeap = nullptr;
+    first = nullptr;
+
+    REQUIRE_CALL(firstQueue->submit(commandBuffer));
+    REQUIRE_CALL(firstQueue->waitOnHost());
+    auto cleanupEncoder = secondQueue->createCommandEncoder();
+    REQUIRE_CALL(secondQueue->submit(cleanupEncoder->finish()));
+    REQUIRE_CALL(secondQueue->waitOnHost());
+
+    commandBuffer = nullptr;
+    secondDeviceHeap = nullptr;
+    otherHeap = nullptr;
+    firstHeap = nullptr;
+    secondDevice = nullptr;
+    firstDevice = nullptr;
+#else
+    SLANG_UNUSED(ctx);
+    SLANG_UNUSED(device);
+    SKIP("Debug-layer validation requires a debug build");
+#endif
+}
+
 GPU_TEST_CASE("resource-heap-place-sequential-buffers", D3D12 | Vulkan | Metal | CUDA)
 {
     const uint32_t elementCount = 64;
@@ -420,7 +686,7 @@ GPU_TEST_CASE("resource-heap-place-sequential-buffers", D3D12 | Vulkan | Metal |
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
 
     const Offset offsetB = alignUp(requirements.size, requirements.alignment);
-    ComPtr<IResourceHeap> heap = createHeap(device, offsetB + requirements.size);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements, offsetB + requirements.size);
 
     std::vector<uint32_t> dataA(elementCount, 0x11111111u);
     std::vector<uint32_t> dataB(elementCount, 0x22222222u);
@@ -437,7 +703,7 @@ GPU_TEST_CASE("resource-heap-place-offset", D3D12 | Vulkan | Metal | CUDA)
     BufferDesc desc = makeCopyBufferDesc(sizeof(expected));
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
     const Offset offset = requirements.alignment;
-    ComPtr<IResourceHeap> heap = createHeap(device, offset + requirements.size);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements, offset + requirements.size);
 
     ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, offset, expected);
     compareComputeResult(device, buffer, makeArray<uint32_t>(7, 8, 9, 10));
@@ -448,8 +714,7 @@ GPU_TEST_CASE("resource-heap-place-upload", D3D12 | Vulkan | Metal | CUDA)
     const uint32_t expected[] = {0xC0FFEEu, 0xF00Du, 0xBEEFu, 0xA5A5A5A5u};
     BufferDesc desc = makeCopyBufferDesc(sizeof(expected), MemoryType::Upload);
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-    ComPtr<IResourceHeap> heap =
-        createHeap(device, requirements.size, ResourceHeapKind::Buffers, MemoryType::Upload, "upload-resource-heap");
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements, 0, "upload-resource-heap");
 
     ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, 0, expected);
     CHECK_EQ(buffer->getDesc().memoryType, MemoryType::Upload);
@@ -462,8 +727,7 @@ GPU_TEST_CASE("resource-heap-map-placed-upload", D3D12 | Vulkan | Metal | CUDA)
     BufferDesc desc = makeCopyBufferDesc(sizeof(expected), MemoryType::Upload);
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
     const Offset offset = requirements.alignment;
-    ComPtr<IResourceHeap> heap =
-        createHeap(device, offset + requirements.size, ResourceHeapKind::Buffers, MemoryType::Upload);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements, offset + requirements.size);
     ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, offset);
 
     void* mappedData = nullptr;
@@ -488,7 +752,7 @@ GPU_TEST_CASE("resource-heap-compute", D3D12 | Vulkan | Metal | CUDA)
     const float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
     BufferDesc desc = makeComputeBufferDesc(sizeof(initialData), sizeof(float));
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
     ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, 0, initialData);
 
     dispatchIncrement(device, pipeline, buffer);
@@ -523,7 +787,7 @@ GPU_TEST_CASE("resource-heap-lifetime", D3D12 | Vulkan | Metal | CUDA)
 
     ComPtr<IBuffer> buffer;
     {
-        ComPtr<IResourceHeap> heap = createHeap(device, requirements.size);
+        ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
         buffer = createPlacedBuffer(device, desc, heap, 0, expected);
     }
 
@@ -567,25 +831,25 @@ GPU_TEST_CASE("resource-heap-memory-type-mismatch", D3D12 | Vulkan | Metal | CUD
     BufferDesc desc = makeCopyBufferDesc(256, MemoryType::Upload);
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
     ComPtr<IResourceHeap> heap =
-        createHeap(device, requirements.size, ResourceHeapKind::Buffers, MemoryType::DeviceLocal);
+        createHeap(device, requirements.size, ResourceHeapUsage::Buffers, MemoryType::DeviceLocal);
     CHECK_EQ(tryCreatePlacedBuffer(device, desc, heap, 0), SLANG_E_INVALID_ARG);
 }
 
-GPU_TEST_CASE("resource-heap-kind-mismatch", D3D12 | Vulkan | Metal)
+GPU_TEST_CASE("resource-heap-usage-mismatch", D3D12 | Vulkan | Metal)
 {
     BufferDesc bufferDesc = makeCopyBufferDesc(256);
     ResourceMemoryRequirements bufferRequirements = requireBufferMemoryRequirements(device, bufferDesc);
-    ComPtr<IResourceHeap> textureHeap = createHeap(device, bufferRequirements.size, ResourceHeapKind::NonRtDsTextures);
+    ComPtr<IResourceHeap> textureHeap = createHeap(device, bufferRequirements.size, ResourceHeapUsage::NonRtDsTextures);
     CHECK_EQ(tryCreatePlacedBuffer(device, bufferDesc, textureHeap, 0), SLANG_E_INVALID_ARG);
 
     TextureDesc textureDesc = makeSampleTextureDesc();
     ResourceMemoryRequirements textureRequirements = requireTextureMemoryRequirements(device, textureDesc);
-    ComPtr<IResourceHeap> bufferHeap = createHeap(device, textureRequirements.size, ResourceHeapKind::Buffers);
+    ComPtr<IResourceHeap> bufferHeap = createHeap(device, textureRequirements.size, ResourceHeapUsage::Buffers);
     CHECK_EQ(tryCreatePlacedTexture(device, textureDesc, bufferHeap, 0), SLANG_E_INVALID_ARG);
 
     TextureDesc rtDesc = makeSampleTextureDesc(TextureUsage::RenderTarget);
     ResourceMemoryRequirements rtRequirements = requireTextureMemoryRequirements(device, rtDesc);
-    ComPtr<IResourceHeap> nonRtHeap = createHeap(device, rtRequirements.size, ResourceHeapKind::NonRtDsTextures);
+    ComPtr<IResourceHeap> nonRtHeap = createHeap(device, rtRequirements.size, ResourceHeapUsage::NonRtDsTextures);
     CHECK_EQ(tryCreatePlacedTexture(device, rtDesc, nonRtHeap, 0), SLANG_E_INVALID_ARG);
 }
 
@@ -594,7 +858,10 @@ GPU_TEST_CASE("resource-heap-dedicated-buffer", D3D12 | Vulkan | Metal | CUDA)
     BufferDesc desc = makeCopyBufferDesc(256);
     desc.usage |= BufferUsage::Shared;
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
-    REQUIRE(requirements.requiresDedicatedAllocation);
+    REQUIRE_NE(
+        requirements.flags & ResourceMemoryRequirementFlags::RequiresDedicatedAllocation,
+        ResourceMemoryRequirementFlags::None
+    );
 
     ComPtr<IResourceHeap> heap = createHeap(device, requirements.size > 0 ? requirements.size : 64 * 1024);
     CHECK_EQ(tryCreatePlacedBuffer(device, desc, heap, 0), SLANG_E_INVALID_ARG);
@@ -607,11 +874,67 @@ GPU_TEST_CASE("resource-heap-place-textures", D3D12 | Vulkan | Metal)
 
     ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, data.desc);
     CHECK_GE(requirements.size, 32 * 32 * 4);
-    CHECK(!requirements.requiresDedicatedAllocation);
+    CHECK_EQ(
+        requirements.flags & ResourceMemoryRequirementFlags::RequiresDedicatedAllocation,
+        ResourceMemoryRequirementFlags::None
+    );
 
-    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size, requirements.heapKind);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
     ComPtr<ITexture> texture = createPlacedTexture(device, data.desc, heap, 0, data.subresourceData.data());
     data.checkEqual(texture);
+}
+
+GPU_TEST_CASE("resource-heap-vulkan-exact-texture-requirements", Vulkan)
+{
+    {
+        TextureDesc desc = makeSampleTextureDesc(TextureUsage::Typeless);
+        ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, desc);
+        ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+        CHECK(createPlacedTexture(device, desc, heap, 0));
+    }
+
+    {
+        TextureDesc desc = {};
+        desc.type = TextureType::Texture3D;
+        desc.size = {16, 16, 4};
+        desc.format = Format::RGBA8Unorm;
+        desc.usage = TextureUsage::RenderTarget | TextureUsage::ShaderResource;
+        ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, desc);
+        ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+        CHECK(createPlacedTexture(device, desc, heap, 0));
+    }
+
+    {
+        TextureData data;
+        data.init(device, makeSampleTextureDesc(), TextureInitMode::Random, 4);
+        data.desc.usage &= ~TextureUsage::CopyDestination;
+        ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, data.desc);
+        ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+        ComPtr<ITexture> texture = createPlacedTexture(device, data.desc, heap, 0, data.subresourceData.data());
+        data.checkEqual(texture);
+    }
+}
+
+GPU_TEST_CASE("resource-heap-vulkan-buffer-image-granularity", Vulkan)
+{
+    BufferDesc bufferDesc = makeCopyBufferDesc(4096);
+    TextureDesc textureDesc = makeSampleTextureDesc();
+    ResourceMemoryRequirements requirements[] = {
+        requireBufferMemoryRequirements(device, bufferDesc),
+        requireTextureMemoryRequirements(device, textureDesc),
+    };
+    const Offset textureOffset = alignUp(requirements[0].size, requirements[1].alignment);
+
+    ResourceHeapDesc heapDesc = {};
+    heapDesc.memoryType = MemoryType::DeviceLocal;
+    heapDesc.size = textureOffset + requirements[1].size;
+    heapDesc.requirements = requirements;
+    heapDesc.requirementCount = 2;
+    ComPtr<IResourceHeap> heap;
+    REQUIRE_CALL(device->createResourceHeap(heapDesc, heap.writeRef()));
+
+    CHECK(createPlacedBuffer(device, bufferDesc, heap, 0));
+    CHECK(createPlacedTexture(device, textureDesc, heap, textureOffset));
 }
 
 GPU_TEST_CASE("resource-heap-place-and-alias-textures", D3D12 | Vulkan | Metal)
@@ -622,7 +945,7 @@ GPU_TEST_CASE("resource-heap-place-and-alias-textures", D3D12 | Vulkan | Metal)
     dataB.init(device, makeSampleTextureDesc(), TextureInitMode::Random, 2);
 
     ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, dataA.desc);
-    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size, requirements.heapKind);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
 
     ComPtr<ITexture> textureA = createPlacedTexture(device, dataA.desc, heap, 0);
     ComPtr<ITexture> textureB = createPlacedTexture(device, dataB.desc, heap, 0);
@@ -650,9 +973,9 @@ GPU_TEST_CASE("resource-heap-place-rt-texture", D3D12 | Vulkan | Metal)
 {
     TextureDesc desc = makeSampleTextureDesc(TextureUsage::RenderTarget);
     ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, desc);
-    CHECK_EQ(requirements.heapKind, ResourceHeapKind::RtDsTextures);
+    CHECK_EQ(requirements.usage, ResourceHeapUsage::RtDsTextures);
 
-    ComPtr<IResourceHeap> heap = createHeap(device, requirements.size, ResourceHeapKind::RtDsTextures);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
     ComPtr<ITexture> texture = createPlacedTexture(device, desc, heap, 0);
     CHECK(texture);
     CHECK_EQ(texture->getDesc().usage & TextureUsage::RenderTarget, TextureUsage::RenderTarget);
@@ -669,11 +992,14 @@ GPU_TEST_CASE("resource-heap-alias-buffer-texture", D3D12 | Vulkan | Metal)
 
     ResourceHeapDesc heapDesc = {};
     heapDesc.memoryType = MemoryType::DeviceLocal;
-    heapDesc.kind = ResourceHeapKind::All;
+    heapDesc.usage = ResourceHeapUsage::All;
     heapDesc.size = heapSize;
+    ResourceMemoryRequirements requirements[] = {bufferRequirements, textureRequirements};
+    heapDesc.requirements = requirements;
+    heapDesc.requirementCount = 2;
     ComPtr<IResourceHeap> heap;
     if (SLANG_FAILED(device->createResourceHeap(heapDesc, heap.writeRef())))
-        SKIP("ResourceHeapKind::All is not supported on this device");
+        SKIP("ResourceHeapUsage::All is not supported on this device");
 
     ComPtr<IBuffer> buffer = createPlacedBuffer(device, bufferDesc, heap, 0);
     ComPtr<ITexture> texture = createPlacedTexture(device, textureDesc, heap, 0);

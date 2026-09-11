@@ -46,7 +46,8 @@
 | `createHeap`                       | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
 | `createResourceHeap`               | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getBufferMemoryRequirements`      | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
-| `getTextureMemoryRequirements`     | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
+| `getTextureMemoryRequirements`     | :x:     | :x:  | :x:   | yes   | yes    | yes     | :x:  |
+| `isResourceHeapCompatible`         | :x:     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureAllocationInfo`         | yes     | yes  | :x:   | yes   | yes    | yes     | :x:  |
 | `getTextureRowAlignment`           | yes     | yes  | :x:   | yes   | yes    | yes     | yes  |
 | `getCooperativeVectorProperties`   | :x:     | yes  | :x:   | yes   | yes    | :x:     | :x:  |
