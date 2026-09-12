@@ -1842,6 +1842,14 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
+    // D3D12 imposes a fixed maximum stride on every miss, hit-group, and callable record.
+    const ShaderTable::RecordLayout recordLayout = {
+        D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES,
+        D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT,
+        D3D12_RAYTRACING_MAX_SHADER_RECORD_STRIDE,
+    };
+    SLANG_RETURN_ON_FAIL(ShaderTable::validateRecordData(this, desc, recordLayout));
+
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;

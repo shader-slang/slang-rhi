@@ -8,10 +8,22 @@ void missNOP(inout RayPayload payload)
     // Nop
 }
 
+[shader("miss")]
+void missRecordNOP(inout RayPayload payload)
+{
+    // A distinct entry-point name lets the host construct two independently addressed miss records.
+}
+
 [shader("closesthit")]
 void closestHitNOP(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     // Nop
+}
+
+[shader("closesthit")]
+void closestHitRecordNOP(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    // A distinct entry-point name lets the host construct two independently addressed hit records.
 }
 
 [raypayload]
@@ -589,6 +601,21 @@ void rayGenShaderSetAndGetShaderTableIndex()
 }
 #endif
 
+HitObject traceShaderRecordTestRay(bool shouldHit, uint hitGroupOffset, uint missIndex)
+{
+    float3 target = {0.25, 0.25, 1.0};
+    float3 origin = {0.0, 0.0, 0.0};
+
+    RayDesc ray;
+    ray.Origin = origin;
+    ray.Direction = shouldHit ? target - origin : origin - target;
+    ray.TMin = 0.001;
+    ray.TMax = 10000.0;
+
+    RayPayload payload = { {} };
+    return HitObject.TraceRay(sceneBVH, RAY_FLAG_NONE, ~0, hitGroupOffset, 0, missIndex, ray, payload);
+}
+
 #if defined(__D3D12__) || defined(__CUDA__)
 [shader("raygeneration")]
 void rayGenShaderLoadLocalRootTableConstant()
@@ -612,6 +639,22 @@ void rayGenShaderLoadLocalRootTableConstant()
     resultBuffer[0].queryWasSuccess = (sbtValue == 0xDEADBEEF) ? 1 : 0;
 
     // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
+[shader("raygeneration")]
+void rayGenShaderLoadHitRecord1()
+{
+    HitObject hitObject = traceShaderRecordTestRay(true, 1, 0);
+    resultBuffer[0].queryWasSuccess = hitObject.LoadLocalRootTableConstant(0) == 0xDEADBEEF;
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
+[shader("raygeneration")]
+void rayGenShaderLoadMissRecord1()
+{
+    HitObject hitObject = traceShaderRecordTestRay(false, 0, 1);
+    resultBuffer[0].queryWasSuccess = hitObject.LoadLocalRootTableConstant(0) == 0xDEADBEEF;
     resultBuffer[0].invokeWasSuccess = 1;
 }
 #endif
@@ -649,6 +692,30 @@ void rayGenShaderGetShaderRecordBufferHandle()
     resultBuffer[0].queryWasSuccess = (sbtValue == 0xDEADBEEF) ? 1 : 0;
 
     // We don't need to invoke the hit object for this test
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
+uint loadShaderRecordValue(HitObject hitObject)
+{
+    uint2 handle = hitObject.GetShaderRecordBufferHandle();
+    uint64_t address = (uint64_t(handle.y) << 32) | uint64_t(handle.x);
+    ConstBufferPointer<SbtRecord> recordPtr = ConstBufferPointer<SbtRecord>(address);
+    return recordPtr.get().sbtValue;
+}
+
+[shader("raygeneration")]
+void rayGenShaderLoadHitRecord1()
+{
+    HitObject hitObject = traceShaderRecordTestRay(true, 1, 0);
+    resultBuffer[0].queryWasSuccess = loadShaderRecordValue(hitObject) == 0xDEADBEEF;
+    resultBuffer[0].invokeWasSuccess = 1;
+}
+
+[shader("raygeneration")]
+void rayGenShaderLoadMissRecord1()
+{
+    HitObject hitObject = traceShaderRecordTestRay(false, 0, 1);
+    resultBuffer[0].queryWasSuccess = loadShaderRecordValue(hitObject) == 0xDEADBEEF;
     resultBuffer[0].invokeWasSuccess = 1;
 }
 #endif

@@ -41,7 +41,7 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     // Build raygen infos and calculate per-raygen record sizes based on entry point params.
     // Each raygen shader gets its own record size based on its actual parameter requirements.
-    uint32_t raygenTableOffset = 0;
+    Size raygenTableOffset = 0;
     short_vector<RaygenInfo> raygenInfos;
 
     for (uint32_t i = 0; i < m_rayGenShaderCount; i++)
@@ -52,16 +52,25 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         size_t paramsSize = entryPointIndex == uint32_t(-1) ? 0 : rootLayout->getEntryPoint(entryPointIndex).paramsSize;
 
         // Record size = handle + params, considering any shader record overwrite
-        uint32_t recordSize = handleSize + (uint32_t)paramsSize;
+        Size recordSize = 0;
+        if (!tryAddSize(handleSize, paramsSize, &recordSize))
+        {
+            SLANG_RHI_ASSERT_FAILURE("Ray-generation shader record size overflowed.");
+            return nullptr;
+        }
         if (i < m_rayGenRecordOverwrites.size())
         {
-            uint32_t overwriteEnd = m_rayGenRecordOverwrites[i].offset + m_rayGenRecordOverwrites[i].size;
+            Size overwriteEnd = Size(m_rayGenRecordOverwrites[i].offset) + Size(m_rayGenRecordOverwrites[i].size);
             recordSize = max(recordSize, overwriteEnd);
         }
-        recordSize = max(recordSize, handleSize); // At minimum, we need space for the handle
+        recordSize = max(recordSize, Size(handleSize)); // At minimum, we need space for the handle
 
         // Align record size to shaderGroupBaseAlignment
-        recordSize = (uint32_t)math::calcAligned2(recordSize, rtpProps.shaderGroupBaseAlignment);
+        if (!tryAlignSize(recordSize, rtpProps.shaderGroupBaseAlignment, &recordSize))
+        {
+            SLANG_RHI_ASSERT_FAILURE("Ray-generation shader record alignment overflowed.");
+            return nullptr;
+        }
 
         RaygenInfo info;
         info.entryPointIndex = entryPointIndex;
@@ -71,30 +80,58 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         info.sbtOffset = raygenTableOffset + handleSize;
         raygenInfos.push_back(info);
 
-        raygenTableOffset += recordSize;
+        if (!tryAddSize(raygenTableOffset, recordSize, &raygenTableOffset))
+        {
+            SLANG_RHI_ASSERT_FAILURE("Ray-generation shader table size overflowed.");
+            return nullptr;
+        }
     }
 
-    // Calculate record sizes (without alignment).
-    uint32_t missRecordSize = max(handleSize, m_missRecordOverwriteMaxSize);
-    uint32_t hitGroupRecordSize = max(handleSize, m_hitGroupRecordOverwriteMaxSize);
-    uint32_t callableRecordSize = max(handleSize, m_callableRecordOverwriteMaxSize);
+    auto getAlignedRecordSize = [&](const std::vector<OwnedRecord>& records, Size* outSize)
+    {
+        if (!tryAlignSize(getMaxRecordSize(records, handleSize), rtpProps.shaderGroupBaseAlignment, outSize))
+            return false;
+        SLANG_RHI_ASSERT(*outSize <= UINT32_MAX);
+        return true;
+    };
 
-    // Align all record sizes to shaderGroupBaseAlignment.
-    missRecordSize = (uint32_t)math::calcAligned2(missRecordSize, rtpProps.shaderGroupBaseAlignment);
-    hitGroupRecordSize = (uint32_t)math::calcAligned2(hitGroupRecordSize, rtpProps.shaderGroupBaseAlignment);
-    callableRecordSize = (uint32_t)math::calcAligned2(callableRecordSize, rtpProps.shaderGroupBaseAlignment);
+    Size missRecordSize = 0;
+    Size hitGroupRecordSize = 0;
+    Size callableRecordSize = 0;
+    if (!getAlignedRecordSize(m_missRecords, &missRecordSize) ||
+        !getAlignedRecordSize(m_hitGroupRecords, &hitGroupRecordSize) ||
+        !getAlignedRecordSize(m_callableRecords, &callableRecordSize))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Shader table record-size alignment overflowed.");
+        return nullptr;
+    }
 
-    // Calculate table sizes.
-    uint32_t raygenTableSize = raygenTableOffset;
-    uint32_t missTableSize = m_missShaderCount * missRecordSize;
-    uint32_t hitTableSize = m_hitGroupCount * hitGroupRecordSize;
-    uint32_t callableTableSize = m_callableShaderCount * callableRecordSize;
-
-    uint32_t tableSize = raygenTableSize + missTableSize + hitTableSize + callableTableSize;
+    // Compute every section in `Size` before allocating the table. A single large record determines
+    // the stride of its whole section, so multiplying in uint32_t could otherwise wrap even when
+    // most records contain no application data.
+    Size raygenTableSize = raygenTableOffset;
+    Size missTableSize = 0;
+    Size hitTableSize = 0;
+    Size callableTableSize = 0;
+    Size tableSize = 0;
+    if (!tryMultiplySize(m_missShaderCount, missRecordSize, &missTableSize) ||
+        !tryMultiplySize(m_hitGroupCount, hitGroupRecordSize, &hitTableSize) ||
+        !tryMultiplySize(m_callableShaderCount, callableRecordSize, &callableTableSize) ||
+        !tryAddSize(raygenTableSize, missTableSize, &tableSize) || !tryAddSize(tableSize, hitTableSize, &tableSize) ||
+        !tryAddSize(tableSize, callableTableSize, &tableSize))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Shader table layout size overflowed.");
+        return nullptr;
+    }
 
     std::vector<uint8_t> handles;
     auto handleCount = pipeline->m_shaderGroupCount;
-    auto totalHandleSize = handleSize * handleCount;
+    Size totalHandleSize = 0;
+    if (!tryMultiplySize(handleSize, handleCount, &totalHandleSize))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Shader-group handle table size overflowed.");
+        return nullptr;
+    }
     handles.resize(totalHandleSize);
     auto result = api.vkGetRayTracingShaderGroupHandlesKHR(
         device->m_device,
@@ -111,13 +148,19 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
         auto it = pipeline->m_shaderGroupIndexByName.find(name);
         if (it != pipeline->m_shaderGroupIndexByName.end())
         {
-            auto src = handles.data() + it->second * handleSize;
+            auto src = handles.data() + Size(it->second) * handleSize;
             memcpy(dest, src, handleSize);
         }
         if (overwrite && overwrite->size > 0)
         {
             memcpy((uint8_t*)dest + overwrite->offset, overwrite->data, overwrite->size);
         }
+    };
+
+    auto writeOwnedTableEntry = [&](void* dest, const std::string& name, const OwnedRecord& record)
+    {
+        writeTableEntry(dest, name, nullptr);
+        record.writeData(dest, handleSize);
     };
 
     auto tableData = std::make_unique<uint8_t[]>(tableSize);
@@ -136,30 +179,22 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     for (uint32_t i = 0; i < m_missShaderCount; i++)
     {
-        writeTableEntry(
-            tablePtr + i * missRecordSize,
-            m_missShaderEntryPointNames[i],
-            i < m_missRecordOverwrites.size() ? &m_missRecordOverwrites[i] : nullptr
-        );
+        writeOwnedTableEntry(tablePtr + Size(i) * missRecordSize, m_missShaderEntryPointNames[i], m_missRecords[i]);
     }
     tablePtr += missTableSize;
 
     for (uint32_t i = 0; i < m_hitGroupCount; i++)
     {
-        writeTableEntry(
-            tablePtr + i * hitGroupRecordSize,
-            m_hitGroupNames[i],
-            i < m_hitGroupRecordOverwrites.size() ? &m_hitGroupRecordOverwrites[i] : nullptr
-        );
+        writeOwnedTableEntry(tablePtr + Size(i) * hitGroupRecordSize, m_hitGroupNames[i], m_hitGroupRecords[i]);
     }
     tablePtr += hitTableSize;
 
     for (uint32_t i = 0; i < m_callableShaderCount; i++)
     {
-        writeTableEntry(
-            tablePtr + i * callableRecordSize,
+        writeOwnedTableEntry(
+            tablePtr + Size(i) * callableRecordSize,
             m_callableShaderEntryPointNames[i],
-            i < m_callableRecordOverwrites.size() ? &m_callableRecordOverwrites[i] : nullptr
+            m_callableRecords[i]
         );
     }
 
@@ -171,8 +206,14 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
 
     // Vulkan does not guarantee that the buffer's base device address satisfies
     // shaderGroupBaseAlignment, so reserve enough space to align the SBT within it.
-    const uint64_t tableAlignment = max<uint64_t>(1, rtpProps.shaderGroupBaseAlignment);
-    bufferDesc.size = tableSize + tableAlignment - 1;
+    const Size tableAlignment = max<Size>(1, rtpProps.shaderGroupBaseAlignment);
+    Size bufferSize = 0;
+    if (!tryAddSize(tableSize, tableAlignment - 1, &bufferSize))
+    {
+        SLANG_RHI_ASSERT_FAILURE("Aligned shader table buffer size overflowed.");
+        return nullptr;
+    }
+    bufferDesc.size = bufferSize;
     if (SLANG_FAILED(device->createBuffer(bufferDesc, nullptr, buffer.writeRef())))
     {
         SLANG_RHI_ASSERT_FAILURE("Failed to create shader table buffer");
@@ -198,9 +239,9 @@ ShaderTableImpl::PipelineData* ShaderTableImpl::getPipelineData(RayTracingPipeli
     pipelineData->raygenInfos = std::move(raygenInfos);
     pipelineData->tableOffset = tableOffset;
 
-    pipelineData->missRecordStride = missRecordSize;
-    pipelineData->hitGroupRecordStride = hitGroupRecordSize;
-    pipelineData->callableRecordStride = callableRecordSize;
+    pipelineData->missRecordStride = uint32_t(missRecordSize);
+    pipelineData->hitGroupRecordStride = uint32_t(hitGroupRecordSize);
+    pipelineData->callableRecordStride = uint32_t(callableRecordSize);
 
     pipelineData->raygenTableSize = raygenTableSize;
     pipelineData->missTableSize = missTableSize;

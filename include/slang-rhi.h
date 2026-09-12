@@ -2197,6 +2197,20 @@ struct ShaderRecordOverwrite
     uint8_t data[8];
 };
 
+/// Application-defined data stored in a shader-table record.
+///
+/// The bytes are copied verbatim immediately after the backend-specific shader identifier or native
+/// record header. They are not reflected or marshaled, so the application must encode the target
+/// shader-record or local-root-data ABI, including any required padding. The backend rejects
+/// records whose aligned native stride exceeds its API limit. `createShaderTable` makes an owned
+/// copy, so the source data only needs to remain valid for the duration of that call. If `size` is
+/// nonzero, `data` must point to at least `size` bytes.
+struct ShaderRecordData
+{
+    const void* data = nullptr;
+    Size size = 0;
+};
+
 struct ShaderTableDesc
 {
     static constexpr StructType kStructType = StructType::ShaderTableDesc;
@@ -2220,6 +2234,15 @@ struct ShaderTableDesc
     const ShaderRecordOverwrite* callableShaderRecordOverwrites = nullptr;
 
     IShaderProgram* program = nullptr;
+
+    /// Optional raw application data for miss, hit-group, and callable shader records. Each
+    /// non-null array must contain the same number of elements as its corresponding shader or
+    /// hit-group array and only needs to remain valid during `createShaderTable`. A legacy overwrite
+    /// uses an absolute offset from the start of the native record and is applied after these bytes,
+    /// so it takes precedence wherever the two ranges overlap.
+    const ShaderRecordData* missShaderRecordData = nullptr;
+    const ShaderRecordData* hitGroupRecordData = nullptr;
+    const ShaderRecordData* callableShaderRecordData = nullptr;
 };
 
 class IShaderTable : public ISlangUnknown
