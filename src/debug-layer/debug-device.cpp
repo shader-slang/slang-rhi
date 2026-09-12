@@ -1606,6 +1606,28 @@ Result DebugDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable*
         return SLANG_E_INVALID_ARG;
     }
 
+    auto validateRecordData = [&](const char* fieldName, const ShaderRecordData* recordData, uint32_t count)
+    {
+        if (!recordData)
+            return true;
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            if (recordData[i].size > 0 && !recordData[i].data)
+            {
+                RHI_VALIDATION_ERROR_FORMAT("'%s[%u].data' is null but 'size' > 0.", fieldName, i);
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (!validateRecordData("missShaderRecordData", desc.missShaderRecordData, desc.missShaderCount) ||
+        !validateRecordData("hitGroupRecordData", desc.hitGroupRecordData, desc.hitGroupCount) ||
+        !validateRecordData("callableShaderRecordData", desc.callableShaderRecordData, desc.callableShaderCount))
+    {
+        return SLANG_E_INVALID_ARG;
+    }
+
     return baseObject->createShaderTable(desc, outTable);
 }
 

@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <algorithm>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -486,6 +487,195 @@ IShaderTable* ShaderTable::getInterface(const Guid& guid)
     return nullptr;
 }
 
+Size ShaderTable::OwnedRecord::getSize(Size headerSize) const
+{
+    // Backend creation validates this invariant before the descriptor is copied into OwnedRecord.
+    SLANG_RHI_ASSERT(data.size() <= std::numeric_limits<Size>::max() - headerSize);
+    return std::max(headerSize + data.size(), Size(overwrite.offset) + Size(overwrite.size));
+}
+
+void ShaderTable::OwnedRecord::writeData(void* destination, Size headerSize) const
+{
+    if (!data.empty())
+    {
+        memcpy(static_cast<uint8_t*>(destination) + headerSize, data.data(), data.size());
+    }
+    if (overwrite.size > 0)
+    {
+        memcpy(static_cast<uint8_t*>(destination) + overwrite.offset, overwrite.data, overwrite.size);
+    }
+}
+
+Size ShaderTable::getMaxRecordSize(const std::vector<OwnedRecord>& records, Size headerSize)
+{
+    Size maxSize = headerSize;
+    for (const auto& record : records)
+        maxSize = std::max(maxSize, record.getSize(headerSize));
+    return maxSize;
+}
+
+bool ShaderTable::tryAddSize(Size left, Size right, Size* outSize)
+{
+    SLANG_RHI_ASSERT(outSize);
+    if (right > std::numeric_limits<Size>::max() - left)
+        return false;
+    *outSize = left + right;
+    return true;
+}
+
+bool ShaderTable::tryMultiplySize(Size left, Size right, Size* outSize)
+{
+    SLANG_RHI_ASSERT(outSize);
+    if (left != 0 && right > std::numeric_limits<Size>::max() / left)
+        return false;
+    *outSize = left * right;
+    return true;
+}
+
+bool ShaderTable::tryAlignSize(Size size, Size alignment, Size* outSize)
+{
+    SLANG_RHI_ASSERT(outSize);
+    SLANG_RHI_ASSERT(math::isPowerOf2(alignment));
+
+    Size sizeWithPadding = 0;
+    if (!tryAddSize(size, alignment - 1, &sizeWithPadding))
+        return false;
+    *outSize = sizeWithPadding & ~(alignment - 1);
+    return true;
+}
+
+ShaderTable::RecordLayoutError ShaderTable::calculateRecordStride(
+    Size dataSize,
+    Size overwriteEnd,
+    const RecordLayout& layout,
+    Size* outStride
+)
+{
+    SLANG_RHI_ASSERT(outStride);
+    SLANG_RHI_ASSERT(math::isPowerOf2(layout.alignment));
+
+    Size sizeWithHeader = 0;
+    if (!tryAddSize(layout.headerSize, dataSize, &sizeWithHeader))
+        return RecordLayoutError::SizeOverflow;
+
+    const Size unalignedSize = std::max(sizeWithHeader, overwriteEnd);
+    Size stride = 0;
+    if (!tryAlignSize(unalignedSize, layout.alignment, &stride))
+        return RecordLayoutError::AlignmentOverflow;
+
+    *outStride = stride;
+    if (stride > layout.maximumStride)
+        return RecordLayoutError::StrideTooLarge;
+
+    return RecordLayoutError::None;
+}
+
+Result ShaderTable::validateRecordData(Device* device, const ShaderTableDesc& desc, const RecordLayout& layout)
+{
+    SLANG_RHI_ASSERT(device);
+    SLANG_RHI_ASSERT(math::isPowerOf2(layout.alignment));
+
+    auto validateRecords = [&](const char* fieldName,
+                               const ShaderRecordData* recordData,
+                               const ShaderRecordOverwrite* overwrites,
+                               uint32_t count,
+                               Size* outSectionSize)
+    {
+        SLANG_RHI_ASSERT(outSectionSize);
+        Size maximumStride = 0;
+
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            const ShaderRecordData* record = recordData ? &recordData[i] : nullptr;
+            if (record && record->size > 0 && !record->data)
+            {
+                device
+                    ->printError("ShaderTableDesc.%s[%u].data must not be null when size is nonzero.\n", fieldName, i);
+                return SLANG_E_INVALID_ARG;
+            }
+
+            Size overwriteEnd = 0;
+            if (overwrites)
+                overwriteEnd = Size(overwrites[i].offset) + Size(overwrites[i].size);
+
+            Size stride = 0;
+            switch (calculateRecordStride(record ? record->size : 0, overwriteEnd, layout, &stride))
+            {
+            case RecordLayoutError::None:
+                break;
+            case RecordLayoutError::SizeOverflow:
+                device->printError(
+                    "ShaderTableDesc.%s[%u] is too large to add the %zu-byte native shader-record header.\n",
+                    fieldName,
+                    i,
+                    layout.headerSize
+                );
+                return SLANG_E_INVALID_ARG;
+            case RecordLayoutError::AlignmentOverflow:
+                device->printError(
+                    "ShaderTableDesc.%s[%u] is too large to align its native shader-record stride to %zu bytes.\n",
+                    fieldName,
+                    i,
+                    layout.alignment
+                );
+                return SLANG_E_INVALID_ARG;
+            case RecordLayoutError::StrideTooLarge:
+                device->printError(
+                    "ShaderTableDesc.%s[%u] requires a %zu-byte native shader-record stride, exceeding the backend "
+                    "limit of %zu bytes.\n",
+                    fieldName,
+                    i,
+                    stride,
+                    layout.maximumStride
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+            maximumStride = std::max(maximumStride, stride);
+        }
+
+        if (!tryMultiplySize(count, maximumStride, outSectionSize))
+        {
+            device->printError("ShaderTableDesc.%s section size overflows the host address space.\n", fieldName);
+            return SLANG_E_INVALID_ARG;
+        }
+        return SLANG_OK;
+    };
+
+    Size missSectionSize = 0;
+    Size hitGroupSectionSize = 0;
+    Size callableSectionSize = 0;
+    SLANG_RETURN_ON_FAIL(validateRecords(
+        "missShaderRecordData",
+        desc.missShaderRecordData,
+        desc.missShaderRecordOverwrites,
+        desc.missShaderCount,
+        &missSectionSize
+    ));
+    SLANG_RETURN_ON_FAIL(validateRecords(
+        "hitGroupRecordData",
+        desc.hitGroupRecordData,
+        desc.hitGroupRecordOverwrites,
+        desc.hitGroupCount,
+        &hitGroupSectionSize
+    ));
+    SLANG_RETURN_ON_FAIL(validateRecords(
+        "callableShaderRecordData",
+        desc.callableShaderRecordData,
+        desc.callableShaderRecordOverwrites,
+        desc.callableShaderCount,
+        &callableSectionSize
+    ));
+
+    Size totalRecordSize = 0;
+    if (!tryAddSize(missSectionSize, hitGroupSectionSize, &totalRecordSize) ||
+        !tryAddSize(totalRecordSize, callableSectionSize, &totalRecordSize))
+    {
+        device->printError("ShaderTableDesc shader-record section sizes overflow the host address space.\n");
+        return SLANG_E_INVALID_ARG;
+    }
+    return SLANG_OK;
+}
+
 ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
     : DeviceChild(device)
 {
@@ -498,6 +688,25 @@ ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
             maxSize = std::max(maxSize, size);
         }
         return maxSize;
+    };
+
+    auto initializeRecords = [](std::vector<OwnedRecord>& records,
+                                uint32_t count,
+                                const ShaderRecordOverwrite* overwrites,
+                                const ShaderRecordData* recordData)
+    {
+        records.resize(count);
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            if (overwrites)
+                records[i].overwrite = overwrites[i];
+            if (recordData && recordData[i].size > 0)
+            {
+                SLANG_RHI_ASSERT(recordData[i].data);
+                const uint8_t* data = static_cast<const uint8_t*>(recordData[i].data);
+                records[i].data.assign(data, data + recordData[i].size);
+            }
+        }
     };
 
     m_rayGenShaderCount = desc.rayGenShaderCount;
@@ -522,37 +731,21 @@ ShaderTable::ShaderTable(Device* device, const ShaderTableDesc& desc)
         desc.missShaderEntryPointNames,
         desc.missShaderEntryPointNames + desc.missShaderCount
     );
-    if (desc.missShaderRecordOverwrites)
-    {
-        m_missRecordOverwrites.assign(
-            desc.missShaderRecordOverwrites,
-            desc.missShaderRecordOverwrites + desc.missShaderCount
-        );
-    }
-    m_missRecordOverwriteMaxSize = getMaxOverrideSize(m_missRecordOverwrites);
+    initializeRecords(m_missRecords, desc.missShaderCount, desc.missShaderRecordOverwrites, desc.missShaderRecordData);
 
     m_hitGroupNames.assign(desc.hitGroupNames, desc.hitGroupNames + desc.hitGroupCount);
-    if (desc.hitGroupRecordOverwrites)
-    {
-        m_hitGroupRecordOverwrites.assign(
-            desc.hitGroupRecordOverwrites,
-            desc.hitGroupRecordOverwrites + desc.hitGroupCount
-        );
-    }
-    m_hitGroupRecordOverwriteMaxSize = getMaxOverrideSize(m_hitGroupRecordOverwrites);
+    initializeRecords(m_hitGroupRecords, desc.hitGroupCount, desc.hitGroupRecordOverwrites, desc.hitGroupRecordData);
 
     m_callableShaderEntryPointNames.assign(
         desc.callableShaderEntryPointNames,
         desc.callableShaderEntryPointNames + desc.callableShaderCount
     );
-    if (desc.callableShaderRecordOverwrites)
-    {
-        m_callableRecordOverwrites.assign(
-            desc.callableShaderRecordOverwrites,
-            desc.callableShaderRecordOverwrites + desc.callableShaderCount
-        );
-    }
-    m_callableRecordOverwriteMaxSize = getMaxOverrideSize(m_callableRecordOverwrites);
+    initializeRecords(
+        m_callableRecords,
+        desc.callableShaderCount,
+        desc.callableShaderRecordOverwrites,
+        desc.callableShaderRecordData
+    );
 }
 
 // ----------------------------------------------------------------------------
