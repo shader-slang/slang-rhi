@@ -377,7 +377,8 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     case ResourceState::RenderTarget:
         return VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
     case ResourceState::ShaderResource:
-        return VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+        // Cover ordinary shader reads as well as input attachment reads.
+        return VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT);
     case ResourceState::UnorderedAccess:
         return VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
     case ResourceState::DepthRead:
