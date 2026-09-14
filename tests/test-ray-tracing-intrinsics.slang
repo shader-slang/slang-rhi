@@ -348,3 +348,35 @@ void rayGenShaderCallShaderTest()
     result.value = payload.attribute;
     resultBuffer[0] = result;
 }
+
+// The outer callable deliberately keeps `savedValue` live across the nested CallShader. This
+// exercises a non-trivial direct-callable stack frame instead of relying on a leaf callable whose
+// reported stack requirement can happen to be zero.
+[shader("callable")]
+void callableInvokeNested(inout RayPayload payload)
+{
+    float3 savedValue = payload.attribute + float3(13.0, 17.0, 19.0);
+    CallShader(1, payload);
+    payload.attribute += savedValue;
+}
+
+[shader("callable")]
+void callableNestedLeaf(inout RayPayload payload)
+{
+    payload.attribute = payload.attribute * float3(2.0, 3.0, 4.0) + float3(5.0, 7.0, 11.0);
+}
+
+[shader("raygeneration")]
+void rayGenShaderNestedCallShaderTest()
+{
+    RayPayload payload = {};
+    payload.attribute = float3(1.0, 2.0, 3.0);
+
+    // Shader-table entry 0 calls entry 1, so this call tree contains two simultaneously active
+    // direct-callable frames.
+    CallShader(0, payload);
+
+    Result result = {};
+    result.value = payload.attribute;
+    resultBuffer[0] = result;
+}

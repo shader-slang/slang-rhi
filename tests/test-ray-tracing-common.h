@@ -1047,7 +1047,8 @@ struct RayTracingTestPipeline
         const std::vector<const char*>& callableNames = std::vector<const char*>(),
         const ShaderRecordData* hitGroupRecordData = nullptr,
         const ShaderRecordData* missShaderRecordData = nullptr,
-        const ShaderRecordData* callableShaderRecordData = nullptr
+        const ShaderRecordData* callableShaderRecordData = nullptr,
+        const void* pipelineNext = nullptr
     )
     {
         ComPtr<IShaderProgram> rayTracingProgram;
@@ -1105,6 +1106,10 @@ struct RayTracingTestPipeline
         }
 
         RayTracingPipelineDesc rtpDesc = {};
+        // Tests can pass backend-specific pipeline options without duplicating this common
+        // ray-tracing setup. The chained structure only needs to remain alive for this synchronous
+        // pipeline-creation call.
+        rtpDesc.next = pipelineNext;
         rtpDesc.program = rayTracingProgram;
         rtpDesc.hitGroupCount = hitGroups.size();
         rtpDesc.hitGroups = hitGroups.data();

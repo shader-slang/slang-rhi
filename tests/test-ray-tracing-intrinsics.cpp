@@ -550,3 +550,54 @@ GPU_TEST_CASE("ray-tracing-intrinsics-call-shader-record-data", Vulkan)
     const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
     checkFloat3(result->value, {42.0f, 0.0f, 0.0f});
 }
+
+GPU_TEST_CASE("ray-tracing-intrinsics-nested-call-shader", D3D12 | Vulkan | CUDA)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+
+    // The geometry is not traced, but every backend still requires a complete ray-tracing
+    // pipeline and shader table for dispatch.
+    SingleTriangleBLAS blas(device, queue, false);
+    TLAS tlas(device, queue, blas.blas);
+    ResultBuffer resultBuf(device, sizeof(RayIntrinsicResult));
+
+    std::vector<const char*> raygenNames = {"rayGenShaderNestedCallShaderTest"};
+    std::vector<HitGroupProgramNames> hitGroupProgramNames = {{"closestHitNOP", nullptr}};
+    std::vector<const char*> missNames = {"missNOP"};
+
+    // The order defines the callable shader-table indices: callableInvokeNested is entry 0 and
+    // invokes callableNestedLeaf at entry 1.
+    std::vector<const char*> callableNames = {"callableInvokeNested", "callableNestedLeaf"};
+
+    OptixRayTracingPipelineDesc optixPipelineDesc = {};
+    optixPipelineDesc.maxDirectCallableDepthFromState = 2;
+    const void* pipelineNext =
+        device->getDeviceType() == DeviceType::CUDA ? static_cast<const void*>(&optixPipelineDesc) : nullptr;
+
+    RayTracingTestPipeline pipeline(
+        device,
+        "test-ray-tracing-intrinsics",
+        raygenNames,
+        hitGroupProgramNames,
+        missNames,
+        RayTracingPipelineFlags::None,
+        nullptr,
+        callableNames,
+        nullptr,
+        nullptr,
+        nullptr,
+        pipelineNext
+    );
+
+    launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
+
+    ComPtr<ISlangBlob> resultBlob;
+    resultBuf.getFromDevice(resultBlob.writeRef());
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+
+    // Outer saved value: (14, 19, 22); leaf result: (7, 13, 23); sum: (21, 32, 45).
+    checkFloat3(result->value, {21.0f, 32.0f, 45.0f});
+}

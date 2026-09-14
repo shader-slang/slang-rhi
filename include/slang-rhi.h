@@ -87,6 +87,8 @@ enum class StructType
     D3D12ExperimentalFeaturesDesc,
 
     VulkanDeviceExtendedDesc,
+
+    OptixRayTracingPipelineDesc,
 };
 
 // TODO: Implementation or backend or something else?
@@ -2190,6 +2192,31 @@ struct RayTracingPipelineDesc
     PipelineCompilationPolicy compilationPolicy = PipelineCompilationPolicy::Default;
 
     const char* label = nullptr;
+};
+
+/// OptiX-specific stack limits for a ray-tracing pipeline.
+///
+/// Chain this structure through `RayTracingPipelineDesc::next` when an OptiX pipeline needs limits
+/// other than the defaults below. OptiX requires the maximum callable depth before it can allocate
+/// the pipeline stack. Slang reflection does not expose a finite bound for dynamic `CallShader`
+/// indices, so the application supplies that bound explicitly. Other backends ignore this
+/// descriptor.
+struct OptixRayTracingPipelineDesc
+{
+    static constexpr StructType kStructType = StructType::OptixRayTracingPipelineDesc;
+    StructType structType = kStructType;
+    const void* next = nullptr;
+
+    /// Maximum number of simultaneously active direct-callable frames for a call tree originating
+    /// in a ray-generation, miss, or closest-hit shader. For example, ray generation -> callable A
+    /// -> callable B requires a depth of 2. A value of 0 means that no state shader invokes a
+    /// direct callable. The default permits an existing pipeline to invoke one leaf callable.
+    uint32_t maxDirectCallableDepthFromState = 1;
+
+    /// Maximum number of simultaneously active direct-callable frames for a call tree originating
+    /// in an intersection or any-hit shader. A value of 0 means that traversal shaders do not
+    /// invoke direct callables.
+    uint32_t maxDirectCallableDepthFromTraversal = 0;
 };
 
 // Specifies the bytes to overwrite into a record in the shader table.
