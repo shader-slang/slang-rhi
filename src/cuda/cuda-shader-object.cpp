@@ -247,11 +247,28 @@ Result BindingDataBuilder::writeObjectData(
         }
     }
 
+    if (memType == ConstantBufferMemType::Global && objectData.size)
+    {
+        // Redirect this packet's device address to the first-seen canonical address
+        // for these exact bytes, inserting this packet's own address only when the
+        // bytes are new. Byte-keyed interning of nested parameter blocks is correct
+        // because sub-objects are interned before this point: the sub-object loop
+        // above recurses through writeObjectData (again with Global memtype) and
+        // patches each child's canonical device address into `dst` before the parent
+        // packet is keyed here, so byte-equal parents already embed byte-equal
+        // (canonical) child addresses.
+        std::string_view key(static_cast<const char*>(objectData.host), objectData.size);
+        objectData.device = m_bindingCache->internedGlobalParams.try_emplace(key, objectData.device).first->second;
+    }
+
     outData = objectData;
 
     return SLANG_OK;
 }
 
-void BindingCache::reset() {}
+void BindingCache::reset()
+{
+    internedGlobalParams.clear();
+}
 
 } // namespace rhi::cuda

@@ -16,6 +16,7 @@
 #include "core/platform.h"
 
 #include <chrono>
+#include <unordered_map>
 
 namespace rhi::cuda {
 
@@ -233,6 +234,22 @@ public:
     optix::ShaderBindingTable* m_shaderBindingTable = nullptr;
 
     BindingDataImpl* m_bindingData = nullptr;
+
+    struct GlobalParamsState
+    {
+        CUdeviceptr source = 0; // canonical source packet last copied into the symbol
+        size_t size = 0;        // byte size of that copy
+    };
+    // Records, per destination SLANG_globalParams symbol, the (source, size) most
+    // recently uploaded to it, so cmdDispatchCompute can skip a redundant copy. The
+    // map key is the DESTINATION symbol (computePipeline->m_globalParams); keying per
+    // destination is what keeps interleaved pipelines that share a byte-identical
+    // source packet correct (each distinct symbol still gets its own upload).
+    // Comparing the source pointer is a valid proxy for "contents changed" only
+    // because BindingDataBuilder interns byte-equal packets to one canonical source
+    // address. Each executor handles one command buffer; never retain across
+    // submissions.
+    std::unordered_map<CUdeviceptr, GlobalParamsState> m_globalParamsState;
 
     CommandExecutor(DeviceImpl* device, CUstream stream, uint64_t timestampAnchorGeneration)
         : m_device(device)
@@ -658,12 +675,24 @@ void CommandExecutor::cmdDispatchCompute(const commands::DispatchCompute& cmd)
             );
             computePipeline->m_warnedAboutGlobalParamsSizeMismatch = true;
         }
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemcpyAsync(
-            computePipeline->m_globalParams,
-            bindingData->globalParams,
-            min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize),
-            m_stream
-        ));
+        const size_t size = min(bindingData->globalParamsSize, computePipeline->m_globalParamsSize);
+        auto& state = m_globalParamsState[computePipeline->m_globalParams];
+        // Upload only when this destination symbol's contents would change. This skip
+        // is sound because only cmdExecuteCallback may externally mutate the symbol
+        // between dispatches (it clears m_globalParamsState) -- any future command
+        // that runs native code or writes device memory must also clear it. Because
+        // interning canonicalizes byte-equal packets to one source address, an
+        // unchanged source already implies an unchanged size (same bytes, and
+        // m_globalParamsSize is fixed per symbol), so the size term is defensive and
+        // never independently forces a re-upload today. Entry-point arguments are
+        // supplied independently on every launch below.
+        if (size && (state.source != bindingData->globalParams || state.size != size))
+        {
+            SLANG_CUDA_ASSERT_ON_FAIL(
+                cuMemcpyAsync(computePipeline->m_globalParams, bindingData->globalParams, size, m_stream)
+            );
+            state = {bindingData->globalParams, size};
+        }
     }
 
     // The argument data for the entry-point parameters are already
@@ -873,6 +902,8 @@ void CommandExecutor::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 
 void CommandExecutor::cmdExecuteCallback(const commands::ExecuteCallback& cmd)
 {
+    // Native code may modify module state outside the recorded binding commands.
+    m_globalParamsState.clear();
     NativeHandle nativeHandle{
         NativeHandleType::CUstream,
         reinterpret_cast<uint64_t>(m_stream),
