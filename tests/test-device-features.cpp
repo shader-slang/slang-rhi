@@ -91,3 +91,23 @@ GPU_TEST_CASE("metal-device-capabilities", Metal)
     // CHECK(device->hasCapability(Capability::metallib_4_0) == (macOSMajorVersion >= 26));
 }
 #endif
+
+// The coop-mat2 subfeature name strings are a cross-repo contract: shader-slang/slang's runtime
+// tests gate on these exact `-render-feature` names, so a typo here silently breaks gating (an
+// unknown name is a loud failure, a renamed one skips the wrong tests) rather than failing to
+// compile. Pin the strings so a future rename is caught here. Device-independent by design.
+TEST_CASE("cooperative-matrix-2-subfeature-names")
+{
+    IRHI* rhi = getRHI();
+    CHECK(std::string(rhi->getFeatureName(Feature::CooperativeMatrixReductions)) == "cooperative-matrix-reductions");
+    CHECK(std::string(rhi->getFeatureName(Feature::CooperativeMatrixConversions)) == "cooperative-matrix-conversions");
+    CHECK(
+        std::string(rhi->getFeatureName(Feature::CooperativeMatrixPerElementOperations)) ==
+        "cooperative-matrix-per-element-operations"
+    );
+    CHECK(
+        std::string(rhi->getFeatureName(Feature::CooperativeMatrixTensorAddressing)) ==
+        "cooperative-matrix-tensor-addressing"
+    );
+    CHECK(std::string(rhi->getFeatureName(Feature::CooperativeMatrixBlockLoads)) == "cooperative-matrix-block-loads");
+}
