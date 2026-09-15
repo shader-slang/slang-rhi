@@ -93,3 +93,46 @@ GPU_TEST_CASE("buffer-from-handle", D3D12 | Vulkan | Metal | CUDA | WGPU)
         CHECK_EQ(invalidBuffer.get(), nullptr);
     }
 }
+
+// shader-slang/slang-rhi#860: an imported (native-handle) buffer has no per-buffer Vulkan API
+// pointer, so binding it as a typed/texel view (which requires a VkBufferView) must not crash when
+// the view is created or when the wrapper is destroyed.
+GPU_TEST_CASE("buffer-from-handle-typed-view", D3D12 | Vulkan)
+{
+    ComPtr<IShaderProgram> shaderProgram;
+    REQUIRE_CALL(loadProgram(device, "test-buffer-from-handle", "computeMain", shaderProgram.writeRef()));
+
+    ComputePipelineDesc pipelineDesc = {};
+    pipelineDesc.program = shaderProgram.get();
+    ComPtr<IComputePipeline> pipeline;
+    REQUIRE_CALL(device->createComputePipeline(pipelineDesc, pipeline.writeRef()));
+
+    const int numberCount = 4;
+    float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = numberCount * sizeof(float);
+    bufferDesc.format = Format::R32Float; // typed buffer -> forces a texel buffer view
+    bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
+                       BufferUsage::CopySource;
+    bufferDesc.defaultState = ResourceState::UnorderedAccess;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+
+    ComPtr<IBuffer> originalBuffer;
+    REQUIRE_CALL(device->createBuffer(bufferDesc, (void*)initialData, originalBuffer.writeRef()));
+
+    NativeHandle handle;
+    REQUIRE_CALL(originalBuffer->getNativeHandle(&handle));
+
+    // Binding the imported wrapper as RWBuffer<float> forces creation of a texel VkBufferView.
+    {
+        ComPtr<IBuffer> imported;
+        REQUIRE_CALL(device->createBufferFromNativeHandle(handle, bufferDesc, imported.writeRef()));
+        dispatchIncrement(device, pipeline, imported);
+        compareComputeResult(device, imported, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
+    }
+
+    // Releasing the wrapper queues its VkBufferView for destruction. Dispatching again on the
+    // RHI-owned original confirms the caller's buffer still works after the wrapper is released.
+    dispatchIncrement(device, pipeline, originalBuffer);
+    compareComputeResult(device, originalBuffer, makeArray<float>(2.0f, 3.0f, 4.0f, 5.0f));
+}

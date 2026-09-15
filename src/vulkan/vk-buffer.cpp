@@ -166,7 +166,7 @@ BufferImpl::~BufferImpl()
 
     for (auto& view : m_views)
     {
-        m_buffer.m_api->vkDestroyBufferView(m_buffer.m_api->m_device, view.second, nullptr);
+        device->m_api.vkDestroyBufferView(device->m_api.m_device, view.second, nullptr);
     }
 
     if (m_sharedHandle)
@@ -330,7 +330,11 @@ VkBufferView BufferImpl::getView(Format format, const BufferRange& range)
     //     SLANG_RHI_ASSERT_FAILURE("Unhandled");
     // }
 
-    VkResult result = m_buffer.m_api->vkCreateBufferView(m_buffer.m_api->m_device, &info, nullptr, &view);
+    // Route view creation through the device API rather than the per-buffer RAII api pointer, which
+    // is null for buffers imported via createBufferFromNativeHandle (they never run
+    // VKBufferHandleRAII::init). See shader-slang/slang-rhi#860.
+    DeviceImpl* device = getDevice<DeviceImpl>();
+    VkResult result = device->m_api.vkCreateBufferView(device->m_api.m_device, &info, nullptr, &view);
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
     return view;
 }
