@@ -164,6 +164,8 @@ BufferImpl::~BufferImpl()
         }
     }
 
+    // Destroy views through the device API, not m_buffer.m_api, which is null for imported buffers
+    // (see getView / #860); reverting this to m_buffer.m_api would reintroduce that crash.
     for (auto& view : m_views)
     {
         device->m_api.vkDestroyBufferView(device->m_api.m_device, view.second, nullptr);

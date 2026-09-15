@@ -111,7 +111,7 @@ GPU_TEST_CASE("buffer-from-handle-typed-view", D3D12 | Vulkan)
     float initialData[] = {0.0f, 1.0f, 2.0f, 3.0f};
     BufferDesc bufferDesc = {};
     bufferDesc.size = numberCount * sizeof(float);
-    bufferDesc.format = Format::R32Float; // typed buffer -> forces a texel buffer view
+    bufferDesc.format = Format::R32Float; // typed buffer: prerequisite for a texel buffer view
     bufferDesc.usage = BufferUsage::ShaderResource | BufferUsage::UnorderedAccess | BufferUsage::CopyDestination |
                        BufferUsage::CopySource;
     bufferDesc.defaultState = ResourceState::UnorderedAccess;
@@ -131,8 +131,10 @@ GPU_TEST_CASE("buffer-from-handle-typed-view", D3D12 | Vulkan)
         compareComputeResult(device, imported, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
     }
 
-    // Releasing the wrapper queues its VkBufferView for destruction. Dispatching again on the
-    // RHI-owned original confirms the caller's buffer still works after the wrapper is released.
+    // `imported` and `originalBuffer` alias the same device memory, so the increment above persists
+    // and the counts accumulate to {2,3,4,5}. Releasing the wrapper queued its VkBufferView for
+    // destruction; this second dispatch's waitOnHost flushes the deferred-delete queue, running
+    // ~BufferImpl (the destroy path) while the device is still alive.
     dispatchIncrement(device, pipeline, originalBuffer);
     compareComputeResult(device, originalBuffer, makeArray<float>(2.0f, 3.0f, 4.0f, 5.0f));
 }
