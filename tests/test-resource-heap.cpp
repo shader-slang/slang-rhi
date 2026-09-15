@@ -1026,3 +1026,124 @@ GPU_TEST_CASE("resource-heap-alias-buffer-texture", D3D12 | Vulkan | Metal)
         textureData.checkEqual(texture);
     }
 }
+
+GPU_TEST_CASE("resource-heap-alias-texture-no-host-wait", D3D12 | Vulkan | Metal)
+{
+    TextureData dataA;
+    dataA.init(device, makeSampleTextureDesc(), TextureInitMode::Random, 1);
+    TextureData dataB;
+    dataB.init(device, makeSampleTextureDesc(), TextureInitMode::Random, 2);
+
+    ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, dataA.desc);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+
+    ComPtr<ITexture> textureA = createPlacedTexture(device, dataA.desc, heap, 0);
+    ComPtr<ITexture> textureB = createPlacedTexture(device, dataB.desc, heap, 0);
+
+    auto queue = device->getQueue(QueueType::Graphics);
+    auto encoder = queue->createCommandEncoder();
+    encoder->aliasResources(nullptr, textureA);
+    REQUIRE_CALL(encoder->uploadTextureData(
+        textureA,
+        {0, dataA.desc.getLayerCount(), 0, dataA.desc.mipCount},
+        {0, 0, 0},
+        Extent3D::kWholeTexture,
+        dataA.subresourceData.data(),
+        dataA.subresourceData.size()
+    ));
+    encoder->aliasResources(textureA, textureB);
+    REQUIRE_CALL(encoder->uploadTextureData(
+        textureB,
+        {0, dataB.desc.getLayerCount(), 0, dataB.desc.mipCount},
+        {0, 0, 0},
+        Extent3D::kWholeTexture,
+        dataB.subresourceData.data(),
+        dataB.subresourceData.size()
+    ));
+    REQUIRE_CALL(queue->submit(encoder->finish()));
+    REQUIRE_CALL(queue->waitOnHost());
+    dataB.checkEqual(textureB);
+}
+
+GPU_TEST_CASE("resource-heap-placed-texture-create-preserves-alias", D3D12 | Vulkan | Metal)
+{
+    TextureData dataA;
+    dataA.init(device, makeSampleTextureDesc(), TextureInitMode::Random, 1);
+
+    ResourceMemoryRequirements requirements = requireTextureMemoryRequirements(device, dataA.desc);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+
+    ComPtr<ITexture> textureA = createPlacedTexture(device, dataA.desc, heap, 0);
+    auto queue = device->getQueue(QueueType::Graphics);
+    {
+        auto encoder = queue->createCommandEncoder();
+        encoder->aliasResources(nullptr, textureA);
+        REQUIRE_CALL(encoder->uploadTextureData(
+            textureA,
+            {0, dataA.desc.getLayerCount(), 0, dataA.desc.mipCount},
+            {0, 0, 0},
+            Extent3D::kWholeTexture,
+            dataA.subresourceData.data(),
+            dataA.subresourceData.size()
+        ));
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
+    dataA.checkEqual(textureA);
+
+    ComPtr<ITexture> textureB = createPlacedTexture(device, dataA.desc, heap, 0);
+    dataA.checkEqual(textureA);
+
+    TextureData dataB;
+    dataB.init(device, makeSampleTextureDesc(), TextureInitMode::Random, 2);
+    {
+        auto encoder = queue->createCommandEncoder();
+        encoder->aliasResources(textureA, textureB);
+        REQUIRE_CALL(encoder->uploadTextureData(
+            textureB,
+            {0, dataB.desc.getLayerCount(), 0, dataB.desc.mipCount},
+            {0, 0, 0},
+            Extent3D::kWholeTexture,
+            dataB.subresourceData.data(),
+            dataB.subresourceData.size()
+        ));
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
+    dataB.checkEqual(textureB);
+}
+
+GPU_TEST_CASE("resource-heap-explicit-alignment", D3D12 | Vulkan | Metal | CUDA)
+{
+    BufferDesc desc = makeCopyBufferDesc(256);
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    const Size requestedAlignment = std::max(requirements.heapAlignment * 2, Size(64) * 1024);
+
+    ResourceHeapDesc heapDesc = {};
+    heapDesc.memoryType = requirements.memoryType;
+    heapDesc.size = std::max(requirements.size, requestedAlignment);
+    heapDesc.alignment = requestedAlignment;
+    heapDesc.requirements = &requirements;
+    heapDesc.requirementCount = 1;
+    heapDesc.label = "explicit-alignment-heap";
+
+    ComPtr<IResourceHeap> heap;
+    const Result result = device->createResourceHeap(heapDesc, heap.writeRef());
+    switch (device->getDeviceType())
+    {
+    case DeviceType::Vulkan:
+    case DeviceType::Metal:
+        CHECK_EQ(result, SLANG_E_INVALID_ARG);
+        return;
+    default:
+        REQUIRE_EQ(result, SLANG_OK);
+        break;
+    }
+
+    CHECK_GE(heap->getDesc().alignment, requestedAlignment);
+    NativeHandle handle = {};
+    REQUIRE_CALL(heap->getNativeHandle(&handle));
+    if (handle.type == NativeHandleType::CUdeviceptr)
+        CHECK_EQ(handle.value % requestedAlignment, 0);
+    CHECK(createPlacedBuffer(device, desc, heap, 0));
+}

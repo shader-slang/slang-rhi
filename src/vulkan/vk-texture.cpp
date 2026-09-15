@@ -438,13 +438,15 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
 
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);
 
-    // Transition to default layout
-    auto defaultLayout = getImageLayoutFromState(desc.defaultState);
-    if (defaultLayout != VK_IMAGE_LAYOUT_UNDEFINED)
+    if (!placement || initData)
     {
-        _transitionImageLayout(texture->m_image, format, texture->m_desc, VK_IMAGE_LAYOUT_UNDEFINED, defaultLayout);
+        auto defaultLayout = getImageLayoutFromState(desc.defaultState);
+        if (defaultLayout != VK_IMAGE_LAYOUT_UNDEFINED)
+        {
+            _transitionImageLayout(texture->m_image, format, texture->m_desc, VK_IMAGE_LAYOUT_UNDEFINED, defaultLayout);
+        }
+        m_deviceQueue.flushAndWait();
     }
-    m_deviceQueue.flushAndWait();
 
     // Upload init data if we have some
     if (initData)

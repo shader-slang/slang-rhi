@@ -46,6 +46,8 @@ Result ResourceHeapImpl::init()
     if (memoryTypeIndex < 0)
         return SLANG_E_NOT_AVAILABLE;
     m_memoryTypeIndex = (uint32_t)memoryTypeIndex;
+    if (m_desc.alignment > 1)
+        return SLANG_E_INVALID_ARG;
     m_desc.alignment = max<Size>(m_desc.alignment, 1);
 
     VkMemoryAllocateInfo allocInfo = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};

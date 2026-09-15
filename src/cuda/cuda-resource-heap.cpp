@@ -11,17 +11,18 @@ ResourceHeapImpl::ResourceHeapImpl(Device* device, const ResourceHeapDesc& desc)
 
 ResourceHeapImpl::~ResourceHeapImpl()
 {
-    if (!m_memory)
+    CUdeviceptr toFree = m_rawMemory ? m_rawMemory : m_memory;
+    if (!toFree)
         return;
 
     SLANG_CUDA_CTX_SCOPE(getDevice<DeviceImpl>());
     if (m_isHostMemory)
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFreeHost((void*)m_memory));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFreeHost((void*)toFree));
     }
     else
     {
-        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(m_memory));
+        SLANG_CUDA_ASSERT_ON_FAIL(cuMemFree(toFree));
     }
 }
 
@@ -29,6 +30,11 @@ Result ResourceHeapImpl::init()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_desc.alignment = max<Size>(m_desc.alignment, 1);
+    const Size alignment = m_desc.alignment;
+    const Size extra = alignment - 1;
+    if (extra != 0 && m_desc.size > ~Size(0) - extra)
+        return SLANG_E_INVALID_ARG;
+    const Size allocSize = m_desc.size + extra;
     SLANG_CUDA_CTX_SCOPE(device);
 
     m_isHostMemory = m_desc.memoryType != MemoryType::DeviceLocal;
@@ -43,13 +49,14 @@ Result ResourceHeapImpl::init()
             return SLANG_E_NOT_AVAILABLE;
 
         void* hostPtr = nullptr;
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost(&hostPtr, m_desc.size), device);
-        m_memory = (CUdeviceptr)hostPtr;
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAllocHost(&hostPtr, allocSize), device);
+        m_rawMemory = (CUdeviceptr)hostPtr;
     }
     else
     {
-        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&m_memory, m_desc.size), device);
+        SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&m_rawMemory, allocSize), device);
     }
+    m_memory = (m_rawMemory + extra) & ~(CUdeviceptr)extra;
     return SLANG_OK;
 }
 

@@ -3320,6 +3320,8 @@ public:
 /// Creation-only extension chained onto BufferDesc::next or TextureDesc::next.
 /// The resource must fit at an aligned offset in a compatible heap and must not require a dedicated
 /// allocation. The resource retains `heap`, but not this extension chain.
+/// Creating with initial data writes the heap immediately and must not overlap an active resource;
+/// without it, call aliasResources before use.
 struct ResourcePlacementDesc
 {
     static constexpr StructType kStructType = StructType::ResourcePlacementDesc;

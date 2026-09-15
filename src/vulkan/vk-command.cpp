@@ -1561,9 +1561,9 @@ void CommandRecorder::cmdAliasResources(const commands::AliasResources& cmd)
     );
 
     if (Buffer* buffer = asBuffer(cmd.before))
-        m_stateTracking.resetBufferState(buffer);
+        m_stateTracking.forgetBufferState(buffer);
     if (Texture* texture = asTexture(cmd.before))
-        m_stateTracking.resetTextureState(texture);
+        m_stateTracking.forgetTextureState(texture);
     if (Buffer* buffer = asBuffer(cmd.after))
         m_stateTracking.resetBufferState(buffer);
     if (Texture* texture = asTexture(cmd.after))

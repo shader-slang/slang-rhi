@@ -41,6 +41,8 @@ Result ResourceHeapImpl::init()
     AUTORELEASEPOOL
 
     DeviceImpl* device = getDevice<DeviceImpl>();
+    if (m_desc.alignment > 1)
+        return SLANG_E_INVALID_ARG;
     m_desc.alignment = max<Size>(m_desc.alignment, 1);
     NS::SharedPtr<MTL::HeapDescriptor> heapDesc = NS::TransferPtr(MTL::HeapDescriptor::alloc()->init());
     heapDesc->setType(MTL::HeapTypePlacement);
