@@ -104,6 +104,7 @@ public:
     void cmdSetRayTracingState(const commands::SetRayTracingState& cmd);
     void cmdDispatchRays(const commands::DispatchRays& cmd);
     void cmdBuildAccelerationStructure(const commands::BuildAccelerationStructure& cmd);
+    void cmdBuildMicromap(const commands::BuildMicromap& cmd);
     void cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd);
     void cmdQueryAccelerationStructureProperties(const commands::QueryAccelerationStructureProperties& cmd);
     void cmdExecuteClusterOperation(const commands::ExecuteClusterOperation& cmd);
@@ -1277,6 +1278,23 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
                     ResourceState::AccelerationStructureBuildInput
                 );
             }
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(input.triangles.next))
+            {
+                if (ommDesc->link.micromap)
+                {
+                    requireBufferState(
+                        checked_cast<MicromapImpl*>(ommDesc->link.micromap)->m_buffer,
+                        ResourceState::MicromapRead
+                    );
+                }
+                if (ommDesc->link.indexBuffer)
+                {
+                    requireBufferState(
+                        checked_cast<BufferImpl*>(ommDesc->link.indexBuffer.buffer),
+                        ResourceState::AccelerationStructureBuildInput
+                    );
+                }
+            }
             break;
         case AccelerationStructureBuildInputType::ProceduralPrimitives:
             for (uint32_t i = 0; i < input.proceduralPrimitives.aabbBufferCount; ++i)
@@ -1349,7 +1367,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     commitBarriers();
 
 #if SLANG_RHI_ENABLE_NVAPI
-    if (m_device->m_nvapiEnabled)
+    if (m_device->m_nvapiEnabled && !usesOpacityMicromaps(cmd.desc))
     {
         NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_EX desc = {};
         desc.destAccelerationStructureData = dst->getDeviceAddress();
@@ -1391,6 +1409,26 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     }
 
     copyAccelerationStructureQueryResults(cmd.propertyQueryCount, cmd.queryDescs, 1);
+}
+
+void CommandRecorder::cmdBuildMicromap(const commands::BuildMicromap& cmd)
+{
+    MicromapImpl* dst = checked_cast<MicromapImpl*>(cmd.dst);
+    BufferImpl* scratch = checked_cast<BufferImpl*>(cmd.scratchBuffer.buffer);
+    requireBufferState(dst->m_buffer, ResourceState::MicromapWrite);
+    requireBufferState(scratch, ResourceState::UnorderedAccess);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.dataBuffer.buffer), ResourceState::MicromapBuildInput);
+    requireBufferState(checked_cast<BufferImpl*>(cmd.desc.descriptorBuffer.buffer), ResourceState::MicromapBuildInput);
+
+    MicromapBuildDescConverter converter;
+    if (SLANG_FAILED(converter.convert(cmd.desc)))
+        return;
+    commitBarriers();
+    D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+    buildDesc.DestAccelerationStructureData = dst->getDeviceAddress();
+    buildDesc.ScratchAccelerationStructureData = cmd.scratchBuffer.getDeviceAddress();
+    buildDesc.Inputs = converter.desc;
+    m_cmdList4->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
 }
 
 void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerationStructure& cmd)
@@ -1759,8 +1797,12 @@ void CommandRecorder::commitBarriers()
         }
         else if ((bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite &&
                   bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead) ||
-                 (bufferBarrier.stateAfter == ResourceState::AccelerationStructureRead &&
-                  bufferBarrier.stateBefore == ResourceState::AccelerationStructureWrite) ||
+                 (bufferBarrier.stateBefore == ResourceState::AccelerationStructureRead &&
+                  bufferBarrier.stateAfter == ResourceState::AccelerationStructureWrite) ||
+                 (bufferBarrier.stateBefore == ResourceState::MicromapWrite &&
+                  bufferBarrier.stateAfter == ResourceState::MicromapRead) ||
+                 (bufferBarrier.stateBefore == ResourceState::MicromapRead &&
+                  bufferBarrier.stateAfter == ResourceState::MicromapWrite) ||
                  ((stateAfter & D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0))
         {
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;

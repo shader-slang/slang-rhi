@@ -281,6 +281,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
     {
         addFeature(Feature::AccelerationStructure);
         addFeature(Feature::RayTracing);
+        addFeature(Feature::OpacityMicromap);
         uint32_t optixVersion = m_ctx.optixContext->getOptixVersion();
         m_info.optixVersion = optixVersion;
         if (optixVersion >= 80100)
@@ -554,6 +555,13 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return m_ctx.optixContext->getAccelerationStructureSizes(desc, outSizes);
 }
 
+Result DeviceImpl::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    if (!m_ctx.optixContext)
+        return SLANG_E_NOT_AVAILABLE;
+    return m_ctx.optixContext->getMicromapSizes(desc, outSizes);
+}
+
 Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     if (!m_ctx.optixContext)
@@ -577,6 +585,16 @@ Result DeviceImpl::createAccelerationStructure(
     SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_propertyBuffer, 8), this);
     result->m_handle = 0;
     returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    if (!m_ctx.optixContext)
+        return SLANG_E_NOT_AVAILABLE;
+    RefPtr<MicromapImpl> result = new MicromapImpl(this, desc);
+    SLANG_CUDA_RETURN_ON_FAIL_REPORT(cuMemAlloc(&result->m_buffer, desc.size), this);
+    returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
 

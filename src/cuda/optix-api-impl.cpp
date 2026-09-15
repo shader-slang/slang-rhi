@@ -231,6 +231,7 @@ public:
     stable_vector<unsigned int> flagList;
     std::vector<OptixBuildInput> buildInputs;
     OptixAccelBuildOptions buildOptions;
+    std::vector<std::vector<OptixOpacityMicromapUsageCount>> opacityMicromapUsageCounts;
 
     Result convert(const AccelerationStructureBuildDesc& buildDesc, IDebugCallback* debugCallback);
 
@@ -302,6 +303,7 @@ Result AccelerationStructureBuildDescConverter::convert(
     }
     case AccelerationStructureBuildInputType::Triangles:
     {
+        opacityMicromapUsageCounts.resize(buildDesc.inputCount);
         for (uint32_t i = 0; i < buildDesc.inputCount; ++i)
         {
             const AccelerationStructureBuildInputTriangles& triangles = buildDesc.inputs[i].triangles;
@@ -340,6 +342,40 @@ Result AccelerationStructureBuildDescConverter::convert(
                 triangles.preTransformBuffer ? triangles.preTransformBuffer.getDeviceAddress() : 0;
             buildInput.triangleArray.transformFormat =
                 triangles.preTransformBuffer ? OPTIX_TRANSFORM_FORMAT_MATRIX_FLOAT12 : OPTIX_TRANSFORM_FORMAT_NONE;
+            if (const auto* ommDesc = findStructInChain<AccelerationStructureOpacityMicromapDesc>(triangles.next))
+            {
+                if (!ommDesc->link.micromap || (ommDesc->link.usageCount > 0 && !ommDesc->link.usageCounts))
+                    return SLANG_E_INVALID_ARG;
+                std::vector<OptixOpacityMicromapUsageCount>& usageCounts = opacityMicromapUsageCounts[i];
+                usageCounts.resize(ommDesc->link.usageCount);
+                for (uint32_t j = 0; j < ommDesc->link.usageCount; ++j)
+                {
+                    usageCounts[j].count = ommDesc->link.usageCounts[j].count;
+                    usageCounts[j].subdivisionLevel = ommDesc->link.usageCounts[j].subdivisionLevel;
+                    usageCounts[j].format = (OptixOpacityMicromapFormat)ommDesc->link.usageCounts[j].format;
+                }
+                OptixBuildInputOpacityMicromap& omm = buildInput.triangleArray.opacityMicromap;
+                omm.indexingMode = ommDesc->link.indexingMode == MicromapIndexingMode::Indexed
+                                       ? OPTIX_OPACITY_MICROMAP_ARRAY_INDEXING_MODE_INDEXED
+                                       : OPTIX_OPACITY_MICROMAP_ARRAY_INDEXING_MODE_LINEAR;
+                omm.opacityMicromapArray = ommDesc->link.micromap->getDeviceAddress();
+                if (ommDesc->link.indexingMode == MicromapIndexingMode::Indexed)
+                {
+                    if (!ommDesc->link.indexBuffer)
+                        return SLANG_E_INVALID_ARG;
+                    omm.indexBuffer = ommDesc->link.indexBuffer.getDeviceAddress();
+                    if (ommDesc->link.indexFormat == MicromapIndexFormat::Uint16)
+                        omm.indexSizeInBytes = 2;
+                    else if (ommDesc->link.indexFormat == MicromapIndexFormat::Uint32)
+                        omm.indexSizeInBytes = 4;
+                    else
+                        return SLANG_E_INVALID_ARG;
+                    omm.indexStrideInBytes = ommDesc->link.indexStride;
+                }
+                omm.indexOffset = ommDesc->link.baseMicromapIndex;
+                omm.numMicromapUsageCounts = (uint32_t)usageCounts.size();
+                omm.micromapUsageCounts = usageCounts.data();
+            }
         }
         break;
     }
@@ -488,6 +524,14 @@ unsigned int AccelerationStructureBuildDescConverter::translateBuildFlags(Accele
     if (is_set(flags, AccelerationStructureBuildFlags::PreferFastTrace))
     {
         result |= OPTIX_BUILD_FLAG_PREFER_FAST_TRACE;
+    }
+    if (is_set(flags, AccelerationStructureBuildFlags::AllowOpacityMicromapUpdate))
+    {
+        result |= OPTIX_BUILD_FLAG_ALLOW_OPACITY_MICROMAP_UPDATE;
+    }
+    if (is_set(flags, AccelerationStructureBuildFlags::AllowDisableOpacityMicromaps))
+    {
+        result |= OPTIX_BUILD_FLAG_ALLOW_DISABLE_OPACITY_MICROMAPS;
     }
     return result;
 }
@@ -706,7 +750,8 @@ public:
             is_set(desc.flags, RayTracingPipelineFlags::EnableClusters) ? 1 : 0;
 #endif
 
-        optixPipelineCompileOptions.allowOpacityMicromaps = 0;
+        optixPipelineCompileOptions.allowOpacityMicromaps =
+            is_set(desc.flags, RayTracingPipelineFlags::EnableOpacityMicromaps) ? 1 : 0;
 
         OptixModuleCompileOptions optixModuleCompileOptions = {};
         optixModuleCompileOptions.maxRegisterCount = 0; // no limit
@@ -1191,6 +1236,39 @@ public:
         return SLANG_OK;
     }
 
+    virtual Result getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes) override
+    {
+        if (desc.type != MicromapType::Opacity || !desc.dataBuffer || !desc.descriptorBuffer || !desc.histogram ||
+            desc.histogramCount == 0 || is_set(desc.flags, MicromapBuildFlags::AllowCompaction))
+            return SLANG_E_INVALID_ARG;
+        std::vector<OptixOpacityMicromapHistogramEntry> histogram(desc.histogramCount);
+        for (uint32_t i = 0; i < desc.histogramCount; ++i)
+        {
+            histogram[i].count = desc.histogram[i].count;
+            histogram[i].subdivisionLevel = desc.histogram[i].subdivisionLevel;
+            histogram[i].format = (OptixOpacityMicromapFormat)desc.histogram[i].format;
+        }
+        OptixOpacityMicromapArrayBuildInput input = {};
+        input.flags = 0;
+        if (is_set(desc.flags, MicromapBuildFlags::PreferFastTrace))
+            input.flags |= OPTIX_OPACITY_MICROMAP_FLAG_PREFER_FAST_TRACE;
+        if (is_set(desc.flags, MicromapBuildFlags::PreferFastBuild))
+            input.flags |= OPTIX_OPACITY_MICROMAP_FLAG_PREFER_FAST_BUILD;
+        input.inputBuffer = desc.dataBuffer.getDeviceAddress();
+        input.perMicromapDescBuffer = desc.descriptorBuffer.getDeviceAddress();
+        input.perMicromapDescStrideInBytes = desc.descriptorStride;
+        input.numMicromapHistogramEntries = desc.histogramCount;
+        input.micromapHistogramEntries = histogram.data();
+        OptixMicromapBufferSizes sizes = {};
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixOpacityMicromapArrayComputeMemoryUsage(m_deviceContext, &input, &sizes),
+            m_device
+        );
+        outSizes->micromapSize = sizes.outputSizeInBytes;
+        outSizes->scratchSize = sizes.tempSizeInBytes;
+        return SLANG_OK;
+    }
+
     virtual Result getClusterOperationSizes(
         const ClusterOperationParams& params,
         ClusterOperationSizes* outSizes
@@ -1261,6 +1339,42 @@ public:
             emittedProperties.empty() ? nullptr : emittedProperties.data(),
             emittedProperties.size()
         ));
+    }
+
+    virtual void buildMicromap(
+        CUstream stream,
+        const MicromapBuildDesc& desc,
+        MicromapImpl* dst,
+        BufferOffsetPair scratchBuffer
+    ) override
+    {
+        if (desc.type != MicromapType::Opacity || !desc.dataBuffer || !desc.descriptorBuffer || !desc.histogram ||
+            desc.histogramCount == 0 || is_set(desc.flags, MicromapBuildFlags::AllowCompaction))
+            return;
+        std::vector<OptixOpacityMicromapHistogramEntry> histogram(desc.histogramCount);
+        for (uint32_t i = 0; i < desc.histogramCount; ++i)
+        {
+            histogram[i].count = desc.histogram[i].count;
+            histogram[i].subdivisionLevel = desc.histogram[i].subdivisionLevel;
+            histogram[i].format = (OptixOpacityMicromapFormat)desc.histogram[i].format;
+        }
+        OptixOpacityMicromapArrayBuildInput input = {};
+        input.flags = 0;
+        if (is_set(desc.flags, MicromapBuildFlags::PreferFastTrace))
+            input.flags |= OPTIX_OPACITY_MICROMAP_FLAG_PREFER_FAST_TRACE;
+        if (is_set(desc.flags, MicromapBuildFlags::PreferFastBuild))
+            input.flags |= OPTIX_OPACITY_MICROMAP_FLAG_PREFER_FAST_BUILD;
+        input.inputBuffer = desc.dataBuffer.getDeviceAddress();
+        input.perMicromapDescBuffer = desc.descriptorBuffer.getDeviceAddress();
+        input.perMicromapDescStrideInBytes = desc.descriptorStride;
+        input.numMicromapHistogramEntries = desc.histogramCount;
+        input.micromapHistogramEntries = histogram.data();
+        OptixMicromapBuffers buffers = {};
+        buffers.output = dst->m_buffer;
+        buffers.outputSizeInBytes = dst->m_desc.size;
+        buffers.temp = scratchBuffer.getDeviceAddress();
+        buffers.tempSizeInBytes = checked_cast<BufferImpl*>(scratchBuffer.buffer)->m_desc.size - scratchBuffer.offset;
+        SLANG_OPTIX_ASSERT_ON_FAIL(optixOpacityMicromapArrayBuild(m_deviceContext, stream, &input, &buffers));
     }
 
     virtual void copyAccelerationStructure(
