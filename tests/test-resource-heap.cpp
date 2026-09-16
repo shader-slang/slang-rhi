@@ -1195,10 +1195,7 @@ static void releaseObject(
     }
 }
 
-GPU_TEST_CASE(
-    "resource-heap-deferred-delete-release-orders",
-    D3D12 | Vulkan | Metal | CUDA | DontCreateDevice
-)
+GPU_TEST_CASE("resource-heap-deferred-delete-release-orders", D3D12 | Vulkan | Metal | CUDA | DontCreateDevice)
 {
     const ReleaseObject releaseOrders[][3] = {
         {ReleaseObject::Resource, ReleaseObject::Heap, ReleaseObject::Device},
@@ -1228,10 +1225,7 @@ GPU_TEST_CASE(
     }
 }
 
-GPU_TEST_CASE(
-    "resource-heap-deferred-delete-shared-heap",
-    D3D12 | Vulkan | Metal | CUDA | DontCreateDevice
-)
+GPU_TEST_CASE("resource-heap-deferred-delete-shared-heap", D3D12 | Vulkan | Metal | CUDA | DontCreateDevice)
 {
     const uint64_t resourceCountBefore = gResourceCount.load();
     device = createTestingDevice(ctx, ctx->deviceType, false);
@@ -1241,8 +1235,7 @@ GPU_TEST_CASE(
     BufferDesc desc = makeCopyBufferDesc(256);
     ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
     const Offset secondOffset = alignUp(requirements.size, requirements.alignment);
-    ComPtr<IResourceHeap> heap =
-        createHeapForRequirements(device, requirements, secondOffset + requirements.size);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements, secondOffset + requirements.size);
     ComPtr<IBuffer> firstBuffer = createPlacedBuffer(device, desc, heap, 0);
     ComPtr<IBuffer> secondBuffer = createPlacedBuffer(device, desc, heap, secondOffset);
 
@@ -1254,10 +1247,7 @@ GPU_TEST_CASE(
     checkReleasedResources(leakedDevice, resourceCountBefore);
 }
 
-GPU_TEST_CASE(
-    "resource-heap-deferred-delete-pending-work",
-    D3D12 | Vulkan | Metal | CUDA | DontCreateDevice
-)
+GPU_TEST_CASE("resource-heap-deferred-delete-pending-work", D3D12 | Vulkan | Metal | CUDA | DontCreateDevice)
 {
     const uint64_t resourceCountBefore = gResourceCount.load();
     device = createTestingDevice(ctx, ctx->deviceType, false);
