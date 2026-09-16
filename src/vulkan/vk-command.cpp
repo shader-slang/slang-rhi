@@ -2036,6 +2036,13 @@ Result CommandQueueImpl::createCommandEncoder(const CommandEncoderDesc& desc, IC
 
 Result CommandQueueImpl::submit(const SubmitDesc& desc)
 {
+    DeviceImpl* device = getDevice<DeviceImpl>();
+
+    // Reclaim ownership of any shared resources previously released to VK_QUEUE_FAMILY_EXTERNAL,
+    // so the user command buffers below observe the external (e.g. CUDA) writes. Recorded as its
+    // own flushAndWait'd submission before the user work, in-order on the same VkQueue.
+    device->acquireSharedFromExternal();
+
     // Increment last submitted ID which is used to track command buffer completion.
     ++m_lastSubmittedID;
 
@@ -2139,6 +2146,9 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
 Result CommandQueueImpl::waitOnHost()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
+    // Release shared resources to VK_QUEUE_FAMILY_EXTERNAL before idling the queue, so that once
+    // this host wait returns an external API (e.g. CUDA) importing the memory may access them.
+    device->releaseSharedToExternal();
     auto& api = device->m_api;
     SLANG_VK_RETURN_ON_FAIL_REPORT(api.vkQueueWaitIdle(m_queue), device);
     retireCommandBuffers();

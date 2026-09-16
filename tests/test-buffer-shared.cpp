@@ -31,14 +31,14 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     ComPtr<IBuffer> srcBuffer;
     REQUIRE_CALL(srcDevice->createBuffer(bufferDesc, (void*)initialData, srcBuffer.writeRef()));
 
+    // Hand the initialized buffer off to the external (CUDA) consumer: waiting on the producer's
+    // queue releases it to VK_QUEUE_FAMILY_EXTERNAL, after which CUDA may import and access it.
+    srcDevice->getQueue(QueueType::Graphics)->waitOnHost();
+
     NativeHandle sharedHandle;
     REQUIRE_CALL(srcBuffer->getSharedHandle(&sharedHandle));
     ComPtr<IBuffer> dstBuffer;
     REQUIRE_CALL(dstDevice->createBufferFromSharedHandle(sharedHandle, bufferDesc, dstBuffer.writeRef()));
-    // Reading back the buffer from srcDevice to make sure it's been filled in before reading anything back from
-    // dstDevice
-    // TODO: Implement actual synchronization (and not this hacky solution)
-    compareComputeResult(srcDevice, srcBuffer, makeArray<float>(0.0f, 1.0f, 2.0f, 3.0f));
 
     const BufferDesc& testDesc = dstBuffer->getDesc();
     CHECK_EQ(testDesc.elementSize, sizeof(float));
@@ -68,5 +68,10 @@ GPU_TEST_CASE("buffer-shared-cuda", D3D12 | Vulkan | DontCreateDevice)
     }
 
     compareComputeResult(dstDevice, dstBuffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
+
+    // Ping-pong back to the producer: reading srcBuffer on srcDevice reclaims ownership from the
+    // external queue family, and the producer must observe CUDA's writes. The host waits on both
+    // queues (CUDA's waitOnHost above and readBuffer's own wait) order the hand-off.
+    compareComputeResult(srcDevice, srcBuffer, makeArray<float>(1.0f, 2.0f, 3.0f, 4.0f));
 }
 #endif

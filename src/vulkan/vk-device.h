@@ -3,6 +3,7 @@
 #include "vk-base.h"
 #include "vk-bindless-descriptor-set.h"
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -258,6 +259,23 @@ public:
 
     uint32_t getQueueFamilyIndex(QueueType queueType);
 
+    // --- Shared-resource queue-family ownership ping-pong (no public API) ---
+    //
+    // Vulkan shared resources are created VK_SHARING_MODE_EXCLUSIVE, so an external API (e.g. CUDA)
+    // importing the underlying memory only observes the producer's writes after a queue-family
+    // ownership transfer (QFOT) to VK_QUEUE_FAMILY_EXTERNAL. These resources ping-pong ownership
+    // driven entirely by the app's existing calls: released to EXTERNAL on waitOnHost(), and
+    // reclaimed by the producer before its next access (its next submit(), or a readBuffer). The
+    // external consumer accesses the memory only after that host wait returns. Register/unregister
+    // track the live shared resources; the release/acquire helpers record the QFOT barriers for
+    // every registered resource in the matching state.
+    void registerSharedBuffer(BufferImpl* buffer);
+    void unregisterSharedBuffer(BufferImpl* buffer);
+    void registerSharedTexture(TextureImpl* texture);
+    void unregisterSharedTexture(TextureImpl* texture);
+    void releaseSharedToExternal();
+    void acquireSharedFromExternal();
+
 public:
     DeviceNativeHandles m_existingDeviceHandles;
 
@@ -291,6 +309,14 @@ public:
     std::vector<CooperativeMatrixDesc> m_cooperativeMatrixFixedProperties;
     std::vector<CooperativeMatrixFlexibleProperty> m_cooperativeMatrixFlexibleProperties;
     RefPtr<CommandQueueImpl> m_queue;
+
+    // Registry of live shared resources whose queue-family ownership ping-pongs with
+    // VK_QUEUE_FAMILY_EXTERNAL. Raw pointers (not RefPtr) so registration does not keep a resource
+    // alive; each entry is removed in the resource's destructor. Guarded by m_sharedResourceMutex,
+    // matching the locking CommandQueueImpl uses for its own tracking lists.
+    std::mutex m_sharedResourceMutex;
+    std::vector<BufferImpl*> m_sharedBuffers;
+    std::vector<TextureImpl*> m_sharedTextures;
 
     DescriptorSetAllocator descriptorSetAllocator;
     RefPtr<BindlessDescriptorSet> m_bindlessDescriptorSet;
