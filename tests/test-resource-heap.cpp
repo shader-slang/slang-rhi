@@ -1,6 +1,8 @@
 #include "testing.h"
 #include "texture-test.h"
 
+#include "../src/device.h"
+
 #if SLANG_RHI_DEBUG
 #include "debug-layer/debug-device.h"
 #endif
@@ -1146,4 +1148,140 @@ GPU_TEST_CASE("resource-heap-explicit-alignment", D3D12 | Vulkan | Metal | CUDA)
     if (handle.type == NativeHandleType::CUdeviceptr)
         CHECK_EQ(handle.value % requestedAlignment, 0);
     CHECK(createPlacedBuffer(device, desc, heap, 0));
+}
+
+static void checkReleasedResources(Device* leakedDevice, uint64_t resourceCountBefore)
+{
+    const uint64_t resourceCountAfter = gResourceCount.load();
+    CHECK_EQ(resourceCountAfter, resourceCountBefore);
+    if (resourceCountAfter != resourceCountBefore)
+    {
+        RefPtr<Device> cleanupDevice = leakedDevice;
+        REQUIRE_CALL(cleanupDevice->setCudaContextCurrent());
+        ComPtr<ICommandQueue> queue;
+        REQUIRE_CALL(cleanupDevice->getQueue(QueueType::Graphics, queue.writeRef()));
+        ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+        REQUIRE_CALL(queue->submit(encoder->finish()));
+        REQUIRE_CALL(queue->waitOnHost());
+    }
+    REQUIRE_EQ(gResourceCount.load(), resourceCountBefore);
+}
+
+enum class ReleaseObject
+{
+    Resource,
+    Heap,
+    Device,
+};
+
+static void releaseObject(
+    ReleaseObject object,
+    ComPtr<IBuffer>& buffer,
+    ComPtr<IResourceHeap>& heap,
+    ComPtr<IDevice>& device
+)
+{
+    switch (object)
+    {
+    case ReleaseObject::Resource:
+        buffer.setNull();
+        break;
+    case ReleaseObject::Heap:
+        heap.setNull();
+        break;
+    case ReleaseObject::Device:
+        device.setNull();
+        break;
+    }
+}
+
+GPU_TEST_CASE(
+    "resource-heap-deferred-delete-release-orders",
+    D3D12 | Vulkan | Metal | CUDA | DontCreateDevice
+)
+{
+    const ReleaseObject releaseOrders[][3] = {
+        {ReleaseObject::Resource, ReleaseObject::Heap, ReleaseObject::Device},
+        {ReleaseObject::Resource, ReleaseObject::Device, ReleaseObject::Heap},
+        {ReleaseObject::Heap, ReleaseObject::Resource, ReleaseObject::Device},
+        {ReleaseObject::Heap, ReleaseObject::Device, ReleaseObject::Resource},
+        {ReleaseObject::Device, ReleaseObject::Resource, ReleaseObject::Heap},
+        {ReleaseObject::Device, ReleaseObject::Heap, ReleaseObject::Resource},
+    };
+
+    for (size_t orderIndex = 0; orderIndex < SLANG_COUNT_OF(releaseOrders); ++orderIndex)
+    {
+        CAPTURE(orderIndex);
+        const uint64_t resourceCountBefore = gResourceCount.load();
+        device = createTestingDevice(ctx, ctx->deviceType, false);
+        REQUIRE(device);
+        Device* leakedDevice = getUnderlyingDevice(device);
+        BufferDesc desc = makeCopyBufferDesc(256);
+        ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+        ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+        ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, 0);
+
+        for (ReleaseObject object : releaseOrders[orderIndex])
+            releaseObject(object, buffer, heap, device);
+
+        checkReleasedResources(leakedDevice, resourceCountBefore);
+    }
+}
+
+GPU_TEST_CASE(
+    "resource-heap-deferred-delete-shared-heap",
+    D3D12 | Vulkan | Metal | CUDA | DontCreateDevice
+)
+{
+    const uint64_t resourceCountBefore = gResourceCount.load();
+    device = createTestingDevice(ctx, ctx->deviceType, false);
+    REQUIRE(device);
+    Device* leakedDevice = getUnderlyingDevice(device);
+
+    BufferDesc desc = makeCopyBufferDesc(256);
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    const Offset secondOffset = alignUp(requirements.size, requirements.alignment);
+    ComPtr<IResourceHeap> heap =
+        createHeapForRequirements(device, requirements, secondOffset + requirements.size);
+    ComPtr<IBuffer> firstBuffer = createPlacedBuffer(device, desc, heap, 0);
+    ComPtr<IBuffer> secondBuffer = createPlacedBuffer(device, desc, heap, secondOffset);
+
+    firstBuffer.setNull();
+    secondBuffer.setNull();
+    heap.setNull();
+    device.setNull();
+
+    checkReleasedResources(leakedDevice, resourceCountBefore);
+}
+
+GPU_TEST_CASE(
+    "resource-heap-deferred-delete-pending-work",
+    D3D12 | Vulkan | Metal | CUDA | DontCreateDevice
+)
+{
+    const uint64_t resourceCountBefore = gResourceCount.load();
+    device = createTestingDevice(ctx, ctx->deviceType, false);
+    REQUIRE(device);
+    Device* leakedDevice = getUnderlyingDevice(device);
+
+    BufferDesc desc = makeCopyBufferDesc(256);
+    ResourceMemoryRequirements requirements = requireBufferMemoryRequirements(device, desc);
+    ComPtr<IResourceHeap> heap = createHeapForRequirements(device, requirements);
+    ComPtr<IBuffer> buffer = createPlacedBuffer(device, desc, heap, 0);
+
+    const uint32_t data = 0x12345678;
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    ComPtr<ICommandEncoder> encoder = queue->createCommandEncoder();
+    REQUIRE_CALL(encoder->uploadBufferData(buffer, 0, sizeof(data), &data));
+    ComPtr<ICommandBuffer> commandBuffer = encoder->finish();
+    encoder.setNull();
+    REQUIRE_CALL(queue->submit(commandBuffer));
+    commandBuffer.setNull();
+
+    buffer.setNull();
+    heap.setNull();
+    queue.setNull();
+    device.setNull();
+
+    checkReleasedResources(leakedDevice, resourceCountBefore);
 }
