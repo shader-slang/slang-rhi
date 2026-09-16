@@ -694,6 +694,48 @@ static Result createStructuralRecordLocalRootSignature(
     return SLANG_OK;
 }
 
+/// Adds the structural Record contract reflected by a selected entry point when the Slang API
+/// exposes that contract. The reflection API can be newer than the released Slang package used to
+/// build slang-rhi, so the dependent requires expression keeps this source compatible with both
+/// versions. An older compiler cannot produce the structural contract consumed by this backend and
+/// therefore retains the legacy shader-table ABI.
+template<typename EntryPointReflection, typename AddRecordInfo>
+Result addSelectedEntryPointRecordInfo(
+    DeviceImpl* device,
+    EntryPointReflection* entryPoint,
+    AddRecordInfo&& addRecordInfo
+)
+{
+    if constexpr (requires(EntryPointReflection* value) {
+                      value->getStructuralRayTracingRecordType();
+                      value->getStructuralRayTracingRecordTypeLayout();
+                      value->getStructuralRayTracingRecordBindingIndex();
+                      value->getStructuralRayTracingRecordBindingSpace();
+                  })
+    {
+        auto recordType = entryPoint->getStructuralRayTracingRecordType();
+        if (!recordType)
+            return SLANG_OK;
+        const char* exportName = entryPoint->getNameOverride();
+        if (!exportName)
+        {
+            device->printError("A selected structural ray-tracing stage has no native export name.\n");
+            return SLANG_FAIL;
+        }
+        return addRecordInfo(
+            exportName,
+            recordType,
+            entryPoint->getStructuralRayTracingRecordTypeLayout(),
+            entryPoint->getStructuralRayTracingRecordBindingIndex(),
+            entryPoint->getStructuralRayTracingRecordBindingSpace()
+        );
+    }
+    else
+    {
+        return SLANG_OK;
+    }
+}
+
 } // namespace
 
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
@@ -889,22 +931,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             auto entryPoint = programLayout->getEntryPointByIndex(i);
             if (!entryPoint)
                 continue;
-            auto recordType = entryPoint->getStructuralRayTracingRecordType();
-            if (!recordType)
-                continue;
-            const char* exportName = entryPoint->getNameOverride();
-            if (!exportName)
-            {
-                printError("A selected structural ray-tracing stage has no native export name.\n");
-                return SLANG_FAIL;
-            }
-            SLANG_RETURN_ON_FAIL(addRecordInfo(
-                exportName,
-                recordType,
-                entryPoint->getStructuralRayTracingRecordTypeLayout(),
-                entryPoint->getStructuralRayTracingRecordBindingIndex(),
-                entryPoint->getStructuralRayTracingRecordBindingSpace()
-            ));
+            SLANG_RETURN_ON_FAIL(addSelectedEntryPointRecordInfo(this, entryPoint, addRecordInfo));
         }
     }
 
