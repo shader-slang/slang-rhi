@@ -84,21 +84,34 @@ Result ShaderProgram::init()
     }
     else
     {
+        // Separate entry-point compilation still requires a linked component for each entry point.
+        // A composite only describes how the global scope and entry point fit together; linking
+        // resolves that description and finalizes the layout and reflection consumed by backends.
         for (uint32_t i = 0; i < m_desc.slangEntryPointCount; i++)
         {
+            ComPtr<slang::IComponentType> entryPointProgram;
             if (m_desc.slangGlobalScope)
             {
-                slang::IComponentType* entryPointComponents[2] = {m_desc.slangGlobalScope, m_desc.slangEntryPoints[i]};
-                ComPtr<slang::IComponentType> linkedEntryPoint;
+                slang::IComponentType* entryPointComponents[2] = {
+                    m_desc.slangGlobalScope,
+                    m_desc.slangEntryPoints[i],
+                };
                 SLANG_RETURN_ON_FAIL(
-                    session->createCompositeComponentType(entryPointComponents, 2, linkedEntryPoint.writeRef())
+                    session->createCompositeComponentType(
+                        entryPointComponents,
+                        2,
+                        entryPointProgram.writeRef()
+                    )
                 );
-                linkedEntryPoints.push_back(linkedEntryPoint);
             }
             else
             {
-                linkedEntryPoints.push_back(ComPtr<slang::IComponentType>(m_desc.slangEntryPoints[i]));
+                entryPointProgram = m_desc.slangEntryPoints[i];
             }
+
+            ComPtr<slang::IComponentType> linkedEntryPoint;
+            SLANG_RETURN_ON_FAIL(entryPointProgram->link(linkedEntryPoint.writeRef()));
+            linkedEntryPoints.push_back(linkedEntryPoint);
         }
         linkedProgram = m_desc.slangGlobalScope;
     }
