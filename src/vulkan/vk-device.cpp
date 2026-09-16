@@ -642,6 +642,7 @@ Result DeviceImpl::initVulkanDevice(
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingMotionBlurFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.rayTracingInvocationReorderFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.accelerationStructureFeatures);
+        EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.opacityMicromapFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.variablePointersFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.computeShaderDerivativesFeatures);
         EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.extendedDynamicStateFeatures);
@@ -890,6 +891,22 @@ Result DeviceImpl::initVulkanDevice(
             deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
             availableFeatures.push_back(Feature::AccelerationStructure);
 
+            const bool hasSynchronization2 = VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_3 ||
+                                             extensionNames.count(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+            if (hasSynchronization2)
+            {
+                SIMPLE_EXTENSION_FEATURE(
+                    extendedFeatures.opacityMicromapFeatures,
+                    micromap,
+                    VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
+                    {
+                        if (VK_MAKE_VERSION(majorVersion, minorVersion, 0) < VK_API_VERSION_1_3)
+                            deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+                        availableFeatures.push_back(Feature::OpacityMicromap);
+                    }
+                );
+            }
+
             // These both depend on VK_KHR_acceleration_structure
 
             SIMPLE_EXTENSION_FEATURE(
@@ -1126,16 +1143,65 @@ Result DeviceImpl::initVulkanDevice(
             }
         );
 
-        SIMPLE_EXTENSION_FEATURE(
-            extendedFeatures.cooperativeMatrix2Features,
-            cooperativeMatrixWorkgroupScope,
-            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME,
+        // VK_NV_cooperative_matrix2 has independent feature bits - one does not imply another - so
+        // each is reported on its own bit and the extension is enabled whenever any exposed bit is
+        // supported. The gate lists exactly the bits mapped to a Feature/Capability below (flexible
+        // dimensions has no SPIR-V capability and is not exposed, so it is not part of the gate). It
+        // also depends on VK_KHR_cooperative_matrix (its capabilities require SPV_KHR_cooperative_matrix),
+        // so it is enabled only when that dependency is also enabled - keeping the enabled-extension
+        // list valid. The queried struct is inserted into the device pNext chain exactly once; a
+        // second insertion would self-link its pNext.
+        {
+            const auto& coopMat2 = extendedFeatures.cooperativeMatrix2Features;
+            const bool anyCoopMat2Feature =
+                coopMat2.cooperativeMatrixWorkgroupScope || coopMat2.cooperativeMatrixReductions ||
+                coopMat2.cooperativeMatrixConversions || coopMat2.cooperativeMatrixPerElementOperations ||
+                coopMat2.cooperativeMatrixTensorAddressing || coopMat2.cooperativeMatrixBlockLoads;
+            // The KHR block above enables VK_KHR_cooperative_matrix under exactly this condition.
+            const bool khrCoopMatrixEnabled = extendedFeatures.cooperativeMatrix1Features.cooperativeMatrix &&
+                                              extensionNames.count(VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME) > 0;
+            if (khrCoopMatrixEnabled && addFeatureExtension(
+                                            anyCoopMat2Feature,
+                                            extendedFeatures.cooperativeMatrix2Features,
+                                            VK_NV_COOPERATIVE_MATRIX_2_EXTENSION_NAME
+                                        ))
             {
-                availableFeatures.push_back(Feature::CooperativeMatrix2);
-                availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
-                availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
+                if (coopMat2.cooperativeMatrixWorkgroupScope)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrix2);
+                    availableCapabilities.push_back(Capability::SPV_NV_cooperative_matrix2);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrix2NV);
+                }
+                if (coopMat2.cooperativeMatrixReductions)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixReductions);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixReductionsNV);
+                }
+                if (coopMat2.cooperativeMatrixConversions)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixConversions);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixConversionsNV);
+                }
+                if (coopMat2.cooperativeMatrixPerElementOperations)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixPerElementOperations);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixPerElementOperationsNV);
+                }
+                if (coopMat2.cooperativeMatrixTensorAddressing)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixTensorAddressing);
+                    // This bit enables both the CooperativeMatrixTensorAddressingNV and the standalone
+                    // TensorAddressingNV SPIR-V capability (TensorView/TensorLayout), so advertise both.
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixTensorAddressingNV);
+                    availableCapabilities.push_back(Capability::spvTensorAddressingNV);
+                }
+                if (coopMat2.cooperativeMatrixBlockLoads)
+                {
+                    availableFeatures.push_back(Feature::CooperativeMatrixBlockLoads);
+                    availableCapabilities.push_back(Capability::spvCooperativeMatrixBlockLoadsNV);
+                }
             }
-        );
+        }
 
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.mutableDescriptorTypeFeatures,
@@ -1446,6 +1512,63 @@ Result DeviceImpl::initVulkanDevice(
         m_calibratedTimestampSupport = {};
     }
 
+#if SLANG_PROCESSOR_ARM_64
+    // Ray tracing pipelines are currently broken on ARM64 lavapipe. Keep feature detection and device
+    // creation unchanged, but do not advertise the affected features or shader capabilities.
+    if (m_api.vkGetPhysicalDeviceProperties2 && (VK_MAKE_VERSION(majorVersion, minorVersion, 0) >= VK_API_VERSION_1_2 ||
+                                                 extensionNames.count(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME)))
+    {
+        VkPhysicalDeviceDriverProperties driverProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+        VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        EXTEND_DESC_CHAIN(props, driverProps);
+        m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &props);
+        if (driverProps.driverID == VK_DRIVER_ID_MESA_LLVMPIPE)
+        {
+            auto remove = [](auto& values, auto value)
+            {
+                values.erase(std::remove(values.begin(), values.end(), value), values.end());
+            };
+
+            for (Feature feature : {
+                     Feature::AccelerationStructure,
+                     Feature::AccelerationStructureSpheres,
+                     Feature::AccelerationStructureLinearSweptSpheres,
+                     Feature::RayTracing,
+                     Feature::RayQuery,
+                     Feature::ShaderExecutionReordering,
+                     Feature::RayTracingMotionBlur,
+                     Feature::RayTracingValidation,
+                     Feature::ClusterAccelerationStructure,
+                 })
+            {
+                remove(availableFeatures, feature);
+            }
+
+            for (Capability capability : {
+                     Capability::SPV_KHR_ray_tracing,
+                     Capability::SPV_KHR_ray_query,
+                     Capability::SPV_KHR_ray_tracing_position_fetch,
+                     Capability::SPV_NV_ray_tracing_motion_blur,
+                     Capability::SPV_NV_shader_invocation_reorder,
+                     Capability::SPV_NV_cluster_acceleration_structure,
+                     Capability::SPV_NV_linear_swept_spheres,
+                     Capability::spvRayTracingMotionBlurNV,
+                     Capability::spvRayTracingKHR,
+                     Capability::spvRayTracingPositionFetchKHR,
+                     Capability::spvRayQueryKHR,
+                     Capability::spvRayQueryPositionFetchKHR,
+                     Capability::spvShaderInvocationReorderNV,
+                     Capability::spirv_nv,
+                     Capability::spvRayTracingClusterAccelerationStructureNV,
+                     Capability::spvRayTracingLinearSweptSpheresGeometryNV,
+                 })
+            {
+                remove(availableCapabilities, capability);
+            }
+        }
+    }
+#endif
+
     return SLANG_OK;
 }
 
@@ -1458,8 +1581,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Process chained descs
     const VulkanDeviceExtendedDesc* extendedDesc = nullptr;
-    for (const DescStructHeader* header = static_cast<const DescStructHeader*>(desc.next); header;
-         header = header->next)
+    for (const ChainedStructHeader* header = static_cast<const ChainedStructHeader*>(desc.next); header;
+         header = static_cast<const ChainedStructHeader*>(header->next))
     {
         switch (header->type)
         {
@@ -1914,6 +2037,24 @@ Result DeviceImpl::getAccelerationStructureSizes(
     return SLANG_OK;
 }
 
+Result DeviceImpl::getMicromapSizes(const MicromapBuildDesc& desc, MicromapSizes* outSizes)
+{
+    if (!m_api.vkGetMicromapBuildSizesEXT)
+        return SLANG_E_NOT_AVAILABLE;
+    MicromapBuildDescConverter converter;
+    SLANG_RETURN_ON_FAIL(converter.convert(desc));
+    VkMicromapBuildSizesInfoEXT info = {VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT};
+    m_api.vkGetMicromapBuildSizesEXT(
+        m_device,
+        VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+        &converter.buildInfo,
+        &info
+    );
+    outSizes->micromapSize = info.micromapSize;
+    outSizes->scratchSize = info.buildScratchSize;
+    return SLANG_OK;
+}
+
 Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params, ClusterOperationSizes* outSizes)
 {
     if (!m_api.vkGetClusterAccelerationStructureBuildSizesNV)
@@ -1981,6 +2122,26 @@ Result DeviceImpl::createAccelerationStructure(
         this
     );
     returnComPtr(outAccelerationStructure, result);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::createMicromap(const MicromapDesc& desc, IMicromap** outMicromap)
+{
+    if (!m_api.vkCreateMicromapEXT)
+        return SLANG_E_NOT_AVAILABLE;
+    RefPtr<MicromapImpl> result = new MicromapImpl(this, desc);
+    BufferDesc bufferDesc = {};
+    bufferDesc.size = desc.size;
+    bufferDesc.memoryType = MemoryType::DeviceLocal;
+    bufferDesc.usage = BufferUsage::MicromapStorage;
+    bufferDesc.defaultState = ResourceState::MicromapRead;
+    SLANG_RETURN_ON_FAIL(createBuffer(bufferDesc, nullptr, (IBuffer**)result->m_buffer.writeRef()));
+    VkMicromapCreateInfoEXT createInfo = {VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT};
+    createInfo.buffer = result->m_buffer->m_buffer.m_buffer;
+    createInfo.size = desc.size;
+    createInfo.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
+    SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateMicromapEXT(m_device, &createInfo, nullptr, &result->m_vkHandle));
+    returnComPtr(outMicromap, result);
     return SLANG_OK;
 }
 
@@ -2190,15 +2351,21 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
 
 Result DeviceImpl::getTextureRowAlignment(Format format, Size* outAlignment)
 {
+    Size blockSize = getFormatInfo(format).blockSizeInBytes;
+    if (blockSize == 0)
+        blockSize = 1;
+
     switch (format)
     {
     case Format::D16Unorm:
     case Format::D32Float:
     case Format::D32FloatS8Uint:
-        *outAlignment = 4;
+        *outAlignment = math::calcAligned(4, blockSize);
         break;
     default:
-        *outAlignment = 1;
+        // VkBufferImageCopy expresses bufferRowLength in texels, so the byte
+        // row pitch must represent a whole number of format blocks.
+        *outAlignment = blockSize;
         break;
     }
     return SLANG_OK;

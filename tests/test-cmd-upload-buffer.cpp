@@ -7,18 +7,9 @@
 #include <random>
 
 #include "rhi-shared.h"
-#include "debug-layer/debug-device.h"
 
 using namespace rhi;
 using namespace rhi::testing;
-
-Device* getSharedDevice(IDevice* device)
-{
-    if (auto debugDevice = dynamic_cast<debug::DebugDevice*>(device))
-        return (Device*)debugDevice->baseObject.get();
-    else
-        return (Device*)device;
-}
 
 struct UploadData
 {
@@ -63,7 +54,7 @@ void testUploadToBuffer(IDevice* device, Size size, Offset offset, int tests, bo
     // Ensure any previous operations have finished so we can safely check heap usage.
     device->getQueue(QueueType::Graphics)->waitOnHost();
 
-    StagingHeap& heap = getSharedDevice(device)->m_uploadHeap;
+    StagingHeap& heap = getUnderlyingDevice(device)->m_uploadHeap;
     CHECK_EQ(heap.getUsed(), 0);
 
     std::vector<UploadData> uploads(tests);

@@ -39,6 +39,7 @@
     x(SetRayTracingState) \
     x(DispatchRays) \
     x(BuildAccelerationStructure) \
+    x(BuildMicromap) \
     x(CopyAccelerationStructure) \
     x(QueryAccelerationStructureProperties) \
     x(ExecuteClusterOperation) \
@@ -260,6 +261,13 @@ struct BuildAccelerationStructure
     const AccelerationStructureQueryDesc* queryDescs;
 };
 
+struct BuildMicromap
+{
+    MicromapBuildDesc desc;
+    IMicromap* dst;
+    BufferOffsetPair scratchBuffer;
+};
+
 struct CopyAccelerationStructure
 {
     IAccelerationStructure* dst;
@@ -441,6 +449,7 @@ public:
     void write(commands::SetRayTracingState&& cmd);
     void write(commands::DispatchRays&& cmd);
     void write(commands::BuildAccelerationStructure&& cmd);
+    void write(commands::BuildMicromap&& cmd);
     void write(commands::CopyAccelerationStructure&& cmd);
     void write(commands::QueryAccelerationStructureProperties&& cmd);
     void write(commands::ExecuteClusterOperation&& cmd);

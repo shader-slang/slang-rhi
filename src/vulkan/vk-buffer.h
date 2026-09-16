@@ -62,7 +62,6 @@ public:
 
 public:
     VKBufferHandleRAII m_buffer;
-    VKBufferHandleRAII m_uploadBuffer;
     DeviceAddress m_deviceAddress = 0;
 
     struct ViewKey

@@ -166,7 +166,8 @@ public:
         double totalTime,
         double downstreamTime,
         bool isCached,
-        size_t cacheSize
+        size_t cacheSize,
+        ISlangBlob* cacheKey
     );
 
     void reportCreatePipeline(
@@ -175,7 +176,8 @@ public:
         TimePoint startTime,
         TimePoint endTime,
         bool isCached,
-        size_t cacheSize
+        size_t cacheSize,
+        ISlangBlob* cacheKey
     );
 
     Result getCompilationReport(ShaderProgram* program, ISlangBlob** outReportBlob);

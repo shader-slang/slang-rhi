@@ -267,6 +267,10 @@ protected:
     x(vkDestroyAccelerationStructureKHR) \
     x(vkGetAccelerationStructureBuildSizesKHR) \
     x(vkGetAccelerationStructureDeviceAddressKHR) \
+    x(vkCreateMicromapEXT) \
+    x(vkDestroyMicromapEXT) \
+    x(vkCmdBuildMicromapsEXT) \
+    x(vkGetMicromapBuildSizesEXT) \
     x(vkCmdBuildClusterAccelerationStructureIndirectNV) \
     x(vkGetClusterAccelerationStructureBuildSizesNV) \
     x(vkGetSemaphoreCounterValue) \
@@ -346,6 +350,10 @@ struct VulkanExtendedFeatures
     // Acceleration structure features
     VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
+    };
+
+    VkPhysicalDeviceOpacityMicromapFeaturesEXT opacityMicromapFeatures = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPACITY_MICROMAP_FEATURES_EXT
     };
 
     // Ray tracing pipeline features

@@ -33,12 +33,25 @@ class Device;
 class CommandEncoder;
 class CommandList;
 
-/// Common header for Desc struct types.
-struct DescStructHeader
+/// Common prefix for structures linked through a `next` chain.
+struct ChainedStructHeader
 {
     StructType type;
-    DescStructHeader* next;
+    const void* next;
 };
+
+/// Finds the first structure of type `T` in a `next` chain, or returns null.
+template<typename T>
+const T* findStructInChain(const void* chain)
+{
+    for (auto* header = static_cast<const ChainedStructHeader*>(chain); header;
+         header = static_cast<const ChainedStructHeader*>(header->next))
+    {
+        if (header->type == T::kStructType)
+            return reinterpret_cast<const T*>(header);
+    }
+    return nullptr;
+}
 
 class Fence : public IFence, public DeviceChild
 {
@@ -232,6 +245,23 @@ public:
 
 public:
     AccelerationStructureDesc m_desc;
+    StructHolder m_descHolder;
+};
+
+class Micromap : public IMicromap, public Resource
+{
+public:
+    SLANG_COM_OBJECT_IUNKNOWN_ALL
+    IMicromap* getInterface(const Guid& guid);
+
+public:
+    Micromap(Device* device, const MicromapDesc& desc);
+
+    // IMicromap interface
+    virtual SLANG_NO_THROW const MicromapDesc& SLANG_MCALL getDesc() override { return m_desc; }
+
+public:
+    MicromapDesc m_desc;
     StructHolder m_descHolder;
 };
 

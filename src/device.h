@@ -20,6 +20,7 @@
 namespace rhi {
 
 // Forward declarations
+class Device;
 class Heap;
 struct EntryPointCompilationStats;
 
@@ -28,6 +29,8 @@ namespace testing {
 extern bool gDebugDisableStateTracking;
 // Counter for tracking active Resource instances (for testing deferred delete)
 extern std::atomic<uint64_t> gResourceCount;
+// Returns the underlying device implementation, unwrapping the debug layer when enabled.
+Device* getUnderlyingDevice(IDevice* device);
 // Returns the number of entries in the device's shader object layout cache.
 // Accepts either a device or its debug-layer wrapper.
 size_t getShaderObjectLayoutCacheSize(IDevice* device);
@@ -256,6 +259,11 @@ public:
         AccelerationStructureSizes* outSizes
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMicromapSizes(
+        const MicromapBuildDesc& desc,
+        MicromapSizes* outSizes
+    ) override;
+
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms
     // without cluster acceleration support.
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
@@ -268,6 +276,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMicromap(
+        const MicromapDesc& desc,
+        IMicromap** outMicromap
     ) override;
 
     // Provides a default implementation that returns SLANG_E_NOT_AVAILABLE for platforms

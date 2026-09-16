@@ -229,12 +229,15 @@ Result ShaderObjectLayoutImpl::Builder::setElementTypeLayout(slang::TypeLayoutRe
         // know the appropraite type/layout of sub-object to allocate.
         //
         RefPtr<ShaderObjectLayoutImpl> subObjectLayout;
-        createForElementType(
-            m_device,
-            m_session,
-            slangLeafTypeLayout->getElementTypeLayout(),
-            subObjectLayout.writeRef()
-        );
+        if (slangBindingType != slang::BindingType::ExistentialValue)
+        {
+            createForElementType(
+                m_device,
+                m_session,
+                slangLeafTypeLayout->getElementTypeLayout(),
+                subObjectLayout.writeRef()
+            );
+        }
 
         SubObjectRangeInfo subObjectRange;
         subObjectRange.bindingRangeIndex = bindingRangeIndex;

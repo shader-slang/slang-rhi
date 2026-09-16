@@ -65,6 +65,10 @@ public:
         const void* initData,
         IBuffer** outBuffer
     ) override;
+
+    /// Stage and submit initialization data for a newly created buffer.
+    Result uploadBufferInitData(IBuffer* buffer, Offset offset, Size size, const void* data);
+
     virtual SLANG_NO_THROW Result SLANG_MCALL createBufferFromNativeHandle(
         NativeHandle handle,
         const BufferDesc& desc,
@@ -137,6 +141,11 @@ public:
         AccelerationStructureSizes* outSizes
     ) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL getMicromapSizes(
+        const MicromapBuildDesc& desc,
+        MicromapSizes* outSizes
+    ) override;
+
     virtual SLANG_NO_THROW Result SLANG_MCALL getClusterOperationSizes(
         const ClusterOperationParams& params,
         ClusterOperationSizes* outSizes
@@ -145,6 +154,11 @@ public:
     virtual SLANG_NO_THROW Result SLANG_MCALL createAccelerationStructure(
         const AccelerationStructureDesc& desc,
         IAccelerationStructure** outAccelerationStructure
+    ) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createMicromap(
+        const MicromapDesc& desc,
+        IMicromap** outMicromap
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getTextureAllocationInfo(

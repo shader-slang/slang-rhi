@@ -2,6 +2,8 @@
 
 #include "vk-base.h"
 
+#include <vector>
+
 namespace rhi::vk {
 
 struct VulkanDeviceQueue
@@ -25,6 +27,16 @@ struct VulkanDeviceQueue
     void flush();
     /// Performs a full flush, and then waits for idle.
     void flushAndWait();
+
+    /// Retain an object until the commands currently being recorded have completed.
+    void retainResource(RefObject* resource);
+
+    /// Release resources associated with completed submissions without blocking.
+    void retireCompleted();
+
+    /// Release retained resources associated with completed submissions without
+    /// polling fence slots that do not retain resources.
+    void retireCompletedResources();
 
     /// Blocks until all work submitted to GPU has completed
     void waitForIdle() { m_api->vkQueueWaitIdle(m_queue); }
@@ -69,9 +81,10 @@ struct VulkanDeviceQueue
 protected:
     struct FenceInfo
     {
-        VkFence fence;
-        bool active;
-        uint64_t value;
+        VkFence fence = VK_NULL_HANDLE;
+        bool active = false;
+        uint64_t value = 0;
+        std::vector<RefPtr<RefObject>> retainedResources;
     };
 
     void _updateFenceAtIndex(int fenceIndex, bool blocking);
@@ -84,7 +97,7 @@ protected:
     VkCommandPool m_commandPools[kMaxCommandBuffers] = {VK_NULL_HANDLE};
     VkCommandBuffer m_commandBuffers[kMaxCommandBuffers] = {VK_NULL_HANDLE};
 
-    FenceInfo m_fences[kMaxCommandBuffers] = {{VK_NULL_HANDLE, 0, 0u}};
+    FenceInfo m_fences[kMaxCommandBuffers];
 
     VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
@@ -93,6 +106,7 @@ protected:
 
     uint64_t m_lastFenceCompleted = 1;
     uint64_t m_nextFenceValue = 2;
+    int m_pendingResourceRetirements = 0;
 
     int m_queueIndex = 0;
 

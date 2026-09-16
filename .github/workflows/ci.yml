@@ -40,22 +40,23 @@ jobs:
           - { os: macos, compiler: gcc }
         include:
           # Builds running on self-hosted runners (build + tests)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { labels: [Windows, X64, nvrgfx-kernelvm-bridge] } }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: { labels: [Windows, X64, nvrgfx-kernelvm-bridge] } }
-          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
-          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
+          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", required_devices: "d3d11,d3d12,vulkan,cpu,cuda,wgpu", runs-on: { labels: [Windows, X64, nvrgfx-kernelvm-bridge] } }
+          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", required_devices: "d3d11,d3d12,vulkan,cpu,cuda,wgpu", runs-on: { labels: [Windows, X64, nvrgfx-kernelvm-bridge] } }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Debug", flags: "unit-test,coverage", required_devices: "vulkan,cuda,wgpu", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
+          - { os: linux, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", required_devices: "vulkan,cuda,wgpu", runs-on: { labels: [Linux, X64, nvrgfx-kernelvm-bridge] } }
           # Builds running on GitHub hosted runners (build + tests)
-          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", runs-on: macos-latest }
-          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", runs-on: macos-latest }
+          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Debug", flags: "unit-test,coverage", required_devices: "metal,cpu,wgpu", runs-on: macos-latest }
+          - { os: macos, platform: "aarch64", compiler: clang, preset: default, config: "Release", flags: "unit-test", required_devices: "metal,cpu,wgpu", runs-on: macos-latest }
           # Builds running on GitHub hosted runners (build + tests on WARP)
-          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", runs-on: windows-latest }
-          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", runs-on: windows-latest }
-          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", runs-on: windows-11-arm }
+          - { os: windows, platform: "x86_64", compiler: clang, preset: clang, config: "Release", flags: "unit-test", required_devices: "d3d11,d3d12,cpu", runs-on: windows-latest }
+          - { os: windows, platform: "x86_64", compiler: msvc, preset: default, config: "Debug", flags: "unit-test", required_devices: "d3d11,d3d12,cpu", runs-on: windows-latest }
+          - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Release", flags: "unit-test", required_devices: "d3d11,d3d12", runs-on: windows-11-arm }
           # Raytracing tests are flakey on aarch64/Debug builds, so tests are currently disabled
           - { os: windows, platform: "aarch64", compiler: msvc, preset: default, config: "Debug", flags: "", runs-on: windows-11-arm }
+          # Builds running on GitHub hosted runners (build + tests on lavapipe)
+          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, flags: "unit-test,lavapipe", required_devices: "vulkan,wgpu", runs-on: ubuntu-latest }
+          - { os: linux, platform: "aarch64", compiler: clang, preset: clang, flags: "unit-test,lavapipe", required_devices: "vulkan,wgpu", runs-on: ubuntu-24.04-arm }
           # Builds running on GitHub hosted runners (build only)
-          - { os: linux, platform: "x86_64", compiler: gcc, preset: gcc, runs-on: ubuntu-latest }
-          - { os: linux, platform: "aarch64", compiler: clang, preset: clang, runs-on: ubuntu-24.04-arm }
           - { os: linux, platform: "aarch64", compiler: gcc, preset: gcc, runs-on: ubuntu-24.04-arm }
           # Emscripten builds (build only, no tests)
           - { os: linux, platform: "x86_64", compiler: emscripten, preset: emscripten, config: "Debug", runs-on: ubuntu-latest }
@@ -69,8 +70,12 @@ jobs:
           submodules: 'recursive'
 
       - name: Setup Linux
-        if: matrix.os == 'linux' && contains(matrix.runs-on, 'ubuntu-')
+        if: matrix.os == 'linux' && contains(matrix.runs-on, 'ubuntu-') && !contains(matrix.flags, 'lavapipe')
         run: sudo apt-get update && sudo apt-get install -y xorg-dev
+
+      - name: Setup lavapipe
+        if: contains(matrix.flags, 'lavapipe')
+        uses: ./.github/actions/setup-lavapipe
 
       - name: Setup MSVC
         if: runner.os == 'Windows'
@@ -97,17 +102,17 @@ jobs:
 
       - name: Unit Tests
         if: contains(matrix.flags, 'unit-test')
-        run: ./slang-rhi-tests -check-devices
+        run: ./slang-rhi-tests -check-devices "-require-devices=${{ matrix.required_devices }}"
         working-directory: build/${{matrix.config}}
 
       - name: Unit Tests (OptiX 8.0)
-        if: contains(matrix.flags, 'unit-test')
-        run: ./slang-rhi-tests -tc="ray-tracing*.cuda" -check-devices -optix-version=80000
+        if: contains(matrix.flags, 'unit-test') && contains(matrix.required_devices, 'cuda')
+        run: ./slang-rhi-tests -tc="ray-tracing*.cuda" -check-devices -require-devices=cuda -optix-version=80000
         working-directory: build/${{matrix.config}}
 
       - name: Unit Tests (OptiX 8.1)
-        if: contains(matrix.flags, 'unit-test')
-        run: ./slang-rhi-tests -tc="ray-tracing*.cuda" -check-devices -optix-version=80100
+        if: contains(matrix.flags, 'unit-test') && contains(matrix.required_devices, 'cuda')
+        run: ./slang-rhi-tests -tc="ray-tracing*.cuda" -check-devices -require-devices=cuda -optix-version=80100
         working-directory: build/${{matrix.config}}
 
       - name: Coverage Report

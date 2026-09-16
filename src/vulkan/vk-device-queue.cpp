@@ -11,6 +11,12 @@ void VulkanDeviceQueue::destroy()
 {
     if (m_api)
     {
+        for (int i = 0; i < m_numCommandBuffers; ++i)
+        {
+            m_fences[i].retainedResources.clear();
+        }
+        m_pendingResourceRetirements = 0;
+
         for (int i = 0; i < int(EventType::CountOf); ++i)
         {
             m_api->vkDestroySemaphore(m_api->m_device, m_semaphores[i], nullptr);
@@ -147,7 +153,43 @@ void VulkanDeviceQueue::_updateFenceAtIndex(int fenceIndex, bool blocking)
             {
                 m_lastFenceCompleted = fence.value;
             }
+
+            if (!fence.retainedResources.empty())
+            {
+                fence.retainedResources.clear();
+                SLANG_RHI_ASSERT(m_pendingResourceRetirements > 0);
+                --m_pendingResourceRetirements;
+            }
         }
+    }
+}
+
+void VulkanDeviceQueue::retainResource(RefObject* resource)
+{
+    SLANG_RHI_ASSERT(resource);
+    auto& retainedResources = m_fences[m_commandBufferIndex].retainedResources;
+    if (retainedResources.empty())
+        ++m_pendingResourceRetirements;
+    retainedResources.push_back(resource);
+}
+
+void VulkanDeviceQueue::retireCompleted()
+{
+    for (int i = 0; i < m_numCommandBuffers; ++i)
+    {
+        _updateFenceAtIndex(i, false);
+    }
+}
+
+void VulkanDeviceQueue::retireCompletedResources()
+{
+    if (m_pendingResourceRetirements == 0)
+        return;
+
+    for (int i = 0; i < m_numCommandBuffers; ++i)
+    {
+        if (!m_fences[i].retainedResources.empty())
+            _updateFenceAtIndex(i, false);
     }
 }
 
@@ -158,10 +200,7 @@ void VulkanDeviceQueue::flushStepB()
     m_commandPool = m_commandPools[m_commandBufferIndex];
 
     // non-blocking update of fence values
-    for (int i = 0; i < m_numCommandBuffers; ++i)
-    {
-        _updateFenceAtIndex(i, false);
-    }
+    retireCompleted();
 
     // blocking update of fence values
     _updateFenceAtIndex(m_commandBufferIndex, true);
@@ -185,6 +224,7 @@ void VulkanDeviceQueue::flushAndWait()
 {
     flush();
     waitForIdle();
+    retireCompleted();
 }
 
 VkSemaphore VulkanDeviceQueue::getSemaphore(EventType eventType)

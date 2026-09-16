@@ -128,7 +128,7 @@ Result calcSubresourceRegionLayout(
 
     size_t rowSize = math::divideRoundedUp(extent.width, formatInfo.blockWidth) * formatInfo.blockSizeInBytes;
     size_t rowCount = math::divideRoundedUp(extent.height, formatInfo.blockHeight);
-    size_t rowPitch = math::calcAligned2(rowSize, rowAlignment);
+    size_t rowPitch = math::calcAligned(rowSize, rowAlignment);
     size_t layerPitch = rowPitch * rowCount;
 
     outLayout->size = extent;
@@ -312,6 +312,24 @@ Result AccelerationStructure::getDescriptorHandle(DescriptorHandle* outHandle)
 {
     *outHandle = {};
     return SLANG_E_NOT_AVAILABLE;
+}
+
+// ----------------------------------------------------------------------------
+// Micromap
+// ----------------------------------------------------------------------------
+
+IMicromap* Micromap::getInterface(const Guid& guid)
+{
+    if (guid == ISlangUnknown::getTypeGuid() || guid == IResource::getTypeGuid() || guid == IMicromap::getTypeGuid())
+        return static_cast<IMicromap*>(this);
+    return nullptr;
+}
+
+Micromap::Micromap(Device* device, const MicromapDesc& desc)
+    : Resource(device)
+    , m_desc(desc)
+{
+    m_descHolder.holdString(m_desc.label);
 }
 
 // ----------------------------------------------------------------------------

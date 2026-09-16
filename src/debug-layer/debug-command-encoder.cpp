@@ -1589,6 +1589,24 @@ void DebugCommandEncoder::buildAccelerationStructure(
     baseObject->buildAccelerationStructure(desc, dst, src, scratchBuffer, propertyQueryCount, innerQueryDescs.data());
 }
 
+void DebugCommandEncoder::buildMicromap(const MicromapBuildDesc& desc, IMicromap* dst, BufferOffsetPair scratchBuffer)
+{
+    SLANG_RHI_DEBUG_API(ICommandEncoder, buildMicromap);
+    requireOpen();
+    requireNoPass();
+    if (!dst || !scratchBuffer.buffer)
+    {
+        RHI_VALIDATION_ERROR("Micromap destination and scratch buffer must be provided.");
+        return;
+    }
+    if (!desc.dataBuffer.buffer || !desc.descriptorBuffer.buffer || !desc.histogram || desc.histogramCount == 0)
+    {
+        RHI_VALIDATION_ERROR("Micromap build data, descriptors, and histogram must be provided.");
+        return;
+    }
+    baseObject->buildMicromap(desc, dst, scratchBuffer);
+}
+
 void DebugCommandEncoder::copyAccelerationStructure(
     IAccelerationStructure* dst,
     IAccelerationStructure* src,
