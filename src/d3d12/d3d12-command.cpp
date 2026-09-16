@@ -1166,6 +1166,10 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
             return;
         }
         requireBufferState(shaderTablePipelineData->buffer, ResourceState::ShaderResource);
+        if (shaderTablePipelineData->structuralRecordBuffer)
+        {
+            requireBufferState(shaderTablePipelineData->structuralRecordBuffer, ResourceState::ConstantBuffer);
+        }
         DeviceAddress shaderTableAddr = shaderTablePipelineData->buffer->getDeviceAddress();
 
         m_dispatchRaysDesc = {};

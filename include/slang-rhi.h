@@ -2199,12 +2199,15 @@ struct ShaderRecordOverwrite
 
 /// Application-defined data stored in a shader-table record.
 ///
-/// The bytes are copied verbatim immediately after the backend-specific shader identifier or native
-/// record header. They are not reflected or marshaled, so the application must encode the target
-/// shader-record or local-root-data ABI, including any required padding. The backend rejects
-/// records whose aligned native stride exceeds its API limit. `createShaderTable` makes an owned
-/// copy, so the source data only needs to remain valid for the duration of that call. If `size` is
-/// nonzero, `data` must point to at least `size` bytes.
+/// For an entry with a compiler-declared structural `Record`, the bytes use that Record's reflected
+/// target layout. A backend may place them in owned storage and put a native address in the shader
+/// table. Otherwise, the bytes are copied verbatim immediately after the backend-specific shader
+/// identifier or native record header, and the application must encode the target local-root-data
+/// ABI, including padding. This raw behavior also applies when a D3D12 hit group only inherits a
+/// compatible local root signature from another group through a shared stage.
+///
+/// `createShaderTable` makes an owned copy, so the source data only needs to remain valid for the
+/// duration of that call. If `size` is nonzero, `data` must point to at least `size` bytes.
 struct ShaderRecordData
 {
     const void* data = nullptr;
@@ -2235,11 +2238,14 @@ struct ShaderTableDesc
 
     IShaderProgram* program = nullptr;
 
-    /// Optional raw application data for miss, hit-group, and callable shader records. Each
+    /// Optional application data for miss, hit-group, and callable shader records. Each
     /// non-null array must contain the same number of elements as its corresponding shader or
     /// hit-group array and only needs to remain valid during `createShaderTable`. A legacy overwrite
-    /// uses an absolute offset from the start of the native record and is applied after these bytes,
-    /// so it takes precedence wherever the two ranges overlap.
+    /// uses an absolute offset from the start of the native record and takes precedence over raw
+    /// inline application data wherever their ranges overlap. A backend may reject an overwrite for
+    /// an entry that has its own compiler-declared structural `Record`, because such data has
+    /// semantic target layout and may live in backend-owned storage instead of inline in the native
+    /// shader record. D3D12 uses this out-of-line representation and rejects that combination.
     const ShaderRecordData* missShaderRecordData = nullptr;
     const ShaderRecordData* hitGroupRecordData = nullptr;
     const ShaderRecordData* callableShaderRecordData = nullptr;
