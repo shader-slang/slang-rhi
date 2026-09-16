@@ -1563,7 +1563,6 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
                 getPlacedResourceInitialState(desc.memoryType, texture->m_defaultState),
                 clearValuePtr
             ));
-            texture->m_resourceHeap = heap;
             texture->setPlacement(heap, placement->offset, requirements);
         }
         else
@@ -1695,7 +1694,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             buffer->m_resource
                 .initPlaced(m_device, heap->m_heap, placement->offset, bufferDesc, placedInitialState, nullptr)
         );
-        buffer->m_resourceHeap = heap;
         buffer->setPlacement(heap, placement->offset, requirements);
 
         if (initData)

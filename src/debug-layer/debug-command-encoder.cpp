@@ -1904,7 +1904,7 @@ void DebugCommandEncoder::aliasResources(IResource* before, IResource* after)
         RHI_VALIDATION_ERROR("'after' must be a placed buffer or texture.");
         return;
     }
-    ResourceHeap* heap = afterResource->m_placementHeap.get();
+    ResourceHeap* heap = afterResource->m_placementHeap;
     if (!heap->isCompatible(afterResource->m_placementRequirements))
     {
         RHI_VALIDATION_ERROR("'after' is not compatible with its resource heap.");
@@ -1924,7 +1924,7 @@ void DebugCommandEncoder::aliasResources(IResource* before, IResource* after)
             RHI_VALIDATION_ERROR("'before' and 'after' must belong to the same device.");
             return;
         }
-        if (beforeResource->m_placementHeap.get() != afterResource->m_placementHeap.get())
+        if (beforeResource->m_placementHeap != afterResource->m_placementHeap)
         {
             RHI_VALIDATION_ERROR("'before' and 'after' must refer to the same resource heap.");
             return;

@@ -81,10 +81,18 @@ public:
         ++testing::gResourceCount;
     }
 
-    virtual ~Resource() { --testing::gResourceCount; }
+    virtual ~Resource()
+    {
+        if (m_placementHeap)
+            m_placementHeap->releaseInternalReference();
+        --testing::gResourceCount;
+    }
 
     void setPlacement(ResourceHeap* heap, Offset offset, const ResourceMemoryRequirements& requirements)
     {
+        SLANG_RHI_ASSERT(heap);
+        SLANG_RHI_ASSERT(!m_placementHeap);
+        heap->addInternalReference();
         m_placementHeap = heap;
         m_placementOffset = offset;
         m_placementRequirements = requirements;
@@ -93,7 +101,7 @@ public:
 
     bool isPlaced() const { return m_placementHeap != nullptr; }
 
-    RefPtr<ResourceHeap> m_placementHeap;
+    ResourceHeap* m_placementHeap = nullptr;
     Offset m_placementOffset = 0;
     ResourceMemoryRequirements m_placementRequirements = {};
 };

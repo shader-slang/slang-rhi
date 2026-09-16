@@ -54,12 +54,16 @@ namespace rhi {
 class SLANG_RHI_API RefObject
 {
 private:
-    // Total number of references to this object.
-    std::atomic<uint32_t> referenceCount;
-    // Number references that are internal (i.e., not externally visible).
-    // This can be used to detect whether the object is currently externally referenced or not.
-    // For more details, see the comments in `setInternalReferenceCount()`.
-    std::atomic<uint32_t> internalReferenceCount;
+    // The low 32 bits store the total reference count and the high 32 bits store the internal
+    // reference count. Keeping both counts in one atomic state makes transitions between internal
+    // and external ownership race-free.
+    std::atomic<uint64_t> referenceCounts;
+
+    static constexpr uint64_t kInternalReference = uint64_t(1) << 32;
+    static constexpr uint64_t kReferenceCountMask = kInternalReference - 1;
+
+    static uint32_t getReferenceCount(uint64_t counts) { return uint32_t(counts & kReferenceCountMask); }
+    static uint32_t getInternalReferenceCount(uint64_t counts) { return uint32_t(counts >> 32); }
 
 #if SLANG_RHI_DEBUG
     // Track the number of RefObject instances.
@@ -68,8 +72,7 @@ private:
 
 public:
     RefObject()
-        : referenceCount(0)
-        , internalReferenceCount(0)
+        : referenceCounts(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
 #if SLANG_RHI_DEBUG
@@ -78,8 +81,7 @@ public:
     }
 
     RefObject(const RefObject&)
-        : referenceCount(0)
-        , internalReferenceCount(0)
+        : referenceCounts(0)
     {
         SLANG_RHI_TRACK_OBJECT(this);
 #if SLANG_RHI_DEBUG
@@ -99,8 +101,10 @@ public:
 
     uint32_t addReference()
     {
-        uint32_t count = referenceCount.fetch_add(1);
-        uint32_t internalCount = internalReferenceCount.load();
+        uint64_t counts = referenceCounts.fetch_add(1);
+        uint32_t count = getReferenceCount(counts);
+        uint32_t internalCount = getInternalReferenceCount(counts);
+        SLANG_RHI_ASSERT(count < UINT32_MAX);
         if (internalCount > 0 && count == internalCount) [[unlikely]]
         {
             // Object is now externally referenced
@@ -111,9 +115,10 @@ public:
 
     uint32_t releaseReference()
     {
-        uint32_t count = referenceCount.fetch_sub(1);
+        uint64_t counts = referenceCounts.fetch_sub(1);
+        uint32_t count = getReferenceCount(counts);
+        uint32_t internalCount = getInternalReferenceCount(counts);
         SLANG_RHI_ASSERT(count > 0);
-        uint32_t internalCount = internalReferenceCount.load();
         if (internalCount > 0 && count == internalCount + 1) [[unlikely]]
         {
             // Object is now internally referenced only
@@ -128,6 +133,31 @@ public:
         return count - 1;
     }
 
+    uint32_t addInternalReference()
+    {
+        uint64_t counts = referenceCounts.fetch_add(kInternalReference + 1);
+        uint32_t count = getReferenceCount(counts);
+        uint32_t internalCount = getInternalReferenceCount(counts);
+        SLANG_RHI_ASSERT(count < UINT32_MAX);
+        SLANG_RHI_ASSERT(internalCount < UINT32_MAX);
+        SLANG_RHI_ASSERT(count > internalCount);
+        return count + 1;
+    }
+
+    uint32_t releaseInternalReference()
+    {
+        uint64_t counts = referenceCounts.fetch_sub(kInternalReference + 1);
+        uint32_t count = getReferenceCount(counts);
+        uint32_t internalCount = getInternalReferenceCount(counts);
+        SLANG_RHI_ASSERT(count > 0);
+        SLANG_RHI_ASSERT(internalCount > 0);
+        if (count == 1) [[unlikely]]
+        {
+            deleteThis();
+        }
+        return count - 1;
+    }
+
     // Set the number of references that are internal.
     // When the reference count becomes equal or smaller to this value,
     // the object is considered to be internally referenced and `makeInternal()` is called.
@@ -137,23 +167,25 @@ public:
     // is initially created).
     void setInternalReferenceCount(uint32_t count)
     {
-        uint32_t currentCount = referenceCount.load();
+        uint64_t oldCounts = referenceCounts.load();
+        uint32_t currentCount = getReferenceCount(oldCounts);
+        uint32_t oldInternalCount = getInternalReferenceCount(oldCounts);
         SLANG_RHI_ASSERT(count <= currentCount);
-        internalReferenceCount.store(count);
-        if (count == 0 && currentCount > 0)
+        referenceCounts.store((uint64_t(count) << 32) | currentCount);
+        if (oldInternalCount == currentCount && count < currentCount)
         {
             // Object is now externally referenced
             makeExternal();
         }
-        else if (count > 0 && currentCount == count)
+        else if (oldInternalCount < currentCount && count == currentCount)
         {
             // Object is now internally referenced
             makeInternal();
         }
     }
 
-    uint64_t getReferenceCount() const { return referenceCount; }
-    uint64_t getInternalReferenceCount() const { return internalReferenceCount; }
+    uint64_t getReferenceCount() const { return getReferenceCount(referenceCounts.load()); }
+    uint64_t getInternalReferenceCount() const { return getInternalReferenceCount(referenceCounts.load()); }
 
     virtual void makeExternal() {}
     virtual void makeInternal() {}

@@ -460,8 +460,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             buffer->m_buffer
                 .initPlaced(m_api, desc.size, usage, heap->m_memoryTypeIndex, heap->m_memory, placement->offset)
         );
-        buffer->m_resourceHeap = heap;
-        buffer->m_resourceHeapOffset = placement->offset;
         buffer->setPlacement(heap, placement->offset, requirements);
     }
     else if (is_set(desc.usage, BufferUsage::Shared))
@@ -534,11 +532,12 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    if (bufferImpl->m_resourceHeap)
+    if (bufferImpl->m_placementHeap)
     {
-        if (!bufferImpl->m_resourceHeap->m_mapped)
+        ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(bufferImpl->m_placementHeap);
+        if (!heap->m_mapped)
             return SLANG_FAIL;
-        *outData = static_cast<uint8_t*>(bufferImpl->m_resourceHeap->m_mapped) + bufferImpl->m_resourceHeapOffset;
+        *outData = static_cast<uint8_t*>(heap->m_mapped) + bufferImpl->m_placementOffset;
         return SLANG_OK;
     }
     SLANG_VK_RETURN_ON_FAIL_REPORT(
@@ -551,7 +550,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    if (bufferImpl->m_resourceHeap)
+    if (bufferImpl->m_placementHeap)
         return SLANG_OK;
     m_api.vkUnmapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory);
     return SLANG_OK;

@@ -1280,6 +1280,7 @@ GPU_TEST_CASE(
 
     buffer.setNull();
     heap.setNull();
+    REQUIRE_CALL(queue->waitOnHost());
     queue.setNull();
     device.setNull();
 

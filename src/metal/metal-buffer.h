@@ -23,7 +23,6 @@ public:
     NS::SharedPtr<MTL::Buffer> m_buffer;
     DeviceAddress m_deviceAddress = 0;
     BufferImpl* m_nextAtSameAddr = nullptr;
-    RefPtr<ResourceHeapImpl> m_resourceHeap;
 };
 
 } // namespace rhi::metal

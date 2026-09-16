@@ -86,7 +86,6 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
         ResourceHeapImpl* heap = checked_cast<ResourceHeapImpl*>(placement->heap);
         buffer->m_cudaMemory = reinterpret_cast<void*>(heap->m_memory + placement->offset);
-        buffer->m_resourceHeap = heap;
         buffer->setPlacement(heap, placement->offset, requirements);
     }
     else
