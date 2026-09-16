@@ -445,23 +445,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         if (desc.memoryType == MemoryType::DeviceLocal)
         {
             SLANG_RETURN_ON_FAIL(uploadBufferInitData(buffer, 0, bufferSize, initData));
-
-            // Hand the initialized shared buffer off to an external (e.g. CUDA) consumer.
-            // uploadBufferInitData submits the copy on m_deviceQueue; the release records its
-            // ownership-transfer barrier on the same queue afterward and waits, so the copy has
-            // completed before the buffer crosses the API boundary.
-            if (is_set(desc.usage, BufferUsage::Shared))
-            {
-                _releaseSharedBufferToExternalQueue(buffer->m_buffer.m_buffer);
-            }
         }
         else
         {
             // Copy into mapped buffer directly
-            // TODO: a host-visible BufferUsage::Shared buffer gets no ownership release here. The
-            // write is a host write to coherent memory rather than a queue operation, so there is no
-            // queue-family transfer to make; whether an external consumer still needs one is untested
-            // (no in-tree test creates such a buffer).
             void* mappedData = nullptr;
             SLANG_VK_RETURN_ON_FAIL_REPORT(
                 m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData),
