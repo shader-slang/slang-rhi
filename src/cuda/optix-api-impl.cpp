@@ -890,7 +890,11 @@ public:
                 optixProgramGroupDesc.kind = OPTIX_PROGRAM_GROUP_KIND_CALLABLES;
                 // TODO: support continuation callables
                 optixProgramGroupDesc.callables.moduleDC = optixModules[i];
-                entryFunctionName = "__callable__" + module.entryPointName;
+                // Slang emits callable-stage entry points as OptiX direct callables. Keep this
+                // prefix synchronized with CUDASourceEmitter::generateEntryPointNameImpl(); using
+                // the non-existent `__callable__` spelling makes program-group creation fail even
+                // though the requested source entry point was compiled successfully.
+                entryFunctionName = "__direct_callable__" + module.entryPointName;
                 optixProgramGroupDesc.callables.entryFunctionNameDC = entryFunctionName.data();
                 break;
             default:
