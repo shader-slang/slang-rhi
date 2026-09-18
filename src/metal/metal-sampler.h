@@ -17,6 +17,9 @@ public:
     // IResource implementation
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeHandle(NativeHandle* outHandle) override;
 
+    // ISampler implementation
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
+
 public:
     NS::SharedPtr<MTL::SamplerState> m_samplerState;
 };

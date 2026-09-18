@@ -18,6 +18,7 @@ public:
     // IAccelerationStructure implementation
     virtual SLANG_NO_THROW AccelerationStructureHandle getHandle() override;
     virtual SLANG_NO_THROW DeviceAddress SLANG_MCALL getDeviceAddress() override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getDescriptorHandle(DescriptorHandle* outHandle) override;
 
 public:
     NS::SharedPtr<MTL::AccelerationStructure> m_accelerationStructure;
