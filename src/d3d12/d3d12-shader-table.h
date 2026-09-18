@@ -12,10 +12,14 @@ public:
     {
         RefPtr<BufferImpl> buffer;
 
-        uint32_t rayGenTableOffset;
-        uint32_t missTableOffset;
-        uint32_t hitGroupTableOffset;
-        uint32_t callableTableOffset;
+        Size rayGenTableOffset;
+        Size missTableOffset;
+        Size hitGroupTableOffset;
+        Size callableTableOffset;
+
+        Size missTableSize;
+        Size hitGroupTableSize;
+        Size callableTableSize;
 
         uint32_t rayGenRecordStride;
         uint32_t missRecordStride;

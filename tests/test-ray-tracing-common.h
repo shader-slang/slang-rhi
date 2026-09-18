@@ -1044,7 +1044,10 @@ struct RayTracingTestPipeline
         const std::vector<const char*>& missNames,
         RayTracingPipelineFlags flags = RayTracingPipelineFlags::None,
         const ShaderRecordOverwrite* hitGroupSbtData = nullptr,
-        const std::vector<const char*>& callableNames = std::vector<const char*>()
+        const std::vector<const char*>& callableNames = std::vector<const char*>(),
+        const ShaderRecordData* hitGroupRecordData = nullptr,
+        const ShaderRecordData* missShaderRecordData = nullptr,
+        const ShaderRecordData* callableShaderRecordData = nullptr
     )
     {
         ComPtr<IShaderProgram> rayTracingProgram;
@@ -1118,12 +1121,15 @@ struct RayTracingTestPipeline
         shaderTableDesc.hitGroupCount = hitgroupNames.size();
         shaderTableDesc.hitGroupNames = hitgroupNamesCstr.data();
         shaderTableDesc.hitGroupRecordOverwrites = hitGroupSbtData;
+        shaderTableDesc.hitGroupRecordData = hitGroupRecordData;
         shaderTableDesc.rayGenShaderCount = raygenNames.size();
         shaderTableDesc.rayGenShaderEntryPointNames = raygenNames.data();
         shaderTableDesc.missShaderCount = missNames.size();
         shaderTableDesc.missShaderEntryPointNames = missNames.data();
+        shaderTableDesc.missShaderRecordData = missShaderRecordData;
         shaderTableDesc.callableShaderCount = callableNames.size();
         shaderTableDesc.callableShaderEntryPointNames = callableNames.data();
+        shaderTableDesc.callableShaderRecordData = callableShaderRecordData;
         REQUIRE_CALL(device->createShaderTable(shaderTableDesc, shaderTable.writeRef()));
     }
 };

@@ -19,6 +19,12 @@ struct TestResult
 
 struct RayTracingSingleTriangleTest
 {
+    enum class RecordSection
+    {
+        HitGroup,
+        Miss,
+    };
+
     IDevice* device;
 
     void init(IDevice* device_) { this->device = device_; }
@@ -31,7 +37,10 @@ struct RayTracingSingleTriangleTest
         const char* filepath,
         const char* raygenName,
         const std::vector<const char*>& closestHitNames,
-        const std::vector<const char*>& missNames
+        const std::vector<const char*>& missNames,
+        bool useRecordData = false,
+        RecordSection recordSection = RecordSection::HitGroup,
+        uint32_t selectedRecordIndex = 0
     )
     {
         ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
@@ -60,6 +69,32 @@ struct RayTracingSingleTriangleTest
             hitGroupSbtData.push_back(currSbtData);
         }
 
+        std::vector<std::vector<uint8_t>> recordStorage;
+        std::vector<ShaderRecordData> recordData;
+        if (useRecordData)
+        {
+            const size_t recordCount =
+                recordSection == RecordSection::HitGroup ? hitGroupProgramNames.size() : missNames.size();
+            REQUIRE(selectedRecordIndex < recordCount);
+            recordStorage.resize(recordCount);
+            recordData.resize(recordCount);
+            for (size_t i = 0; i < recordCount; ++i)
+            {
+                // Give record zero a larger payload so selecting record one also verifies that the
+                // backend addresses records using the maximum stride of the complete section.
+                const size_t dataSize = i == 0 && recordCount > 1 ? 68 : sizeof(uint32_t);
+                recordStorage[i].resize(dataSize);
+                const uint32_t value = i == selectedRecordIndex ? testSbtValue : 0xBAADF00D;
+                memcpy(recordStorage[i].data(), &value, sizeof(value));
+                recordData[i] = {recordStorage[i].data(), recordStorage[i].size()};
+            }
+        }
+
+        const ShaderRecordData* hitGroupRecordData =
+            useRecordData && recordSection == RecordSection::HitGroup ? recordData.data() : nullptr;
+        const ShaderRecordData* missShaderRecordData =
+            useRecordData && recordSection == RecordSection::Miss ? recordData.data() : nullptr;
+
         RayTracingTestPipeline pipeline(
             device,
             filepath,
@@ -67,7 +102,10 @@ struct RayTracingSingleTriangleTest
             hitGroupProgramNames,
             missNames,
             RayTracingPipelineFlags::None,
-            hitGroupSbtData.data()
+            useRecordData ? nullptr : hitGroupSbtData.data(),
+            {},
+            hitGroupRecordData,
+            missShaderRecordData
         );
         launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
     }
@@ -709,6 +747,82 @@ GPU_TEST_CASE("ray-tracing-hitobject-load-local-root-table-constant", D3D12 | CU
     checkQueryAndInvokeResult(resultBlob);
 }
 
+GPU_TEST_CASE("ray-tracing-hitobject-load-local-root-table-constant-record-data", D3D12 | CUDA)
+{
+    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
+
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderLoadLocalRootTableConstant",
+        {"closestHitNOP"},
+        {"missNOP"},
+        true
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-load-variable-hit-record-data", D3D12 | CUDA)
+{
+    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
+
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderLoadHitRecord1",
+        {"closestHitNOP", "closestHitRecordNOP"},
+        {"missNOP"},
+        true,
+        RayTracingSingleTriangleTest::RecordSection::HitGroup,
+        1
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-load-variable-miss-record-data", D3D12 | CUDA)
+{
+    SKIP_D3D12_NVAPI_WITH_SM_6_9(device);
+
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderLoadMissRecord1",
+        {"closestHitNOP"},
+        {"missNOP", "missRecordNOP"},
+        true,
+        RayTracingSingleTriangleTest::RecordSection::Miss,
+        1
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
 GPU_TEST_CASE("ray-tracing-hitobject-get-shader-record-buffer-handle", Vulkan)
 {
     if (!device->hasFeature(Feature::RayTracing))
@@ -724,6 +838,76 @@ GPU_TEST_CASE("ray-tracing-hitobject-get-shader-record-buffer-handle", Vulkan)
         "rayGenShaderGetShaderRecordBufferHandle",
         {"closestHitNOP"},
         {"missNOP"}
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-get-shader-record-buffer-handle-record-data", Vulkan)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderGetShaderRecordBufferHandle",
+        {"closestHitNOP"},
+        {"missNOP"},
+        true
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-get-variable-hit-record-data", Vulkan)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderLoadHitRecord1",
+        {"closestHitNOP", "closestHitRecordNOP"},
+        {"missNOP"},
+        true,
+        RayTracingSingleTriangleTest::RecordSection::HitGroup,
+        1
+    );
+
+    ComPtr<ISlangBlob> resultBlob = test.getTestResult();
+    checkQueryAndInvokeResult(resultBlob);
+}
+
+GPU_TEST_CASE("ray-tracing-hitobject-get-variable-miss-record-data", Vulkan)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+    if (!device->hasFeature(Feature::ShaderExecutionReordering))
+        SKIP("shader execution reordering not supported");
+
+    RayTracingSingleTriangleTest test;
+    test.init(device);
+    test.createResultBuffer(sizeof(TestResult));
+    test.run(
+        "test-ray-tracing-hitobject-intrinsics",
+        "rayGenShaderLoadMissRecord1",
+        {"closestHitNOP"},
+        {"missNOP", "missRecordNOP"},
+        true,
+        RayTracingSingleTriangleTest::RecordSection::Miss,
+        1
     );
 
     ComPtr<ISlangBlob> resultBlob = test.getTestResult();
