@@ -767,6 +767,13 @@ enum class BufferUsage
     MicromapBuildInput = (1 << 10),
     MicromapStorage = (1 << 11),
     ShaderTable = (1 << 12),
+    /// The buffer's memory can be shared with another API (e.g. CUDA) via getSharedHandle().
+    /// Ownership ping-pongs between this producer device and the importing API: the producer keeps
+    /// the buffer after createBuffer(); the other API may access it only after the producer's
+    /// getQueue(...)->waitOnHost() releases it; the producer then reclaims it on its next access
+    /// (its next submit(), or reading it back), which the caller must order after the external work
+    /// with a host wait. The producer reclaims all shared resources on any such access, so do not
+    /// overlap external access with unrelated producer work (a submit or a readback).
     Shared = (1 << 13),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(BufferUsage);
@@ -841,6 +848,12 @@ enum class TextureUsage
     ResolveSource = (1 << 7),
     ResolveDestination = (1 << 8),
     Typeless = (1 << 9),
+    /// The texture's memory can be shared with another API (e.g. CUDA) via getSharedHandle().
+    /// Ownership ping-pongs as for BufferUsage::Shared: the producer keeps it after createTexture();
+    /// the other API may access it only after the producer's getQueue(...)->waitOnHost() releases
+    /// it; the producer reclaims it on its next access, ordered after the external work by a host
+    /// wait. The producer reclaims all shared resources on any such access, so do not overlap
+    /// external access with unrelated producer work (a submit or a readback).
     Shared = (1 << 10),
 };
 SLANG_RHI_ENUM_CLASS_OPERATORS(TextureUsage);
@@ -1791,6 +1804,8 @@ struct FenceDesc
     const void* next = nullptr;
 
     uint64_t initialValue = 0;
+    /// If true, the fence's underlying semaphore is exported (retrievable via getSharedHandle) so
+    /// another API can wait on and signal the same timeline for cross-API synchronization.
     bool isShared = false;
 
     const char* label = nullptr;

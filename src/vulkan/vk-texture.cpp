@@ -23,6 +23,10 @@ TextureImpl::~TextureImpl()
     m_defaultView.setNull();
     DeviceImpl* device = getDevice<DeviceImpl>();
     const auto& api = device->m_api;
+    if (is_set(m_desc.usage, TextureUsage::Shared))
+    {
+        device->unregisterSharedTexture(this);
+    }
     for (auto& view : m_views)
     {
         api.vkDestroyImageView(api.m_device, view.second.imageView, nullptr);
@@ -452,6 +456,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         );
 
         SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+    }
+
+    if (is_set(desc.usage, TextureUsage::Shared))
+    {
+        registerSharedTexture(texture);
     }
 
     returnComPtr(outTexture, texture);

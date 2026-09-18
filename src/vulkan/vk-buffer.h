@@ -64,6 +64,10 @@ public:
     VKBufferHandleRAII m_buffer;
     DeviceAddress m_deviceAddress = 0;
 
+    // Producer <-> VK_QUEUE_FAMILY_EXTERNAL ownership state; only meaningful for BufferUsage::Shared
+    // buffers, which are tracked in DeviceImpl's shared-resource registry.
+    SharedOwnershipState m_sharedOwnershipState = SharedOwnershipState::OwnedByProducer;
+
     struct ViewKey
     {
         Format format;

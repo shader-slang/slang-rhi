@@ -156,6 +156,11 @@ BufferImpl::~BufferImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    if (is_set(m_desc.usage, BufferUsage::Shared))
+    {
+        device->unregisterSharedBuffer(this);
+    }
+
     for (auto& handle : m_descriptorHandles)
     {
         if (handle.second)
@@ -457,6 +462,11 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             ::memcpy(mappedData, initData, bufferSize);
             m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
         }
+    }
+
+    if (is_set(desc.usage, BufferUsage::Shared))
+    {
+        registerSharedBuffer(buffer);
     }
 
     returnComPtr(outBuffer, buffer);

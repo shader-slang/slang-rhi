@@ -1940,6 +1940,12 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
         return SLANG_FAIL;
     }
 
+    // A readback is a producer access on m_deviceQueue that bypasses submit(), so reclaim any shared
+    // resource currently released to VK_QUEUE_FAMILY_EXTERNAL first; otherwise the copy below would
+    // read memory the producer no longer owns and miss the external (e.g. CUDA) writes. No-op unless
+    // a shared resource is currently released.
+    acquireSharedFromExternal();
+
     // create staging buffer
     VKBufferHandleRAII staging;
 
@@ -2188,6 +2194,169 @@ uint32_t DeviceImpl::getQueueFamilyIndex(QueueType queueType)
     default:
         return m_queueFamilyIndex;
     }
+}
+
+void DeviceImpl::registerSharedBuffer(BufferImpl* buffer)
+{
+    std::lock_guard<std::mutex> lock(m_sharedResourceMutex);
+    m_sharedBuffers.push_back(buffer);
+}
+
+void DeviceImpl::unregisterSharedBuffer(BufferImpl* buffer)
+{
+    std::lock_guard<std::mutex> lock(m_sharedResourceMutex);
+    auto it = std::find(m_sharedBuffers.begin(), m_sharedBuffers.end(), buffer);
+    if (it != m_sharedBuffers.end())
+        m_sharedBuffers.erase(it);
+}
+
+void DeviceImpl::registerSharedTexture(TextureImpl* texture)
+{
+    std::lock_guard<std::mutex> lock(m_sharedResourceMutex);
+    m_sharedTextures.push_back(texture);
+}
+
+void DeviceImpl::unregisterSharedTexture(TextureImpl* texture)
+{
+    std::lock_guard<std::mutex> lock(m_sharedResourceMutex);
+    auto it = std::find(m_sharedTextures.begin(), m_sharedTextures.end(), texture);
+    if (it != m_sharedTextures.end())
+        m_sharedTextures.erase(it);
+}
+
+void DeviceImpl::releaseSharedToExternal()
+{
+    std::lock_guard<std::mutex> lock(m_sharedResourceMutex);
+
+    short_vector<VkBufferMemoryBarrier> bufferBarriers;
+    short_vector<VkImageMemoryBarrier> imageBarriers;
+
+    for (BufferImpl* buffer : m_sharedBuffers)
+    {
+        if (buffer->m_sharedOwnershipState != SharedOwnershipState::OwnedByProducer)
+            continue;
+        VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+        barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+        barrier.dstAccessMask = 0;
+        barrier.srcQueueFamilyIndex = m_queueFamilyIndex;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+        barrier.buffer = buffer->m_buffer.m_buffer;
+        barrier.offset = 0;
+        barrier.size = VK_WHOLE_SIZE;
+        bufferBarriers.push_back(barrier);
+        buffer->m_sharedOwnershipState = SharedOwnershipState::ReleasedToExternal;
+    }
+
+    for (TextureImpl* texture : m_sharedTextures)
+    {
+        if (texture->m_sharedOwnershipState != SharedOwnershipState::OwnedByProducer)
+            continue;
+        // Pure ownership transfer: keep oldLayout == newLayout so the producer's contents survive
+        // (the consumer imports the memory, not a VkImage, so it needs no layout change here).
+        VkImageLayout layout = getImageLayoutFromState(texture->m_desc.defaultState);
+        VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+        barrier.dstAccessMask = 0;
+        barrier.oldLayout = layout;
+        barrier.newLayout = layout;
+        barrier.srcQueueFamilyIndex = m_queueFamilyIndex;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+        barrier.image = texture->m_image;
+        barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(texture->m_vkformat);
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = texture->m_desc.mipCount;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        imageBarriers.push_back(barrier);
+        texture->m_sharedOwnershipState = SharedOwnershipState::ReleasedToExternal;
+    }
+
+    if (bufferBarriers.empty() && imageBarriers.empty())
+        return;
+
+    VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0,
+        0,
+        nullptr,
+        (uint32_t)bufferBarriers.size(),
+        bufferBarriers.data(),
+        (uint32_t)imageBarriers.size(),
+        imageBarriers.data()
+    );
+    m_deviceQueue.flushAndWait();
+}
+
+void DeviceImpl::acquireSharedFromExternal()
+{
+    std::lock_guard<std::mutex> lock(m_sharedResourceMutex);
+
+    short_vector<VkBufferMemoryBarrier> bufferBarriers;
+    short_vector<VkImageMemoryBarrier> imageBarriers;
+
+    for (BufferImpl* buffer : m_sharedBuffers)
+    {
+        if (buffer->m_sharedOwnershipState != SharedOwnershipState::ReleasedToExternal)
+            continue;
+        VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+        // On a queue-family acquire the source scope is ignored (it belonged to the release on the
+        // other family), so srcAccessMask is 0; the external producer's writes are ordered before
+        // this by the host waits on both queues. dstAccessMask makes those writes visible to the
+        // producer's subsequent reads/writes.
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+        barrier.dstQueueFamilyIndex = m_queueFamilyIndex;
+        barrier.buffer = buffer->m_buffer.m_buffer;
+        barrier.offset = 0;
+        barrier.size = VK_WHOLE_SIZE;
+        bufferBarriers.push_back(barrier);
+        buffer->m_sharedOwnershipState = SharedOwnershipState::OwnedByProducer;
+    }
+
+    for (TextureImpl* texture : m_sharedTextures)
+    {
+        if (texture->m_sharedOwnershipState != SharedOwnershipState::ReleasedToExternal)
+            continue;
+        VkImageLayout layout = getImageLayoutFromState(texture->m_desc.defaultState);
+        VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        // Queue-family acquire: source scope is ignored, so srcAccessMask is 0 (see the buffer path).
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+        barrier.oldLayout = layout;
+        barrier.newLayout = layout;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;
+        barrier.dstQueueFamilyIndex = m_queueFamilyIndex;
+        barrier.image = texture->m_image;
+        barrier.subresourceRange.aspectMask = getAspectMaskFromFormat(texture->m_vkformat);
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = texture->m_desc.mipCount;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        imageBarriers.push_back(barrier);
+        texture->m_sharedOwnershipState = SharedOwnershipState::OwnedByProducer;
+    }
+
+    if (bufferBarriers.empty() && imageBarriers.empty())
+        return;
+
+    VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
+    m_api.vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0,
+        0,
+        nullptr,
+        (uint32_t)bufferBarriers.size(),
+        bufferBarriers.data(),
+        (uint32_t)imageBarriers.size(),
+        imageBarriers.data()
+    );
+    m_deviceQueue.flushAndWait();
 }
 
 void DeviceImpl::_transitionImageLayout(
