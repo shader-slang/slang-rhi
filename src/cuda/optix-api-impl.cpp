@@ -15,6 +15,7 @@
 #include "core/task-pool.h"
 #include "cooperative-vector-utils.h"
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <span>
@@ -26,6 +27,7 @@
 #define OPTIX_ENABLE_SDK_MIXING
 #include <optix.h>
 #include <optix_stubs.h>
+#include <optix_stack_size.h>
 
 #if (OPTIX_VERSION != EXPECTED_OPTIX_VERSION)
 #error "Invalid OptiX header version included"
@@ -71,6 +73,33 @@ void reportOptixError(OptixResult result, const char* call, const SourceLocation
             SLANG_RHI_ASSERT_FAILURE("OptiX call failed");                                                             \
         }                                                                                                              \
     }
+
+/// Accumulates one program group's stack requirements without crossing OptiX SDK wrappers.
+///
+/// The SDK's equivalent inline helper has external linkage in OptiX 8.0. When this source is
+/// instantiated for multiple SDK versions, a debug linker can coalesce those helpers and make a
+/// newer wrapper call the uninitialized 8.0 function table. Keeping this function local to each
+/// wrapper ensures that the stack query uses the function table selected for that SDK version.
+static OptixResult accumulateProgramGroupStackSizes(
+    OptixProgramGroup programGroup,
+    OptixPipeline pipeline,
+    OptixStackSizes& stackSizes
+)
+{
+    OptixStackSizes programStackSizes = {};
+    OptixResult result = optixProgramGroupGetStackSize(programGroup, &programStackSizes, pipeline);
+    if (result != OPTIX_SUCCESS)
+        return result;
+
+    stackSizes.cssRG = std::max(stackSizes.cssRG, programStackSizes.cssRG);
+    stackSizes.cssMS = std::max(stackSizes.cssMS, programStackSizes.cssMS);
+    stackSizes.cssCH = std::max(stackSizes.cssCH, programStackSizes.cssCH);
+    stackSizes.cssAH = std::max(stackSizes.cssAH, programStackSizes.cssAH);
+    stackSizes.cssIS = std::max(stackSizes.cssIS, programStackSizes.cssIS);
+    stackSizes.cssCC = std::max(stackSizes.cssCC, programStackSizes.cssCC);
+    stackSizes.dssDC = std::max(stackSizes.dssDC, programStackSizes.dssDC);
+    return OPTIX_SUCCESS;
+}
 
 inline OptixVertexFormat translateVertexFormat(Format format)
 {
@@ -1027,6 +1056,70 @@ public:
             m_device
         );
 
+        // Transfer every OptiX object to the pipeline before configuring its stack. If one of the
+        // stack queries fails, normal RefPtr destruction releases the pipeline, program groups,
+        // and modules instead of leaking the partially configured pipeline.
+        RefPtr<PipelineImpl> pipeline = new PipelineImpl();
+        pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
+        pipeline->m_modules = std::move(optixModules);
+        pipeline->m_programGroups = std::move(optixProgramGroups);
+        pipeline->m_programGroupIndexByName = std::move(programGroupIndexByName);
+        pipeline->m_raygenEntryPointIndices = std::move(raygenEntryPointIndices);
+        pipeline->m_pipeline = optixPipeline;
+
+        // OptiX does not derive pipeline stack sizes from a linked call graph. Accumulate the
+        // requirements of every program group and combine them with the application-provided
+        // direct-call depth bounds. OptixStackSizes exposes one conservative direct-callable
+        // requirement, so use that upper bound for each call-site category that is enabled.
+        OptixStackSizes stackSizes = {};
+        for (OptixProgramGroup programGroup : pipeline->m_programGroups)
+        {
+            SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+                accumulateProgramGroupStackSizes(programGroup, optixPipeline, stackSizes),
+                m_device
+            );
+        }
+
+        OptixRayTracingPipelineDesc defaultOptixDesc = {};
+        const OptixRayTracingPipelineDesc* optixDesc = findStructInChain<OptixRayTracingPipelineDesc>(desc.next);
+        if (!optixDesc)
+            optixDesc = &defaultOptixDesc;
+
+        const unsigned int dssDCFromTraversal =
+            optixDesc->maxDirectCallableDepthFromTraversal > 0 ? stackSizes.dssDC : 0;
+        const unsigned int dssDCFromState = optixDesc->maxDirectCallableDepthFromState > 0 ? stackSizes.dssDC : 0;
+        unsigned int directCallableStackSizeFromTraversal = 0;
+        unsigned int directCallableStackSizeFromState = 0;
+        unsigned int continuationStackSize = 0;
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixUtilComputeStackSizesDCSplit(
+                &stackSizes,
+                dssDCFromTraversal,
+                dssDCFromState,
+                desc.maxRecursion,
+                0, // Continuation callable program groups are not currently supported.
+                optixDesc->maxDirectCallableDepthFromTraversal,
+                optixDesc->maxDirectCallableDepthFromState,
+                &directCallableStackSizeFromTraversal,
+                &directCallableStackSizeFromState,
+                &continuationStackSize
+            ),
+            m_device
+        );
+
+        // The backend currently permits exactly one IAS level above a GAS and does not support
+        // motion transforms, so every accepted traversable graph has a maximum depth of two.
+        SLANG_OPTIX_RETURN_ON_FAIL_REPORT(
+            optixPipelineSetStackSize(
+                optixPipeline,
+                directCallableStackSizeFromTraversal,
+                directCallableStackSizeFromState,
+                continuationStackSize,
+                2
+            ),
+            m_device
+        );
+
         // Report the pipeline creation time.
         if (shaderCompilationReporter)
         {
@@ -1041,13 +1134,6 @@ public:
             );
         }
 
-        RefPtr<PipelineImpl> pipeline = new PipelineImpl();
-        pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
-        pipeline->m_modules = std::move(optixModules);
-        pipeline->m_programGroups = std::move(optixProgramGroups);
-        pipeline->m_programGroupIndexByName = std::move(programGroupIndexByName);
-        pipeline->m_raygenEntryPointIndices = std::move(raygenEntryPointIndices);
-        pipeline->m_pipeline = optixPipeline;
         returnRefPtr(outPipeline, pipeline);
         return SLANG_OK;
     }
