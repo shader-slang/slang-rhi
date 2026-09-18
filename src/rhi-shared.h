@@ -9,6 +9,7 @@
 #include "core/common.h"
 #include "core/short_vector.h"
 #include "reference.h"
+#include "resource-heap.h"
 
 #include "rhi-shared-fwd.h"
 
@@ -32,6 +33,9 @@ namespace rhi {
 class Device;
 class CommandEncoder;
 class CommandList;
+
+Buffer* asBuffer(IResource* resource);
+Texture* asTexture(IResource* resource);
 
 /// Common prefix for structures linked through a `next` chain.
 struct ChainedStructHeader
@@ -77,7 +81,29 @@ public:
         ++testing::gResourceCount;
     }
 
-    virtual ~Resource() { --testing::gResourceCount; }
+    virtual ~Resource()
+    {
+        if (m_placementHeap)
+            m_placementHeap->releaseInternalReference();
+        --testing::gResourceCount;
+    }
+
+    void setPlacement(ResourceHeap* heap, Offset offset, const ResourceMemoryRequirements& requirements)
+    {
+        SLANG_RHI_ASSERT(heap);
+        SLANG_RHI_ASSERT(!m_placementHeap);
+        heap->addInternalReference();
+        m_placementHeap = heap;
+        m_placementOffset = offset;
+        m_placementRequirements = requirements;
+        m_placementRequirements.next = nullptr;
+    }
+
+    bool isPlaced() const { return m_placementHeap != nullptr; }
+
+    ResourceHeap* m_placementHeap = nullptr;
+    Offset m_placementOffset = 0;
+    ResourceMemoryRequirements m_placementRequirements = {};
 };
 
 class Buffer : public IBuffer, public Resource

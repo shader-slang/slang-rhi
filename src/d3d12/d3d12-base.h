@@ -39,6 +39,7 @@ class RootShaderObjectLayoutImpl;
 class ShaderProgramImpl;
 class ShaderTableImpl;
 class SurfaceImpl;
+class ResourceHeapImpl;
 class InputLayoutImpl;
 struct BindingDataImpl;
 struct BindingCache;

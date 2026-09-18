@@ -145,6 +145,19 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
 
+    virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
+        const ResourceHeapDesc& desc,
+        IResourceHeap** outHeap
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
+        const BufferDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
+        const TextureDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+
     DeviceImpl();
     ~DeviceImpl();
 
@@ -182,6 +195,7 @@ public:
     std::span<MTL::Resource* const> getAccelerationStructureResources();
 
     bool m_hasArgumentBufferTier2 = false;
+    bool m_supportsPlacementHeaps = false;
 
     NS::SharedPtr<MTL::ResidencySet> m_residencySet;
     bool m_hasResidencySet = false;

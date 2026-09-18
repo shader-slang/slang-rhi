@@ -1,5 +1,6 @@
 #include "d3d12-texture.h"
 #include "d3d12-device.h"
+#include "d3d12-resource-heap.h"
 
 namespace rhi::d3d12 {
 

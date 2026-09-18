@@ -4,6 +4,8 @@
 
 namespace rhi::vk {
 
+Result getVkImageCreateInfo(const TextureDesc& desc, bool addCopyDestination, VkImageCreateInfo* outImageInfo);
+
 class TextureImpl : public Texture
 {
 public:
@@ -33,6 +35,7 @@ public:
     VkDeviceMemory m_imageMemory = VK_NULL_HANDLE;
     // False for swap chain or externally-owned native images.
     bool m_shouldDestroyImage = true;
+    bool m_ownsMemory = true;
     // True if this texture is created from a swap chain buffer.
     // Swap chain textures are deleted immediately when deleteThis() is called.
     bool m_isSwapchainTexture = false;

@@ -1,4 +1,5 @@
 #include "cuda-device.h"
+#include "cuda-resource-heap.h"
 #include "cuda-backend.h"
 #include "cuda-command.h"
 #include "cuda-buffer.h"
@@ -198,6 +199,8 @@ Result DeviceImpl::initialize(const DeviceDesc& desc, BackendImpl* backend)
 
     // Initialize features & capabilities
     addFeature(Feature::HardwareDevice);
+    addFeature(Feature::ResourceHeaps);
+    addFeature(Feature::ResourceAliasing);
     addFeature(Feature::ParameterBlock);
     addFeature(Feature::Bindless);
 #if SLANG_RHI_ENABLE_VULKAN
@@ -673,6 +676,47 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
 void DeviceImpl::customizeShaderObject(ShaderObject* shaderObject)
 {
     shaderObject->m_setBindingHook = shaderObjectSetBinding;
+}
+
+Result DeviceImpl::createResourceHeap(const ResourceHeapDesc& desc, IResourceHeap** outHeap)
+{
+    SLANG_RETURN_ON_FAIL(validateResourceHeapDesc(this, desc));
+    ResourceHeapUsage usage = desc.usage;
+    if (usage == ResourceHeapUsage::None)
+    {
+        for (uint32_t i = 0; i < desc.requirementCount; ++i)
+            usage |= desc.requirements[i].usage;
+    }
+    if (!isResourceHeapUsageCompatible(ResourceHeapUsage::Buffers, usage))
+        return SLANG_E_NOT_AVAILABLE;
+
+    RefPtr<ResourceHeapImpl> heap = new ResourceHeapImpl(this, desc);
+    SLANG_RETURN_ON_FAIL(heap->init());
+    returnComPtr(outHeap, heap);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getBufferMemoryRequirements(const BufferDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    resetResourceMemoryRequirements(outRequirements);
+    BufferDesc desc = fixupBufferDesc(desc_);
+    outRequirements->size = desc.size;
+    outRequirements->alignment = 256;
+    outRequirements->heapAlignment = 1;
+    outRequirements->memoryType = desc.memoryType;
+    outRequirements->usage = ResourceHeapUsage::Buffers;
+    outRequirements->flags = is_set(desc.usage, BufferUsage::Shared)
+                                 ? ResourceMemoryRequirementFlags::RequiresDedicatedAllocation
+                                 : ResourceMemoryRequirementFlags::None;
+    outRequirements->compatibility = makeResourceHeapCompatibility(this);
+    return SLANG_OK;
+}
+
+Result DeviceImpl::getTextureMemoryRequirements(const TextureDesc& desc_, ResourceMemoryRequirements* outRequirements)
+{
+    SLANG_UNUSED(desc_);
+    resetResourceMemoryRequirements(outRequirements);
+    return SLANG_E_NOT_AVAILABLE;
 }
 
 Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outSize, Size* outAlignment)

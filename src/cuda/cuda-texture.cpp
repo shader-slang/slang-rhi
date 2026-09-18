@@ -1,5 +1,6 @@
 #include "cuda-texture.h"
 #include "cuda-device.h"
+#include "cuda-resource-heap.h"
 #include "cuda-utils.h"
 
 namespace rhi::cuda {
@@ -274,6 +275,15 @@ CUsurfObject TextureImpl::getSurfObject(const SubresourceRange& range)
 Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData* initData, ITexture** outTexture)
 {
     TextureDesc desc = fixupTextureDesc(desc_);
+
+    const ResourcePlacementDesc* placement = findResourcePlacementDesc(desc.next);
+    if (placement)
+    {
+        ResourceMemoryRequirements requirements = {};
+        SLANG_RETURN_ON_FAIL(getTextureMemoryRequirements(desc, &requirements));
+        SLANG_RETURN_ON_FAIL(validateResourcePlacement(this, *placement, requirements));
+        return SLANG_E_NOT_AVAILABLE;
+    }
 
     RefPtr<TextureImpl> tex = new TextureImpl(this, desc);
 

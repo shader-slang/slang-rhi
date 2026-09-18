@@ -51,6 +51,8 @@ public:
 
     ComPtr<D3D12MA::Allocator> m_allocator;
 
+    D3D12_RESOURCE_HEAP_TIER m_resourceHeapTier = D3D12_RESOURCE_HEAP_TIER_1;
+
     RefPtr<CommandQueueImpl> m_queue;
 
     RefPtr<CPUDescriptorHeap> m_cpuCbvSrvUavHeap;
@@ -197,6 +199,19 @@ public:
     ) override;
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getNativeDeviceHandles(DeviceNativeHandles* outHandles) override;
+
+    virtual SLANG_NO_THROW Result SLANG_MCALL createResourceHeap(
+        const ResourceHeapDesc& desc,
+        IResourceHeap** outHeap
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getBufferMemoryRequirements(
+        const BufferDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
+    virtual SLANG_NO_THROW Result SLANG_MCALL getTextureMemoryRequirements(
+        const TextureDesc& desc,
+        ResourceMemoryRequirements* outRequirements
+    ) override;
 
     ~DeviceImpl();
 

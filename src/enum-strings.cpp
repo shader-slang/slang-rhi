@@ -111,6 +111,29 @@ const char* enumToString(MemoryType value)
     return S_INVALID;
 }
 
+const char* enumToString(ResourceHeapUsage value)
+{
+    switch (value)
+    {
+    case ResourceHeapUsage::None:
+        return S_ResourceHeapUsage_None;
+    case ResourceHeapUsage::Buffers:
+        return S_ResourceHeapUsage_Buffers;
+    case ResourceHeapUsage::NonRtDsTextures:
+        return S_ResourceHeapUsage_NonRtDsTextures;
+    case ResourceHeapUsage::RtDsTextures:
+        return S_ResourceHeapUsage_RtDsTextures;
+    case ResourceHeapUsage::All:
+        return S_ResourceHeapUsage_All;
+    }
+    return S_INVALID;
+}
+
+std::string flagsToString(ResourceHeapUsage value)
+{
+    return flagsToString<ResourceHeapUsage>(value);
+}
+
 const char* enumToString(BufferUsage value)
 {
     switch (value)
