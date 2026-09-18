@@ -820,13 +820,22 @@ Result DeviceImpl::initVulkanDevice(
             {/* "16-bit-storage" */}
         );
 
+        // The extension enable stays gated on the base atomics bit so devices that support base
+        // float atomics (load/store/exchange) but not add still get the extension chained in. Each
+        // operation-specific SPIR-V capability is advertised only when its matching device feature
+        // bit is set; otherwise Slang emits e.g. OpAtomicFAddEXT for a device that cannot execute it.
+        // Only the *buffer* feature bits are checked, while each SPIR-V atom is broader
+        // (shared/image and f64 add; f16/f64 min-max), so this is a partial gate: it prevents the
+        // reported buffer-atomic over-advertisement, but a device may still over- or under-claim for
+        // storage classes and widths whose bits are not consulted here.
         SIMPLE_EXTENSION_FEATURE(
             extendedFeatures.atomicFloatFeatures,
             shaderBufferFloat32Atomics,
             VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
             {
                 availableFeatures.push_back(Feature::AtomicFloat);
-                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_add);
+                if (extendedFeatures.atomicFloatFeatures.shaderBufferFloat32AtomicAdd)
+                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_add);
             }
         );
 
@@ -836,8 +845,10 @@ Result DeviceImpl::initVulkanDevice(
             VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME,
             {
                 availableFeatures.push_back(Feature::AtomicFloat);
-                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float16_add);
-                availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_min_max);
+                if (extendedFeatures.atomicFloat2Features.shaderBufferFloat16AtomicAdd)
+                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float16_add);
+                if (extendedFeatures.atomicFloat2Features.shaderBufferFloat32AtomicMinMax)
+                    availableCapabilities.push_back(Capability::SPV_EXT_shader_atomic_float_min_max);
             }
         );
 
