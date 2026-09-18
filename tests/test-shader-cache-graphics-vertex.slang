@@ -1,5 +1,7 @@
 // shader-cache-graphics-vertex.slang
 
+import test_shader_cache_graphics_common;
+
 // Per-vertex attributes to be assembled from bound vertex buffers.
 struct AssembledVertex
 {
@@ -27,7 +29,7 @@ VertexStageOutput main(
     VertexStageOutput output;
 
     float3 position = assembledVertex.position;
-    float3 color    = float3(1.0, 0.0, 0.0);
+    float3 color    = getShaderCacheTestColor();
 
     output.coarseVertex.color = color;
     output.sv_position = float4(position, 1.0);
