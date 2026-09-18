@@ -28,6 +28,12 @@ namespace rhi::cuda::optix {
 
 typedef unsigned long long OptixTraversableHandle;
 
+// These layout constants are stable across the OptiX versions supported by this abstraction. Keep
+// them here so the CUDA device can validate public shader-record data before selecting a versioned
+// OptiX implementation.
+static constexpr Size kShaderBindingTableRecordHeaderSize = 32;
+static constexpr Size kShaderBindingTableRecordAlignment = 16;
+
 class Pipeline;
 class ShaderBindingTable;
 

@@ -10,12 +10,20 @@ public:
     /// Data specific to a pipeline, including the buffer and table offsets/strides.
     struct PipelineData : public RefObject
     {
+        /// Native shader table containing identifiers and local-root arguments.
         RefPtr<BufferImpl> buffer;
 
-        uint32_t rayGenTableOffset;
-        uint32_t missTableOffset;
-        uint32_t hitGroupTableOffset;
-        uint32_t callableTableOffset;
+        /// RHI-owned application bytes addressed by structural Record root CBVs.
+        RefPtr<BufferImpl> structuralRecordBuffer;
+
+        Size rayGenTableOffset;
+        Size missTableOffset;
+        Size hitGroupTableOffset;
+        Size callableTableOffset;
+
+        Size missTableSize;
+        Size hitGroupTableSize;
+        Size callableTableSize;
 
         uint32_t rayGenRecordStride;
         uint32_t missRecordStride;

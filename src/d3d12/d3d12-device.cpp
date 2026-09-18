@@ -1842,6 +1842,18 @@ Result DeviceImpl::createRootShaderObjectLayout(
 
 Result DeviceImpl::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outShaderTable)
 {
+    // A structural Record can be larger than the native shader-record limit because its bytes are
+    // placed in an RHI-owned constant buffer and only a root-CBV address is written to the shader
+    // table. The exact native stride depends on the pipeline's reflected structural exports, so
+    // perform pointer, overflow, and maximum structural-cbuffer validation now and defer the exact
+    // native stride check until that pipeline-specific table is materialized.
+    const ShaderTable::RecordLayout recordLayout = {
+        D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES,
+        D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT,
+        D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + Size(D3D12_REQ_CONSTANT_BUFFER_ELEMENT_COUNT) * 4 * sizeof(uint32_t),
+    };
+    SLANG_RETURN_ON_FAIL(ShaderTable::validateRecordData(this, desc, recordLayout));
+
     RefPtr<ShaderTableImpl> result = new ShaderTableImpl(this, desc);
     returnComPtr(outShaderTable, result);
     return SLANG_OK;

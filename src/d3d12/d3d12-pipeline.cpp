@@ -11,8 +11,10 @@
 #include "core/sha1.h"
 #include "core/deferred.h"
 
+#include <algorithm>
 #include <climits>
 
+#include <set>
 #include <string>
 
 namespace rhi::d3d12 {
@@ -590,6 +592,152 @@ Result RayTracingPipelineImpl::getNativeHandle(NativeHandle* outHandle)
     return SLANG_OK;
 }
 
+namespace {
+
+/// Describes the local-root data expected by one compiler-generated structural stage export.
+struct StructuralStageRecordInfo
+{
+    /// Separates a non-void, possibly zero-sized Record from the void Record contract.
+    bool hasStructuralRecord = false;
+    Size size = 0;
+    UINT shaderRegister = 0;
+    UINT registerSpace = 0;
+
+    bool operator==(const StructuralStageRecordInfo& other) const
+    {
+        return hasStructuralRecord == other.hasStructuralRecord && size == other.size &&
+               shaderRegister == other.shaderRegister && registerSpace == other.registerSpace;
+    }
+};
+
+/// The pair is `(shader register, register space)`. Sorting these pairs gives a stable native
+/// local-root-argument order even when stages enter a hit group in a different order.
+using StructuralRecordBinding = std::pair<UINT, UINT>;
+using StructuralRecordBindings = std::vector<StructuralRecordBinding>;
+
+/// Describes all local-root data expected by one shader-table export. A direct stage has at most
+/// one binding, while a hit group contains the union required by every hit group connected to it
+/// through a reused closest-hit, any-hit, or intersection export.
+struct StructuralExportRecordInfo
+{
+    /// True when this export's own stages declare a non-void structural Record. Hit groups can
+    /// still inherit `bindings` from the connected component when this is false.
+    bool hasStructuralRecord = false;
+    Size size = 0;
+    StructuralRecordBindings bindings;
+
+    bool operator==(const StructuralExportRecordInfo& other) const
+    {
+        return hasStructuralRecord == other.hasStructuralRecord && size == other.size && bindings == other.bindings;
+    }
+};
+
+/// Creates the local root signature used to expose structural `Record` data at every cbuffer
+/// binding referenced by an export. Each root parameter receives the same backing-record address
+/// in the shader table; multiple parameters are needed only because separately compiled hit-group
+/// stages can reserve different `(bN, spaceM)` bindings.
+static Result createStructuralRecordLocalRootSignature(
+    DeviceImpl* device,
+    const StructuralRecordBindings& bindings,
+    ID3D12RootSignature** outRootSignature
+)
+{
+    SLANG_RHI_ASSERT(!bindings.empty());
+
+    std::vector<D3D12_ROOT_PARAMETER1> rootParameters(bindings.size());
+    for (size_t i = 0; i < bindings.size(); ++i)
+    {
+        auto& rootParameter = rootParameters[i];
+        rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+        rootParameter.Descriptor.ShaderRegister = bindings[i].first;
+        rootParameter.Descriptor.RegisterSpace = bindings[i].second;
+        rootParameter.Descriptor.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE;
+        rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    }
+
+    D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
+    rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    rootSignatureDesc.Desc_1_1.NumParameters = UINT(rootParameters.size());
+    rootSignatureDesc.Desc_1_1.pParameters = rootParameters.data();
+    rootSignatureDesc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+
+    ComPtr<ID3DBlob> serializedSignature;
+    ComPtr<ID3DBlob> errors;
+    HRESULT serializeResult = device->m_D3D12SerializeVersionedRootSignature(
+        &rootSignatureDesc,
+        serializedSignature.writeRef(),
+        errors.writeRef()
+    );
+    if (FAILED(serializeResult))
+    {
+        device->printError("Failed to serialize the D3D12 local root signature for structural shader-record data.\n");
+        if (errors)
+        {
+            device->handleMessage(
+                DebugMessageType::Error,
+                DebugMessageSource::Driver,
+                static_cast<const char*>(errors->GetBufferPointer())
+            );
+        }
+        return SLANG_FAIL;
+    }
+
+    SLANG_D3D_RETURN_ON_FAIL_REPORT(
+        device->m_device->CreateRootSignature(
+            0,
+            serializedSignature->GetBufferPointer(),
+            serializedSignature->GetBufferSize(),
+            IID_PPV_ARGS(outRootSignature)
+        ),
+        device
+    );
+    return SLANG_OK;
+}
+
+/// Adds the structural Record contract reflected by a selected entry point when the Slang API
+/// exposes that contract. The reflection API can be newer than the released Slang package used to
+/// build slang-rhi, so the dependent requires expression keeps this source compatible with both
+/// versions. An older compiler cannot produce the structural contract consumed by this backend and
+/// therefore retains the legacy shader-table ABI.
+template<typename EntryPointReflection, typename AddRecordInfo>
+Result addSelectedEntryPointRecordInfo(
+    DeviceImpl* device,
+    EntryPointReflection* entryPoint,
+    AddRecordInfo&& addRecordInfo
+)
+{
+    if constexpr (requires(EntryPointReflection* value) {
+                      value->getStructuralRayTracingRecordType();
+                      value->getStructuralRayTracingRecordTypeLayout();
+                      value->getStructuralRayTracingRecordBindingIndex();
+                      value->getStructuralRayTracingRecordBindingSpace();
+                  })
+    {
+        auto recordType = entryPoint->getStructuralRayTracingRecordType();
+        if (!recordType)
+            return SLANG_OK;
+        const char* exportName = entryPoint->getNameOverride();
+        if (!exportName)
+        {
+            device->printError("A selected structural ray-tracing stage has no native export name.\n");
+            return SLANG_FAIL;
+        }
+        return addRecordInfo(
+            exportName,
+            recordType,
+            entryPoint->getStructuralRayTracingRecordTypeLayout(),
+            entryPoint->getStructuralRayTracingRecordBindingIndex(),
+            entryPoint->getStructuralRayTracingRecordBindingSpace()
+        );
+    }
+    else
+    {
+        return SLANG_OK;
+    }
+}
+
+} // namespace
+
 Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc, IRayTracingPipeline** outPipeline)
 {
     if (!m_device5)
@@ -609,6 +757,10 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     stable_vector<D3D12_HIT_GROUP_DESC> hitGroups;
     stable_vector<D3D12_EXPORT_DESC> exports;
     stable_vector<const wchar_t*> strPtrs;
+    stable_vector<D3D12_LOCAL_ROOT_SIGNATURE> localRootSignatureDescs;
+    stable_vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> localRootAssociations;
+    stable_vector<std::vector<const wchar_t*>> localRootAssociationExports;
+    std::vector<size_t> localRootSubobjectIndices;
     ComPtr<ISlangBlob> diagnostics;
     stable_vector<std::wstring> stringPool;
     auto getWStr = [&](const char* name)
@@ -679,6 +831,369 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
         subObjects.push_back(hitGroupSubObject);
     }
 
+    // Structural stages receive `Record` through a compiler-reserved cbuffer register. D3D12
+    // obtains a per-record CBV address from the selected shader-table entry, so associate that
+    // local-root descriptor with the native shader-table export.
+    std::vector<ComPtr<ID3D12RootSignature>> localRootSignatures;
+    std::map<std::string, RayTracingPipelineImpl::StructuralRecordInfo> structuralRecordInfoByName;
+
+    // A SingleProgram exposes all selected stages through `linkedProgram`. Separate entry-point
+    // compilation instead leaves only the global scope there and puts each selected stage in its
+    // own linked component. Retain every selected-entry layout so renamed exports keep their final
+    // native identity and each separately compiled library uses its own reflected binding.
+    std::vector<slang::ProgramLayout*> programLayouts;
+    auto globalProgramLayout = program->linkedProgram->getLayout();
+    SLANG_RHI_ASSERT(globalProgramLayout);
+    programLayouts.push_back(globalProgramLayout);
+    for (const auto& linkedEntryPoint : program->linkedEntryPoints)
+    {
+        auto entryPointLayout = linkedEntryPoint->getLayout();
+        if (!entryPointLayout)
+            return SLANG_FAIL;
+        programLayouts.push_back(entryPointLayout);
+    }
+
+    // A root CBV has no size in its descriptor. D3D12 nevertheless limits shader accesses to 4096
+    // 16-byte constants from the descriptor's base address.
+    constexpr Size kMaximumStructuralRecordSize = Size(D3D12_REQ_CONSTANT_BUFFER_ELEMENT_COUNT) * 4 * sizeof(uint32_t);
+    std::map<std::string, StructuralStageRecordInfo> stageRecordInfoByName;
+
+    auto addRecordInfo = [&](const char* entryPointName,
+                             slang::TypeReflection* recordType,
+                             slang::TypeLayoutReflection* recordTypeLayout,
+                             SlangInt bindingIndex,
+                             SlangInt bindingSpace) -> Result
+    {
+        if (!recordType || !recordTypeLayout)
+        {
+            printError("Structural ray-tracing stage '%s' has no reflected Record type layout.\n", entryPointName);
+            return SLANG_FAIL;
+        }
+
+        StructuralStageRecordInfo info = {};
+        info.hasStructuralRecord = recordType->getScalarType() != slang::TypeReflection::ScalarType::Void;
+        if (info.hasStructuralRecord)
+        {
+            if (bindingIndex < 0 || bindingSpace < 0)
+            {
+                printError("Structural ray-tracing stage '%s' has no D3D Record binding.\n", entryPointName);
+                return SLANG_FAIL;
+            }
+            if (uint64_t(bindingIndex) > UINT_MAX || uint64_t(bindingSpace) > UINT_MAX)
+            {
+                printError(
+                    "The D3D structural shader-record binding for '%s' does not fit in a D3D12 "
+                    "register and space.\n",
+                    entryPointName
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+            info.shaderRegister = UINT(bindingIndex);
+            info.registerSpace = UINT(bindingSpace);
+            info.size = recordTypeLayout->getSize(SLANG_PARAMETER_CATEGORY_UNIFORM);
+            if (info.size == SLANG_UNKNOWN_SIZE || info.size == SLANG_UNBOUNDED_SIZE)
+            {
+                printError(
+                    "Structural ray-tracing stage '%s' has a Record type without a fixed D3D layout.\n",
+                    entryPointName
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+            if (info.size > kMaximumStructuralRecordSize)
+            {
+                printError(
+                    "Structural ray-tracing stage '%s' requires a %zu-byte Record, exceeding the D3D12 "
+                    "root-CBV limit of %zu bytes.\n",
+                    entryPointName,
+                    info.size,
+                    kMaximumStructuralRecordSize
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+        }
+
+        auto [it, inserted] = stageRecordInfoByName.emplace(entryPointName, info);
+        if (!inserted && !(it->second == info))
+        {
+            printError("Structural ray-tracing export '%s' has conflicting Record contracts.\n", entryPointName);
+            return SLANG_E_INVALID_ARG;
+        }
+        return SLANG_OK;
+    };
+
+    // Selected entry points expose the checked structural stage contract directly. This is the
+    // authoritative path for standalone stages and for entry points renamed during component
+    // composition, neither of which can be recovered reliably from an IHitGroup catalogue.
+    for (auto programLayout : programLayouts)
+    {
+        for (SlangUInt i = 0; i < programLayout->getEntryPointCount(); ++i)
+        {
+            auto entryPoint = programLayout->getEntryPointByIndex(i);
+            if (!entryPoint)
+                continue;
+            SLANG_RETURN_ON_FAIL(addSelectedEntryPointRecordInfo(this, entryPoint, addRecordInfo));
+        }
+    }
+
+    // Exports with the same ordered binding set can share a local root signature. One root CBV is
+    // one 64-bit local-root argument, independent of the application-data size behind its address.
+    std::map<StructuralRecordBindings, std::set<std::string>> exportsByLocalRecordBindings;
+    std::map<std::string, StructuralExportRecordInfo> structuralRecordContractByExportName;
+    auto requireLocalRecord = [&](const std::string& exportName, const StructuralExportRecordInfo& info) -> Result
+    {
+        if (info.bindings.empty())
+        {
+            if (!info.hasStructuralRecord)
+                return SLANG_OK;
+            printError(
+                "D3D12 shader-table export '%s' has structural Record data but no local-CBV binding.\n",
+                exportName.c_str()
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+
+        auto [contractIt, inserted] = structuralRecordContractByExportName.emplace(exportName, info);
+        if (!inserted)
+        {
+            if (!(contractIt->second == info))
+            {
+                printError(
+                    "D3D12 shader-table export '%s' has incompatible structural Record bindings or layouts.\n",
+                    exportName.c_str()
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+            return SLANG_OK;
+        }
+
+        // DXR local root signatures are exempt from the ordinary 64-DWORD root-signature limit.
+        // Their argument footprint is instead bounded by the maximum native shader-record stride:
+        // 4096 bytes minus the 32-byte shader identifier. A root CBV contributes one 64-bit GPU
+        // address to that footprint.
+        constexpr size_t kMaximumLocalRootCBVCount =
+            (D3D12_RAYTRACING_MAX_SHADER_RECORD_STRIDE - D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) /
+            sizeof(D3D12_GPU_VIRTUAL_ADDRESS);
+        if (info.bindings.size() > kMaximumLocalRootCBVCount)
+        {
+            printError(
+                "D3D12 shader-table export '%s' requires %zu structural Record CBVs; a local root "
+                "signature supports at most %zu.\n",
+                exportName.c_str(),
+                info.bindings.size(),
+                kMaximumLocalRootCBVCount
+            );
+            return SLANG_E_INVALID_ARG;
+        }
+
+        RayTracingPipelineImpl::StructuralRecordInfo pipelineInfo = {};
+        pipelineInfo.hasStructuralRecord = info.hasStructuralRecord;
+        pipelineInfo.dataSize = info.size;
+        pipelineInfo.localRootCBVCount = uint32_t(info.bindings.size());
+        structuralRecordInfoByName.emplace(exportName, pipelineInfo);
+        exportsByLocalRecordBindings[info.bindings].insert(exportName);
+        return SLANG_OK;
+    };
+
+    // Miss and callable shader identifiers select their stage exports directly, so associate
+    // those exports with their local root signature. Hit shaders imported by a hit group are
+    // associated through that group below. DXR requires a hit-group association and associations
+    // on its component shaders to match exactly, so only orphan hit shaders receive a direct
+    // association after every hit-group import has been collected.
+    for (const ShaderBinary& shader : program->m_shaders)
+    {
+        if (shader.stage != SLANG_STAGE_MISS && shader.stage != SLANG_STAGE_CALLABLE)
+            continue;
+        auto it = stageRecordInfoByName.find(shader.entryPointName);
+        if (it != stageRecordInfoByName.end() && it->second.hasStructuralRecord)
+        {
+            StructuralExportRecordInfo exportInfo = {};
+            exportInfo.hasStructuralRecord = true;
+            exportInfo.size = it->second.size;
+            exportInfo.bindings.push_back({it->second.shaderRegister, it->second.registerSpace});
+            SLANG_RETURN_ON_FAIL(requireLocalRecord(shader.entryPointName, exportInfo));
+        }
+    }
+
+    std::vector<StructuralExportRecordInfo> hitGroupRecordInfos(desc.hitGroupCount);
+    std::vector<uint32_t> hitGroupComponentParents(desc.hitGroupCount);
+    for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
+        hitGroupComponentParents[i] = i;
+
+    auto findHitGroupComponent = [&](uint32_t groupIndex)
+    {
+        uint32_t rootIndex = groupIndex;
+        while (hitGroupComponentParents[rootIndex] != rootIndex)
+            rootIndex = hitGroupComponentParents[rootIndex];
+
+        while (hitGroupComponentParents[groupIndex] != groupIndex)
+        {
+            uint32_t parentIndex = hitGroupComponentParents[groupIndex];
+            hitGroupComponentParents[groupIndex] = rootIndex;
+            groupIndex = parentIndex;
+        }
+        return rootIndex;
+    };
+
+    auto joinHitGroupComponents = [&](uint32_t leftGroupIndex, uint32_t rightGroupIndex)
+    {
+        uint32_t leftRootIndex = findHitGroupComponent(leftGroupIndex);
+        uint32_t rightRootIndex = findHitGroupComponent(rightGroupIndex);
+        if (leftRootIndex == rightRootIndex)
+            return;
+
+        // Always retain the lower group index so the representative does not depend on which
+        // reused stage caused two existing components to be joined.
+        if (leftRootIndex > rightRootIndex)
+            std::swap(leftRootIndex, rightRootIndex);
+        hitGroupComponentParents[rightRootIndex] = leftRootIndex;
+    };
+
+    std::map<std::string, uint32_t> firstHitGroupByStageExport;
+    std::set<std::string> importedHitStageExports;
+    for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
+    {
+        const auto& hitGroup = desc.hitGroups[i];
+        auto& hitGroupRecordInfo = hitGroupRecordInfos[i];
+        auto mergeStageRecordInfo = [&](const char* stageName) -> Result
+        {
+            if (!stageName)
+                return SLANG_OK;
+
+            importedHitStageExports.insert(stageName);
+            auto [groupIt, inserted] = firstHitGroupByStageExport.emplace(stageName, i);
+            if (!inserted)
+                joinHitGroupComponents(i, groupIt->second);
+
+            auto it = stageRecordInfoByName.find(stageName);
+            if (it == stageRecordInfoByName.end())
+                return SLANG_OK;
+            const auto& stageInfo = it->second;
+            if (!stageInfo.hasStructuralRecord)
+                return SLANG_OK;
+            if (!hitGroupRecordInfo.hasStructuralRecord)
+            {
+                hitGroupRecordInfo.hasStructuralRecord = true;
+                hitGroupRecordInfo.size = stageInfo.size;
+            }
+            else if (hitGroupRecordInfo.size != stageInfo.size)
+            {
+                printError(
+                    "RayTracingPipelineDesc.hitGroups[%u] combines structural stages whose Record "
+                    "layouts have different sizes.\n",
+                    i
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+            hitGroupRecordInfo.bindings.push_back({stageInfo.shaderRegister, stageInfo.registerSpace});
+            return SLANG_OK;
+        };
+
+        SLANG_RETURN_ON_FAIL(mergeStageRecordInfo(hitGroup.closestHitEntryPoint));
+        SLANG_RETURN_ON_FAIL(mergeStageRecordInfo(hitGroup.anyHitEntryPoint));
+        SLANG_RETURN_ON_FAIL(mergeStageRecordInfo(hitGroup.intersectionEntryPoint));
+        std::sort(hitGroupRecordInfo.bindings.begin(), hitGroupRecordInfo.bindings.end());
+        hitGroupRecordInfo.bindings.erase(
+            std::unique(hitGroupRecordInfo.bindings.begin(), hitGroupRecordInfo.bindings.end()),
+            hitGroupRecordInfo.bindings.end()
+        );
+    }
+
+    // A hit-group association also applies to every closest-hit, any-hit, and intersection export
+    // imported by that group. When an export is reused by two groups, DXR therefore requires both
+    // groups to have identical local root signatures. This requirement is transitive: if A shares
+    // a stage with B and B shares another stage with C, all three groups need the union of every
+    // structural Record binding in the connected component.
+    std::vector<StructuralRecordBindings> hitGroupComponentBindings(desc.hitGroupCount);
+    for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
+    {
+        uint32_t componentIndex = findHitGroupComponent(i);
+        auto& componentBindings = hitGroupComponentBindings[componentIndex];
+        const auto& groupBindings = hitGroupRecordInfos[i].bindings;
+        componentBindings.insert(componentBindings.end(), groupBindings.begin(), groupBindings.end());
+    }
+    for (auto& componentBindings : hitGroupComponentBindings)
+    {
+        std::sort(componentBindings.begin(), componentBindings.end());
+        componentBindings.erase(
+            std::unique(componentBindings.begin(), componentBindings.end()),
+            componentBindings.end()
+        );
+    }
+
+    for (uint32_t i = 0; i < desc.hitGroupCount; ++i)
+    {
+        const auto& hitGroup = desc.hitGroups[i];
+        StructuralExportRecordInfo exportInfo = hitGroupRecordInfos[i];
+        exportInfo.bindings = hitGroupComponentBindings[findHitGroupComponent(i)];
+        if (!exportInfo.bindings.empty())
+        {
+            if (!hitGroup.hitGroupName)
+            {
+                printError(
+                    "RayTracingPipelineDesc.hitGroups[%u] requires a name for its structural Record "
+                    "contract.\n",
+                    i
+                );
+                return SLANG_E_INVALID_ARG;
+            }
+            SLANG_RETURN_ON_FAIL(requireLocalRecord(hitGroup.hitGroupName, exportInfo));
+        }
+    }
+
+    // A selected hit shader that is not imported by any hit group is not covered by a composed
+    // hit-group association. Associate only those orphan exports directly; adding this association
+    // to an imported shader would conflict with its component-wide hit-group signature.
+    for (const ShaderBinary& shader : program->m_shaders)
+    {
+        if (shader.stage != SLANG_STAGE_CLOSEST_HIT && shader.stage != SLANG_STAGE_ANY_HIT &&
+            shader.stage != SLANG_STAGE_INTERSECTION)
+            continue;
+        if (importedHitStageExports.find(shader.entryPointName) != importedHitStageExports.end())
+            continue;
+        auto it = stageRecordInfoByName.find(shader.entryPointName);
+        if (it != stageRecordInfoByName.end() && it->second.hasStructuralRecord)
+        {
+            StructuralExportRecordInfo exportInfo = {};
+            exportInfo.hasStructuralRecord = true;
+            exportInfo.size = it->second.size;
+            exportInfo.bindings.push_back({it->second.shaderRegister, it->second.registerSpace});
+            SLANG_RETURN_ON_FAIL(requireLocalRecord(shader.entryPointName, exportInfo));
+        }
+    }
+
+    for (const auto& [recordBindings, exportNames] : exportsByLocalRecordBindings)
+    {
+        ComPtr<ID3D12RootSignature> localRootSignature;
+        SLANG_RETURN_ON_FAIL(
+            createStructuralRecordLocalRootSignature(this, recordBindings, localRootSignature.writeRef())
+        );
+        localRootSignatures.push_back(localRootSignature);
+
+        D3D12_LOCAL_ROOT_SIGNATURE localRootSignatureDesc = {};
+        localRootSignatureDesc.pLocalRootSignature = localRootSignature.get();
+        localRootSignatureDescs.push_back(localRootSignatureDesc);
+        D3D12_STATE_SUBOBJECT localRootSignatureSubobject = {};
+        localRootSignatureSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+        localRootSignatureSubobject.pDesc = &localRootSignatureDescs.back();
+        localRootSubobjectIndices.push_back(subObjects.size());
+        subObjects.push_back(localRootSignatureSubobject);
+
+        localRootAssociationExports.emplace_back();
+        auto& associationExports = localRootAssociationExports.back();
+        associationExports.reserve(exportNames.size());
+        for (const auto& exportName : exportNames)
+            associationExports.push_back(getWStr(exportName.c_str()));
+
+        D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION association = {};
+        association.NumExports = UINT(associationExports.size());
+        association.pExports = associationExports.data();
+        localRootAssociations.push_back(association);
+        D3D12_STATE_SUBOBJECT associationSubobject = {};
+        associationSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+        associationSubobject.pDesc = &localRootAssociations.back();
+        subObjects.push_back(associationSubobject);
+    }
+
     D3D12_RAYTRACING_SHADER_CONFIG shaderConfig = {};
     // According to DXR spec, fixed function triangle intersections must use float2 as ray
     // attributes that defines the barycentric coordinates at intersection.
@@ -695,6 +1210,13 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     globalSignatureSubobject.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
     globalSignatureSubobject.pDesc = &globalSignatureDesc;
     subObjects.push_back(globalSignatureSubobject);
+
+    // Associations point into the contiguous state-subobject array. Assign those pointers only
+    // after every push_back so vector reallocation cannot invalidate them.
+    for (size_t i = 0; i < localRootSubobjectIndices.size(); ++i)
+    {
+        localRootAssociations[i].pSubobjectToAssociate = &subObjects[localRootSubobjectIndices[i]];
+    }
 
     D3D12_STATE_OBJECT_DESC rtpsoDesc = {};
     rtpsoDesc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
@@ -823,6 +1345,8 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
     pipeline->m_rootObjectLayout = program->m_rootObjectLayout;
     pipeline->m_stateObject = stateObject;
     pipeline->m_shaderIdentifierByName = std::move(shaderIdentifierByName);
+    pipeline->m_localRootSignatures = std::move(localRootSignatures);
+    pipeline->m_structuralRecordInfoByName = std::move(structuralRecordInfoByName);
     returnComPtr(outPipeline, pipeline);
     return SLANG_OK;
 }

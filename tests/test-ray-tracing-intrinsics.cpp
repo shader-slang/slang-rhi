@@ -509,3 +509,44 @@ GPU_TEST_CASE("ray-tracing-intrinsics-call-shader", D3D12 | Vulkan | CUDA)
     // Check that callable shader wrote the expected value
     checkFloat3(result->value, {1.0f, 2.0f, 3.0f});
 }
+
+GPU_TEST_CASE("ray-tracing-intrinsics-call-shader-record-data", Vulkan)
+{
+    if (!device->hasFeature(Feature::RayTracing))
+        SKIP("ray tracing not supported");
+
+    ComPtr<ICommandQueue> queue = device->getQueue(QueueType::Graphics);
+    SingleTriangleBLAS blas(device, queue, false);
+    TLAS tlas(device, queue, blas.blas);
+    ResultBuffer resultBuf(device, sizeof(RayIntrinsicResult));
+
+    std::array<uint8_t, 68> largeRecord = {};
+    uint32_t firstValue = 1;
+    memcpy(largeRecord.data(), &firstValue, sizeof(firstValue));
+    uint32_t selectedValue = 42;
+    const ShaderRecordData callableRecordData[] = {
+        {largeRecord.data(), largeRecord.size()},
+        {&selectedValue, sizeof(selectedValue)},
+    };
+
+    RayTracingTestPipeline pipeline(
+        device,
+        "test-ray-tracing-shader-record-data",
+        {"rayGenShaderCallRecord1"},
+        {{"closestHitNOP", nullptr}},
+        {"missNOP"},
+        RayTracingPipelineFlags::None,
+        nullptr,
+        {"callableWriteConstant", "callableReadShaderRecord"},
+        nullptr,
+        nullptr,
+        callableRecordData
+    );
+
+    launchPipeline(queue, pipeline.raytracingPipeline, pipeline.shaderTable, resultBuf.resultBuffer, tlas.tlas);
+
+    ComPtr<ISlangBlob> resultBlob;
+    resultBuf.getFromDevice(resultBlob.writeRef());
+    const auto* result = reinterpret_cast<const RayIntrinsicResult*>(resultBlob->getBufferPointer());
+    checkFloat3(result->value, {42.0f, 0.0f, 0.0f});
+}

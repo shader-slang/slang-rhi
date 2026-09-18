@@ -580,6 +580,9 @@ struct alignas(OPTIX_SBT_RECORD_ALIGNMENT) SbtRecord
     char header[OPTIX_SBT_RECORD_HEADER_SIZE];
 };
 
+static_assert(sizeof(SbtRecord) == kShaderBindingTableRecordHeaderSize);
+static_assert(alignof(SbtRecord) == kShaderBindingTableRecordAlignment);
+
 class ShaderBindingTableImpl : public ShaderBindingTable
 {
 public:
@@ -1063,14 +1066,17 @@ public:
         RefPtr<ShaderBindingTableImpl> shaderBindingTable = new ShaderBindingTableImpl();
 
         // Calculate record sizes (without alignment).
-        size_t missRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_missRecordOverwriteMaxSize));
-        size_t hitGroupRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_hitGroupRecordOverwriteMaxSize));
-        size_t callableRecordSize = max(sizeof(SbtRecord), size_t(shaderTable->m_callableRecordOverwriteMaxSize));
+        size_t missRecordSize = shaderTable->getMaxRecordSize(shaderTable->m_missRecords, sizeof(SbtRecord));
+        size_t hitGroupRecordSize = shaderTable->getMaxRecordSize(shaderTable->m_hitGroupRecords, sizeof(SbtRecord));
+        size_t callableRecordSize = shaderTable->getMaxRecordSize(shaderTable->m_callableRecords, sizeof(SbtRecord));
 
         // Align all record sizes to OPTIX_SBT_RECORD_ALIGNMENT.
         missRecordSize = math::calcAligned2(missRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
         hitGroupRecordSize = math::calcAligned2(hitGroupRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
         callableRecordSize = math::calcAligned2(callableRecordSize, OPTIX_SBT_RECORD_ALIGNMENT);
+
+        // DeviceImpl::createShaderTable validated these aligned strides against the unsigned-int
+        // fields in OptixShaderBindingTable before it copied the descriptor.
 
         // Calculate the size required for the shader binding table.
         // Reserve space for a dummy miss record if there are no miss shaders.
@@ -1132,6 +1138,13 @@ public:
             return SLANG_OK;
         };
 
+        auto writeOwnedTableEntry = [&](void* dest, const std::string& name, const ShaderTable::OwnedRecord& record)
+        {
+            SLANG_RETURN_ON_FAIL(writeTableEntry(dest, name, nullptr));
+            record.writeData(dest, sizeof(SbtRecord));
+            return SLANG_OK;
+        };
+
         // Raygen records
         if (shaderTable->m_rayGenShaderCount > 0)
         {
@@ -1148,14 +1161,14 @@ public:
         if (shaderTable->m_missShaderCount > 0)
         {
             sbt.missRecordBase = devicePtr;
-            sbt.missRecordStrideInBytes = missRecordSize;
+            sbt.missRecordStrideInBytes = static_cast<unsigned int>(missRecordSize);
             sbt.missRecordCount = shaderTable->m_missShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_missShaderCount; i++)
             {
-                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                SLANG_RETURN_ON_FAIL(writeOwnedTableEntry(
                     hostPtr,
                     shaderTable->m_missShaderEntryPointNames[i],
-                    (i < shaderTable->m_missRecordOverwrites.size()) ? &shaderTable->m_missRecordOverwrites[i] : nullptr
+                    shaderTable->m_missRecords[i]
                 ));
                 hostPtr += missRecordSize;
                 devicePtr += missRecordSize;
@@ -1166,7 +1179,7 @@ public:
             // OptiX validation complains if there are no miss records.
             // To avoid this, we create a dummy miss record.
             sbt.missRecordBase = devicePtr;
-            sbt.missRecordStrideInBytes = missRecordSize;
+            sbt.missRecordStrideInBytes = static_cast<unsigned int>(missRecordSize);
             sbt.missRecordCount = 1;
             hostPtr += missRecordSize;
             devicePtr += missRecordSize;
@@ -1176,16 +1189,13 @@ public:
         if (shaderTable->m_hitGroupCount > 0)
         {
             sbt.hitgroupRecordBase = devicePtr;
-            sbt.hitgroupRecordStrideInBytes = hitGroupRecordSize;
+            sbt.hitgroupRecordStrideInBytes = static_cast<unsigned int>(hitGroupRecordSize);
             sbt.hitgroupRecordCount = shaderTable->m_hitGroupCount;
             for (uint32_t i = 0; i < shaderTable->m_hitGroupCount; i++)
             {
-                SLANG_RETURN_ON_FAIL(writeTableEntry(
-                    hostPtr,
-                    shaderTable->m_hitGroupNames[i],
-                    (i < shaderTable->m_hitGroupRecordOverwrites.size()) ? &shaderTable->m_hitGroupRecordOverwrites[i]
-                                                                         : nullptr
-                ));
+                SLANG_RETURN_ON_FAIL(
+                    writeOwnedTableEntry(hostPtr, shaderTable->m_hitGroupNames[i], shaderTable->m_hitGroupRecords[i])
+                );
                 hostPtr += hitGroupRecordSize;
                 devicePtr += hitGroupRecordSize;
             }
@@ -1195,15 +1205,14 @@ public:
         if (shaderTable->m_callableShaderCount > 0)
         {
             sbt.callablesRecordBase = devicePtr;
-            sbt.callablesRecordStrideInBytes = callableRecordSize;
+            sbt.callablesRecordStrideInBytes = static_cast<unsigned int>(callableRecordSize);
             sbt.callablesRecordCount = shaderTable->m_callableShaderCount;
             for (uint32_t i = 0; i < shaderTable->m_callableShaderCount; i++)
             {
-                SLANG_RETURN_ON_FAIL(writeTableEntry(
+                SLANG_RETURN_ON_FAIL(writeOwnedTableEntry(
                     hostPtr,
                     shaderTable->m_callableShaderEntryPointNames[i],
-                    (i < shaderTable->m_callableRecordOverwrites.size()) ? &shaderTable->m_callableRecordOverwrites[i]
-                                                                         : nullptr
+                    shaderTable->m_callableRecords[i]
                 ));
                 hostPtr += callableRecordSize;
                 devicePtr += callableRecordSize;
