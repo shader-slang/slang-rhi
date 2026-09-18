@@ -377,7 +377,9 @@ VkAccessFlagBits calcAccessFlags(ResourceState state)
     case ResourceState::RenderTarget:
         return VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
     case ResourceState::ShaderResource:
-        return VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+        // Read-only shader access (storage buffers, uniform texel buffers, sampled images) is
+        // VK_ACCESS_SHADER_READ_BIT in Vulkan (shader-slang/slang-rhi#859).
+        return VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT);
     case ResourceState::UnorderedAccess:
         return VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
     case ResourceState::DepthRead:
