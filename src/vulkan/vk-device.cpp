@@ -1934,80 +1934,47 @@ Result DeviceImpl::getQueue(QueueType type, ICommandQueue** outQueue)
 
 Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* outData)
 {
-    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
-    if (offset + size > bufferImpl->m_desc.size)
+    if (!buffer || !outData || size == 0)
     {
-        return SLANG_FAIL;
+        return SLANG_E_INVALID_ARG;
     }
 
-    // create staging buffer
-    VKBufferHandleRAII staging;
+    BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
 
-    SLANG_RETURN_ON_FAIL(staging.init(
-        m_api,
-        size,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    ));
+    // Validate the range without computing `offset + size`, which can overflow: check that
+    // `offset` lies within the buffer first, then that the remaining space holds `size` bytes.
+    if (offset > bufferImpl->m_desc.size || size > bufferImpl->m_desc.size - offset)
+    {
+        return SLANG_E_INVALID_ARG;
+    }
 
-    // Copy from real buffer to staging buffer
-    VkCommandBuffer commandBuffer = m_deviceQueue.getCommandBuffer();
+    // Read back through the pooled readback heap (as Device::readTexture does) so repeated
+    // small reads reuse staging pages.
+    ComPtr<ICommandQueue> queue;
+    SLANG_RETURN_ON_FAIL(getQueue(QueueType::Graphics, queue.writeRef()));
 
-    VkBufferMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    barrier.srcAccessMask = calcAccessFlags(bufferImpl->m_desc.defaultState);
-    barrier.dstAccessMask = calcAccessFlags(ResourceState::CopySource);
-    barrier.buffer = bufferImpl->m_buffer.m_buffer;
-    barrier.offset = 0;
-    barrier.size = bufferImpl->m_desc.size;
+    ComPtr<ICommandEncoder> commandEncoder;
+    SLANG_RETURN_ON_FAIL(queue->createCommandEncoder(commandEncoder.writeRef()));
 
-    VkPipelineStageFlags srcStageFlags =
-        calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, bufferImpl->m_desc.defaultState, true);
-    VkPipelineStageFlags dstStageFlags =
-        calcPipelineStageFlags(m_api.m_supportedShaderStageFlags, ResourceState::CopySource, false);
+    RefPtr<StagingHeap::Handle> staging;
+    SLANG_RETURN_ON_FAIL(m_readbackHeap.allocHandle(size, {}, staging.writeRef()));
 
-    m_api.vkCmdPipelineBarrier(
-        commandBuffer,
-        srcStageFlags,
-        dstStageFlags,
-        VkDependencyFlags(0),
-        0,
-        nullptr,
-        1,
-        &barrier,
-        0,
-        nullptr
-    );
+    commandEncoder->copyBuffer(staging->getBuffer(), staging->getOffset(), buffer, offset, size);
 
-    VkBufferCopy copyInfo = {};
-    copyInfo.size = size;
-    copyInfo.srcOffset = offset;
-    m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer.m_buffer, staging.m_buffer, 1, &copyInfo);
+    // Tie the staging allocation to command completion: the command list retains it until the
+    // submission retires, so if waitOnHost fails after submit the pooled page is not returned to
+    // the shared heap while the GPU copy may still be writing it.
+    checked_cast<CommandEncoder*>(commandEncoder.get())->m_commandList->retainResource(staging);
 
-    std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
-    std::swap(srcStageFlags, dstStageFlags);
+    SLANG_RETURN_ON_FAIL(queue->submit(commandEncoder->finish()));
+    SLANG_RETURN_ON_FAIL(queue->waitOnHost());
 
-    m_api.vkCmdPipelineBarrier(
-        commandBuffer,
-        srcStageFlags,
-        dstStageFlags,
-        VkDependencyFlags(0),
-        0,
-        nullptr,
-        1,
-        &barrier,
-        0,
-        nullptr
-    );
-
-    m_deviceQueue.flushAndWait();
-
-    // Write out the data from the buffer
-    void* mappedData = nullptr;
-    SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
+    void* mappedData;
+    SLANG_RETURN_ON_FAIL(staging->map(&mappedData));
 
     std::memcpy(outData, mappedData, size);
-    m_api.vkUnmapMemory(m_device, staging.m_memory);
+
+    SLANG_RETURN_ON_FAIL(staging->unmap());
 
     return SLANG_OK;
 }
