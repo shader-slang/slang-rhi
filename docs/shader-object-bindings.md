@@ -69,6 +69,8 @@ Persistent storage trades memory and first-use cost for lower repeated CPU cost.
 
 ## Benchmark
 
+For the broader comparison against the original branch base, including changing blocks, graphics, ray tracing, fresh-object costs, and regressions, see [the whole-branch benchmark study](shader-object-binding-benchmarks.md). The measurements below describe earlier individual stages and warm reuse.
+
 Build and run an optimized configuration:
 
 ```powershell

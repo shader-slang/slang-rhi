@@ -1,0 +1,122 @@
+{
+  "before_revision": "82c03494",
+  "after_revision": "352b2f49",
+  "cpu": "AMD Ryzen 9 3900X (12 cores / 24 threads)",
+  "gpu": "NVIDIA TITAN RTX",
+  "driver": "610.74",
+  "compiler": "MSVC 19.39.33523.0",
+  "slang": "2026.12.2",
+  "build": "Release /O2 /Ob2 /DNDEBUG",
+  "series": {
+    "main-1024": {
+      "platform": "Windows-10-10.0.19045-SP0",
+      "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+      "runs": 3,
+      "count": 1024,
+      "samples": 7,
+      "filter": "benchmark-bindings-compute.*,benchmark-bindings-graphics.*,benchmark-bindings-ray-tracing.d3d12,benchmark-bindings-ray-tracing.vulkan",
+      "priority": "above normal",
+      "affinity": "inherited",
+      "executables": {
+        "before": {
+          "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+          "sha256": "b9574440dbda996d8fd777490e22bc211ec045477d560e960981d4ae0b5ce28e"
+        },
+        "after": {
+          "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+          "sha256": "759b6950d4c2302c7bad737bcc3d9ac0ad839bd012a656471b356af8a2015e38"
+        }
+      }
+    },
+    "small-64": {
+      "platform": "Windows-10-10.0.19045-SP0",
+      "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+      "runs": 3,
+      "count": 64,
+      "samples": 7,
+      "filter": "benchmark-bindings-*",
+      "priority": "above normal",
+      "affinity": "inherited",
+      "executables": {
+        "before": {
+          "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+          "sha256": "b9574440dbda996d8fd777490e22bc211ec045477d560e960981d4ae0b5ce28e"
+        },
+        "after": {
+          "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+          "sha256": "759b6950d4c2302c7bad737bcc3d9ac0ad839bd012a656471b356af8a2015e38"
+        }
+      }
+    },
+    "pinned-1024": {
+      "platform": "Windows-10-10.0.19045-SP0",
+      "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+      "runs": 3,
+      "count": 1024,
+      "samples": 7,
+      "filter": "benchmark-bindings-compute.cpu,benchmark-bindings-compute.cuda,benchmark-bindings-compute.d3d11,benchmark-bindings-graphics.d3d11,benchmark-bindings-compute.wgpu,benchmark-bindings-graphics.wgpu",
+      "priority": "above normal",
+      "affinity": "0x4",
+      "executables": {
+        "before": {
+          "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+          "sha256": "b9574440dbda996d8fd777490e22bc211ec045477d560e960981d4ae0b5ce28e"
+        },
+        "after": {
+          "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+          "sha256": "759b6950d4c2302c7bad737bcc3d9ac0ad839bd012a656471b356af8a2015e38"
+        }
+      }
+    },
+    "cuda-isolated-mutable": {
+      "platform": "Windows-10-10.0.19045-SP0",
+      "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+      "runs": 5,
+      "count": 1024,
+      "samples": 7,
+      "filter": "benchmark-bindings-compute.cuda",
+      "mode": 2,
+      "priority": "above normal",
+      "affinity": "0x4",
+      "executables": {
+        "before": {
+          "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+          "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1"
+        },
+        "after": {
+          "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+          "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4"
+        }
+      }
+    },
+    "cuda-isolated-two-frozen": {
+      "platform": "Windows-10-10.0.19045-SP0",
+      "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+      "runs": 3,
+      "count": 1024,
+      "samples": 7,
+      "filter": "benchmark-bindings-compute.cuda",
+      "mode": 4,
+      "priority": "above normal",
+      "affinity": "0x4",
+      "executables": {
+        "before": {
+          "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+          "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1"
+        },
+        "after": {
+          "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+          "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4"
+        }
+      }
+    }
+  },
+  "fixture_sha256": {
+    "test-benchmark-bindings-common.slang": "9155c5671a3f438c8f27dc627b3057a9bf8083c1453660cc48dbf80edcee844f",
+    "test-benchmark-bindings-compute.slang": "129375cb2bb7c1dcb90cc60c205670c2cdb0f361e5db636376c828298bfbf5ab",
+    "test-benchmark-bindings-graphics.slang": "0815b151ef858b8c1ef1ecaae56ff18bda7c400e1e9a9e8725b61bba0ad02bfb",
+    "test-benchmark-bindings-ray-tracing.slang": "f8ddf175bc2a9bb75c3d8e5534b0692336bd499d1356e6441149da24055a3df8",
+    "test-benchmark-bindings.cpp": "2180cc40df47bf9307df03e5fc44f17fd2decfdd2f71bbc2bf3b2f76e7ed6057"
+  },
+  "notes": "Mode isolation was added after the main/small/pinned runs. The measured loops and shaders are identical; the later option skips setup and execution of other modes. Each before/after pair used identical fixture sources."
+}
