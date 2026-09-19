@@ -239,10 +239,11 @@ void run(IDevice* device, Workload workload)
     uint32_t count = setting("SLANG_RHI_BINDING_BENCHMARK_COUNT", 1024);
     uint32_t samples = setting("SLANG_RHI_BINDING_BENCHMARK_SAMPLES", 7);
     uint32_t selectedMode = setting("SLANG_RHI_BINDING_BENCHMARK_MODE", ModeCount, 0);
+    uint32_t modeMask = setting("SLANG_RHI_BINDING_BENCHMARK_MODE_MASK", (1u << ModeCount) - 1, 0);
     State states[ModeCount];
     for (uint32_t mode = 0; mode < ModeCount; ++mode)
     {
-        if (selectedMode < ModeCount && mode != selectedMode)
+        if ((selectedMode < ModeCount && mode != selectedMode) || !(modeMask & (1u << mode)))
             continue;
         auto& s = states[mode];
         s.blocks.resize(kMaterials);
@@ -264,7 +265,7 @@ void run(IDevice* device, Workload workload)
         for (uint32_t index = 0; index < ModeCount; ++index)
         {
             uint32_t mode = (index + sample) % ModeCount;
-            if (selectedMode < ModeCount && mode != selectedMode)
+            if ((selectedMode < ModeCount && mode != selectedMode) || !(modeMask & (1u << mode)))
                 continue;
             auto& s = states[mode];
             bool rotating = mode == RotateMutable || mode == RotateFrozen;

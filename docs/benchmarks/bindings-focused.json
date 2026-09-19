@@ -1,0 +1,3588 @@
+{
+  "before_revision": "82c03494bed8e2d42d65555e33b30a18d3d8f071",
+  "after_revision": "16948268e445b76bc1adcdd39f48f1968af29710",
+  "collection_dates": "2026-09-19/2026-09-20 Europe/Zurich",
+  "host": {
+    "cpu": "AMD Ryzen 9 3900X",
+    "gpu": "NVIDIA TITAN RTX",
+    "driver": "610.74",
+    "power_plan": "AMD Ryzen Balanced",
+    "os": "Windows 10 10.0.19045"
+  },
+  "normal_comparisons": 230,
+  "normal_measured_samples": 14196,
+  "diagnostic_metric_comparisons": 1196,
+  "diagnostic_measured_samples": 2520,
+  "notes": [
+    "Normal series before mode-mask controls use the original executables, preserved beside the rebuilt binaries as slang-rhi-tests-binding-pre-mask.exe.",
+    "Mode-mask controls use rebuilt executables with the same benchmark-only change on both revisions. Per-series executable hashes distinguish the two versions.",
+    "Diagnostic builds use /O2 /Ob2 /DNDEBUG, Slang 2026.12.2, static RHI, CPU and WebGPU enabled, other backends and GLFW disabled. Agility SDK remains enabled.",
+    "Profiler timers are inclusive. Native call counts and requested/copied bytes do not have timer-overhead ambiguity; times do.",
+    "Raw logs and samples remain in the build directories named by each series. No library implementation edits."
+  ],
+  "source_hashes": {
+    "tests/test-benchmark-bindings.cpp": "a56b0620841930a11aebfdbf64a5f85bea5e3e6f922036866f6e980e404df09c",
+    "tools/benchmark-bindings.py": "68a207e38cc604c975125222b495c98cc74a99fb6b076b8bedc6bd579067a159",
+    "tools/benchmark-bindings-focused.py": "2fd4ee3a71014bbc98889f177d95d3a889dc1a50975b85f239e0d902583ef90f",
+    "tools/profile-bindings-wgpu.py": "31c997838c62c13f2dd439631a8ab52cf8ae41987ad27f32f01e88c298d36894",
+    "tools/benchmark-bindings-wgpu-profile.h": "b03b662aa568ec26f43f5353dff4a2bd7adacd8e383de128e7cb5d8cbd4bb2ed"
+  },
+  "series": [
+    {
+      "name": "binding-focused-main",
+      "kind": "normal",
+      "comparisons": 84,
+      "measured_samples": 5880,
+      "configuration": [
+        {
+          "directory": "benchmark-bindings-compute.cpu-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cpu",
+          "mode": 2,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cpu-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cpu",
+          "mode": 3,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cpu-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cpu",
+          "mode": 4,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cpu-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cpu",
+          "mode": 6,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cpu-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cpu",
+          "mode": 7,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cpu-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cpu",
+          "mode": 10,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cpu-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cpu",
+          "mode": 11,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cuda-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cuda",
+          "mode": 2,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cuda-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cuda",
+          "mode": 3,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cuda-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cuda",
+          "mode": 4,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cuda-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cuda",
+          "mode": 6,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cuda-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cuda",
+          "mode": 7,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cuda-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cuda",
+          "mode": 10,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.cuda-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.cuda",
+          "mode": 11,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d11-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d11",
+          "mode": 2,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d11-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d11",
+          "mode": 3,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d11-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d11",
+          "mode": 4,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d11-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d11",
+          "mode": 6,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d11-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d11",
+          "mode": 7,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d11-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d11",
+          "mode": 10,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d11-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d11",
+          "mode": 11,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d11-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d11",
+          "mode": 2,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d11-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d11",
+          "mode": 3,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d11-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d11",
+          "mode": 4,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d11-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d11",
+          "mode": 6,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d11-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d11",
+          "mode": 7,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d11-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d11",
+          "mode": 10,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d11-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d11",
+          "mode": 11,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d12-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d12",
+          "mode": 2,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d12-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d12",
+          "mode": 3,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d12-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d12",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d12-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d12",
+          "mode": 6,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d12-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d12",
+          "mode": 7,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d12-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d12",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.d3d12-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.d3d12",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d12-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d12",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d12-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d12",
+          "mode": 3,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d12-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d12",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d12-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d12",
+          "mode": 6,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d12-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d12",
+          "mode": 7,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d12-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d12",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.d3d12-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.d3d12",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.d3d12-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.d3d12",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.d3d12-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.d3d12",
+          "mode": 3,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.d3d12-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.d3d12",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.d3d12-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.d3d12",
+          "mode": 6,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.d3d12-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.d3d12",
+          "mode": 7,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.d3d12-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.d3d12",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.d3d12-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.d3d12",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.vulkan-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.vulkan",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.vulkan-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.vulkan",
+          "mode": 3,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.vulkan-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.vulkan",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.vulkan-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.vulkan",
+          "mode": 6,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.vulkan-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.vulkan",
+          "mode": 7,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.vulkan-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.vulkan",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.vulkan-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.vulkan",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.vulkan-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.vulkan",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.vulkan-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.vulkan",
+          "mode": 3,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.vulkan-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.vulkan",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.vulkan-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.vulkan",
+          "mode": 6,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.vulkan-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.vulkan",
+          "mode": 7,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.vulkan-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.vulkan",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.vulkan-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.vulkan",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.vulkan-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.vulkan",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.vulkan-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.vulkan",
+          "mode": 3,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.vulkan-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.vulkan",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.vulkan-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.vulkan",
+          "mode": 6,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.vulkan-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.vulkan",
+          "mode": 7,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.vulkan-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.vulkan",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-ray-tracing.vulkan-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-ray-tracing.vulkan",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 3,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 6,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 7,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-3",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 3,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-6",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 6,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-7",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 7,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 5,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "binding-focused-mask-compute-all-modes",
+      "kind": "normal",
+      "comparisons": 13,
+      "measured_samples": 910,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": null,
+        "mode_mask": null,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-compute-isolated",
+      "kind": "normal",
+      "comparisons": 1,
+      "measured_samples": 70,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": 10,
+        "mode_mask": null,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-compute-reused-only",
+      "kind": "normal",
+      "comparisons": 11,
+      "measured_samples": 770,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": null,
+        "mode_mask": 7423,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-compute-without-fresh-finalized",
+      "kind": "normal",
+      "comparisons": 12,
+      "measured_samples": 504,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": null,
+        "mode_mask": 7679,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-compute-without-fresh-mutable",
+      "kind": "normal",
+      "comparisons": 12,
+      "measured_samples": 504,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": null,
+        "mode_mask": 7935,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-graphics-all-modes",
+      "kind": "normal",
+      "comparisons": 13,
+      "measured_samples": 910,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": null,
+        "mode_mask": null,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-graphics-isolated",
+      "kind": "normal",
+      "comparisons": 1,
+      "measured_samples": 70,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": 10,
+        "mode_mask": null,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-graphics-reused-only",
+      "kind": "normal",
+      "comparisons": 11,
+      "measured_samples": 770,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": null,
+        "mode_mask": 7423,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-graphics-without-fresh-finalized",
+      "kind": "normal",
+      "comparisons": 12,
+      "measured_samples": 504,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": null,
+        "mode_mask": 7679,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-mask-graphics-without-fresh-mutable",
+      "kind": "normal",
+      "comparisons": 12,
+      "measured_samples": 504,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": null,
+        "mode_mask": 7935,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1",
+            "preserved_path": "build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-wgpu-mixed-compute",
+      "kind": "normal",
+      "comparisons": 13,
+      "measured_samples": 910,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": null,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+            "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-wgpu-mixed-graphics",
+      "kind": "normal",
+      "comparisons": 13,
+      "measured_samples": 910,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": null,
+        "profile_wgpu": false,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+            "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-wgpu-mutate-bulk",
+      "kind": "normal",
+      "comparisons": 4,
+      "measured_samples": 168,
+      "configuration": [
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-5",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 5,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-12",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 12,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-5",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 5,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-12",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 12,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "binding-focused-wgpu-rotate-compute",
+      "kind": "normal",
+      "comparisons": 1,
+      "measured_samples": 70,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": 10,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+            "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-wgpu-rotate-graphics",
+      "kind": "normal",
+      "comparisons": 1,
+      "measured_samples": 70,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 5,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": 10,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+            "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+            "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+            "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-focused-wgpu-small",
+      "kind": "normal",
+      "comparisons": 8,
+      "measured_samples": 336,
+      "configuration": [
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 64,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 64,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 64,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 64,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 64,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 64,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 64,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 64,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "0x4",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "binding-focused-wgpu-unpinned",
+      "kind": "normal",
+      "comparisons": 8,
+      "measured_samples": 336,
+      "configuration": [
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "inherited",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "inherited",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "inherited",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-compute.wgpu-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-compute.wgpu",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "inherited",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-2",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 2,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "inherited",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-4",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 4,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "inherited",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-10",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 10,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "inherited",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        },
+        {
+          "directory": "benchmark-bindings-graphics.wgpu-mode-11",
+          "platform": "Windows-10-10.0.19045-SP0",
+          "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+          "runs": 3,
+          "count": 1024,
+          "samples": 7,
+          "filter": "benchmark-bindings-graphics.wgpu",
+          "mode": 11,
+          "profile_wgpu": false,
+          "priority": "above normal",
+          "affinity": "inherited",
+          "executables": {
+            "before": {
+              "path": "C:\\projects\\slang-rhi\\build\\binding-matrix-base-build\\Release\\slang-rhi-tests.exe",
+              "sha256": "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1",
+              "preserved_path": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            },
+            "after": {
+              "path": "C:\\projects\\slang-rhi\\build\\Release\\slang-rhi-tests.exe",
+              "sha256": "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4",
+              "preserved_path": "build/Release/slang-rhi-tests-binding-pre-mask.exe"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "binding-profile-compute-all-modes",
+      "kind": "instrumented",
+      "comparisons": 13,
+      "profile_metrics": 280,
+      "measured_samples": 546,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": null,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-compute-mode-10",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 21,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": 10,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-compute-mode-11",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 21,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": 11,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-compute-mode-2",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 21,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": 2,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-compute-mode-4",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 22,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": 4,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-compute-reused-only",
+      "kind": "instrumented",
+      "comparisons": 11,
+      "profile_metrics": 235,
+      "measured_samples": 462,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": null,
+        "mode_mask": 7423,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-graphics-all-modes",
+      "kind": "instrumented",
+      "comparisons": 13,
+      "profile_metrics": 241,
+      "measured_samples": 546,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": null,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-graphics-mode-10",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 18,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": 10,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-graphics-mode-11",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 18,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": 11,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-graphics-mode-2",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 18,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": 2,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-graphics-mode-4",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 19,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": 4,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-graphics-reused-only",
+      "kind": "instrumented",
+      "comparisons": 11,
+      "profile_metrics": 202,
+      "measured_samples": 462,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 1024,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": null,
+        "mode_mask": 7423,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-small-compute-mode-2",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 21,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 64,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": 2,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-small-compute-mode-4",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 22,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 64,
+        "samples": 7,
+        "filter": "benchmark-bindings-compute.wgpu",
+        "mode": 4,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-small-graphics-mode-2",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 18,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 64,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": 2,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    },
+    {
+      "name": "binding-profile-small-graphics-mode-4",
+      "kind": "instrumented",
+      "comparisons": 1,
+      "profile_metrics": 19,
+      "measured_samples": 42,
+      "configuration": {
+        "platform": "Windows-10-10.0.19045-SP0",
+        "processor": "AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD",
+        "runs": 3,
+        "count": 64,
+        "samples": 7,
+        "filter": "benchmark-bindings-graphics.wgpu",
+        "mode": 4,
+        "mode_mask": null,
+        "profile_wgpu": true,
+        "priority": "above normal",
+        "affinity": "0x4",
+        "executables": {
+          "before": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-before-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee",
+            "preserved_path": "build/binding-profile-before-build/Release/slang-rhi-tests.exe"
+          },
+          "after": {
+            "path": "C:\\projects\\slang-rhi\\build\\binding-profile-after-build\\Release\\slang-rhi-tests.exe",
+            "sha256": "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9",
+            "preserved_path": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+          }
+        }
+      }
+    }
+  ],
+  "runtime_hashes": {
+    "dawn.dll": "a993806c0c0124236a8c03bfd84143c663ce46747ef4fa69aeb6a4d2568831ef",
+    "slang.dll": "185212f1605e84b77dc51f450cf5effd8b495c8cb82849627a3998fe8dad7112",
+    "slang-compiler.dll": "3ea5675a4319745acb78bd6c1f28299abea142399b2e99abcd5a2617928dd45c",
+    "slang-rt.dll": "19671901a70402c28dbbe4b12675d5c16ac74142533b9dc6bcaf3e9fd20d0c4e"
+  },
+  "executable_archives": {
+    "ec6dc52b045bb1c2e06c1ae9d5b14a8a9944134edf72f560ea5a0156e441c8b4": "build/Release/slang-rhi-tests-binding-pre-mask.exe",
+    "a333c8e239d979b48d3f0b8fea15431a807fcf50cf26333f7fcac24152eb3df1": "build/binding-matrix-base-build/Release/slang-rhi-tests-binding-pre-mask.exe",
+    "5f0cf1aa9946461e0b4a488e16cbf4a5e6c9e28b40a1de6514b52b3f779144e1": "build/Release/slang-rhi-tests.exe",
+    "724a344498bf7683a0e0925a0370b2c9f0aedda32e12027fa9d5625889e9677d": "build/binding-matrix-base-build/Release/slang-rhi-tests.exe",
+    "570f496b84b4d2bb83bf52744ece6384434a5c2802e164e71db02e1e3a3d86ee": "build/binding-profile-before-build/Release/slang-rhi-tests.exe",
+    "a43969a4521b71159a57169dcc32ad9626593d75a19b2bbdff9885687500d2c9": "build/binding-profile-after-build/Release/slang-rhi-tests.exe"
+  }
+}

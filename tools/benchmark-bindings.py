@@ -19,6 +19,11 @@ import subprocess
 
 
 METRICS = ("setup", "encode", "finish", "submit", "retire", "cpu", "wall", "gpu")
+# Keep this order identical to kModes in tests/test-benchmark-bindings.cpp.
+MODES = ("static-mutable", "static-frozen-root", "root-mutable-blocks", "root-one-frozen-block",
+         "root-two-frozen-blocks", "mutate-blocks", "swap-mutable-blocks", "swap-frozen-blocks",
+         "fresh-mutable-blocks", "fresh-frozen-blocks", "rotate-mutable-roots", "rotate-frozen-roots",
+         "bulk-root-two-frozen-blocks")
 
 
 def main():
@@ -32,9 +37,16 @@ def main():
     parser.add_argument("--filter", default="benchmark-bindings-*")
     parser.add_argument("--affinity-mask", type=lambda value: int(value, 0), help="Optional Windows process CPU mask")
     parser.add_argument("--mode", type=int, choices=range(13), help="Isolate one mode (index in kModes in the C++ fixture)")
+    parser.add_argument("--mode-mask", type=lambda value: int(value, 0), help="Run a subset together; bit N selects mode N")
+    parser.add_argument("--profile-wgpu", action="store_true", help="Collect diagnostic hooks from disposable WebGPU builds")
     args = parser.parse_args()
     if min(args.runs, args.count, args.samples) < 1:
         parser.error("runs, count, and samples must be positive")
+    if args.mode_mask is not None and (args.mode is not None or not 0 < args.mode_mask < (1 << 13)):
+        parser.error("mode-mask must select modes 0..12 and cannot be combined with mode")
+    expected_modes = {name for index, name in enumerate(MODES)
+                      if (args.mode is None or index == args.mode)
+                      and (args.mode_mask is None or args.mode_mask & (1 << index))}
     if args.affinity_mask is not None and (os.name != "nt" or args.affinity_mask <= 0):
         parser.error("affinity-mask requires Windows and a positive mask")
     args.output.mkdir(parents=True, exist_ok=True)
@@ -47,6 +59,8 @@ def main():
         "samples": args.samples,
         "filter": args.filter,
         "mode": args.mode,
+        "mode_mask": args.mode_mask,
+        "profile_wgpu": args.profile_wgpu,
         "priority": "above normal" if os.name == "nt" else "inherited",
         "affinity": hex(args.affinity_mask) if args.affinity_mask is not None else "inherited",
         "executables": {
@@ -62,7 +76,12 @@ def main():
         env["SLANG_RHI_BINDING_BENCHMARK_MODE"] = str(args.mode)
     else:
         env.pop("SLANG_RHI_BINDING_BENCHMARK_MODE", None)
+    if args.mode_mask is not None:
+        env["SLANG_RHI_BINDING_BENCHMARK_MODE_MASK"] = str(args.mode_mask)
+    else:
+        env.pop("SLANG_RHI_BINDING_BENCHMARK_MODE_MASK", None)
     rows = []
+    profiles = []
     for run in range(args.runs):
         for version in (("before", "after") if run % 2 == 0 else ("after", "before")):
             log = args.output / f"{version}-{run + 1}.txt"
@@ -90,6 +109,8 @@ def main():
                 if len(fields) != 13:
                     raise RuntimeError(f"Malformed result in {log}: {match.group(0)}")
                 workload, backend, mode, count, sample, *values = fields
+                if mode not in expected_modes or int(count) != args.count:
+                    raise RuntimeError(f"Executable did not honor the requested mode/count in {log}: {match.group(0)}")
                 row = dict(version=version, run=run + 1, workload=workload, backend=backend,
                            mode=mode, count=int(count), sample=int(sample))
                 row.update(zip(METRICS, map(float, values)))
@@ -97,6 +118,20 @@ def main():
                 parsed += 1
             if not parsed:
                 raise RuntimeError(f"No benchmark samples found in {log}")
+            for workload, backend in {(r["workload"], r["backend"]) for r in rows if r["version"] == version and r["run"] == run + 1}:
+                observed = {r["mode"] for r in rows if r["version"] == version and r["run"] == run + 1
+                            and r["workload"] == workload and r["backend"] == backend}
+                if observed != expected_modes:
+                    raise RuntimeError(f"Incomplete mode selection in {log}: {observed}")
+            if args.profile_wgpu:
+                matches = re.findall(r"binding-profile,([^\r\n]+)", log.read_text(encoding="utf-8"))
+                if not matches:
+                    raise RuntimeError(f"No WebGPU diagnostic hooks found in {log}")
+                for match in matches:
+                    workload, mode, count, sample, phase, metric, calls, ns, amount = match.split(",")
+                    profiles.append(dict(version=version, run=run + 1, workload=workload, backend="wgpu",
+                                         mode=mode, count=int(count), sample=int(sample), phase=phase, metric=metric,
+                                         calls=int(calls), ns=int(ns), amount=int(amount)))
             print(f"  {parsed} checked samples", flush=True)
     with (args.output / "samples.csv").open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
@@ -128,6 +163,30 @@ def main():
         writer.writeheader()
         writer.writerows(summary)
     print(f"Saved {len(summary)} comparisons to {args.output / 'comparison.csv'}", flush=True)
+    if args.profile_wgpu:
+        with (args.output / "profile-samples.csv").open("w", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=list(profiles[0]))
+            writer.writeheader()
+            writer.writerows(profiles)
+        profile_keys = ("workload", "backend", "mode", "count", "phase", "metric")
+        # An absent metric is zero calls (e.g. no uniform upload on a warmed frozen root).
+        buckets = {(*[r[k] for k in profile_keys], r["version"], r["run"], r["sample"]): r for r in profiles}
+        comparisons = []
+        for key in sorted({tuple(r[k] for k in profile_keys) for r in profiles}):
+            row = dict(zip(profile_keys, key))
+            for version in executables:
+                for field in ("calls", "ns", "amount"):
+                    run_medians = [statistics.median([
+                        buckets.get((*key, version, run, sample), {}).get(field, 0)
+                        for sample in range(1, args.samples + 1)]) for run in range(1, args.runs + 1)]
+                    value = statistics.median(run_medians)
+                    suffix = "ns_per_dispatch" if field == "ns" else field + "_per_batch"
+                    row[f"{version}_{suffix}"] = round(value / row["count"] if field == "ns" else value, 1)
+            comparisons.append(row)
+        with (args.output / "profile-comparison.csv").open("w", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=list(comparisons[0]))
+            writer.writeheader()
+            writer.writerows(comparisons)
 
 
 if __name__ == "__main__":

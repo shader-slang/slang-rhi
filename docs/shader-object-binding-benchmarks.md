@@ -132,6 +132,8 @@ CUDA ray tracing with 1,024 launches failed with invalid CUDA events on **both r
 
 ## Conclusions and next work
 
+The [focused follow-up](shader-object-binding-followup.md) adds isolated comparisons and WebGPU native-call profiles. It reproduces the large WebGPU submission penalty only when the mixed workload includes one-use finalized objects, identifies remaining encoding variability, and measures a substantial fixed cost from transient uniform-page creation and mapping. Use its reusable-only controls when assessing the next optimization stage.
+
 The branch is useful for bindings reused across many calls, particularly D3D12/Vulkan/WebGPU graphics and compute. Typical gains are much smaller than the allocator-only microbenchmark suggested. D3D11 block reuse gives small gains, and CUDA launch/submission work limits its total benefit.
 
 Before calling performance validation complete, profile the mutable controls, especially WebGPU root rotation and CPU object creation/traversal. Investigate CUDA's mixed-mode timing sensitivity and the ray-tracing stress failure separately. Application-level validation should include texture/sampler-heavy materials, pipeline changes, substantial GPU work, and Metal hardware. No library fixes were mixed into this measurement study.
